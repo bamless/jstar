@@ -39,7 +39,7 @@ static LinkedList *parseStmtOrDecl(Parser *p) {
 	LinkedList *stmts = NULL;
 
 	while(!match(p, TOK_EOF)) {
-		if(match(p, TOK_FUN)) {
+		if(match(p, TOK_DEF)) {
 			stmts = addElement(stmts, parseFuncDecl(p));
 		} else if(match(p, TOK_VAR)) {
 			stmts = addElement(stmts, varDecl(p));
@@ -53,7 +53,7 @@ static LinkedList *parseStmtOrDecl(Parser *p) {
 
 Stmt *parseFuncDecl(Parser *p) {
 	int line = p->peek.line;
-	require(p, TOK_FUN);
+	require(p, TOK_DEF);
 
 	const char *name = NULL;
 	size_t length = 0;
@@ -243,7 +243,7 @@ static void synchronize(Parser *p) {
 		}
 
 		switch(p->peek.type) {
-		case TOK_FUN:
+		case TOK_DEF:
 		case TOK_VAR:
 		case TOK_FOR:
 		case TOK_IF:

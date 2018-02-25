@@ -15,7 +15,7 @@ static Keyword keywords[] = {
 	{"else",    4, TOK_ELSE},
 	{"false",   5, TOK_FALSE},
 	{"for",     3, TOK_FOR},
-	{"fun",     3, TOK_FUN},
+	{"def",     3, TOK_DEF},
 	{"if",      2, TOK_IF},
 	{"nil",     3, TOK_NIL},
 	{"or",      2, TOK_OR},

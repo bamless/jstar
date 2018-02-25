@@ -33,7 +33,7 @@ typedef enum {
 	TOK_CLASS,
 	TOK_ELSE,
 	TOK_FALSE,
-	TOK_FUN,
+	TOK_DEF,
 	TOK_FOR,
 	TOK_IF,
 	TOK_NIL,
