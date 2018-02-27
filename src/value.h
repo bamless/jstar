@@ -1,6 +1,7 @@
 #ifndef VALUE_H
 #define VALUE_H
 
+#include <stdlib.h>
 #include <stdint.h>
 
 typedef uint64_t Value;
@@ -45,8 +46,16 @@ static inline double valueToNum(Value val) {
 	return c.num;
 }
 
+#define VAL_ARR_DEF_SZ 16
+#define VAL_ARR_GROW_FAC 2
+
 typedef struct ValueArray {
-	int temp;
+	size_t size, count;
+	Value *arr;
 } ValueArray;
+
+void initValueArray(ValueArray *a);
+void freeValueArray(ValueArray *a);
+void valueArrayAppend(ValueArray *a, Value v);
 
 #endif
