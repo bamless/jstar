@@ -45,4 +45,8 @@ static inline double valueToNum(Value val) {
 	return c.num;
 }
 
+typedef struct ValueArray {
+	int temp;
+} ValueArray;
+
 #endif

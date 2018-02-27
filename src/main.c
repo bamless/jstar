@@ -2,6 +2,8 @@
 
 #include "parser.h"
 #include "value.h"
+#include "object.h"
+#include "hashtable.h"
 
 int main(int argc, char **argv) {
 	if(argc < 2) {
@@ -28,4 +30,38 @@ int main(int argc, char **argv) {
 	}
 
 	freeProgram(program);
+	
+	HashTable t;
+	initHashTable(&t);
+
+	ObjString *k = malloc(sizeof(*k));
+	k->length = 4;
+	k->data = "ciao";
+	k->hash = 1000;
+
+	Value v = NUM_VAL(20);
+	hashTablePut(&t, k, v);
+
+	ObjString *k2 = malloc(sizeof(*k));
+	k2->length = 5;
+	k2->data = "ciao2";
+	k2->hash = 1000;
+
+	v = NUM_VAL(50);
+	hashTablePut(&t, k2, v);
+
+	printf("%s\n", 	hashTableGet(&t, k2, &v) ? "found!" : "nope");
+	printf("%g\n", 	AS_NUM(v));
+
+	printf("%s\n", hashTableDel(&t, k2) ? "deleted!" : "not deleted...");
+
+	v = NUM_VAL(32434);
+	hashTablePut(&t, k, v);
+
+	printf("%s\n", 	hashTableGet(&t, k, &v) ? "found!" : "nope");
+	printf("%g\n", AS_NUM(v));
+
+	freeHashTable(&t);
+	free(k);
+	free(k2);
 }
