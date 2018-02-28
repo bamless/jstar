@@ -10,7 +10,8 @@ typedef enum Operator {
 } Operator;
 
 typedef enum ExprType {
-	BINARY, UNARY, ASSIGN, NUM_LIT, STR_LIT, VAR_LIT, EXPR_LST, CALL_EXPR
+	BINARY, UNARY, ASSIGN, NUM_LIT, STR_LIT, VAR_LIT, NULL_LIT, EXPR_LST,
+	CALL_EXPR
 } ExprType;
 
 typedef struct Program {
@@ -63,6 +64,7 @@ struct Expr {
 Expr *newBinary(int line, Operator op, Expr *l, Expr *r);
 Expr *newAssign(int line, Expr *lval, Expr *rval);
 Expr *newUnary(int line, Operator op, Expr *operand);
+Expr *newNullLiteral(int line);
 Expr *newNumLiteral(int line, double num);
 Expr *newStrLiteral(int line, const char *str, size_t len);
 Expr *newVarLiteral(int line, const char *str, size_t len);

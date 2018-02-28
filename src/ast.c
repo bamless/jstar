@@ -56,6 +56,13 @@ Expr *newUnary(int line, Operator op, Expr *operand) {
 	return e;
 }
 
+Expr *newNullLiteral(int line) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = NULL_LIT;
+	return e;
+}
+
 Expr *newNumLiteral(int line, double num) {
 	Expr *e = malloc(sizeof(*e));
 	e->line = line;

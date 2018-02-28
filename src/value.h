@@ -56,6 +56,6 @@ typedef struct ValueArray {
 
 void initValueArray(ValueArray *a);
 void freeValueArray(ValueArray *a);
-void valueArrayAppend(ValueArray *a, Value v);
+size_t valueArrayAppend(ValueArray *a, Value v);
 
 #endif

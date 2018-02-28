@@ -30,6 +30,10 @@ void freeHashTable(HashTable *t) {
 	free(t->entries);
 }
 
+static bool keyEquals(ObjString *k1, ObjString *k2) {
+	return strcmp(k1->data, k2->data) == 0;
+}
+
 static void addEntry(HashTable *t, Entry *e) {
 	size_t index = e->key->hash % t->size;
 	e->next = t->entries[index];
@@ -41,8 +45,7 @@ static Entry *getEntry(HashTable *t, ObjString *key) {
 
 	Entry *buckHead = t->entries[index];
 	while(buckHead != NULL) {
-		if(buckHead->key->length == key->length &&
-				strncmp(buckHead->key->data, key->data, key->length) == 0) {
+		if(keyEquals(key, buckHead->key)) {
 			return buckHead;
 		}
 		buckHead = buckHead->next;
@@ -98,8 +101,7 @@ bool hashTableDel(HashTable *t, ObjString *key) {
 	Entry *prev = NULL;
 	Entry *buckHead = t->entries[index];
 	while(buckHead != NULL) {
-		if(buckHead->key->length == key->length &&
-				memcmp(buckHead->key->data, key->data, key->length) == 0) {
+		if(keyEquals(key, buckHead->key)) {
 			if(prev != NULL) prev->next = buckHead->next;
 			else t->entries[index] = buckHead->next;
 
