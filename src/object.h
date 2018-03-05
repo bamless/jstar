@@ -8,6 +8,8 @@
 #include "chunk.h"
 #include "value.h"
 
+extern const char *typeName[];
+
 #define OBJ_TYPE(o)  (AS_OBJ(o)->type)
 
 #define IS_STRING(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STRING)
@@ -24,7 +26,7 @@ typedef enum ObjType {
 
 typedef struct Obj {
 	ObjType type;
-	bool dark;
+	bool reached;
 	struct Obj *next;
 } Obj;
 

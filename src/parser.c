@@ -281,6 +281,10 @@ static Expr *literal(Parser *p) {
 		advance(p);
 		return e;
 	}
+	case TOK_NULL: {
+		advance(p);
+		return newNullLiteral(line);
+	}
 	case TOK_LPAREN: {
 		require(p, TOK_LPAREN);
 		Expr *e = parseExpr(p);

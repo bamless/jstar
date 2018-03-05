@@ -90,28 +90,40 @@ void hashTablePut(HashTable *t, ObjString *key, Value val) {
 
 bool hashTableGet(HashTable *t, ObjString *key, Value *res) {
 	Entry *e = getEntry(t, key);
-	if(e != NULL) *res = e->value;
-
-	return e != NULL;
+	if(e != NULL) {
+		*res = e->value;
+		return true;
+	}
+	return false;
 }
 
 bool hashTableDel(HashTable *t, ObjString *key) {
 	size_t index = key->hash % t->size;
 
-	Entry *prev = NULL;
-	Entry *buckHead = t->entries[index];
-	while(buckHead != NULL) {
-		if(keyEquals(key, buckHead->key)) {
-			if(prev != NULL) prev->next = buckHead->next;
-			else t->entries[index] = buckHead->next;
+	Entry **buckHead = &t->entries[index];
+	while(*buckHead != NULL) {
+		if(keyEquals(key, (*buckHead)->key)) {
+			Entry *f = *buckHead;
+			*buckHead = f->next;
 
-			free(buckHead);
+			free(f);
 			t->numEntries--;
 			return true;
+		} else {
+			buckHead = &(*buckHead)->next;
 		}
-		prev = buckHead;
-		buckHead = buckHead->next;
 	}
 
 	return false;
+}
+
+void reachHashTable(MemManager *m, HashTable *t) {
+	for(size_t i = 0; i < t->size; i++) {
+		Entry *buckHead = t->entries[i];
+		while(buckHead != NULL) {
+			reachObject(m, (Obj*) buckHead->key);
+			reachValue(m, buckHead->value);
+			buckHead = buckHead->next;
+		}
+	}
 }

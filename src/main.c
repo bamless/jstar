@@ -1,35 +1,46 @@
 #include <stdio.h>
+#include <string.h>
 
-#include "parser.h"
-#include "value.h"
-#include "object.h"
+#include "vm.h"
+#include "memory.h"
 #include "hashtable.h"
-#include "chunk.h"
 
-int main(int argc, char **argv) {
-	if(argc < 2) {
-		fprintf(stderr, "%s\n", "No source code privided.");
-		exit(1);
-	}
+int main() {
+	VM *vm = malloc(sizeof(*vm));
+	initVM(vm);
 
-	Parser p;
-	Program *program = parse(&p, argv[1]);
+	char *str = ALLOC(&vm->mem, strlen("string 1") + 1);
+	strcpy(str, "string 1");
+	ObjString *s = newString(&vm->mem, str, strlen(str));
 
-	if(p.hadError) {
-		freeProgram(program);
-		exit(2);
-	}
+	push(vm, OBJ_VAL(s)); //this should be reached on next gc passes
 
-	LinkedList *n;
-	foreach(n, program->stmts) {
-		Stmt *s = n->elem;
+	str = ALLOC(&vm->mem, strlen("string 2") + 1);
+	strcpy(str, "string 2");
+	s = newString(&vm->mem, str, strlen(str));
 
-		s->type == EXPR ? printf("%d\n", s->exprStmt->type) : printf("%d\n", s->type);
+	str = ALLOC(&vm->mem, strlen("interned string") + 1);
+	strcpy(str, "interned string");
+	s = newString(&vm->mem, str, strlen(str));
+	hashTablePut(&vm->strings, s, NULL_VAL);
 
-		if(s->type == FUNCDECL) {
-			printf("%.*s\n", (int) s->funcDecl.id.length, s->funcDecl.id.name);
-		}
-	}
+	str = ALLOC(&vm->mem, strlen("testFunc") + 1);
+	strcpy(str, "testFunc");
+	s = newString(&vm->mem, str, strlen(str));
 
-	freeProgram(program);
+	disableGC(&vm->mem, true);
+
+	ObjFunction *fn = newFunction(&vm->mem, 4);
+	fn->name = s;
+
+	push(vm, OBJ_VAL(fn));
+
+	disableGC(&vm->mem, false);
+
+	str = ALLOC(&vm->mem, strlen("string 3") + 1);
+	strcpy(str, "string 3");
+	s = newString(&vm->mem, str, strlen(str));
+
+	freeVM(vm);
+	free(vm);
 }

@@ -44,6 +44,13 @@ LIBS =
 # Source extension
 SRC_EXT = c
 
+ifeq ($(DBG_STRESS_GC),1)
+	CFLAGS += -DDBG_STRESS_GC
+endif
+ifeq ($(DBG_PRINT_GC),1)
+	CFLAGS += -DDBG_PRINT_GC
+endif
+
 ###### SETTINGS END ######
 
 # Recursive wildcard, used to get all c files in SRC directory recursively

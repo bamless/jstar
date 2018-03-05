@@ -36,7 +36,7 @@ typedef enum {
 	TOK_DEF,
 	TOK_FOR,
 	TOK_IF,
-	TOK_NIL,
+	TOK_NULL,
 	TOK_OR,
 	TOK_PRINT,
 	TOK_RETURN,

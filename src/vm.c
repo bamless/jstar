@@ -15,7 +15,7 @@ static void reset(VM *vm) {
 
 void freeVM(VM *vm) {
 	reset(vm);
-	freeMemoryManager(&vm->mem);
 	freeHashTable(&vm->globals);
 	freeHashTable(&vm->strings);
+	freeMemoryManager(&vm->mem);
 }

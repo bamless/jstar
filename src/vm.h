@@ -7,8 +7,8 @@
 
 #include <stdint.h>
 
-#define FRAME_SZ 1024
-#define STACK_SZ FRAME_SZ * UINT8_MAX
+#define FRAME_SZ 1000 // Max stack depth
+#define STACK_SZ FRAME_SZ * UINT8_MAX // we have at most UINT8_MAX local var per stack
 
 typedef struct Frame {
 	uint8_t *ip;
@@ -31,5 +31,8 @@ typedef struct VM {
 
 void initVM(VM *vm);
 void freeVM(VM *vm);
+
+#define push(vm, v) (*(vm)->sp = (v), (vm)->sp++)
+#define pop(vm) ((vm)->sp--)
 
 #endif
