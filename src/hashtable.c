@@ -117,6 +117,21 @@ bool hashTableDel(HashTable *t, ObjString *key) {
 	return false;
 }
 
+ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash) {
+	size_t index = hash % t->size;
+
+	Entry *buckHead = t->entries[index];
+	while(buckHead != NULL) {
+		if(length == buckHead->key->length
+			&& memcmp(str, buckHead->key->data, length) == 0) {
+			return buckHead->key;
+		}
+		buckHead = buckHead->next;
+	}
+
+	return NULL;
+}
+
 void reachHashTable(MemManager *m, HashTable *t) {
 	for(size_t i = 0; i < t->size; i++) {
 		Entry *buckHead = t->entries[i];

@@ -31,6 +31,8 @@ ObjString *newString(MemManager *m, char *cstring, size_t size);
 ObjFunction *newFunction(MemManager *m, int argsCount);
 ObjNative *newNative(MemManager *m, int argsCount, Native fn);
 
+ObjString *copyString(MemManager *m, const char *str, size_t length);
+
 void disableGC(MemManager *m, bool disable);
 void freeObjects(MemManager *m);
 

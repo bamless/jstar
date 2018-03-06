@@ -1,7 +1,10 @@
 #include "vm.h"
 
+#include <stdlib.h>
+
 void initVM(VM *vm) {
 	initMemoryManager(&vm->mem, vm);
+	vm->currCompiler = NULL;
 	vm->sp = vm->stack;
 	vm->frameCount = 0;
 	initHashTable(&vm->globals);

@@ -29,6 +29,8 @@ void hashTablePut(HashTable *t, ObjString *key, Value val);
 bool hashTableGet(HashTable *t, ObjString *key, Value *res);
 bool hashTableDel(HashTable *t, ObjString *key);
 
+ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
+
 void reachHashTable(MemManager *m, HashTable *t);
 
 #endif

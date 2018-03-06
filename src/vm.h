@@ -4,6 +4,7 @@
 #include "value.h"
 #include "memory.h"
 #include "hashtable.h"
+#include "compiler.h"
 
 #include <stdint.h>
 
@@ -18,6 +19,7 @@ typedef struct Frame {
 
 typedef struct VM {
 	MemManager mem;
+	Compiler *currCompiler;
 
 	Value stack[STACK_SZ];
 	Value *sp;

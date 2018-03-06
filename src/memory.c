@@ -1,9 +1,11 @@
 #include "memory.h"
 #include "chunk.h"
 #include "hashtable.h"
+#include "compiler.h"
 #include "vm.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE   2
@@ -64,13 +66,13 @@ void *allocate(MemManager *m, void *ptr, size_t oldsize, size_t size) {
 	return realloc(ptr, size);
 }
 
-static uint32_t hashString(const char *str);
+static uint32_t hashString(const char *str, size_t length);
 
 ObjString *newString(MemManager *m, char *cstring, size_t length) {
 	ObjString *str = (ObjString*) newObj(m, sizeof(*str), OBJ_STRING);
 	str->length = length;
 	str->data = cstring;
-	str->hash = hashString(cstring);
+	str->hash = hashString(cstring, length);
 	return str;
 }
 
@@ -88,6 +90,19 @@ ObjNative *newNative(MemManager *m, int argsCount, Native fn) {
 	n->name = NULL;
 	n->fn = fn;
 	return n;
+}
+
+ObjString *copyString(MemManager *m, const char *str, size_t length) {
+	HashTable *strings = &m->vm->strings;
+	ObjString * interned = HashTableGetString(strings, str, length, hashString(str, length));
+	if(interned == NULL) {
+		char *intStr = ALLOC(m, length + 1);
+		memcpy(intStr, str, length);
+		intStr[length] = '\0';
+		interned = newString(m, intStr, length);
+		hashTablePut(strings, interned, NULL_VAL);
+	}
+	return interned;
 }
 
 #ifdef DBG_PRINT_GC
@@ -214,11 +229,16 @@ static void garbageCollect(MemManager *m) {
 	//reach roots
 	VM *vm = m->vm;
 
+	//reach vm hash tables
 	reachHashTable(m, &vm->globals);
 	reachHashTable(m, &vm->strings);
+	//reach elemnts on the stack
 	for(Value *v = vm->stack; v < vm->sp; v++) {
 		reachValue(m, *v);
 	}
+
+	//reach the compiler objects
+	reachCompilerRoots(m, vm->currCompiler);
 
 	//recursevely reach objs held by other reached objs
 	while(m->reachedCount != 0) {
@@ -241,12 +261,11 @@ static void garbageCollect(MemManager *m) {
 	#endif
 }
 
-static uint32_t hashString(const char *str) {
+static uint32_t hashString(const char *str, size_t length) {
 	uint32_t hash = 5381;
 
-	int c;
-	while((c = *str++)) {
-		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	for(size_t i = 0; i < length; i++) {
+		hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
 	}
 
 	return hash;
