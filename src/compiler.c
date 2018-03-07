@@ -8,9 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
-void initCompiler(Compiler *c, Compiler *enclosing, VM *vm) {
+void initCompiler(Compiler *c, Compiler *prev, VM *vm) {
 	c->vm = vm;
-	c->enclosing = enclosing;
+	c->prev = prev;
 	c->localsCount = 0;
 	c->depth = 0;
 	c->func = NULL;
@@ -41,7 +41,7 @@ static uint8_t createConstant(ObjFunction *f, Value c) {
 }
 
 static uint8_t identifierConst(Compiler *c, Identifier *id) {
-	ObjString *idStr = copyString(&c->vm->mem,  id->name, id->length);
+	ObjString *idStr = copyString(c->vm,  id->name, id->length);
 	return createConstant(c->func, OBJ_VAL(idStr));
 }
 
@@ -55,7 +55,7 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 }
 
 ObjFunction *compile(Compiler *c, Program *p) {
-	c->func = newFunction(&c->vm->mem, 0);
+	c->func = newFunction(c->vm, 0);
 
 	LinkedList *stmts = p->stmts;
 	while(stmts != NULL) {
@@ -79,9 +79,9 @@ ObjFunction *compile(Compiler *c, Program *p) {
 	return c->func;
 }
 
-void reachCompilerRoots(MemManager *m, Compiler *c) {
+void reachCompilerRoots(VM *vm, Compiler *c) {
 	while(c != NULL) {
-		reachObject(m, (Obj*) c->func);
-		c = c->enclosing;
+		reachObject(vm, (Obj*) c->func);
+		c = c->prev;
 	}
 }

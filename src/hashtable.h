@@ -3,13 +3,14 @@
 
 #include "object.h"
 #include "value.h"
-#include "memory.h"
 
 #include <stdlib.h>
 
-#define MAX_LOAD_FACTOR 0.2
+#define MAX_LOAD_FACTOR 0.75
 #define GROW_FACTOR 2
 #define INITIAL_CAPACITY 16
+
+typedef struct VM VM;
 
 typedef struct Entry {
 	struct Entry *next;
@@ -31,6 +32,6 @@ bool hashTableDel(HashTable *t, ObjString *key);
 
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
 
-void reachHashTable(MemManager *m, HashTable *t);
+void reachHashTable(VM *vm, HashTable *t);
 
 #endif

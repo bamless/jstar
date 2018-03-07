@@ -6,6 +6,7 @@
 
 typedef uint64_t Value;
 
+
 #define SIGN_BIT ((uint64_t) 1 << 63)
 #define SNAN 0x7FF0000000000000
 
@@ -29,20 +30,21 @@ typedef uint64_t Value;
 #define FALSE_VAL      ((Value)(uint64_t) (SNAN | FALSE_TAG))
 #define NULL_VAL       ((Value)(uint64_t) (SNAN | NULL_TAG))
 
-typedef union {
-	uint64_t raw64;
-	double num;
-} DoubleConv;
-
 static inline Value numToValue(double num) {
-	DoubleConv c;
+	union {
+		uint64_t raw;
+		double   num;
+	} c;
 	c.num = num;
-	return c.raw64;
+	return c.raw;
 }
 
 static inline double valueToNum(Value val) {
-	DoubleConv c;
-	c.raw64 = val;
+	union {
+		uint64_t raw;
+		double   num;
+	} c;
+	c.raw = val;
 	return c.num;
 }
 

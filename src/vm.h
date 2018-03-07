@@ -2,33 +2,44 @@
 #define VM_H
 
 #include "value.h"
-#include "memory.h"
-#include "hashtable.h"
+#include "object.h"
 #include "compiler.h"
+#include "hashtable.h"
 
 #include <stdint.h>
 
-#define FRAME_SZ 1000 // Max stack depth
-#define STACK_SZ FRAME_SZ * UINT8_MAX // we have at most UINT8_MAX local var per stack
+#define FRAME_SZ 1000                 // Max stack depth
+#define STACK_SZ FRAME_SZ * UINT8_MAX // We have at most UINT8_MAX local var per stack
 
 typedef struct Frame {
-	uint8_t *ip;
-	Value *stack;
-	ObjFunction *fn;
+	uint8_t *ip;       // Instruction pointerins
+	Value *stack;      // Base of stack for current frame
+	ObjFunction *fn;   // The function associated with the frame
 } Frame;
 
 typedef struct VM {
-	MemManager mem;
+	// Current VM compiler
 	Compiler *currCompiler;
 
-	Value stack[STACK_SZ];
-	Value *sp;
+	// VM program stack
+	Value *stack, *sp;
 
-	Frame frames[FRAME_SZ];
+	Frame *frames;
 	int frameCount;
 
+	// Globals and constant strings pool
 	HashTable globals;
 	HashTable strings;
+
+	// Memory management
+	Obj *objects;
+
+	bool disableGC;
+	size_t allocated;
+	size_t nextGC;
+
+	Obj **reachedStack;
+	size_t reachedCapacity, reachedCount;
 } VM;
 
 void initVM(VM *vm);

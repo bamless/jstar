@@ -6,38 +6,25 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define ALLOC(m, size) allocate(m, NULL, 0, size)
+typedef struct VM VM;
 
-#define FREE(m, type, obj) allocate(m, obj, sizeof(type), 0)
-#define FREEARRAY(m, type, obj, count) \
-		allocate(m, obj, sizeof(type) * count, 0)
+#define ALLOC(vm, size) allocate(vm, NULL, 0, size)
 
-typedef struct VM VM; //forward declaration needed for circular dependecy
+#define FREE(vm, type, obj) allocate(vm, obj, sizeof(type), 0)
+#define FREEARRAY(vm, type, obj, count) \
+		allocate(vm, obj, sizeof(type) * count, 0)
 
-typedef struct MemManager {
-	VM *vm;
-	size_t allocated, nextGC;
-	Obj *objects;
-	bool disableGC;
-	Obj **reachedStack;
-	size_t reachedCapacity, reachedCount;
-} MemManager;
+void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size);
+ObjString *newString(VM *vm, char *cstring, size_t size);
+ObjFunction *newFunction(VM *vm, int argsCount);
+ObjNative *newNative(VM *vm, int argsCount, Native fn);
 
-void initMemoryManager(MemManager *m, VM *vm);
-void freeMemoryManager(MemManager *m);
+ObjString *copyString(VM *vm, const char *str, size_t length);
 
-void *allocate(MemManager *m, void *ptr, size_t oldsize, size_t size);
-ObjString *newString(MemManager *m, char *cstring, size_t size);
-ObjFunction *newFunction(MemManager *m, int argsCount);
-ObjNative *newNative(MemManager *m, int argsCount, Native fn);
+void disableGC(VM *vm, bool disable);
+void freeObjects(VM *vm);
 
-ObjString *copyString(MemManager *m, const char *str, size_t length);
-
-void disableGC(MemManager *m, bool disable);
-void freeObjects(MemManager *m);
-
-void reachObject(MemManager *m, Obj *o);
-void reachValue(MemManager *m, Value v);
-
+void reachObject(VM *vm, Obj *o);
+void reachValue(VM *vm, Value v);
 
 #endif

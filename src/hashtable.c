@@ -1,4 +1,5 @@
 #include "hashtable.h"
+#include "memory.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -132,12 +133,12 @@ ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint
 	return NULL;
 }
 
-void reachHashTable(MemManager *m, HashTable *t) {
+void reachHashTable(VM *vm, HashTable *t) {
 	for(size_t i = 0; i < t->size; i++) {
 		Entry *buckHead = t->entries[i];
 		while(buckHead != NULL) {
-			reachObject(m, (Obj*) buckHead->key);
-			reachValue(m, buckHead->value);
+			reachObject(vm, (Obj*) buckHead->key);
+			reachValue(vm, buckHead->value);
 			buckHead = buckHead->next;
 		}
 	}

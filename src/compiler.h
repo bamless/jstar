@@ -1,9 +1,9 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#include "memory.h"
 #include "object.h"
 #include "ast.h"
-#include "memory.h"
 
 #include <stdint.h>
 
@@ -18,7 +18,7 @@ typedef struct Local {
 
 typedef struct Compiler {
 	VM *vm;
-	struct Compiler *enclosing;
+	struct Compiler *prev;
 	uint8_t localsCount;
 	Local locals[MAX_LOCALS];
 	int depth;
@@ -28,6 +28,6 @@ typedef struct Compiler {
 void initCompiler(Compiler *c, Compiler *enclosing, VM *vm);
 ObjFunction *compile(Compiler *c, Program *p);
 
-void reachCompilerRoots(MemManager *m, Compiler *c);
+void reachCompilerRoots(VM *vm, Compiler *c);
 
 #endif

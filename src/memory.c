@@ -9,57 +9,36 @@
 
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE   2
-
-#define INIT_GC 1024 * 1024 // 1MiB
-#define HEAP_GROW_RATE 2
+#define HEAP_GROW_RATE      2
 
 #ifdef DBG_PRINT_GC
 #include <stdio.h>
 #include <string.h>
 #endif
 
-void freeObjects(MemManager *m);
+void freeObjects(VM *vm);
 
-void initMemoryManager(MemManager *m, VM *vm) {
-	m->nextGC = INIT_GC;
-	m->allocated = 0;
-	m->objects = NULL;
-	m->disableGC = false;
-	m->vm = vm;
-	m->reachedStack = NULL;
-	m->reachedCapacity = 0;
-	m->reachedCount = 0;
-}
-
-void freeMemoryManager(MemManager *m) {
-	freeObjects(m);
-
-	#ifdef DBG_PRINT_GC
-	printf("Allocated at exit: %lu bytes\n", m->allocated);
-	#endif
-}
-
-static Obj *newObj(MemManager *m, size_t size, ObjType type) {
-	Obj *o = ALLOC(m, size);
+static Obj *newObj(VM *vm, size_t size, ObjType type) {
+	Obj *o = ALLOC(vm, size);
 	o->type = type;
 	o->reached = false;
-	o->next = m->objects;
-	m->objects = o;
+	o->next = vm->objects;
+	vm->objects = o;
 	return o;
 }
 
-static void garbageCollect(MemManager *m);
+static void garbageCollect(VM *vm);
 
-void *allocate(MemManager *m, void *ptr, size_t oldsize, size_t size) {
-	m->allocated += size - oldsize;
-	if(size > oldsize && !m->disableGC) {
+void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
+	vm->allocated += size - oldsize;
+	if(size > oldsize && !vm->disableGC) {
 		#ifdef DBG_STRESS_GC
-		garbageCollect(m);
+		garbageCollect(vm);
 		#endif
 
-		if(m->allocated > m->nextGC) {
-			garbageCollect(m);
-			m->nextGC = m->allocated * HEAP_GROW_RATE;
+		if(vm->allocated > vm->nextGC) {
+			garbageCollect(vm);
+			vm->nextGC = vm->allocated * HEAP_GROW_RATE;
 		}
 	}
 
@@ -68,39 +47,39 @@ void *allocate(MemManager *m, void *ptr, size_t oldsize, size_t size) {
 
 static uint32_t hashString(const char *str, size_t length);
 
-ObjString *newString(MemManager *m, char *cstring, size_t length) {
-	ObjString *str = (ObjString*) newObj(m, sizeof(*str), OBJ_STRING);
+ObjString *newString(VM *vm, char *cstring, size_t length) {
+	ObjString *str = (ObjString*) newObj(vm, sizeof(*str), OBJ_STRING);
 	str->length = length;
 	str->data = cstring;
 	str->hash = hashString(cstring, length);
 	return str;
 }
 
-ObjFunction *newFunction(MemManager *m, int argsCount) {
-	ObjFunction *f = (ObjFunction*) newObj(m, sizeof(*f), OBJ_FUNCTION);
+ObjFunction *newFunction(VM *vm, int argsCount) {
+	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), OBJ_FUNCTION);
 	f->argsCount = argsCount;
 	f->name = NULL;
 	initChunk(&f->chunk);
 	return f;
 }
 
-ObjNative *newNative(MemManager *m, int argsCount, Native fn) {
-	ObjNative *n = (ObjNative*) newObj(m, sizeof(*n), OBJ_NATIVE);
+ObjNative *newNative(VM *vm, int argsCount, Native fn) {
+	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), OBJ_NATIVE);
 	n->argsCount = argsCount;
 	n->name = NULL;
 	n->fn = fn;
 	return n;
 }
 
-ObjString *copyString(MemManager *m, const char *str, size_t length) {
-	HashTable *strings = &m->vm->strings;
-	ObjString * interned = HashTableGetString(strings, str, length, hashString(str, length));
+ObjString *copyString(VM *vm, const char *str, size_t length) {
+	ObjString * interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
 	if(interned == NULL) {
-		char *intStr = ALLOC(m, length + 1);
-		memcpy(intStr, str, length);
-		intStr[length] = '\0';
-		interned = newString(m, intStr, length);
-		hashTablePut(strings, interned, NULL_VAL);
+		char *data = ALLOC(vm, length + 1);
+		memcpy(data, str, length);
+		data[length] = '\0';
+
+		interned = newString(vm, data, length);
+		hashTablePut(&vm->strings, interned, NULL_VAL);
 	}
 	return interned;
 }
@@ -123,30 +102,30 @@ static void printObj(Obj *o) {
 }
 #endif
 
-static void freeObject(MemManager *m, Obj *o) {
+static void freeObject(VM *vm, Obj *o) {
 	switch(o->type) {
 	case OBJ_STRING: {
 		ObjString *s = (ObjString*) o;
-		FREEARRAY(m, char, s->data, s->length + 1);
-		FREE(m, ObjString, s);
+		FREEARRAY(vm, char, s->data, s->length + 1);
+		FREE(vm, ObjString, s);
 		break;
 	}
 	case OBJ_NATIVE: {
 		ObjNative *n = (ObjNative*) o;
-		FREE(m, ObjNative, n);
+		FREE(vm, ObjNative, n);
 		break;
 	}
 	case OBJ_FUNCTION: {
 		ObjFunction *f = (ObjFunction*) o;
 		freeChunk(&f->chunk);
-		FREE(m, ObjFunction, f);
+		FREE(vm, ObjFunction, f);
 		break;
 	}
 	}
 }
 
-void freeObjects(MemManager *m) {
-	Obj **head = &m->objects;
+void freeObjects(VM *vm) {
+	Obj **head = &vm->objects;
 	while(*head != NULL) {
 		if(!(*head)->reached)  {
 			Obj *u = *head;
@@ -157,7 +136,7 @@ void freeObjects(MemManager *m) {
 			printObj(u);
 			#endif
 
-			freeObject(m, u);
+			freeObject(vm, u);
 		} else {
 			(*head)->reached = false;
 			head = &(*head)->next;
@@ -165,22 +144,23 @@ void freeObjects(MemManager *m) {
 	}
 }
 
-void disableGC(MemManager *m , bool disable) {
-	m->disableGC = disable;
+void disableGC(VM *vm , bool disable) {
+	vm->disableGC = disable;
 }
 
-static void growReached(MemManager *m) {
-	m->reachedCapacity *= REACHED_GROW_RATE;
-	m->reachedStack = realloc(m->reachedStack, m->reachedCapacity);
+static void growReached(VM *vm) {
+	vm->reachedCapacity *= REACHED_GROW_RATE;
+	vm->reachedStack = realloc(vm->reachedStack, vm->reachedCapacity);
 }
 
-static void addReachedObject(MemManager *m, Obj *o) {
-	if(m->reachedCount + 1 > m->reachedCapacity)
-		growReached(m);
-	m->reachedStack[m->reachedCount++] = o;
+static void addReachedObject(VM *vm, Obj *o) {
+	if(vm->reachedCount + 1 > vm->reachedCapacity) {
+		growReached(vm);
+	}
+	vm->reachedStack[vm->reachedCount++] = o;
 }
 
-void reachObject(MemManager *m, Obj *o) {
+void reachObject(VM *vm, Obj *o) {
 	if(o == NULL || o->reached) return;
 
 	#ifdef DBG_PRINT_GC
@@ -189,24 +169,24 @@ void reachObject(MemManager *m, Obj *o) {
 	#endif
 
 	o->reached = true;
-	addReachedObject(m, o);
+	addReachedObject(vm, o);
 }
 
-void reachValue(MemManager *m, Value v) {
-	if(IS_OBJ(v)) reachObject(m, AS_OBJ(v));
+void reachValue(VM *vm, Value v) {
+	if(IS_OBJ(v)) reachObject(vm, AS_OBJ(v));
 }
 
-static void recursevelyReach(MemManager *m, Obj *o) {
+static void recursevelyReach(VM *vm, Obj *o) {
 	#ifdef DBG_PRINT_GC
 	printf("Recursevely exploring object %p...\n", (void*)o);
 	#endif
 
 	switch(o->type) {
 	case OBJ_NATIVE:
-		reachObject(m, (Obj*)((ObjNative*)o)->name);
+		reachObject(vm, (Obj*)((ObjNative*)o)->name);
 		break;
 	case OBJ_FUNCTION:
-		reachObject(m, (Obj*)((ObjFunction*)o)->name);
+		reachObject(vm, (Obj*)((ObjFunction*)o)->name);
 		break;
 	default: break;
 	}
@@ -216,47 +196,44 @@ static void recursevelyReach(MemManager *m, Obj *o) {
 	#endif
 }
 
-static void garbageCollect(MemManager *m) {
+static void garbageCollect(VM *vm) {
 	#ifdef DBG_PRINT_GC
-	size_t prevAlloc = m->allocated;
+	size_t prevAlloc = vm->allocated;
 	puts("**** Starting GC ****");
 	#endif
 
 	//init reached object stack
-	m->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
-	m->reachedCapacity = REACHED_DEFAULT_SZ;
-
-	//reach roots
-	VM *vm = m->vm;
+	vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
+	vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
 	//reach vm hash tables
-	reachHashTable(m, &vm->globals);
-	reachHashTable(m, &vm->strings);
-	//reach elemnts on the stack
+	reachHashTable(vm, &vm->globals);
+	reachHashTable(vm, &vm->strings);
+	//reach elevmnts on the stack
 	for(Value *v = vm->stack; v < vm->sp; v++) {
-		reachValue(m, *v);
+		reachValue(vm, *v);
 	}
 
-	//reach the compiler objects
-	reachCompilerRoots(m, vm->currCompiler);
+	//reach the covmpiler objects
+	reachCompilerRoots(vm, vm->currCompiler);
 
 	//recursevely reach objs held by other reached objs
-	while(m->reachedCount != 0) {
-		recursevelyReach(m, m->reachedStack[--m->reachedCount]);
+	while(vm->reachedCount != 0) {
+		recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
 	}
 
 	//free the garbage
-	freeObjects(m);
+	freeObjects(vm);
 
 	//free the reached object's stack
-	free(m->reachedStack);
-	m->reachedStack = NULL;
-	m->reachedCapacity = 0;
-	m->reachedCount = 0;
+	free(vm->reachedStack);
+	vm->reachedStack = NULL;
+	vm->reachedCapacity = 0;
+	vm->reachedCount = 0;
 
 	#ifdef DBG_PRINT_GC
 	printf("Completed GC, prev allocated: %lu, curr allocated %lu, freed: %lu "
-		"bytes of memory\n", prevAlloc, m->allocated, prevAlloc - m->allocated);
+		"bytes of memory\n", prevAlloc, vm->allocated, prevAlloc - vm->allocated);
 	puts("**** End of GC ****\n");
 	#endif
 }
@@ -265,7 +242,7 @@ static uint32_t hashString(const char *str, size_t length) {
 	uint32_t hash = 5381;
 
 	for(size_t i = 0; i < length; i++) {
-		hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
+		hash = ((hash << 5) + hash) + str[i];
 	}
 
 	return hash;
