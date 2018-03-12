@@ -16,8 +16,6 @@
 #include <string.h>
 #endif
 
-void freeObjects(VM *vm);
-
 static Obj *newObj(VM *vm, size_t size, ObjType type) {
 	Obj *o = ALLOC(vm, size);
 	o->type = type;
