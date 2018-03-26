@@ -20,10 +20,10 @@ void initCompiler(Compiler *c, Compiler *prev, VM *vm, bool topOfFile) {
 
 static void error(const char *format, ...) {
 	va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-    fputs("\n", stderr);
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
 	exit(EXIT_FAILURE);
 }
 
