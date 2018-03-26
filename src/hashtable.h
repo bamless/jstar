@@ -33,5 +33,6 @@ bool hashTableDel(HashTable *t, ObjString *key);
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
 
 void reachHashTable(VM *vm, HashTable *t);
+void removeUnreachedStrings(HashTable *t);
 
 #endif

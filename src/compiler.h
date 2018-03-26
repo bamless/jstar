@@ -18,6 +18,7 @@ typedef struct Local {
 
 typedef struct Compiler {
 	VM *vm;
+	bool topOfFile;
 	struct Compiler *prev;
 	uint8_t localsCount;
 	Local locals[MAX_LOCALS];
@@ -25,7 +26,7 @@ typedef struct Compiler {
 	ObjFunction *func;
 } Compiler;
 
-void initCompiler(Compiler *c, Compiler *enclosing, VM *vm);
+void initCompiler(Compiler *c, Compiler *enclosing, VM *vm, bool topOfFile);
 ObjFunction *compile(Compiler *c, Program *p);
 
 void reachCompilerRoots(VM *vm, Compiler *c);

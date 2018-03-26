@@ -45,7 +45,7 @@ void freeVM(VM *vm) {
 	free(vm->stack);
 	free(vm->frames);
 
-	#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 	printf("Allocated at exit: %lu bytes\n", vm->allocated);
-	#endif
+#endif
 }

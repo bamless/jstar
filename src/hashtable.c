@@ -143,3 +143,16 @@ void reachHashTable(VM *vm, HashTable *t) {
 		}
 	}
 }
+
+void removeUnreachedStrings(HashTable *t) {
+	for(size_t i = 0; i < t->size; i++) {
+		Entry *buckHead = t->entries[i];
+		while(buckHead != NULL) {
+			Entry *f = buckHead;
+			buckHead = buckHead->next;
+			if(!f->key->base.reached) {
+				hashTableDel(t, f->key);
+			}
+		}
+	}
+}

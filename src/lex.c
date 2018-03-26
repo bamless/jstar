@@ -10,24 +10,23 @@ typedef struct {
 } Keyword;
 
 static Keyword keywords[] = {
-	{"and",     3, TOK_AND},
-	{"class",   5, TOK_CLASS},
-	{"else",    4, TOK_ELSE},
-	{"false",   5, TOK_FALSE},
-	{"for",     3, TOK_FOR},
-	{"def",     3, TOK_DEF},
-	{"if",      2, TOK_IF},
-	{"null",     3, TOK_NULL},
-	{"or",      2, TOK_OR},
-	{"print",   5, TOK_PRINT},
-	{"return",  6, TOK_RETURN},
-	{"super" ,  5, TOK_SUPER},
-	{"this",    4, TOK_THIS},
-	{"true",    4, TOK_TRUE},
-	{"var",     3, TOK_VAR},
-	{"while",   5, TOK_WHILE},
-	// Sentinel to mark the end of the array.
-	{NULL,      0, TOK_EOF}
+	{"and",    3, TOK_AND},
+	{"class",  5, TOK_CLASS},
+	{"else",   4, TOK_ELSE},
+	{"false",  5, TOK_FALSE},
+	{"for",    3, TOK_FOR},
+	{"def",    3, TOK_DEF},
+	{"if",     2, TOK_IF},
+	{"null",   3, TOK_NULL},
+	{"or",     2, TOK_OR},
+	{"print",  5, TOK_PRINT},
+	{"return", 6, TOK_RETURN},
+	{"super",  5, TOK_SUPER},
+	{"this",   4, TOK_THIS},
+	{"true",   4, TOK_TRUE},
+	{"var",    3, TOK_VAR},
+	{"while",  5, TOK_WHILE},
+	{NULL,     0, TOK_EOF}
 };
 
 void initLexer(Lexer *lex, const char * src) {

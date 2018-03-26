@@ -30,9 +30,9 @@ static void garbageCollect(VM *vm);
 void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 	vm->allocated += size - oldsize;
 	if(size > oldsize && !vm->disableGC) {
-		#ifdef DBG_STRESS_GC
+#ifdef DBG_STRESS_GC
 		garbageCollect(vm);
-		#endif
+#endif
 
 		if(vm->allocated > vm->nextGC) {
 			garbageCollect(vm);
@@ -70,7 +70,7 @@ ObjNative *newNative(VM *vm, int argsCount, Native fn) {
 }
 
 ObjString *copyString(VM *vm, const char *str, size_t length) {
-	ObjString * interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
+	ObjString *interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
 	if(interned == NULL) {
 		char *data = ALLOC(vm, length + 1);
 		memcpy(data, str, length);
@@ -129,10 +129,10 @@ void freeObjects(VM *vm) {
 			Obj *u = *head;
 			*head = u->next;
 
-			#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 			printf("FREE: unreached object %p type: %s repr: ", (void*)u, typeName[u->type]);
 			printObj(u);
-			#endif
+#endif
 
 			freeObject(vm, u);
 		} else {
@@ -161,10 +161,10 @@ static void addReachedObject(VM *vm, Obj *o) {
 void reachObject(VM *vm, Obj *o) {
 	if(o == NULL || o->reached) return;
 
-	#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 	printf("REACHED: Object %p type: %s repr: ", (void*)o, typeName[o->type]);
 	printObj(o);
-	#endif
+#endif
 
 	o->reached = true;
 	addReachedObject(vm, o);
@@ -174,45 +174,57 @@ void reachValue(VM *vm, Value v) {
 	if(IS_OBJ(v)) reachObject(vm, AS_OBJ(v));
 }
 
+static void reachValueArray(VM *vm, ValueArray *a) {
+	for(size_t i = 0; i < a->count; i++) {
+		reachValue(vm, a->arr[i]);
+	}
+}
+
 static void recursevelyReach(VM *vm, Obj *o) {
-	#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 	printf("Recursevely exploring object %p...\n", (void*)o);
-	#endif
+#endif
 
 	switch(o->type) {
 	case OBJ_NATIVE:
 		reachObject(vm, (Obj*)((ObjNative*)o)->name);
 		break;
-	case OBJ_FUNCTION:
-		reachObject(vm, (Obj*)((ObjFunction*)o)->name);
+	case OBJ_FUNCTION: {
+		ObjFunction *func = (ObjFunction*) o;
+		reachObject(vm, (Obj*) func->name);
+		reachValueArray(vm, &func->chunk.consts);
 		break;
+	}
 	default: break;
 	}
 
-	#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 	printf("End recursive exploring of object %p\n", (void*)o);
-	#endif
+#endif
 }
 
 static void garbageCollect(VM *vm) {
-	#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 	size_t prevAlloc = vm->allocated;
 	puts("**** Starting GC ****");
-	#endif
+#endif
 
 	//init reached object stack
 	vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
 	vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
-	//reach vm hash tables
+	//reach vm global vars
 	reachHashTable(vm, &vm->globals);
-	reachHashTable(vm, &vm->strings);
-	//reach elevmnts on the stack
+	//reach elemnts on the stack
 	for(Value *v = vm->stack; v < vm->sp; v++) {
 		reachValue(vm, *v);
 	}
+	//reach elements on the frame stack
+	for(int i = 0; i < vm->frameCount; i++) {
+		reachObject(vm, (Obj*) vm->frames[i].fn);
+	}
 
-	//reach the covmpiler objects
+	//reach the compiler objects
 	reachCompilerRoots(vm, vm->currCompiler);
 
 	//recursevely reach objs held by other reached objs
@@ -220,20 +232,23 @@ static void garbageCollect(VM *vm) {
 		recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
 	}
 
+	//remove unused strings
+	removeUnreachedStrings(&vm->strings);
+
 	//free the garbage
 	freeObjects(vm);
 
-	//free the reached object's stack
+	//free the reached objects stack
 	free(vm->reachedStack);
 	vm->reachedStack = NULL;
 	vm->reachedCapacity = 0;
 	vm->reachedCount = 0;
 
-	#ifdef DBG_PRINT_GC
+#ifdef DBG_PRINT_GC
 	printf("Completed GC, prev allocated: %lu, curr allocated %lu, freed: %lu "
-		"bytes of memory\n", prevAlloc, vm->allocated, prevAlloc - vm->allocated);
+	       "bytes of memory\n", prevAlloc, vm->allocated, prevAlloc - vm->allocated);
 	puts("**** End of GC ****\n");
-	#endif
+#endif
 }
 
 static uint32_t hashString(const char *str, size_t length) {

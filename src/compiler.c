@@ -7,18 +7,24 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
-void initCompiler(Compiler *c, Compiler *prev, VM *vm) {
+void initCompiler(Compiler *c, Compiler *prev, VM *vm, bool topOfFile) {
 	c->vm = vm;
+	c->topOfFile = topOfFile;
 	c->prev = prev;
 	c->localsCount = 0;
 	c->depth = 0;
 	c->func = NULL;
 }
 
-static void error(const char *msg) {
-	fprintf(stderr, "%s\n", msg);
-	exit(100);
+static void error(const char *format, ...) {
+	va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+	exit(EXIT_FAILURE);
 }
 
 static size_t emitByteCode(Compiler *c, uint8_t b, int line) {
@@ -26,18 +32,11 @@ static size_t emitByteCode(Compiler *c, uint8_t b, int line) {
 }
 
 static uint8_t createConstant(ObjFunction *f, Value c) {
-	ValueArray *consts = &f->chunk.consts;
-
-	if(consts->count > UINT8_MAX)
-		error("too many constants in func"); //TODO: add func name
-
-	for(size_t i = 0; i < consts->count; i++) {
-		if(consts->arr[i] == c) {
-			return i;
-		}
+	int index = addConstant(&f->chunk, c);
+	if(index == -1) {
+		error("too many constants in function %s", f->name->data);
 	}
-
-	return valueArrayAppend(&f->chunk.consts, c);
+	return (uint8_t) index;
 }
 
 static uint8_t identifierConst(Compiler *c, Identifier *id) {
@@ -59,7 +58,7 @@ ObjFunction *compile(Compiler *c, Program *p) {
 
 	LinkedList *stmts = p->stmts;
 	while(stmts != NULL) {
-		Stmt *s = (Stmt*)stmts->elem;
+		Stmt *s = (Stmt*) stmts->elem;
 
 		//here generate code
 		switch(s->type) {

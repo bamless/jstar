@@ -37,7 +37,7 @@ INCLUDES =
 #Linker flags
 LDFLAGS =
 # Compiler flags
-CFLAGS = -O3 -Wall -Wextra -pedantic --std=c11
+CFLAGS = -DNAN_TAGGING -O3 -Wall -Wextra -pedantic --std=c11
 # Libraries
 LIBS =
 

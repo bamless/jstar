@@ -3,9 +3,11 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
+
+#ifdef NAN_TAGGING
 
 typedef uint64_t Value;
-
 
 #define SIGN_BIT ((uint64_t) 1 << 63)
 #define SNAN 0x7FF0000000000000
@@ -34,8 +36,7 @@ static inline Value numToValue(double num) {
 	union {
 		uint64_t raw;
 		double   num;
-	} c;
-	c.num = num;
+	} c = {.num = num};
 	return c.raw;
 }
 
@@ -43,10 +44,67 @@ static inline double valueToNum(Value val) {
 	union {
 		uint64_t raw;
 		double   num;
-	} c;
-	c.raw = val;
+	} c = {.raw = val};
 	return c.num;
 }
+
+static inline bool valueEquals(Value v1, Value v2) {
+	return v1 == v2;
+}
+
+#else
+
+typedef struct Obj Obj;
+
+typedef enum {
+	VAL_NUM, VAL_BOOL, VAL_OBJ, VAL_NULL
+} ValueType;
+
+typedef struct {
+	ValueType type;
+	union {
+		bool boolean;
+		double num;
+		Obj *obj;
+	};
+} Value;
+
+#define IS_OBJ(val)    ((val).type == VAL_OBJ)
+#define IS_BOOL(val)   ((val).type == VAL_BOOL)
+#define IS_NUM(val)    ((val).type == VAL_NUM)
+#define IS_NULL(val)   ((val).type == VAL_NULL)
+
+#define AS_BOOL(value) ((value).boolean)
+#define AS_NUM(value)  ((value).num)
+#define AS_OBJ(value)  ((value).obj)
+
+#define NUM_VAL(num)   ((Value) {VAL_NUM,  {.num = num}})
+#define BOOL_VAL(b)    ((Value) {VAL_BOOL, {.boolean = b}})
+#define OBJ_VAL(val)   ((Value) {VAL_OBJ,  {.obj = (Obj*) val}})
+#define TRUE_VAL       ((Value) {VAL_BOOL, {.boolean = true}})
+#define FALSE_VAL      ((Value) {VAL_BOOL, {.boolean = false}})
+#define NULL_VAL       ((Value) {VAL_NULL, {.num = 0}})
+
+static inline bool valueEquals(Value v1, Value v2) {
+	if(v1.type != v2.type) return false;
+
+	switch(v1.type) {
+	case VAL_NUM:
+		return v1.num == v2.num;
+	case VAL_BOOL:
+		return v1.boolean == v2.boolean;
+	case VAL_OBJ:
+		return v1.obj == v2.obj;
+	case VAL_NULL:
+		return true;
+	}
+
+	return false;
+}
+
+#endif
+
+//-- Value array --
 
 #define VAL_ARR_DEF_SZ 16
 #define VAL_ARR_GROW_FAC 2

@@ -12,7 +12,7 @@
 #define STACK_SZ FRAME_SZ * UINT8_MAX // We have at most UINT8_MAX local var per stack
 
 typedef struct Frame {
-	uint8_t *ip;       // Instruction pointerins
+	uint8_t *ip;       // Instruction pointers
 	Value *stack;      // Base of stack for current frame
 	ObjFunction *fn;   // The function associated with the frame
 } Frame;
