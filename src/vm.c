@@ -4,7 +4,6 @@
 
 #define INIT_GC 1024 * 1024 // 1MiB
 
-
 #ifdef DBG_PRINT_GC
 #include <stdio.h>
 #endif
