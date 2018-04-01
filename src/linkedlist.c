@@ -17,6 +17,15 @@ LinkedList *addElement(LinkedList *lst, void *elem) {
 	return lst;
 }
 
+size_t linkedListLength(LinkedList *lst) {
+	size_t l = 0;
+	while(lst != NULL) {
+		l++;
+		lst = lst->next;
+	}
+	return l;
+}
+
 void freeLinkedList(LinkedList *lst) {
 	while(lst != NULL) {
 		LinkedList *n = lst;

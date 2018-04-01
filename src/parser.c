@@ -14,7 +14,7 @@ static void synchronize(Parser *p);
 
 static LinkedList *parseStmtOrDecl(Parser *p);
 
-Program *parse(Parser *p, const char *src) {
+Stmt *parse(Parser *p, const char *src) {
 	p->panic = false;
 	p->hadError = false;
 	p->prevType = -1;
@@ -27,7 +27,7 @@ Program *parse(Parser *p, const char *src) {
 	if(!match(p, TOK_EOF))
 		error(p, "unexpected token.");
 
-	return newProgram(stmts);
+	return newBlockStmt(0, stmts);
 }
 
 static Stmt *parseFuncDecl(Parser *p);

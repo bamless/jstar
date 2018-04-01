@@ -2,6 +2,7 @@
 #define AST_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "linkedlist.h"
 
@@ -14,19 +15,13 @@ typedef enum ExprType {
 	CALL_EXPR
 } ExprType;
 
-typedef struct Program {
-	LinkedList *stmts;
-} Program;
-
-Program *newProgram(LinkedList *stmts);
-void freeProgram(Program *p);
-
 typedef struct Identifier {
 	size_t length;
 	const char *name;
 } Identifier;
 
 Identifier *newIdentifier(size_t length, const char *name);
+bool identifierEquals(Identifier *id1, Identifier *id2);
 
 typedef struct Expr Expr;
 struct Expr {

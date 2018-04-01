@@ -12,11 +12,14 @@ typedef enum Opcode {
 	OP_MOD,
 
 	//stack operations
+	OP_GET_CONST,
 	OP_GET_LOCAL,
 	OP_GET_GLOBAL,
 	OP_SET_LOCAL,
 	OP_SET_GLOBAL,
 	OP_DEFINE_GLOBAL,
+	OP_RETURN,
+	OP_NULL,
 	OP_POP,
 	OP_DUP,
 } Opcode;

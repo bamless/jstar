@@ -89,12 +89,10 @@ static void printObj(Obj *o) {
 		printf("%s\n", ((ObjString*)o)->data);
 		break;
 	case OBJ_NATIVE:
-		printf("native function %s arity: %d\n",
-				((ObjNative*)o)->name->data, ((ObjNative*)o)->argsCount);
+		printf("native function arity: %d\n", ((ObjNative*)o)->argsCount);
 		break;
 	case OBJ_FUNCTION:
-		printf("function %s arity: %d\n",
-				((ObjFunction*)o)->name->data, ((ObjFunction*)o)->argsCount);
+		printf("function arity: %d\n", ((ObjFunction*)o)->argsCount);
 		break;
 	}
 }

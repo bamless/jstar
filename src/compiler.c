@@ -9,13 +9,19 @@
 #include <string.h>
 #include <stdarg.h>
 
-void initCompiler(Compiler *c, Compiler *prev, VM *vm, bool topOfFile) {
+ObjFunction *compileFunction(Compiler *c, Stmt *s);
+
+void initCompiler(Compiler *c, Compiler *prev, int depth, VM *vm) {
 	c->vm = vm;
-	c->topOfFile = topOfFile;
 	c->prev = prev;
 	c->localsCount = 0;
-	c->depth = 0;
+	c->depth = depth;
 	c->func = NULL;
+	vm->currCompiler = c;
+}
+
+void endCompiler(Compiler *c) {
+	c->vm->currCompiler = c->prev;
 }
 
 static void error(const char *format, ...) {
@@ -25,6 +31,17 @@ static void error(const char *format, ...) {
 	va_end(args);
 	fputs("\n", stderr);
 	exit(EXIT_FAILURE);
+}
+
+static void enterScope(Compiler *c) {
+	c->depth++;
+}
+
+static void exitScope(Compiler *c) {
+	c->depth--;
+	while(c->localsCount > 0 && c->locals[c->localsCount - 1].depth > c->depth) {
+		c->localsCount--;
+	}
 }
 
 static size_t emitByteCode(Compiler *c, uint8_t b, int line) {
@@ -40,41 +57,128 @@ static uint8_t createConstant(ObjFunction *f, Value c) {
 }
 
 static uint8_t identifierConst(Compiler *c, Identifier *id) {
-	ObjString *idStr = copyString(c->vm,  id->name, id->length);
+	ObjString *idStr = copyString(c->vm, id->name, id->length);
 	return createConstant(c->func, OBJ_VAL(idStr));
 }
 
-static void compileVarDecl(Compiler *c, Stmt *s) {
-	uint8_t i = identifierConst(c, &s->varDecl.id);
-
-	if(c->depth == 0) {
-		emitByteCode(c, OP_DEFINE_GLOBAL, s->line);
-		emitByteCode(c, i, s->line);
+static void addLocal(Compiler *c, Identifier *id) {
+	if(c->localsCount == MAX_LOCALS) {
+		error("too many local variables in function %s", c->func->name->data);
 	}
+	Local *local = &c->locals[c->localsCount];
+	local->id = *id;
+	local->depth = c->depth;
+	c->localsCount++;
 }
 
-ObjFunction *compile(Compiler *c, Program *p) {
-	c->func = newFunction(c->vm, 0);
-
-	LinkedList *stmts = p->stmts;
-	while(stmts != NULL) {
-		Stmt *s = (Stmt*) stmts->elem;
-
-		//here generate code
-		switch(s->type) {
-		case IF: break;
-		case FOR: break;
-		case WHILE: break;
-		case BLOCK: break;
-		case RETURN: break;
-		case EXPR: break;
-		case VARDECL:
-			compileVarDecl(c, s);
-			break;
-		case FUNCDECL: break;
+static void declareVar(Compiler *c, Identifier *id) {
+	for(int i = c->localsCount - 1; i >= 0; i--) {
+		if(c->locals[i].depth < c->depth) break;
+		if(identifierEquals(&c->locals[i].id, id)) {
+			error("Variable %.*s already declared", id->length, id->name);
 		}
 	}
 
+	addLocal(c, id);
+}
+
+static void function(Compiler *c, Stmt *s) {
+	Compiler funComp;
+	initCompiler(&funComp, c, c->depth + 1, c->vm);
+
+	ObjFunction *fn = compileFunction(&funComp, s);
+	uint8_t fnIndex = createConstant(c->func, OBJ_VAL(fn));
+	uint8_t idIndex = identifierConst(c, &s->funcDecl.id);
+
+	emitByteCode(c, OP_GET_CONST, s->line);
+	emitByteCode(c, fnIndex, s->line);
+	emitByteCode(c, OP_DEFINE_GLOBAL, s->line);
+	emitByteCode(c, idIndex, s->line);
+
+	endCompiler(&funComp);
+}
+
+static void compileVarDecl(Compiler *c, Stmt *s) {
+	if(c->depth == 0) {
+		uint8_t i = identifierConst(c, &s->varDecl.id);
+		emitByteCode(c, OP_DEFINE_GLOBAL, s->line);
+		emitByteCode(c, i, s->line);
+	} else {
+		declareVar(c, &s->varDecl.id);
+	}
+}
+
+static void compileReturn(Compiler *c, Stmt *s) {
+	if(c->depth == 0) {
+		error("Cannot use return in global scope.");
+	}
+
+	if(s->returnStmt.e != NULL) {
+		//here compile expression
+	} else {
+		emitByteCode(c, OP_NULL, s->line);
+	}
+	emitByteCode(c, OP_RETURN, s->line);
+}
+
+static void compileStatements(Compiler *c, LinkedList *stmts);
+
+static void compileStatement(Compiler *c, Stmt *s) {
+	//here generate code
+	switch(s->type) {
+	case IF: break;
+	case FOR: break;
+	case WHILE: break;
+	case BLOCK:
+		enterScope(c);
+		compileStatements(c, s->blockStmt.stmts);
+		exitScope(c);
+		break;
+	case RETURN:
+		compileReturn(c, s);
+		break;
+	case EXPR:
+		//compile Expressions
+		emitByteCode(c, OP_POP, s->line);
+		break;
+	case VARDECL:
+		compileVarDecl(c, s);
+		break;
+	case FUNCDECL:
+		function(c, s);
+		break;
+	}
+}
+
+static void compileStatements(Compiler *c, LinkedList *stmts) {
+	while(stmts != NULL) {
+		compileStatement(c, (Stmt *) stmts->elem);
+		stmts = stmts->next;
+	}
+}
+
+ObjFunction *compile(Compiler *c, Stmt *s) {
+	c->func = newFunction(c->vm, 0);
+	compileStatements(c, s->blockStmt.stmts);
+	emitByteCode(c, OP_HALT, s->line);
+	return c->func;
+}
+
+ObjFunction *compileFunction(Compiler *c, Stmt *s) {
+	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs));
+	c->func->name = copyString(c->vm, s->funcDecl.id.name, s->funcDecl.id.length);
+
+	enterScope(c);
+	LinkedList *formals = s->funcDecl.formalArgs;
+	while(formals != NULL) {
+		declareVar(c, (Identifier*) formals->elem);
+		formals = formals->next;
+	}
+	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
+	exitScope(c);
+
+	emitByteCode(c, OP_NULL, s->line);
+	emitByteCode(c, OP_RETURN, s->line);
 	return c->func;
 }
 

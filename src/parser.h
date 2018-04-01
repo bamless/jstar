@@ -14,6 +14,6 @@ typedef struct Parser {
 	bool hadError;
 } Parser;
 
-Program *parse(Parser *p, const char *src);
+Stmt *parse(Parser *p, const char *src);
 
 #endif

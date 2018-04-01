@@ -1,29 +1,18 @@
 #include "ast.h"
 
 #include <stdlib.h>
-
-Program *newProgram(LinkedList *stmts) {
-	Program *p = malloc(sizeof(*p));
-	p->stmts = stmts;
-	return p;
-}
-
-void freeProgram(Program *p) {
-	LinkedList *head = p->stmts;
-	while(head != NULL) {
-		LinkedList *f = head;
-		head = head->next;
-		freeStmt(f->elem);
-		free(f);
-	}
-	free(p);
-}
+#include <string.h>
 
 Identifier *newIdentifier(size_t length, const char *name) {
 	Identifier *id = malloc(sizeof(*id));
 	id->length = length;
 	id->name = name;
 	return id;
+}
+
+bool identifierEquals(Identifier *id1, Identifier *id2) {
+	return id1->length == id2->length &&
+		(memcmp(id1->name, id2->name, id1->length) == 0);
 }
 
 //----- Expressions -----
