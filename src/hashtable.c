@@ -133,17 +133,6 @@ ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint
 	return NULL;
 }
 
-void reachHashTable(VM *vm, HashTable *t) {
-	for(size_t i = 0; i < t->size; i++) {
-		Entry *buckHead = t->entries[i];
-		while(buckHead != NULL) {
-			reachObject(vm, (Obj*) buckHead->key);
-			reachValue(vm, buckHead->value);
-			buckHead = buckHead->next;
-		}
-	}
-}
-
 void removeUnreachedStrings(HashTable *t) {
 	for(size_t i = 0; i < t->size; i++) {
 		Entry *buckHead = t->entries[i];

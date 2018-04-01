@@ -10,8 +10,6 @@
 #define GROW_FACTOR 2
 #define INITIAL_CAPACITY 16
 
-typedef struct VM VM;
-
 typedef struct Entry {
 	struct Entry *next;
 	ObjString *key;
@@ -32,7 +30,6 @@ bool hashTableDel(HashTable *t, ObjString *key);
 
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
 
-void reachHashTable(VM *vm, HashTable *t);
 void removeUnreachedStrings(HashTable *t);
 
 #endif

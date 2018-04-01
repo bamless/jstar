@@ -178,6 +178,17 @@ static void reachValueArray(VM *vm, ValueArray *a) {
 	}
 }
 
+static void reachHashTable(VM *vm, HashTable *t) {
+	for(size_t i = 0; i < t->size; i++) {
+		Entry *buckHead = t->entries[i];
+		while(buckHead != NULL) {
+			reachObject(vm, (Obj*) buckHead->key);
+			reachValue(vm, buckHead->value);
+			buckHead = buckHead->next;
+		}
+	}
+}
+
 static void recursevelyReach(VM *vm, Obj *o) {
 #ifdef DBG_PRINT_GC
 	printf("Recursevely exploring object %p...\n", (void*)o);
