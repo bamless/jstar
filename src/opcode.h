@@ -6,10 +6,28 @@ typedef enum Opcode {
 
 	//arithmetic operations
 	OP_ADD,
-	op_SUB,
+	OP_SUB,
 	OP_MULT,
 	OP_DIV,
 	OP_MOD,
+	//equality operations
+	OP_EQ,
+	OP_NEQ,
+	//logical operations
+	OP_AND,
+	OP_OR,
+	OP_NOT,
+	//comparison operations
+	OP_GT,
+	OP_GE,
+	OP_LT,
+	OP_LE,
+	//call
+	OP_CALL,
+
+	OP_JUMP,
+	OP_JUMPT,
+	OP_JUMPF,
 
 	//stack operations
 	OP_GET_CONST,

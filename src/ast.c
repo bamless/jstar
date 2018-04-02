@@ -60,6 +60,14 @@ Expr *newNumLiteral(int line, double num) {
 	return e;
 }
 
+Expr *newBoolLiteral(int line, bool boolean) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = BOOL_LIT;
+	e->boolean = boolean;
+	return e;
+}
+
 Expr *newStrLiteral(int line, const char *str, size_t len) {
 	Expr *e = malloc(sizeof(*e));
 	e->line = line;

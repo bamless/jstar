@@ -64,6 +64,7 @@ Stmt *parseFuncDecl(Parser *p) {
 		advance(p);
 	} else {
 		error(p, "Expected identifier");
+		advance(p);
 	}
 
 	require(p, TOK_LPAREN);
@@ -104,6 +105,7 @@ static Stmt *varDecl(Parser *p) {
 		advance(p);
 	} else {
 		error(p, "Expected identifier");
+		advance(p);
 	}
 
 	Expr *init = NULL;
@@ -268,6 +270,13 @@ static Expr *literal(Parser *p) {
 		const char *end = p->peek.lexeme + p->peek.length;
 		double num = strtod(p->peek.lexeme, (char **) &end);
 		Expr *e = newNumLiteral(line, num);
+		advance(p);
+		return e;
+	}
+	case TOK_TRUE:
+	case TOK_FALSE: {
+		bool boolean = p->peek.type == TOK_TRUE ? true : false;
+		Expr *e = newBoolLiteral(line, boolean);
 		advance(p);
 		return e;
 	}

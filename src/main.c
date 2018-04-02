@@ -6,6 +6,7 @@
 #include "hashtable.h"
 #include "compiler.h"
 #include "parser.h"
+#include "opcode.h"
 
 int main() {
 	VM vm;
@@ -46,9 +47,19 @@ int main() {
 	Parser p;
 	Compiler c;
 	initCompiler(&c, NULL, 0, &vm);
-	Stmt *program = parse(&p, "var test; def func(x, y) { var xx; }");
+	Stmt *program = parse(&p, "while(false) { var test; test = 4; }");
 	if(!p.hadError) {
-		compile(&c, program);
+		ObjFunction *f = compile(&c, program);
+		for(size_t i = 0; i < f->chunk.count; i++) {
+			uint8_t c = f->chunk.code[i];
+			if(c == OP_JUMPT || c == OP_JUMP || c == OP_JUMPF) {
+				printf("%s\n", "OP_JUMP");
+				int off = (int16_t)((uint16_t) f->chunk.code[i + 1] << 8 )|f->chunk.code[i + 2];
+				printf("%d\n", off);
+				i += 2;
+			} else
+				printf("%d\n", (int) f->chunk.code[i]);
+		}
 	}
 	endCompiler(&c);
 	freeStmt(program);
