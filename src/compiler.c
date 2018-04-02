@@ -98,6 +98,54 @@ static void function(Compiler *c, Stmt *s) {
 	endCompiler(&funComp);
 }
 
+static void compileExpr(Compiler *c, Expr *e) {
+	switch(e->type) {
+	case ASSIGN:
+	 	compileAssignExpr(c, e);
+		break;
+	case BINARY:
+		compileBinaryExpr(c, e);
+		break;
+	case UNARY:
+		compileUnaryExpr(c, e);
+		break;
+	case CALL_EXPR:
+		compileCallExpr(c, e);
+		break;
+	case EXPR_LST: {
+		LinkedList *lst = e->exprList.lst;
+		while(lst != NULL) {
+			compileExpr(c, (Expr*) lst->elem);
+		}
+		break;
+	}
+	case NUM_LIT:
+		emitByteCode(c, OP_GET_CONST, e->line);
+		emitByteCode(c, createConstant(c->func, NUM_VAL(e->num)), e->line);
+		break;
+	case STR_LIT: {
+		emitByteCode(c, OP_GET_CONST, e->line);
+		ObjString *str = copyString(c->vm, e->str.str, e->str.length);
+		emitByteCode(c, createConstant(c->func, OBJ_VAL(str)), e->line);
+		break;
+	}
+	case VAR_LIT: {
+		int i = resolveVariable(c, &e->var.id);
+		if(i != -1) {
+			emitByteCode(c, OP_GET_LOCAL, e->line);
+			emitByteCode(c, (uint8_t) i, e->line);
+		} else {
+			emitByteCode(c, OP_GET_GLOBAL, e->line);
+			emitByteCode(c, identifierConst(c, &e->var.id), e->line);
+		}
+		break;
+	}
+	case NULL_LIT:
+		emitByteCode(c, OP_NULL, e->line);
+		break;
+	}
+}
+
 static void compileVarDecl(Compiler *c, Stmt *s) {
 	if(c->depth == 0) {
 		uint8_t i = identifierConst(c, &s->varDecl.id);
@@ -114,7 +162,7 @@ static void compileReturn(Compiler *c, Stmt *s) {
 	}
 
 	if(s->returnStmt.e != NULL) {
-		//here compile expression
+		compileExpr(c, s->returnStmt.e);
 	} else {
 		emitByteCode(c, OP_NULL, s->line);
 	}
@@ -138,7 +186,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		compileReturn(c, s);
 		break;
 	case EXPR:
-		//compile Expressions
+		compileExpr(c, s->exprStmt);
 		emitByteCode(c, OP_POP, s->line);
 		break;
 	case VARDECL:
@@ -152,7 +200,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
 	while(stmts != NULL) {
-		compileStatement(c, (Stmt *) stmts->elem);
+		compileStatement(c, (Stmt*) stmts->elem);
 		stmts = stmts->next;
 	}
 }
