@@ -152,8 +152,6 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 	case MOD:   emitBytecode(c, OP_MOD, e->line);  break;
 	case EQ:    emitBytecode(c, OP_EQ, e->line);   break;
 	case NEQ:   emitBytecode(c, OP_NEQ, e->line);  break;
-	case AND:   emitBytecode(c, OP_AND, e->line);  break;
-	case OR:    emitBytecode(c, OP_OR, e->line);   break;
 	case GT:    emitBytecode(c, OP_GT, e->line);   break;
 	case GE:    emitBytecode(c, OP_GE, e->line);   break;
 	case LT:    emitBytecode(c, OP_LT, e->line);   break;
@@ -162,6 +160,26 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 		error("Wrong operator for binary expression");
 		break;
 	}
+}
+
+static void compileAndExpr(Compiler *c, Expr *e) {
+	compileExpr(c, e->bin.left);
+	emitBytecode(c, OP_DUP, e->line);
+	size_t scJmp = emitBytecode(c, OP_JUMPF, e->line);
+	emitShort(c, 0, e->line);
+	emitBytecode(c, OP_POP, e->line);
+	compileExpr(c, e->bin.right);
+	setJumpTo(c, scJmp, c->func->chunk.count);
+}
+
+static void compileOrExpr(Compiler *c, Expr *e) {
+	compileExpr(c, e->bin.left);
+	emitBytecode(c, OP_DUP, e->line);
+	size_t scJmp = emitBytecode(c, OP_JUMPT, e->line);
+	emitShort(c, 0, e->line);
+	emitBytecode(c, OP_POP, e->line);
+	compileExpr(c, e->bin.right);
+	setJumpTo(c, scJmp, c->func->chunk.count);
 }
 
 static void compileUnaryExpr(Compiler *c, Expr *e) {
@@ -210,7 +228,13 @@ static void compileExpr(Compiler *c, Expr *e) {
 	 	compileAssignExpr(c, e);
 		break;
 	case BINARY:
-		compileBinaryExpr(c, e);
+		if(e->bin.op == AND) {
+			compileAndExpr(c, e);
+		} else if(e->bin.op == OR) {
+			compileOrExpr(c, e);
+		} else {
+			compileBinaryExpr(c, e);
+		}
 		break;
 	case UNARY:
 		compileUnaryExpr(c, e);
@@ -298,6 +322,21 @@ static void compileReturn(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_RETURN, s->line);
 }
 
+static void compileIfStatement(Compiler *c, Stmt *s) {
+	compileExpr(c, s->ifStmt.cond);
+	size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
+	emitShort(c, 0, s->line);
+	compileStatement(c, s->ifStmt.thenStmt);
+	setJumpTo(c, falseJmp, c->func->chunk.count);
+	if(s->ifStmt.elseStmt != NULL) {
+		compileStatement(c, s->ifStmt.elseStmt);
+	}
+}
+
+static void compileForStatement(Compiler *c, Stmt *s) {
+
+}
+
 static void compileWhileStatement(Compiler *c, Stmt *s) {
 	size_t start = c->func->chunk.count;
 
@@ -316,8 +355,12 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 static void compileStatement(Compiler *c, Stmt *s) {
 	//here generate code
 	switch(s->type) {
-	case IF: break;
-	case FOR: break;
+	case IF:
+		compileIfStatement(c, s);
+		break;
+	case FOR:
+		compileForStatement(c, s);
+		break;
 	case WHILE:
 		compileWhileStatement(c, s);
 		break;

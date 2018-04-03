@@ -1,4 +1,6 @@
 #include "vm.h"
+#include "ast.h"
+#include "parser.h"
 
 #include <stdlib.h>
 
@@ -32,6 +34,12 @@ void initVM(VM *vm) {
 	vm->reachedStack = NULL;
 	vm->reachedCapacity = 0;
 	vm->reachedCount = 0;
+}
+
+void eval(const char *src) {
+	Parser p;
+	Stmt *program = parse(&p, src);
+	freeStmt(program);
 }
 
 void freeVM(VM *vm) {

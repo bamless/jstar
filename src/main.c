@@ -47,7 +47,7 @@ int main() {
 	Parser p;
 	Compiler c;
 	initCompiler(&c, NULL, 0, &vm);
-	Stmt *program = parse(&p, "def func(x, y) {} func(1, 2); while(x) {return 3;}");
+	Stmt *program = parse(&p, "var x = 3; while(x and 3) {var x;}");
 	if(!p.hadError) {
 		ObjFunction *f = compile(&c, program);
 		disassemble(&f->chunk);

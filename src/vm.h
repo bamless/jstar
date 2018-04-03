@@ -45,6 +45,8 @@ typedef struct VM {
 void initVM(VM *vm);
 void freeVM(VM *vm);
 
+void eval(const char *src);
+
 #define push(vm, v) (*(vm)->sp = (v), (vm)->sp++)
 #define pop(vm) ((vm)->sp--)
 
