@@ -48,7 +48,7 @@ static size_t emitBytecode(Compiler *c, uint8_t b, int line) {
 	return writeByte(&c->func->chunk, b, line);
 }
 
-static size_t emitShort(Compiler *c, int16_t s, int line) {
+static size_t emitShort(Compiler *c, uint16_t s, int line) {
 	size_t i = writeByte(&c->func->chunk, (uint8_t) (s >> 8), line);
 	writeByte(&c->func->chunk, (uint8_t) s, line);
 	return i;
@@ -98,6 +98,29 @@ static void declareVar(Compiler *c, Identifier *id) {
 	}
 
 	addLocal(c, id);
+}
+
+static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target) {
+	int32_t offset = target - (c->func->chunk.count + 2);
+	if(offset > INT16_MAX || offset < INT16_MIN) {
+		error("Too much code to jump");
+	}
+
+	Chunk *chunk = &c->func->chunk;
+	emitBytecode(c, jmpOpcode, chunk->lines[chunk->linesCount]);
+	emitShort(c, (uint16_t) offset, chunk->lines[chunk->linesCount]);
+	return c->func->chunk.count - 2;
+}
+
+static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target) {
+	int32_t offset = target - (jumpAddr + 2);
+	if(offset > INT16_MAX || offset < INT16_MIN) {
+		error("Too much code to jump");
+	}
+
+	Chunk *chunk = &c->func->chunk;
+	chunk->code[jumpAddr + 1] = (uint8_t) (uint16_t) offset >> 8;
+	chunk->code[jumpAddr + 2] = (uint8_t) (uint16_t) offset;
 }
 
 static void function(Compiler *c, Stmt *s) {
@@ -259,6 +282,9 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_POP, s->line);
 }
 
+static void compileStatement(Compiler *c, Stmt *s);
+static void compileStatements(Compiler *c, LinkedList *stmts);
+
 static void compileReturn(Compiler *c, Stmt *s) {
 	if(c->depth == 0) {
 		error("Cannot use return in global scope.");
@@ -272,35 +298,19 @@ static void compileReturn(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_RETURN, s->line);
 }
 
-static void compileStatements(Compiler *c, LinkedList *stmts);
-static void compileStatement(Compiler *c, Stmt *s);
-
 static void compileWhileStatement(Compiler *c, Stmt *s) {
 	size_t start = c->func->chunk.count;
 
 	compileExpr(c, s->whileStmt.cond);
 
-	emitBytecode(c, OP_JUMPF, s->line);
-	size_t i = emitShort(c, 0, s->line);
+	size_t exitJmp = emitBytecode(c, OP_JUMPF, s->line);
+	emitShort(c, 0, s->line);
 
 	compileStatement(c, s->whileStmt.body);
-	emitBytecode(c, OP_JUMP, s->line);
 
-	int32_t off = start - (c->func->chunk.count + 1);
-	if(off > INT16_MAX || off < INT16_MIN) {
-		error("Too much code to jump");
-	}
+	emitJumpTo(c, OP_JUMP, start);
 
-	emitShort(c, (int16_t) off, s->line);
-
-	off = c->func->chunk.count - (i + 1);
-	if(off > INT16_MAX || off < INT16_MIN) {
-		error("Too much code to jump");
-	}
-
-	c->func->chunk.code[i] = (uint8_t)(off>>8);
-	c->func->chunk.code[i + 1] = off;
-
+	setJumpTo(c, exitJmp, c->func->chunk.count);
 }
 
 static void compileStatement(Compiler *c, Stmt *s) {

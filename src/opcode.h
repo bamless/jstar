@@ -1,6 +1,8 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
+extern const char *opName[];
+
 typedef enum Opcode {
 	OP_HALT,
 

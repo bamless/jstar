@@ -362,12 +362,13 @@ static Expr *multiplicativeExpr(Parser *p) {
 	int line = p->peek.line;
 	Expr *l = unaryExpr(p);
 
+	int tokType = p->peek.type;
 	while(match(p, TOK_MULT) || match(p, TOK_DIV) || match(p, TOK_MOD)) {
 		advance(p);
 
 		Expr *r = unaryExpr(p);
 
-		switch(p->prevType) {
+		switch(tokType) {
 		case TOK_MULT:
 			l = newBinary(line, MULT, l, r);
 			break;
@@ -388,12 +389,13 @@ static Expr *additiveExpr(Parser *p) {
 	int line = p->peek.line;
 	Expr *l = multiplicativeExpr(p);
 
+	int tokType = p->peek.type;
 	while(match(p, TOK_PLUS) || match(p, TOK_MINUS)) {
 		advance(p);
 
 		Expr *r = multiplicativeExpr(p);
 
-		switch(p->prevType) {
+		switch(tokType) {
 		case TOK_PLUS:
 			l = newBinary(line, PLUS, l, r);
 			break;
@@ -411,13 +413,14 @@ static Expr *relationalExpr(Parser *p) {
 	int line = p->peek.line;
 	Expr *l = additiveExpr(p);
 
+	int tokType = p->peek.type;
 	while(match(p, TOK_GT) || match(p, TOK_GE) ||
 	 			match(p, TOK_LT) || match(p, TOK_LE)) {
 		advance(p);
 
 		Expr *r = additiveExpr(p);
 
-		switch(p->prevType) {
+		switch(tokType) {
 		case TOK_GT:
 			l = newBinary(line, GT, l, r);
 			break;
@@ -441,12 +444,13 @@ static Expr *equalityExpr(Parser *p) {
 	int line = p->peek.line;
 	Expr *l = relationalExpr(p);
 
+	int tokType = p->peek.type;
 	while(match(p, TOK_EQUAL_EQUAL) || match(p, TOK_BANG_EQ)) {
 		advance(p);
 
 		Expr *r = relationalExpr(p);
 
-		switch(p->prevType) {
+		switch(tokType) {
 		case TOK_EQUAL_EQUAL:
 			l = newBinary(line, EQ, l, r);
 			break;

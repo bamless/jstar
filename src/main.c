@@ -6,7 +6,7 @@
 #include "hashtable.h"
 #include "compiler.h"
 #include "parser.h"
-#include "opcode.h"
+#include "disassemble.h"
 
 int main() {
 	VM vm;
@@ -47,19 +47,10 @@ int main() {
 	Parser p;
 	Compiler c;
 	initCompiler(&c, NULL, 0, &vm);
-	Stmt *program = parse(&p, "while(false) { var test; test = 4; }");
+	Stmt *program = parse(&p, "def func(x, y) {} func(1, 2); while(x) {return 3;}");
 	if(!p.hadError) {
 		ObjFunction *f = compile(&c, program);
-		for(size_t i = 0; i < f->chunk.count; i++) {
-			uint8_t c = f->chunk.code[i];
-			if(c == OP_JUMPT || c == OP_JUMP || c == OP_JUMPF) {
-				printf("%s\n", "OP_JUMP");
-				int off = (int16_t)((uint16_t) f->chunk.code[i + 1] << 8 )|f->chunk.code[i + 2];
-				printf("%d\n", off);
-				i += 2;
-			} else
-				printf("%d\n", (int) f->chunk.code[i]);
-		}
+		disassemble(&f->chunk);
 	}
 	endCompiler(&c);
 	freeStmt(program);
