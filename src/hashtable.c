@@ -1,5 +1,4 @@
 #include "hashtable.h"
-#include "memory.h"
 
 #include <stdbool.h>
 #include <string.h>
