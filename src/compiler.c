@@ -11,8 +11,10 @@
 
 ObjFunction *compileFunction(Compiler *c, Stmt *s);
 
-void initCompiler(Compiler *c, Compiler *prev, int depth, VM *vm) {
+void initCompiler(Compiler *c, Compiler *prev, int depth, bool top, VM *vm) {
 	c->vm = vm;
+	c->top = top;
+	c->hadError = false;
 	c->prev = prev;
 	c->localsCount = 0;
 	c->depth = depth;
@@ -24,13 +26,14 @@ void endCompiler(Compiler *c) {
 	c->vm->currCompiler = c->prev;
 }
 
-static void error(const char *format, ...) {
+static void error(Compiler *c, int line, const char *format, ...) {
+	fprintf(stderr, "[line:%d] ", line);
 	va_list args;
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fputs("\n", stderr);
-	exit(EXIT_FAILURE);
+	c->hadError = true;
 }
 
 static void enterScope(Compiler *c) {
@@ -54,24 +57,26 @@ static size_t emitShort(Compiler *c, uint16_t s, int line) {
 	return i;
 }
 
-static uint8_t createConstant(ObjFunction *f, Value c) {
-	int index = addConstant(&f->chunk, c);
+static uint8_t createConstant(Compiler *c, Value constant, int line) {
+	int index = addConstant(&c->func->chunk, constant);
 	if(index == -1) {
-		error("too many constants in function %s", f->name->data);
+		error(c, line, "too many constants in function %s", c->func->name->data);
+		return 0;
 	}
 	return (uint8_t) index;
 }
 
-static uint8_t identifierConst(Compiler *c, Identifier *id) {
+static uint8_t identifierConst(Compiler *c, Identifier *id, int line) {
 	ObjString *idStr = copyString(c->vm, id->name, id->length);
-	return createConstant(c->func, OBJ_VAL(idStr));
+	return createConstant(c, OBJ_VAL(idStr), line);
 }
 
-static int resolveVariable(Compiler *c, Identifier *id) {
+static int resolveVariable(Compiler *c, Identifier *id, int line) {
 	for(int i = c->localsCount - 1; i >= 0; i--) {
 		if(identifierEquals(&c->locals[i].id, id)) {
 			if (c->locals[i].depth == -1) {
-				error("Cannot read local variable in its own initializer");
+				error(c, line, "Cannot read local variable in its own initializer");
+				return 0;
 			}
 			return i;
 		}
@@ -79,9 +84,10 @@ static int resolveVariable(Compiler *c, Identifier *id) {
 	return -1;
 }
 
-static void addLocal(Compiler *c, Identifier *id) {
+static void addLocal(Compiler *c, Identifier *id, int line) {
 	if(c->localsCount == MAX_LOCALS) {
-		error("too many local variables in function %s", c->func->name->data);
+		error(c, line, "too many local variables in function %s", c->func->name->data);
+		return;
 	}
 	Local *local = &c->locals[c->localsCount];
 	local->id = *id;
@@ -89,21 +95,21 @@ static void addLocal(Compiler *c, Identifier *id) {
 	c->localsCount++;
 }
 
-static void declareVar(Compiler *c, Identifier *id) {
+static void declareVar(Compiler *c, Identifier *id, int line) {
 	for(int i = c->localsCount - 1; i >= 0; i--) {
 		if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
 		if(identifierEquals(&c->locals[i].id, id)) {
-			error("Variable %.*s already declared", id->length, id->name);
+			error(c, line, "Variable %.*s already declared", id->length, id->name);
 		}
 	}
 
-	addLocal(c, id);
+	addLocal(c, id, line);
 }
 
-static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target) {
+static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
 	int32_t offset = target - (c->func->chunk.count + 2);
 	if(offset > INT16_MAX || offset < INT16_MIN) {
-		error("Too much code to jump");
+		error(c, line, "Too much code to jump");
 	}
 
 	Chunk *chunk = &c->func->chunk;
@@ -112,10 +118,10 @@ static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target) {
 	return c->func->chunk.count - 2;
 }
 
-static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target) {
+static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 	int32_t offset = target - (jumpAddr + 2);
 	if(offset > INT16_MAX || offset < INT16_MIN) {
-		error("Too much code to jump");
+		error(c, line, "Too much code to jump");
 	}
 
 	Chunk *chunk = &c->func->chunk;
@@ -125,11 +131,11 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target) {
 
 static void function(Compiler *c, Stmt *s) {
 	Compiler funComp;
-	initCompiler(&funComp, c, c->depth + 1, c->vm);
+	initCompiler(&funComp, c, c->depth + 1, false, c->vm);
 
 	ObjFunction *fn = compileFunction(&funComp, s);
-	uint8_t fnIndex = createConstant(c->func, OBJ_VAL(fn));
-	uint8_t idIndex = identifierConst(c, &s->funcDecl.id);
+	uint8_t fnIndex = createConstant(c, OBJ_VAL(fn), s->line);
+	uint8_t idIndex = identifierConst(c, &s->funcDecl.id, s->line);
 
 	emitBytecode(c, OP_GET_CONST, s->line);
 	emitBytecode(c, fnIndex, s->line);
@@ -137,6 +143,7 @@ static void function(Compiler *c, Stmt *s) {
 	emitBytecode(c, idIndex, s->line);
 
 	endCompiler(&funComp);
+	c->hadError = funComp.hadError;
 }
 
 static void compileExpr(Compiler *c, Expr *e);
@@ -157,7 +164,7 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 	case LT:    emitBytecode(c, OP_LT, e->line);   break;
 	case LE:    emitBytecode(c, OP_LE, e->line);   break;
 	default:
-		error("Wrong operator for binary expression");
+		error(c, e->line, "Wrong operator for binary expression");
 		break;
 	}
 }
@@ -169,7 +176,7 @@ static void compileAndExpr(Compiler *c, Expr *e) {
 	emitShort(c, 0, e->line);
 	emitBytecode(c, OP_POP, e->line);
 	compileExpr(c, e->bin.right);
-	setJumpTo(c, scJmp, c->func->chunk.count);
+	setJumpTo(c, scJmp, c->func->chunk.count, e->line);
 }
 
 static void compileOrExpr(Compiler *c, Expr *e) {
@@ -179,7 +186,7 @@ static void compileOrExpr(Compiler *c, Expr *e) {
 	emitShort(c, 0, e->line);
 	emitBytecode(c, OP_POP, e->line);
 	compileExpr(c, e->bin.right);
-	setJumpTo(c, scJmp, c->func->chunk.count);
+	setJumpTo(c, scJmp, c->func->chunk.count, e->line);
 }
 
 static void compileUnaryExpr(Compiler *c, Expr *e) {
@@ -187,29 +194,30 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
 	switch(e->unary.op) {
 	case NOT: emitBytecode(c, OP_NOT, e->line); break;
 	default:
-		error("Wrong operator for unary expression");
+		error(c, e->line, "Wrong operator for unary expression");
 		break;
 	}
 }
 
 static void compileAssignExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->assign.rval);
-	int i = resolveVariable(c, &e->assign.lval->var.id);
+	int i = resolveVariable(c, &e->assign.lval->var.id, e->line);
 	if(i != -1) {
 		emitBytecode(c, OP_SET_LOCAL, e->line);
 		emitBytecode(c, (uint8_t) i, e->line);
 	} else {
 		emitBytecode(c, OP_SET_GLOBAL, e->line);
-		emitBytecode(c, identifierConst(c, &e->assign.lval->var.id), e->line);
+		emitBytecode(c, identifierConst(c, &e->assign.lval->var.id, e->line), e->line);
 	}
 }
 
 static void compileCallExpr(Compiler *c, Expr *e) {
 	LinkedList *n;
-	uint8_t argsc = 0;
+	uint16_t argsc = 0;
 	foreach(n, e->callExpr.args->exprList.lst) {
-		if(argsc == UINT8_MAX) {
-			error("Too many arguments for function %s", c->func->name->data);
+		if(argsc == UINT16_MAX) {
+			error(c, e->line, "Too many arguments for function %s", c->func->name->data);
+			return;
 		}
 
 		argsc++;
@@ -219,7 +227,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->callExpr.callee);
 
 	emitBytecode(c, OP_CALL, e->line);
-	emitBytecode(c, argsc, e->line);
+	emitShort(c, argsc, e->line);
 }
 
 static void compileExpr(Compiler *c, Expr *e) {
@@ -251,26 +259,26 @@ static void compileExpr(Compiler *c, Expr *e) {
 	}
 	case NUM_LIT:
 		emitBytecode(c, OP_GET_CONST, e->line);
-		emitBytecode(c, createConstant(c->func, NUM_VAL(e->num)), e->line);
+		emitBytecode(c, createConstant(c, NUM_VAL(e->num), e->line), e->line);
 		break;
 	case BOOL_LIT:
 		emitBytecode(c, OP_GET_CONST, e->line);
-		emitBytecode(c, createConstant(c->func, BOOL_VAL(e->boolean)), e->line);
+		emitBytecode(c, createConstant(c, BOOL_VAL(e->boolean), e->line), e->line);
 		break;
 	case STR_LIT: {
 		emitBytecode(c, OP_GET_CONST, e->line);
 		ObjString *str = copyString(c->vm, e->str.str + 1, e->str.length - 2);
-		emitBytecode(c, createConstant(c->func, OBJ_VAL(str)), e->line);
+		emitBytecode(c, createConstant(c, OBJ_VAL(str), e->line), e->line);
 		break;
 	}
 	case VAR_LIT: {
-		int i = resolveVariable(c, &e->var.id);
+		int i = resolveVariable(c, &e->var.id, e->line);
 		if(i != -1) {
 			emitBytecode(c, OP_GET_LOCAL, e->line);
 			emitBytecode(c, (uint8_t) i, e->line);
 		} else {
 			emitBytecode(c, OP_GET_GLOBAL, e->line);
-			emitBytecode(c, identifierConst(c, &e->var.id), e->line);
+			emitBytecode(c, identifierConst(c, &e->var.id, e->line), e->line);
 		}
 		break;
 	}
@@ -282,7 +290,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 
 static void compileVarDecl(Compiler *c, Stmt *s) {
 	if(c->depth != 0) {
-		declareVar(c, &s->varDecl.id);
+		declareVar(c, &s->varDecl.id, s->line);
 	}
 
 	if(s->varDecl.init != NULL) {
@@ -292,7 +300,7 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 	}
 
 	if(c->depth == 0) {
-		uint8_t i = identifierConst(c, &s->varDecl.id);
+		uint8_t i = identifierConst(c, &s->varDecl.id, s->line);
 		emitBytecode(c, OP_DEFINE_GLOBAL, s->line);
 		emitBytecode(c, i, s->line);
 		emitBytecode(c, OP_SET_GLOBAL, s->line);
@@ -310,8 +318,8 @@ static void compileStatement(Compiler *c, Stmt *s);
 static void compileStatements(Compiler *c, LinkedList *stmts);
 
 static void compileReturn(Compiler *c, Stmt *s) {
-	if(c->depth == 0) {
-		error("Cannot use return in global scope.");
+	if(c->top) {
+		error(c, s->line, "Cannot use return in global scope.");
 	}
 
 	if(s->returnStmt.e != NULL) {
@@ -327,14 +335,44 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
 	size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
 	emitShort(c, 0, s->line);
 	compileStatement(c, s->ifStmt.thenStmt);
-	setJumpTo(c, falseJmp, c->func->chunk.count);
+	setJumpTo(c, falseJmp, c->func->chunk.count, s->line);
 	if(s->ifStmt.elseStmt != NULL) {
 		compileStatement(c, s->ifStmt.elseStmt);
 	}
 }
 
 static void compileForStatement(Compiler *c, Stmt *s) {
+	//init
+	if(s->forStmt.init != NULL) {
+		compileExpr(c, s->forStmt.init);
+		emitBytecode(c, OP_POP, s->line);
+	}
 
+	//condition
+	size_t forStart = c->func->chunk.count;
+	size_t exitJmp = 0;
+	if(s->forStmt.cond != NULL) {
+		compileExpr(c, s->forStmt.cond);
+		exitJmp = emitBytecode(c, OP_JUMPF, s->line);
+		emitShort(c, 0, s->line);
+	}
+
+	//body
+	compileStatement(c, s->forStmt.body);
+
+	//act
+	if(s->forStmt.act != NULL) {
+		compileExpr(c, s->forStmt.act);
+		emitBytecode(c, OP_POP, s->line);
+	}
+
+	//jump back to for start
+	emitJumpTo(c, OP_JUMP, forStart, s->line);
+
+	//set the exit jump
+	if(s->forStmt.cond != NULL) {
+		setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+	}
 }
 
 static void compileWhileStatement(Compiler *c, Stmt *s) {
@@ -347,9 +385,9 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 
 	compileStatement(c, s->whileStmt.body);
 
-	emitJumpTo(c, OP_JUMP, start);
+	emitJumpTo(c, OP_JUMP, start, s->line);
 
-	setJumpTo(c, exitJmp, c->func->chunk.count);
+	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
 }
 
 static void compileStatement(Compiler *c, Stmt *s) {
@@ -396,7 +434,12 @@ ObjFunction *compile(Compiler *c, Stmt *s) {
 	c->func = newFunction(c->vm, 0);
 	compileStatements(c, s->blockStmt.stmts);
 	emitBytecode(c, OP_HALT, s->line);
-	return c->func;
+
+	if(c->hadError) {
+		return NULL;
+	} else {
+		return c->func;
+	}
 }
 
 ObjFunction *compileFunction(Compiler *c, Stmt *s) {
@@ -406,7 +449,8 @@ ObjFunction *compileFunction(Compiler *c, Stmt *s) {
 	enterScope(c);
 	LinkedList *formals = s->funcDecl.formalArgs;
 	while(formals != NULL) {
-		declareVar(c, (Identifier*) formals->elem);
+		declareVar(c, (Identifier*) formals->elem, s->line);
+		c->locals[c->localsCount - 1].depth = c->depth;
 		formals = formals->next;
 	}
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);

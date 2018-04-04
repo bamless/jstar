@@ -11,13 +11,13 @@ void disassemble(Chunk *c) {
 		case OP_JUMP:
 		case OP_JUMPT:
 		case OP_JUMPF:
-			printf("%d ", (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]);
+			printf("%d", (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]);
 			i += 2;
 			break;
 
 		case OP_CALL:
-			printf("%d ", c->code[i + 1]);
-			i++;
+			printf("%d", (uint16_t)c->code[i + 1] << 8 | c->code[i + 2]);
+			i += 2;
 			break;
 		//stack operations
 		case OP_GET_CONST:
@@ -26,7 +26,7 @@ void disassemble(Chunk *c) {
 		case OP_SET_LOCAL:
 		case OP_SET_GLOBAL:
 		case OP_DEFINE_GLOBAL:
-			printf("%d ", c->code[i + 1]);
+			printf("%d", c->code[i + 1]);
 			i++;
 			break;
 		default: break;

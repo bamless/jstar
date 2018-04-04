@@ -1,14 +1,18 @@
 #include "vm.h"
 #include "ast.h"
 #include "parser.h"
+#include "disassemble.h"
 
 #include <stdlib.h>
+#include <stdarg.h>
 
 #define INIT_GC 1024 * 1024 // 1MiB
 
 #ifdef DBG_PRINT_GC
 #include <stdio.h>
 #endif
+
+static void runtimeError(VM *vm, const char* format, ...);
 
 static void reset(VM *vm) {
 	vm->sp = vm->stack;
@@ -36,10 +40,90 @@ void initVM(VM *vm) {
 	vm->reachedCount = 0;
 }
 
-void eval(const char *src) {
+static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
+	return true;
+}
+
+static bool callValue(VM *vm, Value callee, uint16_t argc) {
+	if(IS_OBJ(callee)) {
+		switch(OBJ_TYPE(callee)) {
+		case OBJ_FUNCTION:
+			return callFunction(vm, AS_FUNC(callee), argc);
+			break;
+		default: break;
+		}
+	}
+
+	runtimeError(vm, "Can only call function and native objects.");
+	return false;
+}
+
+static bool runEval(VM *vm) {
+	Frame *frame = &vm->frames[vm->frameCount - 1];
+
+	#define NEXT_CODE()  (*frame->ip++)
+	#define NEXT_SHORT() (frame->ip += 2, ((uint16_t) frame->ip[-2] << 8) | frame->ip[-1])
+
+	for(;;) {
+
+	uint8_t istr;
+	switch((istr = NEXT_CODE())) {
+	default:
+	return true;
+	break;
+	}
+
+	}
+
+	return true;
+}
+
+EvalResult evaluate(VM *vm, const char *src) {
 	Parser p;
+	Compiler c;
+
 	Stmt *program = parse(&p, src);
+	if(p.hadError) {
+		return VM_SYNTAX_ERR;
+	}
+
+	initCompiler(&c, NULL, 0, true, vm);
+	ObjFunction *fn = compile(&c, program);
+	if(fn == NULL) {
+		return VM_COMPILE_ERR;
+	}
+
 	freeStmt(program);
+
+	disassemble(&fn->chunk);
+	callFunction(vm, fn, 0);
+
+	if(!runEval(vm)) {
+		return VM_RUNTIME_ERR;
+	}
+
+	return VM_EVAL_SUCCSESS;
+}
+
+static void runtimeError(VM *vm, const char* format, ...) {
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
+
+	for(int i = vm->frameCount; i >= 0; i--) {
+		Frame *frame = &vm->frames[i];
+		ObjFunction *func = frame->fn;
+		size_t istr = frame->ip - func->chunk.code - 1;
+		fprintf(stderr, "[line:%d] ", getBytecodeSrcLine(&func->chunk, istr));
+
+		if(func->name != NULL) {
+			fprintf(stderr, "%s()\n", func->name->data);
+		} else {
+			fprintf(stderr, "main\n");
+		}
+	}
 }
 
 void freeVM(VM *vm) {
