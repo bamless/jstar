@@ -84,6 +84,7 @@ EvalResult evaluate(VM *vm, const char *src) {
 
 	Stmt *program = parse(&p, src);
 	if(p.hadError) {
+		freeStmt(program);
 		return VM_SYNTAX_ERR;
 	}
 
