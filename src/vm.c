@@ -89,11 +89,10 @@ EvalResult evaluate(VM *vm, const char *src) {
 
 	initCompiler(&c, NULL, 0, true, vm);
 	ObjFunction *fn = compile(&c, program);
+	freeStmt(program);
 	if(fn == NULL) {
 		return VM_COMPILE_ERR;
 	}
-
-	freeStmt(program);
 
 	disassemble(&fn->chunk);
 	callFunction(vm, fn, 0);

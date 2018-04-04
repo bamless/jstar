@@ -6,7 +6,7 @@
 int main() {
 	VM vm;
 	initVM(&vm);
-	EvalResult res = evaluate(&vm, "var y = 3;\ndef func(x, y) {y = 4;} func(4, 5);");
+	EvalResult res = evaluate(&vm, "var y = 3;\ndef func(x, y) {var x = x;} func(4, 5);");
 	switch(res) {
 	case VM_SYNTAX_ERR:
 		fprintf(stderr, "Syntax error\n");
