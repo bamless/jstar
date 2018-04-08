@@ -1,16 +1,15 @@
 #include "vm.h"
 #include "ast.h"
 #include "parser.h"
+#include "opcode.h"
 #include "disassemble.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <math.h>
 
 #define INIT_GC 1024 * 1024 // 1MiB
-
-#ifdef DBG_PRINT_GC
-#include <stdio.h>
-#endif
 
 static void runtimeError(VM *vm, const char* format, ...);
 
@@ -41,6 +40,22 @@ void initVM(VM *vm) {
 }
 
 static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
+	if(func->argsCount != argc) {
+		runtimeError(vm, "Expexted %d args, but instead %d supplied.",
+			func->argsCount, argc);
+		return false;
+	}
+
+	if(vm->frameCount == FRAME_SZ) {
+		runtimeError(vm, "Stack overflow.");
+		return false;
+	}
+
+	Frame *callFrame = &vm->frames[vm->frameCount++];
+	callFrame->fn = func;
+	callFrame->ip = func->chunk.code;
+	callFrame->stack = vm->sp - (argc + 1);
+
 	return true;
 }
 
@@ -58,19 +73,71 @@ static bool callValue(VM *vm, Value callee, uint16_t argc) {
 	return false;
 }
 
+#define BINARY(type, op) do { \
+	if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
+		runtimeError(vm, "Operands must be numbers."); \
+		return false; \
+	} \
+	double b = AS_NUM(pop(vm)); \
+	double a = AS_NUM(pop(vm)); \
+	push(vm, type(a op b)); \
+} while(0)
+
 static bool runEval(VM *vm) {
 	Frame *frame = &vm->frames[vm->frameCount - 1];
 
 	#define NEXT_CODE()  (*frame->ip++)
 	#define NEXT_SHORT() (frame->ip += 2, ((uint16_t) frame->ip[-2] << 8) | frame->ip[-1])
 
+	#define READ_CONST() (frame->fn->chunk.consts.arr[NEXT_CODE()])
+	#define READ_STR()   (AS_STRING(READ_CONST()))
+
 	for(;;) {
 
 	uint8_t istr;
 	switch((istr = NEXT_CODE())) {
-	default:
-	return true;
-	break;
+	case OP_ADD: BINARY(NUM_VAL, +);   continue;
+	case OP_SUB: BINARY(NUM_VAL, -);   continue;
+	case OP_MUL: BINARY(NUM_VAL, *);   continue;
+	case OP_DIV: BINARY(NUM_VAL, /);   continue;
+	case OP_LT:  BINARY(BOOL_VAL, <);  continue;
+	case OP_LE:  BINARY(BOOL_VAL, <=); continue;
+	case OP_GT:  BINARY(BOOL_VAL, >);  continue;
+	case OP_GE:  BINARY(BOOL_VAL, >=); continue;
+	case OP_MOD: {
+		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
+			runtimeError(vm, "Operands must be numbers.");
+			return false;
+		}
+		double b = AS_NUM(pop(vm));
+		double a = AS_NUM(pop(vm));
+		push(vm, NUM_VAL(fmod(a, b)));
+		continue;
+	}
+	case OP_JUMP: {
+		int16_t off = NEXT_SHORT();
+		frame->ip += off;
+		continue;
+	}
+	case OP_JUMPF: {
+		int16_t off = NEXT_SHORT();
+		if(!AS_BOOL(pop(vm))) frame->ip += off;
+		continue;
+	}
+	case OP_JUMPT: {
+		int16_t off = NEXT_SHORT();
+		if(AS_BOOL(pop(vm))) frame->ip += off;
+		continue;
+	}
+	case OP_GET_CONST:
+		push(vm, READ_CONST());
+		continue;
+	case OP_PRINT:
+		printf("%g\n", AS_NUM(pop(vm)));
+		continue;
+	case OP_HALT:
+		reset(vm);
+		return true;
 	}
 
 	}
@@ -88,7 +155,7 @@ EvalResult evaluate(VM *vm, const char *src) {
 		return VM_SYNTAX_ERR;
 	}
 
-	initCompiler(&c, NULL, 0, true, vm);
+	initCompiler(&c, NULL, 0, vm);
 	ObjFunction *fn = compile(&c, program);
 	freeStmt(program);
 	if(fn == NULL) {
@@ -110,18 +177,20 @@ static void runtimeError(VM *vm, const char* format, ...) {
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
-	fputs("\n", stderr);
+	fprintf(stderr, "\n");
 
-	for(int i = vm->frameCount; i >= 0; i--) {
+	fprintf(stderr, "Traceback:\n");
+
+	for(int i = vm->frameCount - 1; i >= 0; i--) {
 		Frame *frame = &vm->frames[i];
 		ObjFunction *func = frame->fn;
 		size_t istr = frame->ip - func->chunk.code - 1;
-		fprintf(stderr, "[line:%d] ", getBytecodeSrcLine(&func->chunk, istr));
+		fprintf(stderr, "    [line:%d] in ", getBytecodeSrcLine(&func->chunk, istr));
 
 		if(func->name != NULL) {
 			fprintf(stderr, "%s()\n", func->name->data);
 		} else {
-			fprintf(stderr, "main\n");
+			fprintf(stderr, "<main>\n");
 		}
 	}
 }

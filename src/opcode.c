@@ -6,7 +6,7 @@ const char *opName[] = {
 	//arithmetic operations
 	"OP_ADD",
 	"OP_SUB",
-	"OP_MULT",
+	"OP_MUL",
 	"OP_DIV",
 	"OP_MOD",
 	//equality operations
@@ -27,6 +27,8 @@ const char *opName[] = {
 	"OP_JUMP",
 	"OP_JUMPT",
 	"OP_JUMPF",
+
+	"OP_PRINT",
 
 	//stack operations
 	"OP_GET_CONST",

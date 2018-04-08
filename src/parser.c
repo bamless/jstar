@@ -25,7 +25,7 @@ Stmt *parse(Parser *p, const char *src) {
 	LinkedList *stmts = parseStmtOrDecl(p);
 
 	if(!match(p, TOK_EOF))
-		error(p, "unexpected token.");
+		error(p, "Unexpected token.");
 
 	return newBlockStmt(0, stmts);
 }
@@ -48,6 +48,8 @@ static LinkedList *parseStmtOrDecl(Parser *p) {
 		}
 	}
 
+	if(p->panic) synchronize(p);
+
 	return stmts;
 }
 
@@ -63,7 +65,7 @@ Stmt *parseFuncDecl(Parser *p) {
 		length = p->peek.length;
 		advance(p);
 	} else {
-		error(p, "Expected identifier");
+		error(p, "Expected identifier.");
 		advance(p);
 	}
 
@@ -104,7 +106,7 @@ static Stmt *varDecl(Parser *p) {
 		length = p->peek.length;
 		advance(p);
 	} else {
-		error(p, "Expected identifier");
+		error(p, "Expected identifier.");
 		advance(p);
 	}
 
@@ -212,9 +214,17 @@ static Stmt *blockStmt(Parser *p) {
 	return newBlockStmt(line, stmts);
 }
 
-static Stmt *parseStmt(Parser *p) {
-	if(p->panic) synchronize(p);
+static Stmt *printStmt(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_PRINT);
 
+	Expr *e = parseExpr(p);
+	require(p, TOK_SEMICOLON);
+
+	return newPrintStmt(line, e);
+}
+
+static Stmt *parseStmt(Parser *p) {
 	int line = p->peek.line;
 	switch(p->peek.type) {
 	case TOK_IF:
@@ -227,6 +237,8 @@ static Stmt *parseStmt(Parser *p) {
 		return returnStmt(p);
 	case TOK_LBRACE:
 		return blockStmt(p);
+	case TOK_PRINT:
+		return printStmt(p);
 	default: {
 		Expr *e = parseExpr(p);
 		require(p, TOK_SEMICOLON);
@@ -301,7 +313,7 @@ static Expr *literal(Parser *p) {
 		return e;
 	}
 	default:
-		error(p, "Expected expression");
+		error(p, "Expected expression.");
 		advance(p);
 		break;
 	}
@@ -498,7 +510,7 @@ static Expr *parseExpr(Parser *p) {
 
 	if(match(p, TOK_EQUAL)) {
 		if(l->type != VAR_LIT) {
-			error(p, "left hand side of assignment must be an lvalue.");
+			error(p, "Left hand side of assignment must be an lvalue.");
 		}
 
 		advance(p);
@@ -512,7 +524,7 @@ static Expr *parseExpr(Parser *p) {
 static void error(Parser *p, const char *msg) {
 	if(p->panic) return;
 
-	fprintf(stderr, "[line:%d] error near or at %.*s: %s\n",
+	fprintf(stderr, "[line:%d] Error near or at %.*s: %s\n",
 					p->peek.line, p->peek.length, p->peek.lexeme, msg);
 	p->panic = true;
 	p->hadError = true;
@@ -526,7 +538,7 @@ static void require(Parser *p, TokenType type) {
 
 	//TODO: change
 	char msg[1024];
-	snprintf(msg, 1024, "expected token %s but instead %s found", tokNames[type], tokNames[p->peek.type]);
+	snprintf(msg, 1024, "Expected token %s but instead %s found.", tokNames[type], tokNames[p->peek.type]);
 	error(p, msg);
 }
 
@@ -536,7 +548,7 @@ static void advance(Parser *p) {
 
 	while(match(p, TOK_ERR)) {
 		p->hadError = true;
-		fprintf(stderr, "[line:%d] invalid token: %.*s\n",
+		fprintf(stderr, "[line:%d] Invalid token: %.*s\n",
 				p->peek.line, p->peek.length, p->peek.lexeme);
 		nextToken(&p->lex, &p->peek);
 	}

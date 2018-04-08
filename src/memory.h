@@ -16,7 +16,7 @@ typedef struct VM VM;
 
 void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size);
 ObjString *newString(VM *vm, char *cstring, size_t size);
-ObjFunction *newFunction(VM *vm, int argsCount);
+ObjFunction *newFunction(VM *vm, uint16_t argsCount);
 ObjNative *newNative(VM *vm, int argsCount, Native fn);
 
 ObjString *copyString(VM *vm, const char *str, size_t length);

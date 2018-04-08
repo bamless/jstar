@@ -26,7 +26,7 @@ typedef struct Compiler {
 	ObjFunction *func;
 } Compiler;
 
-void initCompiler(Compiler *c, Compiler *prev, int depth, bool top, VM *vm);
+void initCompiler(Compiler *c, Compiler *prev, int depth, VM *vm);
 void endCompiler(Compiler *c);
 ObjFunction *compile(Compiler *c, Stmt *s);
 

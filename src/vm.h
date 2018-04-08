@@ -55,6 +55,8 @@ void freeVM(VM *vm);
 EvalResult evaluate(VM *vm, const char *src);
 
 #define push(vm, v) (*(vm)->sp++ = (v))
-#define pop(vm) ((vm)->sp--)
+#define pop(vm)     (*--(vm)->sp)
+#define peek(vm)    ((vm)->sp[-1])
+#define peek2(vm)   ((vm)->sp[-2])
 
 #endif

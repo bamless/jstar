@@ -9,7 +9,7 @@ typedef enum Opcode {
 	//arithmetic operations
 	OP_ADD,
 	OP_SUB,
-	OP_MULT,
+	OP_MUL,
 	OP_DIV,
 	OP_MOD,
 	//equality operations
@@ -30,6 +30,8 @@ typedef enum Opcode {
 	OP_JUMP,
 	OP_JUMPT,
 	OP_JUMPF,
+
+	OP_PRINT,
 
 	//stack operations
 	OP_GET_CONST,

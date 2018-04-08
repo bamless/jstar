@@ -39,7 +39,7 @@ typedef struct ObjString {
 
 typedef struct ObjFunction {
 	Obj base;
-	int argsCount;
+	uint16_t argsCount;
 	Chunk chunk;
 	ObjString *name;
 } ObjFunction;

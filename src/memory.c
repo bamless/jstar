@@ -53,7 +53,7 @@ ObjString *newString(VM *vm, char *cstring, size_t length) {
 	return str;
 }
 
-ObjFunction *newFunction(VM *vm, int argsCount) {
+ObjFunction *newFunction(VM *vm, uint16_t argsCount) {
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), OBJ_FUNCTION);
 	f->argsCount = argsCount;
 	f->name = NULL;

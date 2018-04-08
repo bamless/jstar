@@ -185,7 +185,7 @@ Stmt *newWhileStmt(int line, Expr *cond, Stmt *body) {
 Stmt *newReturnStmt(int line, Expr *e) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
-	s->type = RETURN;
+	s->type = RETURN_STMT;
 	s->returnStmt.e = e;
 	return s;
 }
@@ -205,6 +205,14 @@ Stmt *newBlockStmt(int line, LinkedList *list) {
 	s->line = line;
 	s->type = BLOCK;
 	s->blockStmt.stmts = list;
+	return s;
+}
+
+Stmt *newPrintStmt(int line, Expr *e) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = PRINT;
+	s->printStmt.e = e;
 	return s;
 }
 
@@ -235,7 +243,7 @@ void freeStmt(Stmt *s) {
 		freeExpr(s->whileStmt.cond);
 		freeStmt(s->whileStmt.body);
 		break;
-	case RETURN:
+	case RETURN_STMT:
 		freeExpr(s->returnStmt.e);
 		break;
 	case EXPR:
@@ -250,6 +258,7 @@ void freeStmt(Stmt *s) {
 			free(f);
 		}
 		break;
+	}
 	case FUNCDECL: {
 		LinkedList *head = s->funcDecl.formalArgs;
 		while(head != NULL) {
@@ -264,7 +273,9 @@ void freeStmt(Stmt *s) {
 	case VARDECL:
 		freeExpr(s->varDecl.init);
 		break;
-	}
+	case PRINT:
+		freeExpr(s->printStmt.e);
+		break;
 	}
 
 	free(s);

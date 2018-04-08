@@ -1,23 +1,44 @@
 #include <stdio.h>
 #include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include "vm.h"
 
 int main() {
 	VM vm;
 	initVM(&vm);
-	EvalResult res = evaluate(&vm, "var y = 3;\ndef func(x, y) {var x = x;} func(4, 5);");
-	switch(res) {
-	case VM_SYNTAX_ERR:
-		fprintf(stderr, "Syntax error\n");
-		break;
-	case VM_COMPILE_ERR:
-		fprintf(stderr, "Compile error\n");
-		break;
-	case VM_RUNTIME_ERR:
-		fprintf(stderr, "Runtime error\n");
-		break;
-	case VM_EVAL_SUCCSESS: break;
+
+	for(;;) {
+		char *src = readline(">>> ");
+		if(src == NULL) {
+			printf("\n");
+			break;
+		}
+
+		if(strlen(src) == 0) {
+			free(src);
+			continue;
+		}
+
+		add_history(src);
+
+		EvalResult res = evaluate(&vm, src);
+		switch(res) {
+		case VM_SYNTAX_ERR:
+			fprintf(stderr, "Syntax error.\n");
+			break;
+		case VM_COMPILE_ERR:
+			fprintf(stderr, "Compile error.\n");
+			break;
+		case VM_RUNTIME_ERR:
+			fprintf(stderr, "Runtime error.\n");
+			break;
+		case VM_EVAL_SUCCSESS: break;
+		}
+
+		free(src);
 	}
+
 	freeVM(&vm);
 }

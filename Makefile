@@ -15,7 +15,7 @@
 CC = gcc
 
 # Executable name
-EXEC_NAME = lang
+EXEC_NAME = blang
 
 # Where to search for source code
 SRC = src
@@ -39,7 +39,7 @@ LDFLAGS =
 # Compiler flags
 CFLAGS = -DNAN_TAGGING -O3 -Wall -Wextra -pedantic --std=c11
 # Libraries
-LIBS =
+LIBS = -lm -lreadline
 
 # Source extension
 SRC_EXT = c

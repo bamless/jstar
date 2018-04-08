@@ -71,7 +71,7 @@ Expr *newCallExpr(int line, Expr *callee, LinkedList *args);
 void freeExpr(Expr *e);
 
 typedef enum StmtType {
-	IF, FOR, WHILE, BLOCK, RETURN, EXPR, VARDECL, FUNCDECL
+	IF, FOR, WHILE, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL, PRINT
 } StmtType;
 
 typedef struct Stmt Stmt;
@@ -107,6 +107,9 @@ struct Stmt {
 			LinkedList *formalArgs;
 			Stmt *body;
 		} funcDecl;
+		struct {
+			Expr *e;
+		} printStmt;
 		Expr *exprStmt;
 	};
 };
@@ -116,8 +119,9 @@ Stmt *newForStmt(int line, Expr *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
-Stmt *newReturnStmt(int line, Expr *e);
 Stmt *newBlockStmt(int line, LinkedList *list);
+Stmt *newReturnStmt(int line, Expr *e);
+Stmt *newPrintStmt(int line, Expr *e);
 Stmt *newExprStmt(int line, Expr *e);
 
 void freeStmt(Stmt *s);
