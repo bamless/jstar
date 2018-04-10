@@ -20,6 +20,7 @@ ObjFunction *newFunction(VM *vm, uint8_t argsCount);
 ObjNative *newNative(VM *vm, uint8_t argsCount, Native fn);
 
 ObjString *copyString(VM *vm, const char *str, size_t length);
+ObjString *newStringFromBuf(VM *vm, char *buf, size_t length);
 
 void disableGC(VM *vm, bool disable);
 void freeObjects(VM *vm);

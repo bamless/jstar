@@ -5,8 +5,8 @@
 #include "disassemble.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <float.h>
 #include <math.h>
 
@@ -98,8 +98,13 @@ static bool isValTrue(Value val) {
 	}
 }
 
-static ObjString* stringConcatenate(ObjString *s1, ObjString *s2) {
-	return NULL;
+static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
+	size_t length = s1->length + s2->length;
+	char *data = ALLOC(vm, length + 1);
+	memcpy(data, s1->data, s1->length);
+	memcpy(data + s1->length, s2->data, s2->length);
+	data[length] = '\0';
+	return newStringFromBuf(vm, data, length);
 }
 
 static bool runEval(VM *vm) {
@@ -134,12 +139,16 @@ static bool runEval(VM *vm) {
 			push(vm, NUM_VAL(a + b));
 			continue;
 		} else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
-			ObjString *s2 = AS_STRING(pop(vm));
-			ObjString *s1 = AS_STRING(pop(vm));
-			push(vm, OBJ_VAL(stringConcatenate(s1, s2)));
+			ObjString *conc = stringConcatenate(vm,
+				AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
+
+			(void)pop(vm);
+			(void)pop(vm);
+
+			push(vm, OBJ_VAL(conc));
 			continue;
 		}
-		runtimeError(vm, "Operands of `+` must be two numbers of rwo strings.");
+		runtimeError(vm, "Operands of `+` must be two numbers or two strings.");
 		return false;
 	}
 	case OP_MOD: {

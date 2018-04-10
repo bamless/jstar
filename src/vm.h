@@ -6,7 +6,7 @@
 #include "compiler.h"
 #include "hashtable.h"
 
-#include <stdint.h>
+#include <stdlib.h>
 
 #define FRAME_SZ 1000                 // Max stack depth
 #define STACK_SZ FRAME_SZ * UINT8_MAX // We have at most UINT8_MAX local var per stack

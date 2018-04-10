@@ -82,6 +82,18 @@ ObjString *copyString(VM *vm, const char *str, size_t length) {
 	return interned;
 }
 
+ObjString *newStringFromBuf(VM *vm, char *buf, size_t length) {
+	ObjString *interned = HashTableGetString(&vm->strings, buf, length, hashString(buf, length));
+	if(interned == NULL) {
+		interned = newString(vm, buf, length);
+		hashTablePut(&vm->strings, interned, NULL_VAL);
+		return interned;
+	}
+
+	FREEARRAY(vm, char, buf, length + 1);
+	return interned;
+}
+
 static void freeObject(VM *vm, Obj *o) {
 	switch(o->type) {
 	case OBJ_STRING: {
@@ -112,7 +124,9 @@ void freeObjects(VM *vm) {
 			*head = u->next;
 
 #ifdef DBG_PRINT_GC
-			printf("FREE: unreached object %p type: %s.\n", (void*)u, typeName[u->type]);
+			printf("FREE: unreached object %p type: %s repr: ", (void*)u, typeName[u->type]);
+			printObj(u);
+			printf("\n");
 #endif
 
 			freeObject(vm, u);

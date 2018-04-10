@@ -90,13 +90,13 @@ void sbuf_appendstr(StringBuffer *sbuf, const char *str) {
 }
 
 void sbuf_truncate(StringBuffer *sbuf, size_t len) {
-	if(len == 0 || len >= sbuf->len) return;
+	if(len >= sbuf->len) return;
 	sbuf->len = len;
 	sbuf->buff[sbuf->len] = '\0';
 }
 
 void sbuf_cut(StringBuffer *sbuf, size_t len) {
-	if(len <= 0 || len > sbuf->len) return;
+	if(len == 0 || len > sbuf->len) return;
 	memmove(sbuf->buff, sbuf->buff + len, sbuf->len - len);
 	sbuf->len -= len;
 	sbuf->buff[sbuf->len] = '\0';
