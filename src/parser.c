@@ -312,6 +312,10 @@ static Expr *literal(Parser *p) {
 		require(p, TOK_RPAREN);
 		return e;
 	}
+	case TOK_ERR:
+		error(p, "Unexpected token");
+		advance(p);
+		break;
 	default:
 		error(p, "Expected expression.");
 		advance(p);
@@ -524,7 +528,7 @@ static Expr *parseExpr(Parser *p) {
 static void error(Parser *p, const char *msg) {
 	if(p->panic) return;
 
-	fprintf(stderr, "[line:%d] Error near or at %.*s: %s\n",
+	fprintf(stderr, "[line:%d] Error near or at `%.*s`: %s\n",
 					p->peek.line, p->peek.length, p->peek.lexeme, msg);
 	p->panic = true;
 	p->hadError = true;
@@ -536,9 +540,9 @@ static void require(Parser *p, TokenType type) {
 		return;
 	}
 
-	//TODO: change
-	char msg[1024];
-	snprintf(msg, 1024, "Expected token %s but instead %s found.", tokNames[type], tokNames[p->peek.type]);
+	char msg[1025] = {'\0'};
+	snprintf(msg, 1024, "Expected token `%s` but instead `%s` found.",
+		tokNames[type], tokNames[p->peek.type]);
 	error(p, msg);
 }
 

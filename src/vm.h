@@ -15,7 +15,8 @@ typedef enum {
 	VM_EVAL_SUCCSESS,
 	VM_SYNTAX_ERR,
 	VM_COMPILE_ERR,
-	VM_RUNTIME_ERR
+	VM_RUNTIME_ERR,
+	VM_GENERIC_ERR
 } EvalResult;
 
 typedef struct Frame {
@@ -54,9 +55,10 @@ void freeVM(VM *vm);
 
 EvalResult evaluate(VM *vm, const char *src);
 
-#define push(vm, v) (*(vm)->sp++ = (v))
-#define pop(vm)     (*--(vm)->sp)
-#define peek(vm)    ((vm)->sp[-1])
-#define peek2(vm)   ((vm)->sp[-2])
+#define push(vm, v)  (*(vm)->sp++ = (v))
+#define pop(vm)      (*(--(vm)->sp))
+#define peek(vm)     ((vm)->sp[-1])
+#define peek2(vm)    ((vm)->sp[-2])
+#define peekn(vm, n) ((vm)->sp[-(n + 1)])
 
 #endif

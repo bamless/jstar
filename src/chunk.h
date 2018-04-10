@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define CHUNK_DEFAULT_SIZE 16
+#define CHUNK_DEFAULT_SIZE 8
 #define CHUNK_GROW_FACT 2
 
 typedef struct Chunk {

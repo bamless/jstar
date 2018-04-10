@@ -10,14 +10,14 @@
 typedef uint64_t Value;
 
 #define SIGN_BIT ((uint64_t) 1 << 63)
-#define SNAN 0x7FF0000000000000
+#define SNAN ((uint64_t) 0x7FF0000000000000)
 
 #define NULL_TAG  1
-#define TRUE_TAG  2
-#define FALSE_TAG 3
+#define FALSE_TAG 2
+#define TRUE_TAG  3
 
 #define IS_OBJ(val)    (((val) & (SNAN | SIGN_BIT)) == (SNAN | SIGN_BIT))
-#define IS_BOOL(val)   ((val) == TRUE_VAL || (val) == FALSE_VAL)
+#define IS_BOOL(val)   (((val) & (SNAN | FALSE_TAG)) == (SNAN | FALSE_TAG))
 #define IS_NUM(val)    (((val) & SNAN) != SNAN)
 #define IS_NULL(val)   ((val) == NULL_VAL)
 
@@ -78,7 +78,7 @@ typedef struct {
 #define AS_NUM(value)  ((value).num)
 #define AS_OBJ(value)  ((value).obj)
 
-#define NUM_VAL(num)   ((Value) {VAL_NUM,  {.num = num}})
+#define NUM_VAL(n)     ((Value) {VAL_NUM,  {.num = n}})
 #define BOOL_VAL(b)    ((Value) {VAL_BOOL, {.boolean = b}})
 #define OBJ_VAL(val)   ((Value) {VAL_OBJ,  {.obj = (Obj*) val}})
 #define TRUE_VAL       ((Value) {VAL_BOOL, {.boolean = true}})
@@ -106,7 +106,7 @@ static inline bool valueEquals(Value v1, Value v2) {
 
 //-- Value array --
 
-#define VAL_ARR_DEF_SZ 16
+#define VAL_ARR_DEF_SZ   8
 #define VAL_ARR_GROW_FAC 2
 
 typedef struct ValueArray {
@@ -117,5 +117,7 @@ typedef struct ValueArray {
 void initValueArray(ValueArray *a);
 void freeValueArray(ValueArray *a);
 size_t valueArrayAppend(ValueArray *a, Value v);
+
+void printValue(Value val);
 
 #endif

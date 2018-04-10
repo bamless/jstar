@@ -13,8 +13,9 @@ static Entry *newEntry(ObjString *key, Value val) {
 
 void initHashTable(HashTable *t) {
 	t->numEntries = 0;
-	t->size = INITIAL_CAPACITY;
-	t->entries = calloc(sizeof(Entry *), INITIAL_CAPACITY);
+	t->size = 0;
+	t->mask = 0;
+	t->entries = NULL;
 }
 
 void freeHashTable(HashTable *t) {
@@ -35,13 +36,15 @@ static bool keyEquals(ObjString *k1, ObjString *k2) {
 }
 
 static void addEntry(HashTable *t, Entry *e) {
-	size_t index = e->key->hash % t->size;
+	size_t index = e->key->hash & t->mask;
 	e->next = t->entries[index];
 	t->entries[index] = e;
 }
 
 static Entry *getEntry(HashTable *t, ObjString *key) {
-	size_t index = key->hash % t->size;
+	if(t->entries == NULL) return NULL;
+
+	size_t index = key->hash & t->mask;
 
 	Entry *buckHead = t->entries[index];
 	while(buckHead != NULL) {
@@ -58,8 +61,9 @@ static void grow(HashTable *t) {
 	size_t oldSize = t->size;
 	Entry **oldEntries = t->entries;
 
-	t->size *= GROW_FACTOR;
+	t->size = t->size == 0 ? INITIAL_CAPACITY : t->size * GROW_FACTOR;
 	t->entries = calloc(sizeof(Entry *), t->size);
+	t->mask = t->size - 1;
 
 	for(size_t i = 0; i < oldSize; i++) {
 		Entry *buckHead = oldEntries[i];
@@ -74,7 +78,7 @@ static void grow(HashTable *t) {
 	free(oldEntries);
 }
 
-void hashTablePut(HashTable *t, ObjString *key, Value val) {
+bool hashTablePut(HashTable *t, ObjString *key, Value val) {
 	Entry *e = getEntry(t, key);
 	if(e == NULL) {
 		if(t->numEntries + 1 > t->size * MAX_LOAD_FACTOR)
@@ -83,9 +87,12 @@ void hashTablePut(HashTable *t, ObjString *key, Value val) {
 		e = newEntry(key, val);
 		addEntry(t, e);
 		t->numEntries++;
-	} else {
-		e->value = val;
+
+		return true;
 	}
+
+	e->value = val;
+	return false;
 }
 
 bool hashTableGet(HashTable *t, ObjString *key, Value *res) {
@@ -98,7 +105,7 @@ bool hashTableGet(HashTable *t, ObjString *key, Value *res) {
 }
 
 bool hashTableDel(HashTable *t, ObjString *key) {
-	size_t index = key->hash % t->size;
+	size_t index = key->hash & t->mask;
 
 	Entry **buckHead = &t->entries[index];
 	while(*buckHead != NULL) {
@@ -118,7 +125,9 @@ bool hashTableDel(HashTable *t, ObjString *key) {
 }
 
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash) {
-	size_t index = hash % t->size;
+	if(t->entries == NULL) return NULL;
+
+	size_t index = hash & t->mask;
 
 	Entry *buckHead = t->entries[index];
 	while(buckHead != NULL) {

@@ -3,12 +3,12 @@
 #include <string.h>
 
 void initChunk(Chunk *c) {
-	c->size = CHUNK_DEFAULT_SIZE;
-	c->linesSize = CHUNK_DEFAULT_SIZE;
+	c->size = 0;
+	c->linesSize = 0;
 	c->count = 0;
 	c->linesCount = 0;
-	c->code = malloc(sizeof(uint8_t) * CHUNK_DEFAULT_SIZE);
-	c->lines = calloc(sizeof(int), CHUNK_DEFAULT_SIZE);
+	c->code = NULL;
+	c->lines = NULL;
 	initValueArray(&c->consts);
 }
 
@@ -23,12 +23,12 @@ void freeChunk(Chunk *c) {
 }
 
 static void growCode(Chunk *c) {
-	c->size *= CHUNK_GROW_FACT;
+	c->size = c->size == 0 ? CHUNK_DEFAULT_SIZE : c->size * CHUNK_GROW_FACT;
 	c->code = realloc(c->code, c->size * sizeof(uint8_t));
 }
 
 static void growLines(Chunk *c) {
-	size_t newSize = c->linesSize * CHUNK_GROW_FACT;
+	size_t newSize = c->linesSize == 0 ? CHUNK_DEFAULT_SIZE : c->linesSize * CHUNK_GROW_FACT;
 	c->lines = realloc(c->lines, newSize * sizeof(int));
 	memset(c->lines + c->linesSize, 0, newSize - c->linesSize);
 	c->linesSize = newSize;

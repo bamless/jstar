@@ -39,7 +39,7 @@ typedef struct ObjString {
 
 typedef struct ObjFunction {
 	Obj base;
-	uint16_t argsCount;
+	uint8_t argsCount;
 	Chunk chunk;
 	ObjString *name;
 } ObjFunction;
@@ -48,9 +48,11 @@ typedef Value (*Native)(int argc, Value *argv);
 
 typedef struct ObjNative {
 	Obj base;
-	int argsCount;
+	uint8_t argsCount;
 	Native fn;
 	ObjString *name;
 } ObjNative;
+
+void printObj(Obj *o);
 
 #endif

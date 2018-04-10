@@ -53,7 +53,7 @@ ObjString *newString(VM *vm, char *cstring, size_t length) {
 	return str;
 }
 
-ObjFunction *newFunction(VM *vm, uint16_t argsCount) {
+ObjFunction *newFunction(VM *vm, uint8_t argsCount) {
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), OBJ_FUNCTION);
 	f->argsCount = argsCount;
 	f->name = NULL;
@@ -61,7 +61,7 @@ ObjFunction *newFunction(VM *vm, uint16_t argsCount) {
 	return f;
 }
 
-ObjNative *newNative(VM *vm, int argsCount, Native fn) {
+ObjNative *newNative(VM *vm, uint8_t argsCount, Native fn) {
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), OBJ_NATIVE);
 	n->argsCount = argsCount;
 	n->name = NULL;
@@ -81,22 +81,6 @@ ObjString *copyString(VM *vm, const char *str, size_t length) {
 	}
 	return interned;
 }
-
-#ifdef DBG_PRINT_GC
-static void printObj(Obj *o) {
-	switch(o->type) {
-	case OBJ_STRING:
-		printf("%s\n", ((ObjString*)o)->data);
-		break;
-	case OBJ_NATIVE:
-		printf("native function arity: %d\n", ((ObjNative*)o)->argsCount);
-		break;
-	case OBJ_FUNCTION:
-		printf("function arity: %d\n", ((ObjFunction*)o)->argsCount);
-		break;
-	}
-}
-#endif
 
 static void freeObject(VM *vm, Obj *o) {
 	switch(o->type) {
@@ -128,8 +112,7 @@ void freeObjects(VM *vm) {
 			*head = u->next;
 
 #ifdef DBG_PRINT_GC
-			printf("FREE: unreached object %p type: %s repr: ", (void*)u, typeName[u->type]);
-			printObj(u);
+			printf("FREE: unreached object %p type: %s.\n", (void*)u, typeName[u->type]);
 #endif
 
 			freeObject(vm, u);
@@ -162,6 +145,7 @@ void reachObject(VM *vm, Obj *o) {
 #ifdef DBG_PRINT_GC
 	printf("REACHED: Object %p type: %s repr: ", (void*)o, typeName[o->type]);
 	printObj(o);
+	printf("\n");
 #endif
 
 	o->reached = true;
@@ -206,16 +190,12 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	}
 	default: break;
 	}
-
-#ifdef DBG_PRINT_GC
-	printf("End recursive exploring of object %p\n", (void*)o);
-#endif
 }
 
 static void garbageCollect(VM *vm) {
 #ifdef DBG_PRINT_GC
 	size_t prevAlloc = vm->allocated;
-	puts("**** Starting GC ****");
+	puts("*--- Starting GC ---*");
 #endif
 
 	//init reached object stack
@@ -254,9 +234,10 @@ static void garbageCollect(VM *vm) {
 	vm->reachedCount = 0;
 
 #ifdef DBG_PRINT_GC
-	printf("Completed GC, prev allocated: %lu, curr allocated %lu, freed: %lu "
-	       "bytes of memory\n", prevAlloc, vm->allocated, prevAlloc - vm->allocated);
-	puts("**** End of GC ****\n");
+	size_t curr = prevAlloc - vm->allocated;
+	printf("Completed GC, prev allocated: %lu, curr allocated "
+		"%lu, freed: %lu bytes of memory.\n", prevAlloc, vm->allocated, curr);
+	puts("*--- End  of  GC ---*\n");
 #endif
 }
 

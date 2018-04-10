@@ -35,7 +35,7 @@ static void error(Compiler *c, int line, const char *format, ...) {
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
-	fputs("\n", stderr);
+	fprintf(stderr, "\n");
 	c->hadError = true;
 }
 
@@ -51,6 +51,9 @@ static void exitScope(Compiler *c) {
 }
 
 static size_t emitBytecode(Compiler *c, uint8_t b, int line) {
+	if(line == 0 && c->func->chunk.linesCount > 0) {
+		line = c->func->chunk.lines[c->func->chunk.linesCount - 1];
+	}
 	return writeByte(&c->func->chunk, b, line);
 }
 
@@ -115,9 +118,8 @@ static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
 		error(c, line, "Too much code to jump over.");
 	}
 
-	Chunk *chunk = &c->func->chunk;
-	emitBytecode(c, jmpOpcode, chunk->lines[chunk->linesCount]);
-	emitShort(c, (uint16_t) offset, chunk->lines[chunk->linesCount]);
+	emitBytecode(c, jmpOpcode, 0);
+	emitShort(c, (uint16_t) offset, 0);
 	return c->func->chunk.count - 2;
 }
 
@@ -172,30 +174,25 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 	}
 }
 
-static void compileAndExpr(Compiler *c, Expr *e) {
+static void compileLogicExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->bin.left);
 	emitBytecode(c, OP_DUP, e->line);
-	size_t scJmp = emitBytecode(c, OP_JUMPF, e->line);
-	emitShort(c, 0, e->line);
-	emitBytecode(c, OP_POP, e->line);
-	compileExpr(c, e->bin.right);
-	setJumpTo(c, scJmp, c->func->chunk.count, e->line);
-}
 
-static void compileOrExpr(Compiler *c, Expr *e) {
-	compileExpr(c, e->bin.left);
-	emitBytecode(c, OP_DUP, e->line);
-	size_t scJmp = emitBytecode(c, OP_JUMPT, e->line);
-	emitShort(c, 0, e->line);
+	uint8_t jmp = e->bin.op == AND ? OP_JUMPF : OP_JUMPT;
+	size_t scJmp = emitBytecode(c, jmp, 0);
+	emitShort(c, 0, 0);
+
 	emitBytecode(c, OP_POP, e->line);
 	compileExpr(c, e->bin.right);
+
 	setJumpTo(c, scJmp, c->func->chunk.count, e->line);
 }
 
 static void compileUnaryExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->unary.operand);
 	switch(e->unary.op) {
-	case NOT: emitBytecode(c, OP_NOT, e->line); break;
+	case MINUS: emitBytecode(c, OP_NEG, e->line); break;
+	case NOT:   emitBytecode(c, OP_NOT, e->line); break;
 	default:
 		error(c, e->line, "Wrong operator for unary expression.");
 		break;
@@ -229,8 +226,12 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 		compileExpr(c, (Expr*) n->elem);
 	}
 
-	emitBytecode(c, OP_CALL, e->line);
-	emitBytecode(c, argsc, e->line);
+	if(argsc <= 10) {
+		emitBytecode(c, OP_CALL_0 + argsc, e->line);
+	} else {
+		emitBytecode(c, OP_CALL, e->line);
+		emitBytecode(c, argsc, e->line);
+	}
 }
 
 static void compileExpr(Compiler *c, Expr *e) {
@@ -239,10 +240,8 @@ static void compileExpr(Compiler *c, Expr *e) {
 	 	compileAssignExpr(c, e);
 		break;
 	case BINARY:
-		if(e->bin.op == AND) {
-			compileAndExpr(c, e);
-		} else if(e->bin.op == OR) {
-			compileOrExpr(c, e);
+		if(e->bin.op == AND || e->bin.op == OR) {
+			compileLogicExpr(c, e);
 		} else {
 			compileBinaryExpr(c, e);
 		}
@@ -332,15 +331,15 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
 	compileExpr(c, s->ifStmt.cond);
 
 	// emit the jump istr for false cond
-	size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
-	emitShort(c, 0, s->line);
+	size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
+	emitShort(c, 0, 0);
 	compileStatement(c, s->ifStmt.thenStmt);
 
 	// if the 'if' has an 'else' emit istr to jump over the 'else' branch
 	size_t exitJmp = 0;
 	if(s->ifStmt.elseStmt != NULL) {
-		exitJmp = emitBytecode(c, OP_JUMP, s->line);
-		emitShort(c, 0, s->line);
+		exitJmp = emitBytecode(c, OP_JUMP, 0);
+		emitShort(c, 0, 0);
 	}
 
 	// set the false jump to the 'else' branch (or to exit if not present)
@@ -357,7 +356,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	// init
 	if(s->forStmt.init != NULL) {
 		compileExpr(c, s->forStmt.init);
-		emitBytecode(c, OP_POP, s->line);
+		emitBytecode(c, OP_POP, 0);
 	}
 
 	// condition
@@ -365,8 +364,8 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	size_t exitJmp = 0;
 	if(s->forStmt.cond != NULL) {
 		compileExpr(c, s->forStmt.cond);
-		exitJmp = emitBytecode(c, OP_JUMPF, s->line);
-		emitShort(c, 0, s->line);
+		exitJmp = emitBytecode(c, OP_JUMPF, 0);
+		emitShort(c, 0, 0);
 	}
 
 	// body
@@ -375,11 +374,11 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	// act
 	if(s->forStmt.act != NULL) {
 		compileExpr(c, s->forStmt.act);
-		emitBytecode(c, OP_POP, s->line);
+		emitBytecode(c, OP_POP, 0);
 	}
 
 	// jump back to for start
-	emitJumpTo(c, OP_JUMP, forStart, s->line);
+	emitJumpTo(c, OP_JUMP, forStart, 0);
 
 	// set the exit jump
 	if(s->forStmt.cond != NULL) {
@@ -391,13 +390,12 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 	size_t start = c->func->chunk.count;
 
 	compileExpr(c, s->whileStmt.cond);
-
-	size_t exitJmp = emitBytecode(c, OP_JUMPF, s->line);
-	emitShort(c, 0, s->line);
+	size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
+	emitShort(c, 0, 0);
 
 	compileStatement(c, s->whileStmt.body);
 
-	emitJumpTo(c, OP_JUMP, start, s->line);
+	emitJumpTo(c, OP_JUMP, start, 0);
 
 	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
 }
@@ -424,7 +422,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		break;
 	case EXPR:
 		compileExpr(c, s->exprStmt);
-		emitBytecode(c, OP_POP, s->line);
+		emitBytecode(c, OP_POP, 0);
 		break;
 	case VARDECL:
 		compileVarDecl(c, s);
@@ -449,7 +447,7 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
 ObjFunction *compile(Compiler *c, Stmt *s) {
 	c->func = newFunction(c->vm, 0);
 	compileStatements(c, s->blockStmt.stmts);
-	emitBytecode(c, OP_HALT, s->line);
+	emitBytecode(c, OP_HALT, 0);
 
 	if(c->hadError) {
 		return NULL;
@@ -471,8 +469,8 @@ ObjFunction *compileFunction(Compiler *c, Stmt *s) {
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
 	exitScope(c);
 
-	emitBytecode(c, OP_NULL, s->line);
-	emitBytecode(c, OP_RETURN, s->line);
+	emitBytecode(c, OP_NULL, 0);
+	emitBytecode(c, OP_RETURN, 0);
 	return c->func;
 }
 

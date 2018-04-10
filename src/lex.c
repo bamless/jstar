@@ -17,7 +17,7 @@ static Keyword keywords[] = {
 	{"for",    3, TOK_FOR},
 	{"def",    3, TOK_DEF},
 	{"if",     2, TOK_IF},
-	{"null",   3, TOK_NULL},
+	{"null",   4, TOK_NULL},
 	{"or",     2, TOK_OR},
 	{"print",  5, TOK_PRINT},
 	{"return", 6, TOK_RETURN},
@@ -28,13 +28,6 @@ static Keyword keywords[] = {
 	{"while",  5, TOK_WHILE},
 	{NULL,     0, TOK_EOF}
 };
-
-void initLexer(Lexer *lex, const char * src) {
-	lex->source = src;
-	lex->tokenStart = src;
-	lex->current = src;
-	lex->curr_line = 0;
-}
 
 static char advance(Lexer *lex) {
 	lex->current++;
@@ -52,6 +45,30 @@ static bool isAtEnd(Lexer *lex) {
 static char peekChar2(Lexer *lex) {
 	if(isAtEnd(lex)) return '\0';
 	return lex->current[1];
+}
+
+static bool match(Lexer *lex, char c) {
+	if(isAtEnd(lex)) return false;
+	if(peekChar(lex) == c) {
+		advance(lex);
+		return true;
+	}
+	return false;
+}
+
+void initLexer(Lexer *lex, const char * src) {
+	lex->source = src;
+	lex->tokenStart = src;
+	lex->current = src;
+	lex->curr_line = 1;
+
+	//skip shabang if present
+	if(peekChar(lex) == '#' && peekChar2(lex) == '!') {
+		while(!isAtEnd(lex)) {
+			if(peekChar(lex) == '\n') break;
+			advance(lex);
+		}
+	}
 }
 
 static void skipSpacesAndComments(Lexer *lex) {
@@ -104,15 +121,6 @@ static void errToken(Lexer *lex, Token *tok, const char *msg) {
 	tok->lexeme = msg;
 	tok->length = strlen(msg);
 	tok->line = lex->curr_line;
-}
-
-static bool match(Lexer *lex, char c) {
-	if(isAtEnd(lex)) return false;
-	if(peekChar(lex) == c) {
-		advance(lex);
-		return true;
-	}
-	return false;
 }
 
 static void number(Lexer *lex, Token *tok) {

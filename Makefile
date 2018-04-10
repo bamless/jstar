@@ -24,7 +24,7 @@ BUILD = build
 # Folder in which the binary will be generated
 BIN = bin
 # Where to install the binary file (optional)
-INST_PATH =
+INST_PATH = /usr/bin
 
 # Path containing project libraries (optional)
 LIBS_PATH =
@@ -37,7 +37,7 @@ INCLUDES =
 #Linker flags
 LDFLAGS =
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -O3 -Wall -Wextra -pedantic --std=c11
+CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wextra -O3
 # Libraries
 LIBS = -lm -lreadline
 
@@ -49,6 +49,9 @@ ifeq ($(DBG_STRESS_GC),1)
 endif
 ifeq ($(DBG_PRINT_GC),1)
 	CFLAGS += -DDBG_PRINT_GC
+endif
+ifeq ($(DBG_PRINT_EXEC),1)
+	CFLAGS += -DDBG_PRINT_EXEC
 endif
 
 ###### SETTINGS END ######
@@ -90,7 +93,7 @@ all: $(BIN)/$(EXEC_NAME)
 # Links the object files into an executable
 $(BIN)/$(EXEC_NAME): $(OBJECTS) $(STATICLIBS)
 	@echo "Linking $@..."
-	@$(CC) $(CFLAGS) $(INCLUDES) $(OBJECTS) $(LDFLAGS) -o $@ $(LIBS_PATH) $(LIBS)
+	@$(CC) $(CFLAGS) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS_PATH) $(LIBS)
 
 # Rules for the source files. It compiles source files if obj files are outdated.
 # It also creates haeder dependency files (.d files) used to add headers as

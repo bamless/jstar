@@ -12,12 +12,11 @@ typedef enum Opcode {
 	OP_MUL,
 	OP_DIV,
 	OP_MOD,
+	OP_NEG,
 	//equality operations
 	OP_EQ,
 	OP_NEQ,
 	//logical operations
-	OP_AND,
-	OP_OR,
 	OP_NOT,
 	//comparison operations
 	OP_GT,
@@ -26,6 +25,17 @@ typedef enum Opcode {
 	OP_LE,
 	//call
 	OP_CALL,
+	OP_CALL_0,
+	OP_CALL_1,
+	OP_CALL_2,
+	OP_CALL_3,
+	OP_CALL_4,
+	OP_CALL_5,
+	OP_CALL_6,
+	OP_CALL_7,
+	OP_CALL_8,
+	OP_CALL_9,
+	OP_CALL_10,
 
 	OP_JUMP,
 	OP_JUMPT,
