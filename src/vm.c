@@ -10,8 +10,6 @@
 #include <float.h>
 #include <math.h>
 
-#define INIT_GC 1024 * 1024 // 1MiB
-
 static void runtimeError(VM *vm, const char* format, ...);
 
 static void reset(VM *vm) {
@@ -24,6 +22,7 @@ void initVM(VM *vm) {
 
 	vm->stack  = malloc(sizeof(Value) * STACK_SZ);
 	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
+	vm->stackend = vm->stack + STACK_SZ;
 
 	reset(vm);
 
@@ -40,6 +39,14 @@ void initVM(VM *vm) {
 	vm->reachedCount = 0;
 }
 
+void push(VM *vm, Value v) {
+	*vm->sp++ = v;
+}
+
+Value pop(VM *vm) {
+	return *--vm->sp;
+}
+
 static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
 	if(func->argsCount != argc) {
 		runtimeError(vm, "Function `%s` expexted %d args, but instead %d supplied.",
@@ -48,7 +55,7 @@ static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
 	}
 
 	if(vm->frameCount == FRAME_SZ) {
-		runtimeError(vm, "Stack overflow.");
+		runtimeError(vm, "Stack Overflow.");
 		return false;
 	}
 
@@ -73,16 +80,6 @@ static bool callValue(VM *vm, Value callee, uint16_t argc) {
 	runtimeError(vm, "Can only call function and native objects.");
 	return false;
 }
-
-#define BINARY(type, op) do { \
-	if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
-		runtimeError(vm, "Operands must be numbers."); \
-		return false; \
-	} \
-	double b = AS_NUM(pop(vm)); \
-	double a = AS_NUM(pop(vm)); \
-	push(vm, type(a op b)); \
-} while(0)
 
 static bool isValTrue(Value val) {
 	if(IS_BOOL(val)) {
@@ -116,6 +113,25 @@ static bool runEval(VM *vm) {
 	#define GET_CONST()  (frame->fn->chunk.consts.arr[NEXT_CODE()])
 	#define GET_STRING() (AS_STRING(GET_CONST()))
 
+	#define PUSH(vm, v) { \
+		if(vm->sp > vm->stackend) { \
+			runtimeError(vm, "Stack Overflow."); \
+			return false; \
+		} \
+		push(vm, v); \
+	}
+
+	#define BINARY(type, op) do { \
+		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
+			runtimeError(vm, "Operands must be numbers."); \
+			return false; \
+		} \
+		double b = AS_NUM(pop(vm)); \
+		double a = AS_NUM(pop(vm)); \
+		PUSH(vm, type(a op b)); \
+	} while(0)
+
+	// Eval loop
 	for(;;) {
 
 #ifdef DBG_PRINT_EXEC
@@ -136,16 +152,16 @@ static bool runEval(VM *vm) {
 		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
 			double b = AS_NUM(pop(vm));
 			double a = AS_NUM(pop(vm));
-			push(vm, NUM_VAL(a + b));
+			PUSH(vm, NUM_VAL(a + b));
 			continue;
 		} else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
 			ObjString *conc = stringConcatenate(vm,
 				AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
 
-			(void)pop(vm);
-			(void)pop(vm);
+			pop(vm);
+			pop(vm);
 
-			push(vm, OBJ_VAL(conc));
+			PUSH(vm, OBJ_VAL(conc));
 			continue;
 		}
 		runtimeError(vm, "Operands of `+` must be two numbers or two strings.");
@@ -158,7 +174,7 @@ static bool runEval(VM *vm) {
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
-		push(vm, NUM_VAL(fmod(a, b)));
+		PUSH(vm, NUM_VAL(fmod(a, b)));
 		continue;
 	}
 	case OP_SUB: BINARY(NUM_VAL, -);   continue;
@@ -171,13 +187,13 @@ static bool runEval(VM *vm) {
 	case OP_EQ: {
 		Value b = pop(vm);
 		Value a = pop(vm);
-		push(vm, BOOL_VAL(valueEquals(a, b)));
+		PUSH(vm, BOOL_VAL(valueEquals(a, b)));
 		continue;
 	}
 	case OP_NEQ: {
 		Value b = pop(vm);
 		Value a = pop(vm);
-		push(vm, BOOL_VAL(!valueEquals(a, b)));
+		PUSH(vm, BOOL_VAL(!valueEquals(a, b)));
 		continue;
 	}
 	case OP_NEG: {
@@ -186,12 +202,12 @@ static bool runEval(VM *vm) {
 			return false;
 		}
 		double n = -AS_NUM(pop(vm));
-		push(vm, NUM_VAL(n));
+		PUSH(vm, NUM_VAL(n));
 		continue;
 	}
 	case OP_NOT: {
 		bool v = !isValTrue(pop(vm));
-		push(vm, BOOL_VAL(v));
+		PUSH(vm, BOOL_VAL(v));
 		continue;
 	}
 	case OP_JUMP: {
@@ -210,7 +226,7 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_NULL:
-		push(vm, NULL_VAL);
+		PUSH(vm, NULL_VAL);
 		continue;
 	case OP_CALL: {
 		int8_t argc = NEXT_CODE();
@@ -248,7 +264,7 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_GET_CONST:
-		push(vm, GET_CONST());
+		PUSH(vm, GET_CONST());
 		continue;
 	case OP_DEFINE_GLOBAL:
 		hashTablePut(&vm->globals, GET_STRING(), pop(vm));
@@ -270,7 +286,7 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_GET_LOCAL:
-		push(vm, frame->stack[NEXT_CODE()]);
+		PUSH(vm, frame->stack[NEXT_CODE()]);
 		continue;
 	case OP_SET_LOCAL:
 		frame->stack[NEXT_CODE()] = peek(vm);
@@ -280,7 +296,7 @@ static bool runEval(VM *vm) {
 		printf("\n");
 		continue;
 	case OP_POP:
-		(void) pop(vm);
+		pop(vm);
 		continue;
 	case OP_DUP:
 		*vm->sp = *(vm->sp - 1);
@@ -292,6 +308,13 @@ static bool runEval(VM *vm) {
 	}
 
 	}
+
+	#undef NEXT_CODE
+	#undef NEXT_SHORT
+	#undef GET_CONST
+	#undef GET_STRING
+	#undef PUSH
+	#undef BINARY
 }
 
 EvalResult evaluate(VM *vm, const char *src) {
@@ -349,7 +372,7 @@ static void runtimeError(VM *vm, const char* format, ...) {
 
 void freeVM(VM *vm) {
 	reset(vm);
-
+	
 	freeHashTable(&vm->globals);
 	freeHashTable(&vm->strings);
 	freeObjects(vm);

@@ -36,7 +36,6 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 
 		if(vm->allocated > vm->nextGC) {
 			garbageCollect(vm);
-			vm->nextGC = vm->allocated * HEAP_GROW_RATE;
 		}
 	}
 
@@ -247,10 +246,13 @@ static void garbageCollect(VM *vm) {
 	vm->reachedCapacity = 0;
 	vm->reachedCount = 0;
 
+	vm->nextGC = vm->allocated * HEAP_GROW_RATE;
+
 #ifdef DBG_PRINT_GC
 	size_t curr = prevAlloc - vm->allocated;
 	printf("Completed GC, prev allocated: %lu, curr allocated "
-		"%lu, freed: %lu bytes of memory.\n", prevAlloc, vm->allocated, curr);
+	       "%lu, freed: %lu bytes of memory, next GC: %lu.\n",
+		   prevAlloc, vm->allocated, curr, vm->nextGC);
 	puts("*--- End  of  GC ---*\n");
 #endif
 }

@@ -8,8 +8,9 @@
 
 #include <stdlib.h>
 
-#define FRAME_SZ 1000                 // Max stack depth
-#define STACK_SZ FRAME_SZ * UINT8_MAX // We have at most UINT8_MAX local var per stack
+#define FRAME_SZ 1000                       // Max stack depth
+#define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
+#define INIT_GC 1024 * 1024                 // 1MiB
 
 typedef enum {
 	VM_EVAL_SUCCSESS,
@@ -30,7 +31,7 @@ typedef struct VM {
 	Compiler *currCompiler;
 
 	// VM program stack
-	Value *stack, *sp;
+	Value *stack, *sp, *stackend;
 
 	Frame *frames;
 	int frameCount;
@@ -55,8 +56,9 @@ void freeVM(VM *vm);
 
 EvalResult evaluate(VM *vm, const char *src);
 
-#define push(vm, v)  (*(vm)->sp++ = (v))
-#define pop(vm)      (*(--(vm)->sp))
+void push(VM *vm, Value v);
+Value pop(VM *vm);
+
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])
 #define peekn(vm, n) ((vm)->sp[-(n + 1)])
