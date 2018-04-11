@@ -267,6 +267,17 @@ static bool runEval(VM *vm) {
 		frame = &vm->frames[vm->frameCount - 1];
 		continue;
 	}
+	case OP_NEW_CLASS:
+		NEXT_CODE();
+		continue;
+	case OP_NEW_SUBCLASS:
+		NEXT_CODE();
+		pop(vm);
+		continue;
+	case OP_DEF_METHOD:
+		NEXT_CODE();
+		NEXT_CODE();
+		break;
 	case OP_GET_CONST:
 		PUSH(vm, GET_CONST());
 		continue;

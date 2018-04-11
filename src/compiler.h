@@ -16,21 +16,8 @@ typedef struct Local {
 	int depth;
 } Local;
 
-typedef struct Compiler {
-	VM *vm;
-	struct Compiler *prev;
+typedef struct Compiler Compiler;
 
-	ObjFunction *func;
-	
-	uint8_t localsCount;
-	Local locals[MAX_LOCALS];
-
-	bool hadError;
-	int depth;
-} Compiler;
-
-void initCompiler(Compiler *c, Compiler *prev, int depth, VM *vm);
-void endCompiler(Compiler *c);
 ObjFunction *compile(VM *vm, Stmt *s);
 
 void reachCompilerRoots(VM *vm, Compiler *c);

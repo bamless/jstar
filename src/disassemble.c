@@ -22,6 +22,13 @@ void disassembleIstr(Chunk *c, size_t i) {
 		i += 2;
 		break;
 
+	case OP_DEF_METHOD:
+		printf("%d %d", c->code[i + 1], c->code[i + 2]);
+		i += 2;
+		break;
+
+	case OP_NEW_CLASS:
+	case OP_NEW_SUBCLASS:
 	case OP_CALL:
 	//stack operations
 	case OP_GET_CONST:
@@ -30,8 +37,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_SET_LOCAL:
 	case OP_SET_GLOBAL:
 	case OP_DEFINE_GLOBAL:
-		printf("%d", c->code[i + 1]);
-		i++;
+		printf("%d", c->code[++i]);
 		break;
 	default: break;
 	}

@@ -42,6 +42,9 @@ typedef enum Opcode {
 	OP_PRINT,
 
 	//stack operations
+	OP_NEW_CLASS,
+	OP_NEW_SUBCLASS,
+	OP_DEF_METHOD,
 	OP_GET_CONST,
 	OP_GET_LOCAL,
 	OP_GET_GLOBAL,

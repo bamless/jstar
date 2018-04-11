@@ -53,7 +53,7 @@ static Stmt *parseProgram(Parser *p) {
 	return newFuncDecl(0, 0, NULL, NULL, newBlockStmt(0, stmts));
 }
 
-Stmt *parseFuncDecl(Parser *p) {
+static Stmt *parseFuncDecl(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_DEF);
 
@@ -88,6 +88,48 @@ Stmt *parseFuncDecl(Parser *p) {
 	Stmt *body = blockStmt(p);
 
 	return newFuncDecl(line, length, name, args, body);
+}
+
+static Stmt *parseClassDecl(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_CLASS);
+
+	const char *cname = NULL;
+	size_t clength = 0;
+	if(match(p, TOK_IDENTIFIER)) {
+		cname = p->peek.lexeme;
+		clength = p->peek.length;
+		advance(p);
+	} else {
+		error(p, "Expected class name.");
+		advance(p);
+	}
+
+	const char *sname = NULL;
+	size_t slength = 0;
+	if(match(p, TOK_LPAREN)) {
+		require(p, TOK_LPAREN);
+		if(match(p, TOK_IDENTIFIER)) {
+			sname = p->peek.lexeme;
+			slength = p->peek.length;
+			advance(p);
+		} else {
+			error(p, "Expected superclass name.");
+			advance(p);
+		}
+		require(p, TOK_RPAREN);
+	}
+
+	require(p, TOK_LBRACE);
+
+	LinkedList *methods = NULL;
+	while(!match(p, TOK_RBRACE) && !match(p, TOK_EOF)) {
+		methods = addElement(methods, parseFuncDecl(p));
+	}
+
+	require(p, TOK_RBRACE);
+
+	return newClassDecl(line, clength, cname, slength, sname, methods);
 }
 
 //----- Statements parse ------
@@ -239,6 +281,8 @@ static Stmt *parseStmt(Parser *p) {
 		return blockStmt(p);
 	case TOK_PRINT:
 		return printStmt(p);
+	case TOK_CLASS:
+		return parseClassDecl(p);
 	default: {
 		Expr *e = parseExpr(p);
 		require(p, TOK_SEMICOLON);

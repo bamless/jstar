@@ -9,24 +9,49 @@
 #include <string.h>
 #include <stdarg.h>
 
+typedef enum FuncType {
+	TYPE_FUNC, TYPE_METHOD, TYPE_CTOR
+} FuncType;
+
+typedef struct Compiler {
+	VM *vm;
+	Compiler *prev;
+
+	bool hasSuper;
+
+	FuncType type;
+	ObjFunction *func;
+
+	uint8_t localsCount;
+	Local locals[MAX_LOCALS];
+
+	bool hadError;
+	int depth;
+} Compiler;
+
+typedef struct ClassCompiler {
+
+} ClassCompiler;
+
 static ObjFunction *function(Compiler *c, Stmt *s);
 static void addLocal(Compiler *c, Identifier *id, int line);
+static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s);
 
-void initCompiler(Compiler *c, Compiler *prev, int depth, VM *vm) {
+static
+void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
 	c->vm = vm;
+	c->type = t;
 	c->func = NULL;
 	c->prev = prev;
 	c->depth = depth;
 	c->localsCount = 0;
+	c->hasSuper = false;
 	c->hadError = false;
 
 	vm->currCompiler = c;
-
-	Identifier id = {0, ""};
-	addLocal(c, &id, 0);
 }
 
-void endCompiler(Compiler *c) {
+static void endCompiler(Compiler *c) {
 	c->vm->currCompiler = c->prev;
 }
 
@@ -151,23 +176,6 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 	Chunk *chunk = &c->func->chunk;
 	chunk->code[jumpAddr + 1] = (uint8_t) (uint16_t) offset >> 8;
 	chunk->code[jumpAddr + 2] = (uint8_t) (uint16_t) offset;
-}
-
-static void compileFunction(Compiler *c, Stmt *s) {
-	Compiler funComp;
-	initCompiler(&funComp, c, c->depth + 1, c->vm);
-	ObjFunction *func = function(&funComp, s);
-	endCompiler(&funComp);
-
-	uint8_t fnConst = createConst(c, OBJ_VAL(func), s->line);
-	uint8_t idConst = identifierConst(c, &s->funcDecl.id, s->line);
-
-	emitBytecode(c, OP_GET_CONST, s->line);
-	emitBytecode(c, fnConst, s->line);
-	emitBytecode(c, OP_DEFINE_GLOBAL, s->line);
-	emitBytecode(c, idConst, s->line);
-
-	c->hadError |= funComp.hadError;
 }
 
 static void compileExpr(Compiler *c, Expr *e);
@@ -416,6 +424,56 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
 }
 
+static void compileFunction(Compiler *c, Stmt *s) {
+	Compiler funComp;
+	initCompiler(&funComp, c, TYPE_FUNC, c->depth + 1, c->vm);
+	ObjFunction *func = function(&funComp, s);
+	endCompiler(&funComp);
+
+	uint8_t fnConst = createConst(c, OBJ_VAL(func), s->line);
+	uint8_t idConst = identifierConst(c, &s->funcDecl.id, s->line);
+
+	emitBytecode(c, OP_GET_CONST, s->line);
+	emitBytecode(c, fnConst, s->line);
+	emitBytecode(c, OP_DEFINE_GLOBAL, s->line);
+	emitBytecode(c, idConst, s->line);
+
+	c->hadError |= funComp.hadError;
+}
+
+static void compileClass(Compiler *c, Stmt *s) {
+	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
+
+	bool isSubClass = s->classDecl.sid.name != NULL;
+	if(isSubClass) {
+		uint8_t sid = identifierConst(c, &s->classDecl.sid, s->line);
+		emitBytecode(c, OP_GET_CONST, s->line);
+		emitBytecode(c, sid, s->line);
+		emitBytecode(c, OP_NEW_SUBCLASS, s->line);
+	} else {
+		emitBytecode(c, OP_NEW_CLASS, s->line);
+	}
+
+	emitBytecode(c, id, s->line);
+
+	Compiler mComp;
+	LinkedList *n;
+	foreach(n, s->classDecl.methods) {
+		printf("HERE\n");
+		initCompiler(&mComp, c, TYPE_METHOD, c->depth + 1, c->vm);
+		mComp.hasSuper = isSubClass;
+
+		Stmt *m = (Stmt*) n->elem;
+		ObjFunction *met = method(&mComp, &s->classDecl.id, m);
+
+		emitBytecode(c, OP_DEF_METHOD, m->line);
+		emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), m->line);
+		emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), m->line);
+
+		endCompiler(&mComp);
+	}
+}
+
 static void compileStatement(Compiler *c, Stmt *s) {
 	switch(s->type) {
 	case IF:
@@ -445,6 +503,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 	case FUNCDECL:
 		compileFunction(c, s);
 		break;
+	case CLASSDECL:
+		compileClass(c, s);
+		break;
 	case PRINT:
 		compileExpr(c, s->printStmt.e);
 		emitBytecode(c, OP_PRINT, s->line);
@@ -461,7 +522,7 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
 
 ObjFunction *compile(VM *vm, Stmt *s) {
 	Compiler c;
-	initCompiler(&c, NULL, -1, vm);
+	initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
 
 	ObjFunction *func = function(&c, s);
 
@@ -483,10 +544,48 @@ static ObjFunction *function(Compiler *c, Stmt *s) {
 
 	enterScope(c);
 
+	Identifier id = {0, ""};
+	addLocal(c, &id, 0);
+
 	LinkedList *n;
 	foreach(n, s->funcDecl.formalArgs) {
 		declareVar(c, (Identifier*) n->elem, s->line);
-		c->locals[c->localsCount - 1].depth = c->depth;
+		defineVar(c, (Identifier*) n->elem, s->line);
+	}
+
+	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
+
+	exitScope(c);
+
+	emitBytecode(c, OP_NULL, 0);
+	emitBytecode(c, OP_RETURN, 0);
+
+	return c->func;
+}
+
+static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
+	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs) + 1);
+
+	size_t length = classId->length + s->funcDecl.id.length + 1;
+	char *name = ALLOC(c->vm, length + 1);
+
+	memcpy(name, classId->name, classId->length);
+	name[classId->length] = '.';
+	memcpy(name + classId->length + 1,
+			s->funcDecl.id.name, s->funcDecl.id.length);
+	name[length] = '\0';
+
+	c->func->name = newStringFromBuf(c->vm, name, length);
+
+	enterScope(c);
+
+	Identifier thisId = {4, "this"};
+	addLocal(c, &thisId, s->line);
+
+	LinkedList *n;
+	foreach(n, s->funcDecl.formalArgs) {
+		declareVar(c, (Identifier*) n->elem, s->line);
+		defineVar(c, (Identifier*) n->elem, s->line);
 	}
 
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);

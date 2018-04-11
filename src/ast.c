@@ -141,7 +141,8 @@ void freeExpr(Expr *e) {
 
 //----- Statements -----
 
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body) {
+Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args,
+	                                                       Stmt *body) {
 	Stmt *f = malloc(sizeof(*f));
 	f->line = line;
 	f->type = FUNCDECL;
@@ -150,6 +151,21 @@ Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stm
 	f->funcDecl.formalArgs = args;
 	f->funcDecl.body = body;
 	return f;
+}
+
+Stmt *newClassDecl(int line, size_t clength, const char *cid,
+	                                         size_t slength,
+	                                         const char *sid,
+	                                         LinkedList *methods) {
+	Stmt *c = malloc(sizeof(*c));
+	c->line = line;
+	c->type = CLASSDECL;
+	c->classDecl.id.name = cid;
+	c->classDecl.id.length = clength;
+	c->classDecl.sid.name = sid;
+	c->classDecl.sid.length = slength;
+	c->classDecl.methods = methods;
+	return c;
 }
 
 Stmt *newForStmt(int line, Expr *init, Expr *cond, Expr *act, Stmt *body) {
@@ -268,6 +284,16 @@ void freeStmt(Stmt *s) {
 			free(f);
 		}
 		freeStmt(s->funcDecl.body);
+		break;
+	}
+	case CLASSDECL: {
+		LinkedList *head = s->classDecl.methods;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			freeStmt((Stmt*)f->elem);
+			free(f);
+		}
 		break;
 	}
 	case VARDECL:
