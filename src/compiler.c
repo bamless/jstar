@@ -454,7 +454,6 @@ static void compileClass(Compiler *c, Stmt *s) {
 	Compiler mComp;
 	LinkedList *n;
 	foreach(n, s->classDecl.methods) {
-		printf("HERE\n");
 		initCompiler(&mComp, c, TYPE_METHOD, c->depth + 1, c->vm);
 		mComp.hasSuper = isSubClass;
 
