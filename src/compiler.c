@@ -29,12 +29,7 @@ typedef struct Compiler {
 	int depth;
 } Compiler;
 
-typedef struct ClassCompiler {
-
-} ClassCompiler;
-
 static ObjFunction *function(Compiler *c, Stmt *s);
-static void addLocal(Compiler *c, Identifier *id, int line);
 static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s);
 
 static
