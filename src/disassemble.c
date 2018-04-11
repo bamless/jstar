@@ -3,13 +3,6 @@
 
 #include <stdio.h>
 
-void disassemble(Chunk *c) {
-	size_t i = 0;
-	while(i < c->count) {
-		disassembleIstr(c, i);
-	}
-}
-
 void disassembleIstr(Chunk *c, size_t i) {
 	size_t n = getBytecodeSrcLine(c, i);
 
@@ -19,12 +12,10 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_JUMPT:
 	case OP_JUMPF:
 		printf("%d", (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]);
-		i += 2;
 		break;
 
 	case OP_DEF_METHOD:
 		printf("%d %d", c->code[i + 1], c->code[i + 2]);
-		i += 2;
 		break;
 
 	case OP_NEW_CLASS:
@@ -37,10 +28,9 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_SET_LOCAL:
 	case OP_SET_GLOBAL:
 	case OP_DEFINE_GLOBAL:
-		printf("%d", c->code[++i]);
+		printf("%d", c->code[i + 1]);
 		break;
 	default: break;
 	}
-	i++;
 	printf("\n");
 }
