@@ -156,9 +156,10 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 static void compileFunction(Compiler *c, Stmt *s) {
 	Compiler funComp;
 	initCompiler(&funComp, c, c->depth + 1, c->vm);
+	ObjFunction *func = function(&funComp, s);
+	endCompiler(&funComp);
 
-	ObjFunction *fn = function(&funComp, s);
-	uint8_t fnConst = createConst(c, OBJ_VAL(fn), s->line);
+	uint8_t fnConst = createConst(c, OBJ_VAL(func), s->line);
 	uint8_t idConst = identifierConst(c, &s->funcDecl.id, s->line);
 
 	emitBytecode(c, OP_GET_CONST, s->line);
@@ -166,7 +167,6 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_DEFINE_GLOBAL, s->line);
 	emitBytecode(c, idConst, s->line);
 
-	endCompiler(&funComp);
 	c->hadError |= funComp.hadError;
 }
 
@@ -459,34 +459,43 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
 	}
 }
 
-ObjFunction *compile(Compiler *c, Stmt *s) {
-	c->func = newFunction(c->vm, 0);
-	compileStatements(c, s->blockStmt.stmts);
-	emitBytecode(c, OP_HALT, 0);
+ObjFunction *compile(VM *vm, Stmt *s) {
+	Compiler c;
+	initCompiler(&c, NULL, -1, vm);
 
-	if(c->hadError) {
+	ObjFunction *func = function(&c, s);
+
+	endCompiler(&c);
+
+	if(c.hadError) {
 		return NULL;
 	} else {
-		return c->func;
+		return func;
 	}
 }
 
 static ObjFunction *function(Compiler *c, Stmt *s) {
 	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs));
-	c->func->name = copyString(c->vm,
-			s->funcDecl.id.name, s->funcDecl.id.length);
+	if(s->funcDecl.id.length != 0) {
+		c->func->name = copyString(c->vm, s->funcDecl.id.name,
+		                                  s->funcDecl.id.length);
+	}
 
 	enterScope(c);
+
 	LinkedList *n;
 	foreach(n, s->funcDecl.formalArgs) {
 		declareVar(c, (Identifier*) n->elem, s->line);
 		c->locals[c->localsCount - 1].depth = c->depth;
 	}
+
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
+
 	exitScope(c);
 
 	emitBytecode(c, OP_NULL, 0);
 	emitBytecode(c, OP_RETURN, 0);
+
 	return c->func;
 }
 

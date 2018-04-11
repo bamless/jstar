@@ -12,7 +12,7 @@ static void require(Parser *p, TokenType type);
 static void error(Parser *p, const char *msg);
 static void synchronize(Parser *p);
 
-static LinkedList *parseStmtOrDecl(Parser *p);
+static Stmt *parseProgram(Parser *p);
 
 Stmt *parse(Parser *p, const char *src) {
 	p->panic = false;
@@ -22,12 +22,12 @@ Stmt *parse(Parser *p, const char *src) {
 	initLexer(&p->lex, src);
 	nextToken(&p->lex, &p->peek);
 
-	LinkedList *stmts = parseStmtOrDecl(p);
+	Stmt *program = parseProgram(p);
 
 	if(!match(p, TOK_EOF))
 		error(p, "Unexpected token.");
 
-	return newBlockStmt(0, stmts);
+	return program;
 }
 
 static Stmt *parseFuncDecl(Parser *p);
@@ -35,7 +35,7 @@ static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
 static Stmt *varDecl(Parser *p);
 
-static LinkedList *parseStmtOrDecl(Parser *p) {
+static Stmt *parseProgram(Parser *p) {
 	LinkedList *stmts = NULL;
 
 	while(!match(p, TOK_EOF)) {
@@ -46,11 +46,11 @@ static LinkedList *parseStmtOrDecl(Parser *p) {
 		} else {
 			stmts = addElement(stmts, parseStmt(p));
 		}
+
+		if(p->panic) synchronize(p);
 	}
 
-	if(p->panic) synchronize(p);
-
-	return stmts;
+	return newFuncDecl(0, 0, NULL, NULL, newBlockStmt(0, stmts));
 }
 
 Stmt *parseFuncDecl(Parser *p) {

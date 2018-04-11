@@ -4,8 +4,6 @@
 extern const char *opName[];
 
 typedef enum Opcode {
-	OP_HALT,
-
 	//arithmetic operations
 	OP_ADD,
 	OP_SUB,

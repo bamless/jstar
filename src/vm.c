@@ -49,8 +49,8 @@ Value pop(VM *vm) {
 
 static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
 	if(func->argsCount != argc) {
-		runtimeError(vm, "Function `%s` expexted %d args, but instead %d supplied.",
-			func->name->data, func->argsCount, argc);
+		runtimeError(vm, "Function `%s` expexted %d args, but instead %d "
+		             "supplied.", func->name->data, func->argsCount, argc);
 		return false;
 	}
 
@@ -155,8 +155,8 @@ static bool runEval(VM *vm) {
 			PUSH(vm, NUM_VAL(a + b));
 			continue;
 		} else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
-			ObjString *conc = stringConcatenate(vm,
-				AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
+			ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)),
+			                                        AS_STRING(peek(vm)));
 
 			pop(vm);
 			pop(vm);
@@ -255,12 +255,16 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_RETURN: {
-		*frame->stack = pop(vm);
-
+		Value ret = pop(vm);
 		vm->frameCount--;
-		vm->sp = frame->stack + 1;
-		frame = &vm->frames[vm->frameCount - 1];
+		if(vm->frameCount == 0) {
+			return true;
+		}
 
+		vm->sp = frame->stack;
+		push(vm, ret);
+
+		frame = &vm->frames[vm->frameCount - 1];
 		continue;
 	}
 	case OP_GET_CONST:
@@ -302,9 +306,6 @@ static bool runEval(VM *vm) {
 		*vm->sp = *(vm->sp - 1);
 		vm->sp++;
 		continue;
-	case OP_HALT:
-		reset(vm);
-		return true;
 	}
 
 	}
@@ -319,7 +320,6 @@ static bool runEval(VM *vm) {
 
 EvalResult evaluate(VM *vm, const char *src) {
 	Parser p;
-	Compiler c;
 
 	Stmt *program = parse(&p, src);
 	if(p.hadError) {
@@ -327,9 +327,7 @@ EvalResult evaluate(VM *vm, const char *src) {
 		return VM_SYNTAX_ERR;
 	}
 
-	initCompiler(&c, NULL, 0, vm);
-	ObjFunction *fn = compile(&c, program);
-	endCompiler(&c);
+	ObjFunction *fn = compile(vm, program);
 
 	freeStmt(program);
 	if(fn == NULL) {
@@ -372,7 +370,7 @@ static void runtimeError(VM *vm, const char* format, ...) {
 
 void freeVM(VM *vm) {
 	reset(vm);
-	
+
 	freeHashTable(&vm->globals);
 	freeHashTable(&vm->strings);
 	freeObjects(vm);

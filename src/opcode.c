@@ -1,8 +1,6 @@
 #include "opcode.h"
 
 const char *opName[] = {
-	"OP_HALT",
-
 	//arithmetic operations
 	"OP_ADD",
 	"OP_SUB",
