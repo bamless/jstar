@@ -123,7 +123,7 @@ static bool runEval(VM *vm) {
 
 	#define BINARY(type, op) do { \
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
-			runtimeError(vm, "Operands must be numbers."); \
+			runtimeError(vm, "Operands of `%s` must be numbers.", #op); \
 			return false; \
 		} \
 		double b = AS_NUM(pop(vm)); \
@@ -169,7 +169,7 @@ static bool runEval(VM *vm) {
 	}
 	case OP_MOD: {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			runtimeError(vm, "Operands must be numbers.");
+			runtimeError(vm, "Operands of `\%` must be numbers.");
 			return false;
 		}
 		double b = AS_NUM(pop(vm));
@@ -357,7 +357,7 @@ EvalResult evaluate(VM *vm, const char *src) {
 static void runtimeError(VM *vm, const char* format, ...) {
 	fprintf(stderr, "Traceback:\n");
 
-	for(int i = vm->frameCount - 1; i >= 0; i--) {
+	for(int i = 0; i < vm->frameCount; i++) {
 		Frame *frame = &vm->frames[i];
 		ObjFunction *func = frame->fn;
 		size_t istr = frame->ip - func->chunk.code - 1;
