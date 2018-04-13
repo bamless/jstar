@@ -410,10 +410,6 @@ static Expr *unaryExpr(Parser *p) {
 		advance(p);
 		return newUnary(line, MINUS, unaryExpr(p));
 	}
-	if(match(p, TOK_PLUS)) {
-		advance(p);
-		return newUnary(line, PLUS, unaryExpr(p));
-	}
 
 	return postfixExpr(p);
 }
