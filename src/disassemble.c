@@ -4,9 +4,9 @@
 #include <stdio.h>
 
 void disassembleIstr(Chunk *c, size_t i) {
-	size_t n = getBytecodeSrcLine(c, i);
+	int n = getBytecodeSrcLine(c, i);
 
-	printf("%.4ld %s ", n, opName[c->code[i]]);
+	printf("%.4d %s ", n, opName[c->code[i]]);
 	switch(c->code[i]) {
 	case OP_JUMP:
 	case OP_JUMPT:
