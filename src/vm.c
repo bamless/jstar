@@ -355,12 +355,6 @@ EvalResult evaluate(VM *vm, const char *src) {
 }
 
 static void runtimeError(VM *vm, const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fprintf(stderr, "\n");
-
 	fprintf(stderr, "Traceback:\n");
 
 	for(int i = vm->frameCount - 1; i >= 0; i--) {
@@ -375,6 +369,12 @@ static void runtimeError(VM *vm, const char* format, ...) {
 			fprintf(stderr, "<main>\n");
 		}
 	}
+
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fprintf(stderr, "\n");
 
 	reset(vm);
 }

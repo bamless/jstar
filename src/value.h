@@ -10,27 +10,27 @@
 typedef uint64_t Value;
 
 #define SIGN_BIT ((uint64_t) 1 << 63)
-#define SNAN ((uint64_t) 0x7FF0000000000000)
+#define QNAN ((uint64_t) 0x7FFC000000000000)
 
 #define NULL_TAG  1
 #define FALSE_TAG 2
 #define TRUE_TAG  3
 
-#define IS_OBJ(val)    (((val) & (SNAN | SIGN_BIT)) == (SNAN | SIGN_BIT))
-#define IS_BOOL(val)   (((val) & (SNAN | FALSE_TAG)) == (SNAN | FALSE_TAG))
-#define IS_NUM(val)    (((val) & SNAN) != SNAN)
+#define IS_OBJ(val)    (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+#define IS_BOOL(val)   (((val) & (QNAN | FALSE_TAG)) == (QNAN | FALSE_TAG))
+#define IS_NUM(val)    (((val) & QNAN) != QNAN)
 #define IS_NULL(val)   ((val) == NULL_VAL)
 
 #define AS_BOOL(value) ((value) == TRUE_VAL)
 #define AS_NUM(value)  valueToNum(value)
-#define AS_OBJ(value)  ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | SNAN)))
+#define AS_OBJ(value)  ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
 #define NUM_VAL(num)   numToValue(num)
 #define BOOL_VAL(b)    ((b) ? TRUE_VAL : FALSE_VAL)
-#define OBJ_VAL(obj)   ((Value)(SIGN_BIT | SNAN | (uint64_t)(uintptr_t)(obj)))
-#define TRUE_VAL       ((Value)(uint64_t) (SNAN | TRUE_TAG))
-#define FALSE_VAL      ((Value)(uint64_t) (SNAN | FALSE_TAG))
-#define NULL_VAL       ((Value)(uint64_t) (SNAN | NULL_TAG))
+#define OBJ_VAL(obj)   ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))
+#define TRUE_VAL       ((Value)(uint64_t) (QNAN | TRUE_TAG))
+#define FALSE_VAL      ((Value)(uint64_t) (QNAN | FALSE_TAG))
+#define NULL_VAL       ((Value)(uint64_t) (QNAN | NULL_TAG))
 
 static inline Value numToValue(double num) {
 	union {
