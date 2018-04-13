@@ -168,7 +168,7 @@ Stmt *newClassDecl(int line, size_t clength, const char *cid,
 	return c;
 }
 
-Stmt *newForStmt(int line, Expr *init, Expr *cond, Expr *act, Stmt *body) {
+Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
 	s->type = FOR;
@@ -250,7 +250,7 @@ void freeStmt(Stmt *s) {
 		freeStmt(s->ifStmt.elseStmt);
 		break;
 	case FOR:
-		freeExpr(s->forStmt.init);
+		freeStmt(s->forStmt.init);
 		freeExpr(s->forStmt.cond);
 		freeExpr(s->forStmt.act);
 		freeStmt(s->forStmt.body);

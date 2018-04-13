@@ -201,11 +201,18 @@ static Stmt *forStmt(Parser *p) {
 
 	require(p, TOK_LPAREN);
 
-	Expr *init = NULL;
-	if(!match(p, TOK_SEMICOLON))
-		init = parseExpr(p);
+	Stmt *init = NULL;
+	if(!match(p, TOK_SEMICOLON)) {
+		if(match(p, TOK_VAR)) {
+			init = varDecl(p);
+		} else {
+			Expr *e = parseExpr(p);
+			init = newExprStmt(e->line, e);
+			require(p, TOK_SEMICOLON);
+		}
+	}
 
-	require(p, TOK_SEMICOLON);
+	if(init == NULL) require(p, TOK_SEMICOLON);
 
 	Expr *cond = NULL;
 	if(!match(p, TOK_SEMICOLON))

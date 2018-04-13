@@ -256,8 +256,10 @@ static bool runEval(VM *vm) {
 	}
 	case OP_RETURN: {
 		Value ret = pop(vm);
+
 		vm->frameCount--;
 		if(vm->frameCount == 0) {
+			reset(vm);
 			return true;
 		}
 

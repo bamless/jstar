@@ -372,10 +372,11 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileForStatement(Compiler *c, Stmt *s) {
+	enterScope(c);
+
 	// init
 	if(s->forStmt.init != NULL) {
-		compileExpr(c, s->forStmt.init);
-		emitBytecode(c, OP_POP, 0);
+		compileStatement(c, s->forStmt.init);
 	}
 
 	// condition
@@ -388,13 +389,20 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	}
 
 	// body
-	compileStatement(c, s->forStmt.body);
+	Stmt *body = s->forStmt.body;
+	if(body->type == BLOCK) {
+		compileStatements(c, s->forStmt.body->blockStmt.stmts);
+	} else {
+		compileStatement(c, s->forStmt.body);
+	}
 
 	// act
 	if(s->forStmt.act != NULL) {
 		compileExpr(c, s->forStmt.act);
 		emitBytecode(c, OP_POP, 0);
 	}
+
+	exitScope(c);
 
 	// jump back to for start
 	emitJumpTo(c, OP_JUMP, forStart, 0);

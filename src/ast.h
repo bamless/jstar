@@ -86,7 +86,8 @@ struct Stmt {
 			Stmt *thenStmt, *elseStmt;
 		} ifStmt;
 		struct {
-			Expr *init, *cond, *act;
+			Stmt *init;
+			Expr *cond, *act;
 			Stmt *body;
 		} forStmt;
 		struct {
@@ -127,7 +128,7 @@ Stmt *newClassDecl(int line, size_t clength, const char *cid,
 	                                         const char *sid,
 	                                         LinkedList *methods);
 
-Stmt *newForStmt(int line, Expr *init, Expr *cond, Expr *act, Stmt *body);
+Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
