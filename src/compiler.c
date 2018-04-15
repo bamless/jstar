@@ -60,18 +60,6 @@ static void error(Compiler *c, int line, const char *format, ...) {
 	c->hadError = true;
 }
 
-static void enterScope(Compiler *c) {
-	c->depth++;
-}
-
-static void exitScope(Compiler *c) {
-	c->depth--;
-	while(c->localsCount > 0 &&
-			c->locals[c->localsCount - 1].depth > c->depth) {
-		c->localsCount--;
-	}
-}
-
 static size_t emitBytecode(Compiler *c, uint8_t b, int line) {
 	if(line == 0 && c->func->chunk.linesCount > 0) {
 		line = c->func->chunk.lines[c->func->chunk.linesCount - 1];
@@ -83,6 +71,19 @@ static size_t emitShort(Compiler *c, uint16_t s, int line) {
 	size_t i = writeByte(&c->func->chunk, (uint8_t) (s >> 8), line);
 	writeByte(&c->func->chunk, (uint8_t) s, line);
 	return i;
+}
+
+static void enterScope(Compiler *c) {
+	c->depth++;
+}
+
+static void exitScope(Compiler *c) {
+	c->depth--;
+	while(c->localsCount > 0 &&
+		c->locals[c->localsCount - 1].depth > c->depth) {
+			c->localsCount--;
+			emitBytecode(c, OP_POP, 0);
+		}
 }
 
 static uint8_t createConst(Compiler *c, Value constant, int line) {
@@ -393,12 +394,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	}
 
 	// body
-	Stmt *body = s->forStmt.body;
-	if(body->type == BLOCK) {
-		compileStatements(c, s->forStmt.body->blockStmt.stmts);
-	} else {
-		compileStatement(c, s->forStmt.body);
-	}
+	compileStatement(c, s->forStmt.body);
 
 	// act
 	if(s->forStmt.act != NULL) {
@@ -406,10 +402,10 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 		emitBytecode(c, OP_POP, 0);
 	}
 
-	exitScope(c);
-
 	// jump back to for start
 	emitJumpTo(c, OP_JUMP, forStart, 0);
+
+	exitScope(c);
 
 	// set the exit jump
 	if(s->forStmt.cond != NULL) {
