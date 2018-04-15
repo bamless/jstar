@@ -258,6 +258,17 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	}
 }
 
+static void compileVar(Compiler *c, Identifier *id, int line) {
+	int i = resolveVariable(c, id, line);
+	if(i != -1) {
+		emitBytecode(c, OP_GET_LOCAL, line);
+		emitBytecode(c, (uint8_t) i, line);
+	} else {
+		emitBytecode(c, OP_GET_GLOBAL, line);
+		emitBytecode(c, identifierConst(c, id, line), line);
+	}
+}
+
 static void compileExpr(Compiler *c, Expr *e) {
 	switch(e->type) {
 	case ASSIGN:
@@ -298,14 +309,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case VAR_LIT: {
-		int i = resolveVariable(c, &e->var.id, e->line);
-		if(i != -1) {
-			emitBytecode(c, OP_GET_LOCAL, e->line);
-			emitBytecode(c, (uint8_t) i, e->line);
-		} else {
-			emitBytecode(c, OP_GET_GLOBAL, e->line);
-			emitBytecode(c, identifierConst(c, &e->var.id, e->line), e->line);
-		}
+		compileVar(c, &e->var.id, e->line);
 		break;
 	}
 	case NULL_LIT:
@@ -430,8 +434,8 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 static void compileFunction(Compiler *c, Stmt *s) {
 	Compiler funComp;
 	initCompiler(&funComp, c, TYPE_FUNC, c->depth + 1, c->vm);
+
 	ObjFunction *func = function(&funComp, s);
-	endCompiler(&funComp);
 
 	uint8_t fnConst = createConst(c, OBJ_VAL(func), s->line);
 	uint8_t idConst = identifierConst(c, &s->funcDecl.id, s->line);
@@ -441,17 +445,18 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_DEFINE_GLOBAL, s->line);
 	emitBytecode(c, idConst, s->line);
 
+	endCompiler(&funComp);
 	c->hadError |= funComp.hadError;
 }
+
+static void compileVar(Compiler *c, Identifier *id, int line);
 
 static void compileClass(Compiler *c, Stmt *s) {
 	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
 
 	bool isSubClass = s->classDecl.sid.name != NULL;
 	if(isSubClass) {
-		uint8_t sid = identifierConst(c, &s->classDecl.sid, s->line);
-		emitBytecode(c, OP_GET_CONST, s->line);
-		emitBytecode(c, sid, s->line);
+		compileVar(c, &s->classDecl.sid, s->line);
 		emitBytecode(c, OP_NEW_SUBCLASS, s->line);
 	} else {
 		emitBytecode(c, OP_NEW_CLASS, s->line);
@@ -474,6 +479,9 @@ static void compileClass(Compiler *c, Stmt *s) {
 
 		endCompiler(&mComp);
 	}
+
+	declareVar(c, &s->classDecl.id, s->line);
+	defineVar(c, &s->classDecl.id, s->line);
 }
 
 static void compileStatement(Compiler *c, Stmt *s) {

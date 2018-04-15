@@ -1,4 +1,5 @@
 #include "hashtable.h"
+#include "object.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -122,6 +123,16 @@ bool hashTableDel(HashTable *t, ObjString *key) {
 	}
 
 	return false;
+}
+
+void hashTableMerge(HashTable *t, HashTable *o) {
+	for(size_t i = 0; i < o->size; i++) {
+		Entry *head = o->entries[i];
+		while(head != NULL) {
+			hashTablePut(t, head->key, head->value);
+			head = head->next;
+		}
+	}
 }
 
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash) {

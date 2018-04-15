@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef struct Obj Obj;
+
 #ifdef NAN_TAGGING
 
 typedef uint64_t Value;

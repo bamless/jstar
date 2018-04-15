@@ -47,7 +47,7 @@ Value pop(VM *vm) {
 	return *--vm->sp;
 }
 
-static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
+static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
 		runtimeError(vm, "Function `%s` expexted %d args, but instead %d "
 		             "supplied.", func->name->data, func->argsCount, argc);
@@ -67,18 +67,43 @@ static bool callFunction(VM *vm, ObjFunction *func, uint16_t argc) {
 	return true;
 }
 
-static bool callValue(VM *vm, Value callee, uint16_t argc) {
+static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
+	if(native->argsCount != argc) {
+		runtimeError(vm, "Native function `%s` expexted %d args, but instead %d"
+					 " supplied.", native->name->data, native->argsCount, argc);
+		return false;
+	}
+
+	Value ret = native->fn(argc, vm->sp - (argc + 1));
+	vm->sp -= argc + 1;
+	push(vm, ret);
+
+	return true;
+}
+
+static bool callValue(VM *vm, Value callee, uint8_t argc) {
 	if(IS_OBJ(callee)) {
 		switch(OBJ_TYPE(callee)) {
 		case OBJ_FUNCTION:
 			return callFunction(vm, AS_FUNC(callee), argc);
-			break;
+		case OBJ_NATIVE:
+			return callNative(vm, AS_NATIVE(callee), argc);
 		default: break;
 		}
 	}
 
 	runtimeError(vm, "Can only call function and native objects.");
 	return false;
+}
+
+static void createClass(VM *vm, ObjString *name, ObjClass *superCls) {
+	ObjClass *cls = newClass(vm, name, superCls);
+
+	if(superCls != NULL) {
+		hashTableMerge(&cls->methods, &superCls->methods);
+	}
+	
+	push(vm, OBJ_VAL(cls));
 }
 
 static bool isValTrue(Value val) {
@@ -113,14 +138,6 @@ static bool runEval(VM *vm) {
 	#define GET_CONST()  (frame->fn->chunk.consts.arr[NEXT_CODE()])
 	#define GET_STRING() (AS_STRING(GET_CONST()))
 
-	#define PUSH(vm, v) { \
-		if(vm->sp > vm->stackend) { \
-			runtimeError(vm, "Stack Overflow."); \
-			return false; \
-		} \
-		push(vm, v); \
-	}
-
 	#define BINARY(type, op) do { \
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
 			runtimeError(vm, "Operands of `%s` must be numbers.", #op); \
@@ -128,7 +145,7 @@ static bool runEval(VM *vm) {
 		} \
 		double b = AS_NUM(pop(vm)); \
 		double a = AS_NUM(pop(vm)); \
-		PUSH(vm, type(a op b)); \
+		push(vm, type(a op b)); \
 	} while(0)
 
 	// Eval loop
@@ -152,7 +169,7 @@ static bool runEval(VM *vm) {
 		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
 			double b = AS_NUM(pop(vm));
 			double a = AS_NUM(pop(vm));
-			PUSH(vm, NUM_VAL(a + b));
+			push(vm, NUM_VAL(a + b));
 			continue;
 		} else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
 			ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)),
@@ -161,7 +178,7 @@ static bool runEval(VM *vm) {
 			pop(vm);
 			pop(vm);
 
-			PUSH(vm, OBJ_VAL(conc));
+			push(vm, OBJ_VAL(conc));
 			continue;
 		}
 		runtimeError(vm, "Operands of `+` must be two numbers or two strings.");
@@ -169,12 +186,12 @@ static bool runEval(VM *vm) {
 	}
 	case OP_MOD: {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			runtimeError(vm, "Operands of `\%` must be numbers.");
+			runtimeError(vm, "Operands of `%` must be numbers.");
 			return false;
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
-		PUSH(vm, NUM_VAL(fmod(a, b)));
+		push(vm, NUM_VAL(fmod(a, b)));
 		continue;
 	}
 	case OP_SUB: BINARY(NUM_VAL, -);   continue;
@@ -187,13 +204,13 @@ static bool runEval(VM *vm) {
 	case OP_EQ: {
 		Value b = pop(vm);
 		Value a = pop(vm);
-		PUSH(vm, BOOL_VAL(valueEquals(a, b)));
+		push(vm, BOOL_VAL(valueEquals(a, b)));
 		continue;
 	}
 	case OP_NEQ: {
 		Value b = pop(vm);
 		Value a = pop(vm);
-		PUSH(vm, BOOL_VAL(!valueEquals(a, b)));
+		push(vm, BOOL_VAL(!valueEquals(a, b)));
 		continue;
 	}
 	case OP_NEG: {
@@ -201,13 +218,11 @@ static bool runEval(VM *vm) {
 			runtimeError(vm, "Operand to `-` must be a number");
 			return false;
 		}
-		double n = -AS_NUM(pop(vm));
-		PUSH(vm, NUM_VAL(n));
+		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
 		continue;
 	}
 	case OP_NOT: {
-		bool v = !isValTrue(pop(vm));
-		PUSH(vm, BOOL_VAL(v));
+		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
 		continue;
 	}
 	case OP_JUMP: {
@@ -226,7 +241,7 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_NULL:
-		PUSH(vm, NULL_VAL);
+		push(vm, NULL_VAL);
 		continue;
 	case OP_CALL: {
 		int8_t argc = NEXT_CODE();
@@ -270,18 +285,19 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_NEW_CLASS:
-		NEXT_CODE();
+		createClass(vm, GET_STRING(), NULL);
 		continue;
 	case OP_NEW_SUBCLASS:
-		NEXT_CODE();
-		pop(vm);
+		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
 		continue;
-	case OP_DEF_METHOD:
-		NEXT_CODE();
-		NEXT_CODE();
+	case OP_DEF_METHOD: {
+		ObjClass *cls = AS_CLASS(peek(vm));
+		ObjString *methodName = GET_STRING();
+		hashTablePut(&cls->methods, methodName, GET_CONST());
 		break;
+	}
 	case OP_GET_CONST:
-		PUSH(vm, GET_CONST());
+		push(vm, GET_CONST());
 		continue;
 	case OP_DEFINE_GLOBAL:
 		hashTablePut(&vm->globals, GET_STRING(), pop(vm));
@@ -303,7 +319,7 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_GET_LOCAL:
-		PUSH(vm, frame->stack[NEXT_CODE()]);
+		push(vm, frame->stack[NEXT_CODE()]);
 		continue;
 	case OP_SET_LOCAL:
 		frame->stack[NEXT_CODE()] = peek(vm);
@@ -327,7 +343,7 @@ static bool runEval(VM *vm) {
 	#undef NEXT_SHORT
 	#undef GET_CONST
 	#undef GET_STRING
-	#undef PUSH
+	#undef push
 	#undef BINARY
 }
 

@@ -68,6 +68,20 @@ ObjNative *newNative(VM *vm, uint8_t argsCount, Native fn) {
 	return n;
 }
 
+ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls) {
+	ObjClass *cls = (ObjClass*) newObj(vm, sizeof(*cls), OBJ_CLASS);
+	cls->name = name;
+	cls->superCls = superCls;
+	initHashTable(&cls->methods);
+	return cls;
+}
+ObjInstance *newInstance(VM *vm, ObjClass *cls) {
+	ObjInstance *inst = (ObjInstance*) newObj(vm, sizeof(*inst), OBJ_INST);
+	inst->cls = cls;
+	initHashTable(&inst->fields);
+	return inst;
+}
+
 ObjString *copyString(VM *vm, const char *str, size_t length) {
 	ObjString *interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
 	if(interned == NULL) {
@@ -112,6 +126,18 @@ static void freeObject(VM *vm, Obj *o) {
 		FREE(vm, ObjFunction, f);
 		break;
 	}
+	case OBJ_CLASS: {
+		ObjClass *cls = (ObjClass*) o;
+		freeHashTable(&cls->methods);
+		FREE(vm, ObjClass, cls);
+		break;
+	}
+	case OBJ_INST: {
+		ObjInstance *i = (ObjInstance*) o;
+		freeHashTable(&i->fields);
+		FREE(vm, ObjInstance, i);
+		break;
+	}
 	}
 }
 
@@ -123,9 +149,7 @@ void freeObjects(VM *vm) {
 			*head = u->next;
 
 #ifdef DBG_PRINT_GC
-			printf("FREE: unreached object %p type: %s repr: ", (void*)u, typeName[u->type]);
-			printObj(u);
-			printf("\n");
+			printf("FREE: unreached object %p type: %s\n", (void*)u, typeName[u->type]);
 #endif
 
 			freeObject(vm, u);
@@ -201,7 +225,20 @@ static void recursevelyReach(VM *vm, Obj *o) {
 		reachValueArray(vm, &func->chunk.consts);
 		break;
 	}
-	default: break;
+	case OBJ_CLASS: {
+		ObjClass *cls = (ObjClass*) o;
+		reachObject(vm, (Obj*) cls->name);
+		reachObject(vm, (Obj*) cls->superCls);
+		reachHashTable(vm, &cls->methods);
+		break;
+	}
+	case OBJ_INST: {
+		ObjInstance *i = (ObjInstance*) o;
+		reachObject(vm, (Obj*) i->cls);
+		reachHashTable(vm, &i->fields);
+		break;
+	}
+	case OBJ_STRING: break;
 	}
 }
 

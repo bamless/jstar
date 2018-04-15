@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 const char *typeName[] = {
-	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION"
+	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST"
 };
 
 void printObj(Obj *o) {
@@ -28,6 +28,16 @@ void printObj(Obj *o) {
 			printf("<native %d>", n->argsCount);
 		}
 		break;
+	}
+	case OBJ_CLASS: {
+		ObjClass *cls = (ObjClass*) o;
+		printf("<class %s:%s>", cls->name->data,
+			cls->superCls == NULL ? "" : cls->superCls->name->data);
+		break;
+	}
+	case OBJ_INST: {
+		ObjInstance *i = (ObjInstance*) o;
+		printf("<instance %s>", i->cls->name->data);
 	}
 	}
 }

@@ -1,10 +1,11 @@
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
 
-#include "object.h"
 #include "value.h"
 
 #include <stdlib.h>
+
+typedef struct ObjString ObjString;
 
 #define MAX_LOAD_FACTOR 0.75
 #define GROW_FACTOR 2
@@ -28,6 +29,7 @@ void freeHashTable(HashTable *t);
 bool hashTablePut(HashTable *t, ObjString *key, Value val);
 bool hashTableGet(HashTable *t, ObjString *key, Value *res);
 bool hashTableDel(HashTable *t, ObjString *key);
+void hashTableMerge(HashTable *t, HashTable *o);
 
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
 

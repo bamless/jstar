@@ -18,6 +18,8 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size);
 ObjString *newString(VM *vm, char *cstring, size_t size);
 ObjFunction *newFunction(VM *vm, uint8_t argsCount);
 ObjNative *newNative(VM *vm, uint8_t argsCount, Native fn);
+ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls);
+ObjInstance *newInstance(VM *vm, ObjClass *cls);
 
 ObjString *copyString(VM *vm, const char *str, size_t length);
 ObjString *newStringFromBuf(VM *vm, char *buf, size_t length);

@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "hashtable.h"
 #include "chunk.h"
 #include "value.h"
 
@@ -12,16 +13,20 @@ extern const char *typeName[];
 
 #define OBJ_TYPE(o)  (AS_OBJ(o)->type)
 
-#define IS_STRING(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STRING)
-#define IS_FUNC(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_FUNCTION)
-#define IS_NATIVE(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_NATIVE)
+#define IS_STRING(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STRING)
+#define IS_FUNC(o)     (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_FUNCTION)
+#define IS_NATIVE(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_NATIVE)
+#define IS_CLASS(o)    (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLASS)
+#define IS_INSTANCE(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_INST)
 
-#define AS_STRING(o) ((ObjString*)   AS_OBJ(o))
-#define AS_FUNC(o)   ((ObjFunction*) AS_OBJ(o))
-#define AS_NATIVE(o) ((ObjNative*)   AS_OBJ(o))
+#define AS_STRING(o)   ((ObjString*)   AS_OBJ(o))
+#define AS_FUNC(o)     ((ObjFunction*) AS_OBJ(o))
+#define AS_NATIVE(o)   ((ObjNative*)   AS_OBJ(o))
+#define AS_CLASS(o)    ((ObjClass*)    AS_OBJ(o))
+#define AS_INSTANCE(o) ((ObjInstance*) AS_OBJ(o))
 
 typedef enum ObjType {
-	OBJ_STRING, OBJ_NATIVE, OBJ_FUNCTION
+	OBJ_STRING, OBJ_NATIVE, OBJ_FUNCTION, OBJ_CLASS, OBJ_INST
 } ObjType;
 
 typedef struct Obj {
@@ -44,7 +49,7 @@ typedef struct ObjFunction {
 	ObjString *name;
 } ObjFunction;
 
-typedef Value (*Native)(int argc, Value *argv);
+typedef Value (*Native)(uint8_t argc, Value *argv);
 
 typedef struct ObjNative {
 	Obj base;
@@ -52,6 +57,19 @@ typedef struct ObjNative {
 	Native fn;
 	ObjString *name;
 } ObjNative;
+
+typedef struct ObjClass {
+	Obj base;
+	ObjString *name;
+	struct ObjClass *superCls;
+	HashTable methods;
+} ObjClass;
+
+typedef struct ObjInstance {
+	Obj base;
+	ObjClass *cls;
+	HashTable fields;
+} ObjInstance;
 
 void printObj(Obj *o);
 
