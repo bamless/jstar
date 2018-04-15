@@ -37,7 +37,7 @@ INCLUDES =
 #Linker flags
 LDFLAGS =
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wextra -O3
+CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wextra -O0 -g
 # Libraries
 LIBS = -lm -lreadline
 

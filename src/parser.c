@@ -207,7 +207,7 @@ static Stmt *forStmt(Parser *p) {
 			init = varDecl(p);
 		} else {
 			Expr *e = parseExpr(p);
-			init = newExprStmt(e->line, e);
+			if(e != NULL) init = newExprStmt(e->line, e);
 			require(p, TOK_SEMICOLON);
 		}
 	}
@@ -560,7 +560,7 @@ static Expr *parseExpr(Parser *p) {
 	Expr *l = logicOrExpr(p);
 
 	if(match(p, TOK_EQUAL)) {
-		if(l->type != VAR_LIT) {
+		if(l != NULL && l->type != VAR_LIT) {
 			error(p, "Left hand side of assignment must be an lvalue.");
 		}
 
