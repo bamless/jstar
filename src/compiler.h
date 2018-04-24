@@ -11,11 +11,6 @@
 
 typedef struct VM VM;
 
-typedef struct Local {
-	Identifier id;
-	int depth;
-} Local;
-
 typedef struct Compiler Compiler;
 
 ObjFunction *compile(VM *vm, Stmt *s);

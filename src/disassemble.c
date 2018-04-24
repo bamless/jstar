@@ -15,6 +15,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 		break;
 
 	case OP_INVOKE:
+	case OP_SUPER:
 	case OP_DEF_METHOD:
 		printf("%d %d", c->code[i + 1], c->code[i + 2]);
 		break;
@@ -36,6 +37,17 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_INVOKE_8:
 	case OP_INVOKE_9:
 	case OP_INVOKE_10:
+	case OP_SUPER_0:
+	case OP_SUPER_1:
+	case OP_SUPER_2:
+	case OP_SUPER_3:
+	case OP_SUPER_4:
+	case OP_SUPER_5:
+	case OP_SUPER_6:
+	case OP_SUPER_7:
+	case OP_SUPER_8:
+	case OP_SUPER_9:
+	case OP_SUPER_10:
 	case OP_GET_CONST:
 	case OP_GET_LOCAL:
 	case OP_GET_GLOBAL:

@@ -103,6 +103,14 @@ Expr *newCallExpr(int line, Expr *callee, LinkedList *args) {
 	return e;
 }
 
+Expr *newSuperLiteral(int line) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = SUPER_LIT;
+	e->num = 0;
+	return e;
+}
+
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
 	Expr *e = malloc(sizeof(*e));
 	e->line = line;

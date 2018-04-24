@@ -9,6 +9,11 @@
 #include <string.h>
 #include <stdarg.h>
 
+typedef struct Local {
+	Identifier id;
+	int depth;
+} Local;
+
 typedef enum FuncType {
 	TYPE_FUNC, TYPE_METHOD, TYPE_CTOR
 } FuncType;
@@ -257,9 +262,24 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 
 	bool isMethod = e->callExpr.callee->type == ACCESS_EXPR;
 	if(isMethod) {
-		callCode   = OP_INVOKE;
-		callInline = OP_INVOKE_0;
-		compileExpr(c, e->callExpr.callee->accessExpr.left);
+		bool isSuper = e->callExpr.callee->accessExpr.left->type == SUPER_LIT;
+
+		if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
+			error(c, e->callExpr.callee->accessExpr.left->line,
+				 "Can't use `super` outside method.");
+		} else if(isSuper && !c->hasSuper) {
+			error(c, e->callExpr.callee->accessExpr.left->line,
+				 "Can use `super` only in subclass.");
+		}
+
+		callCode   = isSuper ? OP_SUPER : OP_INVOKE;
+		callInline = isSuper ? OP_SUPER_0 : OP_INVOKE_0;
+		if(isSuper) {
+			emitBytecode(c, OP_GET_LOCAL, e->line);
+			emitBytecode(c, 0, e->line);
+		} else {
+			compileExpr(c, e->callExpr.callee->accessExpr.left);
+		}
 	} else {
 		compileExpr(c, e->callExpr.callee);
 	}
@@ -346,6 +366,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		emitBytecode(c, createConst(c, BOOL_VAL(e->boolean), e->line), e->line);
 		break;
 	case STR_LIT: {
+		//TODO: unescape string
 		emitBytecode(c, OP_GET_CONST, e->line);
 		ObjString *str = copyString(c->vm, e->str.str + 1, e->str.length - 2);
 		emitBytecode(c, createConst(c, OBJ_VAL(str), e->line), e->line);
@@ -357,6 +378,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 	}
 	case NULL_LIT:
 		emitBytecode(c, OP_NULL, e->line);
+		break;
+	case SUPER_LIT:
+		error(c, e->line, "Can only use `super` in method calls inside methods");
 		break;
 	}
 }
@@ -580,11 +604,7 @@ ObjFunction *compile(VM *vm, Stmt *s) {
 
 	endCompiler(&c);
 
-	if(c.hadError) {
-		return NULL;
-	} else {
-		return func;
-	}
+	return c.hadError ? NULL : func;
 }
 
 static ObjFunction *function(Compiler *c, Stmt *s) {
@@ -596,6 +616,8 @@ static ObjFunction *function(Compiler *c, Stmt *s) {
 
 	enterScope(c);
 
+	//add phony variable for function receiver (in the case of functions the
+	//receiver is the function itself but it ins't accessible)
 	Identifier id = {0, ""};
 	addLocal(c, &id, 0);
 	c->locals[c->localsCount - 1].depth = c->depth;
@@ -619,6 +641,7 @@ static ObjFunction *function(Compiler *c, Stmt *s) {
 static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
 	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs));
 
+	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
 	char *name = ALLOC(c->vm, length + 1);
 
@@ -630,6 +653,7 @@ static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
 
 	c->func->name = newStringFromBuf(c->vm, name, length);
 
+	//if in costructor change the compiler type
 	Identifier ctor = {strlen(CTOR), CTOR};
 	if(identifierEquals(&s->funcDecl.id, &ctor)) {
 		c->type = TYPE_CTOR;
@@ -637,10 +661,12 @@ static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
 
 	enterScope(c);
 
+	//add `this` local var for method receiver (the object from which was called)
 	Identifier thisId = {strlen(THIS), THIS};
 	addLocal(c, &thisId, s->line);
 	c->locals[c->localsCount - 1].depth = c->depth;
 
+	//define and declare arguments
 	LinkedList *n;
 	foreach(n, s->funcDecl.formalArgs) {
 		declareVar(c, (Identifier*) n->elem, s->line);
@@ -649,6 +675,7 @@ static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
 
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
 
+	//if in constructor return the instance
 	if(c->type == TYPE_CTOR) {
 		emitBytecode(c, OP_GET_LOCAL, 0);
 		emitBytecode(c, 0, 0);

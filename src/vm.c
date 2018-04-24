@@ -122,6 +122,17 @@ static void createClass(VM *vm, ObjString *name, ObjClass *superCls) {
 	push(vm, OBJ_VAL(cls));
 }
 
+static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
+	Value method;
+	if(!hashTableGet(&cls->methods, name, &method)) {
+		runtimeError(vm, "Method %s.%s() doesn't "
+			"exists", cls->name->data, name->data);
+		return false;
+	}
+
+	return callValue(vm, method, argc);
+}
+
 static bool isValTrue(Value val) {
 	if(IS_BOOL(val)) {
 		return AS_BOOL(val);
@@ -333,16 +344,33 @@ invoke:
 		}
 
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
-		ObjString *name = GET_STRING();
 
-		Value method;
-		if(!hashTableGet(&inst->cls->methods, name, &method)) {
-			runtimeError(vm, "Method %s.%s() doesn't "
-				"exists", inst->cls->name->data, name->data);
+		if(!invokeMethod(vm, inst->cls, GET_STRING(), argc)) {
 			return false;
 		}
 
-		if(!callValue(vm, method, argc)) {
+		frame = &vm->frames[vm->frameCount - 1];
+		continue;
+	}
+	case OP_SUPER: {
+		uint8_t argc = NEXT_CODE();
+		goto sup_invoke;
+	case OP_SUPER_0:
+	case OP_SUPER_1:
+	case OP_SUPER_2:
+	case OP_SUPER_3:
+	case OP_SUPER_4:
+	case OP_SUPER_5:
+	case OP_SUPER_6:
+	case OP_SUPER_7:
+	case OP_SUPER_8:
+	case OP_SUPER_9:
+	case OP_SUPER_10:
+		argc = istr - OP_SUPER_0;
+sup_invoke:;
+		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
+
+		if(!invokeMethod(vm, inst->cls->superCls, GET_STRING(), argc)) {
 			return false;
 		}
 

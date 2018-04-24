@@ -326,6 +326,18 @@ static void synchronize(Parser *p) {
 
 //----- Expressions parse ------
 
+LinkedList *parseExprLst(Parser *p) {
+	LinkedList *exprs = NULL;
+
+	exprs = addElement(NULL, parseExpr(p));
+	while(match(p, TOK_COMMA)) {
+		advance(p);
+		exprs = addElement(exprs, parseExpr(p));
+	}
+
+	return exprs;
+}
+
 static Expr *literal(Parser *p) {
 	int line = p->peek.line;
 	switch(p->peek.type) {
@@ -357,6 +369,10 @@ static Expr *literal(Parser *p) {
 		advance(p);
 		return newNullLiteral(line);
 	}
+	case TOK_SUPER: {
+		advance(p);
+		return newSuperLiteral(line);
+	}
 	case TOK_LPAREN: {
 		require(p, TOK_LPAREN);
 		Expr *e = parseExpr(p);
@@ -374,18 +390,6 @@ static Expr *literal(Parser *p) {
 	}
 
 	return NULL;
-}
-
-LinkedList *parseExprLst(Parser *p) {
-	LinkedList *exprs = NULL;
-
-	exprs = addElement(NULL, parseExpr(p));
-	while(match(p, TOK_COMMA)) {
-		advance(p);
-		exprs = addElement(exprs, parseExpr(p));
-	}
-
-	return exprs;
 }
 
 static Expr *postfixExpr(Parser *p) {
