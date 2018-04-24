@@ -68,8 +68,8 @@ static size_t emitBytecode(Compiler *c, uint8_t b, int line) {
 }
 
 static size_t emitShort(Compiler *c, uint16_t s, int line) {
-	size_t i = writeByte(&c->func->chunk, (uint8_t) (s >> 8), line);
-	writeByte(&c->func->chunk, (uint8_t) s, line);
+	size_t i = emitBytecode(c, (uint8_t) (s >> 8), line);
+	emitBytecode(c, (uint8_t) s, line);
 	return i;
 }
 
@@ -224,19 +224,45 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
 
 static void compileAssignExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->assign.rval);
-	int i = resolveVariable(c, &e->assign.lval->var.id, e->line);
-	if(i != -1) {
-		emitBytecode(c, OP_SET_LOCAL, e->line);
-		emitBytecode(c, (uint8_t) i, e->line);
-	} else {
-		emitBytecode(c, OP_SET_GLOBAL, e->line);
-		uint8_t id =identifierConst(c, &e->assign.lval->var.id, e->line);
+
+	switch(e->assign.lval->type) {
+	case VAR_LIT: {
+		int i = resolveVariable(c, &e->assign.lval->var.id, e->line);
+		if(i != -1) {
+			emitBytecode(c, OP_SET_LOCAL, e->line);
+			emitBytecode(c, (uint8_t) i, e->line);
+		} else {
+			emitBytecode(c, OP_SET_GLOBAL, e->line);
+			uint8_t id = identifierConst(c, &e->assign.lval->var.id, e->line);
+			emitBytecode(c, id, e->line);
+		}
+		break;
+	}
+	case ACCESS_EXPR: {
+		Expr *acc = e->assign.lval;
+
+		compileExpr(c, acc->accessExpr.left);
+
+		uint8_t id = identifierConst(c, &acc->accessExpr.id, e->line);
+		emitBytecode(c, OP_SET_FIELD, e->line);
 		emitBytecode(c, id, e->line);
+	}
+	default: break;
 	}
 }
 
 static void compileCallExpr(Compiler *c, Expr *e) {
-	compileExpr(c, e->callExpr.callee);
+	Opcode callCode   = OP_CALL;
+	Opcode callInline = OP_CALL_0;
+
+	bool isMethod = e->callExpr.callee->type == ACCESS_EXPR;
+	if(isMethod) {
+		callCode   = OP_INVOKE;
+		callInline = OP_INVOKE_0;
+		compileExpr(c, e->callExpr.callee->accessExpr.left);
+	} else {
+		compileExpr(c, e->callExpr.callee);
+	}
 
 	LinkedList *n;
 	uint8_t argsc = 0;
@@ -252,11 +278,24 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	}
 
 	if(argsc <= 10) {
-		emitBytecode(c, OP_CALL_0 + argsc, e->line);
+		emitBytecode(c, callInline + argsc, e->line);
 	} else {
-		emitBytecode(c, OP_CALL, e->line);
+		emitBytecode(c, callCode, e->line);
 		emitBytecode(c, argsc, e->line);
 	}
+
+	if(isMethod) {
+		uint8_t id = identifierConst(c,
+			&e->callExpr.callee->accessExpr.id, e->line);
+		emitBytecode(c, id, e->line);
+	}
+}
+
+static void compileAccessExpression(Compiler *c, Expr *e) {
+	compileExpr(c, e->accessExpr.left);
+	uint8_t id = identifierConst(c, &e->accessExpr.id, e->line);
+	emitBytecode(c, OP_GET_FIELD, e->line);
+	emitBytecode(c, id, e->line);
 }
 
 static void compileVar(Compiler *c, Identifier *id, int line) {
@@ -287,6 +326,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	case CALL_EXPR:
 		compileCallExpr(c, e);
+		break;
+	case ACCESS_EXPR:
+		compileAccessExpression(c, e);
 		break;
 	case EXPR_LST: {
 		LinkedList *n;
@@ -337,6 +379,9 @@ static void compileStatements(Compiler *c, LinkedList *stmts);
 static void compileReturn(Compiler *c, Stmt *s) {
 	if(c->prev == NULL) {
 		error(c, s->line, "Cannot use return in global scope.");
+	}
+	if(c->type == TYPE_CTOR) {
+		error(c, s->line, "Cannot use return in constructor.");
 	}
 
 	if(s->returnStmt.e != NULL) {
@@ -469,11 +514,12 @@ static void compileClass(Compiler *c, Stmt *s) {
 		Stmt *m = (Stmt*) n->elem;
 		ObjFunction *met = method(&mComp, &s->classDecl.id, m);
 
-		emitBytecode(c, OP_DEF_METHOD, m->line);
-		emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), m->line);
-		emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), m->line);
+		emitBytecode(c, OP_DEF_METHOD, s->line);
+		emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), s->line);
+		emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), s->line);
 
 		endCompiler(&mComp);
+		c->hadError |= mComp.hadError;
 	}
 
 	declareVar(c, &s->classDecl.id, s->line);
@@ -552,6 +598,7 @@ static ObjFunction *function(Compiler *c, Stmt *s) {
 
 	Identifier id = {0, ""};
 	addLocal(c, &id, 0);
+	c->locals[c->localsCount - 1].depth = c->depth;
 
 	LinkedList *n;
 	foreach(n, s->funcDecl.formalArgs) {
@@ -561,16 +608,16 @@ static ObjFunction *function(Compiler *c, Stmt *s) {
 
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
 
-	exitScope(c);
-
 	emitBytecode(c, OP_NULL, 0);
 	emitBytecode(c, OP_RETURN, 0);
+
+	exitScope(c);
 
 	return c->func;
 }
 
 static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
-	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs) + 1);
+	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs));
 
 	size_t length = classId->length + s->funcDecl.id.length + 1;
 	char *name = ALLOC(c->vm, length + 1);
@@ -583,10 +630,16 @@ static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
 
 	c->func->name = newStringFromBuf(c->vm, name, length);
 
+	Identifier ctor = {strlen(CTOR), CTOR};
+	if(identifierEquals(&s->funcDecl.id, &ctor)) {
+		c->type = TYPE_CTOR;
+	}
+
 	enterScope(c);
 
-	Identifier thisId = {4, "this"};
+	Identifier thisId = {strlen(THIS), THIS};
 	addLocal(c, &thisId, s->line);
+	c->locals[c->localsCount - 1].depth = c->depth;
 
 	LinkedList *n;
 	foreach(n, s->funcDecl.formalArgs) {
@@ -596,10 +649,15 @@ static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
 
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);
 
-	exitScope(c);
-
-	emitBytecode(c, OP_NULL, 0);
+	if(c->type == TYPE_CTOR) {
+		emitBytecode(c, OP_GET_LOCAL, 0);
+		emitBytecode(c, 0, 0);
+	} else {
+		emitBytecode(c, OP_NULL, 0);
+	}
 	emitBytecode(c, OP_RETURN, 0);
+
+	exitScope(c);
 
 	return c->func;
 }

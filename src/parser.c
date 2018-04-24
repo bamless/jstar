@@ -389,19 +389,32 @@ LinkedList *parseExprLst(Parser *p) {
 }
 
 static Expr *postfixExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *lit = literal(p);
 
-	while(match(p, TOK_LPAREN)) {
-		require(p, TOK_LPAREN);
+	while(match(p, TOK_LPAREN) || match(p, TOK_DOT)) {
+		int line = p->peek.line;
+		switch(p->peek.type) {
+		case TOK_DOT: {
+			require(p, TOK_DOT);
+			if(p->peek.type != TOK_IDENTIFIER) error(p, "Expected identifier");
+			lit = newAccessExpr(line, lit, p->peek.lexeme, p->peek.length);
+			advance(p);
+			break;
+		}
+		case TOK_LPAREN: {
+			require(p, TOK_LPAREN);
 
-		LinkedList *args = NULL;
-		if(!match(p, TOK_RPAREN))
-			args = parseExprLst(p);
+			LinkedList *args = NULL;
+			if(!match(p, TOK_RPAREN))
+				args = parseExprLst(p);
 
-		require(p, TOK_RPAREN);
+			require(p, TOK_RPAREN);
+			lit = newCallExpr(line, lit, args);
+			break;
+		}
+		default: break;
+		}
 
-		lit = newCallExpr(line, lit, args);
 	}
 
 	return lit;
@@ -422,10 +435,10 @@ static Expr *unaryExpr(Parser *p) {
 }
 
 static Expr *multiplicativeExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *l = unaryExpr(p);
 
 	while(match(p, TOK_MULT) || match(p, TOK_DIV) || match(p, TOK_MOD)) {
+		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
 
@@ -449,10 +462,10 @@ static Expr *multiplicativeExpr(Parser *p) {
 }
 
 static Expr *additiveExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *l = multiplicativeExpr(p);
 
 	while(match(p, TOK_PLUS) || match(p, TOK_MINUS)) {
+		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
 
@@ -473,11 +486,11 @@ static Expr *additiveExpr(Parser *p) {
 }
 
 static Expr *relationalExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *l = additiveExpr(p);
 
 	while(match(p, TOK_GT) || match(p, TOK_GE) ||
 	 			match(p, TOK_LT) || match(p, TOK_LE)) {
+		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
 
@@ -504,10 +517,10 @@ static Expr *relationalExpr(Parser *p) {
 }
 
 static Expr *equalityExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *l = relationalExpr(p);
 
 	while(match(p, TOK_EQUAL_EQUAL) || match(p, TOK_BANG_EQ)) {
+		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
 
@@ -528,10 +541,10 @@ static Expr *equalityExpr(Parser *p) {
 }
 
 static Expr *logicAndExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *l = equalityExpr(p);
 
 	while(match(p, TOK_AND)) {
+		int line = p->peek.line;
 		advance(p);
 		Expr *r = equalityExpr(p);
 
@@ -542,10 +555,10 @@ static Expr *logicAndExpr(Parser *p) {
 }
 
 static Expr *logicOrExpr(Parser *p) {
-	int line = p->peek.line;
 	Expr *l = logicAndExpr(p);
 
 	while(match(p, TOK_OR)) {
+		int line = p->peek.line;
 		advance(p);
 		Expr *r = logicAndExpr(p);
 
@@ -560,7 +573,7 @@ static Expr *parseExpr(Parser *p) {
 	Expr *l = logicOrExpr(p);
 
 	if(match(p, TOK_EQUAL)) {
-		if(l != NULL && l->type != VAR_LIT) {
+		if(l != NULL && l->type != VAR_LIT && l->type != ACCESS_EXPR) {
 			error(p, "Left hand side of assignment must be an lvalue.");
 		}
 

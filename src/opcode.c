@@ -18,6 +18,9 @@ const char *opName[] = {
 	"OP_GE",
 	"OP_LT",
 	"OP_LE",
+	//access
+	"OP_GET_FIELD",
+	"OP_SET_FIELD",
 	//call
 	"OP_CALL",
 	"OP_CALL_0",
@@ -31,6 +34,19 @@ const char *opName[] = {
 	"OP_CALL_8",
 	"OP_CALL_9",
 	"OP_CALL_10",
+	//method
+	"OP_INVOKE",
+	"OP_INVOKE_0",
+	"OP_INVOKE_1",
+	"OP_INVOKE_2",
+	"OP_INVOKE_3",
+	"OP_INVOKE_4",
+	"OP_INVOKE_5",
+	"OP_INVOKE_6",
+	"OP_INVOKE_7",
+	"OP_INVOKE_8",
+	"OP_INVOKE_9",
+	"OP_INVOKE_10",
 
 	"OP_JUMP",
 	"OP_JUMPT",

@@ -22,7 +22,6 @@ static Keyword keywords[] = {
 	{"print",  5, TOK_PRINT},
 	{"return", 6, TOK_RETURN},
 	{"super",  5, TOK_SUPER},
-	{"this",   4, TOK_THIS},
 	{"true",   4, TOK_TRUE},
 	{"var",    3, TOK_VAR},
 	{"while",  5, TOK_WHILE},

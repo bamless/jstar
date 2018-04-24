@@ -6,40 +6,26 @@
 
 #define DEFAULT_LENGTH 16
 
-struct StringBuffer {
-	char *buff;  /*The backing char array*/
-	size_t size; /*The size of the backing array*/
-	size_t len;  /*The length of the buffer*/
-};
 static void sbuf_grow(StringBuffer *sbuf, size_t len);
 
-StringBuffer* sbuf_create() {
-	StringBuffer *sb = malloc(sizeof(StringBuffer));
-	if(!sb) {
+void sbuf_create(StringBuffer *sbuf) {
+	sbuf->buff = malloc(DEFAULT_LENGTH);
+	if(!sbuf->buff) {
 		fprintf(stderr, "%s\n", "Error: stringbuf: out of memory");
 		abort();
 	}
 
-	sb->buff = malloc(DEFAULT_LENGTH);
-	if(!sb->buff) {
-		fprintf(stderr, "%s\n", "Error: stringbuf: out of memory");
-		abort();
-	}
-
-	sb->size = DEFAULT_LENGTH;
-	sb->len = 0;
-	sb->buff[0] = '\0';
-	return sb;
+	sbuf->size = DEFAULT_LENGTH;
+	sbuf->len = 0;
+	sbuf->buff[0] = '\0';
 }
 
 void sbuf_destroy(StringBuffer *sbuf) {
 	free(sbuf->buff);
-	free(sbuf);
 }
 
 char* sbuf_detach_and_destroy(StringBuffer *sbuf) {
 	char *buf = sbuf->buff;
-	free(sbuf);
 	return buf;
 }
 

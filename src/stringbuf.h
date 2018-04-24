@@ -7,10 +7,14 @@
 /*
  * Auto-resizing char buffer.
  */
-typedef struct StringBuffer StringBuffer; //opaque type, to provide encapsulation
+typedef struct StringBuffer {
+	char *buff;  /*The backing char array*/
+	size_t size; /*The size of the backing array*/
+	size_t len;  /*The length of the buffer*/
+} StringBuffer;
 
 /*Creates a new StringBuffer and returns a pointer to it*/
-StringBuffer* sbuf_create();
+void sbuf_create(StringBuffer *sbuf);
 /*Frees the resources associated with the stringbuffer*/
 void sbuf_destroy(StringBuffer *sbuf);
 /*Frees the stringbuffer without freeing the backing char array. The caller should

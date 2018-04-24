@@ -41,7 +41,6 @@ typedef enum {
 	TOK_PRINT,
 	TOK_RETURN,
 	TOK_SUPER,
-	TOK_THIS,
 	TOK_TRUE,
 	TOK_VAR,
 	TOK_WHILE,

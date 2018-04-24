@@ -103,6 +103,16 @@ Expr *newCallExpr(int line, Expr *callee, LinkedList *args) {
 	return e;
 }
 
+Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = ACCESS_EXPR;
+	e->accessExpr.left = left;
+	e->accessExpr.id.name = name;
+	e->accessExpr.id.length = length;
+	return e;
+}
+
 void freeExpr(Expr *e) {
 	if(e == NULL) return;
 
@@ -128,11 +138,13 @@ void freeExpr(Expr *e) {
 		}
 		break;
 	}
-	case CALL_EXPR: {
+	case CALL_EXPR:
 		freeExpr(e->callExpr.callee);
 		freeExpr(e->callExpr.args);
 		break;
-	}
+	case ACCESS_EXPR:
+		freeExpr(e->accessExpr.left);
+		break;
 	default: break;
 	}
 

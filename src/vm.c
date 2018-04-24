@@ -37,6 +37,8 @@ void initVM(VM *vm) {
 	vm->reachedStack = NULL;
 	vm->reachedCapacity = 0;
 	vm->reachedCount = 0;
+
+	vm->ctor = copyString(vm, CTOR, strlen(CTOR));
 }
 
 void push(VM *vm, Value v) {
@@ -49,7 +51,7 @@ Value pop(VM *vm) {
 
 static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
-		runtimeError(vm, "Function `%s` expexted %d args, but instead %d "
+		runtimeError(vm, "Function `%s` expected %d args, but instead %d "
 		             "supplied.", func->name->data, func->argsCount, argc);
 		return false;
 	}
@@ -88,6 +90,20 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 			return callFunction(vm, AS_FUNC(callee), argc);
 		case OBJ_NATIVE:
 			return callNative(vm, AS_NATIVE(callee), argc);
+		case OBJ_CLASS: {
+			ObjClass *cls = AS_CLASS(callee);
+			vm->sp[-argc - 1] = OBJ_VAL(newInstance(vm, cls));
+
+			Value ctor;
+			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
+				return callFunction(vm, AS_FUNC(ctor), argc);
+			} else if(argc != 0) {
+				runtimeError(vm, "Expected 0 args, but instead `%d` supplied.", argc);
+				return false;
+			}
+
+			return true;
+		}
 		default: break;
 		}
 	}
@@ -102,7 +118,7 @@ static void createClass(VM *vm, ObjString *name, ObjClass *superCls) {
 	if(superCls != NULL) {
 		hashTableMerge(&cls->methods, &superCls->methods);
 	}
-	
+
 	push(vm, OBJ_VAL(cls));
 }
 
@@ -115,9 +131,9 @@ static bool isValTrue(Value val) {
 		return AS_NUM(val) != 0;
 	} else if(IS_STRING(val)) {
 		return AS_STRING(val)->length != 0;
-	} else {
-		return true;
 	}
+
+	return true;
 }
 
 static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
@@ -215,7 +231,7 @@ static bool runEval(VM *vm) {
 	}
 	case OP_NEG: {
 		if(!IS_NUM(peek(vm))) {
-			runtimeError(vm, "Operand to `-` must be a number");
+			runtimeError(vm, "Operand to `-` must be a number.");
 			return false;
 		}
 		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
@@ -223,6 +239,36 @@ static bool runEval(VM *vm) {
 	}
 	case OP_NOT: {
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
+		continue;
+	}
+	case OP_GET_FIELD: {
+		if(!IS_INSTANCE(peek(vm))) {
+			runtimeError(vm, "Only instances have fields.");
+			return false;
+		}
+
+		ObjInstance *inst = AS_INSTANCE(pop(vm));
+		ObjString *name = GET_STRING();
+
+		Value v;
+		if(!hashTableGet(&inst->fields, name, &v)) {
+			runtimeError(vm, "Field `%s` doesn't exists", name->data);
+			return false;
+		}
+
+		push(vm, v);
+		continue;
+	}
+	case OP_SET_FIELD: {
+		if(!IS_INSTANCE(peek(vm))) {
+			runtimeError(vm, "Only instances have fields.");
+			return false;
+		}
+
+		ObjInstance *inst = AS_INSTANCE(pop(vm));
+		ObjString *name = GET_STRING();
+
+		hashTablePut(&inst->fields, name, peek(vm));
 		continue;
 	}
 	case OP_JUMP: {
@@ -244,13 +290,8 @@ static bool runEval(VM *vm) {
 		push(vm, NULL_VAL);
 		continue;
 	case OP_CALL: {
-		int8_t argc = NEXT_CODE();
-		if(!callValue(vm, peekn(vm, argc), argc)) {
-			return false;
-		}
-		frame = &vm->frames[vm->frameCount - 1];
-		continue;
-	}
+		uint8_t argc = NEXT_CODE();
+		goto call;
 	case OP_CALL_0:
 	case OP_CALL_1:
 	case OP_CALL_2:
@@ -261,11 +302,50 @@ static bool runEval(VM *vm) {
 	case OP_CALL_7:
 	case OP_CALL_8:
 	case OP_CALL_9:
-	case OP_CALL_10: {
-		int8_t argc = istr - OP_CALL_0;
+	case OP_CALL_10:
+		argc = istr - OP_CALL_0;
+call:
 		if(!callValue(vm, peekn(vm, argc), argc)) {
 			return false;
 		}
+		frame = &vm->frames[vm->frameCount - 1];
+		continue;
+	}
+	case OP_INVOKE: {
+		uint8_t argc = NEXT_CODE();
+		goto invoke;
+	case OP_INVOKE_0:
+	case OP_INVOKE_1:
+	case OP_INVOKE_2:
+	case OP_INVOKE_3:
+	case OP_INVOKE_4:
+	case OP_INVOKE_5:
+	case OP_INVOKE_6:
+	case OP_INVOKE_7:
+	case OP_INVOKE_8:
+	case OP_INVOKE_9:
+	case OP_INVOKE_10:
+		argc = istr - OP_INVOKE_0;
+invoke:
+		if(!IS_INSTANCE(peekn(vm, argc))) {
+			runtimeError(vm, "Only instances have methods.");
+			return false;
+		}
+
+		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
+		ObjString *name = GET_STRING();
+
+		Value method;
+		if(!hashTableGet(&inst->cls->methods, name, &method)) {
+			runtimeError(vm, "Method %s.%s() doesn't "
+				"exists", inst->cls->name->data, name->data);
+			return false;
+		}
+
+		if(!callValue(vm, method, argc)) {
+			return false;
+		}
+
 		frame = &vm->frames[vm->frameCount - 1];
 		continue;
 	}
@@ -274,7 +354,6 @@ static bool runEval(VM *vm) {
 
 		vm->frameCount--;
 		if(vm->frameCount == 0) {
-			reset(vm);
 			return true;
 		}
 
@@ -374,6 +453,7 @@ EvalResult evaluate(VM *vm, const char *src) {
 
 static void runtimeError(VM *vm, const char* format, ...) {
 	fprintf(stderr, "Traceback:\n");
+
 
 	for(int i = 0; i < vm->frameCount; i++) {
 		Frame *frame = &vm->frames[i];
