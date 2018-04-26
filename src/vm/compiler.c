@@ -266,13 +266,12 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	bool isMethod = e->callExpr.callee->type == ACCESS_EXPR;
 	if(isMethod) {
 		bool isSuper = e->callExpr.callee->accessExpr.left->type == SUPER_LIT;
+		int line = e->callExpr.callee->accessExpr.left->line;
 
 		if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
-			error(c, e->callExpr.callee->accessExpr.left->line,
-				 "Can't use `super` outside method.");
+			error(c, line, "Can't use `super` outside method.");
 		} else if(isSuper && !c->hasSuper) {
-			error(c, e->callExpr.callee->accessExpr.left->line,
-				 "Can use `super` only in subclass.");
+			error(c, line, "Can use `super` only in subclass.");
 		}
 
 		callCode   = isSuper ? OP_SUPER : OP_INVOKE;
