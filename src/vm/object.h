@@ -18,15 +18,17 @@ extern const char *typeName[];
 #define IS_NATIVE(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_NATIVE)
 #define IS_CLASS(o)    (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLASS)
 #define IS_INSTANCE(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_INST)
+#define IS_MODULE(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_MODULE)
 
 #define AS_STRING(o)   ((ObjString*)   AS_OBJ(o))
 #define AS_FUNC(o)     ((ObjFunction*) AS_OBJ(o))
 #define AS_NATIVE(o)   ((ObjNative*)   AS_OBJ(o))
 #define AS_CLASS(o)    ((ObjClass*)    AS_OBJ(o))
 #define AS_INSTANCE(o) ((ObjInstance*) AS_OBJ(o))
+#define AS_MODULE(o)   ((ObjModule*)   AS_OBJ(o))
 
 typedef enum ObjType {
-	OBJ_STRING, OBJ_NATIVE, OBJ_FUNCTION, OBJ_CLASS, OBJ_INST
+	OBJ_STRING, OBJ_NATIVE, OBJ_FUNCTION, OBJ_CLASS, OBJ_INST, OBJ_MODULE
 } ObjType;
 
 typedef struct Obj {
@@ -42,11 +44,18 @@ typedef struct ObjString {
 	uint32_t hash;
 } ObjString;
 
+typedef struct ObjModule {
+	Obj base;
+	ObjString *name;
+	HashTable globals;
+} ObjModule;
+
 typedef struct ObjFunction {
 	Obj base;
 	uint8_t argsCount;
 	Chunk chunk;
 	ObjString *name;
+	ObjModule *module;
 } ObjFunction;
 
 typedef Value (*Native)(uint8_t argc, Value *argv);

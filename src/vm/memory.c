@@ -52,9 +52,10 @@ ObjString *newString(VM *vm, char *cstring, size_t length) {
 	return str;
 }
 
-ObjFunction *newFunction(VM *vm, uint8_t argsCount) {
+ObjFunction *newFunction(VM *vm, ObjModule *module, uint8_t argsCount) {
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), OBJ_FUNCTION);
 	f->argsCount = argsCount;
+	f->module = module;
 	f->name = NULL;
 	initChunk(&f->chunk);
 	return f;
@@ -80,6 +81,13 @@ ObjInstance *newInstance(VM *vm, ObjClass *cls) {
 	inst->cls = cls;
 	initHashTable(&inst->fields);
 	return inst;
+}
+
+ObjModule *newModule(VM *vm, ObjString *name) {
+	ObjModule *module = (ObjModule*) newObj(vm, sizeof(*module), OBJ_MODULE);
+	module->name = name;
+	initHashTable(&module->globals);
+	return module;
 }
 
 ObjString *copyString(VM *vm, const char *str, size_t length) {
@@ -137,6 +145,11 @@ static void freeObject(VM *vm, Obj *o) {
 		freeHashTable(&i->fields);
 		FREE(vm, ObjInstance, i);
 		break;
+	}
+	case OBJ_MODULE: {
+		ObjModule *m = (ObjModule*) o;
+		freeHashTable(&m->globals);
+		FREE(vm, ObjModule, m);
 	}
 	}
 }
@@ -222,6 +235,7 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	case OBJ_FUNCTION: {
 		ObjFunction *func = (ObjFunction*) o;
 		reachObject(vm, (Obj*) func->name);
+		reachObject(vm, (Obj*) func->module);
 		reachValueArray(vm, &func->chunk.consts);
 		break;
 	}
@@ -236,6 +250,12 @@ static void recursevelyReach(VM *vm, Obj *o) {
 		ObjInstance *i = (ObjInstance*) o;
 		reachObject(vm, (Obj*) i->cls);
 		reachHashTable(vm, &i->fields);
+		break;
+	}
+	case OBJ_MODULE: {
+		ObjModule *m = (ObjModule*) o;
+		reachObject(vm, (Obj*) m->name);
+		reachHashTable(vm, &m->globals);
 		break;
 	}
 	case OBJ_STRING: break;
@@ -254,7 +274,7 @@ static void garbageCollect(VM *vm) {
 
 	reachObject(vm, (Obj*) vm->ctor);
 	//reach vm global vars
-	reachHashTable(vm, &vm->globals);
+	reachHashTable(vm, &vm->modules);
 	//reach elemnts on the stack
 	for(Value *v = vm->stack; v < vm->sp; v++) {
 		reachValue(vm, *v);

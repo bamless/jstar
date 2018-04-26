@@ -13,7 +13,7 @@ typedef struct VM VM;
 
 typedef struct Compiler Compiler;
 
-ObjFunction *compile(VM *vm, Stmt *s);
+ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s);
 
 void reachCompilerRoots(VM *vm, Compiler *c);
 

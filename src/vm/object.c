@@ -3,7 +3,8 @@
 #include <stdio.h>
 
 const char *typeName[] = {
-	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST"
+	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST",
+	"OBJ_MODULE"
 };
 
 void printObj(Obj *o) {
@@ -38,6 +39,12 @@ void printObj(Obj *o) {
 	case OBJ_INST: {
 		ObjInstance *i = (ObjInstance*) o;
 		printf("<instance %s>", i->cls->name->data);
+		break;
+	}
+	case OBJ_MODULE: {
+		ObjModule *m = (ObjModule*) o;
+		printf("<module %s>", m->name->data);
+		break;
 	}
 	}
 }

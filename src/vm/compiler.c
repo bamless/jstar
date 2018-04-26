@@ -34,8 +34,8 @@ typedef struct Compiler {
 	int depth;
 } Compiler;
 
-static ObjFunction *function(Compiler *c, Stmt *s);
-static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s);
+static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
+static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s);
 
 static
 void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
@@ -500,7 +500,7 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	Compiler funComp;
 	initCompiler(&funComp, c, TYPE_FUNC, c->depth + 1, c->vm);
 
-	ObjFunction *func = function(&funComp, s);
+	ObjFunction *func = function(&funComp, c->func->module, s);
 
 	uint8_t fnConst = createConst(c, OBJ_VAL(func), s->line);
 	uint8_t idConst = identifierConst(c, &s->funcDecl.id, s->line);
@@ -536,7 +536,7 @@ static void compileClass(Compiler *c, Stmt *s) {
 		mComp.hasSuper = isSubClass;
 
 		Stmt *m = (Stmt*) n->elem;
-		ObjFunction *met = method(&mComp, &s->classDecl.id, m);
+		ObjFunction *met = method(&mComp, c->func->module, &s->classDecl.id, m);
 
 		emitBytecode(c, OP_DEF_METHOD, s->line);
 		emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), s->line);
@@ -596,19 +596,19 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
 	}
 }
 
-ObjFunction *compile(VM *vm, Stmt *s) {
+ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s) {
 	Compiler c;
 	initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
 
-	ObjFunction *func = function(&c, s);
+	ObjFunction *func = function(&c, module, s);
 
 	endCompiler(&c);
 
 	return c.hadError ? NULL : func;
 }
 
-static ObjFunction *function(Compiler *c, Stmt *s) {
-	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs));
+static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
+	c->func = newFunction(c->vm, module, linkedListLength(s->funcDecl.formalArgs));
 	if(s->funcDecl.id.length != 0) {
 		c->func->name = copyString(c->vm, s->funcDecl.id.name,
 		                                  s->funcDecl.id.length);
@@ -638,8 +638,8 @@ static ObjFunction *function(Compiler *c, Stmt *s) {
 	return c->func;
 }
 
-static ObjFunction *method(Compiler *c, Identifier *classId, Stmt *s) {
-	c->func = newFunction(c->vm, linkedListLength(s->funcDecl.formalArgs));
+static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s) {
+	c->func = newFunction(c->vm, module, linkedListLength(s->funcDecl.formalArgs));
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;

@@ -35,6 +35,10 @@ typedef struct VM {
 	Compiler *currCompiler;
 	ObjString *ctor;
 
+	//loaded modules
+	HashTable modules;
+	ObjModule *currModule;
+
 	// VM program stack
 	Value *stack, *sp, *stackend;
 
@@ -42,7 +46,6 @@ typedef struct VM {
 	int frameCount;
 
 	// Globals and constant strings pool
-	HashTable globals;
 	HashTable strings;
 
 	// Memory management
@@ -60,6 +63,7 @@ void initVM(VM *vm);
 void freeVM(VM *vm);
 
 EvalResult evaluate(VM *vm, const char *src);
+EvalResult evaluateModule(VM *vm, const char *name, const char *src);
 
 void push(VM *vm, Value v);
 Value pop(VM *vm);

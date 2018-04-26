@@ -26,8 +26,10 @@ void initVM(VM *vm) {
 
 	reset(vm);
 
-	initHashTable(&vm->globals);
 	initHashTable(&vm->strings);
+	initHashTable(&vm->modules);
+
+	vm->currModule = NULL;
 
 	vm->nextGC = INIT_GC;
 	vm->objects = NULL;
@@ -65,6 +67,8 @@ static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	callFrame->fn = func;
 	callFrame->ip = func->chunk.code;
 	callFrame->stack = vm->sp - (argc + 1);
+
+	vm->currModule = func->module;
 
 	return true;
 }
@@ -134,17 +138,10 @@ static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
 }
 
 static bool isValTrue(Value val) {
-	if(IS_BOOL(val)) {
-		return AS_BOOL(val);
-	} else if(IS_NULL(val)) {
-		return false;
-	} else if(IS_NUM(val)) {
-		return AS_NUM(val) != 0;
-	} else if(IS_STRING(val)) {
-		return AS_STRING(val)->length != 0;
-	}
-
-	return true;
+	return ((IS_BOOL(val) && AS_BOOL(val))
+	      ||(IS_NUM(val) && AS_NUM(val) != 0)
+		  ||(IS_STRING(val) && AS_STRING(val)->length != 0)
+		  ||(IS_OBJ(val) && !IS_STRING(val)));
 }
 
 static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
@@ -389,6 +386,7 @@ sup_invoke:;
 		push(vm, ret);
 
 		frame = &vm->frames[vm->frameCount - 1];
+		vm->currModule = frame->fn->module;
 		continue;
 	}
 	case OP_NEW_CLASS:
@@ -407,11 +405,11 @@ sup_invoke:;
 		push(vm, GET_CONST());
 		continue;
 	case OP_DEFINE_GLOBAL:
-		hashTablePut(&vm->globals, GET_STRING(), pop(vm));
+		hashTablePut(&vm->currModule->globals, GET_STRING(), pop(vm));
 		continue;
 	case OP_GET_GLOBAL: {
 		ObjString *name = GET_STRING();
-		if(!hashTableGet(&vm->globals, name, vm->sp++)) {
+		if(!hashTableGet(&vm->currModule->globals, name, vm->sp++)) {
 			runtimeError(vm, "Variable `%s` not defined.", name->data);
 			return false;
 		}
@@ -419,7 +417,7 @@ sup_invoke:;
 	}
 	case OP_SET_GLOBAL: {
 		ObjString *name = GET_STRING();
-		if(hashTablePut(&vm->globals, name, peek(vm))) {
+		if(hashTablePut(&vm->currModule->globals, name, peek(vm))) {
 			runtimeError(vm, "Variable `%s` not defined.", name->data);
 			return false;
 		}
@@ -454,7 +452,38 @@ sup_invoke:;
 	#undef BINARY
 }
 
+static ObjModule *getModule(VM *vm, ObjString *name) {
+	Value module;
+	if(!hashTableGet(&vm->modules, name, &module)) {
+		return NULL;
+	}
+	return AS_MODULE(module);
+}
+
+static ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program) {
+	ObjModule *module = getModule(vm, name);
+
+	if(module == NULL) {
+		disableGC(vm, true);
+
+		module = newModule(vm, name);
+		hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
+
+		disableGC(vm, false);
+
+		hashTablePut(&vm->modules, name, OBJ_VAL(module));
+	}
+
+	ObjFunction *fn = compile(vm, module, program);
+
+	return fn;
+}
+
 EvalResult evaluate(VM *vm, const char *src) {
+	return evaluateModule(vm, "__main__", src);
+}
+
+EvalResult evaluateModule(VM *vm, const char *module, const char *src) {
 	Parser p;
 
 	Stmt *program = parse(&p, src);
@@ -463,7 +492,8 @@ EvalResult evaluate(VM *vm, const char *src) {
 		return VM_SYNTAX_ERR;
 	}
 
-	ObjFunction *fn = compile(vm, program);
+	ObjString *name = copyString(vm, module, strlen(module));
+	ObjFunction *fn = compileWithModule(vm, name, program);
 
 	freeStmt(program);
 	if(fn == NULL) {
@@ -487,13 +517,16 @@ static void runtimeError(VM *vm, const char* format, ...) {
 		Frame *frame = &vm->frames[i];
 		ObjFunction *func = frame->fn;
 		size_t istr = frame->ip - func->chunk.code - 1;
-		fprintf(stderr, "    [line:%d] in ", getBytecodeSrcLine(&func->chunk, istr));
+		fprintf(stderr, "    [line:%d] ", getBytecodeSrcLine(&func->chunk, istr));
+
+		fprintf(stderr, "module %s in ", func->module->name->data);
 
 		if(func->name != NULL) {
 			fprintf(stderr, "%s()\n", func->name->data);
 		} else {
 			fprintf(stderr, "<main>\n");
 		}
+
 	}
 
 	va_list args;
@@ -508,8 +541,8 @@ static void runtimeError(VM *vm, const char* format, ...) {
 void freeVM(VM *vm) {
 	reset(vm);
 
-	freeHashTable(&vm->globals);
 	freeHashTable(&vm->strings);
+	freeHashTable(&vm->modules);
 	freeObjects(vm);
 
 	free(vm->stack);
