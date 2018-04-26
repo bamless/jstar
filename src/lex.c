@@ -1,6 +1,7 @@
 #include "lex.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 typedef struct {
@@ -84,7 +85,7 @@ static void skipSpacesAndComments(Lexer *lex) {
 			break;
 		case '/':
 			if(peekChar2(lex) == '/') {
-				while(peekChar(lex) != '\n')
+				while(peekChar(lex) != '\n' && !isAtEnd(lex))
 					advance(lex);
 			} else {
 				return;
@@ -115,10 +116,10 @@ static void makeToken(Lexer *lex, Token *tok, TokenType type) {
 	tok->line = lex->curr_line;
 }
 
-static void errToken(Lexer *lex, Token *tok, const char *msg) {
-	tok->type = TOK_ERR;
-	tok->lexeme = msg;
-	tok->length = strlen(msg);
+static void eofToken(Lexer *lex, Token *tok) {
+	tok->type = TOK_EOF;
+	tok->lexeme = "end of file";
+	tok->length = strlen(tok->lexeme);
 	tok->line = lex->curr_line;
 }
 
@@ -144,7 +145,9 @@ static void string(Lexer *lex, Token *tok) {
 
 	//unterminated string
 	if(isAtEnd(lex)) {
-		errToken(lex, tok, "Unterminated string");
+		fprintf(stderr, "[line:%d] `%.*s`: Unterminated string\n", lex->curr_line,
+			(int) (lex->current - lex->tokenStart), lex->tokenStart);
+		makeToken(lex, tok, TOK_ERR);
 		return;
 	}
 
@@ -175,12 +178,11 @@ void nextToken(Lexer *lex, Token *tok) {
 	skipSpacesAndComments(lex);
 
 	if(isAtEnd(lex)) {
-		makeToken(lex, tok, TOK_EOF);
+		eofToken(lex, tok);
 		return;
 	}
 
 	lex->tokenStart = lex->current;
-
 	char c = advance(lex);
 
 	if(isNum(c))   { number(lex, tok);     return; }
