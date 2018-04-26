@@ -32,7 +32,7 @@ INST_PATH = /usr/bin
 LIBS_PATH = -Llib
 
 VM_LIBS  = -lm
-CLI_LIBS = $(VM_LIBS) -lreadline
+CLI_LIBS = $(VM_LIBS) -lreadline -l:lib$(EXEC_NAME).a
 
 # Path in wich static libraries will be placed (must be one of the path in LIBS_PATH or none).
 # This will be used to relink the project if one of the static lib changes (optional).
@@ -118,7 +118,7 @@ $(LIB)/lib$(EXEC_NAME).a: $(VM_OBJECTS)
 
 $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(VM_OBJECTS)
 	@echo "Creating $@..."
-	@$(CC) $(CFLAGS) -shared $^ -o $@
+	@$(CC) $(CFLAGS) -shared $^ -o $@ $(VM_LIBS)
 
 .PHONY: cli
 cli: vm $(BIN)/$(EXEC_NAME)
@@ -126,7 +126,7 @@ cli: vm $(BIN)/$(EXEC_NAME)
 # Links the object files into an executable
 $(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS)
 	@echo "Linking $@..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS) -l:libblang.a
+	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
 
 # Rules for the source files. It compiles source files if obj files are outdated.
 # It also creates haeder dependency files (.d files) used to add headers as
