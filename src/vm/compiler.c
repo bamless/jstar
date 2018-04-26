@@ -516,8 +516,6 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	endCompiler(&funComp);
 }
 
-static void compileVar(Compiler *c, Identifier *id, int line);
-
 static void compileClass(Compiler *c, Stmt *s) {
 	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
 
