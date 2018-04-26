@@ -23,26 +23,40 @@ SRC = src
 BUILD = build
 # Folder in which the binary will be generated
 BIN = bin
+# Folder in which the libraries will be generated
+LIB = lib
 # Where to install the binary file (optional)
 INST_PATH = /usr/bin
 
 # Path containing project libraries (optional)
-LIBS_PATH =
+LIBS_PATH = -Llib
+
+VM_LIBS  = -lm
+CLI_LIBS = $(VM_LIBS) -lreadline
+
 # Path in wich static libraries will be placed (must be one of the path in LIBS_PATH or none).
 # This will be used to relink the project if one of the static lib changes (optional).
-STATIC_PATH =
+STATIC_PATH = lib
 # Path containing external header files (optional)
-INCLUDES =
+INCLUDES = -I$(SRC)/vm
 
 #Linker flags
 LDFLAGS =
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wextra -O3
-# Libraries
-LIBS = -lm -lreadline
+CFLAGS = -DNAN_TAGGING -std=c11 -fPIC -Wall -Wextra -O3
 
 # Source extension
 SRC_EXT = c
+
+###### SETTINGS END ######
+
+SHARED_EXT = so
+ifeq ($(OS),Windows_NT)
+	SHARED_EXT = dll
+endif
+ifeq ($(OS),Darwin)
+	SHARED_EXT = dylib
+endif
 
 ifeq ($(DBG_STRESS_GC),1)
 	CFLAGS += -DDBG_STRESS_GC
@@ -54,29 +68,34 @@ ifeq ($(DBG_PRINT_EXEC),1)
 	CFLAGS += -DDBG_PRINT_EXEC
 endif
 
-###### SETTINGS END ######
-
 # Recursive wildcard, used to get all c files in SRC directory recursively
 rwildcard = $(foreach d, $(wildcard $1*), $(call rwildcard,$d/,$2) \
 						$(filter $(subst *,%,$2), $d))
 
-# Get all static libraires in LIBS_PATH (used in order to relink
-# the program if one of the static libs changes)
-STATICLIBS = $(call rwildcard, $(STATIC_PATH), *.a)
-# Get all the source files in SRC
-SOURCES = $(call rwildcard, $(SRC), *.$(SRC_EXT))
-# Set object files names from source file names (used in order
-# to relink the program if one of the object file changes)
-OBJECTS = $(SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
-# The dependency files that will be used in order to add header dependencies
-DEPEND = $(OBJECTS:.o=.d)
+VM_SOURCES  = $(call rwildcard, $(SRC)/vm,  *.$(SRC_EXT))
+CLI_SOURCES = $(call rwildcard, $(SRC)/cli, *.$(SRC_EXT))
+STATIC_LIBS = $(call rwildcard, $(STATIC_PATH), *.a)
+
+VM_OBJECTS  = $(VM_SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
+CLI_OBJECTS = $(CLI_SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
+
+DEPEND_VM  = $(VM_OBJECTS:.o=.d)
+DEPEND_CLI = $(CLI_OBJECTS:.o=.d)
 
 # Main target, it creates the folders needed by the build and launches 'all' target
-.PHONY: build
-build: createdirs
+.PHONY: all
+all: createdirs
 	@echo "Beginning build..."
 	@echo ""
-	@$(MAKE) all --no-print-directory
+	@$(MAKE) cli --no-print-directory
+	@echo ""
+	@echo "Build successful"
+
+.PHONY: libs
+libs: createdirs
+	@echo "Beginning build..."
+	@echo ""
+	@$(MAKE) vm --no-print-directory
 	@echo ""
 	@echo "Build successful"
 
@@ -85,15 +104,29 @@ build: createdirs
 createdirs:
 	@echo "Generic Make File With Header Dependencies, Copyright (C) 2016 Fabrizio Pietrucci"
 	@echo "Creating directories"
-	@mkdir -p $(dir $(OBJECTS))
+	@mkdir -p $(dir $(VM_OBJECTS))
+	@mkdir -p $(dir $(CLI_OBJECTS))
+	@mkdir -p $(LIB)
 	@mkdir -p $(BIN)
 
-all: $(BIN)/$(EXEC_NAME)
+.PHONY: vm
+vm: $(LIB)/lib$(EXEC_NAME).a $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT)
+
+$(LIB)/lib$(EXEC_NAME).a: $(VM_OBJECTS)
+	@echo "Creating $@..."
+	@$(AR) rc $@ $^
+
+$(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(VM_OBJECTS)
+	@echo "Creating $@..."
+	@$(CC) $(CFLAGS) -shared $^ -o $@
+
+.PHONY: cli
+cli: vm $(BIN)/$(EXEC_NAME)
 
 # Links the object files into an executable
-$(BIN)/$(EXEC_NAME): $(OBJECTS) $(STATICLIBS)
+$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS)
 	@echo "Linking $@..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) $(OBJECTS) -o $@ $(LIBS_PATH) $(LIBS)
+	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS) -l:libblang.a
 
 # Rules for the source files. It compiles source files if obj files are outdated.
 # It also creates haeder dependency files (.d files) used to add headers as
@@ -105,7 +138,8 @@ $(BUILD)/%.o: $(SRC)/%.$(SRC_EXT)
 # Header dependencies. Adds the rules in the .d files, if they exists, in order to
 # add headers as dependencies of obj files (see .d files in BUILD for more info).
 # This rules will be merged with the previous rules.
--include $(DEPEND)
+-include $(DEPEND_VM)
+-include $(DEPEND_CLI)
 
 .PHONY: install
 install:
@@ -119,7 +153,7 @@ uninstall:
 .PHONY: clean
 clean:
 	@echo "Deleting directories..."
-	@rm -rf $(BIN) $(BUILD)
+	@rm -rf $(BIN) $(BUILD) $(LIB)
 
 # Copyright (C) 2016 Fabrizio Pietrucci
 
