@@ -12,7 +12,7 @@ typedef struct LinkedList {
 	for(node = list; node != NULL; node = node->next)
 
 LinkedList *addElement(LinkedList *lst, void *elem);
-size_t linkedListLength(LinkedList *lst);
+size_t listLength(LinkedList *lst);
 void freeLinkedList(LinkedList *lst);
 
 #endif

@@ -52,6 +52,9 @@ void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
 }
 
 static void endCompiler(Compiler *c) {
+	if(c->prev != NULL)  {
+		c->prev->hadError |= c->hadError;
+	}
 	c->vm->currCompiler = c->prev;
 }
 
@@ -511,7 +514,6 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	emitBytecode(c, idConst, s->line);
 
 	endCompiler(&funComp);
-	c->hadError |= funComp.hadError;
 }
 
 static void compileVar(Compiler *c, Identifier *id, int line);
@@ -529,8 +531,8 @@ static void compileClass(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, id, s->line);
 
-	Compiler mComp;
 	LinkedList *n;
+	Compiler mComp;
 	foreach(n, s->classDecl.methods) {
 		initCompiler(&mComp, c, TYPE_METHOD, c->depth + 1, c->vm);
 		mComp.hasSuper = isSubClass;
@@ -543,7 +545,6 @@ static void compileClass(Compiler *c, Stmt *s) {
 		emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), s->line);
 
 		endCompiler(&mComp);
-		c->hadError |= mComp.hadError;
 	}
 
 	declareVar(c, &s->classDecl.id, s->line);
@@ -598,17 +599,16 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
 
 ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s) {
 	Compiler c;
+
 	initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
-
 	ObjFunction *func = function(&c, module, s);
-
 	endCompiler(&c);
 
 	return c.hadError ? NULL : func;
 }
 
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
-	c->func = newFunction(c->vm, module, linkedListLength(s->funcDecl.formalArgs));
+	c->func = newFunction(c->vm, module, listLength(s->funcDecl.formalArgs));
 	if(s->funcDecl.id.length != 0) {
 		c->func->name = copyString(c->vm, s->funcDecl.id.name,
 		                                  s->funcDecl.id.length);
@@ -639,7 +639,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 }
 
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s) {
-	c->func = newFunction(c->vm, module, linkedListLength(s->funcDecl.formalArgs));
+	c->func = newFunction(c->vm, module, listLength(s->funcDecl.formalArgs));
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
@@ -647,13 +647,12 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
 	memcpy(name, classId->name, classId->length);
 	name[classId->length] = '.';
-	memcpy(name + classId->length + 1,
-			s->funcDecl.id.name, s->funcDecl.id.length);
+	memcpy(name + classId->length + 1, s->funcDecl.id.name, s->funcDecl.id.length);
 	name[length] = '\0';
 
 	c->func->name = newStringFromBuf(c->vm, name, length);
 
-	//if in costructor change the compiler type
+	//if in costructor change the type
 	Identifier ctor = {strlen(CTOR), CTOR};
 	if(identifierEquals(&s->funcDecl.id, &ctor)) {
 		c->type = TYPE_CTOR;
@@ -661,7 +660,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
 	enterScope(c);
 
-	//add `this` local var for method receiver (the object from which was called)
+	//add `this` for method receiver (the object from which was called)
 	Identifier thisId = {strlen(THIS), THIS};
 	addLocal(c, &thisId, s->line);
 	c->locals[c->localsCount - 1].depth = c->depth;
