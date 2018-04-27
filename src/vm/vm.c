@@ -19,6 +19,7 @@ static void reset(VM *vm) {
 
 void initVM(VM *vm) {
 	vm->currCompiler = NULL;
+	vm->ctor = NULL;
 
 	vm->stack  = malloc(sizeof(Value) * STACK_SZ);
 	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
@@ -410,7 +411,7 @@ sup_invoke:;
 	case OP_GET_GLOBAL: {
 		ObjString *name = GET_STRING();
 		if(!hashTableGet(&vm->currModule->globals, name, vm->sp++)) {
-			runtimeError(vm, "Variable `%s` not defined.", name->data);
+			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
 		continue;
@@ -418,7 +419,7 @@ sup_invoke:;
 	case OP_SET_GLOBAL: {
 		ObjString *name = GET_STRING();
 		if(hashTablePut(&vm->currModule->globals, name, peek(vm))) {
-			runtimeError(vm, "Variable `%s` not defined.", name->data);
+			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
 		continue;
@@ -448,7 +449,6 @@ sup_invoke:;
 	#undef NEXT_SHORT
 	#undef GET_CONST
 	#undef GET_STRING
-	#undef push
 	#undef BINARY
 }
 
