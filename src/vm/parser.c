@@ -279,11 +279,11 @@ static Stmt *parseImport(Parser *p) {
 
 	const char *name = NULL;
 	size_t length = 0;
-	if(!match(p, TOK_STRING)) {
+	if(!match(p, TOK_IDENTIFIER)) {
 		error(p, "Expected module name.");
 	} else {
-		name = p->peek.lexeme + 1;
-		length = p->peek.length - 2;
+		name = p->peek.lexeme;
+		length = p->peek.length;
 	}
 	advance(p);
 

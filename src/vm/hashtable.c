@@ -105,6 +105,10 @@ bool hashTableGet(HashTable *t, ObjString *key, Value *res) {
 	return false;
 }
 
+bool hashTableContainsKey(HashTable *t, ObjString *key) {
+	return getEntry(t, key) != NULL;
+}
+
 bool hashTableDel(HashTable *t, ObjString *key) {
 	size_t index = key->hash & t->mask;
 

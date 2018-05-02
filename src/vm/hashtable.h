@@ -28,6 +28,7 @@ void initHashTable(HashTable *t);
 void freeHashTable(HashTable *t);
 bool hashTablePut(HashTable *t, ObjString *key, Value val);
 bool hashTableGet(HashTable *t, ObjString *key, Value *res);
+bool hashTableContainsKey(HashTable *t, ObjString *key);
 bool hashTableDel(HashTable *t, ObjString *key);
 void hashTableMerge(HashTable *t, HashTable *o);
 

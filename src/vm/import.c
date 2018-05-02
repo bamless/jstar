@@ -79,6 +79,11 @@ ObjModule *getModule(VM *vm, ObjString *name) {
 }
 
 bool importModule(VM *vm, ObjString *name) {
+	if(hashTableContainsKey(&vm->modules, name)) {
+		push(vm, NULL_VAL);
+		return true;
+	}
+
 	char *src = loadSource(name->data);
 
 	if(src == NULL) {

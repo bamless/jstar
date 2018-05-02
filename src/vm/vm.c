@@ -139,6 +139,103 @@ static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
 	return callValue(vm, method, argc);
 }
 
+static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
+	Value val = peekn(vm, argc);
+	if(IS_OBJ(val)) {
+		switch(OBJ_TYPE(val)) {
+		case OBJ_INST: {
+			ObjInstance *inst = AS_INSTANCE(val);
+			if(!invokeMethod(vm, inst->cls, name, argc)) {
+				return false;
+			}
+			return true;
+		}
+		case OBJ_MODULE: {
+			ObjModule *mod = AS_MODULE(val);
+
+			Value func;
+			if(!hashTableGet(&mod->globals, name, &func)) {
+				runtimeError(vm, "Name `%s` is not defined "
+					"in module %s.", name->data, mod->name->data);
+				return false;
+			}
+
+			if(!callValue(vm, func, argc)) {
+				return false;
+			}
+
+			return true;
+		}
+		default: break;
+		}
+	}
+
+	runtimeError(vm, "Only instances have methods.");
+	return false;
+}
+
+bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
+	if(!IS_OBJ(val)) {
+		runtimeError(vm, "Only instances or modules have fields.");
+		return false;
+	}
+
+	switch(OBJ_TYPE(val)) {
+	case OBJ_INST: {
+		ObjInstance *inst = AS_INSTANCE(val);
+
+		Value v;
+		if(!hashTableGet(&inst->fields, name, &v)) {
+			runtimeError(vm, "Field `%s` doesn't exists", name->data);
+			return false;
+		}
+
+		push(vm, v);
+		return true;
+	}
+	case OBJ_MODULE: {
+		ObjModule *mod = AS_MODULE(val);
+
+		Value v;
+		if(!hashTableGet(&mod->globals, name, &v)) {
+			runtimeError(vm, "Variable `%s` doesn't "
+				"exists in module %s", name->data, mod->name->data);
+			return false;
+		}
+
+		push(vm, v);
+		return true;
+	}
+	default: break;
+	}
+
+	runtimeError(vm, "Only instances or modules have fields.");
+	return false;
+}
+
+bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
+	if(!IS_OBJ(val)) {
+		runtimeError(vm, "Only instances or modules have fields.");
+		return false;
+	}
+
+	switch(OBJ_TYPE(val)) {
+	case OBJ_INST: {
+		ObjInstance *inst = AS_INSTANCE(val);
+		hashTablePut(&inst->fields, name, s);
+		return true;
+	}
+	case OBJ_MODULE: {
+		ObjModule *mod = AS_MODULE(val);
+		hashTablePut(&mod->globals, name, s);
+		return true;
+	}
+	default:
+		runtimeError(vm, "Only instances or modules have fields.");
+		return false;
+	}
+}
+
 static bool isValTrue(Value val) {
 	return ((IS_BOOL(val) && AS_BOOL(val))
 	      ||(IS_NUM(val) && AS_NUM(val) != 0)
@@ -252,33 +349,17 @@ static bool runEval(VM *vm) {
 		continue;
 	}
 	case OP_GET_FIELD: {
-		if(!IS_INSTANCE(peek(vm))) {
-			runtimeError(vm, "Only instances have fields.");
+		Value v = pop(vm);
+		if(!getFieldFromValue(vm, v, GET_STRING())) {
 			return false;
 		}
-
-		ObjInstance *inst = AS_INSTANCE(pop(vm));
-		ObjString *name = GET_STRING();
-
-		Value v;
-		if(!hashTableGet(&inst->fields, name, &v)) {
-			runtimeError(vm, "Field `%s` doesn't exists", name->data);
-			return false;
-		}
-
-		push(vm, v);
 		continue;
 	}
 	case OP_SET_FIELD: {
-		if(!IS_INSTANCE(peek(vm))) {
-			runtimeError(vm, "Only instances have fields.");
+		Value v = pop(vm);
+		if(!setFieldOfValue(vm, v, GET_STRING(), peek(vm))) {
 			return false;
 		}
-
-		ObjInstance *inst = AS_INSTANCE(pop(vm));
-		ObjString *name = GET_STRING();
-
-		hashTablePut(&inst->fields, name, peek(vm));
 		continue;
 	}
 	case OP_JUMP: {
@@ -337,17 +418,9 @@ call:
 	case OP_INVOKE_10:
 		argc = istr - OP_INVOKE_0;
 invoke:
-		if(!IS_INSTANCE(peekn(vm, argc))) {
-			runtimeError(vm, "Only instances have methods.");
+		if(!invokeFromValue(vm, GET_STRING(), argc)) {
 			return false;
 		}
-
-		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
-
-		if(!invokeMethod(vm, inst->cls, GET_STRING(), argc)) {
-			return false;
-		}
-
 		frame = &vm->frames[vm->frameCount - 1];
 		continue;
 	}
@@ -368,11 +441,9 @@ invoke:
 		argc = istr - OP_SUPER_0;
 sup_invoke:;
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
-
 		if(!invokeMethod(vm, inst->cls->superCls, GET_STRING(), argc)) {
 			return false;
 		}
-
 		frame = &vm->frames[vm->frameCount - 1];
 		continue;
 	}
@@ -402,8 +473,10 @@ sup_invoke:;
 		hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
 
 		//call the module's main
-		callValue(vm, peek(vm), 0);
-		frame = &vm->frames[vm->frameCount - 1];
+		if(peek(vm) != NULL_VAL) {
+			callValue(vm, peek(vm), 0);
+			frame = &vm->frames[vm->frameCount - 1];
+		}
 		continue;
 	}
 	case OP_NEW_CLASS:
