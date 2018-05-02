@@ -252,6 +252,15 @@ Stmt *newPrintStmt(int line, Expr *e) {
 	return s;
 }
 
+Stmt *newImportStmt(int line, const char *module, size_t length) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = IMPORT;
+	s->importStmt.module.name = module;
+	s->importStmt.module.length = length;
+	return s;
+}
+
 Stmt *newExprStmt(int line, Expr *e) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
@@ -322,6 +331,7 @@ void freeStmt(Stmt *s) {
 	case PRINT:
 		freeExpr(s->printStmt.e);
 		break;
+	case IMPORT: break;
 	}
 
 	free(s);

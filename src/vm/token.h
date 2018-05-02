@@ -40,6 +40,7 @@ typedef enum {
 	TOK_OR,
 	TOK_PRINT,
 	TOK_RETURN,
+	TOK_IMPORT,
 	TOK_SUPER,
 	TOK_TRUE,
 	TOK_VAR,

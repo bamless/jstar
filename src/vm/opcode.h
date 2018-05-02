@@ -69,6 +69,7 @@ typedef enum Opcode {
 	OP_JUMPF,
 
 	OP_PRINT,
+	OP_IMPORT,
 
 	//stack operations
 	OP_NEW_CLASS,

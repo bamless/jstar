@@ -548,6 +548,13 @@ static void compileClass(Compiler *c, Stmt *s) {
 	defineVar(c, &s->classDecl.id, s->line);
 }
 
+static void compileImportStatement(Compiler *c, Stmt *s) {
+	emitBytecode(c, OP_IMPORT, s->line);
+	uint8_t name = identifierConst(c, &s->importStmt.module, s->line);
+	emitBytecode(c, name, s->line);
+	emitBytecode(c, OP_POP, s->line);
+}
+
 static void compileStatement(Compiler *c, Stmt *s) {
 	switch(s->type) {
 	case IF:
@@ -583,6 +590,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 	case PRINT:
 		compileExpr(c, s->printStmt.e);
 		emitBytecode(c, OP_PRINT, s->line);
+		break;
+	case IMPORT:
+		compileImportStatement(c, s);
 		break;
 	}
 }

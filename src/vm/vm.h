@@ -37,7 +37,8 @@ typedef struct VM {
 
 	//loaded modules
 	HashTable modules;
-	ObjModule *currModule;
+	//current module
+	ObjModule *module;
 
 	// VM program stack
 	Value *stack, *sp, *stackend;

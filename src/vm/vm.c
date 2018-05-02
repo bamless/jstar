@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "opcode.h"
 #include "disassemble.h"
+#include "import.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -30,7 +31,7 @@ void initVM(VM *vm) {
 	initHashTable(&vm->strings);
 	initHashTable(&vm->modules);
 
-	vm->currModule = NULL;
+	vm->module = NULL;
 
 	vm->nextGC = INIT_GC;
 	vm->objects = NULL;
@@ -69,7 +70,7 @@ static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	callFrame->ip = func->chunk.code;
 	callFrame->stack = vm->sp - (argc + 1);
 
-	vm->currModule = func->module;
+	vm->module = func->module;
 
 	return true;
 }
@@ -141,8 +142,8 @@ static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
 static bool isValTrue(Value val) {
 	return ((IS_BOOL(val) && AS_BOOL(val))
 	      ||(IS_NUM(val) && AS_NUM(val) != 0)
-		  ||(IS_STRING(val) && AS_STRING(val)->length != 0)
-		  ||(IS_OBJ(val) && !IS_STRING(val)));
+	      ||(IS_STRING(val) && AS_STRING(val)->length != 0)
+	      ||(IS_OBJ(val) && !IS_STRING(val)));
 }
 
 static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
@@ -387,7 +388,22 @@ sup_invoke:;
 		push(vm, ret);
 
 		frame = &vm->frames[vm->frameCount - 1];
-		vm->currModule = frame->fn->module;
+		vm->module = frame->fn->module;
+		continue;
+	}
+	case OP_IMPORT: {
+		ObjString *name = GET_STRING();
+		if(!importModule(vm, name)) {
+			runtimeError(vm, "Cannot load module `%s`", name->data);
+			return false;
+		}
+
+		//define name for module in importing module
+		hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
+
+		//call the module's main
+		callValue(vm, peek(vm), 0);
+		frame = &vm->frames[vm->frameCount - 1];
 		continue;
 	}
 	case OP_NEW_CLASS:
@@ -406,11 +422,11 @@ sup_invoke:;
 		push(vm, GET_CONST());
 		continue;
 	case OP_DEFINE_GLOBAL:
-		hashTablePut(&vm->currModule->globals, GET_STRING(), pop(vm));
+		hashTablePut(&vm->module->globals, GET_STRING(), pop(vm));
 		continue;
 	case OP_GET_GLOBAL: {
 		ObjString *name = GET_STRING();
-		if(!hashTableGet(&vm->currModule->globals, name, vm->sp++)) {
+		if(!hashTableGet(&vm->module->globals, name, vm->sp++)) {
 			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
@@ -418,7 +434,7 @@ sup_invoke:;
 	}
 	case OP_SET_GLOBAL: {
 		ObjString *name = GET_STRING();
-		if(hashTablePut(&vm->currModule->globals, name, peek(vm))) {
+		if(hashTablePut(&vm->module->globals, name, peek(vm))) {
 			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
@@ -450,33 +466,6 @@ sup_invoke:;
 	#undef GET_CONST
 	#undef GET_STRING
 	#undef BINARY
-}
-
-static ObjModule *getModule(VM *vm, ObjString *name) {
-	Value module;
-	if(!hashTableGet(&vm->modules, name, &module)) {
-		return NULL;
-	}
-	return AS_MODULE(module);
-}
-
-static ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program) {
-	ObjModule *module = getModule(vm, name);
-
-	if(module == NULL) {
-		disableGC(vm, true);
-
-		module = newModule(vm, name);
-		hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
-
-		disableGC(vm, false);
-
-		hashTablePut(&vm->modules, name, OBJ_VAL(module));
-	}
-
-	ObjFunction *fn = compile(vm, module, program);
-
-	return fn;
 }
 
 EvalResult evaluate(VM *vm, const char *src) {
@@ -511,7 +500,6 @@ EvalResult evaluateModule(VM *vm, const char *module, const char *src) {
 
 static void runtimeError(VM *vm, const char* format, ...) {
 	fprintf(stderr, "Traceback:\n");
-
 
 	for(int i = 0; i < vm->frameCount; i++) {
 		Frame *frame = &vm->frames[i];

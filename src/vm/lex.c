@@ -26,6 +26,7 @@ static Keyword keywords[] = {
 	{"true",   4, TOK_TRUE},
 	{"var",    3, TOK_VAR},
 	{"while",  5, TOK_WHILE},
+	{"import", 6, TOK_IMPORT}, 
 	{NULL,     0, TOK_EOF}
 };
 

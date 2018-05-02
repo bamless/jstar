@@ -121,10 +121,10 @@ $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(VM_OBJECTS)
 	@$(CC) $(CFLAGS) -shared $^ -o $@ $(VM_LIBS)
 
 .PHONY: cli
-cli: vm $(BIN)/$(EXEC_NAME)
+cli: $(BIN)/$(EXEC_NAME)
 
 # Links the object files into an executable
-$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS)
+$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).a
 	@echo "Linking $@..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
 

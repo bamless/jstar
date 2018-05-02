@@ -273,6 +273,25 @@ static Stmt *printStmt(Parser *p) {
 	return newPrintStmt(line, e);
 }
 
+static Stmt *parseImport(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_IMPORT);
+
+	const char *name = NULL;
+	size_t length = 0;
+	if(!match(p, TOK_STRING)) {
+		error(p, "Expected module name.");
+	} else {
+		name = p->peek.lexeme + 1;
+		length = p->peek.length - 2;
+	}
+	advance(p);
+
+	require(p, TOK_SEMICOLON);
+
+	return newImportStmt(line, name, length);
+}
+
 static Stmt *parseStmt(Parser *p) {
 	int line = p->peek.line;
 	switch(p->peek.type) {
@@ -290,6 +309,8 @@ static Stmt *parseStmt(Parser *p) {
 		return printStmt(p);
 	case TOK_CLASS:
 		return parseClassDecl(p);
+	case TOK_IMPORT:
+		return parseImport(p);
 	default: {
 		Expr *e = parseExpr(p);
 		require(p, TOK_SEMICOLON);
