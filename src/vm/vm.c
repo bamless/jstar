@@ -398,7 +398,7 @@ sup_invoke:;
 			return false;
 		}
 
-		//define name for module in importing module
+		//define name for the module in the importing module
 		hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
 
 		//call the module's main
@@ -416,7 +416,7 @@ sup_invoke:;
 		ObjClass *cls = AS_CLASS(peek(vm));
 		ObjString *methodName = GET_STRING();
 		hashTablePut(&cls->methods, methodName, GET_CONST());
-		break;
+		continue;
 	}
 	case OP_GET_CONST:
 		push(vm, GET_CONST());
