@@ -1,5 +1,5 @@
-#ifndef H
-#define H
+#ifndef TOKEN_H
+#define TOKEN_H
 
 extern const char *tokNames[];
 
@@ -41,6 +41,7 @@ typedef enum {
 	TOK_PRINT,
 	TOK_RETURN,
 	TOK_IMPORT,
+	TOK_AS,
 	TOK_SUPER,
 	TOK_TRUE,
 	TOK_VAR,

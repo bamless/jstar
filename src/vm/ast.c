@@ -252,12 +252,14 @@ Stmt *newPrintStmt(int line, Expr *e) {
 	return s;
 }
 
-Stmt *newImportStmt(int line, const char *module, size_t length) {
+Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
 	s->type = IMPORT;
 	s->importStmt.module.name = module;
 	s->importStmt.module.length = length;
+	s->importStmt.as.name = as;
+	s->importStmt.as.length = asLength;
 	return s;
 }
 

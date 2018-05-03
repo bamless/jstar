@@ -67,6 +67,7 @@ const char *opName[] = {
 
 	"OP_PRINT",
 	"OP_IMPORT",
+	"OP_IMPORT_AS",
 
 	//stack operations
 	"OP_NEW_CLASS",

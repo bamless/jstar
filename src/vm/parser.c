@@ -279,17 +279,31 @@ static Stmt *parseImport(Parser *p) {
 
 	const char *name = NULL;
 	size_t length = 0;
-	if(!match(p, TOK_IDENTIFIER)) {
-		error(p, "Expected module name.");
-	} else {
+	if(match(p, TOK_IDENTIFIER)) {
 		name = p->peek.lexeme;
 		length = p->peek.length;
+	} else {
+		error(p, "Expected module name.");
 	}
 	advance(p);
 
+	const char *as = NULL;
+	size_t asLength = 0;
+	if(match(p, TOK_AS)) {
+		advance(p);
+
+		if(match(p, TOK_IDENTIFIER)) {
+			as = p->peek.lexeme;
+			asLength = p->peek.length;
+		} else {
+			error(p, "Expected module name.");
+		}
+		advance(p);
+	}
+
 	require(p, TOK_SEMICOLON);
 
-	return newImportStmt(line, name, length);
+	return newImportStmt(line, name, length, as, asLength);
 }
 
 static Stmt *parseStmt(Parser *p) {

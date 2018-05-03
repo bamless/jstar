@@ -145,6 +145,13 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 		switch(OBJ_TYPE(val)) {
 		case OBJ_INST: {
 			ObjInstance *inst = AS_INSTANCE(val);
+
+			Value f;
+			if(hashTableGet(&inst->fields, name, &f)) {
+				callValue(vm, f, argc);
+				return true;
+			}
+
 			if(!invokeMethod(vm, inst->cls, name, argc)) {
 				return false;
 			}
@@ -175,38 +182,35 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 }
 
 bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
-	if(!IS_OBJ(val)) {
-		runtimeError(vm, "Only instances or modules have fields.");
-		return false;
-	}
+	if(IS_OBJ(val)) {
+		switch(OBJ_TYPE(val)) {
+		case OBJ_INST: {
+			ObjInstance *inst = AS_INSTANCE(val);
 
-	switch(OBJ_TYPE(val)) {
-	case OBJ_INST: {
-		ObjInstance *inst = AS_INSTANCE(val);
+			Value v;
+			if(!hashTableGet(&inst->fields, name, &v)) {
+				runtimeError(vm, "Field `%s` doesn't exists", name->data);
+				return false;
+			}
 
-		Value v;
-		if(!hashTableGet(&inst->fields, name, &v)) {
-			runtimeError(vm, "Field `%s` doesn't exists", name->data);
-			return false;
+			push(vm, v);
+			return true;
 		}
+		case OBJ_MODULE: {
+			ObjModule *mod = AS_MODULE(val);
 
-		push(vm, v);
-		return true;
-	}
-	case OBJ_MODULE: {
-		ObjModule *mod = AS_MODULE(val);
+			Value v;
+			if(!hashTableGet(&mod->globals, name, &v)) {
+				runtimeError(vm, "Variable `%s` doesn't "
+					"exists in module %s", name->data, mod->name->data);
+				return false;
+			}
 
-		Value v;
-		if(!hashTableGet(&mod->globals, name, &v)) {
-			runtimeError(vm, "Variable `%s` doesn't "
-				"exists in module %s", name->data, mod->name->data);
-			return false;
+			push(vm, v);
+			return true;
 		}
-
-		push(vm, v);
-		return true;
-	}
-	default: break;
+		default: break;
+		}
 	}
 
 	runtimeError(vm, "Only instances or modules have fields.");
@@ -214,26 +218,24 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 }
 
 bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
-	if(!IS_OBJ(val)) {
-		runtimeError(vm, "Only instances or modules have fields.");
-		return false;
+	if(IS_OBJ(val)) {
+		switch(OBJ_TYPE(val)) {
+		case OBJ_INST: {
+			ObjInstance *inst = AS_INSTANCE(val);
+			hashTablePut(&inst->fields, name, s);
+			return true;
+		}
+		case OBJ_MODULE: {
+			ObjModule *mod = AS_MODULE(val);
+			hashTablePut(&mod->globals, name, s);
+			return true;
+		}
+		default: break;
+		}
 	}
 
-	switch(OBJ_TYPE(val)) {
-	case OBJ_INST: {
-		ObjInstance *inst = AS_INSTANCE(val);
-		hashTablePut(&inst->fields, name, s);
-		return true;
-	}
-	case OBJ_MODULE: {
-		ObjModule *mod = AS_MODULE(val);
-		hashTablePut(&mod->globals, name, s);
-		return true;
-	}
-	default:
-		runtimeError(vm, "Only instances or modules have fields.");
-		return false;
-	}
+	runtimeError(vm, "Only instances or modules have fields.");
+	return false;
 }
 
 static bool isValTrue(Value val) {
@@ -462,7 +464,8 @@ sup_invoke:;
 		vm->module = frame->fn->module;
 		continue;
 	}
-	case OP_IMPORT: {
+	case OP_IMPORT_AS: {
+	case OP_IMPORT:;
 		ObjString *name = GET_STRING();
 		if(!importModule(vm, name)) {
 			runtimeError(vm, "Cannot load module `%s`", name->data);
@@ -470,7 +473,8 @@ sup_invoke:;
 		}
 
 		//define name for the module in the importing module
-		hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
+		hashTablePut(&vm->module->globals, istr == OP_IMPORT ?
+					name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
 
 		//call the module's main
 		if(peek(vm) != NULL_VAL) {

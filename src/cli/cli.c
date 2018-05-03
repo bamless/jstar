@@ -3,6 +3,7 @@
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <unistd.h>
 
 #include "vm.h"
 
@@ -67,7 +68,22 @@ int main(int argc, const char **argv) {
 		interactiveEval(&vm);
 	} else {
 		char *src = readSrcFile(argv[1]);
-		if(src == NULL) return VM_GENERIC_ERR;
+		if(src == NULL) {
+			return VM_GENERIC_ERR;
+		}
+
+		char *directory = strrchr(argv[1], '/');
+		if(directory != NULL) {
+			size_t length = directory - argv[1] + 1;
+			char *pwd = malloc(length + 1);
+			memcpy(pwd, argv[1], length);
+			pwd[length] = '\0';
+
+			chdir(pwd);
+
+			free(pwd);
+		}
+
 		res = evaluate(&vm, src);
 		free(src);
 	}

@@ -125,22 +125,19 @@ struct Stmt {
 		} printStmt;
 		struct {
 			Identifier module;
+			Identifier as;
 		} importStmt;
 		Expr *exprStmt;
 	};
 };
 
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args,
-                                                                Stmt *body);
-Stmt *newClassDecl(int line, size_t clength, const char *cid,
-	                                         size_t slength,
-	                                         const char *sid,
-	                                         LinkedList *methods);
+Stmt *newClassDecl(int line, size_t clength, const char *cid, size_t slength, const char *sid, LinkedList *methods);
+Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body);
 
+Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
-Stmt *newImportStmt(int line, const char *module, size_t length);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
 Stmt *newBlockStmt(int line, LinkedList *list);
 Stmt *newReturnStmt(int line, Expr *e);

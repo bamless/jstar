@@ -549,9 +549,17 @@ static void compileClass(Compiler *c, Stmt *s) {
 }
 
 static void compileImportStatement(Compiler *c, Stmt *s) {
-	emitBytecode(c, OP_IMPORT, s->line);
+	bool isAs = s->importStmt.as.name != NULL;
+
+	emitBytecode(c, isAs ? OP_IMPORT_AS : OP_IMPORT, s->line);
 	uint8_t name = identifierConst(c, &s->importStmt.module, s->line);
 	emitBytecode(c, name, s->line);
+
+	if(isAs) {
+		uint8_t as = identifierConst(c, &s->importStmt.as, s->line);
+		emitBytecode(c, as, s->line);
+	}
+
 	emitBytecode(c, OP_POP, s->line);
 }
 
