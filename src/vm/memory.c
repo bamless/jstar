@@ -90,6 +90,13 @@ ObjModule *newModule(VM *vm, ObjString *name) {
 	return module;
 }
 
+ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method) {
+	ObjBoundMethod *bound = (ObjBoundMethod*) newObj(vm, sizeof(*bound), OBJ_BOUND_METHOD);
+	bound->bound = b;
+	bound->method = method;
+	return bound;
+}
+
 ObjString *copyString(VM *vm, const char *str, size_t length) {
 	ObjString *interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
 	if(interned == NULL) {
@@ -150,6 +157,12 @@ static void freeObject(VM *vm, Obj *o) {
 		ObjModule *m = (ObjModule*) o;
 		freeHashTable(&m->globals);
 		FREE(vm, ObjModule, m);
+		break;
+	}
+	case OBJ_BOUND_METHOD: {
+		ObjBoundMethod *b = (ObjBoundMethod*) o;
+		FREE(vm, ObjBoundMethod, b);
+		break;
 	}
 	}
 }
@@ -256,6 +269,12 @@ static void recursevelyReach(VM *vm, Obj *o) {
 		ObjModule *m = (ObjModule*) o;
 		reachObject(vm, (Obj*) m->name);
 		reachHashTable(vm, &m->globals);
+		break;
+	}
+	case OBJ_BOUND_METHOD: {
+		ObjBoundMethod *b = (ObjBoundMethod*) o;
+		reachObject(vm, (Obj*) b->bound);
+		reachObject(vm, (Obj*) b->method);
 		break;
 	}
 	case OBJ_STRING: break;

@@ -14,12 +14,14 @@ void disassembleIstr(Chunk *c, size_t i) {
 		printf("%d", (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]);
 		break;
 
+	case OP_IMPORT_AS:
 	case OP_INVOKE:
 	case OP_SUPER:
 	case OP_DEF_METHOD:
 		printf("%d %d", c->code[i + 1], c->code[i + 2]);
 		break;
 
+	case OP_IMPORT:
 	case OP_GET_FIELD:
 	case OP_SET_FIELD:
 	case OP_NEW_CLASS:

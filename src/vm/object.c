@@ -4,7 +4,7 @@
 
 const char *typeName[] = {
 	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST",
-	"OBJ_MODULE"
+	"OBJ_MODULE", "OBJ_BOUND_METHOD"
 };
 
 void printObj(Obj *o) {
@@ -44,6 +44,11 @@ void printObj(Obj *o) {
 	case OBJ_MODULE: {
 		ObjModule *m = (ObjModule*) o;
 		printf("<module %s>", m->name->data);
+		break;
+	}
+	case OBJ_BOUND_METHOD: {
+		ObjBoundMethod *b = (ObjBoundMethod*) o;
+		printf("<bound method %p:%s>", (void*) b->bound, b->method->name->data);
 		break;
 	}
 	}

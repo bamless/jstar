@@ -96,6 +96,11 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 			return callFunction(vm, AS_FUNC(callee), argc);
 		case OBJ_NATIVE:
 			return callNative(vm, AS_NATIVE(callee), argc);
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod *m = AS_BOUND_METHOD(callee);
+			vm->sp[-argc - 1] = OBJ_VAL(m->bound);
+			return callFunction(vm, m->method, argc);
+		}
 		case OBJ_CLASS: {
 			ObjClass *cls = AS_CLASS(callee);
 			vm->sp[-argc - 1] = OBJ_VAL(newInstance(vm, cls));
@@ -189,8 +194,14 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 
 			Value v;
 			if(!hashTableGet(&inst->fields, name, &v)) {
-				runtimeError(vm, "Field `%s` doesn't exists", name->data);
-				return false;
+				//if we didnt find a field try to return bound method
+				if(!hashTableGet(&inst->cls->methods, name, &v)) {
+					runtimeError(vm, "Field `%s` doesn't exists", name->data);
+					return false;
+				}
+
+				push(vm, OBJ_VAL(newBoundMethod(vm, inst, AS_FUNC(v))));
+				return true;
 			}
 
 			push(vm, v);
