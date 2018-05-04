@@ -27,12 +27,13 @@ BIN = bin
 LIB = lib
 # Where to install the binary file (optional)
 INST_PATH = /usr/bin
+LIB_INST_PATH = /usr/lib
 
 # Path containing project libraries (optional)
 LIBS_PATH = -Llib
 
 VM_LIBS  = -lm
-CLI_LIBS = $(VM_LIBS) -lreadline -l:lib$(EXEC_NAME).a
+CLI_LIBS = $(VM_LIBS) -lreadline -lblang
 
 # Path in wich static libraries will be placed (must be one of the path in LIBS_PATH or none).
 # This will be used to relink the project if one of the static lib changes (optional).
@@ -41,7 +42,7 @@ STATIC_PATH = lib
 INCLUDES = -I$(SRC)/vm
 
 #Linker flags
-LDFLAGS =
+LDFLAGS = -Wl,-rpath=\$$ORIGIN/../lib/ #rpath for faster testing. Allows the built binary in bin/ to find all the shared libs
 # Compiler flags
 CFLAGS = -DNAN_TAGGING -std=c11 -fPIC -Wall -Wextra -O3
 
@@ -124,7 +125,7 @@ $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(VM_OBJECTS)
 cli: $(BIN)/$(EXEC_NAME)
 
 # Links the object files into an executable
-$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).a
+$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT)
 	@echo "Linking $@..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
 
@@ -144,10 +145,12 @@ $(BUILD)/%.o: $(SRC)/%.$(SRC_EXT)
 .PHONY: install
 install:
 	@cp $(BIN)/$(EXEC_NAME) $(INST_PATH)
+	@cp $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT) $(LIB_INST_PATH)
 
 .PHONY: uninstall
 uninstall:
 	@rm $(INST_PATH)/$(EXEC_NAME)
+	@rm $(LIB_INST_PATH)/lib$(EXEC_NAME).$(SHARED_EXT)
 
 # Removes all the build directories with obj files and executable
 .PHONY: clean

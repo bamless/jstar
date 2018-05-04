@@ -75,6 +75,12 @@ void sbuf_appendstr(StringBuffer *sbuf, const char *str) {
 	sbuf_append(sbuf, str, strlen(str));
 }
 
+void sbuf_appendchar(StringBuffer *sbuf, char c) {
+	if(sbuf->len + 1 >= sbuf->size) sbuf_grow(sbuf, 1);
+	sbuf->buff[sbuf->len++] = c;
+	sbuf->buff[sbuf->len] = '\0';
+}
+
 void sbuf_truncate(StringBuffer *sbuf, size_t len) {
 	if(len >= sbuf->len) return;
 	sbuf->len = len;

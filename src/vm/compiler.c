@@ -1,9 +1,10 @@
 #include "compiler.h"
-#include "ast.h"
-#include "vm.h"
-#include "value.h"
+#include "stringbuf.h"
 #include "memory.h"
 #include "opcode.h"
+#include "value.h"
+#include "ast.h"
+#include "vm.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -331,6 +332,8 @@ static void compileVar(Compiler *c, Identifier *id, int line) {
 	}
 }
 
+static ObjString *readString(Compiler *c, Expr *e);
+
 static void compileExpr(Compiler *c, Expr *e) {
 	switch(e->type) {
 	case ASSIGN:
@@ -368,9 +371,8 @@ static void compileExpr(Compiler *c, Expr *e) {
 		emitBytecode(c, createConst(c, BOOL_VAL(e->boolean), e->line), e->line);
 		break;
 	case STR_LIT: {
-		//TODO: unescape string
+		ObjString *str = readString(c, e);
 		emitBytecode(c, OP_GET_CONST, e->line);
-		ObjString *str = copyString(c->vm, e->str.str + 1, e->str.length - 2);
 		emitBytecode(c, createConst(c, OBJ_VAL(str), e->line), e->line);
 		break;
 	}
@@ -701,6 +703,38 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	exitScope(c);
 
 	return c->func;
+}
+
+static ObjString *readString(Compiler *c, Expr *e) {
+	const char *str = e->str.str + 1;
+	size_t length = e->str.length - 2;
+
+	StringBuffer sb;
+	sbuf_create(&sb);
+	for(size_t i = 0; i < length; i++) {
+		char c = str[i];
+		if (c == '\\') {
+			switch(str[i + 1]) {
+			case '0':  sbuf_appendchar(&sb, '\0'); break;
+			case 'a':  sbuf_appendchar(&sb, '\a'); break;
+			case 'b':  sbuf_appendchar(&sb, '\b'); break;
+			case 'f':  sbuf_appendchar(&sb, '\f'); break;
+			case 'n':  sbuf_appendchar(&sb, '\n'); break;
+			case 'r':  sbuf_appendchar(&sb, '\r'); break;
+			case 't':  sbuf_appendchar(&sb, '\t'); break;
+			case 'v':  sbuf_appendchar(&sb, '\v'); break;
+			default:   sbuf_appendchar(&sb, str[i + 1]); break;
+			}
+			i++;
+		} else {
+		  sbuf_appendchar(&sb, c);
+	  	}
+	}
+
+	ObjString *s = copyString(c->vm, sbuf_get_backing_buf(&sb),  sbuf_get_len(&sb));
+	sbuf_destroy(&sb);
+
+	return s;
 }
 
 void reachCompilerRoots(VM *vm, Compiler *c) {
