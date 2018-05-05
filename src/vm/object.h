@@ -68,6 +68,7 @@ typedef struct ObjNative {
 	uint8_t argsCount;
 	Native fn;
 	ObjString *name;
+	ObjModule *module;
 } ObjNative;
 
 typedef struct ObjClass {

@@ -61,9 +61,10 @@ ObjFunction *newFunction(VM *vm, ObjModule *module, uint8_t argsCount) {
 	return f;
 }
 
-ObjNative *newNative(VM *vm, uint8_t argsCount, Native fn) {
+ObjNative *newNative(VM *vm, ObjModule *module, uint8_t argsCount, Native fn) {
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), OBJ_NATIVE);
 	n->argsCount = argsCount;
+	n->module = module;
 	n->name = NULL;
 	n->fn = fn;
 	return n;
@@ -243,7 +244,8 @@ static void recursevelyReach(VM *vm, Obj *o) {
 
 	switch(o->type) {
 	case OBJ_NATIVE:
-		reachObject(vm, (Obj*)((ObjNative*)o)->name);
+		reachObject(vm, (Obj*) ((ObjNative*)o)->name);
+		reachObject(vm, (Obj*) ((ObjNative*)o)->module);
 		break;
 	case OBJ_FUNCTION: {
 		ObjFunction *func = (ObjFunction*) o;

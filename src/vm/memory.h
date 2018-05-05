@@ -16,10 +16,10 @@ typedef struct VM VM;
 
 void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size);
 
+ObjNative *newNative(VM *vm, ObjModule *module, uint8_t argsCount, Native fn);
 ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method);
 ObjFunction *newFunction(VM *vm, ObjModule *module, uint8_t argsCount);
 ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls);
-ObjNative *newNative(VM *vm, uint8_t argsCount, Native fn);
 ObjString *newString(VM *vm, char *cstring, size_t size);
 ObjInstance *newInstance(VM *vm, ObjClass *cls);
 ObjModule *newModule(VM *vm, ObjString *name);
