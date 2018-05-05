@@ -3,7 +3,12 @@
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+
+#ifdef __unix
 #include <unistd.h>
+#elif _WIN32
+#include <windows.h>
+#endif
 
 #include "vm.h"
 
@@ -79,7 +84,16 @@ int main(int argc, const char **argv) {
 			memcpy(pwd, argv[1], length);
 			pwd[length] = '\0';
 
-			chdir(pwd);
+#ifdef __unix
+			if(chdir(pwd))
+#elif _WIN32
+			if(!SetCurrentDirectory(pwd))
+#endif
+			{
+				fprintf(stderr, "Failed to change cwd.\n");
+				exit(1);
+			}
+
 
 			free(pwd);
 		}
