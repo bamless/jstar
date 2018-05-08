@@ -33,7 +33,7 @@ LIB_INST_PATH = /usr/lib
 LIBS_PATH = -Llib
 
 VM_LIBS  = -lm
-CLI_LIBS = $(VM_LIBS) -lreadline -lblang
+CLI_LIBS = $(VM_LIBS) -lreadline -l:libblang.a
 
 # Path in wich static libraries will be placed (must be one of the path in LIBS_PATH or none).
 # This will be used to relink the project if one of the static lib changes (optional).
@@ -125,7 +125,7 @@ $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(VM_OBJECTS)
 cli: $(BIN)/$(EXEC_NAME)
 
 # Links the object files into an executable
-$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT)
+$(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).a
 	@echo "Linking $@..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
 
