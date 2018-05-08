@@ -478,12 +478,12 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	// jump back to for start
 	emitJumpTo(c, OP_JUMP, forStart, 0);
 
-	exitScope(c);
-
 	// set the exit jump
 	if(s->forStmt.cond != NULL) {
 		setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
 	}
+	
+	exitScope(c);
 }
 
 static void compileWhileStatement(Compiler *c, Stmt *s) {
