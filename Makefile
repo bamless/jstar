@@ -44,7 +44,7 @@ INCLUDES = -I$(SRC)/vm
 #Linker flags
 LDFLAGS = -Wl,-rpath=\$$ORIGIN/../lib/ #rpath for faster testing. Allows the built binary in bin/ to find all the shared libs
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -std=c11 -fPIC -Wall -Wextra -O3
+CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wextra -O3
 
 # Source extension
 SRC_EXT = c
