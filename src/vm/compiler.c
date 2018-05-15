@@ -518,6 +518,21 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	endCompiler(&funComp);
 }
 
+static void compileNative(Compiler *c, Stmt *s) {
+	size_t length = listLength(s->nativeDecl.formalArgs);
+	ObjNative *native = newNative(c->vm, c->vm->module, length, NULL);
+
+	uint8_t n = createConst(c, OBJ_VAL(native), s->line);
+	uint8_t i = identifierConst(c, &s->nativeDecl.id, s->line);
+	native->name = AS_STRING(c->func->chunk.consts.arr[i]);
+
+	emitBytecode(c, OP_GET_CONST, s->line);
+	emitBytecode(c, n, s->line);
+
+	emitBytecode(c, OP_DEFINE_NATIVE, s->line);
+	emitBytecode(c, i, s->line);
+}
+
 static void compileClass(Compiler *c, Stmt *s) {
 	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
 
@@ -534,17 +549,37 @@ static void compileClass(Compiler *c, Stmt *s) {
 	LinkedList *n;
 	Compiler mComp;
 	foreach(n, s->classDecl.methods) {
-		initCompiler(&mComp, c, TYPE_METHOD, c->depth + 1, c->vm);
-		mComp.hasSuper = isSubClass;
 
 		Stmt *m = (Stmt*) n->elem;
-		ObjFunction *met = method(&mComp, c->func->module, &s->classDecl.id, m);
+		switch(m->type) {
+		case FUNCDECL: {
+			initCompiler(&mComp, c, TYPE_METHOD, c->depth + 1, c->vm);
+			mComp.hasSuper = isSubClass;
 
-		emitBytecode(c, OP_DEF_METHOD, s->line);
-		emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), s->line);
-		emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), s->line);
+			ObjFunction *met = method(&mComp, c->func->module, &s->classDecl.id, m);
 
-		endCompiler(&mComp);
+			emitBytecode(c, OP_DEF_METHOD, s->line);
+			emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), s->line);
+			emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), s->line);
+
+			endCompiler(&mComp);
+			break;
+		}
+		case NATIVEDECL: {
+			size_t length = listLength(m->nativeDecl.formalArgs);
+			ObjNative *n = newNative(c->vm, c->func->module, length, NULL);
+
+			uint8_t nc = createConst(c, OBJ_VAL(n), s->line);
+			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
+			n->name = AS_STRING(c->func->chunk.consts.arr[id]);
+
+			emitBytecode(c, OP_NAT_METHOD, s->line);
+			emitBytecode(c, id, s->line);
+			emitBytecode(c, nc, s->line);
+			break;
+		}
+		default: break;
+		}
 	}
 
 	declareVar(c, &s->classDecl.id, s->line);
@@ -594,6 +629,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		break;
 	case FUNCDECL:
 		compileFunction(c, s);
+		break;
+	case NATIVEDECL:
+		compileNative(c, s);
 		break;
 	case CLASSDECL:
 		compileClass(c, s);

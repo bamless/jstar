@@ -1,0 +1,25 @@
+class File {
+	def new(handle) {
+		this.__handle = handle;
+	}
+
+	def readAll() {
+		var file = "";
+		for(var l = this.readLine(); l != ""; l = this.readLine())
+			file = file + l;
+		return file;
+	}
+
+	native readLine();
+	native close();
+}
+
+def open(name, mode) {
+	var handle = __open(name, mode);
+	if(handle == null) {
+		return null;
+	}
+	return File(handle);
+}
+
+native __open(name, mode);

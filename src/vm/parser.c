@@ -30,6 +30,7 @@ Stmt *parse(Parser *p, const char *src) {
 	return program;
 }
 
+static Stmt *parseNativeDecl(Parser *p);
 static Stmt *parseFuncDecl(Parser *p);
 static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
@@ -41,6 +42,8 @@ static Stmt *parseProgram(Parser *p) {
 	while(!match(p, TOK_EOF)) {
 		if(match(p, TOK_DEF)) {
 			stmts = addElement(stmts, parseFuncDecl(p));
+		} else if(match(p, TOK_NAT)) {
+			stmts = addElement(stmts, parseNativeDecl(p));
 		} else if(match(p, TOK_VAR)) {
 			stmts = addElement(stmts, varDecl(p));
 		} else {
@@ -51,6 +54,42 @@ static Stmt *parseProgram(Parser *p) {
 	}
 
 	return newFuncDecl(0, 0, NULL, NULL, newBlockStmt(0, stmts));
+}
+
+static Stmt *parseNativeDecl(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_NAT);
+
+	const char *name = NULL;
+	size_t length = 0;
+
+	if(match(p, TOK_IDENTIFIER)) {
+		name = p->peek.lexeme;
+		length = p->peek.length;
+		advance(p);
+	} else {
+		error(p, "Expected identifier.");
+		advance(p);
+	}
+
+	require(p, TOK_LPAREN);
+	LinkedList *args = NULL;
+
+	if(match(p, TOK_IDENTIFIER)) {
+		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
+		advance(p);
+	}
+
+	while(match(p, TOK_COMMA)) {
+		advance(p);
+		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
+		advance(p);
+	}
+
+	require(p, TOK_RPAREN);
+	require(p, TOK_SEMICOLON);
+
+	return newNativeDecl(line, length, name, args);
 }
 
 static Stmt *parseFuncDecl(Parser *p) {
@@ -124,7 +163,11 @@ static Stmt *parseClassDecl(Parser *p) {
 
 	LinkedList *methods = NULL;
 	while(!match(p, TOK_RBRACE) && !match(p, TOK_EOF)) {
-		methods = addElement(methods, parseFuncDecl(p));
+		if(match(p, TOK_DEF)) {
+			methods = addElement(methods, parseFuncDecl(p));
+		} else {
+			methods = addElement(methods, parseNativeDecl(p));
+		}
 	}
 
 	require(p, TOK_RBRACE);

@@ -17,6 +17,7 @@ static Keyword keywords[] = {
 	{"false",  5, TOK_FALSE},
 	{"for",    3, TOK_FOR},
 	{"def",    3, TOK_DEF},
+	{"native", 6, TOK_NAT},
 	{"if",     2, TOK_IF},
 	{"null",   4, TOK_NULL},
 	{"or",     2, TOK_OR},
@@ -27,7 +28,7 @@ static Keyword keywords[] = {
 	{"var",    3, TOK_VAR},
 	{"while",  5, TOK_WHILE},
 	{"import", 6, TOK_IMPORT},
-	{"as",     2, TOK_AS}, 
+	{"as",     2, TOK_AS},
 	{NULL,     0, TOK_EOF}
 };
 

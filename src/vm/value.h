@@ -18,15 +18,18 @@ typedef uint64_t Value;
 #define FALSE_TAG 2
 #define TRUE_TAG  3
 
+#define IS_HANDLE(val) (((val) & (QNAN | TRUE_TAG)) == QNAN)
 #define IS_OBJ(val)    (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 #define IS_BOOL(val)   (((val) & (QNAN | FALSE_TAG)) == (QNAN | FALSE_TAG))
 #define IS_NUM(val)    (((val) & QNAN) != QNAN)
 #define IS_NULL(val)   ((val) == NULL_VAL)
 
+#define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
 #define AS_BOOL(value) ((value) == TRUE_VAL)
 #define AS_NUM(value)  valueToNum(value)
 #define AS_OBJ(value)  ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
+#define HANDLE_VAL(h)  ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
 #define NUM_VAL(num)   numToValue(num)
 #define BOOL_VAL(b)    ((b) ? TRUE_VAL : FALSE_VAL)
 #define OBJ_VAL(obj)   ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))

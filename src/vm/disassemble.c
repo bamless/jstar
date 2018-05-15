@@ -17,6 +17,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_IMPORT_AS:
 	case OP_INVOKE:
 	case OP_SUPER:
+	case OP_NAT_METHOD:
 	case OP_DEF_METHOD:
 		printf("%d %d", c->code[i + 1], c->code[i + 2]);
 		break;
@@ -55,6 +56,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_GET_GLOBAL:
 	case OP_SET_LOCAL:
 	case OP_SET_GLOBAL:
+	case OP_DEFINE_NATIVE:
 	case OP_DEFINE_GLOBAL:
 		printf("%d", c->code[i + 1]);
 		break;

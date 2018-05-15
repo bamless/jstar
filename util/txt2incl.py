@@ -8,6 +8,7 @@ def error(msg):
 
 def stringify(line):
 	line = line[:len(line) - 1]
+	if not line: return line
 	line = line.replace('"', '\\"')
 	line = line.replace("\\n", "\\\\n")
 	return '"' + line + '\\n"'
@@ -24,12 +25,12 @@ fileName = sys.argv[1].split('/')
 fileName = fileName[len(fileName) - 1]
 fileName = fileName.replace('.', '_')
 
-header = WARNING + "const char *{} = ".format(fileName)
+header = WARNING + "const char *{} =\n".format(fileName)
 
 with open(sys.argv[1], "r") as src:
 	for line in src:
-		header += '\n'
-		header += stringify(line)
+		cstr = stringify(line);
+		header += cstr + '\n' if cstr else ""
 	header += ';'
 
 with open(sys.argv[2], "w") as out:

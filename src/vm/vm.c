@@ -4,6 +4,7 @@
 #include "opcode.h"
 #include "disassemble.h"
 #include "import.h"
+#include "modules.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -504,6 +505,34 @@ sup_invoke:;
 		ObjClass *cls = AS_CLASS(peek(vm));
 		ObjString *methodName = GET_STRING();
 		hashTablePut(&cls->methods, methodName, GET_CONST());
+		continue;
+	}
+	case OP_NAT_METHOD: {
+		ObjClass *cls = AS_CLASS(peek(vm));
+		ObjString *methodName = GET_STRING();
+		ObjNative *native = AS_NATIVE(GET_CONST());
+
+		native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, native->name->data);
+		if(native->fn == NULL) {
+			runtimeError(vm, "Cannot resolve native method %s.%s().",
+			                  cls->name->data, native->name->data);
+			return false;
+		}
+
+		hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
+		continue;
+	}
+	case OP_DEFINE_NATIVE: {
+		ObjString *name = GET_STRING();
+		ObjNative *nat  = AS_NATIVE(pop(vm));
+
+		nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
+		if(nat->fn == NULL) {
+			runtimeError(vm, "Cannot resolve native %s.\n", nat->name->data);
+			return false;
+		}
+
+		hashTablePut(&vm->module->globals, name, OBJ_VAL(nat));
 		continue;
 	}
 	case OP_GET_CONST:

@@ -1,6 +1,6 @@
-#include "os.h"
+#include "sys.h"
 
-NATIVE(getOS) {
+NATIVE(bl_platform) {
 #ifdef __linux
 	return OBJ_VAL(copyString(vm, "Linux", 5));
 #elif _WIN32

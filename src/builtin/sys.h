@@ -3,6 +3,6 @@
 
 #include "native.h"
 
-NATIVE(getOS);
+NATIVE(bl_platform);
 
 #endif

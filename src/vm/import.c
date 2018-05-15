@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "compiler.h"
 #include "hashtable.h"
+#include "modules.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -84,20 +85,27 @@ bool importModule(VM *vm, ObjString *name) {
 		return true;
 	}
 
-	char *src = loadSource(name->data);
+	bool dyn = true;
+	const char *src = NULL;
+	if((src = readBuiltInModule(name->data)) != NULL) {
+		dyn = false;
+	} else {
+		src = loadSource(name->data);
+	}
+
 	if(src == NULL) return false;
 
 	Parser p;
 	Stmt *program = parse(&p, src);
 
 	if(program == NULL) {
-		free(src);
+		if(dyn) free((char*)src);
 		return false;
 	}
 
 	ObjFunction *fn = compileWithModule(vm, name, program);
 
-	free(src);
+	if(dyn) free((char*)src);
 	freeStmt(program);
 
 	if(fn == NULL) return false;

@@ -39,6 +39,11 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 		}
 	}
 
+	if(size == 0) {
+		free(ptr);
+		return NULL;
+	}
+
 	return realloc(ptr, size);
 }
 
@@ -193,7 +198,7 @@ void disableGC(VM *vm , bool disable) {
 
 static void growReached(VM *vm) {
 	vm->reachedCapacity *= REACHED_GROW_RATE;
-	vm->reachedStack = realloc(vm->reachedStack, vm->reachedCapacity);
+	vm->reachedStack = realloc(vm->reachedStack, sizeof(Obj*) * vm->reachedCapacity);
 }
 
 static void addReachedObject(VM *vm, Obj *o) {
