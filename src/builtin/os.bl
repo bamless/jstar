@@ -1,0 +1,5 @@
+var OS_LINUX = "Linux";
+var OS_WIN32 = "Win32";
+var OS_OSX = "OSX";
+
+native getOS();

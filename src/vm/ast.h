@@ -77,8 +77,8 @@ Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 void freeExpr(Expr *e);
 
 typedef enum StmtType {
-	IF, FOR, WHILE, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL, CLASSDECL,
-	PRINT, IMPORT
+	IF, FOR, WHILE, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL, NATIVEDECL,
+	CLASSDECL, PRINT, IMPORT
 } StmtType;
 
 typedef struct Stmt Stmt;
@@ -115,6 +115,10 @@ struct Stmt {
 			LinkedList *formalArgs;
 			Stmt *body;
 		} funcDecl;
+		struct {
+			Identifier id;
+			LinkedList *formalArgs;
+		} nativeDecl;
 		struct {
 			Identifier id;
 			Identifier sid;

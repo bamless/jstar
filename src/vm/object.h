@@ -9,6 +9,8 @@
 #include "chunk.h"
 #include "value.h"
 
+typedef struct VM VM;
+
 extern const char *typeName[];
 
 #define OBJ_TYPE(o) (AS_OBJ(o)->type)
@@ -61,7 +63,7 @@ typedef struct ObjFunction {
 	ObjModule *module;
 } ObjFunction;
 
-typedef Value (*Native)(uint8_t argc, Value *argv);
+typedef Value (*Native)(VM *vm, uint8_t argc, Value *argv);
 
 typedef struct ObjNative {
 	Obj base;

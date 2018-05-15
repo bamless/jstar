@@ -56,9 +56,9 @@ ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program) {
 		module = newModule(vm, name);
 		hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
 
-		disableGC(vm, false);
-
 		setModule(vm, name, module);
+
+		disableGC(vm, false);
 	}
 
 	ObjFunction *fn = compile(vm, module, program);
@@ -85,11 +85,7 @@ bool importModule(VM *vm, ObjString *name) {
 	}
 
 	char *src = loadSource(name->data);
-
-	if(src == NULL) {
-		free(src);
-		return false;
-	}
+	if(src == NULL) return false;
 
 	Parser p;
 	Stmt *program = parse(&p, src);
@@ -104,11 +100,8 @@ bool importModule(VM *vm, ObjString *name) {
 	free(src);
 	freeStmt(program);
 
-	if(fn == NULL) {
-		return false;
-	}
+	if(fn == NULL) return false;
 
 	push(vm, OBJ_VAL(fn));
-
 	return true;
 }

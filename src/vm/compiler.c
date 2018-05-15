@@ -264,10 +264,12 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	Opcode callCode   = OP_CALL;
 	Opcode callInline = OP_CALL_0;
 
-	bool isMethod = e->callExpr.callee->type == ACCESS_EXPR;
+	Expr *callee = e->callExpr.callee;
+	bool isMethod = callee->type == ACCESS_EXPR;
+
 	if(isMethod) {
-		bool isSuper = e->callExpr.callee->accessExpr.left->type == SUPER_LIT;
-		int line = e->callExpr.callee->accessExpr.left->line;
+		bool isSuper = callee->accessExpr.left->type == SUPER_LIT;
+		int line = callee->accessExpr.left->line;
 
 		if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
 			error(c, line, "Can't use `super` outside method.");
@@ -281,10 +283,10 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 			emitBytecode(c, OP_GET_LOCAL, e->line);
 			emitBytecode(c, 0, e->line);
 		} else {
-			compileExpr(c, e->callExpr.callee->accessExpr.left);
+			compileExpr(c, callee->accessExpr.left);
 		}
 	} else {
-		compileExpr(c, e->callExpr.callee);
+		compileExpr(c, callee);
 	}
 
 	LinkedList *n;
@@ -308,8 +310,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	}
 
 	if(isMethod) {
-		uint8_t id = identifierConst(c,
-			&e->callExpr.callee->accessExpr.id, e->line);
+		uint8_t id = identifierConst(c, &callee->accessExpr.id, e->line);
 		emitBytecode(c, id, e->line);
 	}
 }
@@ -482,7 +483,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	if(s->forStmt.cond != NULL) {
 		setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
 	}
-	
+
 	exitScope(c);
 }
 
@@ -627,8 +628,8 @@ ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s) {
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	c->func = newFunction(c->vm, module, listLength(s->funcDecl.formalArgs));
 	if(s->funcDecl.id.length != 0) {
-		c->func->name = copyString(c->vm, s->funcDecl.id.name,
-		                                  s->funcDecl.id.length);
+		c->func->name = copyString(c->vm,
+			s->funcDecl.id.name, s->funcDecl.id.length);
 	}
 
 	enterScope(c);

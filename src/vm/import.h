@@ -10,5 +10,4 @@ void setModule(VM *vm, ObjString *name, ObjModule *module);
 ObjModule *getModule(VM *vm, ObjString *name);
 bool importModule(VM *vm, ObjString *name);
 
-
 #endif

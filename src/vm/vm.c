@@ -82,7 +82,7 @@ static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
 		return false;
 	}
 
-	Value ret = native->fn(argc, vm->sp - (argc + 1));
+	Value ret = native->fn(vm, argc, vm->sp - (argc + 1));
 	vm->sp -= argc + 1;
 	push(vm, ret);
 
@@ -487,7 +487,7 @@ sup_invoke:;
 		hashTablePut(&vm->module->globals, istr == OP_IMPORT ?
 					name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
 
-		//call the module's main
+		//call the module's main if first time import
 		if(peek(vm) != NULL_VAL) {
 			callValue(vm, peek(vm), 0);
 			frame = &vm->frames[vm->frameCount - 1];

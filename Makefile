@@ -39,12 +39,12 @@ CLI_LIBS = $(VM_LIBS) -lreadline -l:libblang.a
 # This will be used to relink the project if one of the static lib changes (optional).
 STATIC_PATH = lib
 # Path containing external header files (optional)
-INCLUDES = -I$(SRC)/vm
+INCLUDES = -I$(SRC)/vm -I$(SRC)/builtin
 
 #Linker flags
 LDFLAGS = -Wl,-rpath=\$$ORIGIN/../lib/ #rpath for faster testing. Allows the built binary in bin/ to find all the shared libs
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wextra -O3
+CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wno-unused-parameter -Wextra -O3
 
 # Source extension
 SRC_EXT = c
@@ -73,12 +73,17 @@ endif
 rwildcard = $(foreach d, $(wildcard $1*), $(call rwildcard,$d/,$2) \
 						$(filter $(subst *,%,$2), $d))
 
-VM_SOURCES  = $(call rwildcard, $(SRC)/vm,  *.$(SRC_EXT))
+VM_SOURCES  = $(call rwildcard, $(SRC)/vm,  *.$(SRC_EXT)) $(call rwildcard, $(SRC)/builtin, *.$(SRC_EXT))
 CLI_SOURCES = $(call rwildcard, $(SRC)/cli, *.$(SRC_EXT))
+
+BLANG_SOURCES = $(call rwildcard, $(SRC), *.bl)
 STATIC_LIBS = $(call rwildcard, $(STATIC_PATH), *.a)
+
 
 VM_OBJECTS  = $(VM_SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
 CLI_OBJECTS = $(CLI_SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
+
+BLANG_HEADERS = $(BLANG_SOURCES:=.h)
 
 DEPEND_VM  = $(VM_OBJECTS:.o=.d)
 DEPEND_CLI = $(CLI_OBJECTS:.o=.d)
@@ -113,13 +118,13 @@ createdirs:
 .PHONY: vm
 vm: $(LIB)/lib$(EXEC_NAME).a $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT)
 
-$(LIB)/lib$(EXEC_NAME).a: $(VM_OBJECTS)
+$(LIB)/lib$(EXEC_NAME).a: $(BLANG_HEADERS) $(VM_OBJECTS)
 	@echo "Creating $@..."
-	@$(AR) rc $@ $^
+	@$(AR) rc $@ $(VM_OBJECTS)
 
-$(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(VM_OBJECTS)
+$(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(BLANG_HEADERS) $(VM_OBJECTS)
 	@echo "Creating $@..."
-	@$(CC) $(CFLAGS) -shared $^ -o $@ $(VM_LIBS)
+	@$(CC) $(CFLAGS) -shared $(VM_OBJECTS) -o $@ $(VM_LIBS)
 
 .PHONY: cli
 cli: $(BIN)/$(EXEC_NAME)
@@ -128,6 +133,10 @@ cli: $(BIN)/$(EXEC_NAME)
 $(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).a
 	@echo "Linking $@..."
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
+
+$(SRC)/%.bl.h: $(SRC)/%.bl util/txt2incl.py
+	@echo "Generating $@ from $<..."
+	@util/txt2incl.py $< $@
 
 # Rules for the source files. It compiles source files if obj files are outdated.
 # It also creates haeder dependency files (.d files) used to add headers as
@@ -145,12 +154,10 @@ $(BUILD)/%.o: $(SRC)/%.$(SRC_EXT)
 .PHONY: install
 install:
 	@cp $(BIN)/$(EXEC_NAME) $(INST_PATH)
-	@cp $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT) $(LIB_INST_PATH)
 
 .PHONY: uninstall
 uninstall:
 	@rm $(INST_PATH)/$(EXEC_NAME)
-	@rm $(LIB_INST_PATH)/lib$(EXEC_NAME).$(SHARED_EXT)
 
 # Removes all the build directories with obj files and executable
 .PHONY: clean
