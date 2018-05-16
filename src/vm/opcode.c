@@ -19,6 +19,7 @@ const char *opName[] = {
 	"OP_GE",
 	"OP_LT",
 	"OP_LE",
+	"OP_IS",
 	//access
 	"OP_GET_FIELD",
 	"OP_SET_FIELD",

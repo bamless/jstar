@@ -2,6 +2,9 @@
 #include "object.h"
 #include "native.h"
 
+#include "core.h"
+#include "core.bl.h"
+
 #include "sys.h"
 #include "sys.bl.h"
 
@@ -43,6 +46,8 @@ typedef struct {
 #define MODULE(name)     { #name, &name##_bl, {
 #define ENDMODULE        ELEMS_END } },
 
+#define COREMODULE       {"__core__", &core_bl, {
+
 #define CLASS(name)      { TYPE_CLASS, .class = { #name, {
 #define METHOD(name, fn) { #name, fn },
 #define ENDCLASS         METHODS_END } } },
@@ -50,6 +55,9 @@ typedef struct {
 #define FUNCTION(name, fn) { TYPE_FUNC, .function = { #name, fn } },
 
 Module builtInModules[] = {
+	COREMODULE
+		FUNCTION(error, &bl_error)
+	ENDMODULE
 	MODULE(sys)
 		FUNCTION(platform, &bl_platform)
 	ENDMODULE

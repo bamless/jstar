@@ -1,1 +1,5 @@
-class Number { }
+class Number  {}
+class Boolean {}
+class String  {}
+
+native error(msg);

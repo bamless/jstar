@@ -571,7 +571,7 @@ static Expr *relationalExpr(Parser *p) {
 	Expr *l = additiveExpr(p);
 
 	while(match(p, TOK_GT) || match(p, TOK_GE) ||
-	 			match(p, TOK_LT) || match(p, TOK_LE)) {
+			match(p, TOK_LT) || match(p, TOK_LE) || match(p, TOK_IS)) {
 		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
@@ -591,6 +591,8 @@ static Expr *relationalExpr(Parser *p) {
 		case TOK_LE:
 			l = newBinary(line, LE, l, r);
 			break;
+		case TOK_IS:
+			l = newBinary(line, IS, l, r);
 		default: break;
 		}
 	}

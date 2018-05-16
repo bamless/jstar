@@ -2,6 +2,7 @@
 #include "opcode.h"
 #include "import.h"
 #include "modules.h"
+#include "core.h"
 
 #include "debug/disassemble.h"
 
@@ -47,6 +48,8 @@ void initVM(VM *vm) {
 	vm->reachedCount = 0;
 
 	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
+
+	initCoreLibrary(vm);
 }
 
 void push(VM *vm, Value v) {
@@ -358,18 +361,39 @@ static bool runEval(VM *vm) {
 		push(vm, BOOL_VAL(!valueEquals(a, b)));
 		continue;
 	}
-	case OP_NEG: {
+	case OP_IS: {
+		Value b = pop(vm);
+		Value a = pop(vm);
+
+		if(!IS_OBJ(b) || !IS_CLASS(b)) {
+			runtimeError(vm, "Right operand to `is` must be a class");
+			return false;
+		}
+
+		ObjInstance *ai = AS_INSTANCE(a);
+		ObjClass    *bc = AS_CLASS(b);
+
+		bool isInstance = false;
+		for(ObjClass *cls = ai->cls; cls != NULL; cls = cls->superCls) {
+			if( bc == cls) {
+				isInstance = true;
+				break;
+			}
+		}
+
+		push(vm, BOOL_VAL(isInstance));
+		break;
+	}
+	case OP_NEG:
 		if(!IS_NUM(peek(vm))) {
 			runtimeError(vm, "Operand to `-` must be a number.");
 			return false;
 		}
 		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
 		continue;
-	}
-	case OP_NOT: {
+	case OP_NOT:
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
 		continue;
-	}
 	case OP_GET_FIELD: {
 		Value v = pop(vm);
 		if(!getFieldFromValue(vm, v, GET_STRING())) {
@@ -536,7 +560,7 @@ sup_invoke:;
 
 		nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
 		if(nat->fn == NULL) {
-			runtimeError(vm, "Cannot resolve native %s.\n", nat->name->data);
+			runtimeError(vm, "Cannot resolve native %s.", nat->name->data);
 			return false;
 		}
 

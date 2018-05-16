@@ -56,6 +56,12 @@ ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program) {
 		disableGC(vm, true);
 
 		module = newModule(vm, name);
+
+		ObjModule *core = getModule(vm, copyString(vm, "__core__", 8));
+		if(core != NULL) {
+			hashTableMerge(&module->globals, &core->globals);
+		}
+
 		hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
 
 		setModule(vm, name, module);

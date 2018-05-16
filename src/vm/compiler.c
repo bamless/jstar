@@ -202,6 +202,7 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 	case GE:    emitBytecode(c, OP_GE, e->line);   break;
 	case LT:    emitBytecode(c, OP_LT, e->line);   break;
 	case LE:    emitBytecode(c, OP_LE, e->line);   break;
+	case IS:    emitBytecode(c, OP_IS, e->line);   break;
 	default:
 		error(c, e->line, "Wrong operator for binary expression.");
 		break;
