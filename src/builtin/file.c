@@ -117,6 +117,7 @@ NATIVE(bl_File_readAll) {
 
 	char *data = ALLOC(vm, size);
 	if(fread(data, 1, size, f) < (size_t) size) {
+		FREEARRAY(vm, char, data, size);
 		return NULL_VAL;
 	}
 
@@ -133,7 +134,7 @@ NATIVE(bl_File_readLine) {
 
 	size_t length;
 	char *line = readline(vm, f, &length);
-	if(line == NULL) {
+	if(line == NULL)
 		return NULL_VAL;
 	}
 
