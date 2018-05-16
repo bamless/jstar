@@ -174,6 +174,7 @@ NATIVE(bl_File_size) {
 
 NATIVE(bl_open) {
 	if(!IS_STRING(args[1]) || !IS_STRING(args[2])) {
+		blRuntimeError(vm, "Arguments to file.open() must be 2 strings.");
 		return NULL_VAL;
 	}
 

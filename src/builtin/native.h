@@ -16,4 +16,6 @@ bool blGetField(VM *vm, ObjInstance *o, const char *name, Value *ret);
 void blSetGlobal(VM *vm, const char *fname, Value val);
 bool blGetGlobal(VM *vm, const char *fname, Value *ret);
 
+void blRuntimeError(VM *vm, const char* format, ...);
+
 #endif

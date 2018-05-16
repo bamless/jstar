@@ -14,7 +14,7 @@ def open(name, mode) {
 	if(handle == null) {
 		return null;
 	}
-	
+
 	return File(handle);
 }
 

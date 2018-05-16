@@ -31,6 +31,7 @@ typedef struct Frame {
 } Frame;
 
 typedef struct VM {
+	bool error;
 	// Current VM compiler
 	Compiler *currCompiler;
 	ObjString *ctor;

@@ -17,6 +17,7 @@ static void runtimeError(VM *vm, const char* format, ...);
 static void reset(VM *vm) {
 	vm->sp = vm->stack;
 	vm->frameCount = 0;
+	vm->error = false;
 }
 
 void initVM(VM *vm) {
@@ -299,6 +300,11 @@ static bool runEval(VM *vm) {
 
 	disassembleIstr(&frame->fn->chunk, (size_t) (frame-> ip - frame->fn->chunk.code));
 #endif
+
+	if(vm->error) {
+		reset(vm);
+		return false;
+	}
 
 	uint8_t istr;
 	switch((istr = NEXT_CODE())) {
