@@ -44,7 +44,7 @@ void initVM(VM *vm) {
 	vm->reachedCapacity = 0;
 	vm->reachedCount = 0;
 
-	vm->ctor = copyString(vm, CTOR, strlen(CTOR));
+	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
 }
 
 void push(VM *vm, Value v) {

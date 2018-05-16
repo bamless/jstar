@@ -709,7 +709,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	c->func->name = newStringFromBuf(c->vm, name, length);
 
 	//if in costructor change the type
-	Identifier ctor = {strlen(CTOR), CTOR};
+	Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
 	if(identifierEquals(&s->funcDecl.id, &ctor)) {
 		c->type = TYPE_CTOR;
 	}
@@ -717,7 +717,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	enterScope(c);
 
 	//add `this` for method receiver (the object from which was called)
-	Identifier thisId = {strlen(THIS), THIS};
+	Identifier thisId = {strlen(THIS_STR), THIS_STR};
 	addLocal(c, &thisId, s->line);
 	c->locals[c->localsCount - 1].depth = c->depth;
 
