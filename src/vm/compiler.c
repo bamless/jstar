@@ -1,10 +1,12 @@
 #include "compiler.h"
-#include "stringbuf.h"
 #include "memory.h"
 #include "opcode.h"
 #include "value.h"
-#include "ast.h"
 #include "vm.h"
+
+#include "util/stringbuf.h"
+
+#include "parse/ast.h"
 
 #include <stdio.h>
 #include <string.h>

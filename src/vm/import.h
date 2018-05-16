@@ -2,8 +2,9 @@
 #define IMPORT_H
 
 #include "object.h"
-#include "ast.h"
 #include "vm.h"
+
+#include "parse/ast.h"
 
 ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program);
 void setModule(VM *vm, ObjString *name, ObjModule *module);

@@ -43,6 +43,7 @@ typedef enum {
 	TOK_RETURN,
 	TOK_IMPORT,
 	TOK_AS,
+	TOK_IS,
 	TOK_SUPER,
 	TOK_TRUE,
 	TOK_VAR,

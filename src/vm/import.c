@@ -1,9 +1,10 @@
 #include "import.h"
-#include "parser.h"
 #include "memory.h"
 #include "compiler.h"
 #include "hashtable.h"
 #include "modules.h"
+
+#include "parse/parser.h"
 
 #include <stdio.h>
 #include <string.h>

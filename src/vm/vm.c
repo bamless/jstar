@@ -1,10 +1,12 @@
 #include "vm.h"
-#include "ast.h"
-#include "parser.h"
 #include "opcode.h"
-#include "disassemble.h"
 #include "import.h"
 #include "modules.h"
+
+#include "debug/disassemble.h"
+
+#include "parse/parser.h"
+#include "parse/ast.h"
 
 #include <stdio.h>
 #include <stdarg.h>

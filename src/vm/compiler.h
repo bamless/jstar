@@ -3,7 +3,8 @@
 
 #include "memory.h"
 #include "object.h"
-#include "ast.h"
+
+#include "parse/ast.h"
 
 #include <stdint.h>
 
