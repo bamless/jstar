@@ -134,7 +134,7 @@ NATIVE(bl_File_readLine) {
 
 	size_t length;
 	char *line = readline(vm, f, &length);
-	if(line == NULL)
+	if(line == NULL) {
 		return NULL_VAL;
 	}
 
