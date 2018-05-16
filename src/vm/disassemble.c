@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+#ifdef DBG_PRINT_EXEC
 void disassembleIstr(Chunk *c, size_t i) {
 	int n = getBytecodeSrcLine(c, i);
 
@@ -64,3 +65,4 @@ void disassembleIstr(Chunk *c, size_t i) {
 	}
 	printf("\n");
 }
+#endif

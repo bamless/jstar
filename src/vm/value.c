@@ -36,6 +36,8 @@ void printValue(Value val) {
 		printf(AS_BOOL(val) ? "true" : "false");
 	} else if(IS_NUM(val)) {
 		printf("%.*g", DBL_DIG, AS_NUM(val));
+	} else if(IS_HANDLE(val)) {
+		printf("<handle:%p>", AS_HANDLE(val));
 	} else if(IS_NULL(val)) {
 		printf("null");
 	}

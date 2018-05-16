@@ -1,5 +1,6 @@
 #include "opcode.h"
 
+#ifdef DBG_PRINT_EXEC
 const char *opName[] = {
 	//arithmetic operations
 	"OP_ADD",
@@ -86,3 +87,4 @@ const char *opName[] = {
 	"OP_POP",
 	"OP_DUP",
 };
+#endif

@@ -51,10 +51,12 @@ typedef struct {
 
 Module builtInModules[] = {
 	MODULE(sys)
-		FUNCTION(getOS, &bl_platform)
+		FUNCTION(platform, &bl_platform)
 	ENDMODULE
 	MODULE(file)
 		CLASS(File)
+			METHOD(size, &bl_File_size)
+			METHOD(readAll, &bl_File_readAll)
 			METHOD(readLine, &bl_File_readLine)
 			METHOD(close, &bl_File_close)
 		ENDCLASS

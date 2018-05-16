@@ -1,7 +1,9 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
+#ifdef DBG_PRINT_EXEC
 extern const char *opName[];
+#endif
 
 typedef enum Opcode {
 	//arithmetic operations

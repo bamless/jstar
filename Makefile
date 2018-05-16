@@ -44,7 +44,7 @@ INCLUDES = -I$(SRC)/vm -I$(SRC)/builtin
 #Linker flags
 LDFLAGS = -Wl,-rpath=\$$ORIGIN/../lib/ #rpath for faster testing. Allows the built binary in bin/ to find all the shared libs
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wno-unused-parameter -Wextra -O3
+CFLAGS = -DNAN_TAGGING -std=c11 -Wall -Wno-unused-parameter -Wextra -O3 -s
 
 # Source extension
 SRC_EXT = c
@@ -54,9 +54,15 @@ SRC_EXT = c
 SHARED_EXT = so
 ifeq ($(OS),Windows_NT)
 	SHARED_EXT = dll
-endif
-ifeq ($(OS),Darwin)
-	SHARED_EXT = dylib
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+        CFLAGS += -D_POSIX_SOURCE
+    endif
+    ifeq ($(UNAME_S),Darwin)
+		SHARED_EXT = dylib
+		CFLAGS += -D_POSIX_SOURCE
+    endif
 endif
 
 ifeq ($(DBG_STRESS_GC),1)
