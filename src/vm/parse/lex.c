@@ -205,6 +205,8 @@ void nextToken(Lexer *lex, Token *tok) {
 	case '/': makeToken(lex, tok, TOK_DIV);       break;
 	case '*': makeToken(lex, tok, TOK_MULT);      break;
 	case '%': makeToken(lex, tok, TOK_MOD);       break;
+	case '[': makeToken(lex, tok, TOK_LSQUARE);   break;
+	case ']': makeToken(lex, tok, TOK_RSQUARE);   break;
 	case '"': string(lex, tok);                   break;
 	case '!':
 		if(match(lex, '=')) makeToken(lex, tok, TOK_BANG_EQ);

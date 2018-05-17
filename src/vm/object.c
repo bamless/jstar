@@ -4,7 +4,7 @@
 
 const char *typeName[] = {
 	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST",
-	"OBJ_MODULE", "OBJ_BOUND_METHOD"
+	"OBJ_LIST", "OBJ_MODULE", "OBJ_BOUND_METHOD"
 };
 
 void printObj(Obj *o) {
@@ -44,6 +44,16 @@ void printObj(Obj *o) {
 	case OBJ_MODULE: {
 		ObjModule *m = (ObjModule*) o;
 		printf("<module %s>", m->name->data);
+		break;
+	}
+	case OBJ_LIST: {
+		ObjList *l = (ObjList*) o;
+		printf("[");
+		for(size_t i = 0; i < l->count; i++) {
+			printValue(l->arr[i]);
+			if(i != l->count - 1) printf(", ");
+		}
+		printf("]");
 		break;
 	}
 	case OBJ_BOUND_METHOD: {

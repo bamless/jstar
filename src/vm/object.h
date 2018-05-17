@@ -16,6 +16,7 @@ extern const char *typeName[];
 #define OBJ_TYPE(o) (AS_OBJ(o)->type)
 
 #define IS_BOUND_METHOD(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_BOUND_METHOD)
+#define IS_LIST(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_LIST)
 #define IS_STRING(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STRING)
 #define IS_FUNC(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_FUNCTION)
 #define IS_NATIVE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_NATIVE)
@@ -24,6 +25,7 @@ extern const char *typeName[];
 #define IS_MODULE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_MODULE)
 
 #define AS_BOUND_METHOD(o) ((ObjBoundMethod*) AS_OBJ(o))
+#define AS_LIST(o)         ((ObjList*)        AS_OBJ(o))
 #define AS_STRING(o)       ((ObjString*)      AS_OBJ(o))
 #define AS_FUNC(o)         ((ObjFunction*)    AS_OBJ(o))
 #define AS_NATIVE(o)       ((ObjNative*)      AS_OBJ(o))
@@ -33,7 +35,7 @@ extern const char *typeName[];
 
 typedef enum ObjType {
 	OBJ_STRING, OBJ_NATIVE, OBJ_FUNCTION, OBJ_CLASS, OBJ_INST, OBJ_MODULE,
-	OBJ_BOUND_METHOD
+	OBJ_LIST, OBJ_BOUND_METHOD
 } ObjType;
 
 typedef struct ObjClass ObjClass;
@@ -87,6 +89,13 @@ typedef struct ObjInstance {
 	Obj base;
 	HashTable fields;
 } ObjInstance;
+
+typedef struct ObjList {
+	Obj base;
+	size_t size;
+	size_t count;
+	Value *arr;
+} ObjList;
 
 typedef struct ObjBoundMethod {
 	Obj base;

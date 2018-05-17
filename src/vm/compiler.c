@@ -258,6 +258,16 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		uint8_t id = identifierConst(c, &acc->accessExpr.id, e->line);
 		emitBytecode(c, OP_SET_FIELD, e->line);
 		emitBytecode(c, id, e->line);
+		break;
+	}
+	case ARR_ACC: {
+		Expr *acc = e->assign.lval;
+
+		compileExpr(c, acc->arrAccExpr.left);
+		compileExpr(c, acc->arrAccExpr.index);
+
+		emitBytecode(c, OP_ARR_SET, e->line);
+		break;
 	}
 	default: break;
 	}
@@ -325,6 +335,12 @@ static void compileAccessExpression(Compiler *c, Expr *e) {
 	emitBytecode(c, id, e->line);
 }
 
+static void compileArraryAccExpression(Compiler *c, Expr *e) {
+	compileExpr(c, e->arrAccExpr.left);
+	compileExpr(c, e->arrAccExpr.index);
+	emitBytecode(c, OP_ARR_GET, e->line);
+}
+
 static void compileVar(Compiler *c, Identifier *id, int line) {
 	int i = resolveVariable(c, id, line);
 	if(i != -1) {
@@ -359,6 +375,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 	case ACCESS_EXPR:
 		compileAccessExpression(c, e);
 		break;
+	case ARR_ACC:
+		compileArraryAccExpression(c, e);
+		break;
 	case EXPR_LST: {
 		LinkedList *n;
 		foreach(n, e->exprList.lst) {
@@ -387,6 +406,17 @@ static void compileExpr(Compiler *c, Expr *e) {
 	case NULL_LIT:
 		emitBytecode(c, OP_NULL, e->line);
 		break;
+	case ARR_LIT: {
+		emitBytecode(c, OP_NEW_LIST, e->line);
+		LinkedList *exprs = e->arr.exprs->exprList.lst;
+
+		LinkedList *n;
+		foreach(n, exprs) {
+			compileExpr(c, (Expr*) n->elem);
+			emitBytecode(c, OP_APPEND_LIST, e->line);
+		}
+		break;
+	}
 	case SUPER_LIT:
 		error(c, e->line, "Can only use `super` in method calls inside methods");
 		break;
@@ -574,7 +604,17 @@ static void compileClass(Compiler *c, Stmt *s) {
 
 			uint8_t nc = createConst(c, OBJ_VAL(n), s->line);
 			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
-			n->name = AS_STRING(c->func->chunk.consts.arr[id]);
+
+			Identifier *classId = &s->classDecl.id;
+			size_t len = classId->length + m->nativeDecl.id.length + 1;
+			char *name = ALLOC(c->vm, length + 1);
+
+			memcpy(name, classId->name, classId->length);
+			name[classId->length] = '.';
+			memcpy(name + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
+			name[len] = '\0';
+
+			n->name = newStringFromBuf(c->vm, name, len);
 
 			emitBytecode(c, OP_NAT_METHOD, s->line);
 			emitBytecode(c, id, s->line);

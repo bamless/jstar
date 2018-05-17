@@ -23,9 +23,14 @@ ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls);
 ObjString *newString(VM *vm, char *cstring, size_t size);
 ObjInstance *newInstance(VM *vm, ObjClass *cls);
 ObjModule *newModule(VM *vm, ObjString *name);
+ObjList *newList(VM *vm, size_t startSize);
 
 ObjString *copyString(VM *vm, const char *str, size_t length);
 ObjString *newStringFromBuf(VM *vm, char *buf, size_t length);
+
+void listAppend(VM *vm, ObjList *lst, Value v);
+void listInsert(VM *vm, ObjList *lst, size_t index, Value val);
+void listRemove(VM *vm, ObjList *lst, size_t index);
 
 void disableGC(VM *vm, bool disable);
 void freeObjects(VM *vm);

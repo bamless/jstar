@@ -59,6 +59,15 @@ Module builtInModules[] = {
 		FUNCTION(error, &bl_error)
 		FUNCTION(isInt, &bl_isInt)
 		FUNCTION(str,   &bl_str)
+		CLASS(List)
+			METHOD(append, &bl_List_append)
+			METHOD(insert, &bl_List_insert)
+			METHOD(length, &bl_List_length)
+			METHOD(remove, &bl_List_remove)
+		ENDCLASS
+		CLASS(String)
+			METHOD(length, &bl_String_length)
+		ENDCLASS
 	ENDMODULE
 	MODULE(sys)
 		FUNCTION(platform, &bl_platform)

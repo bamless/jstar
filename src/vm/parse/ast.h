@@ -12,7 +12,7 @@ typedef enum Operator {
 
 typedef enum ExprType {
 	BINARY, UNARY, ASSIGN, NUM_LIT, BOOL_LIT, STR_LIT, VAR_LIT, NULL_LIT,
-	EXPR_LST, CALL_EXPR, SUPER_LIT, ACCESS_EXPR
+	EXPR_LST, CALL_EXPR, SUPER_LIT, ACCESS_EXPR, ARR_LIT, ARR_ACC
 } ExprType;
 
 typedef struct Identifier {
@@ -56,6 +56,13 @@ struct Expr {
 			Expr *left;
 			Identifier id;
 		} accessExpr;
+		struct {
+			Expr *left;
+			Expr *index;
+		} arrAccExpr;
+		struct {
+			Expr *exprs;
+		} arr;
 		double num;
 		bool boolean;
 	};
@@ -68,8 +75,10 @@ Expr *newNullLiteral(int line);
 Expr *newSuperLiteral(int line);
 Expr *newNumLiteral(int line, double num);
 Expr *newBoolLiteral(int line, bool boolean);
+Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
 Expr *newStrLiteral(int line, const char *str, size_t len);
 Expr *newVarLiteral(int line, const char *str, size_t len);
+Expr *newArrLiteral(int line, Expr *exprs);
 Expr *newExprList(int line, LinkedList *exprs);
 Expr *newCallExpr(int line, Expr *callee, LinkedList *args);
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);

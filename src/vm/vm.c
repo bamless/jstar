@@ -49,13 +49,14 @@ void initVM(VM *vm) {
 
 	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
 
-	vm->clsClass = NULL;
-	vm->objClass = NULL;
-	vm->strClass = NULL;
+	vm->clsClass  = NULL;
+	vm->objClass  = NULL;
+	vm->strClass  = NULL;
 	vm->boolClass = NULL;
-	vm->numClass = NULL;
-	vm->funClass = NULL;
-	vm->modClass = NULL;
+	vm->lstClass  = NULL;
+	vm->numClass  = NULL;
+	vm->funClass  = NULL;
+	vm->modClass  = NULL;
 
 	initCoreLibrary(vm);
 }
@@ -430,6 +431,75 @@ static bool runEval(VM *vm) {
 		}
 		continue;
 	}
+	case OP_ARR_GET: {
+		Value i = pop(vm);
+		if(!IS_NUM(i)) {
+			runtimeError(vm, "Index of array access must be a number.");
+			return false;
+		}
+
+		double index = AS_NUM(i);
+		if((int64_t) index != index) {
+			runtimeError(vm, "Index of array access must be an integer.");
+			return false;
+		}
+
+		Value o = peek(vm);
+		if(IS_LIST(o)) {
+			ObjList *lst = AS_LIST(o);
+			if(index < 0 || index > lst->count - 1) {
+				runtimeError(vm, "List index out of bound: %d.", (int) index);
+				return false;
+			}
+
+			pop(vm);
+			push(vm, lst->arr[(size_t)index]);
+		} else if(IS_STRING(o)) {
+			ObjString *s = AS_STRING(o);
+			if(index < 0 || index > s->length - 1) {
+				runtimeError(vm, "String index out of bound: %d.", (int) index);
+				return false;
+			}
+
+			char c = s->data[(size_t)index];
+			ObjString *strc = copyString(vm, &c, 1);
+
+			pop(vm);
+			push(vm, OBJ_VAL(strc));
+		} else {
+			runtimeError(vm, "Operand of get `[]` must be a string or a list.");
+			return false;
+		}
+		continue;
+	}
+	case OP_ARR_SET: {
+		Value i = pop(vm);
+		if(!IS_NUM(i)) {
+			runtimeError(vm, "Index of array access must be a number.");
+			return false;
+		}
+
+		double index = AS_NUM(i);
+		if((int64_t) index != index) {
+			runtimeError(vm, "Index of array access must be an integer.");
+			return false;
+		}
+
+		Value o = pop(vm);
+		if(IS_LIST(o)) {
+			ObjList *lst = AS_LIST(o);
+			if(index < 0 || index > lst->count - 1) {
+				runtimeError(vm, "List index out of bound: %d.", (int) index);
+				return false;
+			}
+
+			lst->arr[(size_t)index] = peek(vm);
+		} else {
+			runtimeError(vm, "Operand of set `[]` must be a list.");
+			return false;
+		}
+		continue;
+	}
 	case OP_JUMP: {
 		int16_t off = NEXT_SHORT();
 		frame->ip += off;
@@ -549,6 +619,16 @@ sup_invoke:;
 		}
 		continue;
 	}
+	case OP_APPEND_LIST: {
+		ObjList *l = AS_LIST(peek2(vm));
+
+		listAppend(vm, l, peek(vm));
+		pop(vm);
+		continue;
+	}
+	case OP_NEW_LIST:
+		push(vm, OBJ_VAL(newList(vm, 0)));
+		continue;
 	case OP_NEW_CLASS:
 		createClass(vm, GET_STRING(), vm->objClass);
 		continue;
@@ -566,10 +646,9 @@ sup_invoke:;
 		ObjString *methodName = GET_STRING();
 		ObjNative *native = AS_NATIVE(GET_CONST());
 
-		native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, native->name->data);
+		native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
 		if(native->fn == NULL) {
-			runtimeError(vm, "Cannot resolve native method %s.%s().",
-			                  cls->name->data, native->name->data);
+			runtimeError(vm, "Cannot resolve native method %s().", native->name->data);
 			return false;
 		}
 

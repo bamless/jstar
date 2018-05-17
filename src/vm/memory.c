@@ -4,6 +4,7 @@
 #include "compiler.h"
 #include "vm.h"
 
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -45,7 +46,13 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 		return NULL;
 	}
 
-	return realloc(ptr, size);
+	void *mem = realloc(ptr, size);
+	if(!mem) {
+		perror("Error while allocating memory");
+		abort();
+	}
+
+	return mem;
 }
 
 static uint32_t hashString(const char *str, size_t length);
@@ -101,6 +108,53 @@ ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method) {
 	bound->bound = b;
 	bound->method = method;
 	return bound;
+}
+
+#define LIST_DEF_SZ    8
+#define LIST_GROW_RATE 2
+
+ObjList *newList(VM *vm, size_t startSize) {
+	size_t size = startSize == 0 ? LIST_DEF_SZ : startSize;
+	Value *arr = ALLOC(vm, sizeof(Value) * size);
+	ObjList *l = (ObjList*) newObj(vm, sizeof(*l), vm->lstClass, OBJ_LIST);
+	l->size  = size;
+	l->count = 0;
+	l->arr   = arr;
+	return l;
+}
+
+static void growList(VM *vm, ObjList *lst) {
+	size_t newSize = lst->size * LIST_GROW_RATE;
+	lst->arr  = allocate(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
+	lst->size = newSize;
+}
+
+void listAppend(VM *vm, ObjList *lst, Value val) {
+	if(lst->count + 1 > lst->size) {
+		growList(vm, lst);
+	}
+	lst->arr[lst->count++] = val;
+}
+
+void listInsert(VM *vm, ObjList *lst, size_t index, Value val) {
+	if(lst->count + 1 > lst->size) {
+		growList(vm, lst);
+	}
+
+	Value *arr = lst->arr;
+	for(size_t i = index; i < lst->count; i++) {
+		arr[i + 1] = arr[i];
+	}
+	arr[index] = val;
+	lst->count++;
+}
+
+void listRemove(VM *vm, ObjList *lst, size_t index) {
+	Value *arr = lst->arr;
+	for(size_t i = index + 1; i < lst->count; i++) {
+		arr[i - 1] = arr[i];
+	}
+	lst->count--;
 }
 
 ObjString *copyString(VM *vm, const char *str, size_t length) {
@@ -168,6 +222,12 @@ static void freeObject(VM *vm, Obj *o) {
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
 		FREE(vm, ObjBoundMethod, b);
+		break;
+	}
+	case OBJ_LIST: {
+		ObjList *l = (ObjList*) o;
+		FREEARRAY(vm, Value, l->arr, l->size);
+		FREE(vm, ObjList, l);
 		break;
 	}
 	}
@@ -279,6 +339,13 @@ static void recursevelyReach(VM *vm, Obj *o) {
 		reachHashTable(vm, &m->globals);
 		break;
 	}
+	case OBJ_LIST: {
+		ObjList *l = (ObjList*) o;
+		for(size_t i = 0; i < l->count; i++) {
+			reachValue(vm, l->arr[i]);
+		}
+		break;
+	}
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
 		reachObject(vm, (Obj*) b->bound);
@@ -303,6 +370,7 @@ static void garbageCollect(VM *vm) {
 	reachObject(vm, (Obj*) vm->objClass);
 	reachObject(vm, (Obj*) vm->strClass);
 	reachObject(vm, (Obj*) vm->boolClass);
+	reachObject(vm, (Obj*) vm->lstClass);
 	reachObject(vm, (Obj*) vm->numClass);
 	reachObject(vm, (Obj*) vm->funClass);
 	reachObject(vm, (Obj*) vm->modClass);

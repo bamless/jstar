@@ -1,8 +1,70 @@
 class Number   {}
 class Boolean  {}
-class String   {}
 class Function {}
 class Module   {}
+
+class String {
+	native length();
+}
+
+class List {
+	native append(e);
+	native insert(i, e);
+	native remove(i);
+	native length();
+
+	def delete(e) {
+		var i = this.indexOf(e);
+		if(i > 0) {
+			this.remove(i);
+			return true;
+		}
+		return false;
+	}
+
+	def deleteAll(e) {
+		var ret = false;
+		for(var i = 0; i < this.length(); i = i + 1) {
+			if(this[i] == e) {
+				this.remove(i);
+				ret = true;
+			}
+		}
+		return ret;
+	}
+
+	def contains(e) {
+		return this.indexOf(e) != -1;
+	}
+
+	def indexOf(e) {
+		for(var i = 0; i < this.length(); i = i + 1) {
+			if(this[i] == e) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	def toString() {
+		var s = "[";
+		for(var i = 0; i < this.length(); i = i + 1) {
+			var e = this[i];
+
+			if(e is String) {
+				s = s + e;
+			} else if(e is Object) {
+				s = s + e.toString();
+			} else {
+				s = s + str(e);
+			}
+
+			if(i != this.length() - 1) s = s + ", ";
+		}
+
+		return s + "]";
+	}
+}
 
 native error(msg);
 native isInt(n);

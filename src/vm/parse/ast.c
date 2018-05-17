@@ -86,6 +86,14 @@ Expr *newVarLiteral(int line, const char *var, size_t len) {
 	return e;
 }
 
+Expr *newArrLiteral(int line, Expr *exprs) {
+	Expr *a = malloc(sizeof(*a));
+	a->line = line;
+	a->type = ARR_LIT;
+	a->arr.exprs = exprs;
+	return a;
+}
+
 Expr *newExprList(int line, LinkedList *exprs) {
 	Expr *e = malloc(sizeof(*e));
 	e->line = line;
@@ -121,6 +129,15 @@ Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
 	return e;
 }
 
+Expr *newArrayAccExpr(int line, Expr *left, Expr *index) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = ARR_ACC;
+	e->arrAccExpr.left = left;
+	e->arrAccExpr.index = index;
+	return e;
+}
+
 void freeExpr(Expr *e) {
 	if(e == NULL) return;
 
@@ -136,6 +153,10 @@ void freeExpr(Expr *e) {
 		freeExpr(e->assign.lval);
 		freeExpr(e->assign.rval);
 		break;
+	case ARR_LIT: {
+		freeExpr(e->arr.exprs);
+		break;
+	}
 	case EXPR_LST: {
 		LinkedList *head = e->exprList.lst;
 		while(head != NULL) {
@@ -152,6 +173,10 @@ void freeExpr(Expr *e) {
 		break;
 	case ACCESS_EXPR:
 		freeExpr(e->accessExpr.left);
+		break;
+	case ARR_ACC:
+		freeExpr(e->arrAccExpr.left);
+		freeExpr(e->arrAccExpr.index);
 		break;
 	default: break;
 	}

@@ -85,6 +85,7 @@ void initCoreLibrary(VM *vm) {
 
 	vm->strClass  = AS_CLASS(getDefinedName(vm, core, "String"));
 	vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+	vm->lstClass  = AS_CLASS(getDefinedName(vm, core, "List"));
 	vm->numClass  = AS_CLASS(getDefinedName(vm, core, "Number"));
 	vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
 	vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
@@ -129,3 +130,56 @@ NATIVE(bl_str) {
 		return bl_Object_toString(vm, 0, args + 1);
 	}
 }
+
+
+// class List {
+
+NATIVE(bl_List_append) {
+	ObjList *l = AS_LIST(args[0]);
+	listAppend(vm, l, args[1]);
+
+	return TRUE_VAL;
+}
+
+NATIVE(bl_List_insert) {
+	if(!bl_isInt(vm, 2, args)) {
+		blRuntimeError(vm, "Argument of append() must be an integer.");
+		return NULL_VAL;
+	}
+
+	ObjList *l = AS_LIST(args[0]);
+
+	double index = AS_NUM(args[1]);
+	if(index < 0 || index > l->count) {
+		blRuntimeError(vm, "List index out of bound: %d.", (int) index);
+		return NULL_VAL;
+	}
+
+	listInsert(vm, l, index, args[2]);
+
+	return TRUE_VAL;
+}
+
+NATIVE(bl_List_length) {
+	return NUM_VAL(AS_LIST(args[0])->count);
+}
+
+NATIVE(bl_List_remove) {
+	if(!bl_isInt(vm, 2, args)) {
+		blRuntimeError(vm, "Argument of remove() must be an integer.");
+		return NULL_VAL;
+	}
+
+	listRemove(vm, AS_LIST(args[0]), AS_NUM(args[1]));
+	return NULL_VAL;
+}
+
+// } List
+
+// class String {
+
+NATIVE(bl_String_length) {
+	return NUM_VAL(AS_STRING(args[0])->length);
+}
+
+// } String

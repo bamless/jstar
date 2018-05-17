@@ -457,6 +457,14 @@ static Expr *literal(Parser *p) {
 		require(p, TOK_RPAREN);
 		return e;
 	}
+	case TOK_LSQUARE: {
+		require(p, TOK_LSQUARE);
+		LinkedList *exprs = NULL;
+		if(!match(p, TOK_RSQUARE))
+			exprs = parseExprLst(p);
+		require(p, TOK_RSQUARE);
+		return newArrLiteral(line, newExprList(line, exprs));
+	}
 	case TOK_ERR:
 		error(p, "Unexpected token");
 		advance(p);
@@ -473,7 +481,7 @@ static Expr *literal(Parser *p) {
 static Expr *postfixExpr(Parser *p) {
 	Expr *lit = literal(p);
 
-	while(match(p, TOK_LPAREN) || match(p, TOK_DOT)) {
+	while(match(p, TOK_LPAREN) || match(p, TOK_DOT) || match(p, TOK_LSQUARE)) {
 		int line = p->peek.line;
 		switch(p->peek.type) {
 		case TOK_DOT: {
@@ -492,6 +500,12 @@ static Expr *postfixExpr(Parser *p) {
 
 			require(p, TOK_RPAREN);
 			lit = newCallExpr(line, lit, args);
+			break;
+		}
+		case TOK_LSQUARE: {
+			require(p, TOK_LSQUARE);
+			lit = newArrayAccExpr(line, lit, parseExpr(p));
+			require(p, TOK_RSQUARE);
 			break;
 		}
 		default: break;
@@ -657,7 +671,8 @@ static Expr *parseExpr(Parser *p) {
 	Expr *l = logicOrExpr(p);
 
 	if(match(p, TOK_EQUAL)) {
-		if(l != NULL && l->type != VAR_LIT && l->type != ACCESS_EXPR) {
+		if(l != NULL && l->type != VAR_LIT && l->type != ACCESS_EXPR &&
+			l->type != ARR_ACC) {
 			error(p, "Left hand side of assignment must be an lvalue.");
 		}
 

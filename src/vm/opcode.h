@@ -27,6 +27,8 @@ typedef enum Opcode {
 	//access
 	OP_GET_FIELD,
 	OP_SET_FIELD,
+	OP_ARR_SET,
+	OP_ARR_GET,
 	//call
 	OP_CALL,
 	OP_CALL_0,
@@ -76,6 +78,8 @@ typedef enum Opcode {
 	OP_IMPORT_AS,
 
 	//stack operations
+	OP_NEW_LIST,
+	OP_APPEND_LIST,
 	OP_NEW_CLASS,
 	OP_NEW_SUBCLASS,
 	OP_DEF_METHOD,
