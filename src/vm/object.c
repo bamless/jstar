@@ -38,7 +38,7 @@ void printObj(Obj *o) {
 	}
 	case OBJ_INST: {
 		ObjInstance *i = (ObjInstance*) o;
-		printf("<instance %s>", i->cls->name->data);
+		printf("<instance %s>", i->base.cls->name->data);
 		break;
 	}
 	case OBJ_MODULE: {

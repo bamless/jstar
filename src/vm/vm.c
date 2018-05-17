@@ -49,6 +49,14 @@ void initVM(VM *vm) {
 
 	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
 
+	vm->clsClass = NULL;
+	vm->objClass = NULL;
+	vm->strClass = NULL;
+	vm->boolClass = NULL;
+	vm->numClass = NULL;
+	vm->funClass = NULL;
+	vm->modClass = NULL;
+
 	initCoreLibrary(vm);
 }
 
@@ -158,13 +166,14 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 		case OBJ_INST: {
 			ObjInstance *inst = AS_INSTANCE(val);
 
+			// Check if field shadows a method
 			Value f;
 			if(hashTableGet(&inst->fields, name, &f)) {
 				callValue(vm, f, argc);
 				return true;
 			}
 
-			if(!invokeMethod(vm, inst->cls, name, argc)) {
+			if(!invokeMethod(vm, inst->base.cls, name, argc)) {
 				return false;
 			}
 			return true;
@@ -185,11 +194,17 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 
 			return true;
 		}
-		default: break;
+		default: {
+			Obj *o = AS_OBJ(val);
+			if(!invokeMethod(vm, o->cls, name, argc)) {
+				return false;
+			}
+			return true;
+		}
 		}
 	}
 
-	runtimeError(vm, "Only instances have methods.");
+	runtimeError(vm, "Only objects have methods.");
 	return false;
 }
 
@@ -202,7 +217,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 			Value v;
 			if(!hashTableGet(&inst->fields, name, &v)) {
 				//if we didnt find a field try to return bound method
-				if(!hashTableGet(&inst->cls->methods, name, &v)) {
+				if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
 					runtimeError(vm, "Field `%s` doesn't exists", name->data);
 					return false;
 				}
@@ -366,19 +381,26 @@ static bool runEval(VM *vm) {
 		Value a = pop(vm);
 
 		if(!IS_OBJ(b) || !IS_CLASS(b)) {
-			runtimeError(vm, "Right operand to `is` must be a class");
+			runtimeError(vm, "Right operand of `is` must be a class");
 			return false;
 		}
 
-		ObjInstance *ai = AS_INSTANCE(a);
-		ObjClass    *bc = AS_CLASS(b);
-
+		ObjClass *cls = AS_CLASS(b);
 		bool isInstance = false;
-		for(ObjClass *cls = ai->cls; cls != NULL; cls = cls->superCls) {
-			if( bc == cls) {
-				isInstance = true;
-				break;
+		if(IS_OBJ(a)) {
+			Obj *o = AS_OBJ(a);
+
+			for(ObjClass *c = o->cls; c != NULL; c = c->superCls) {
+				if(c == cls) {
+					isInstance = true;
+					break;
+				}
 			}
+
+		} else if(IS_NUM(a)) {
+			isInstance = cls == vm->numClass;
+		} else if(IS_BOOL(a)) {
+			isInstance = cls == vm->boolClass;
 		}
 
 		push(vm, BOOL_VAL(isInstance));
@@ -487,7 +509,7 @@ invoke:
 		argc = istr - OP_SUPER_0;
 sup_invoke:;
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
-		if(!invokeMethod(vm, inst->cls->superCls, GET_STRING(), argc)) {
+		if(!invokeMethod(vm, inst->base.cls->superCls, GET_STRING(), argc)) {
 			return false;
 		}
 		frame = &vm->frames[vm->frameCount - 1];
@@ -528,7 +550,7 @@ sup_invoke:;
 		continue;
 	}
 	case OP_NEW_CLASS:
-		createClass(vm, GET_STRING(), NULL);
+		createClass(vm, GET_STRING(), vm->objClass);
 		continue;
 	case OP_NEW_SUBCLASS:
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));

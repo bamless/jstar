@@ -110,7 +110,7 @@ NATIVE(bl_File_readAll) {
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
-	int64_t size = getFileSize(f);
+	int64_t size = getFileSize(f) - ftell(f);
 	if(size < 0) {
 		return NULL_VAL;
 	}
@@ -173,11 +173,6 @@ NATIVE(bl_File_size) {
 // functions
 
 NATIVE(bl_open) {
-	if(!IS_STRING(args[1]) || !IS_STRING(args[2])) {
-		blRuntimeError(vm, "Arguments to file.open() must be 2 strings.");
-		return NULL_VAL;
-	}
-
 	FILE *f = fopen(AS_STRING(args[1])->data, AS_STRING(args[2])->data);
 	if(f == NULL) return NULL_VAL;
 

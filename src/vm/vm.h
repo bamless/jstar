@@ -32,6 +32,15 @@ typedef struct Frame {
 
 typedef struct VM {
 	bool error;
+	// Built in classes
+	ObjClass *clsClass;
+	ObjClass *objClass;
+	ObjClass *strClass;
+	ObjClass *boolClass;
+	ObjClass *numClass;
+	ObjClass *funClass;
+	ObjClass *modClass;
+
 	// Current VM compiler
 	Compiler *currCompiler;
 	ObjString *ctor;

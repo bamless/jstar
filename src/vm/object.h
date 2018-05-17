@@ -36,9 +36,12 @@ typedef enum ObjType {
 	OBJ_BOUND_METHOD
 } ObjType;
 
+typedef struct ObjClass ObjClass;
+
 typedef struct Obj {
 	ObjType type;
 	bool reached;
+	struct ObjClass *cls;
 	struct Obj *next;
 } Obj;
 
@@ -82,7 +85,6 @@ typedef struct ObjClass {
 
 typedef struct ObjInstance {
 	Obj base;
-	ObjClass *cls;
 	HashTable fields;
 } ObjInstance;
 

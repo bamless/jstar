@@ -523,7 +523,7 @@ static void compileFunction(Compiler *c, Stmt *s) {
 
 static void compileNative(Compiler *c, Stmt *s) {
 	size_t length = listLength(s->nativeDecl.formalArgs);
-	ObjNative *native = newNative(c->vm, c->vm->module, length, NULL);
+	ObjNative *native = newNative(c->vm, c->func->module, length, NULL);
 
 	uint8_t n = createConst(c, OBJ_VAL(native), s->line);
 	uint8_t i = identifierConst(c, &s->nativeDecl.id, s->line);

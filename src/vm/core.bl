@@ -1,5 +1,9 @@
-class Number  {}
-class Boolean {}
-class String  {}
+class Number   {}
+class Boolean  {}
+class String   {}
+class Function {}
+class Module   {}
 
 native error(msg);
+native isInt(n);
+native str(s);

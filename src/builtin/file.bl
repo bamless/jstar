@@ -10,11 +10,14 @@ class File {
 }
 
 def open(name, mode) {
+	if(!(name is String) or !(mode is String)) {
+		error("Arguments of open must be strings.");
+	}
+
 	var handle = __open(name, mode);
 	if(handle == null) {
 		return null;
 	}
-
 	return File(handle);
 }
 

@@ -57,6 +57,8 @@ typedef struct {
 Module builtInModules[] = {
 	COREMODULE
 		FUNCTION(error, &bl_error)
+		FUNCTION(isInt, &bl_isInt)
+		FUNCTION(str,   &bl_str)
 	ENDMODULE
 	MODULE(sys)
 		FUNCTION(platform, &bl_platform)

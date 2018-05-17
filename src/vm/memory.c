@@ -16,8 +16,9 @@
 #include <string.h>
 #endif
 
-static Obj *newObj(VM *vm, size_t size, ObjType type) {
+static Obj *newObj(VM *vm, size_t size, ObjClass *cls, ObjType type) {
 	Obj *o = ALLOC(vm, size);
+	o->cls = cls;
 	o->type = type;
 	o->reached = false;
 	o->next = vm->objects;
@@ -50,7 +51,7 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 static uint32_t hashString(const char *str, size_t length);
 
 ObjString *newString(VM *vm, char *cstring, size_t length) {
-	ObjString *str = (ObjString*) newObj(vm, sizeof(*str), OBJ_STRING);
+	ObjString *str = (ObjString*) newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
 	str->length = length;
 	str->data = cstring;
 	str->hash = hashString(cstring, length);
@@ -58,7 +59,7 @@ ObjString *newString(VM *vm, char *cstring, size_t length) {
 }
 
 ObjFunction *newFunction(VM *vm, ObjModule *module, uint8_t argsCount) {
-	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), OBJ_FUNCTION);
+	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
 	f->argsCount = argsCount;
 	f->module = module;
 	f->name = NULL;
@@ -67,7 +68,7 @@ ObjFunction *newFunction(VM *vm, ObjModule *module, uint8_t argsCount) {
 }
 
 ObjNative *newNative(VM *vm, ObjModule *module, uint8_t argsCount, Native fn) {
-	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), OBJ_NATIVE);
+	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
 	n->argsCount = argsCount;
 	n->module = module;
 	n->name = NULL;
@@ -76,28 +77,27 @@ ObjNative *newNative(VM *vm, ObjModule *module, uint8_t argsCount, Native fn) {
 }
 
 ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls) {
-	ObjClass *cls = (ObjClass*) newObj(vm, sizeof(*cls), OBJ_CLASS);
+	ObjClass *cls = (ObjClass*) newObj(vm, sizeof(*cls), vm->clsClass, OBJ_CLASS);
 	cls->name = name;
 	cls->superCls = superCls;
 	initHashTable(&cls->methods);
 	return cls;
 }
 ObjInstance *newInstance(VM *vm, ObjClass *cls) {
-	ObjInstance *inst = (ObjInstance*) newObj(vm, sizeof(*inst), OBJ_INST);
-	inst->cls = cls;
+	ObjInstance *inst = (ObjInstance*) newObj(vm, sizeof(*inst), cls, OBJ_INST);
 	initHashTable(&inst->fields);
 	return inst;
 }
 
 ObjModule *newModule(VM *vm, ObjString *name) {
-	ObjModule *module = (ObjModule*) newObj(vm, sizeof(*module), OBJ_MODULE);
+	ObjModule *module = (ObjModule*) newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
 	module->name = name;
 	initHashTable(&module->globals);
 	return module;
 }
 
 ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method) {
-	ObjBoundMethod *bound = (ObjBoundMethod*) newObj(vm, sizeof(*bound), OBJ_BOUND_METHOD);
+	ObjBoundMethod *bound = (ObjBoundMethod*) newObj(vm, sizeof(*bound), vm->funClass, OBJ_BOUND_METHOD);
 	bound->bound = b;
 	bound->method = method;
 	return bound;
@@ -247,6 +247,8 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	printf("Recursevely exploring object %p...\n", (void*)o);
 #endif
 
+	reachObject(vm, (Obj*) o->cls);
+
 	switch(o->type) {
 	case OBJ_NATIVE:
 		reachObject(vm, (Obj*) ((ObjNative*)o)->name);
@@ -268,7 +270,6 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	}
 	case OBJ_INST: {
 		ObjInstance *i = (ObjInstance*) o;
-		reachObject(vm, (Obj*) i->cls);
 		reachHashTable(vm, &i->fields);
 		break;
 	}
@@ -297,6 +298,14 @@ static void garbageCollect(VM *vm) {
 	//init reached object stack
 	vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
 	vm->reachedCapacity = REACHED_DEFAULT_SZ;
+
+	reachObject(vm, (Obj*) vm->clsClass);
+	reachObject(vm, (Obj*) vm->objClass);
+	reachObject(vm, (Obj*) vm->strClass);
+	reachObject(vm, (Obj*) vm->boolClass);
+	reachObject(vm, (Obj*) vm->numClass);
+	reachObject(vm, (Obj*) vm->funClass);
+	reachObject(vm, (Obj*) vm->modClass);
 
 	reachObject(vm, (Obj*) vm->ctor);
 	//reach vm global vars
