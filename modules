@@ -1,0 +1,6 @@
+src/builtin/native.c
+src/vm/vm.c
+src/vm/compiler.c
+src/vm/core.c
+src/vm/import.c
+src/vm/memory.c

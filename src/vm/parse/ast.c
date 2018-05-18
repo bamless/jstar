@@ -234,6 +234,16 @@ Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
 	return s;
 }
 
+Stmt *newForEach(int line, Stmt *var, Expr *iter, Stmt *body) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = FOREACH;
+	s->forEach.var = var;
+	s->forEach.iterable = iter;
+	s->forEach.body = body;
+	return s;
+}
+
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
@@ -320,6 +330,11 @@ void freeStmt(Stmt *s) {
 		freeExpr(s->forStmt.cond);
 		freeExpr(s->forStmt.act);
 		freeStmt(s->forStmt.body);
+		break;
+	case FOREACH:
+		freeStmt(s->forEach.var);
+		freeExpr(s->forEach.iterable);
+		freeStmt(s->forEach.body);
 		break;
 	case WHILE:
 		freeExpr(s->whileStmt.cond);

@@ -86,8 +86,8 @@ Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 void freeExpr(Expr *e);
 
 typedef enum StmtType {
-	IF, FOR, WHILE, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL, NATIVEDECL,
-	CLASSDECL, PRINT, IMPORT
+	IF, FOR, WHILE, FOREACH, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL,
+	NATIVEDECL, CLASSDECL, PRINT, IMPORT
 } StmtType;
 
 typedef struct Stmt Stmt;
@@ -105,6 +105,11 @@ struct Stmt {
 			Expr *cond, *act;
 			Stmt *body;
 		} forStmt;
+		struct {
+			Stmt *var;
+			Expr *iterable;
+			Stmt *body;
+		} forEach;
 		struct {
 			Expr *cond;
 			Stmt *body;
@@ -149,6 +154,7 @@ Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stm
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args);
 
 Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
+Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);

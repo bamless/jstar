@@ -5,6 +5,10 @@ class Module   {}
 
 class String {
 	native length();
+
+	def toString() {
+		return this;
+	}
 }
 
 class List {
@@ -13,9 +17,16 @@ class List {
 	native remove(i);
 	native length();
 
+
+	def addAll(iterable) {
+		for(var e in iterable) {
+			this.add(e);
+		}
+	}
+
 	def delete(e) {
 		var i = this.indexOf(e);
-		if(i > 0) {
+		if(i >= 0) {
 			this.remove(i);
 			return true;
 		}
@@ -46,26 +57,63 @@ class List {
 		return -1;
 	}
 
-	def toString() {
-		var s = "[";
+	def indexOfLast(e) {
+		var index = -1;
+		for(var i = 0; i < this.length(); i = i + 1) {
+			if(this[i] == e) {
+				index = i;
+			}
+		}
+		return i;
+	}
+
+	def join(sep) {
+		var s = "";
 		for(var i = 0; i < this.length(); i = i + 1) {
 			var e = this[i];
-
-			if(e is String) {
-				s = s + e;
-			} else if(e is Object) {
-				s = s + e.toString();
-			} else {
-				s = s + str(e);
-			}
-
-			if(i != this.length() - 1) s = s + ", ";
+			s = s + str(e);
+			if(i != this.length() - 1) s = s + sep;
 		}
+		return s;
+	}
 
-		return s + "]";
+	def iterator() {
+		return ListIterator(this);
+	}
+
+	def toString() {
+		return "[" + this.join(", ") + "]";
 	}
 }
 
+class ListIterator {
+	def new(list) {
+		this.n = 0;
+		this.list = list;
+	}
+
+	def hasNext() {
+		return this.n < this.list.length();
+	}
+
+	def next() {
+		var next = this.list[this.n];
+		this.n = this.n + 1;
+		return next;
+	}
+}
+
+def str(o) {
+	if(o is String) {
+		return o;
+	} else if(o is Object) {
+		return o.toString();
+	} else {
+		return __str(o);
+	}
+}
+
+native list(n, init);
 native error(msg);
 native isInt(n);
-native str(s);
+native __str(s);

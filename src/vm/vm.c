@@ -31,10 +31,19 @@ void initVM(VM *vm) {
 	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
 	vm->stackend = vm->stack + STACK_SZ;
 
+	vm->clsClass  = NULL;
+	vm->objClass  = NULL;
+	vm->strClass  = NULL;
+	vm->boolClass = NULL;
+	vm->lstClass  = NULL;
+	vm->numClass  = NULL;
+	vm->funClass  = NULL;
+	vm->modClass  = NULL;
+
 	reset(vm);
 
-	initHashTable(&vm->strings);
 	initHashTable(&vm->modules);
+	initHashTable(&vm->strings);
 
 	vm->module = NULL;
 
@@ -48,15 +57,6 @@ void initVM(VM *vm) {
 	vm->reachedCount = 0;
 
 	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
-
-	vm->clsClass  = NULL;
-	vm->objClass  = NULL;
-	vm->strClass  = NULL;
-	vm->boolClass = NULL;
-	vm->lstClass  = NULL;
-	vm->numClass  = NULL;
-	vm->funClass  = NULL;
-	vm->modClass  = NULL;
 
 	initCoreLibrary(vm);
 }
@@ -125,7 +125,8 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
 				return callFunction(vm, AS_FUNC(ctor), argc);
 			} else if(argc != 0) {
-				runtimeError(vm, "Expected 0 args, but instead `%d` supplied.", argc);
+				runtimeError(vm, "Function %s.new() Expected 0 args, but "
+						  "instead `%d` supplied.", cls->name->data, argc);
 				return false;
 			}
 

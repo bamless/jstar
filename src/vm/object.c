@@ -4,7 +4,7 @@
 
 const char *typeName[] = {
 	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST",
-	"OBJ_LIST", "OBJ_MODULE", "OBJ_BOUND_METHOD"
+	"OBJ_MODULE", "OBJ_LIST", "OBJ_BOUND_METHOD"
 };
 
 void printObj(Obj *o) {

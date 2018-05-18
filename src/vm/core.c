@@ -51,6 +51,22 @@ static NATIVE(bl_Object_getClass) {
 	return OBJ_VAL(AS_OBJ(args[0])->cls);
 }
 
+static NATIVE(bl_Object_equals) {
+	return BOOL_VAL(args[0] == args[1]);
+}
+
+static NATIVE(bl_Object_hashCode) {
+	uint64_t key = (uint64_t) AS_OBJ(args[0]);
+	key = (~key) + (key << 21);
+	key = key ^ (key >> 24);
+	key = (key + (key << 3)) + (key << 8);
+	key = key ^ (key >> 14);
+	key = (key + (key << 2)) + (key << 4);
+	key = key ^ (key >> 28);
+	key = key + (key << 31);
+	return NUM_VAL(key);
+}
+
 // class Class methods
 
 static NATIVE(bl_Class_getName) {
@@ -75,6 +91,8 @@ void initCoreLibrary(VM *vm) {
 	vm->objClass = createClass(vm, core, NULL, "Object"); // Object has no superclass
 	defMethod(vm, core, vm->objClass, &bl_Object_toString, "toString", 0);
 	defMethod(vm, core, vm->objClass, &bl_Object_getClass, "getClass", 0);
+	defMethod(vm, core, vm->objClass, &bl_Object_hashCode, "hashCode", 0);
+	defMethod(vm, core, vm->objClass, &bl_Object_equals, "equals", 1);
 
 	// Patch up Class object infotmation
 	vm->clsClass->superCls = vm->objClass;
@@ -99,6 +117,21 @@ void initCoreLibrary(VM *vm) {
 			o->cls = vm->funClass;
 		}
 	}
+}
+
+NATIVE(bl_list) {
+	if(!IS_INT(args[1]) || AS_NUM(args[1]) < 0) {
+		blRuntimeError(vm, "Argument 1 of list(n, init) must be a positive integer.");
+		return NULL_VAL;
+	}
+
+	ObjList *l = newList(vm, AS_NUM(args[1]));
+	for(size_t i = 0; i < l->size; i++) {
+		l->arr[i] = args[2];
+	}
+	l->count = l->size;
+
+	return OBJ_VAL(l);
 }
 
 NATIVE(bl_error) {
@@ -142,8 +175,8 @@ NATIVE(bl_List_append) {
 }
 
 NATIVE(bl_List_insert) {
-	if(!bl_isInt(vm, 2, args)) {
-		blRuntimeError(vm, "Argument of append() must be an integer.");
+	if(!IS_INT(args[1])) {
+		blRuntimeError(vm, "Argument 1 of insertt(i, e) must be an integer.");
 		return NULL_VAL;
 	}
 
@@ -165,8 +198,8 @@ NATIVE(bl_List_length) {
 }
 
 NATIVE(bl_List_remove) {
-	if(!bl_isInt(vm, 2, args)) {
-		blRuntimeError(vm, "Argument of remove() must be an integer.");
+	if(!IS_INT(args[1])) {
+		blRuntimeError(vm, "Argument of remove(i) must be an integer.");
 		return NULL_VAL;
 	}
 

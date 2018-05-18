@@ -46,6 +46,7 @@ static Stmt *parseProgram(Parser *p) {
 			stmts = addElement(stmts, parseNativeDecl(p));
 		} else if(match(p, TOK_VAR)) {
 			stmts = addElement(stmts, varDecl(p));
+			require(p, TOK_SEMICOLON);
 		} else {
 			stmts = addElement(stmts, parseStmt(p));
 		}
@@ -201,8 +202,6 @@ static Stmt *varDecl(Parser *p) {
 		init = parseExpr(p);
 	}
 
-	require(p, TOK_SEMICOLON);
-
 	return newVarDecl(line, name, length, init);
 }
 
@@ -242,12 +241,31 @@ static Stmt *forStmt(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_FOR);
 
+	if(match(p, TOK_IDENTIFIER)) {
+
+	}
+
 	require(p, TOK_LPAREN);
 
 	Stmt *init = NULL;
 	if(!match(p, TOK_SEMICOLON)) {
 		if(match(p, TOK_VAR)) {
 			init = varDecl(p);
+
+			//if we dont have a semicolon we're parsing a foreach
+			if(!match(p, TOK_SEMICOLON)) {
+				if(init->varDecl.init != NULL) {
+					error(p, "Variable declaration in for each cannot have initializer.");
+				}
+				require(p, TOK_IN);
+
+				Expr *e = parseExpr(p);
+				require(p, TOK_RPAREN);
+
+				Stmt *body = parseStmt(p);
+
+				return newForEach(line, init, e, body);
+			}
 		} else {
 			Expr *e = parseExpr(p);
 			if(e != NULL) init = newExprStmt(e->line, e);
@@ -255,7 +273,7 @@ static Stmt *forStmt(Parser *p) {
 		}
 	}
 
-	if(init == NULL) require(p, TOK_SEMICOLON);
+	require(p, TOK_SEMICOLON);
 
 	Expr *cond = NULL;
 	if(!match(p, TOK_SEMICOLON))
@@ -296,6 +314,7 @@ static Stmt *blockStmt(Parser *p) {
 	while(!match(p, TOK_RBRACE) && !match(p, TOK_EOF)) {
 		if(match(p, TOK_VAR)) {
 			stmts = addElement(stmts, varDecl(p));
+			require(p, TOK_SEMICOLON);
 		} else {
 			stmts = addElement(stmts, parseStmt(p));
 		}

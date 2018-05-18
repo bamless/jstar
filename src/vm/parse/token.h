@@ -26,6 +26,7 @@ typedef enum {
 	TOK_DIV,
 	TOK_MULT,
 	TOK_MOD,
+	TOK_IN,
 
 	TOK_IDENTIFIER,
 	TOK_STRING,

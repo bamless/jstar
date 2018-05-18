@@ -8,6 +8,8 @@
 
 #define NATIVE(name) Value name(VM *vm, uint8_t argc, Value *args)
 
+#define IS_INT(v) (IS_NUM(v) && (int64_t)AS_NUM(v) == AS_NUM(v))
+
 #define BL_THIS ((ObjInstance*) AS_OBJ(args[0]))
 
 void blSetField(VM *vm, ObjInstance *o, const char *name, Value val);

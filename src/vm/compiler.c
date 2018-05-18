@@ -520,6 +520,63 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	exitScope(c);
 }
 
+static void compileForEach(Compiler *c, Stmt *s) {
+	enterScope(c);
+
+	// set the iterator variable with a name that it's not an identifier.
+	// this will avoid the user shadowing the iterator with a declared variable.
+	Identifier iterator = {1, "."};
+	addLocal(c, &iterator, s->line);
+	c->locals[c->localsCount - 1].depth = c->depth;
+	int iteratorID = c->localsCount - 1;
+
+	enterScope(c);
+
+	// declare the variable used for iteration
+	declareVar(c, &s->forEach.var->varDecl.id, s->line);
+	defineVar(c, &s->forEach.var->varDecl.id, s->line);
+	int varID = c->localsCount - 1;
+
+	// call the iterator() method over the object
+	Identifier iterMethod = {8, "iterator"};
+	compileExpr(c, s->forEach.iterable);
+	emitBytecode(c, OP_INVOKE_0, s->line);
+	emitBytecode(c, identifierConst(c, &iterMethod, s->line), 0);
+
+	emitBytecode(c, OP_SET_LOCAL, 0);
+	emitBytecode(c, iteratorID, 0);
+
+	size_t start = c->func->chunk.count;
+
+	Identifier hasNextMethod = {7, "hasNext"};
+	Identifier nextMethod = {4 , "next"};
+
+	emitBytecode(c, OP_GET_LOCAL, 0);
+	emitBytecode(c, iteratorID, 0);
+	emitBytecode(c, OP_INVOKE_0, 0);
+	emitBytecode(c, identifierConst(c, &hasNextMethod, s->line), 0);
+
+	size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
+	emitShort(c, 0, 0);
+
+	emitBytecode(c, OP_GET_LOCAL, 0);
+	emitBytecode(c, iteratorID, 0);
+	emitBytecode(c, OP_INVOKE_0, 0);
+	emitBytecode(c, identifierConst(c, &nextMethod, s->line), 0);
+
+	emitBytecode(c, OP_SET_LOCAL, 0);
+	emitBytecode(c, varID, 0);
+
+	compileStatement(c, s->forEach.body);
+	exitScope(c);
+
+	emitJumpTo(c, OP_JUMP, start, 0);
+
+	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+
+	exitScope(c);
+}
+
 static void compileWhileStatement(Compiler *c, Stmt *s) {
 	size_t start = c->func->chunk.count;
 
@@ -599,15 +656,15 @@ static void compileClass(Compiler *c, Stmt *s) {
 			break;
 		}
 		case NATIVEDECL: {
-			size_t length = listLength(m->nativeDecl.formalArgs);
-			ObjNative *n = newNative(c->vm, c->func->module, length, NULL);
+			size_t argsLen = listLength(m->nativeDecl.formalArgs);
+			ObjNative *n = newNative(c->vm, c->func->module, argsLen, NULL);
 
 			uint8_t nc = createConst(c, OBJ_VAL(n), s->line);
 			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
 
 			Identifier *classId = &s->classDecl.id;
 			size_t len = classId->length + m->nativeDecl.id.length + 1;
-			char *name = ALLOC(c->vm, length + 1);
+			char *name = ALLOC(c->vm, len + 1);
 
 			memcpy(name, classId->name, classId->length);
 			name[classId->length] = '.';
@@ -651,6 +708,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		break;
 	case FOR:
 		compileForStatement(c, s);
+		break;
+	case FOREACH:
+		compileForEach(c, s);
 		break;
 	case WHILE:
 		compileWhileStatement(c, s);

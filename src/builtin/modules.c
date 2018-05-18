@@ -56,9 +56,10 @@ typedef struct {
 
 Module builtInModules[] = {
 	COREMODULE
+		FUNCTION(list,  &bl_list)
 		FUNCTION(error, &bl_error)
 		FUNCTION(isInt, &bl_isInt)
-		FUNCTION(str,   &bl_str)
+		FUNCTION(__str, &bl_str)
 		CLASS(List)
 			METHOD(append, &bl_List_append)
 			METHOD(insert, &bl_List_insert)
