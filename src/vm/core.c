@@ -58,7 +58,7 @@ static uint64_t hash64(uint64_t x) {
 	}
 
 	static NATIVE(bl_Object_equals) {
-		return BOOL_VAL(args[0] == args[1]);
+		return BOOL_VAL(valueEquals(args[0], args[1]));
 	}
 
 	static NATIVE(bl_Object_hash) {

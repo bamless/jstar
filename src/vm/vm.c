@@ -284,7 +284,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 	ObjClass *cls;
 	if(IS_OBJ(val)) {
 		cls = AS_OBJ(val)->cls;
-	} if(IS_NUM(val)) {
+	} else if(IS_NUM(val)) {
 		cls = vm->numClass;
 	} else if(IS_BOOL(val)) {
 		cls = vm->boolClass;
@@ -316,7 +316,7 @@ bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
 	ObjClass *cls;
 	if(IS_OBJ(val)) {
 		cls = AS_OBJ(val)->cls;
-	} if(IS_NUM(val)) {
+	} else if(IS_NUM(val)) {
 		cls = vm->numClass;
 	} else if(IS_BOOL(val)) {
 		cls = vm->boolClass;
@@ -673,7 +673,7 @@ sup_invoke:;
 					name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
 
 		//call the module's main if first time import
-		if(peek(vm) != NULL_VAL) {
+		if(!valueEquals(peek(vm), NULL_VAL)) {
 			callValue(vm, peek(vm), 0);
 			frame = &vm->frames[vm->frameCount - 1];
 		}
