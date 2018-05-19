@@ -147,7 +147,7 @@ void listInsert(VM *vm, ObjList *lst, size_t index, Value val) {
 	}
 
 	Value *arr = lst->arr;
-	for(size_t i = index; i < lst->count; i++) {
+	for(size_t i = lst->count - 1; i >= index; i--) {
 		arr[i + 1] = arr[i];
 	}
 	arr[index] = val;

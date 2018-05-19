@@ -39,7 +39,7 @@ NATIVE(bl_printstr);
 // class List {
 	NATIVE(bl_List_add);
 	NATIVE(bl_List_insert);
-	NATIVE(bl_List_length);
+	NATIVE(bl_List_size);
 	NATIVE(bl_List_remove);
 	NATIVE(bl_List_clear);
 // } List

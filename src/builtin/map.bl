@@ -107,12 +107,21 @@ class HashMap {
 		return null;
 	}
 
-	def contains(key) {
+	def containsKey(key) {
 		return this.get(key) != null;
 	}
 
+	def containsValue(val) {
+		var iterator = this.valueIterator();
+		while(iterator.hasNext()) {
+			if(val.__equals__(iterator.next())) {
+				return true;
+			}
+		}
+	}
+
 	def clear() {
-		for(var i = 0; i < this._entries.length(); i = i + 1) {
+		for(var i = 0; i < this._entries.size(); i = i + 1) {
 			this._entries[i] = null;
 		}
 		this._count = 0;

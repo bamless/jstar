@@ -40,13 +40,25 @@ class List {
 	native add(e);
 	native insert(i, e);
 	native remove(i);
-	native length();
+	native size();
 	native clear();
 
 	def addAll(iterable) {
+		var changed = false;
 		for(var e in iterable) {
 			this.add(e);
+			changed = true;
 		}
+		return changed;
+	}
+
+	def insertAll(i, iterable) {
+		var changed = false;
+		for(var e in iterable) {
+			this.insert(i, e);
+			changed = true;
+		}
+		return changed;
 	}
 
 	def delete(e) {
@@ -58,15 +70,13 @@ class List {
 		return false;
 	}
 
-	def deleteAll(e) {
-		var ret = false;
-		for(var i = 0; i < this.length(); i = i + 1) {
-			if(this[i].__equals__(e)) {
-				this.remove(i);
-				ret = true;
-			}
+	def deleteAll(iterable) {
+		var changed = false;
+		for(var e in iterable) {
+			var r = this.delete(e);
+			changed = changed or r;
 		}
-		return ret;
+		return changed;
 	}
 
 	def contains(e) {
@@ -74,7 +84,7 @@ class List {
 	}
 
 	def indexOf(e) {
-		for(var i = 0; i < this.length(); i = i + 1) {
+		for(var i = 0; i < this.size(); i = i + 1) {
 			if(this[i].__equals__(e)) {
 				return i;
 			}
@@ -83,7 +93,7 @@ class List {
 	}
 
 	def indexOfLast(e) {
-		for(var i = this.length() - 1; i >= 0; i = i - 1) {
+		for(var i = this.size() - 1; i >= 0; i = i - 1) {
 			if(this[i].__equals__(e)) {
 				return i;
 			}
@@ -93,11 +103,26 @@ class List {
 
 	def join(sep) {
 		var s = "";
-		for(var i = 0; i < this.length(); i = i + 1) {
+		for(var i = 0; i < this.size(); i = i + 1) {
 			s = s + this[i].__string__();
-			if(i != this.length() - 1) s = s + sep;
+			if(i != this.size() - 1) s = s + sep;
 		}
 		return s;
+	}
+
+	def subList(from, to) {
+		if(to < from) {
+			error("`to` must be greater or equal than `from`");
+		}
+		var sub = [];
+		for(var i = from; i < to; i = i + 1) {
+			sub.add(this[i]);
+		}
+		return sub;
+	}
+
+	def empty() {
+		return this.size() == 0;
 	}
 
 	def __iterator__() {
@@ -116,7 +141,7 @@ class __ListIterator {
 	}
 
 	def hasNext() {
-		return this.n < this.list.length();
+		return this.n < this.list.size();
 	}
 
 	def next() {

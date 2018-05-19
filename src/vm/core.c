@@ -261,7 +261,7 @@ NATIVE(bl_printstr) {
 		return TRUE_VAL;
 	}
 
-	NATIVE(bl_List_length) {
+	NATIVE(bl_List_size) {
 		return NUM_VAL(AS_LIST(args[0])->count);
 	}
 

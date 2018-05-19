@@ -60,6 +60,14 @@ class HashSet {
 		return size() == 0;
 	}
 
+	def intersect(c) {
+		for(var e in this) {
+			if(!c.contains(e)) {
+				this.remove(e);
+			}
+		}
+	}
+
 	def __iterator__() {
 		return map.__KeyIterator(this._map);
 	}

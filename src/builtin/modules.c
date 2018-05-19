@@ -85,7 +85,7 @@ Module builtInModules[] = {
 		CLASS(List)
 			METHOD(add, &bl_List_add)
 			METHOD(insert, &bl_List_insert)
-			METHOD(length, &bl_List_length)
+			METHOD(size, &bl_List_size)
 			METHOD(remove, &bl_List_remove)
 			METHOD(clear,  &bl_List_clear)
 		ENDCLASS
