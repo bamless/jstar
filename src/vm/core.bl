@@ -84,7 +84,9 @@ class List {
 
 	def indexOfLast(e) {
 		for(var i = this.length() - 1; i >= 0; i = i - 1) {
-			if(this[i].__equals__(e)) return i;
+			if(this[i].__equals__(e)) {
+				return i;
+			}
 		}
 		return -1;
 	}

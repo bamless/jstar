@@ -2,4 +2,9 @@ var OS_LINUX = "Linux";
 var OS_WIN32 = "Windows";
 var OS_OSX   = "Darwin";
 
+var args = [];
+
 native platform();
+native __initArgs();
+
+__initArgs();

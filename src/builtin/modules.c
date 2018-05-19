@@ -96,6 +96,7 @@ Module builtInModules[] = {
 	ENDMODULE
 	MODULE(sys)
 		FUNCTION(platform, &bl_platform)
+		FUNCTION(__initArgs, &bl_initArgs)
 	ENDMODULE
 	MODULE(file)
 		CLASS(File)

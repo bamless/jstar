@@ -130,13 +130,18 @@ static void growList(VM *vm, ObjList *lst) {
 }
 
 void listAppend(VM *vm, ObjList *lst, Value val) {
+	// if the list get resized a GC may kick in, so push val as root
+	push(vm, val);
 	if(lst->count + 1 > lst->size) {
 		growList(vm, lst);
 	}
 	lst->arr[lst->count++] = val;
+	pop(vm); // pop val
 }
 
 void listInsert(VM *vm, ObjList *lst, size_t index, Value val) {
+	// if the list get resized a GC may kick in, so push val as root
+	push(vm, val);
 	if(lst->count + 1 > lst->size) {
 		growList(vm, lst);
 	}
@@ -147,6 +152,7 @@ void listInsert(VM *vm, ObjList *lst, size_t index, Value val) {
 	}
 	arr[index] = val;
 	lst->count++;
+	pop(vm); // pop val
 }
 
 void listRemove(VM *vm, ObjList *lst, size_t index) {

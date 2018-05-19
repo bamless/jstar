@@ -81,6 +81,8 @@ EvalResult evaluateModule(VM *vm, const char *name, const char *src);
 void push(VM *vm, Value v);
 Value pop(VM *vm);
 
+void initCommandLineArgs(int argc, const char **argv);
+
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])
 #define peekn(vm, n) ((vm)->sp[-(n + 1)])

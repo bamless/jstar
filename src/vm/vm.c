@@ -3,6 +3,7 @@
 #include "import.h"
 #include "modules.h"
 #include "core.h"
+#include "sys.h" // for intializing command line args
 
 #include "debug/disassemble.h"
 
@@ -834,6 +835,10 @@ static void runtimeError(VM *vm, const char* format, ...) {
 	fprintf(stderr, "\n");
 
 	reset(vm);
+}
+
+void initCommandLineArgs(int argc, const char **argv) {
+	sysInitArgs(argc, argv);
 }
 
 void freeVM(VM *vm) {

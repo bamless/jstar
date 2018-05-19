@@ -72,6 +72,8 @@ int main(int argc, const char **argv) {
 	if(argc == 1) {
 		interactiveEval(&vm);
 	} else {
+		initCommandLineArgs(argc - 2, argv + 2);
+
 		char *src = readSrcFile(argv[1]);
 		if(src == NULL) {
 			return VM_GENERIC_ERR;
