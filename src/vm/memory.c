@@ -65,20 +65,20 @@ ObjString *newString(VM *vm, char *cstring, size_t length) {
 	return str;
 }
 
-ObjFunction *newFunction(VM *vm, ObjModule *module, uint8_t argsCount) {
+ObjFunction *newFunction(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount) {
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
 	f->argsCount = argsCount;
 	f->module = module;
-	f->name = NULL;
+	f->name = name;
 	initChunk(&f->chunk);
 	return f;
 }
 
-ObjNative *newNative(VM *vm, ObjModule *module, uint8_t argsCount, Native fn) {
+ObjNative *newNative(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn) {
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
 	n->argsCount = argsCount;
 	n->module = module;
-	n->name = NULL;
+	n->name = name;
 	n->fn = fn;
 	return n;
 }

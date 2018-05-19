@@ -28,8 +28,7 @@ static void defMethod(VM *vm, ObjModule *m, ObjClass *cls, Native n, const char 
 	ObjString *strName = copyString(vm, name, strlen(name));
 	push(vm, OBJ_VAL(strName));
 
-	ObjNative *native = newNative(vm, m, argc, n);
-	native->name = strName;
+	ObjNative *native = newNative(vm, m, strName, argc, n);
 
 	pop(vm);
 

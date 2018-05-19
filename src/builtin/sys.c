@@ -4,7 +4,6 @@ static int argCount = 0 ;
 static const char **argVector = NULL;
 
 void sysInitArgs(int argc, const char **argv) {
-	printf("sysInitArgs\n");
 	argCount = argc;
 	argVector = argv;
 }

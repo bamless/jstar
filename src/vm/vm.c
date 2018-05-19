@@ -100,7 +100,7 @@ static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
 		return false;
 	}
 
-	Value ret = native->fn(vm, argc, vm->sp - (argc + 1));
+	Value ret = native->fn(vm, vm->sp - (argc + 1));
 	vm->sp -= argc + 1;
 	push(vm, ret);
 

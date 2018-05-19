@@ -68,7 +68,7 @@ typedef struct ObjFunction {
 	ObjModule *module;
 } ObjFunction;
 
-typedef Value (*Native)(VM *vm, uint8_t argc, Value *argv);
+typedef Value (*Native)(VM *vm, Value *argv);
 
 typedef struct ObjNative {
 	Obj base;

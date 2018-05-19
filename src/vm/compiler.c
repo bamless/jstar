@@ -610,7 +610,7 @@ static void compileFunction(Compiler *c, Stmt *s) {
 
 static void compileNative(Compiler *c, Stmt *s) {
 	size_t length = listLength(s->nativeDecl.formalArgs);
-	ObjNative *native = newNative(c->vm, c->func->module, length, NULL);
+	ObjNative *native = newNative(c->vm, c->func->module, NULL, length, NULL);
 
 	uint8_t n = createConst(c, OBJ_VAL(native), s->line);
 	uint8_t i = identifierConst(c, &s->nativeDecl.id, s->line);
@@ -656,8 +656,13 @@ static void compileClass(Compiler *c, Stmt *s) {
 			break;
 		}
 		case NATIVEDECL: {
+			Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
+			if(identifierEquals(&ctor, &m->nativeDecl.id)) {
+				error(c, m->line, "Cannot declare native constructor");
+			}
+
 			size_t argsLen = listLength(m->nativeDecl.formalArgs);
-			ObjNative *n = newNative(c->vm, c->func->module, argsLen, NULL);
+			ObjNative *n = newNative(c->vm, c->func->module, NULL, argsLen, NULL);
 
 			uint8_t nc = createConst(c, OBJ_VAL(n), s->line);
 			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
@@ -767,7 +772,7 @@ ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s) {
 }
 
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
-	c->func = newFunction(c->vm, module, listLength(s->funcDecl.formalArgs));
+	c->func = newFunction(c->vm, module, NULL, listLength(s->funcDecl.formalArgs));
 	if(s->funcDecl.id.length != 0) {
 		c->func->name = copyString(c->vm,
 			s->funcDecl.id.name, s->funcDecl.id.length);
@@ -798,7 +803,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 }
 
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s) {
-	c->func = newFunction(c->vm, module, listLength(s->funcDecl.formalArgs));
+	c->func = newFunction(c->vm, module, NULL, listLength(s->funcDecl.formalArgs));
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
