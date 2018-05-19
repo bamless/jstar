@@ -1,22 +1,47 @@
-class Number   {}
-class Boolean  {}
-class Function {}
-class Module   {}
+class Number {
+	def new() { error("Class Number cannot be instantiated."); }
+	native __string__();
+	native __class__();
+	native __hash__();
+}
+class Boolean {
+	def new() { error("Class Boolean cannot be instantiated."); }
+	native __string__();
+	native __class__();
+}
+class Null {
+	def new() { error("Class Null cannot be instantiated."); }
+	native __string__();
+	native __class__();
+}
+class Function {
+	def new() { error("Class Function cannot be instantiated."); }
+	native __string__();
+}
+class Module   {
+	def new() { error("Class Module cannot be instantiated."); }
+	native __string__();
+}
 
 class String {
+	def new() { error("Class String cannot be instantiated."); }
 	native length();
 
-	def toString() {
+	def __string__() {
 		return this;
 	}
+
+	native __hash__();
 }
 
 class List {
-	native append(e);
+	def new() { error("Class List cannot be instantiated."); }
+
+	native add(e);
 	native insert(i, e);
 	native remove(i);
 	native length();
-
+	native clear();
 
 	def addAll(iterable) {
 		for(var e in iterable) {
@@ -36,7 +61,7 @@ class List {
 	def deleteAll(e) {
 		var ret = false;
 		for(var i = 0; i < this.length(); i = i + 1) {
-			if(this[i] == e) {
+			if(this[i].__equals__(e)) {
 				this.remove(i);
 				ret = true;
 			}
@@ -50,7 +75,7 @@ class List {
 
 	def indexOf(e) {
 		for(var i = 0; i < this.length(); i = i + 1) {
-			if(this[i] == e) {
+			if(this[i].__equals__(e)) {
 				return i;
 			}
 		}
@@ -58,35 +83,31 @@ class List {
 	}
 
 	def indexOfLast(e) {
-		var index = -1;
-		for(var i = 0; i < this.length(); i = i + 1) {
-			if(this[i] == e) {
-				index = i;
-			}
+		for(var i = this.length() - 1; i >= 0; i = i - 1) {
+			if(this[i].__equals__(e)) return i;
 		}
-		return i;
+		return -1;
 	}
 
 	def join(sep) {
 		var s = "";
 		for(var i = 0; i < this.length(); i = i + 1) {
-			var e = this[i];
-			s = s + str(e);
+			s = s + this[i].__string__();
 			if(i != this.length() - 1) s = s + sep;
 		}
 		return s;
 	}
 
-	def iterator() {
-		return ListIterator(this);
+	def __iterator__() {
+		return __ListIterator(this);
 	}
 
-	def toString() {
+	def __string__() {
 		return "[" + this.join(", ") + "]";
 	}
 }
 
-class ListIterator {
+class __ListIterator {
 	def new(list) {
 		this.n = 0;
 		this.list = list;
@@ -103,17 +124,15 @@ class ListIterator {
 	}
 }
 
-def str(o) {
-	if(o is String) {
-		return o;
-	} else if(o is Object) {
-		return o.toString();
-	} else {
-		return __str(o);
-	}
+def print(o) {
+	__printstr(o.__string__());
+}
+
+def str(e) {
+	return e.__string__();
 }
 
 native list(n, init);
 native error(msg);
 native isInt(n);
-native __str(s);
+native __printstr(str);

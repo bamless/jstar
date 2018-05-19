@@ -374,6 +374,7 @@ static void garbageCollect(VM *vm) {
 	reachObject(vm, (Obj*) vm->numClass);
 	reachObject(vm, (Obj*) vm->funClass);
 	reachObject(vm, (Obj*) vm->modClass);
+	reachObject(vm, (Obj*) vm->nullClass);
 
 	reachObject(vm, (Obj*) vm->ctor);
 	//reach vm global vars

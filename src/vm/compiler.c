@@ -286,9 +286,9 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 
 		if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
 			error(c, line, "Can't use `super` outside method.");
-		} else if(isSuper && !c->hasSuper) {
-			error(c, line, "Can use `super` only in subclass.");
-		}
+		} //else if(isSuper && !c->hasSuper) {
+		//	error(c, line, "Can use `super` only in subclass.");
+		//}
 
 		callCode   = isSuper ? OP_SUPER : OP_INVOKE;
 		callInline = isSuper ? OP_SUPER_0 : OP_INVOKE_0;
@@ -538,7 +538,7 @@ static void compileForEach(Compiler *c, Stmt *s) {
 	int varID = c->localsCount - 1;
 
 	// call the iterator() method over the object
-	Identifier iterMethod = {8, "iterator"};
+	Identifier iterMethod = {12, "__iterator__"};
 	compileExpr(c, s->forEach.iterable);
 	emitBytecode(c, OP_INVOKE_0, s->line);
 	emitBytecode(c, identifierConst(c, &iterMethod, s->line), 0);

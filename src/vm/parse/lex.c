@@ -21,7 +21,6 @@ static Keyword keywords[] = {
 	{"if",     2, TOK_IF},
 	{"null",   4, TOK_NULL},
 	{"or",     2, TOK_OR},
-	{"print",  5, TOK_PRINT},
 	{"return", 6, TOK_RETURN},
 	{"super",  5, TOK_SUPER},
 	{"true",   4, TOK_TRUE},

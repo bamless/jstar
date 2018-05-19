@@ -105,7 +105,8 @@ bool importModule(VM *vm, ObjString *name) {
 	Parser p;
 	Stmt *program = parse(&p, src);
 
-	if(program == NULL) {
+	if(p.hadError) {
+		freeStmt(program);
 		if(dyn) free((char*)src);
 		return false;
 	}

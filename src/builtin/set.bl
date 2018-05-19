@@ -1,0 +1,79 @@
+import map;
+
+class HashSet {
+	def new() {
+		this._map = map.HashMap();
+	}
+
+	def add(e) {
+		if(!this.contains(e)) {
+			this._map.put(e, 0);
+			return true;
+		}
+		return false;
+	}
+
+	def addAll(iterable) {
+		var changed = false;
+		for(var e in iterable) {
+			var r = this.add(e);
+			changed = changed or r;
+		}
+		return changed;
+	}
+
+	def remove(e) {
+		return this._map.remove(e) != null;
+	}
+
+	def removeAll(iterable) {
+		var changed = false;
+		for(var e in iterable) {
+			var r = this.remove(e);
+			changed = changed or r;
+		}
+		return changed;
+	}
+
+	def contains(e) {
+		return this._map.get(e) != null;
+	}
+
+	def containsAll(iterable) {
+		var ret = true;
+		for(var e in iterable) {
+			var r = contains(e);
+			ret = ret and r;
+		}
+		return ret;
+	}
+
+	def clear() {
+		this._map.clear();
+	}
+
+	def size() {
+		return this._map.size();
+	}
+
+	def empty() {
+		return size() == 0;
+	}
+
+	def __iterator__() {
+		return map.__KeyIterator(this._map);
+	}
+
+	def __string__() {
+		var s = "{";
+		var count = 0;
+
+		for(var k in this) {
+			count = count + 1;
+			s = s + k.__string__();
+			if(count < this._map.size()) s = s + ", ";
+		}
+
+		return s + "}";
+	}
+}

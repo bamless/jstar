@@ -11,6 +11,9 @@
 #include "file.h"
 #include "file.bl.h"
 
+#include "map.bl.h"
+#include "set.bl.h"
+
 typedef enum {
 	TYPE_FUNC, TYPE_CLASS
 } Type;
@@ -59,15 +62,36 @@ Module builtInModules[] = {
 		FUNCTION(list,  &bl_list)
 		FUNCTION(error, &bl_error)
 		FUNCTION(isInt, &bl_isInt)
-		FUNCTION(__str, &bl_str)
+		FUNCTION(__printstr, &bl_printstr)
+		CLASS(Number)
+			METHOD(__string__, &bl_Number_string)
+			METHOD(__class__, &bl_Number_class)
+			METHOD(__hash__, &bl_Number_hash)
+		ENDCLASS
+		CLASS(Boolean)
+			METHOD(__string__, &bl_Boolean_string)
+			METHOD(__class__, &bl_Boolean_class)
+		ENDCLASS
+		CLASS(Null)
+			METHOD(__string__, &bl_Null_string)
+			METHOD(__class__, &bl_Null_class)
+		ENDCLASS
+		CLASS(Function)
+			METHOD(__string__, &bl_Function_string)
+		ENDCLASS
+		CLASS(Module)
+			METHOD(__string__, &bl_Module_string)
+		ENDCLASS
 		CLASS(List)
-			METHOD(append, &bl_List_append)
+			METHOD(add, &bl_List_add)
 			METHOD(insert, &bl_List_insert)
 			METHOD(length, &bl_List_length)
 			METHOD(remove, &bl_List_remove)
+			METHOD(clear,  &bl_List_clear)
 		ENDCLASS
 		CLASS(String)
-			METHOD(length, &bl_String_length)
+			METHOD(length,  &bl_String_length)
+			METHOD(__hash__, &bl_String_hash)
 		ENDCLASS
 	ENDMODULE
 	MODULE(sys)
@@ -82,6 +106,8 @@ Module builtInModules[] = {
 		ENDCLASS
 		FUNCTION(__open, &bl_open)
 	ENDMODULE
+	MODULE(map) ENDMODULE
+	MODULE(set) ENDMODULE
 	MODULES_END
 };
 

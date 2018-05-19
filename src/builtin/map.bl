@@ -1,0 +1,205 @@
+import set;
+
+class __Entry {
+	def new(k, v) {
+		this.key = k;
+		this.value = v;
+		this.next = null;
+	}
+
+	def __equals__(o) {
+		return this.e.__equals__(o);
+	}
+
+	def __string__() {
+		return "{"+ this.key.__string__() + ":" + this.value.__string__() +"}";
+	}
+}
+
+class HashMap {
+	def new() {
+		this._size = 16;
+		this._count = 0;
+		this._entries = list(16, null);
+	}
+
+	def __getEntry(key) {
+		var i = key.__hash__() % this._size;
+
+		var buck = this._entries[i];
+		while(buck != null) {
+			if(key.__equals__(buck.key)) return buck;
+			buck = buck.next;
+		}
+
+		return null;
+	}
+
+	def __addEntry(e) {
+		var i = e.key.__hash__() % this._size;
+		e.next = this._entries[i];
+		this._entries[i] = e;
+	}
+
+	def __grow() {
+		var oldEntries = this._entries;
+
+		this._size = this._size * 2;
+		this._entries = list(this._size, null);
+
+		for(var e in oldEntries) {
+			var head = e;
+			while(head != null) {
+				var a = head;
+				head = head.next;
+				this.__addEntry(a);
+			}
+		}
+	}
+
+	def put(key, val) {
+		var e = this.__getEntry(key);
+		if(e != null) {
+			var old = e.value;
+			e.value = val;
+			return old;
+		}
+
+		// The max load factor is 0.75
+		if(this._count + 1 > this._size * 0.75) {
+			this.__grow();
+		}
+
+		this.__addEntry(__Entry(key, val));
+		this._count = this._count + 1;
+		return null;
+	}
+
+	def get(key) {
+		var e = this.__getEntry(key);
+		if(e != null) {
+			return e.value;
+		}
+		return null;
+	}
+
+	def remove(key) {
+		var i = key.__hash__() % this._size;
+
+		var prev;
+		var head = this._entries[i];
+
+		while(head != null) {
+			if(key.__equals__(head.key)) {
+				if(prev == null)
+					this._entries[i] = head.next;
+				else
+					prev.next = head.next;
+
+				this._count = this._count - 1;
+				return head.value;
+			}
+
+			prev = head;
+			head = head.next;
+		}
+
+		return null;
+	}
+
+	def contains(key) {
+		return this.get(key) != null;
+	}
+
+	def clear() {
+		for(var i = 0; i < this._entries.length(); i = i + 1) {
+			this._entries[i] = null;
+		}
+		this._count = 0;
+	}
+
+	def size() {
+		return this._count;
+	}
+
+	def keySet() {
+		var s = set.HashSet();
+		var iterator = this.keyIterator();
+
+		while(iterator.hasNext()) {
+			s.add(iterator.next());
+		}
+
+		return s;
+	}
+
+	def keyIterator() {
+		return __KeyIterator(this);
+	}
+
+	def valueIterator() {
+		return __ValueIterator(this);
+	}
+
+	def __string__() {
+		var s = "[";
+		var count = 0;
+		var iterator = __EntryIterator(this);
+
+		while(iterator.hasNext()) {
+			var e = iterator.next();
+			count = count + 1;
+			s = s + e.__string__();
+			if(count < this._count) s = s + ", ";
+		}
+
+		return s + "]";
+	}
+}
+
+class __EntryIterator {
+	def new(map) {
+		this.map = map;
+		this.index = 0;
+		this.next = null;
+		this.__nextBucket();
+	}
+
+	def __nextBucket() {
+		if(this.index >= this.map._size) return;
+
+		while(this.index < this.map._size - 1 and this.map._entries[this.index] == null) {
+			this.index = this.index + 1;
+		}
+
+		this.next = this.map._entries[this.index];
+	}
+
+	def hasNext() {
+		return this.next != null;
+	}
+
+	def next() {
+		var e = this.next;
+		this.next = e.next;
+
+		if(this.next == null) {
+			this.index = this.index + 1;
+			this.__nextBucket();
+		}
+
+		return e;
+	}
+}
+
+class __KeyIterator(__EntryIterator) {
+	def next() {
+		return super.next().key;
+	}
+}
+
+class __ValueIterator(__EntryIterator) {
+	def next() {
+		return super.next().value;
+	}
+}

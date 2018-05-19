@@ -41,6 +41,7 @@ typedef struct VM {
 	ObjClass *numClass;
 	ObjClass *funClass;
 	ObjClass *modClass;
+	ObjClass *nullClass;
 
 	// Current VM compiler
 	Compiler *currCompiler;

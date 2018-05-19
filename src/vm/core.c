@@ -36,42 +36,42 @@ static void defMethod(VM *vm, ObjModule *m, ObjClass *cls, Native n, const char 
 	hashTablePut(&cls->methods, strName, OBJ_VAL(native));
 }
 
+static uint64_t hash64(uint64_t x) {
+	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+	x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+	x = x ^ (x >> 31);
+	return x;
+}
+
 // class Object methods
+	static NATIVE(bl_Object_string) {
+		Obj *o = AS_OBJ(args[0]);
 
-static NATIVE(bl_Object_toString) {
-	Obj *o = AS_OBJ(args[0]);
+		char str[256];
+		snprintf(str, 255, "<%s@%p>", o->cls->name->data, (void*) o);
 
-	char str[256];
-	snprintf(str, 255, "%s@%p", o->cls->name->data, (void*) o);
+		return OBJ_VAL(copyString(vm, str, strlen(str)));
+	}
 
-	return OBJ_VAL(copyString(vm, str, strlen(str)));
-}
+	static NATIVE(bl_Object_class) {
+		return OBJ_VAL(AS_OBJ(args[0])->cls);
+	}
 
-static NATIVE(bl_Object_getClass) {
-	return OBJ_VAL(AS_OBJ(args[0])->cls);
-}
+	static NATIVE(bl_Object_equals) {
+		return BOOL_VAL(args[0] == args[1]);
+	}
 
-static NATIVE(bl_Object_equals) {
-	return BOOL_VAL(args[0] == args[1]);
-}
-
-static NATIVE(bl_Object_hashCode) {
-	uint64_t key = (uint64_t) AS_OBJ(args[0]);
-	key = (~key) + (key << 21);
-	key = key ^ (key >> 24);
-	key = (key + (key << 3)) + (key << 8);
-	key = key ^ (key >> 14);
-	key = (key + (key << 2)) + (key << 4);
-	key = key ^ (key >> 28);
-	key = key + (key << 31);
-	return NUM_VAL(key);
-}
+	static NATIVE(bl_Object_hash) {
+		uint64_t x = hash64((uint64_t) AS_OBJ(args[0]));
+		return NUM_VAL((uint32_t) x);
+	}
+// Object
 
 // class Class methods
-
-static NATIVE(bl_Class_getName) {
-	return OBJ_VAL(AS_CLASS(args[0])->name);
-}
+	static NATIVE(bl_Class_getName) {
+		return OBJ_VAL(AS_CLASS(args[0])->name);
+	}
+// Class
 
 void initCoreLibrary(VM *vm) {
 	ObjString *name = copyString(vm, "__core__", 8);
@@ -89,10 +89,10 @@ void initCoreLibrary(VM *vm) {
 
 	// Setup the base class of the object hierarchy
 	vm->objClass = createClass(vm, core, NULL, "Object"); // Object has no superclass
-	defMethod(vm, core, vm->objClass, &bl_Object_toString, "toString", 0);
-	defMethod(vm, core, vm->objClass, &bl_Object_getClass, "getClass", 0);
-	defMethod(vm, core, vm->objClass, &bl_Object_hashCode, "hashCode", 0);
-	defMethod(vm, core, vm->objClass, &bl_Object_equals, "equals", 1);
+	defMethod(vm, core, vm->objClass, &bl_Object_string, "__string__", 0);
+	defMethod(vm, core, vm->objClass, &bl_Object_class,  "__class__", 0);
+	defMethod(vm, core, vm->objClass, &bl_Object_hash,   "__hash__", 0);
+	defMethod(vm, core, vm->objClass, &bl_Object_equals, "__equals__", 1);
 
 	// Patch up Class object infotmation
 	vm->clsClass->superCls = vm->objClass;
@@ -107,6 +107,7 @@ void initCoreLibrary(VM *vm) {
 	vm->numClass  = AS_CLASS(getDefinedName(vm, core, "Number"));
 	vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
 	vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
+	vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
 
 	core->base.cls = vm->modClass;
 
@@ -147,72 +148,146 @@ NATIVE(bl_isInt) {
 	return FALSE_VAL;
 }
 
-NATIVE(bl_str) {
-	if(IS_NUM(args[1])) {
-		char str[256];
-		snprintf(str, 255, "%.*g", __DBL_DIG__, AS_NUM(args[1]));
-		return OBJ_VAL(copyString(vm, str, strlen(str)));
-	} else if(IS_BOOL(args[1])) {
-		const char *str = AS_BOOL(args[1]) ? "true" : "false";
-		return OBJ_VAL(copyString(vm, str, strlen(str)));
-	} else if(IS_NULL(args[1])) {
-		return OBJ_VAL(copyString(vm, "null", 4));
-	} else if(IS_STRING(args[1])) {
-		return args[1];
-	} else {
-		return bl_Object_toString(vm, 0, args + 1);
-	}
-}
-
-
-// class List {
-
-NATIVE(bl_List_append) {
-	ObjList *l = AS_LIST(args[0]);
-	listAppend(vm, l, args[1]);
-
-	return TRUE_VAL;
-}
-
-NATIVE(bl_List_insert) {
-	if(!IS_INT(args[1])) {
-		blRuntimeError(vm, "Argument 1 of insertt(i, e) must be an integer.");
-		return NULL_VAL;
-	}
-
-	ObjList *l = AS_LIST(args[0]);
-
-	double index = AS_NUM(args[1]);
-	if(index < 0 || index > l->count) {
-		blRuntimeError(vm, "List index out of bound: %d.", (int) index);
-		return NULL_VAL;
-	}
-
-	listInsert(vm, l, index, args[2]);
-
-	return TRUE_VAL;
-}
-
-NATIVE(bl_List_length) {
-	return NUM_VAL(AS_LIST(args[0])->count);
-}
-
-NATIVE(bl_List_remove) {
-	if(!IS_INT(args[1])) {
-		blRuntimeError(vm, "Argument of remove(i) must be an integer.");
-		return NULL_VAL;
-	}
-
-	listRemove(vm, AS_LIST(args[0]), AS_NUM(args[1]));
+NATIVE(bl_printstr) {
+	printf("%s\n", AS_STRING(args[1])->data);
 	return NULL_VAL;
 }
 
+// class Number {
+	NATIVE(bl_Number_string) {
+		char str[24];
+		snprintf(str, sizeof(str) - 1, "%.*g", __DBL_DIG__, AS_NUM(args[0]));
+		return OBJ_VAL(copyString(vm, str, strlen(str)));
+	}
+
+	NATIVE(bl_Number_class) {
+		return OBJ_VAL(vm->numClass);
+	}
+
+	NATIVE(bl_Number_hash) {
+		union {
+			double d;
+			uint64_t r;
+		} c = {.d = AS_NUM(args[0])};
+		uint64_t n = hash64(c.r);
+		return NUM_VAL((uint32_t) n);
+	}
+// } Number
+
+// class Boolean {
+	NATIVE(bl_Boolean_string) {
+		return AS_BOOL(args[0]) ? OBJ_VAL(copyString(vm, "true", 4))
+		                        : OBJ_VAL(copyString(vm, "false", 5));
+	}
+
+	NATIVE(bl_Boolean_class) {
+		return OBJ_VAL(vm->boolClass);
+	}
+// } Boolean
+
+// class Null {
+	NATIVE(bl_Null_string) {
+		return OBJ_VAL(copyString(vm, "null", 4));
+	}
+
+	NATIVE(bl_Null_class) {
+		return OBJ_VAL(vm->nullClass);
+	}
+// } Null
+
+// class Function {
+	NATIVE(bl_Function_string) {
+		const char *funType = NULL;
+		const char *funName = NULL;
+		switch(OBJ_TYPE(args[0])) {
+		case OBJ_FUNCTION:
+			funType = "function";
+			funName = AS_FUNC(args[0])->name->data;
+			break;
+		case OBJ_NATIVE:
+			funType = "native";
+			funName = AS_NATIVE(args[0])->name->data;
+			break;
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod *m = AS_BOUND_METHOD(args[0]);
+			funType = "bound method";
+			funName = m->method->base.type == OBJ_FUNCTION ?
+			          ((ObjFunction*) m->method)->name->data :
+			          ((ObjNative*) m->method)->name->data;
+			break;
+		}
+		default: break;
+		}
+
+		char str[256];
+		snprintf(str, sizeof(str) - 1, "<%s %s@%p>", funType, funName, AS_OBJ(args[0]));
+
+		return OBJ_VAL(copyString(vm, str, strlen(str)));
+	}
+// } Function
+
+// class Module {
+	NATIVE(bl_Module_string) {
+		char str[256];
+		ObjModule *m = AS_MODULE(args[0]);
+		snprintf(str, sizeof(str) - 1, "<module %s@%p>", m->name->data, m);
+		return OBJ_VAL(copyString(vm, str, strlen(str)));
+	}
+// } Module
+
+// class List {
+	NATIVE(bl_List_add) {
+		ObjList *l = AS_LIST(args[0]);
+		listAppend(vm, l, args[1]);
+
+		return TRUE_VAL;
+	}
+
+	NATIVE(bl_List_insert) {
+		if(!IS_INT(args[1])) {
+			blRuntimeError(vm, "Argument 1 of insertt(i, e) must be an integer.");
+			return NULL_VAL;
+		}
+
+		ObjList *l = AS_LIST(args[0]);
+
+		double index = AS_NUM(args[1]);
+		if(index < 0 || index > l->count) {
+			blRuntimeError(vm, "List index out of bound: %d.", (int) index);
+			return NULL_VAL;
+		}
+
+		listInsert(vm, l, index, args[2]);
+
+		return TRUE_VAL;
+	}
+
+	NATIVE(bl_List_length) {
+		return NUM_VAL(AS_LIST(args[0])->count);
+	}
+
+	NATIVE(bl_List_remove) {
+		if(!IS_INT(args[1])) {
+			blRuntimeError(vm, "Argument of remove(i) must be an integer.");
+			return NULL_VAL;
+		}
+
+		listRemove(vm, AS_LIST(args[0]), AS_NUM(args[1]));
+		return NULL_VAL;
+	}
+
+	NATIVE(bl_List_clear) {
+		AS_LIST(args[0])->count = 0;
+		return NULL_VAL;
+	}
 // } List
 
 // class String {
+	NATIVE(bl_String_length) {
+		return NUM_VAL(AS_STRING(args[0])->length);
+	}
 
-NATIVE(bl_String_length) {
-	return NUM_VAL(AS_STRING(args[0])->length);
-}
-
+	NATIVE(bl_String_hash) {
+		return NUM_VAL(AS_STRING(args[0])->hash);
+	}
 // } String

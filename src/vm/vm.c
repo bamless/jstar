@@ -39,6 +39,7 @@ void initVM(VM *vm) {
 	vm->numClass  = NULL;
 	vm->funClass  = NULL;
 	vm->modClass  = NULL;
+	vm->nullClass = NULL;
 
 	reset(vm);
 
@@ -136,7 +137,18 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 		}
 	}
 
-	runtimeError(vm, "Can only call function and native objects.");
+	ObjClass *cls;
+	if(IS_OBJ(callee)) {
+		cls = AS_OBJ(callee)->cls;
+	} else if(IS_NUM(callee)) {
+		cls = vm->numClass;
+	} else if(IS_BOOL(callee)) {
+		cls = vm->boolClass;
+	} else {
+		cls = vm->nullClass;
+	}
+
+	runtimeError(vm, "Object %s is not a callable.", cls->name->data);
 	return false;
 }
 
@@ -171,8 +183,10 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 			// Check if field shadows a method
 			Value f;
 			if(hashTableGet(&inst->fields, name, &f)) {
-				callValue(vm, f, argc);
-				return true;
+				if(!IS_OBJ(f) && (IS_FUNC(f) || IS_NATIVE(f)
+								|| IS_CLASS(f) || IS_BOUND_METHOD(f))) {
+					return callValue(vm, f, argc);
+				}
 			}
 
 			if(!invokeMethod(vm, inst->base.cls, name, argc)) {
@@ -184,6 +198,14 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 			ObjModule *mod = AS_MODULE(val);
 
 			Value func;
+			// check if method shadows a function in the module
+			if(hashTableGet(&vm->modClass->methods, name, &func)) {
+				if(!callValue(vm, func, argc)) {
+					return false;
+				}
+				return true;
+			}
+
 			if(!hashTableGet(&mod->globals, name, &func)) {
 				runtimeError(vm, "Name `%s` is not defined "
 					"in module %s.", name->data, mod->name->data);
@@ -206,8 +228,19 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 		}
 	}
 
-	runtimeError(vm, "Only objects have methods.");
-	return false;
+	ObjClass *cls;
+	if(IS_NUM(val)) {
+		cls = vm->numClass;
+	} else if(IS_BOOL(val)) {
+		cls = vm->boolClass;
+	} else {
+		cls = vm->nullClass;
+	}
+
+	if(!invokeMethod(vm, cls, name, argc)) {
+		return false;
+	}
+	return true;
 }
 
 bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
@@ -248,7 +281,18 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 		}
 	}
 
-	runtimeError(vm, "Only instances or modules have fields.");
+	ObjClass *cls;
+	if(IS_OBJ(val)) {
+		cls = AS_OBJ(val)->cls;
+	} if(IS_NUM(val)) {
+		cls = vm->numClass;
+	} else if(IS_BOOL(val)) {
+		cls = vm->boolClass;
+	} else {
+		cls = vm->nullClass;
+	}
+
+	runtimeError(vm, "Object %s doesn't have field `%s`.", cls->name->data, name->data);
 	return false;
 }
 
@@ -269,7 +313,18 @@ bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
 		}
 	}
 
-	runtimeError(vm, "Only instances or modules have fields.");
+	ObjClass *cls;
+	if(IS_OBJ(val)) {
+		cls = AS_OBJ(val)->cls;
+	} if(IS_NUM(val)) {
+		cls = vm->numClass;
+	} else if(IS_BOOL(val)) {
+		cls = vm->boolClass;
+	} else {
+		cls = vm->nullClass;
+	}
+
+	runtimeError(vm, "Object %s doesn't have field `%s`.", cls->name->data, name->data);
 	return false;
 }
 
@@ -356,6 +411,7 @@ static bool runEval(VM *vm) {
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
+
 		push(vm, NUM_VAL(fmod(a, b)));
 		continue;
 	}
@@ -382,31 +438,34 @@ static bool runEval(VM *vm) {
 		Value b = pop(vm);
 		Value a = pop(vm);
 
-		if(!IS_OBJ(b) || !IS_CLASS(b)) {
+		if(!IS_CLASS(b)) {
 			runtimeError(vm, "Right operand of `is` must be a class");
 			return false;
 		}
 
 		ObjClass *cls = AS_CLASS(b);
 		bool isInstance = false;
+
+		ObjClass *c;
 		if(IS_OBJ(a)) {
-			Obj *o = AS_OBJ(a);
-
-			for(ObjClass *c = o->cls; c != NULL; c = c->superCls) {
-				if(c == cls) {
-					isInstance = true;
-					break;
-				}
-			}
-
+			c = AS_OBJ(a)->cls;
 		} else if(IS_NUM(a)) {
-			isInstance = cls == vm->numClass;
+			c = vm->numClass;
 		} else if(IS_BOOL(a)) {
-			isInstance = cls == vm->boolClass;
+			c = vm->boolClass;
+		} else {
+			c = vm->nullClass;
+		}
+
+		for(;c != NULL; c = c->superCls) {
+			if(c == cls) {
+				isInstance = true;
+				break;
+			}
 		}
 
 		push(vm, BOOL_VAL(isInstance));
-		break;
+		continue;
 	}
 	case OP_NEG:
 		if(!IS_NUM(peek(vm))) {
