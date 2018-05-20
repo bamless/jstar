@@ -480,7 +480,7 @@ static bool runEval(VM *vm) {
 		Value o = peek(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
-			if(index < 0 || index > lst->count - 1) {
+			if(index < 0 || index >= lst->count) {
 				runtimeError(vm, "List index out of bound: %d.", (int) index);
 				return false;
 			}
@@ -489,7 +489,7 @@ static bool runEval(VM *vm) {
 			push(vm, lst->arr[(size_t)index]);
 		} else if(IS_STRING(o)) {
 			ObjString *s = AS_STRING(o);
-			if(index < 0 || index > s->length - 1) {
+			if(index < 0 || index >= s->length) {
 				runtimeError(vm, "String index out of bound: %d.", (int) index);
 				return false;
 			}
@@ -521,7 +521,7 @@ static bool runEval(VM *vm) {
 		Value o = pop(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
-			if(index < 0 || index > lst->count - 1) {
+			if(index < 0 || index >= lst->count) {
 				runtimeError(vm, "List index out of bound: %d.", (int) index);
 				return false;
 			}
