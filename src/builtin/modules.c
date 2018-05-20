@@ -62,7 +62,8 @@ Module builtInModules[] = {
 	COREMODULE
 		FUNCTION(typecheck, &bl_typeCheck)
 		FUNCTION(typecheckInt, &bl_typeCheckInt)
-		FUNCTION(list,  &bl_list)
+		FUNCTION(list, &bl_list)
+		FUNCTION(range, &bl_range)
 		FUNCTION(error, &bl_error)
 		FUNCTION(isInt, &bl_isInt)
 		FUNCTION(__printstr, &bl_printstr)

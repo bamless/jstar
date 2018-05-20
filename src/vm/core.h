@@ -8,6 +8,7 @@ typedef struct VM VM;
 void initCoreLibrary(VM *vm);
 
 NATIVE(bl_list);
+NATIVE(bl_range);
 NATIVE(bl_error);
 NATIVE(bl_isInt);
 NATIVE(bl_printstr);

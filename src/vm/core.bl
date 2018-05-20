@@ -194,16 +194,9 @@ def str(e) {
 	return e.__string__();
 }
 
-def range(from, to) {
-	var range = [];
-	for(var i = from; i < to; i = i + 1) {
-		range.add(i);
-	}
-	return range;
-}
-
 native typecheck(o, cls, n);
 native typecheckInt(o, n);
+native range(from, to);
 native list(n, init);
 native error(msg);
 native isInt(n);
