@@ -15,8 +15,6 @@ void disassembleIstr(Chunk *c, size_t i) {
 		printf("%d", (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]);
 		break;
 
-	case OP_ARR_GET:
-	case OP_ARR_SET:
 	case OP_IMPORT_AS:
 	case OP_INVOKE:
 	case OP_SUPER:
