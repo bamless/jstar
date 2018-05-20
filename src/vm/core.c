@@ -4,6 +4,7 @@
 #include "vm.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static ObjClass* createClass(VM *vm, ObjModule *m, ObjClass *sup, const char *name) {
 	ObjString *n = copyString(vm, name, strlen(name));

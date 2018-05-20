@@ -1,7 +1,7 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include "native.h"
+#include "blang.h"
 
 typedef struct VM VM;
 

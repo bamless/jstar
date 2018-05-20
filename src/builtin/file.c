@@ -1,6 +1,8 @@
 #include "file.h"
 
+#include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <windows.h>

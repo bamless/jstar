@@ -1,7 +1,8 @@
-#include "native.h"
+#include "blang.h"
 #include "vm.h"
 
 #include <stdarg.h>
+#include <string.h>
 #include <stdio.h>
 
 void blSetField(VM *vm, ObjInstance *o, const char *name, Value val) {
@@ -16,7 +17,6 @@ bool blGetField(VM *vm, ObjInstance *o, const char *name, Value *ret) {
 	push(vm, OBJ_VAL(o));
 	bool found = hashTableGet(&o->fields, copyString(vm, name, strlen(name)), ret);
 	pop(vm);
-
 	return found;
 }
 

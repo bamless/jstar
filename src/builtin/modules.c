@@ -1,6 +1,5 @@
 #include "modules.h"
 #include "object.h"
-#include "native.h"
 
 #include "core.h"
 #include "core.bl.h"
@@ -13,6 +12,8 @@
 
 #include "map.bl.h"
 #include "set.bl.h"
+
+#include <string.h>
 
 typedef enum {
 	TYPE_FUNC, TYPE_CLASS

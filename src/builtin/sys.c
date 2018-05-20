@@ -1,5 +1,7 @@
 #include "sys.h"
 
+#include <string.h>
+
 static int argCount = 0 ;
 static const char **argVector = NULL;
 

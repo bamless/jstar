@@ -183,6 +183,10 @@ def reversed(lst) {
 }
 
 def print(o) {
+	var s = o.__string__();
+	if(!(s is String)) {
+		error("__string__() didn't return a string: type " + s.__class__().getName());
+	}
 	__printstr(o.__string__());
 }
 
