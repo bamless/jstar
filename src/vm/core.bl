@@ -39,7 +39,7 @@ class List {
 
 	native add(e);
 	native insert(i, e);
-	native remove(i);
+	native removeAt(i);
 	native size();
 	native clear();
 
@@ -53,6 +53,10 @@ class List {
 	}
 
 	def insertAll(i, iterable) {
+		if(i < 0 or i >= this.size()) {
+			error("List index out of bounds: " + str(i));
+		}
+
 		var changed = false;
 		for(var e in iterable) {
 			this.insert(i, e);
@@ -61,7 +65,7 @@ class List {
 		return changed;
 	}
 
-	def delete(e) {
+	def remove(e) {
 		var i = this.indexOf(e);
 		if(i >= 0) {
 			this.remove(i);
@@ -70,10 +74,10 @@ class List {
 		return false;
 	}
 
-	def deleteAll(iterable) {
+	def removeAll(iterable) {
 		var changed = false;
 		for(var e in iterable) {
-			var r = this.delete(e);
+			var r = this.remove(e);
 			changed = changed or r;
 		}
 		return changed;
@@ -112,8 +116,9 @@ class List {
 
 	def subList(from, to) {
 		if(to < from) {
-			error("`to` must be greater or equal than `from`");
+			error("to arg should be >= from arg");
 		}
+
 		var sub = [];
 		for(var i = from; i < to; i = i + 1) {
 			sub.add(this[i]);
@@ -151,6 +156,32 @@ class __ListIterator {
 	}
 }
 
+class __ListReverseIterator {
+	def new(list) {
+		this.n = list.size() - 1;
+		this.list = list;
+	}
+
+	def hasNext() {
+		return this.n >= 0;
+	}
+
+	def next() {
+		var prev = this.list[this.n];
+		this.n = this.n - 1;
+		return prev;
+	}
+
+	def __iterator__() {
+		return this;
+	}
+}
+
+def reversed(lst) {
+	typecheck(lst, List, 1);
+	return __ListReverseIterator(lst);
+}
+
 def print(o) {
 	__printstr(o.__string__());
 }
@@ -159,6 +190,16 @@ def str(e) {
 	return e.__string__();
 }
 
+def range(from, to) {
+	var range = [];
+	for(var i = from; i < to; i = i + 1) {
+		range.add(i);
+	}
+	return range;
+}
+
+native typecheck(o, cls, n);
+native typecheckInt(o, n);
 native list(n, init);
 native error(msg);
 native isInt(n);

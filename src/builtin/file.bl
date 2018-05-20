@@ -10,9 +10,8 @@ class File {
 }
 
 def open(name, mode) {
-	if(!(name is String) or !(mode is String)) {
-		error("Arguments of open must be strings.");
-	}
+	typecheck(name, String, 1);
+	typecheck(mode, String, 2);
 
 	var handle = __open(name, mode);
 	if(handle == null) {

@@ -11,6 +11,8 @@ NATIVE(bl_list);
 NATIVE(bl_error);
 NATIVE(bl_isInt);
 NATIVE(bl_printstr);
+NATIVE(bl_typeCheck);
+NATIVE(bl_typeCheckInt);
 
 // class Number {
 	NATIVE(bl_Number_string);
@@ -40,7 +42,7 @@ NATIVE(bl_printstr);
 	NATIVE(bl_List_add);
 	NATIVE(bl_List_insert);
 	NATIVE(bl_List_size);
-	NATIVE(bl_List_remove);
+	NATIVE(bl_List_removeAt);
 	NATIVE(bl_List_clear);
 // } List
 

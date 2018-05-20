@@ -152,6 +152,64 @@ NATIVE(bl_printstr) {
 	return NULL_VAL;
 }
 
+static ObjClass *getClass(VM *vm, Value v) {
+	if(IS_OBJ(v)) {
+		return AS_OBJ(v)->cls;
+	} else if(IS_NUM(v)) {
+		return vm->numClass;
+	} else if(IS_BOOL(v)) {
+		return vm->boolClass;
+	} else {
+		return vm->nullClass;
+	}
+}
+
+NATIVE(bl_typeCheck) {
+	if(!IS_CLASS(args[2])) {
+		blRuntimeError(vm, "typeCheck(): Argument 2 must be a Class.");
+		return NULL_VAL;
+	}
+	if(!IS_INT(args[3])) {
+		blRuntimeError(vm, "typeCheck(): Argument 3 must be an integer.");
+		return NULL_VAL;
+	}
+
+	bool instance = false;
+	ObjClass *cls = AS_CLASS(args[2]);
+	ObjClass *c = getClass(vm, args[1]);
+
+	for(ObjClass *sup = c; sup != NULL; sup = sup->superCls) {
+		if(sup == cls) {
+			instance = true;
+			break;
+		}
+	}
+
+	if(!instance) {
+		blRuntimeError(vm, "Argument %d must be a %s, instead got %s.",
+						(int)AS_NUM(args[3]), cls->name->data, c->name->data);
+		return NULL_VAL;
+	}
+
+	return NULL_VAL;
+}
+
+NATIVE(bl_typeCheckInt) {
+	if(!IS_INT(args[2])) {
+		blRuntimeError(vm, "typeCheckInt(): Argument 2 must be an integer.");
+		return NULL_VAL;
+	}
+
+	if(!IS_INT(args[1])) {
+		ObjClass *c = getClass(vm, args[1]);
+		blRuntimeError(vm, "Argument %d must be an Integer, "
+					"instead got %s.", (int)AS_NUM(args[2]), c->name->data);
+		return NULL_VAL;
+	}
+
+	return NULL_VAL;
+}
+
 // class Number {
 	NATIVE(bl_Number_string) {
 		char str[24];
@@ -238,26 +296,23 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_List_add) {
 		ObjList *l = AS_LIST(args[0]);
 		listAppend(vm, l, args[1]);
-
 		return TRUE_VAL;
 	}
 
 	NATIVE(bl_List_insert) {
 		if(!IS_INT(args[1])) {
-			blRuntimeError(vm, "Argument 1 of insertt(i, e) must be an integer.");
+			blRuntimeError(vm, "Argument 1 of insert() must be an integer.");
 			return NULL_VAL;
 		}
 
 		ObjList *l = AS_LIST(args[0]);
-
 		double index = AS_NUM(args[1]);
 		if(index < 0 || index > l->count) {
-			blRuntimeError(vm, "List index out of bound: %d.", (int) index);
+			blRuntimeError(vm, "insert(): List index out of bound: %d.", (int)index);
 			return NULL_VAL;
 		}
 
 		listInsert(vm, l, index, args[2]);
-
 		return TRUE_VAL;
 	}
 
@@ -265,13 +320,20 @@ NATIVE(bl_printstr) {
 		return NUM_VAL(AS_LIST(args[0])->count);
 	}
 
-	NATIVE(bl_List_remove) {
+	NATIVE(bl_List_removeAt) {
 		if(!IS_INT(args[1])) {
-			blRuntimeError(vm, "Argument of remove(i) must be an integer.");
+			blRuntimeError(vm, "Argument of removeAt() must be an integer.");
 			return NULL_VAL;
 		}
 
-		listRemove(vm, AS_LIST(args[0]), AS_NUM(args[1]));
+		ObjList *l = AS_LIST(args[0]);
+		double index = AS_NUM(args[1]);
+		if(index < 0 || index > l->count) {
+			blRuntimeError(vm, "removeAt(): List index out of bound: %d.", (int)index);
+			return NULL_VAL;
+		}
+
+		listRemove(vm, l, index);
 		return NULL_VAL;
 	}
 

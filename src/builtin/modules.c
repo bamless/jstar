@@ -59,6 +59,8 @@ typedef struct {
 
 Module builtInModules[] = {
 	COREMODULE
+		FUNCTION(typecheck, &bl_typeCheck)
+		FUNCTION(typecheckInt, &bl_typeCheckInt)
 		FUNCTION(list,  &bl_list)
 		FUNCTION(error, &bl_error)
 		FUNCTION(isInt, &bl_isInt)
@@ -86,7 +88,7 @@ Module builtInModules[] = {
 			METHOD(add, &bl_List_add)
 			METHOD(insert, &bl_List_insert)
 			METHOD(size, &bl_List_size)
-			METHOD(remove, &bl_List_remove)
+			METHOD(removeAt, &bl_List_removeAt)
 			METHOD(clear,  &bl_List_clear)
 		ENDCLASS
 		CLASS(String)

@@ -71,6 +71,18 @@ Value pop(VM *vm) {
 	return *--vm->sp;
 }
 
+static ObjClass *getClass(VM *vm, Value v) {
+	if(IS_OBJ(v)) {
+		return AS_OBJ(v)->cls;
+	} else if(IS_NUM(v)) {
+		return vm->numClass;
+	} else if(IS_BOOL(v)) {
+		return vm->boolClass;
+	} else {
+		return vm->nullClass;
+	}
+}
+
 static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
 		runtimeError(vm, "Function `%s` expected %d args, but instead %d "
@@ -138,17 +150,7 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 		}
 	}
 
-	ObjClass *cls;
-	if(IS_OBJ(callee)) {
-		cls = AS_OBJ(callee)->cls;
-	} else if(IS_NUM(callee)) {
-		cls = vm->numClass;
-	} else if(IS_BOOL(callee)) {
-		cls = vm->boolClass;
-	} else {
-		cls = vm->nullClass;
-	}
-
+	ObjClass *cls = getClass(vm, callee);
 	runtimeError(vm, "Object %s is not a callable.", cls->name->data);
 	return false;
 }
@@ -282,17 +284,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 		}
 	}
 
-	ObjClass *cls;
-	if(IS_OBJ(val)) {
-		cls = AS_OBJ(val)->cls;
-	} else if(IS_NUM(val)) {
-		cls = vm->numClass;
-	} else if(IS_BOOL(val)) {
-		cls = vm->boolClass;
-	} else {
-		cls = vm->nullClass;
-	}
-
+	ObjClass *cls = getClass(vm, val);
 	runtimeError(vm, "Object %s doesn't have field `%s`.", cls->name->data, name->data);
 	return false;
 }
@@ -314,17 +306,7 @@ bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
 		}
 	}
 
-	ObjClass *cls;
-	if(IS_OBJ(val)) {
-		cls = AS_OBJ(val)->cls;
-	} else if(IS_NUM(val)) {
-		cls = vm->numClass;
-	} else if(IS_BOOL(val)) {
-		cls = vm->boolClass;
-	} else {
-		cls = vm->nullClass;
-	}
-
+	ObjClass *cls = getClass(vm, val);
 	runtimeError(vm, "Object %s doesn't have field `%s`.", cls->name->data, name->data);
 	return false;
 }
@@ -447,17 +429,7 @@ static bool runEval(VM *vm) {
 		ObjClass *cls = AS_CLASS(b);
 		bool isInstance = false;
 
-		ObjClass *c;
-		if(IS_OBJ(a)) {
-			c = AS_OBJ(a)->cls;
-		} else if(IS_NUM(a)) {
-			c = vm->numClass;
-		} else if(IS_BOOL(a)) {
-			c = vm->boolClass;
-		} else {
-			c = vm->nullClass;
-		}
-
+		ObjClass *c = getClass(vm, a);
 		for(;c != NULL; c = c->superCls) {
 			if(c == cls) {
 				isInstance = true;
