@@ -6,6 +6,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
 #endif
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
@@ -77,7 +78,7 @@ static int64_t getFileSize(FILE *stream) {
 		return -1;
 	}
 
-	HANDLE f = _get_osfhandle(fd);
+	HANDLE f = (HANDLE)_get_osfhandle(fd);
 	if(f == INVALID_HANDLE_VALUE) {
 		return -1;
 	}
@@ -85,7 +86,7 @@ static int64_t getFileSize(FILE *stream) {
 	DWORD lo = 0;
 	DWORD hi = 0;
 	lo = GetFileSize(f, &hi);
-	fsize = (int64_t) (((uint64_t) hi) << 32) | lo);
+	fsize = (int64_t) (((uint64_t) hi) << 32) | lo;
 #else
 	int fd = fileno(stream);
 	if(fd < 0) {
