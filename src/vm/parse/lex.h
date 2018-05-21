@@ -3,8 +3,6 @@
 
 #include "token.h"
 
-#include <stdbool.h>
-
 typedef struct Lexer {
 	const char *source;
 	const char *tokenStart;
