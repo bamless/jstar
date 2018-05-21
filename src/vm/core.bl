@@ -29,6 +29,40 @@ class String {
 	native substr(from, to);
 	native length();
 
+	def format(args) {
+		var s = "";         // string being built
+		var lastformat = 0; // index of 1 past the end of last format symbol
+		var formatn = 0;    // keeps track of the format symbols encountered
+		for(var i = 0; i < this.length(); i = i + 1) {
+			if(this[i] == "\\") {
+				i = i + 1; // skip escaped char
+			} else if(this[i] == "{") {
+				var endformat = i;
+				while(this[endformat] != "}") {
+					endformat = endformat + 1;
+					if(endformat >= this.length()) {
+						error("Unterminated format.");
+					}
+				}
+
+				var argn = formatn;
+				if(endformat - i > 1) {
+					argn = int(this.substr(i + 1, endformat));
+				}
+
+				s = s + this.substr(lastformat, i);
+				s = s + args[argn].__string__();
+
+				lastformat = endformat + 1;
+				formatn = formatn + 1;
+			}
+		}
+		if(lastformat < this.length()) {
+			s = s + this.substr(lastformat, this.length());
+		}
+		return s;
+	}
+
 	def __string__() {
 		return this;
 	}
@@ -190,6 +224,10 @@ def print(o) {
 		error("__string__() didn't return a string: type " + s.__class__().getName());
 	}
 	__printstr(o.__string__());
+}
+
+def printf(fmt, args) {
+	__printstr(fmt.format(args));
 }
 
 def str(e) {

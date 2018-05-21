@@ -231,15 +231,7 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 		}
 	}
 
-	ObjClass *cls;
-	if(IS_NUM(val)) {
-		cls = vm->numClass;
-	} else if(IS_BOOL(val)) {
-		cls = vm->boolClass;
-	} else {
-		cls = vm->nullClass;
-	}
-
+	ObjClass *cls = getClass(vm, val);
 	if(!invokeMethod(vm, cls, name, argc)) {
 		return false;
 	}
@@ -500,7 +492,9 @@ static bool runEval(VM *vm) {
 			pop(vm);
 			push(vm, OBJ_VAL(strc));
 		} else {
-			runtimeError(vm, "Operand of get `[]` must be a string or a list.");
+			ObjClass *cls = getClass(vm, o);
+			runtimeError(vm, "Operand of get `[]` must be a String or a List, "
+					         "instead got %s.", cls->name->data);
 			return false;
 		}
 		continue;

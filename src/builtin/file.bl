@@ -3,6 +3,10 @@ class File {
 		this.__handle = handle;
 	}
 
+	def __iterator__() {
+		return __FileIterator(this);
+	}
+
 	native size();
 	native readAll();
 	native readLine();
@@ -18,6 +22,21 @@ def open(name, mode) {
 		return null;
 	}
 	return File(handle);
+}
+
+class __FileIterator {
+	def new(file) {
+		this.file = file;
+	}
+
+	def hasNext() {
+		this.line = this.file.readLine();
+		return this.line != "";
+	}
+
+	def next() {
+		return this.line;
+	}
 }
 
 native __open(name, mode);

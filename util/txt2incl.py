@@ -9,8 +9,8 @@ def error(msg):
 def stringify(line):
 	line = line[:len(line) - 1]
 	if not line: return line
+	line = line.replace("\\", "\\\\")
 	line = line.replace('"', '\\"')
-	line = line.replace("\\n", "\\\\n")
 	return '"' + line + '\\n"'
 
 if len(sys.argv) < 2:
