@@ -248,7 +248,8 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 			if(!hashTableGet(&inst->fields, name, &v)) {
 				//if we didnt find a field try to return bound method
 				if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
-					runtimeError(vm, "Field `%s` doesn't exists", name->data);
+					runtimeError(vm, "Object %s doesn't have field `%s`.",
+									  inst->base.cls->name->data, name->data);
 					return false;
 				}
 
