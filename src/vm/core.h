@@ -7,6 +7,8 @@ typedef struct VM VM;
 
 void initCoreLibrary(VM *vm);
 
+NATIVE(bl_int);
+NATIVE(bl_num);
 NATIVE(bl_list);
 NATIVE(bl_range);
 NATIVE(bl_error);
@@ -48,6 +50,7 @@ NATIVE(bl_typeCheckInt);
 // } List
 
 // class String {
+	NATIVE(bl_substr);
 	NATIVE(bl_String_length);
 	NATIVE(bl_String_hash);
 // } String

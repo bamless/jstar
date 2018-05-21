@@ -62,6 +62,8 @@ Module builtInModules[] = {
 	COREMODULE
 		FUNCTION(typecheck, &bl_typeCheck)
 		FUNCTION(typecheckInt, &bl_typeCheckInt)
+		FUNCTION(int, &bl_int)
+		FUNCTION(num, &bl_num)
 		FUNCTION(list, &bl_list)
 		FUNCTION(range, &bl_range)
 		FUNCTION(error, &bl_error)
@@ -94,7 +96,8 @@ Module builtInModules[] = {
 			METHOD(clear,  &bl_List_clear)
 		ENDCLASS
 		CLASS(String)
-			METHOD(length,  &bl_String_length)
+			METHOD(substr, &bl_substr)
+			METHOD(length, &bl_String_length)
 			METHOD(__hash__, &bl_String_hash)
 		ENDCLASS
 	ENDMODULE

@@ -25,6 +25,8 @@ class Module   {
 
 class String {
 	def new() { error("Class String cannot be instantiated."); }
+
+	native substr(from, to);
 	native length();
 
 	def __string__() {
@@ -194,6 +196,8 @@ def str(e) {
 	return e.__string__();
 }
 
+native int(n);
+native num(n);
 native typecheck(o, cls, n);
 native typecheckInt(o, n);
 native range(from, to);

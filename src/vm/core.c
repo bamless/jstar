@@ -5,6 +5,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
+#include <limits.h>
+#include <errno.h>
 
 static ObjClass* createClass(VM *vm, ObjModule *m, ObjClass *sup, const char *name) {
 	ObjString *n = copyString(vm, name, strlen(name));
@@ -118,6 +121,66 @@ void initCoreLibrary(VM *vm) {
 			o->cls = vm->funClass;
 		}
 	}
+}
+
+NATIVE(bl_int) {
+	if(IS_STRING(args[1])) {
+		char *end = NULL;
+		char *nstr = AS_STRING(args[1])->data;
+		long long n = strtoll(nstr, &end, 10);
+
+		if((n == 0 && end == nstr) || *end != '\0') {
+			blRuntimeError(vm, "int(): Invalid arg: \"%s\".", nstr);
+			return NULL_VAL;
+		}
+		if(n == LLONG_MAX) {
+			blRuntimeError(vm, "int(): Overflow: \"%s\".", nstr);
+			return NULL_VAL;
+		}
+		if(n == LLONG_MIN) {
+			blRuntimeError(vm, "int(): Underflow: \"%s\".", nstr);
+			return NULL_VAL;
+		}
+
+		return NUM_VAL(n);
+	}
+	if(IS_NUM(args[1])) {
+		return NUM_VAL((int64_t)AS_NUM(args[1]));
+	}
+
+	blRuntimeError(vm, "int(): Argument must be a Number or a String.");
+	return NULL_VAL;
+}
+
+NATIVE(bl_num) {
+	if(IS_STRING(args[1])) {
+		errno = 0;
+
+		char *end = NULL;
+		char *nstr = AS_STRING(args[1])->data;
+		double n = strtod(nstr, &end);
+
+		if((n == 0 && end == nstr) || *end != '\0') {
+			blRuntimeError(vm, "num(): Invalid arg: \"%s\".", nstr);
+			return NULL_VAL;
+		}
+		if(n == HUGE_VAL || n == -HUGE_VAL) {
+			blRuntimeError(vm, "num(): Overflow: \"%s\".", nstr);
+			return NULL_VAL;
+		}
+		if(n == 0 && errno == ERANGE) {
+			blRuntimeError(vm, "num(): Underflow: \"%s\".", nstr);
+			return NULL_VAL;
+		}
+
+		return NUM_VAL(n);
+	}
+	if(IS_NUM(args[1])) {
+		return args[1];
+	}
+
+	blRuntimeError(vm, "num(): Argument must be a Number or a String.");
+	return NULL_VAL;
 }
 
 NATIVE(bl_list) {
@@ -360,6 +423,39 @@ NATIVE(bl_typeCheckInt) {
 // } List
 
 // class String {
+	NATIVE(bl_substr) {
+		if(!IS_INT(args[1]) || !IS_INT(args[2])) {
+			blRuntimeError(vm, "String.substr(): arguments must be integers.");
+			return NULL_VAL;
+		}
+
+		ObjString *str = AS_STRING(args[0]);
+		int64_t from = AS_NUM(args[1]);
+		int64_t to = AS_NUM(args[2]);
+
+		if(from > to) {
+			blRuntimeError(vm, "String.substr(): argument to must be >= from.");
+			return NULL_VAL;
+		}
+		if(from < 0 || (size_t)from > str->length - 1) {
+			blRuntimeError(vm, "String.substr(): String index out of bounds: from %d.", from);
+			return NULL_VAL;
+		}
+		if((size_t)to > str->length) {
+			blRuntimeError(vm, "String.substr(): String index out of bounds: to %d.", to);
+			return NULL_VAL;
+		}
+
+		size_t len = to - from;
+		char *cstr = ALLOC(vm, len + 1);
+		for(size_t i = from; i < (size_t)to; i++) {
+			cstr[i - from] = str->data[i];
+		}
+		cstr[len] = '\0';
+
+		return OBJ_VAL(newStringFromBuf(vm, cstr, len));
+	}
+
 	NATIVE(bl_String_length) {
 		return NUM_VAL(AS_STRING(args[0])->length);
 	}

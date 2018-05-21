@@ -46,7 +46,6 @@ static int charCount(const char *str, char c) {
 
 static void interactiveEval(VM *vm) {
 	header();
-
 	rl_bind_key('\t', rl_insert);
 
 	StringBuffer src;
@@ -77,6 +76,7 @@ static void interactiveEval(VM *vm) {
 			while((blockLine = readline("....... ")) != NULL) {
 				if(strlen(blockLine) == 0) continue;
 
+				sbuf_appendchar(&src, '\n');
 				sbuf_appendstr(&src, blockLine);
 				add_history(blockLine);
 
