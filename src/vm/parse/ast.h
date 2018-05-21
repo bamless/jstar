@@ -87,7 +87,7 @@ void freeExpr(Expr *e);
 
 typedef enum StmtType {
 	IF, FOR, WHILE, FOREACH, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL,
-	NATIVEDECL, CLASSDECL, PRINT, IMPORT
+	NATIVEDECL, CLASSDECL, IMPORT
 } StmtType;
 
 typedef struct Stmt Stmt;
@@ -139,9 +139,6 @@ struct Stmt {
 			LinkedList *methods;
 		} classDecl;
 		struct {
-			Expr *e;
-		} printStmt;
-		struct {
 			Identifier module;
 			Identifier as;
 		} importStmt;
@@ -161,7 +158,6 @@ Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
 Stmt *newBlockStmt(int line, LinkedList *list);
 Stmt *newReturnStmt(int line, Expr *e);
-Stmt *newPrintStmt(int line, Expr *e);
 Stmt *newExprStmt(int line, Expr *e);
 
 void freeStmt(Stmt *s);

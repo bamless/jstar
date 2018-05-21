@@ -73,7 +73,6 @@ typedef enum Opcode {
 	OP_JUMPT,
 	OP_JUMPF,
 
-	OP_PRINT,
 	OP_IMPORT,
 	OP_IMPORT_AS,
 

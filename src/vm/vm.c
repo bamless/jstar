@@ -724,10 +724,6 @@ sup_invoke:;
 	case OP_SET_LOCAL:
 		frame->stack[NEXT_CODE()] = peek(vm);
 		continue;
-	case OP_PRINT:
-		printValue(pop(vm));
-		printf("\n");
-		continue;
 	case OP_POP:
 		pop(vm);
 		continue;

@@ -744,10 +744,6 @@ static void compileStatement(Compiler *c, Stmt *s) {
 	case CLASSDECL:
 		compileClass(c, s);
 		break;
-	case PRINT:
-		compileExpr(c, s->printStmt.e);
-		emitBytecode(c, OP_PRINT, s->line);
-		break;
 	case IMPORT:
 		compileImportStatement(c, s);
 		break;

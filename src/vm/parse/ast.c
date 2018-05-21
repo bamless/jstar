@@ -289,14 +289,6 @@ Stmt *newBlockStmt(int line, LinkedList *list) {
 	return s;
 }
 
-Stmt *newPrintStmt(int line, Expr *e) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = PRINT;
-	s->printStmt.e = e;
-	return s;
-}
-
 Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
@@ -389,9 +381,6 @@ void freeStmt(Stmt *s) {
 	}
 	case VARDECL:
 		freeExpr(s->varDecl.init);
-		break;
-	case PRINT:
-		freeExpr(s->printStmt.e);
 		break;
 	case IMPORT: break;
 	}

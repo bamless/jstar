@@ -325,16 +325,6 @@ static Stmt *blockStmt(Parser *p) {
 	return newBlockStmt(line, stmts);
 }
 
-static Stmt *printStmt(Parser *p) {
-	int line = p->peek.line;
-	require(p, TOK_PRINT);
-
-	Expr *e = parseExpr(p);
-	require(p, TOK_SEMICOLON);
-
-	return newPrintStmt(line, e);
-}
-
 static Stmt *parseImport(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_IMPORT);
@@ -381,8 +371,6 @@ static Stmt *parseStmt(Parser *p) {
 		return returnStmt(p);
 	case TOK_LBRACE:
 		return blockStmt(p);
-	case TOK_PRINT:
-		return printStmt(p);
 	case TOK_CLASS:
 		return parseClassDecl(p);
 	case TOK_IMPORT:
