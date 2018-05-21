@@ -150,10 +150,10 @@ Stmt *newClassDecl(int line, size_t clength, const char *cid, size_t slength, co
 Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
 Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body);
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args);
-Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
+Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
 Stmt *newBlockStmt(int line, LinkedList *list);
 Stmt *newReturnStmt(int line, Expr *e);
