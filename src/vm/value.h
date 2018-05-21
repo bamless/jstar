@@ -54,7 +54,7 @@ static inline double valueToNum(Value val) {
 }
 
 static inline bool valueEquals(Value v1, Value v2) {
-	return v1 == v2;
+	return IS_NUM(v1) && IS_NUM(v2) ? AS_NUM(v1) == AS_NUM(v2) : v1 == v2;
 }
 
 #else

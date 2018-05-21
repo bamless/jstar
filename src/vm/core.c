@@ -301,10 +301,12 @@ NATIVE(bl_typeCheckInt) {
 	}
 
 	NATIVE(bl_Number_hash) {
+		double num = AS_NUM(args[0]);
+		if(num == 0) num = 0;
 		union {
 			double d;
 			uint64_t r;
-		} c = {.d = AS_NUM(args[0])};
+		} c = {.d = num};
 		uint64_t n = hash64(c.r);
 		return NUM_VAL((uint32_t) n);
 	}
