@@ -147,10 +147,9 @@ struct Stmt {
 };
 
 Stmt *newClassDecl(int line, size_t clength, const char *cid, size_t slength, const char *sid, LinkedList *methods);
+Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
 Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body);
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args);
-
-Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
 Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
