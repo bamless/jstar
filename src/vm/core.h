@@ -14,8 +14,8 @@ NATIVE(bl_range);
 NATIVE(bl_error);
 NATIVE(bl_isInt);
 NATIVE(bl_printstr);
-NATIVE(bl_typeCheck);
-NATIVE(bl_typeCheckInt);
+NATIVE(bl_typeassert);
+NATIVE(bl_typeassertInt);
 
 // class Number {
 	NATIVE(bl_Number_string);

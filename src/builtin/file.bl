@@ -14,8 +14,8 @@ class File {
 }
 
 def open(name, mode) {
-	typecheck(name, String, 1);
-	typecheck(mode, String, 2);
+	typeassert(name, String, "Argument 1");
+	typeassert(mode, String, "Argument 2");
 
 	var handle = __open(name, mode);
 	if(handle == null) {

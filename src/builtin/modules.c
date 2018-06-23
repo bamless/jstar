@@ -60,8 +60,8 @@ typedef struct {
 
 Module builtInModules[] = {
 	COREMODULE
-		FUNCTION(typecheck, &bl_typeCheck)
-		FUNCTION(typecheckInt, &bl_typeCheckInt)
+		FUNCTION(typeassert, &bl_typeassert)
+		FUNCTION(typeassertInt, &bl_typeassertInt)
 		FUNCTION(int, &bl_int)
 		FUNCTION(num, &bl_num)
 		FUNCTION(list, &bl_list)

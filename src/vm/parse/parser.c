@@ -130,6 +130,8 @@ static Stmt *parseFuncDecl(Parser *p) {
 	return newFuncDecl(line, length, name, args, body);
 }
 
+static Expr *parseExpr(Parser *p);
+
 static Stmt *parseClassDecl(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_CLASS);
@@ -145,19 +147,10 @@ static Stmt *parseClassDecl(Parser *p) {
 		advance(p);
 	}
 
-	const char *sname = NULL;
-	size_t slength = 0;
-	if(match(p, TOK_LPAREN)) {
-		require(p, TOK_LPAREN);
-		if(match(p, TOK_IDENTIFIER)) {
-			sname = p->peek.lexeme;
-			slength = p->peek.length;
-			advance(p);
-		} else {
-			error(p, "Expected superclass name.");
-			advance(p);
-		}
-		require(p, TOK_RPAREN);
+	Expr *sup = NULL;
+	if(match(p, TOK_COLON)) {
+		require(p, TOK_COLON);
+		sup = parseExpr(p);
 	}
 
 	require(p, TOK_LBRACE);
@@ -173,12 +166,10 @@ static Stmt *parseClassDecl(Parser *p) {
 
 	require(p, TOK_RBRACE);
 
-	return newClassDecl(line, clength, cname, slength, sname, methods);
+	return newClassDecl(line, clength, cname, sup, methods);
 }
 
 //----- Statements parse ------
-
-static Expr *parseExpr(Parser *p);
 
 static Stmt *varDecl(Parser *p) {
 	int line = p->peek.line;

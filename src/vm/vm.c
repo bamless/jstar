@@ -661,6 +661,10 @@ sup_invoke:;
 		createClass(vm, GET_STRING(), vm->objClass);
 		continue;
 	case OP_NEW_SUBCLASS:
+		if(!IS_CLASS(peek(vm))) {
+			runtimeError(vm, "Superclass in class declaration must be a Class.");
+			return false;
+		}
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
 		continue;
 	case OP_DEF_METHOD: {

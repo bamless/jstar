@@ -626,9 +626,9 @@ static void compileNative(Compiler *c, Stmt *s) {
 static void compileClass(Compiler *c, Stmt *s) {
 	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
 
-	bool isSubClass = s->classDecl.sid.name != NULL;
+	bool isSubClass = s->classDecl.sup != NULL;
 	if(isSubClass) {
-		compileVar(c, &s->classDecl.sid, s->line);
+		compileExpr(c, s->classDecl.sup);
 		emitBytecode(c, OP_NEW_SUBCLASS, s->line);
 	} else {
 		emitBytecode(c, OP_NEW_CLASS, s->line);

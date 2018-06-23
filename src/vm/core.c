@@ -243,13 +243,13 @@ static ObjClass *getClass(VM *vm, Value v) {
 	}
 }
 
-NATIVE(bl_typeCheck) {
+NATIVE(bl_typeassert) {
 	if(!IS_CLASS(args[2])) {
-		blRuntimeError(vm, "typeCheck(): Argument 2 must be a Class.");
+		blRuntimeError(vm, "typeassert(): Argument 2 must be a Class.");
 		return NULL_VAL;
 	}
-	if(!IS_INT(args[3])) {
-		blRuntimeError(vm, "typeCheck(): Argument 3 must be an integer.");
+	if(!IS_STRING(args[3])) {
+		blRuntimeError(vm, "typeassert(): Argument 3 must be a String.");
 		return NULL_VAL;
 	}
 
@@ -265,24 +265,24 @@ NATIVE(bl_typeCheck) {
 	}
 
 	if(!instance) {
-		blRuntimeError(vm, "Argument %d must be a %s, instead got %s.",
-						(int)AS_NUM(args[3]), cls->name->data, c->name->data);
+		blRuntimeError(vm, "%s: expected %s, instead got %s.",
+						AS_STRING(args[3])->data, cls->name->data, c->name->data);
 		return NULL_VAL;
 	}
 
 	return NULL_VAL;
 }
 
-NATIVE(bl_typeCheckInt) {
-	if(!IS_INT(args[2])) {
-		blRuntimeError(vm, "typeCheckInt(): Argument 2 must be an integer.");
+NATIVE(bl_typeassertInt) {
+	if(!IS_STRING(args[2])) {
+		blRuntimeError(vm, "typeassertInt(): Argument 2 must be a String.");
 		return NULL_VAL;
 	}
 
 	if(!IS_INT(args[1])) {
 		ObjClass *c = getClass(vm, args[1]);
-		blRuntimeError(vm, "Argument %d must be an Integer, "
-					"instead got %s.", (int)AS_NUM(args[2]), c->name->data);
+		blRuntimeError(vm, "%s: expected Integer, instead got %s.",
+						AS_STRING(args[2])->data, c->name->data);
 		return NULL_VAL;
 	}
 

@@ -214,7 +214,7 @@ class __ListReverseIterator {
 }
 
 def reversed(lst) {
-	typecheck(lst, List, 1);
+	typeassert(lst, List, "Argument 1");
 	return __ListReverseIterator(lst);
 }
 
@@ -236,8 +236,8 @@ def str(e) {
 
 native int(n);
 native num(n);
-native typecheck(o, cls, n);
-native typecheckInt(o, n);
+native typeassert(o, cls, msg);
+native typeassertInt(o, msg);
 native range(from, to);
 native list(n, init);
 native error(msg);

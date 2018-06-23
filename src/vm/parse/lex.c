@@ -199,6 +199,7 @@ void nextToken(Lexer *lex, Token *tok) {
 	case '{': makeToken(lex, tok, TOK_LBRACE);    break;
 	case '}': makeToken(lex, tok, TOK_RBRACE);    break;
 	case ';': makeToken(lex, tok, TOK_SEMICOLON); break;
+	case ':': makeToken(lex, tok, TOK_COLON);     break;
 	case ',': makeToken(lex, tok, TOK_COMMA);     break;
 	case '.': makeToken(lex, tok, TOK_DOT);       break;
 	case '-': makeToken(lex, tok, TOK_MINUS);     break;

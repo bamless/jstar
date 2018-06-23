@@ -23,6 +23,7 @@ typedef enum {
 	TOK_MINUS,
 	TOK_PLUS,
 	TOK_SEMICOLON,
+	TOK_COLON,
 	TOK_DIV,
 	TOK_MULT,
 	TOK_MOD,

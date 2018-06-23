@@ -186,8 +186,7 @@ void freeExpr(Expr *e) {
 
 //----- Statements -----
 
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args,
-	                                                       Stmt *body) {
+Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body) {
 	Stmt *f = malloc(sizeof(*f));
 	f->line = line;
 	f->type = FUNCDECL;
@@ -208,17 +207,13 @@ Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args) {
 	return n;
 }
 
-Stmt *newClassDecl(int line, size_t clength, const char *cid,
-	                                         size_t slength,
-	                                         const char *sid,
-	                                         LinkedList *methods) {
+Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods) {
 	Stmt *c = malloc(sizeof(*c));
 	c->line = line;
 	c->type = CLASSDECL;
+	c->classDecl.sup = sup;
 	c->classDecl.id.name = cid;
 	c->classDecl.id.length = clength;
-	c->classDecl.sid.name = sid;
-	c->classDecl.sid.length = slength;
 	c->classDecl.methods = methods;
 	return c;
 }
@@ -370,6 +365,7 @@ void freeStmt(Stmt *s) {
 		break;
 	}
 	case CLASSDECL: {
+		freeExpr(s->classDecl.sup);
 		LinkedList *head = s->classDecl.methods;
 		while(head != NULL) {
 			LinkedList *f = head;

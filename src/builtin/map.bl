@@ -132,14 +132,37 @@ class HashMap {
 	}
 
 	def keySet() {
-		var s = set.HashSet();
-		var iterator = this.keyIterator();
+		class __KeySet : set.HashSet {
+			def new(map) {
+				this._map = map;
+			}
 
-		while(iterator.hasNext()) {
-			s.add(iterator.next());
+			def contains(e) {
+				return this._map.__getEntry(e) != null;
+			}
+
+			def addAll(iterable) {
+				error("addAll not supported in KeySet");
+			}
+
+			def add(e) {
+				error("add not supported in KeySet.");
+			}
+
+			def remove(e) {
+				error("remove not supported in KeySet.");
+			}
+
+			def removeAll(iterable) {
+				error("removeAll not supported in KeySet");
+			}
+
+			def clear() {
+				error("clear not supported in KeySet");
+			}
 		}
 
-		return s;
+		return __KeySet(this);
 	}
 
 	def keyIterator() {
@@ -199,15 +222,19 @@ class __EntryIterator {
 
 		return e;
 	}
+
+	def __iterator__() {
+		return this;
+	}
 }
 
-class __KeyIterator(__EntryIterator) {
+class __KeyIterator : __EntryIterator {
 	def next() {
 		return super.next().key;
 	}
 }
 
-class __ValueIterator(__EntryIterator) {
+class __ValueIterator : __EntryIterator {
 	def next() {
 		return super.next().value;
 	}
