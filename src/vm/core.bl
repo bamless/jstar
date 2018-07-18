@@ -234,12 +234,47 @@ def str(e) {
 	return e.__string__();
 }
 
+class range {
+	def new(from, to) {
+		if(!isInt(from) or !isInt(to)) {
+			error("Argument `from` and `to` must be integers");
+		}
+		this.from = from;
+		this.to = to;
+		this.count = from;
+	}
+
+	def hasNext() {
+		return this.count < this.to;
+	}
+
+	def next() {
+		var i = this.count;
+		this.count = this.count + 1;
+		return i;
+	}
+
+	def __iterator__() {
+		return this;
+	}
+
+	def __string__() {
+		var s = "[";
+		for(var i = this.from; i < this.to; i = i + 1) {
+			s = s + i.__string__();
+			if(i != this.to - 1) s = s + ", ";
+		}
+		return s + "]";
+	}
+
+}
+
 native int(n);
 native num(n);
 native typeassert(o, cls, msg);
 native typeassertInt(o, msg);
-native range(from, to);
 native list(n, init);
 native error(msg);
 native isInt(n);
+
 native __printstr(str);

@@ -198,21 +198,6 @@ NATIVE(bl_list) {
 	return OBJ_VAL(l);
 }
 
-NATIVE(bl_range) {
-	ObjList *lst = newList(vm, 16);
-	if(!IS_INT(args[1]) || !IS_INT(args[2])) {
-		return OBJ_VAL(lst);
-	}
-
-	push(vm, OBJ_VAL(lst));
-	int64_t from = AS_NUM(args[1]), to = AS_NUM(args[2]);
-	for(int64_t i = from; i < to; i++) {
-		listAppend(vm, lst, NUM_VAL(i));
-	}
-	pop(vm);
-	return OBJ_VAL(lst);
-}
-
 NATIVE(bl_error) {
 	blRuntimeError(vm, AS_STRING(args[1])->data);
 	return NULL_VAL;

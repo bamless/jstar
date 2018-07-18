@@ -65,7 +65,6 @@ Module builtInModules[] = {
 		FUNCTION(int, &bl_int)
 		FUNCTION(num, &bl_num)
 		FUNCTION(list, &bl_list)
-		FUNCTION(range, &bl_range)
 		FUNCTION(error, &bl_error)
 		FUNCTION(isInt, &bl_isInt)
 		FUNCTION(__printstr, &bl_printstr)
