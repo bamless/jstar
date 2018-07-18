@@ -266,7 +266,6 @@ class range {
 		}
 		return s + "]";
 	}
-
 }
 
 native int(n);
