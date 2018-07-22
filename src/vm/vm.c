@@ -388,12 +388,32 @@ static bool runEval(VM *vm) {
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
 
+		if(b == 0) {
+			runtimeError(vm, "Modulo by zero error.");
+			return false;
+		}
+
+		push(vm, NUM_VAL(fmod(a, b)));
+		continue;
+	}
+	case OP_DIV: {
+		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
+			runtimeError(vm, "Operands of `/` must be numbers.");
+			return false;
+		}
+		double b = AS_NUM(pop(vm));
+		double a = AS_NUM(pop(vm));
+
+		if(b == 0) {
+			runtimeError(vm, "Division by zero error.");
+			return false;
+		}
+
 		push(vm, NUM_VAL(fmod(a, b)));
 		continue;
 	}
 	case OP_SUB: BINARY(NUM_VAL, -);   continue;
 	case OP_MUL: BINARY(NUM_VAL, *);   continue;
-	case OP_DIV: BINARY(NUM_VAL, /);   continue;
 	case OP_LT:  BINARY(BOOL_VAL, <);  continue;
 	case OP_LE:  BINARY(BOOL_VAL, <=); continue;
 	case OP_GT:  BINARY(BOOL_VAL, >);  continue;
