@@ -2,10 +2,9 @@
 
 #include <stdio.h>
 
-const char *typeName[] = {
-	"OBJ_STRING", "OBJ_NATIVE", "OBJ_FUNCTION", "OBJ_CLASS", "OBJ_INST",
-	"OBJ_MODULE", "OBJ_LIST", "OBJ_BOUND_METHOD"
-};
+#ifdef DBG_PRINT_GC
+DEFINE_TO_STRING(ObjType, OBJTYPE);
+#endif
 
 void printObj(Obj *o) {
 	switch(o->type) {

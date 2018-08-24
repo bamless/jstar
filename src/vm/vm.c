@@ -339,34 +339,66 @@ static bool runEval(VM *vm) {
 		push(vm, type(a op b)); \
 	} while(0)
 
+	#ifdef DBG_PRINT_EXEC
+		#define PRINT_DBG_STACK() \
+			printf("     "); \
+			for(Value *v = vm->stack; v < vm->sp; v++) { \
+				printf("["); \
+				printValue(*v); \
+				printf("]"); \
+			} \
+			printf("$\n"); \
+			disassembleop(&frame->fn->chunk, (size_t) (frame-> ip - frame->fn->chunk.code));
+	#else
+		#define PRINT_DBG_STACK()
+	#endif
+
+	#ifdef USE_COMPUTED_GOTOS
+		//import jumptable
+		#include "opcode_jmp_table.h"
+
+		#define TARGET(op) \
+			TARGET_##op \
+
+		#define DISPATCH() do { \
+			PRINT_DBG_STACK() \
+			if(vm->error) { \
+				reset(vm); \
+				return false; \
+			} \
+			op = NEXT_CODE(); \
+			goto *opJmpTable[op]; \
+		} while(0)
+
+		#define CASE(op) DISPATCH();
+
+	#else
+
+		#define TARGET(op) case op
+		#define DISPATCH() continue
+		#define CASE(op) switch((op = NEXT_CODE()))
+
+	#endif
+
 	// Eval loop
 	for(;;) {
 
-#ifdef DBG_PRINT_EXEC
-	printf("     ");
-	for(Value *v = vm->stack; v < vm->sp; v++) {
-		printf("[");
-		printValue(*v);
-		printf("]");
-	}
-	printf("$\n");
-
-	disassembleIstr(&frame->fn->chunk, (size_t) (frame-> ip - frame->fn->chunk.code));
-#endif
+	PRINT_DBG_STACK()
 
 	if(vm->error) {
 		reset(vm);
 		return false;
 	}
 
-	uint8_t istr;
-	switch((istr = NEXT_CODE())) {
-	case OP_ADD: {
+	uint8_t op;
+	CASE(op) {
+
+	TARGET(OP_ADD): {
 		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
 			double b = AS_NUM(pop(vm));
 			double a = AS_NUM(pop(vm));
 			push(vm, NUM_VAL(a + b));
-			continue;
+			DISPATCH();
 		} else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
 			ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)),
 			                                        AS_STRING(peek(vm)));
@@ -375,12 +407,12 @@ static bool runEval(VM *vm) {
 			pop(vm);
 
 			push(vm, OBJ_VAL(conc));
-			continue;
+			DISPATCH();
 		}
 		runtimeError(vm, "Operands of `+` must be two numbers or two strings.");
 		return false;
 	}
-	case OP_MOD: {
+	TARGET(OP_MOD): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
 			runtimeError(vm, "Operands of `%` must be numbers.");
 			return false;
@@ -394,9 +426,9 @@ static bool runEval(VM *vm) {
 		}
 
 		push(vm, NUM_VAL(fmod(a, b)));
-		continue;
+		DISPATCH();
 	}
-	case OP_DIV: {
+	TARGET(OP_DIV): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
 			runtimeError(vm, "Operands of `/` must be numbers.");
 			return false;
@@ -410,27 +442,27 @@ static bool runEval(VM *vm) {
 		}
 
 		push(vm, NUM_VAL(fmod(a, b)));
-		continue;
+		DISPATCH();
 	}
-	case OP_SUB: BINARY(NUM_VAL, -);   continue;
-	case OP_MUL: BINARY(NUM_VAL, *);   continue;
-	case OP_LT:  BINARY(BOOL_VAL, <);  continue;
-	case OP_LE:  BINARY(BOOL_VAL, <=); continue;
-	case OP_GT:  BINARY(BOOL_VAL, >);  continue;
-	case OP_GE:  BINARY(BOOL_VAL, >=); continue;
-	case OP_EQ: {
+	TARGET(OP_SUB): BINARY(NUM_VAL, -);   DISPATCH();
+	TARGET(OP_MUL): BINARY(NUM_VAL, *);   DISPATCH();
+	TARGET(OP_LT):  BINARY(BOOL_VAL, <);  DISPATCH();
+	TARGET(OP_LE):  BINARY(BOOL_VAL, <=); DISPATCH();
+	TARGET(OP_GT):  BINARY(BOOL_VAL, >);  DISPATCH();
+	TARGET(OP_GE):  BINARY(BOOL_VAL, >=); DISPATCH();
+	TARGET(OP_EQ): {
 		Value b = pop(vm);
 		Value a = pop(vm);
 		push(vm, BOOL_VAL(valueEquals(a, b)));
-		continue;
+		DISPATCH();
 	}
-	case OP_NEQ: {
+	TARGET(OP_NEQ): {
 		Value b = pop(vm);
 		Value a = pop(vm);
 		push(vm, BOOL_VAL(!valueEquals(a, b)));
-		continue;
+		DISPATCH();
 	}
-	case OP_IS: {
+	TARGET(OP_IS): {
 		Value b = pop(vm);
 		Value a = pop(vm);
 
@@ -451,33 +483,33 @@ static bool runEval(VM *vm) {
 		}
 
 		push(vm, BOOL_VAL(isInstance));
-		continue;
+		DISPATCH();
 	}
-	case OP_NEG:
+	TARGET(OP_NEG):
 		if(!IS_NUM(peek(vm))) {
 			runtimeError(vm, "Operand to `-` must be a number.");
 			return false;
 		}
 		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
-		continue;
-	case OP_NOT:
+		DISPATCH();
+	TARGET(OP_NOT):
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
-		continue;
-	case OP_GET_FIELD: {
+		DISPATCH();
+	TARGET(OP_GET_FIELD): {
 		Value v = pop(vm);
 		if(!getFieldFromValue(vm, v, GET_STRING())) {
 			return false;
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_SET_FIELD: {
+	TARGET(OP_SET_FIELD): {
 		Value v = pop(vm);
 		if(!setFieldOfValue(vm, v, GET_STRING(), peek(vm))) {
 			return false;
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_ARR_GET: {
+	TARGET(OP_ARR_GET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
 			runtimeError(vm, "Index of array access must be a number.");
@@ -518,9 +550,9 @@ static bool runEval(VM *vm) {
 					         "instead got %s.", cls->name->data);
 			return false;
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_ARR_SET: {
+	TARGET(OP_ARR_SET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
 			runtimeError(vm, "Index of array access must be a number.");
@@ -546,94 +578,94 @@ static bool runEval(VM *vm) {
 			runtimeError(vm, "Operand of set `[]` must be a list.");
 			return false;
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_JUMP: {
+	TARGET(OP_JUMP): {
 		int16_t off = NEXT_SHORT();
 		frame->ip += off;
-		continue;
+		DISPATCH();
 	}
-	case OP_JUMPF: {
+	TARGET(OP_JUMPF): {
 		int16_t off = NEXT_SHORT();
 		if(!isValTrue(pop(vm))) frame->ip += off;
-		continue;
+		DISPATCH();
 	}
-	case OP_JUMPT: {
+	TARGET(OP_JUMPT): {
 		int16_t off = NEXT_SHORT();
 		if(isValTrue(pop(vm))) frame->ip += off;
-		continue;
+		DISPATCH();
 	}
-	case OP_NULL:
+	TARGET(OP_NULL):
 		push(vm, NULL_VAL);
-		continue;
-	case OP_CALL: {
+		DISPATCH();
+	TARGET(OP_CALL): {
 		uint8_t argc = NEXT_CODE();
 		goto call;
-	case OP_CALL_0:
-	case OP_CALL_1:
-	case OP_CALL_2:
-	case OP_CALL_3:
-	case OP_CALL_4:
-	case OP_CALL_5:
-	case OP_CALL_6:
-	case OP_CALL_7:
-	case OP_CALL_8:
-	case OP_CALL_9:
-	case OP_CALL_10:
-		argc = istr - OP_CALL_0;
+	TARGET(OP_CALL_0):
+	TARGET(OP_CALL_1):
+	TARGET(OP_CALL_2):
+	TARGET(OP_CALL_3):
+	TARGET(OP_CALL_4):
+	TARGET(OP_CALL_5):
+	TARGET(OP_CALL_6):
+	TARGET(OP_CALL_7):
+	TARGET(OP_CALL_8):
+	TARGET(OP_CALL_9):
+	TARGET(OP_CALL_10):
+		argc = op - OP_CALL_0;
 call:
 		if(!callValue(vm, peekn(vm, argc), argc)) {
 			return false;
 		}
 		frame = &vm->frames[vm->frameCount - 1];
-		continue;
+		DISPATCH();
 	}
-	case OP_INVOKE: {
+	TARGET(OP_INVOKE): {
 		uint8_t argc = NEXT_CODE();
 		goto invoke;
-	case OP_INVOKE_0:
-	case OP_INVOKE_1:
-	case OP_INVOKE_2:
-	case OP_INVOKE_3:
-	case OP_INVOKE_4:
-	case OP_INVOKE_5:
-	case OP_INVOKE_6:
-	case OP_INVOKE_7:
-	case OP_INVOKE_8:
-	case OP_INVOKE_9:
-	case OP_INVOKE_10:
-		argc = istr - OP_INVOKE_0;
+	TARGET(OP_INVOKE_0):
+	TARGET(OP_INVOKE_1):
+	TARGET(OP_INVOKE_2):
+	TARGET(OP_INVOKE_3):
+	TARGET(OP_INVOKE_4):
+	TARGET(OP_INVOKE_5):
+	TARGET(OP_INVOKE_6):
+	TARGET(OP_INVOKE_7):
+	TARGET(OP_INVOKE_8):
+	TARGET(OP_INVOKE_9):
+	TARGET(OP_INVOKE_10):
+		argc = op - OP_INVOKE_0;
 invoke:
 		if(!invokeFromValue(vm, GET_STRING(), argc)) {
 			return false;
 		}
 		frame = &vm->frames[vm->frameCount - 1];
-		continue;
+		DISPATCH();
 	}
-	case OP_SUPER: {
+	TARGET(OP_SUPER): {
 		uint8_t argc = NEXT_CODE();
 		goto sup_invoke;
-	case OP_SUPER_0:
-	case OP_SUPER_1:
-	case OP_SUPER_2:
-	case OP_SUPER_3:
-	case OP_SUPER_4:
-	case OP_SUPER_5:
-	case OP_SUPER_6:
-	case OP_SUPER_7:
-	case OP_SUPER_8:
-	case OP_SUPER_9:
-	case OP_SUPER_10:
-		argc = istr - OP_SUPER_0;
+	TARGET(OP_SUPER_0):
+	TARGET(OP_SUPER_1):
+	TARGET(OP_SUPER_2):
+	TARGET(OP_SUPER_3):
+	TARGET(OP_SUPER_4):
+	TARGET(OP_SUPER_5):
+	TARGET(OP_SUPER_6):
+	TARGET(OP_SUPER_7):
+	TARGET(OP_SUPER_8):
+	TARGET(OP_SUPER_9):
+	TARGET(OP_SUPER_10):
+		argc = op - OP_SUPER_0;
 sup_invoke:;
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
 		if(!invokeMethod(vm, inst->base.cls->superCls, GET_STRING(), argc)) {
 			return false;
 		}
 		frame = &vm->frames[vm->frameCount - 1];
-		continue;
+		DISPATCH();
 	}
-	case OP_RETURN: {
+	TARGET(OP_RETURN): {
 		Value ret = pop(vm);
 
 		vm->frameCount--;
@@ -646,10 +678,10 @@ sup_invoke:;
 
 		frame = &vm->frames[vm->frameCount - 1];
 		vm->module = frame->fn->module;
-		continue;
+		DISPATCH();
 	}
-	case OP_IMPORT_AS: {
-	case OP_IMPORT:;
+	TARGET(OP_IMPORT_AS): {
+	TARGET(OP_IMPORT):;
 		ObjString *name = GET_STRING();
 		if(!importModule(vm, name)) {
 			runtimeError(vm, "Cannot load module `%s`", name->data);
@@ -657,7 +689,7 @@ sup_invoke:;
 		}
 
 		//define name for the module in the importing module
-		hashTablePut(&vm->module->globals, istr == OP_IMPORT ?
+		hashTablePut(&vm->module->globals, op == OP_IMPORT ?
 					name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
 
 		//call the module's main if first time import
@@ -665,35 +697,35 @@ sup_invoke:;
 			callValue(vm, peek(vm), 0);
 			frame = &vm->frames[vm->frameCount - 1];
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_APPEND_LIST: {
+	TARGET(OP_APPEND_LIST): {
 		ObjList *l = AS_LIST(peek2(vm));
 
 		listAppend(vm, l, peek(vm));
 		pop(vm);
-		continue;
+		DISPATCH();
 	}
-	case OP_NEW_LIST:
+	TARGET(OP_NEW_LIST):
 		push(vm, OBJ_VAL(newList(vm, 0)));
-		continue;
-	case OP_NEW_CLASS:
+		DISPATCH();
+	TARGET(OP_NEW_CLASS):
 		createClass(vm, GET_STRING(), vm->objClass);
-		continue;
-	case OP_NEW_SUBCLASS:
+		DISPATCH();
+	TARGET(OP_NEW_SUBCLASS):
 		if(!IS_CLASS(peek(vm))) {
 			runtimeError(vm, "Superclass in class declaration must be a Class.");
 			return false;
 		}
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
-		continue;
-	case OP_DEF_METHOD: {
+		DISPATCH();
+	TARGET(OP_DEF_METHOD): {
 		ObjClass *cls = AS_CLASS(peek(vm));
 		ObjString *methodName = GET_STRING();
 		hashTablePut(&cls->methods, methodName, GET_CONST());
-		continue;
+		DISPATCH();
 	}
-	case OP_NAT_METHOD: {
+	TARGET(OP_NAT_METHOD): {
 		ObjClass *cls = AS_CLASS(peek(vm));
 		ObjString *methodName = GET_STRING();
 		ObjNative *native = AS_NATIVE(GET_CONST());
@@ -705,9 +737,9 @@ sup_invoke:;
 		}
 
 		hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
-		continue;
+		DISPATCH();
 	}
-	case OP_DEFINE_NATIVE: {
+	TARGET(OP_DEFINE_NATIVE): {
 		ObjString *name = GET_STRING();
 		ObjNative *nat  = AS_NATIVE(pop(vm));
 
@@ -718,43 +750,43 @@ sup_invoke:;
 		}
 
 		hashTablePut(&vm->module->globals, name, OBJ_VAL(nat));
-		continue;
+		DISPATCH();
 	}
-	case OP_GET_CONST:
+	TARGET(OP_GET_CONST):
 		push(vm, GET_CONST());
-		continue;
-	case OP_DEFINE_GLOBAL:
+		DISPATCH();
+	TARGET(OP_DEFINE_GLOBAL):
 		hashTablePut(&vm->module->globals, GET_STRING(), pop(vm));
-		continue;
-	case OP_GET_GLOBAL: {
+		DISPATCH();
+	TARGET(OP_GET_GLOBAL): {
 		ObjString *name = GET_STRING();
 		if(!hashTableGet(&vm->module->globals, name, vm->sp++)) {
 			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_SET_GLOBAL: {
+	TARGET(OP_SET_GLOBAL): {
 		ObjString *name = GET_STRING();
 		if(hashTablePut(&vm->module->globals, name, peek(vm))) {
 			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
-		continue;
+		DISPATCH();
 	}
-	case OP_GET_LOCAL:
+	TARGET(OP_GET_LOCAL):
 		push(vm, frame->stack[NEXT_CODE()]);
-		continue;
-	case OP_SET_LOCAL:
+		DISPATCH();
+	TARGET(OP_SET_LOCAL):
 		frame->stack[NEXT_CODE()] = peek(vm);
-		continue;
-	case OP_POP:
+		DISPATCH();
+	TARGET(OP_POP):
 		pop(vm);
-		continue;
-	case OP_DUP:
+		DISPATCH();
+	TARGET(OP_DUP):
 		*vm->sp = *(vm->sp - 1);
 		vm->sp++;
-		continue;
+		DISPATCH();
 	}
 
 	}
@@ -764,6 +796,10 @@ sup_invoke:;
 	#undef GET_CONST
 	#undef GET_STRING
 	#undef BINARY
+	#undef PRINT_DBG_STACK
+	#undef CASE
+	#undef TARGET
+	#undef DISPATCH
 }
 
 EvalResult evaluate(VM *vm, const char *src) {
@@ -802,8 +838,8 @@ static void runtimeError(VM *vm, const char* format, ...) {
 	for(int i = 0; i < vm->frameCount; i++) {
 		Frame *frame = &vm->frames[i];
 		ObjFunction *func = frame->fn;
-		size_t istr = frame->ip - func->chunk.code - 1;
-		fprintf(stderr, "    [line:%d] ", getBytecodeSrcLine(&func->chunk, istr));
+		size_t op = frame->ip - func->chunk.code - 1;
+		fprintf(stderr, "    [line:%d] ", getBytecodeSrcLine(&func->chunk, op));
 
 		fprintf(stderr, "module %s in ", func->module->name->data);
 

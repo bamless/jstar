@@ -97,7 +97,7 @@ void initCoreLibrary(VM *vm) {
 	defMethod(vm, core, vm->objClass, &bl_Object_hash,   "__hash__", 0);
 	defMethod(vm, core, vm->objClass, &bl_Object_equals, "__equals__", 1);
 
-	// Patch up Class object infotmation
+	// Patch up Class object information
 	vm->clsClass->superCls = vm->objClass;
 	hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
 	defMethod(vm, core, vm->clsClass, &bl_Class_getName, "getName", 0);

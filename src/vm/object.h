@@ -8,10 +8,13 @@
 #include "hashtable.h"
 #include "chunk.h"
 #include "value.h"
+#include "enum.h"
 
 typedef struct VM VM;
 
-extern const char *typeName[];
+#ifdef DBG_PRINT_GC
+DECLARE_TO_STRING(ObjType);
+#endif
 
 #define OBJ_TYPE(o) (AS_OBJ(o)->type)
 
@@ -33,10 +36,11 @@ extern const char *typeName[];
 #define AS_INSTANCE(o)     ((ObjInstance*)    AS_OBJ(o))
 #define AS_MODULE(o)       ((ObjModule*)      AS_OBJ(o))
 
-typedef enum ObjType {
-	OBJ_STRING, OBJ_NATIVE, OBJ_FUNCTION, OBJ_CLASS, OBJ_INST, OBJ_MODULE,
-	OBJ_LIST, OBJ_BOUND_METHOD
-} ObjType;
+#define OBJTYPE(X) \
+	X(OBJ_STRING) X(OBJ_NATIVE) X(OBJ_FUNCTION) X(OBJ_CLASS) X(OBJ_INST) \
+	X(OBJ_MODULE) X(OBJ_LIST) X(OBJ_BOUND_METHOD)
+
+DEFINE_ENUM(ObjType, OBJTYPE);
 
 typedef struct ObjClass ObjClass;
 

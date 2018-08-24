@@ -247,7 +247,7 @@ void freeObjects(VM *vm) {
 			*head = u->next;
 
 #ifdef DBG_PRINT_GC
-			printf("FREE: unreached object %p type: %s\n", (void*)u, typeName[u->type]);
+			printf("FREE: unreached object %p type: %s\n", (void*)u, ObjTypeName[u->type]);
 #endif
 
 			freeObject(vm, u);
@@ -278,7 +278,7 @@ void reachObject(VM *vm, Obj *o) {
 	if(o == NULL || o->reached) return;
 
 #ifdef DBG_PRINT_GC
-	printf("REACHED: Object %p type: %s repr: ", (void*)o, typeName[o->type]);
+	printf("REACHED: Object %p type: %s repr: ", (void*)o, ObjTypeName[o->type]);
 	printObj(o);
 	printf("\n");
 #endif

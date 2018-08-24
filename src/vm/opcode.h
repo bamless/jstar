@@ -1,99 +1,90 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
+#include "enum.h"
+
 #ifdef DBG_PRINT_EXEC
-extern const char *opName[];
+DECLARE_TO_STRING(Opcode);
 #endif
 
-typedef enum Opcode {
-	//arithmetic operations
-	OP_ADD,
-	OP_SUB,
-	OP_MUL,
-	OP_DIV,
-	OP_MOD,
-	OP_NEG,
-	//equality operations
-	OP_EQ,
-	OP_NEQ,
-	//logical operations
-	OP_NOT,
-	//comparison operations
-	OP_GT,
-	OP_GE,
-	OP_LT,
-	OP_LE,
-	OP_IS,
-	//access
-	OP_GET_FIELD,
-	OP_SET_FIELD,
-	OP_ARR_SET,
-	OP_ARR_GET,
-	//call
-	OP_CALL,
-	OP_CALL_0,
-	OP_CALL_1,
-	OP_CALL_2,
-	OP_CALL_3,
-	OP_CALL_4,
-	OP_CALL_5,
-	OP_CALL_6,
-	OP_CALL_7,
-	OP_CALL_8,
-	OP_CALL_9,
-	OP_CALL_10,
-	//method call
-	OP_INVOKE,
-	OP_INVOKE_0,
-	OP_INVOKE_1,
-	OP_INVOKE_2,
-	OP_INVOKE_3,
-	OP_INVOKE_4,
-	OP_INVOKE_5,
-	OP_INVOKE_6,
-	OP_INVOKE_7,
-	OP_INVOKE_8,
-	OP_INVOKE_9,
-	OP_INVOKE_10,
+#define OPCODE(X) \
+	X(OP_ADD) \
+	X(OP_SUB) \
+	X(OP_MUL) \
+	X(OP_DIV) \
+	X(OP_MOD) \
+	X(OP_NEG) \
+	X(OP_EQ) \
+	X(OP_NEQ) \
+	X(OP_NOT) \
+	X(OP_GT) \
+	X(OP_GE) \
+	X(OP_LT) \
+	X(OP_LE) \
+	X(OP_IS) \
+	X(OP_GET_FIELD) \
+	X(OP_SET_FIELD) \
+	X(OP_ARR_SET) \
+	X(OP_ARR_GET) \
+	X(OP_CALL) \
+	X(OP_CALL_0) \
+	X(OP_CALL_1) \
+	X(OP_CALL_2) \
+	X(OP_CALL_3) \
+	X(OP_CALL_4) \
+	X(OP_CALL_5) \
+	X(OP_CALL_6) \
+	X(OP_CALL_7) \
+	X(OP_CALL_8) \
+	X(OP_CALL_9) \
+	X(OP_CALL_10) \
+	X(OP_INVOKE) \
+	X(OP_INVOKE_0) \
+	X(OP_INVOKE_1) \
+	X(OP_INVOKE_2) \
+	X(OP_INVOKE_3) \
+	X(OP_INVOKE_4) \
+	X(OP_INVOKE_5) \
+	X(OP_INVOKE_6) \
+	X(OP_INVOKE_7) \
+	X(OP_INVOKE_8) \
+	X(OP_INVOKE_9) \
+	X(OP_INVOKE_10) \
+	X(OP_SUPER) \
+	X(OP_SUPER_0) \
+	X(OP_SUPER_1) \
+	X(OP_SUPER_2) \
+	X(OP_SUPER_3) \
+	X(OP_SUPER_4) \
+	X(OP_SUPER_5) \
+	X(OP_SUPER_6) \
+	X(OP_SUPER_7) \
+	X(OP_SUPER_8) \
+	X(OP_SUPER_9) \
+	X(OP_SUPER_10) \
+	X(OP_JUMP) \
+	X(OP_JUMPT) \
+	X(OP_JUMPF) \
+	X(OP_IMPORT) \
+	X(OP_IMPORT_AS) \
+	X(OP_NEW_LIST) \
+	X(OP_APPEND_LIST) \
+	X(OP_NEW_CLASS) \
+	X(OP_NEW_SUBCLASS) \
+	X(OP_DEF_METHOD) \
+	X(OP_NAT_METHOD) \
+	X(OP_GET_CONST) \
+	X(OP_GET_LOCAL) \
+	X(OP_GET_GLOBAL) \
+	X(OP_SET_LOCAL) \
+	X(OP_SET_GLOBAL) \
+	X(OP_DEFINE_GLOBAL) \
+	X(OP_DEFINE_NATIVE) \
+	X(OP_RETURN) \
+	X(OP_NULL) \
+	X(OP_POP) \
+	X(OP_DUP) \
 
-	OP_SUPER,
-	OP_SUPER_0,
-	OP_SUPER_1,
-	OP_SUPER_2,
-	OP_SUPER_3,
-	OP_SUPER_4,
-	OP_SUPER_5,
-	OP_SUPER_6,
-	OP_SUPER_7,
-	OP_SUPER_8,
-	OP_SUPER_9,
-	OP_SUPER_10,
-
-	OP_JUMP,
-	OP_JUMPT,
-	OP_JUMPF,
-
-	OP_IMPORT,
-	OP_IMPORT_AS,
-
-	//stack operations
-	OP_NEW_LIST,
-	OP_APPEND_LIST,
-	OP_NEW_CLASS,
-	OP_NEW_SUBCLASS,
-	OP_DEF_METHOD,
-	OP_NAT_METHOD,
-	OP_GET_CONST,
-	OP_GET_LOCAL,
-	OP_GET_GLOBAL,
-	OP_SET_LOCAL,
-	OP_SET_GLOBAL,
-	OP_DEFINE_GLOBAL,
-	OP_DEFINE_NATIVE,
-	OP_RETURN,
-	OP_NULL,
-	OP_POP,
-	OP_DUP,
-} Opcode;
+DEFINE_ENUM(Opcode, OPCODE);
 
 #endif

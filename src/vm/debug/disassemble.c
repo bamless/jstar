@@ -7,7 +7,7 @@
 void disassembleIstr(Chunk *c, size_t i) {
 	int n = getBytecodeSrcLine(c, i);
 
-	printf("%.4d %s ", n, opName[c->code[i]]);
+	printf("%.4d %s ", n, OpcodeName[c->code[i]]);
 	switch(c->code[i]) {
 	case OP_JUMP:
 	case OP_JUMPT:
