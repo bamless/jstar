@@ -348,7 +348,7 @@ static bool runEval(VM *vm) {
 				printf("]"); \
 			} \
 			printf("$\n"); \
-			disassembleop(&frame->fn->chunk, (size_t) (frame-> ip - frame->fn->chunk.code));
+			disassembleIstr(&frame->fn->chunk, (size_t) (frame-> ip - frame->fn->chunk.code));
 	#else
 		#define PRINT_DBG_STACK()
 	#endif
@@ -441,7 +441,7 @@ static bool runEval(VM *vm) {
 			return false;
 		}
 
-		push(vm, NUM_VAL(fmod(a, b)));
+		push(vm, NUM_VAL(a / b));
 		DISPATCH();
 	}
 	TARGET(OP_SUB): BINARY(NUM_VAL, -);   DISPATCH();
