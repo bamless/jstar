@@ -11,7 +11,7 @@ class File {
 
 		var handle = __open(name, mode);
 		if(handle == null) {
-			raise FileNotFoundException("Couldn't find file " + name);
+			raise FileNotFoundException("Couldn't find file `" + name + "`.");
 		}
 
 		this.__handle = handle;

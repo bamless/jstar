@@ -15,6 +15,7 @@
 #include <string.h>
 #include <float.h>
 #include <math.h>
+#include <limits.h>
 
 static void runtimeError(VM *vm, const char* format, ...);
 
@@ -29,6 +30,7 @@ void initVM(VM *vm) {
 	vm->ctor = NULL;
 
 	vm->exception = NULL;
+	sbuf_create(&vm->stacktrace);
 
 	vm->stack  = malloc(sizeof(Value) * STACK_SZ);
 	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
@@ -334,8 +336,23 @@ static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
 }
 
 static bool unwindStack(VM *vm) {
+	/**
+	 * Calculate the approximate maximum base 10 length of the given integer type.
+	 * This macro evaluates to a constant, as to permit static allocation of buffer
+	 */
+	#define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \
+	    (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
+
+	#define __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
+	    (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
+
+	#define MAX_STRLEN_FOR_INT_TYPE(t) \
+	    (((t) -1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
+	                  : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
+
 	for(;vm->frameCount > 0; vm->frameCount--) {
 		Frame *f = &vm->frames[vm->frameCount - 1];
+
 		if(f->handlerc > 0) {
 			Handler *h = &f->handlers[f->handlerc - 1];
 			f->ip = h->handler;
@@ -345,9 +362,42 @@ static bool unwindStack(VM *vm) {
 			push(vm, OBJ_VAL(vm->exception));
 			return true;
 		}
+
+		// if no handler is encountered save stack info to stacktrace
+		ObjFunction *fn = f->fn;
+		size_t op = f->ip - fn->chunk.code - 1;
+
+		char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
+		sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
+		sbuf_appendstr(&vm->stacktrace, "    [line ");
+		sbuf_appendstr(&vm->stacktrace, line);
+		sbuf_appendstr(&vm->stacktrace, "] ");
+
+		sbuf_appendstr(&vm->stacktrace, "module ");
+		sbuf_appendstr(&vm->stacktrace, fn->module->name->data);
+		sbuf_appendstr(&vm->stacktrace, " in ");
+
+		if(fn->name != NULL) {
+			sbuf_appendstr(&vm->stacktrace, fn->name->data);
+			sbuf_appendstr(&vm->stacktrace, "()\n");
+		} else {
+			sbuf_appendstr(&vm->stacktrace, "<main>\n");
+		}
 	}
 
-	printf("Exception %s\n", vm->exception->cls->name->data);
+	reset(vm);
+
+	printf("Traceback:\n%s", sbuf_get_backing_buf(&vm->stacktrace));
+
+	Value v;
+	bool res = hashTableGet(&((ObjInstance*)vm->exception)->fields,
+							copyString(vm, "err", strlen("err")), &v);
+	if(res && IS_STRING(v)) {
+		printf("%s: %s\n", vm->exception->cls->name->data, AS_STRING(v)->data);
+	} else {
+		printf("%s\n", vm->exception->cls->name->data);
+	}
+
 	return false;
 }
 
@@ -806,6 +856,7 @@ sup_invoke:;
 	TARGET(OP_EXC_HANDLED): {
 		vm->exception = NULL;
 		frame->handlerc--;
+		sbuf_clear(&vm->stacktrace);
 		DISPATCH();
 	}
 	TARGET(OP_END_TRY):
@@ -818,6 +869,7 @@ sup_invoke:;
 		}
 		DISPATCH();
 	TARGET(OP_RAISE): {
+		sbuf_clear(&vm->stacktrace);
 		Value exc = pop(vm);
 
 		if(!isInstance(vm, exc, vm->excClass)) {
@@ -924,6 +976,8 @@ void initCommandLineArgs(int argc, const char **argv) {
 
 void freeVM(VM *vm) {
 	reset(vm);
+
+	sbuf_destroy(&vm->stacktrace);
 
 	freeHashTable(&vm->strings);
 	freeHashTable(&vm->modules);

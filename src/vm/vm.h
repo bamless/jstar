@@ -6,6 +6,8 @@
 #include "compiler.h"
 #include "hashtable.h"
 
+#include "util/stringbuf.h"
+
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -55,6 +57,8 @@ typedef struct VM {
 
 	// Current exception
 	Obj *exception;
+	// Stack trace of current expression
+	StringBuffer stacktrace;
 
 	// Current VM compiler
 	Compiler *currCompiler;
