@@ -50,6 +50,10 @@ const char *tokNames[] = {
 	"var",
 	"while",
 
+	"try",
+	"except",
+	"raise",
+
 	"error",
 	"end of file"
 };

@@ -35,6 +35,8 @@ typedef struct Compiler {
 
 	bool hadError;
 	int depth;
+
+	int tryDepth;
 } Compiler;
 
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
@@ -46,6 +48,7 @@ void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
 	c->type = t;
 	c->func = NULL;
 	c->prev = prev;
+	c->tryDepth = 0;
 	c->depth = depth;
 	c->localsCount = 0;
 	c->hasSuper = false;
@@ -706,6 +709,67 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_POP, s->line);
 }
 
+static void compileExcept(Compiler *c, LinkedList *excs) {
+	Stmt *exc = (Stmt*) excs->elem;
+
+	emitBytecode(c, OP_DUP, exc->line);
+	compileExpr(c, exc->excStmt.cls);
+	emitBytecode(c, OP_IS, 0);
+
+	size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
+	emitShort(c, 0, 0);
+
+	enterScope(c);
+
+	emitBytecode(c, OP_EXC_HANDLED, 0);
+
+	declareVar(c, &exc->excStmt.var, exc->line);
+	c->locals[c->localsCount - 1].depth = c->depth;
+	compileStatements(c, exc->excStmt.block->blockStmt.stmts);
+
+	exitScope(c);
+
+	size_t exitJmp = 0;
+	if(excs->next != NULL) {
+		exitJmp = emitBytecode(c, OP_JUMP, 0);
+		emitShort(c, 0, 0);
+	}
+
+	setJumpTo(c, falseJmp, c->func->chunk.count, exc->line);
+
+	if(excs->next != NULL) {
+		compileExcept(c, excs->next);
+		setJumpTo(c, exitJmp, c->func->chunk.count, exc->line);
+	}
+}
+
+static void compileTryExcept(Compiler *c, Stmt *s) {
+	if(c->tryDepth > MAX_TRY_DEPTH) {
+		error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
+	}
+
+	uint8_t setup = emitBytecode(c, OP_SETUP_TRY, s->line);
+	emitShort(c, 0, 0);
+
+	compileStatement(c, s->tryStmt.block);
+
+	uint8_t excJmp = emitBytecode(c, OP_JUMP, 0);
+	emitShort(c, 0, 0);
+
+	setJumpTo(c, setup, c->func->chunk.count, s->line);
+
+	compileExcept(c, s->tryStmt.excs);
+
+	setJumpTo(c, excJmp, c->func->chunk.count, 0);
+
+	emitBytecode(c, OP_END_TRY, 0);
+}
+
+static void compileRaiseStmt(Compiler *c, Stmt *s) {
+	compileExpr(c, s->raiseStmt.exc);
+	emitBytecode(c, OP_RAISE, s->line);
+}
+
 static void compileStatement(Compiler *c, Stmt *s) {
 	switch(s->type) {
 	case IF:
@@ -747,6 +811,15 @@ static void compileStatement(Compiler *c, Stmt *s) {
 	case IMPORT:
 		compileImportStatement(c, s);
 		break;
+	case TRY_STMT:
+		c->tryDepth++;
+		compileTryExcept(c, s);
+		c->tryDepth--;
+		break;
+	case RAISE_STMT:
+		compileRaiseStmt(c, s);
+		break;
+	case EXCEPT_STMT: break;
 	}
 }
 

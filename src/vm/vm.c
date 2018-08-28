@@ -28,6 +28,8 @@ void initVM(VM *vm) {
 	vm->currCompiler = NULL;
 	vm->ctor = NULL;
 
+	vm->exception = NULL;
+
 	vm->stack  = malloc(sizeof(Value) * STACK_SZ);
 	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
 	vm->stackend = vm->stack + STACK_SZ;
@@ -41,6 +43,7 @@ void initVM(VM *vm) {
 	vm->funClass  = NULL;
 	vm->modClass  = NULL;
 	vm->nullClass = NULL;
+	vm->excClass  = NULL;
 
 	reset(vm);
 
@@ -83,6 +86,15 @@ static ObjClass *getClass(VM *vm, Value v) {
 	}
 }
 
+static bool isInstance(VM *vm, Value i, ObjClass *cls) {
+	for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
+		if(c == cls) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
 		runtimeError(vm, "Function `%s` expected %d args, but instead %d "
@@ -99,6 +111,7 @@ static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	callFrame->fn = func;
 	callFrame->ip = func->chunk.code;
 	callFrame->stack = vm->sp - (argc + 1);
+	callFrame->handlerc = 0;
 
 	vm->module = func->module;
 
@@ -320,6 +333,24 @@ static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
 	return newStringFromBuf(vm, data, length);
 }
 
+static bool unwindStack(VM *vm) {
+	for(;vm->frameCount > 0; vm->frameCount--) {
+		Frame *f = &vm->frames[vm->frameCount - 1];
+		if(f->handlerc > 0) {
+			Handler *h = &f->handlers[f->handlerc - 1];
+			f->ip = h->handler;
+			vm->sp = h->savesp;
+			vm->module = f->fn->module;
+
+			push(vm, OBJ_VAL(vm->exception));
+			return true;
+		}
+	}
+
+	printf("Exception %s\n", vm->exception->cls->name->data);
+	return false;
+}
+
 static bool runEval(VM *vm) {
 	Frame *frame = &vm->frames[vm->frameCount - 1];
 
@@ -383,12 +414,14 @@ static bool runEval(VM *vm) {
 	// Eval loop
 	for(;;) {
 
+#ifndef USE_COMPUTED_GOTOS
 	PRINT_DBG_STACK()
 
 	if(vm->error) {
 		reset(vm);
 		return false;
 	}
+#endif
 
 	uint8_t op;
 	CASE(op) {
@@ -471,18 +504,7 @@ static bool runEval(VM *vm) {
 			return false;
 		}
 
-		ObjClass *cls = AS_CLASS(b);
-		bool isInstance = false;
-
-		ObjClass *c = getClass(vm, a);
-		for(;c != NULL; c = c->superCls) {
-			if(c == cls) {
-				isInstance = true;
-				break;
-			}
-		}
-
-		push(vm, BOOL_VAL(isInstance));
+		push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
 		DISPATCH();
 	}
 	TARGET(OP_NEG):
@@ -772,6 +794,42 @@ sup_invoke:;
 			runtimeError(vm, "Name `%s` is not defined.", name->data);
 			return false;
 		}
+		DISPATCH();
+	}
+	TARGET(OP_SETUP_TRY): {
+		uint16_t handlerOff = NEXT_SHORT();
+		Handler *handler = &frame->handlers[frame->handlerc++];
+		handler->handler = frame->ip + handlerOff;
+		handler->savesp = vm->sp;
+		DISPATCH();
+	}
+	TARGET(OP_EXC_HANDLED): {
+		vm->exception = NULL;
+		frame->handlerc--;
+		DISPATCH();
+	}
+	TARGET(OP_END_TRY):
+		if(vm->exception != NULL) {
+			frame->handlerc--;
+			if(!unwindStack(vm)){
+				return false;
+			}
+			frame = &vm->frames[vm->frameCount - 1];
+		}
+		DISPATCH();
+	TARGET(OP_RAISE): {
+		Value exc = pop(vm);
+
+		if(!isInstance(vm, exc, vm->excClass)) {
+			runtimeError(vm, "Can only raise sublasses of Exception");
+			return false;
+		}
+
+		vm->exception = AS_OBJ(exc);
+		if(!unwindStack(vm)) {
+			return false;
+		}
+		frame = &vm->frames[vm->frameCount - 1];
 		DISPATCH();
 	}
 	TARGET(OP_GET_LOCAL):

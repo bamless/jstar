@@ -16,7 +16,7 @@ static char *loadSource(const char *name) {
 	strcpy(fname, name);
 	strcat(fname + nameLength, ".bl");
 
-	FILE *srcFile = fopen(fname, "r+");
+	FILE *srcFile = fopen(fname, "rb+");
 	if(srcFile == NULL || errno == EISDIR) {
 		if(srcFile) fclose(srcFile);
 		free(fname);

@@ -87,7 +87,7 @@ void freeExpr(Expr *e);
 
 typedef enum StmtType {
 	IF, FOR, WHILE, FOREACH, BLOCK, RETURN_STMT, EXPR, VARDECL, FUNCDECL,
-	NATIVEDECL, CLASSDECL, IMPORT
+	NATIVEDECL, CLASSDECL, IMPORT, TRY_STMT, EXCEPT_STMT, RAISE_STMT
 } StmtType;
 
 typedef struct Stmt Stmt;
@@ -142,6 +142,18 @@ struct Stmt {
 			Identifier module;
 			Identifier as;
 		} importStmt;
+		struct {
+			Stmt *block;
+			LinkedList *excs;
+		} tryStmt;
+		struct {
+			Expr *cls;
+			Identifier var;
+			Stmt *block;
+		} excStmt;
+		struct {
+			Expr *exc;
+		} raiseStmt;
 		Expr *exprStmt;
 	};
 };
@@ -149,14 +161,17 @@ struct Stmt {
 Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
 Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
 Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body);
+Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
 Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
+Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
 Stmt *newBlockStmt(int line, LinkedList *list);
 Stmt *newReturnStmt(int line, Expr *e);
+Stmt *newRaiseStmt(int line, Expr *e);
 Stmt *newExprStmt(int line, Expr *e);
 
 void freeStmt(Stmt *s);

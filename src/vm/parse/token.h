@@ -53,6 +53,10 @@ typedef enum {
 	TOK_VAR,
 	TOK_WHILE,
 
+	TOK_TRY,
+	TOK_EXCEPT,
+	TOK_RAISE,
+
 	TOK_ERR,
 	TOK_EOF
 } TokenType;

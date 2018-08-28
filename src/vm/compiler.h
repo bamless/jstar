@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #define MAX_LOCALS UINT8_MAX
+#define MAX_TRY_DEPTH 5
 
 typedef struct VM VM;
 

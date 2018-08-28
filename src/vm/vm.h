@@ -16,6 +16,8 @@
 #define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
 #define INIT_GC 1024 * 1024                 // 1MiB
 
+#define HADLER_MAX 5
+
 typedef enum {
 	VM_EVAL_SUCCSESS,
 	VM_SYNTAX_ERR,
@@ -24,10 +26,17 @@ typedef enum {
 	VM_GENERIC_ERR
 } EvalResult;
 
+typedef struct Handler {
+	uint8_t *handler;
+	Value *savesp;
+} Handler;
+
 typedef struct Frame {
-	uint8_t *ip;       // Instruction pointer
-	Value *stack;      // Base of stack for current frame
-	ObjFunction *fn;   // The function associated with the frame
+	uint8_t *ip;                  // Instruction pointer
+	Value *stack;                 // Base of stack for current frame
+	ObjFunction *fn;              // The function associated with the frame
+	Handler handlers[HADLER_MAX]; // Exception handlers
+	uint8_t handlerc;             // Exception handlers count
 } Frame;
 
 typedef struct VM {
@@ -42,6 +51,10 @@ typedef struct VM {
 	ObjClass *funClass;
 	ObjClass *modClass;
 	ObjClass *nullClass;
+	ObjClass *excClass;
+
+	// Current exception
+	Obj *exception;
 
 	// Current VM compiler
 	Compiler *currCompiler;

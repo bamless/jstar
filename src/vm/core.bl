@@ -22,6 +22,11 @@ class Module   {
 	def new() { error("Class Module cannot be instantiated."); }
 	native __string__();
 }
+class Exception {
+	def new(err) {
+		this.err = err;
+	}
+}
 
 class String {
 	def new() { error("Class String cannot be instantiated."); }

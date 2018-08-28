@@ -349,6 +349,51 @@ static Stmt *parseImport(Parser *p) {
 	return newImportStmt(line, name, length, as, asLength);
 }
 
+static Stmt *parseTryStmt(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_TRY);
+
+	Stmt *tryBlock = blockStmt(p);
+	LinkedList *excs = NULL;
+
+	do {
+		int excLine = p->peek.line;
+
+		const char *var = NULL;
+		size_t varLen = 0;
+
+		require(p, TOK_EXCEPT);
+		require(p, TOK_LPAREN);
+
+		Expr *cls = parseExpr(p);
+
+		if(match(p, TOK_IDENTIFIER)) {
+			var = p->peek.lexeme;
+			varLen = p->peek.length;
+		} else {
+			error(p, "Expected identifier.");
+		}
+
+		advance(p);
+		require(p, TOK_RPAREN);
+
+		Stmt *blck = blockStmt(p);
+		excs = addElement(excs, newExceptStmt(excLine, cls, varLen, var, blck));
+	} while(match(p, TOK_EXCEPT));
+
+	return newTryStmt(line, tryBlock, excs);
+}
+
+static Stmt *parseRaiseStmt(Parser *p) {
+	int line = p->peek.line;
+	advance(p);
+
+	Expr *exc = parseExpr(p);
+	require(p, TOK_SEMICOLON);
+	
+	return newRaiseStmt(line, exc);
+}
+
 static Stmt *parseStmt(Parser *p) {
 	int line = p->peek.line;
 	switch(p->peek.type) {
@@ -366,6 +411,10 @@ static Stmt *parseStmt(Parser *p) {
 		return parseClassDecl(p);
 	case TOK_IMPORT:
 		return parseImport(p);
+	case TOK_TRY:
+		return parseTryStmt(p);
+	case TOK_RAISE:
+		return parseRaiseStmt(p);
 	default: {
 		Expr *e = parseExpr(p);
 		require(p, TOK_SEMICOLON);

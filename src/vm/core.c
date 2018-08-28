@@ -111,6 +111,7 @@ void initCoreLibrary(VM *vm) {
 	vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
 	vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
 	vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
+	vm->excClass  = AS_CLASS(getDefinedName(vm, core, "Exception"));
 
 	core->base.cls = vm->modClass;
 

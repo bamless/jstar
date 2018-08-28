@@ -1,5 +1,19 @@
+class FileNotFoundException : Exception {
+	def new(err) {
+		this.err = err;
+	}
+}
+
 class File {
-	def new(handle) {
+	def new(name, mode) {
+		typeassert(name, String, "Argument 1");
+		typeassert(mode, String, "Argument 2");
+
+		var handle = __open(name, mode);
+		if(handle == null) {
+			raise FileNotFoundException("Couldn't find file " + name);
+		}
+
 		this.__handle = handle;
 	}
 
@@ -11,17 +25,6 @@ class File {
 	native readAll();
 	native readLine();
 	native close();
-}
-
-def open(name, mode) {
-	typeassert(name, String, "Argument 1");
-	typeassert(mode, String, "Argument 2");
-
-	var handle = __open(name, mode);
-	if(handle == null) {
-		return null;
-	}
-	return File(handle);
 }
 
 class __FileIterator {

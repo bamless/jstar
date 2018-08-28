@@ -303,6 +303,34 @@ Stmt *newExprStmt(int line, Expr *e) {
 	return s;
 }
 
+Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = TRY_STMT;
+	s->tryStmt.block = blck;
+	s->tryStmt.excs = excs;
+	return s;
+}
+
+Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = EXCEPT_STMT;
+	s->excStmt.block = block;
+	s->excStmt.cls = cls;
+	s->excStmt.var.length = vlen;
+	s->excStmt.var.name = var;
+	return s;
+}
+
+Stmt *newRaiseStmt(int line, Expr *e) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = RAISE_STMT;
+	s->raiseStmt.exc = e;
+	return s;
+}
+
 void freeStmt(Stmt *s) {
 	if(s == NULL) return;
 
@@ -377,6 +405,23 @@ void freeStmt(Stmt *s) {
 	}
 	case VARDECL:
 		freeExpr(s->varDecl.init);
+		break;
+	case TRY_STMT:
+		freeStmt(s->tryStmt.block);
+		LinkedList *head = s->tryStmt.excs;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			freeStmt(f->elem);
+			free(f);
+		}
+		break;
+	case EXCEPT_STMT:
+		freeExpr(s->excStmt.cls);
+		freeStmt(s->excStmt.block);
+		break;
+	case RAISE_STMT:
+		freeExpr(s->raiseStmt.exc);
 		break;
 	case IMPORT: break;
 	}
