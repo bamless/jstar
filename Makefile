@@ -45,7 +45,7 @@ INCLUDES = -I$(SRC)/vm -I$(SRC)/builtin
 LDFLAGS = -Wl,-rpath=\$$ORIGIN/../lib/ #rpath for faster testing. Allows the built binary in bin/ to find all the shared libs
 
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra -O3 -g
+CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra -O3 -s
 
 # Source extension
 SRC_EXT = c
