@@ -30,30 +30,27 @@ bool blGetGlobal(VM *vm, const char *fname, Value *ret) {
 	return hashTableGet(&vm->module->globals, copyString(vm, fname, strlen(fname)), ret);
 }
 
-void blRuntimeError(VM *vm, const char *format, ...) {
-	fprintf(stderr, "Traceback:\n");
+bool blRiseExceptionImpl(VM *vm, const char* cls, const char *err, ...) {
+	sbuf_clear(&vm->stacktrace);
 
-	for(int i = 0; i < vm->frameCount; i++) {
-		Frame *frame = &vm->frames[i];
-		ObjFunction *func = frame->fn;
-		size_t istr = frame->ip - func->chunk.code - 1;
-		fprintf(stderr, "    [line:%d] ", getBytecodeSrcLine(&func->chunk, istr));
-
-		fprintf(stderr, "module %s in ", func->module->name->data);
-
-		if(func->name != NULL) {
-			fprintf(stderr, "%s()\n", func->name->data);
-		} else {
-			fprintf(stderr, "<main>\n");
-		}
-
+	Value excVal;
+	if(!(blGetGlobal(vm, cls, &excVal) && IS_CLASS(excVal))) {
+		return false;
 	}
 
+	char errStr[1024] = {0};
 	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
+	va_start(args, err);
+	vsnprintf(errStr, sizeof(errStr) - 1, err, args);
 	va_end(args);
-	fprintf(stderr, "\n");
 
-	vm->error = true;
+	ObjInstance *excInst = newInstance(vm, AS_CLASS(excVal));
+	push(vm, OBJ_VAL(excInst));
+
+	blSetField(vm, excInst, "err", OBJ_VAL(copyString(vm, errStr, strlen(errStr))));
+	pop(vm);
+
+	vm->exception = (Obj*) excInst;
+
+	return true;
 }

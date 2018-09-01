@@ -42,7 +42,6 @@ typedef struct Frame {
 } Frame;
 
 typedef struct VM {
-	bool error;
 	// Built in classes
 	ObjClass *clsClass;
 	ObjClass *objClass;

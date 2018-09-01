@@ -109,28 +109,28 @@ static int64_t getFileSize(FILE *stream) {
 NATIVE(bl_File_readAll) {
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		return NULL_VAL;
+		BL_RETURN(NULL_VAL);
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
 	int64_t size = getFileSize(f) - ftell(f);
 	if(size < 0) {
-		return NULL_VAL;
+		BL_RETURN(NULL_VAL);
 	}
 
 	char *data = ALLOC(vm, size);
 	if(fread(data, 1, size, f) < (size_t) size) {
 		FREEARRAY(vm, char, data, size);
-		return NULL_VAL;
+		BL_RETURN(NULL_VAL);
 	}
 
-	return OBJ_VAL(newStringFromBuf(vm, data, strlen(data)));
+	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, data, strlen(data))));
 }
 
 NATIVE(bl_File_readLine) {
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		return NULL_VAL;
+		BL_RETURN(NULL_VAL);
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
@@ -138,37 +138,37 @@ NATIVE(bl_File_readLine) {
 	size_t length;
 	char *line = readline(vm, f, &length);
 	if(line == NULL) {
-		return NULL_VAL;
+		BL_RETURN(NULL_VAL);
 	}
 
-	return OBJ_VAL(newStringFromBuf(vm, line, length));
+	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, line, length)));
 }
 
 NATIVE(bl_File_close) {
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		return FALSE_VAL;
+		BL_RETURN(FALSE_VAL);
 	}
 
 	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
 
 	FILE *f = (void*) AS_HANDLE(h);
 	if(fclose(f)) {
-		return FALSE_VAL;
+		BL_RETURN(FALSE_VAL);
 	}
 
-	return TRUE_VAL;
+	BL_RETURN(TRUE_VAL);
 }
 
 NATIVE(bl_File_size) {
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		return NUM_VAL(-1);
+		BL_RETURN(NUM_VAL(-1));
 	}
 
 	FILE *stream = (FILE*) AS_HANDLE(h);
 
-	return NUM_VAL(getFileSize(stream));
+	BL_RETURN(NUM_VAL(getFileSize(stream)));
 }
 
 // } class File
@@ -177,7 +177,7 @@ NATIVE(bl_File_size) {
 
 NATIVE(bl_open) {
 	FILE *f = fopen(AS_STRING(args[1])->data, AS_STRING(args[2])->data);
-	if(f == NULL) return NULL_VAL;
+	if(f == NULL) BL_RETURN(NULL_VAL);
 
-	return HANDLE_VAL(f);
+	BL_RETURN(HANDLE_VAL(f));
 }

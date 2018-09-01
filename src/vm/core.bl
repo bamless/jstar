@@ -22,11 +22,6 @@ class Module   {
 	def new() { error("Class Module cannot be instantiated."); }
 	native __string__();
 }
-class Exception {
-	def new(err) {
-		this.err = err;
-	}
-}
 
 class String {
 	def new() { error("Class String cannot be instantiated."); }
@@ -72,7 +67,28 @@ class String {
 		return this;
 	}
 
+	def __iterator__() {
+		return __StringIterator(this);
+	}
+
 	native __hash__();
+}
+
+class __StringIterator {
+	def new(str) {
+		this.str = str;
+		this.pos = 0;
+	}
+
+	def hasNext() {
+		return this.pos < this.str.length();
+	}
+
+	def next() {
+		var c = this.str[this.pos];
+		this.pos = this.pos + 1;
+		return c;
+	}
 }
 
 class List {
@@ -222,6 +238,17 @@ def reversed(lst) {
 	typeassert(lst, List, "Argument 1");
 	return __ListReverseIterator(lst);
 }
+
+// Exceptions builtin classes
+
+class Exception {
+	def new(err) {
+		this.err = err;
+	}
+}
+
+class InvalidArgException : Exception {}
+class IndexOutOfBoundException : Exception {}
 
 def print(o) {
 	var s = o.__string__();

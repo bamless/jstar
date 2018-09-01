@@ -72,7 +72,7 @@ typedef struct ObjFunction {
 	ObjModule *module;
 } ObjFunction;
 
-typedef Value (*Native)(VM *vm, Value *argv);
+typedef bool (*Native)(VM *vm, Value *argv, Value *ret);
 
 typedef struct ObjNative {
 	Obj base;

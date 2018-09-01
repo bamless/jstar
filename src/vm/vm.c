@@ -18,11 +18,12 @@
 #include <limits.h>
 
 static void runtimeError(VM *vm, const char* format, ...);
+static bool unwindStack(VM *vm);
 
 static void reset(VM *vm) {
 	vm->sp = vm->stack;
 	vm->frameCount = 0;
-	vm->error = false;
+	vm->exception = NULL;
 }
 
 void initVM(VM *vm) {
@@ -127,9 +128,19 @@ static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
 		return false;
 	}
 
-	Value ret = native->fn(vm, vm->sp - (argc + 1));
+	Value ret;
+	if(!native->fn(vm, vm->sp - (argc + 1), &ret)) {
+		runtimeError(vm, "Failed to call native %s().", native->name->data);
+		return false;
+	}
 	vm->sp -= argc + 1;
 	push(vm, ret);
+
+	if(vm->exception != NULL) {
+		if(!unwindStack(vm)) {
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -335,72 +346,6 @@ static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
 	return newStringFromBuf(vm, data, length);
 }
 
-static bool unwindStack(VM *vm) {
-	/**
-	 * Calculate the approximate maximum base 10 length of the given integer type.
-	 * This macro evaluates to a constant, as to permit static allocation of buffer
-	 */
-	#define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \
-	    (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
-
-	#define __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
-	    (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
-
-	#define MAX_STRLEN_FOR_INT_TYPE(t) \
-	    (((t) -1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
-	                  : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
-
-	for(;vm->frameCount > 0; vm->frameCount--) {
-		Frame *f = &vm->frames[vm->frameCount - 1];
-
-		if(f->handlerc > 0) {
-			Handler *h = &f->handlers[f->handlerc - 1];
-			f->ip = h->handler;
-			vm->sp = h->savesp;
-			vm->module = f->fn->module;
-
-			push(vm, OBJ_VAL(vm->exception));
-			return true;
-		}
-
-		// if no handler is encountered save stack info to stacktrace
-		ObjFunction *fn = f->fn;
-		size_t op = f->ip - fn->chunk.code - 1;
-
-		char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
-		sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
-		sbuf_appendstr(&vm->stacktrace, "    [line ");
-		sbuf_appendstr(&vm->stacktrace, line);
-		sbuf_appendstr(&vm->stacktrace, "] ");
-
-		sbuf_appendstr(&vm->stacktrace, "module ");
-		sbuf_appendstr(&vm->stacktrace, fn->module->name->data);
-		sbuf_appendstr(&vm->stacktrace, " in ");
-
-		if(fn->name != NULL) {
-			sbuf_appendstr(&vm->stacktrace, fn->name->data);
-			sbuf_appendstr(&vm->stacktrace, "()\n");
-		} else {
-			sbuf_appendstr(&vm->stacktrace, "<main>\n");
-		}
-	}
-
-	reset(vm);
-
-	printf("Traceback:\n%s", sbuf_get_backing_buf(&vm->stacktrace));
-
-	Value v;
-	bool res = hashTableGet(&((ObjInstance*)vm->exception)->fields,
-							copyString(vm, "err", strlen("err")), &v);
-	if(res && IS_STRING(v)) {
-		printf("%s: %s\n", vm->exception->cls->name->data, AS_STRING(v)->data);
-	} else {
-		printf("%s\n", vm->exception->cls->name->data);
-	}
-
-	return false;
-}
-
 static bool runEval(VM *vm) {
 	Frame *frame = &vm->frames[vm->frameCount - 1];
 
@@ -443,10 +388,6 @@ static bool runEval(VM *vm) {
 
 		#define DISPATCH() do { \
 			PRINT_DBG_STACK() \
-			if(vm->error) { \
-				reset(vm); \
-				return false; \
-			} \
 			op = NEXT_CODE(); \
 			goto *opJmpTable[op]; \
 		} while(0)
@@ -466,11 +407,6 @@ static bool runEval(VM *vm) {
 
 #ifndef USE_COMPUTED_GOTOS
 	PRINT_DBG_STACK()
-
-	if(vm->error) {
-		reset(vm);
-		return false;
-	}
 #endif
 
 	uint8_t op;
@@ -872,8 +808,8 @@ sup_invoke:;
 		sbuf_clear(&vm->stacktrace);
 		Value exc = pop(vm);
 
-		if(!isInstance(vm, exc, vm->excClass)) {
-			runtimeError(vm, "Can only raise sublasses of Exception");
+		if(!IS_INSTANCE(exc)) {
+			runtimeError(vm, "Can only raise object instances.");
 			return false;
 		}
 
@@ -968,6 +904,84 @@ static void runtimeError(VM *vm, const char* format, ...) {
 	fprintf(stderr, "\n");
 
 	reset(vm);
+}
+
+static void printStackTrace(VM *vm) {
+	fprintf(stderr, "Traceback (most recent call last):\n");
+
+	// Print stacktrace in reverse order of recording (most recent call last)
+	char *st = sbuf_get_backing_buf(&vm->stacktrace);
+	int lastnl = sbuf_get_len(&vm->stacktrace);
+	for(int i = lastnl; i > 0; i--) {
+		if(st[i - 1] == '\n') {
+			fprintf(stderr, "%.*s", lastnl - i, st + i);
+			lastnl = i;
+		}
+	}
+	fprintf(stderr, "%.*s", lastnl, st);
+
+	// print the exception instance information
+	Value v;
+	bool res = hashTableGet(&((ObjInstance*)vm->exception)->fields,
+							copyString(vm, "err", strlen("err")), &v);
+	if(res && IS_STRING(v)) {
+		fprintf(stderr, "%s: %s\n", vm->exception->cls->name->data,
+													AS_STRING(v)->data);
+	} else {
+		fprintf(stderr, "%s\n", vm->exception->cls->name->data);
+	}
+}
+
+static bool unwindStack(VM *vm) {
+	#define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \
+	    (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
+
+	#define __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
+	    (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
+
+	#define MAX_STRLEN_FOR_INT_TYPE(t) \
+	    (((t) -1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
+	                  : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
+
+	for(;vm->frameCount > 0; vm->frameCount--) {
+		Frame *f = &vm->frames[vm->frameCount - 1];
+
+		if(f->handlerc > 0) {
+			Handler *h = &f->handlers[f->handlerc - 1];
+
+			f->ip = h->handler;
+			vm->sp = h->savesp;
+			vm->module = f->fn->module;
+
+			push(vm, OBJ_VAL(vm->exception));
+			return true;
+		}
+
+		// if no handler is encountered save stack info to stacktrace
+		ObjFunction *fn = f->fn;
+		size_t op = f->ip - fn->chunk.code - 1;
+
+		char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
+		sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
+		sbuf_appendstr(&vm->stacktrace, "    [line ");
+		sbuf_appendstr(&vm->stacktrace, line);
+		sbuf_appendstr(&vm->stacktrace, "] ");
+
+		sbuf_appendstr(&vm->stacktrace, "module ");
+		sbuf_appendstr(&vm->stacktrace, fn->module->name->data);
+		sbuf_appendstr(&vm->stacktrace, " in ");
+
+		if(fn->name != NULL) {
+			sbuf_appendstr(&vm->stacktrace, fn->name->data);
+			sbuf_appendstr(&vm->stacktrace, "()\n");
+		} else {
+			sbuf_appendstr(&vm->stacktrace, "<main>\n");
+		}
+	}
+
+	printStackTrace(vm);
+	reset(vm);
+	return false;
 }
 
 void initCommandLineArgs(int argc, const char **argv) {
