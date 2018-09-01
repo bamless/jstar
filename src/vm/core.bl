@@ -235,7 +235,6 @@ class __ListReverseIterator {
 }
 
 def reversed(lst) {
-	typeassert(lst, List, "Argument 1");
 	return __ListReverseIterator(lst);
 }
 
@@ -249,6 +248,7 @@ class Exception {
 
 class InvalidArgException : Exception {}
 class IndexOutOfBoundException : Exception {}
+class AssertException : Exception {}
 
 def print(o) {
 	var s = o.__string__();
@@ -302,10 +302,7 @@ class range {
 
 native int(n);
 native num(n);
-native typeassert(o, cls, msg);
-native typeassertInt(o, msg);
 native list(n, init);
-native error(msg);
 native isInt(n);
 
 native __printstr(str);

@@ -6,15 +6,10 @@ class FileNotFoundException : Exception {
 
 class File {
 	def new(name, mode) {
-		typeassert(name, String, "Argument 1");
-		typeassert(mode, String, "Argument 2");
-
-		var handle = __open(name, mode);
-		if(handle == null) {
-			raise FileNotFoundException("Couldn't find file `" + name + "`.");
+		if(!(name is String and mode is String)) {
+			raise InvalidArgException("Arguments of File.new() must be 2 strings.");
 		}
-
-		this.__handle = handle;
+		this.__handle = __open(name, mode);
 	}
 
 	def __iterator__() {

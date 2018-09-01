@@ -176,8 +176,22 @@ NATIVE(bl_File_size) {
 // functions
 
 NATIVE(bl_open) {
-	FILE *f = fopen(AS_STRING(args[1])->data, AS_STRING(args[2])->data);
-	if(f == NULL) BL_RETURN(NULL_VAL);
+	char *fname = AS_STRING(args[1])->data;
+	char *m = AS_STRING(args[2])->data;
+
+	size_t mlen = strlen(m);
+	if(mlen > 3 ||
+	  (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
+	  (mlen > 1 && (m[1] != 'b' && m[1] != '+')) ||
+	  (mlen > 2 && m[2] != 'b'))
+	{
+		  blRiseException(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+	}
+
+	FILE *f = fopen(AS_STRING(args[1])->data, m);
+	if(f == NULL) {
+		blRiseException(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
+	}
 
 	BL_RETURN(HANDLE_VAL(f));
 }

@@ -879,7 +879,7 @@ EvalResult evaluateModule(VM *vm, const char *module, const char *src) {
 }
 
 static void runtimeError(VM *vm, const char* format, ...) {
-	fprintf(stderr, "Traceback:\n");
+	fprintf(stderr, "Traceback (most recent call last):\n");
 
 	for(int i = 0; i < vm->frameCount; i++) {
 		Frame *frame = &vm->frames[i];

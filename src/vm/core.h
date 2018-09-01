@@ -10,11 +10,8 @@ void initCoreLibrary(VM *vm);
 NATIVE(bl_int);
 NATIVE(bl_num);
 NATIVE(bl_list);
-NATIVE(bl_error);
 NATIVE(bl_isInt);
 NATIVE(bl_printstr);
-NATIVE(bl_typeassert);
-NATIVE(bl_typeassertInt);
 
 // class Number {
 	NATIVE(bl_Number_string);

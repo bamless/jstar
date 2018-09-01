@@ -132,15 +132,12 @@ NATIVE(bl_int) {
 
 		if((n == 0 && end == nstr) || *end != '\0') {
 			blRiseException(vm, "InvalidArgException", "\"%s\".", nstr);
-			BL_RETURN(NULL_VAL);
 		}
 		if(n == LLONG_MAX) {
 			blRiseException(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
-			BL_RETURN(NULL_VAL);
 		}
 		if(n == LLONG_MIN) {
 			blRiseException(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
-			BL_RETURN(NULL_VAL);
 		}
 
 		BL_RETURN(NUM_VAL(n));
@@ -150,7 +147,6 @@ NATIVE(bl_int) {
 	}
 
 	blRiseException(vm, "InvalidArgException", "Argument must be a number or a string.");
-	BL_RETURN(NULL_VAL);
 }
 
 NATIVE(bl_num) {
@@ -163,15 +159,12 @@ NATIVE(bl_num) {
 
 		if((n == 0 && end == nstr) || *end != '\0') {
 			blRiseException(vm, "InvalidArgException", "\"%s\".", nstr);
-			BL_RETURN(NULL_VAL);
 		}
 		if(n == HUGE_VAL || n == -HUGE_VAL) {
-			// blRuntimeError(vm, "num(): Overflow: \"%s\".", nstr);
-			BL_RETURN(NULL_VAL);
+			blRiseException(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
 		}
 		if(n == 0 && errno == ERANGE) {
-			// blRuntimeError(vm, "num(): Underflow: \"%s\".", nstr);
-			BL_RETURN(NULL_VAL);
+			blRiseException(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
 		}
 
 		BL_RETURN(NUM_VAL(n));
@@ -180,14 +173,13 @@ NATIVE(bl_num) {
 		BL_RETURN(args[1]);
 	}
 
-	// blRuntimeError(vm, "num(): Argument must be a Number or a String.");
-	BL_RETURN(NULL_VAL);
+	blRiseException(vm, "InvalidArgException", "Argument must be a number or a string.");
 }
 
 NATIVE(bl_list) {
 	if(!IS_INT(args[1]) || AS_NUM(args[1]) < 0) {
-		// blRuntimeError(vm, "Argument 1 of list(n, init) must be a positive integer.");
-		BL_RETURN(NULL_VAL);
+		blRiseException(vm, "InvalidArgException",
+				"Argument 1 of list(n, init) must be a positive integer.");
 	}
 
 	ObjList *l = newList(vm, AS_NUM(args[1]));
@@ -197,11 +189,6 @@ NATIVE(bl_list) {
 	l->count = l->size;
 
 	BL_RETURN(OBJ_VAL(l));
-}
-
-NATIVE(bl_error) {
-	// blRuntimeError(vm, AS_STRING(args[1])->data);
-	BL_RETURN(NULL_VAL);
 }
 
 NATIVE(bl_isInt) {
@@ -214,64 +201,6 @@ NATIVE(bl_isInt) {
 
 NATIVE(bl_printstr) {
 	printf("%s\n", AS_STRING(args[1])->data);
-	BL_RETURN(NULL_VAL);
-}
-
-static ObjClass *getClass(VM *vm, Value v) {
-	if(IS_OBJ(v)) {
-		return AS_OBJ(v)->cls;
-	} else if(IS_NUM(v)) {
-		return vm->numClass;
-	} else if(IS_BOOL(v)) {
-		return vm->boolClass;
-	} else {
-		return vm->nullClass;
-	}
-}
-
-NATIVE(bl_typeassert) {
-	if(!IS_CLASS(args[2])) {
-		// blRuntimeError(vm, "typeassert(): Argument 2 must be a Class.");
-		BL_RETURN(NULL_VAL);
-	}
-	if(!IS_STRING(args[3])) {
-		// blRuntimeError(vm, "typeassert(): Argument 3 must be a String.");
-		BL_RETURN(NULL_VAL);
-	}
-
-	bool instance = false;
-	ObjClass *cls = AS_CLASS(args[2]);
-	ObjClass *c = getClass(vm, args[1]);
-
-	for(ObjClass *sup = c; sup != NULL; sup = sup->superCls) {
-		if(sup == cls) {
-			instance = true;
-			break;
-		}
-	}
-
-	if(!instance) {
-		// blRuntimeError(vm, "%s: expected %s, instead got %s.",
-		//				AS_STRING(args[3])->data, cls->name->data, c->name->data);
-		BL_RETURN(NULL_VAL);
-	}
-
-	BL_RETURN(NULL_VAL);
-}
-
-NATIVE(bl_typeassertInt) {
-	if(!IS_STRING(args[2])) {
-		// blRuntimeError(vm, "typeassertInt(): Argument 2 must be a String.");
-		BL_RETURN(NULL_VAL);
-	}
-
-	if(!IS_INT(args[1])) {
-		ObjClass *c = getClass(vm, args[1]);
-		// blRuntimeError(vm, "%s: expected Integer, instead got %s.",
-		//				AS_STRING(args[2])->data, c->name->data);
-		BL_RETURN(NULL_VAL);
-	}
-
 	BL_RETURN(NULL_VAL);
 }
 
@@ -368,14 +297,16 @@ NATIVE(bl_typeassertInt) {
 
 	NATIVE(bl_List_insert) {
 		if(!IS_INT(args[1])) {
-			// blRuntimeError(vm, "Argument 1 of insert() must be an integer.");
+			blRiseException(vm, "InvalidArgException",
+			 		"Argument 1 of insert() must be an integer.");
 			BL_RETURN(NULL_VAL);
 		}
 
 		ObjList *l = AS_LIST(args[0]);
 		double index = AS_NUM(args[1]);
 		if(index < 0 || index > l->count) {
-			// blRuntimeError(vm, "insert(): List index out of bound: %d.", (int)index);
+			blRiseException(vm, "IndexOutOfBoundException",
+					"List index out of bound: %d.", (int)index);
 			BL_RETURN(NULL_VAL);
 		}
 
@@ -389,14 +320,16 @@ NATIVE(bl_typeassertInt) {
 
 	NATIVE(bl_List_removeAt) {
 		if(!IS_INT(args[1])) {
-			// blRuntimeError(vm, "Argument of removeAt() must be an integer.");
+			blRiseException(vm, "InvalidArgException",
+			 		"Argument of removeAt() must be an integer.");
 			BL_RETURN(NULL_VAL);
 		}
 
 		ObjList *l = AS_LIST(args[0]);
 		double index = AS_NUM(args[1]);
 		if(index < 0 || index > l->count) {
-			// blRuntimeError(vm, "removeAt(): List index out of bound: %d.", (int)index);
+			blRiseException(vm, "IndexOutOfBoundException",
+						"List index out of bound: %d.", (int)index);
 			BL_RETURN(NULL_VAL);
 		}
 
@@ -413,7 +346,8 @@ NATIVE(bl_typeassertInt) {
 // class String {
 	NATIVE(bl_substr) {
 		if(!IS_INT(args[1]) || !IS_INT(args[2])) {
-			// blRuntimeError(vm, "String.substr(): arguments must be integers.");
+			blRiseException(vm, "InvalidArgException",
+						"arguments of substr() must be integers.");
 			BL_RETURN(NULL_VAL);
 		}
 
@@ -422,16 +356,13 @@ NATIVE(bl_typeassertInt) {
 		int64_t to = AS_NUM(args[2]);
 
 		if(from > to) {
-			// blRuntimeError(vm, "String.substr(): argument to must be >= from.");
-			BL_RETURN(NULL_VAL);
+			blRiseException(vm, "InvalidArgException", "argument to must be >= from.");
 		}
 		if(from < 0 || (size_t)from > str->length - 1) {
-			// blRuntimeError(vm, "String.substr(): String index out of bounds: from %d.", from);
-			BL_RETURN(NULL_VAL);
+			blRiseException(vm, "IndexOutOfBoundException", "String index out of bounds: from %d.", from);
 		}
 		if((size_t)to > str->length) {
-			// blRuntimeError(vm, "String.substr(): String index out of bounds: to %d.", to);
-			BL_RETURN(NULL_VAL);
+			blRiseException(vm, "IndexOutOfBoundException", "String index out of bounds: to %d.", from);
 		}
 
 		size_t len = to - from;
