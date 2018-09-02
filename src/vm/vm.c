@@ -852,13 +852,13 @@ sup_invoke:;
 }
 
 EvalResult evaluate(VM *vm, const char *fpath, const char *src) {
-	return evaluateModule(vm, fname, "__main__", src);
+	return evaluateModule(vm, fpath, "__main__", src);
 }
 
 EvalResult evaluateModule(VM *vm, const char *fpath, const char *module, const char *src) {
 	Parser p;
 
-	Stmt *program = parse(&p, fname, src);
+	Stmt *program = parse(&p, fpath, src);
 	if(p.hadError) {
 		freeStmt(program);
 		return VM_SYNTAX_ERR;

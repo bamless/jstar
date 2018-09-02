@@ -92,7 +92,8 @@ bool importModule(VM *vm, ObjString *name) {
 		return true;
 	}
 
-	char *src = NULL, *fpath = NULL;
+	char *fpath = NULL;
+	const char *src = NULL;
 	bool dyn = true;
 
 	if((src = readBuiltInModule(name->data)) != NULL) {
