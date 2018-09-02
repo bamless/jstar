@@ -10,16 +10,19 @@
 #include <string.h>
 #include <errno.h>
 
-static char *loadSource(const char *name) {
-	size_t nameLength = strlen(name);
-	char *fname = malloc(nameLength + 4); // +4 for NUL and `.bl`
-	strcpy(fname, name);
-	strcat(fname + nameLength, ".bl");
+static char *resolvePathFromModuleName(VM *vm, const char *mname) {
+	char *importpath = vm->importpath == NULL ? "" : vm->importpath;
+	char *fname = malloc(strlen(importpath) + strlen(mname) + 4); // +4 for NUL and `.bl`
+	strcpy(fname, importpath);
+	strcat(fname, mname);
+	strcat(fname, ".bl");
+	return fname;
+}
 
-	FILE *srcFile = fopen(fname, "rb+");
+static char *loadSource(const char *path) {
+	FILE *srcFile = fopen(path, "rb+");
 	if(srcFile == NULL || errno == EISDIR) {
 		if(srcFile) fclose(srcFile);
-		free(fname);
 		return NULL;
 	}
 
@@ -30,19 +33,16 @@ static char *loadSource(const char *name) {
 	char *src = malloc(size + 1);
 	if(src == NULL) {
 		fclose(srcFile);
-		free(fname);
 		return NULL;
 	}
 
 	size_t read = fread(src, sizeof(char), size, srcFile);
 	if(read < size) {
 		free(src);
-		free(fname);
 		fclose(srcFile);
 		return NULL;
 	}
 
-	free(fname);
 	fclose(srcFile);
 
 	src[read] = '\0';
@@ -92,27 +92,37 @@ bool importModule(VM *vm, ObjString *name) {
 		return true;
 	}
 
+	char *src = NULL, *fpath = NULL;
 	bool dyn = true;
-	const char *src = NULL;
+
 	if((src = readBuiltInModule(name->data)) != NULL) {
+		fpath = malloc(strlen("builtin/") + strlen(name->data) + 1);
+		strcpy(fpath, "builtin/");
+		strcat(fpath, name->data);
 		dyn = false;
 	} else {
-		src = loadSource(name->data);
+		fpath = resolvePathFromModuleName(vm, name->data);
+		src = loadSource(fpath);
 	}
 
-	if(src == NULL) return false;
+	if(src == NULL) {
+		free(fpath);
+		return false;
+	}
 
 	Parser p;
-	Stmt *program = parse(&p, src);
+	Stmt *program = parse(&p, fpath, src);
 
 	if(p.hadError) {
 		freeStmt(program);
+		free(fpath);
 		if(dyn) free((char*)src);
 		return false;
 	}
 
 	ObjFunction *fn = compileWithModule(vm, name, program);
 
+	free(fpath);
 	if(dyn) free((char*)src);
 	freeStmt(program);
 

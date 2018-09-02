@@ -90,7 +90,8 @@ static void interactiveEval(VM *vm) {
 			}
 		}
 
-		evaluate(vm, sbuf_get_backing_buf(&src));
+		evaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
+
 		sbuf_clear(&src);
 	}
 
@@ -135,38 +136,35 @@ int main(int argc, const char **argv) {
 	initVM(&vm);
 
 	EvalResult res = VM_EVAL_SUCCSESS;
-	if(argc == 1) {
+	if(argc == 1)
+	{
 		interactiveEval(&vm);
-	} else {
+	}
+	else
+	{
+		//set command line args for use in scripts
 		initCommandLineArgs(argc - 2, argv + 2);
 
+		//set base import path to script's directory
+		char *directory = strrchr(argv[1], '/');
+		if(directory != NULL) {
+			size_t length = directory - argv[1] + 1;
+			char *path = malloc(length + 1);
+			memcpy(path, argv[1], length);
+			path[length] = '\0';
+
+			setImportBasePath(&vm, path);
+
+			free(path);
+		}
+
+		//read file and evaluate
 		char *src = readSrcFile(argv[1]);
 		if(src == NULL) {
 			return VM_GENERIC_ERR;
 		}
 
-		char *directory = strrchr(argv[1], '/');
-		if(directory != NULL) {
-			size_t length = directory - argv[1] + 1;
-			char *pwd = malloc(length + 1);
-			memcpy(pwd, argv[1], length);
-			pwd[length] = '\0';
-
-#ifdef __unix
-			if(chdir(pwd))
-#elif _WIN32
-			if(!SetCurrentDirectory(pwd))
-#endif
-			{
-				fprintf(stderr, "Failed to change cwd.\n");
-				exit(1);
-			}
-
-
-			free(pwd);
-		}
-
-		res = evaluate(&vm, src);
+		res = evaluate(&vm, argv[1], src);
 		free(src);
 	}
 

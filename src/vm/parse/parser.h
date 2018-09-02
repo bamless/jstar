@@ -9,11 +9,12 @@
 typedef struct Parser {
 	Lexer lex;
 	Token peek;
+	const char *fname;
 	TokenType prevType;
 	bool panic;
 	bool hadError;
 } Parser;
 
-Stmt *parse(Parser *p, const char *src);
+Stmt *parse(Parser *p, const char *fname, const char *src);
 
 #endif

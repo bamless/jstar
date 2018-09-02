@@ -42,6 +42,8 @@ typedef struct Frame {
 } Frame;
 
 typedef struct VM {
+	char *importpath;
+
 	// Built in classes
 	ObjClass *clsClass;
 	ObjClass *objClass;
@@ -91,13 +93,14 @@ typedef struct VM {
 void initVM(VM *vm);
 void freeVM(VM *vm);
 
-EvalResult evaluate(VM *vm, const char *src);
-EvalResult evaluateModule(VM *vm, const char *name, const char *src);
+EvalResult evaluate(VM *vm, const char *fpath, const char *src);
+EvalResult evaluateModule(VM *vm, const char *fpath, const char *name, const char *src);
 
 void push(VM *vm, Value v);
 Value pop(VM *vm);
 
 void initCommandLineArgs(int argc, const char **argv);
+void setImportBasePath(VM *vm, const char *path);
 
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])

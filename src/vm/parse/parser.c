@@ -14,9 +14,10 @@ static void synchronize(Parser *p);
 
 static Stmt *parseProgram(Parser *p);
 
-Stmt *parse(Parser *p, const char *src) {
+Stmt *parse(Parser *p, const char *fname, const char *src) {
 	p->panic = false;
 	p->hadError = false;
+	p->fname = fname;
 	p->prevType = -1;
 
 	initLexer(&p->lex, src);
@@ -390,7 +391,7 @@ static Stmt *parseRaiseStmt(Parser *p) {
 
 	Expr *exc = parseExpr(p);
 	require(p, TOK_SEMICOLON);
-	
+
 	return newRaiseStmt(line, exc);
 }
 
@@ -734,8 +735,8 @@ static Expr *parseExpr(Parser *p) {
 static void error(Parser *p, const char *msg) {
 	if(p->panic) return;
 
-	fprintf(stderr, "[line:%d] Error near or at `%.*s`: %s\n",
-					p->peek.line, p->peek.length, p->peek.lexeme, msg);
+	fprintf(stderr, "File %s [line:%d]: Error near or at `%.*s`: %s\n",
+				p->fname, p->peek.line, p->peek.length, p->peek.lexeme, msg);
 	p->panic = true;
 	p->hadError = true;
 }

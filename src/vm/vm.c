@@ -16,6 +16,7 @@
 #include <float.h>
 #include <math.h>
 #include <limits.h>
+#include <string.h>
 
 static void runtimeError(VM *vm, const char* format, ...);
 static bool unwindStack(VM *vm);
@@ -27,6 +28,8 @@ static void reset(VM *vm) {
 }
 
 void initVM(VM *vm) {
+	vm->importpath = NULL;
+
 	vm->currCompiler = NULL;
 	vm->ctor = NULL;
 
@@ -848,14 +851,14 @@ sup_invoke:;
 	#undef DISPATCH
 }
 
-EvalResult evaluate(VM *vm, const char *src) {
-	return evaluateModule(vm, "__main__", src);
+EvalResult evaluate(VM *vm, const char *fpath, const char *src) {
+	return evaluateModule(vm, fname, "__main__", src);
 }
 
-EvalResult evaluateModule(VM *vm, const char *module, const char *src) {
+EvalResult evaluateModule(VM *vm, const char *fpath, const char *module, const char *src) {
 	Parser p;
 
-	Stmt *program = parse(&p, src);
+	Stmt *program = parse(&p, fname, src);
 	if(p.hadError) {
 		freeStmt(program);
 		return VM_SYNTAX_ERR;
@@ -988,8 +991,16 @@ void initCommandLineArgs(int argc, const char **argv) {
 	sysInitArgs(argc, argv);
 }
 
+void setImportBasePath(VM *vm, const char *path) {
+	free(vm->importpath);
+	vm->importpath = malloc(strlen(path) + 1);
+	strcpy(vm->importpath, path);
+}
+
 void freeVM(VM *vm) {
 	reset(vm);
+
+	free(vm->importpath);
 
 	sbuf_destroy(&vm->stacktrace);
 

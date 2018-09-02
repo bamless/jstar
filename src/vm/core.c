@@ -102,7 +102,7 @@ void initCoreLibrary(VM *vm) {
 	hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
 	defMethod(vm, core, vm->clsClass, &bl_Class_getName, "getName", 0);
 
-	evaluateModule(vm, "__core__", readBuiltInModule("__core__"));
+	evaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
 
 	vm->strClass  = AS_CLASS(getDefinedName(vm, core, "String"));
 	vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
