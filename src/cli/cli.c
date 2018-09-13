@@ -143,7 +143,7 @@ int main(int argc, const char **argv) {
 	else
 	{
 		//set command line args for use in scripts
-		initCommandLineArgs(argc - 2, argv + 2);
+		blInitCommandLineArgs(argc - 2, argv + 2);
 
 		//set base import path to script's directory
 		char *directory = strrchr(argv[1], '/');
@@ -153,7 +153,7 @@ int main(int argc, const char **argv) {
 			memcpy(path, argv[1], length);
 			path[length] = '\0';
 
-			setImportBasePath(&vm, path);
+			blAddImportPath(&vm, path);
 
 			free(path);
 		}

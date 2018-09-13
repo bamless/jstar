@@ -98,6 +98,7 @@ Module builtInModules[] = {
 		ENDCLASS
 	ENDMODULE
 	MODULE(sys)
+		FUNCTION(getImportPaths, &bl_getImportPaths)
 		FUNCTION(platform, &bl_platform)
 		FUNCTION(__initArgs, &bl_initArgs)
 	ENDMODULE

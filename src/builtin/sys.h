@@ -5,6 +5,7 @@
 
 void sysInitArgs(int argc, const char **argv);
 
+NATIVE(bl_getImportPaths);
 NATIVE(bl_platform);
 NATIVE(bl_initArgs);
 
