@@ -4,6 +4,7 @@ var OS_OSX   = "Darwin";
 
 var args = [];
 
+native getImportPaths();
 native platform();
 native __initArgs();
 

@@ -1,4 +1,5 @@
 #include "sys.h"
+#include "vm.h"
 
 #include <string.h>
 
@@ -8,6 +9,10 @@ static const char **argVector = NULL;
 void sysInitArgs(int argc, const char **argv) {
 	argCount = argc;
 	argVector = argv;
+}
+
+NATIVE(bl_getImportPaths) {
+	BL_RETURN(OBJ_VAL(vm->importpaths));
 }
 
 NATIVE(bl_platform) {

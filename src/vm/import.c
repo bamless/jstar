@@ -10,15 +10,6 @@
 #include <string.h>
 #include <errno.h>
 
-static char *resolvePathFromModuleName(VM *vm, const char *mname) {
-	char *importpath = vm->importpath == NULL ? "" : vm->importpath;
-	char *fname = malloc(strlen(importpath) + strlen(mname) + 4); // +4 for NUL and `.bl`
-	strcpy(fname, importpath);
-	strcat(fname, mname);
-	strcat(fname, ".bl");
-	return fname;
-}
-
 static char *loadSource(const char *path) {
 	FILE *srcFile = fopen(path, "rb+");
 	if(srcFile == NULL || errno == EISDIR) {
@@ -92,22 +83,45 @@ bool importModule(VM *vm, ObjString *name) {
 		return true;
 	}
 
-	char *fpath = NULL;
+	char fpath[MAX_IMPORT_PATH_LEN];
 	const char *src = NULL;
 	bool dyn = true;
 
 	if((src = readBuiltInModule(name->data)) != NULL) {
-		fpath = malloc(strlen("builtin/") + strlen(name->data) + 1);
-		strcpy(fpath, "builtin/");
-		strcat(fpath, name->data);
+		int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "builtin %s", name->data);
+		if(r >= MAX_IMPORT_PATH_LEN) {
+			return false;
+		}
 		dyn = false;
 	} else {
-		fpath = resolvePathFromModuleName(vm, name->data);
-		src = loadSource(fpath);
+		ObjList *paths = vm->importpaths;
+		for(size_t i = 0; i < paths->count; i++) {
+			if(!IS_STRING(paths->arr[i])) {
+				continue;
+			}
+
+			char *path = AS_STRING(paths->arr[i])->data;
+			int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s/%s.bl", path, name->data);
+			if(r >= MAX_IMPORT_PATH_LEN) {
+				return false;
+			}
+
+			if((src = loadSource(fpath)) == NULL) {
+				continue;
+			}
+		}
+
+		// if the file is not found in the specified import paths try in CWD
+		if(src == NULL) {
+			int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s.bl", name->data);
+			if(r >= MAX_IMPORT_PATH_LEN) {
+				return false;
+			}
+			src = loadSource(fpath);
+		}
 	}
 
 	if(src == NULL) {
-		free(fpath);
 		return false;
 	}
 
@@ -116,14 +130,12 @@ bool importModule(VM *vm, ObjString *name) {
 
 	if(p.hadError) {
 		freeStmt(program);
-		free(fpath);
 		if(dyn) free((char*)src);
 		return false;
 	}
 
 	ObjFunction *fn = compileWithModule(vm, name, program);
 
-	free(fpath);
 	if(dyn) free((char*)src);
 	freeStmt(program);
 

@@ -29,7 +29,7 @@ static void reset(VM *vm) {
 }
 
 void initVM(VM *vm) {
-	vm->importpath = NULL;
+	vm->importpaths = NULL;
 
 	vm->currCompiler = NULL;
 	vm->ctor = NULL;
@@ -71,6 +71,10 @@ void initVM(VM *vm) {
 	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
 
 	initCoreLibrary(vm);
+
+	// This is called after initCoreLibrary in order to correctly assign the
+	// List class to the object since it's created during the initialization
+	vm->importpaths = newList(vm, 8);
 }
 
 void push(VM *vm, Value v) {
@@ -982,20 +986,16 @@ static bool unwindStack(VM *vm) {
 	return false;
 }
 
-void initCommandLineArgs(int argc, const char **argv) {
+void blInitCommandLineArgs(int argc, const char **argv) {
 	sysInitArgs(argc, argv);
 }
 
-void setImportBasePath(VM *vm, const char *path) {
-	free(vm->importpath);
-	vm->importpath = malloc(strlen(path) + 1);
-	strcpy(vm->importpath, path);
+void blAddImportPath(VM *vm, const char *path) {
+	listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path))));
 }
 
 void freeVM(VM *vm) {
 	reset(vm);
-
-	free(vm->importpath);
 
 	sbuf_destroy(&vm->stacktrace);
 

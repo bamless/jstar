@@ -372,6 +372,8 @@ static void garbageCollect(VM *vm) {
 	vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
 	vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
+	reachObject(vm, (Obj*) vm->importpaths);
+
 	reachObject(vm, (Obj*) vm->clsClass);
 	reachObject(vm, (Obj*) vm->objClass);
 	reachObject(vm, (Obj*) vm->strClass);
