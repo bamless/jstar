@@ -3,6 +3,7 @@
 #include "import.h"
 #include "modules.h"
 #include "core.h"
+#include "util.h"
 #include "sys.h" // for intializing command line args
 
 #include "debug/disassemble.h"
@@ -925,37 +926,30 @@ static void printStackTrace(VM *vm) {
 
 	// print the exception instance information
 	Value v;
-	bool res = hashTableGet(&((ObjInstance*)vm->exception)->fields,
-							copyString(vm, "err", strlen("err")), &v);
-	if(res && IS_STRING(v)) {
-		fprintf(stderr, "%s: %s\n", vm->exception->cls->name->data,
-													AS_STRING(v)->data);
+	ObjInstance *exc = (ObjInstance*)vm->exception;
+	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3), &v);
+
+	if(found && IS_STRING(v)) {
+		fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
 	} else {
-		fprintf(stderr, "%s\n", vm->exception->cls->name->data);
+		fprintf(stderr, "%s\n", exc->base.cls->name->data);
 	}
 }
 
 static bool unwindStack(VM *vm) {
-	#define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \
-	    (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
-
-	#define __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
-	    (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
-
-	#define MAX_STRLEN_FOR_INT_TYPE(t) \
-	    (((t) -1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
-	                  : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
-
 	for(;vm->frameCount > 0; vm->frameCount--) {
 		Frame *f = &vm->frames[vm->frameCount - 1];
 
+		// if current frame has except handlers
 		if(f->handlerc > 0) {
 			Handler *h = &f->handlers[f->handlerc - 1];
 
+			// restore vm state and set ip to handler start
 			f->ip = h->handler;
 			vm->sp = h->savesp;
 			vm->module = f->fn->module;
 
+			// push the exception for use in the handler and return to execution
 			push(vm, OBJ_VAL(vm->exception));
 			return true;
 		}
@@ -982,6 +976,7 @@ static bool unwindStack(VM *vm) {
 		}
 	}
 
+	// We have reached the bottom of the stack, print the stacktrace and exit
 	printStackTrace(vm);
 	reset(vm);
 	return false;
