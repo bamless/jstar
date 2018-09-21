@@ -1,30 +1,42 @@
 class Number {
-	def new() { error("Class Number cannot be instantiated."); }
+	def new() {
+		raise Exception("Class Number cannot be instantiated.");
+	}
 	native __string__();
 	native __class__();
 	native __hash__();
 }
 class Boolean {
-	def new() { error("Class Boolean cannot be instantiated."); }
+	def new() {
+		raise Exception("Class Boolean cannot be instantiated.");
+	}
 	native __string__();
 	native __class__();
 }
 class Null {
-	def new() { error("Class Null cannot be instantiated."); }
+	def new() {
+		raise Exception("Class Null cannot be instantiated.");
+	}
 	native __string__();
 	native __class__();
 }
 class Function {
-	def new() { error("Class Function cannot be instantiated."); }
+	def new() {
+		raise Exception("Class Function cannot be instantiated.");
+	}
 	native __string__();
 }
 class Module   {
-	def new() { error("Class Module cannot be instantiated."); }
+	def new() {
+		raise Exception("Class Module cannot be instantiated.");
+	}
 	native __string__();
 }
 
 class String {
-	def new() { error("Class String cannot be instantiated."); }
+	def new() {
+		raise Exception("Class String cannot be instantiated, use \"...\".");
+	}
 
 	native substr(from, to);
 	native length();
@@ -41,7 +53,7 @@ class String {
 				while(this[endformat] != "}") {
 					endformat = endformat + 1;
 					if(endformat >= this.length()) {
-						error("Unterminated format.");
+						raise InvalidArgException("Unterminated format.");
 					}
 				}
 
@@ -92,7 +104,9 @@ class __StringIterator {
 }
 
 class List {
-	def new() { error("Class List cannot be instantiated."); }
+	def new() {
+		raise Exception("Class List cannot be instantiated, use `[]`.");
+	}
 
 	native add(e);
 	native insert(i, e);
@@ -111,7 +125,7 @@ class List {
 
 	def insertAll(i, iterable) {
 		if(i < 0 or i >= this.size()) {
-			error("List index out of bounds: " + str(i));
+			raise IndexOutOfBoundException(str(i));
 		}
 
 		var changed = false;
@@ -173,7 +187,7 @@ class List {
 
 	def subList(from, to) {
 		if(to < from) {
-			error("to arg should be >= from arg");
+			raise InvalidArgException("to arg should be >= from arg");
 		}
 
 		var sub = [];
@@ -193,6 +207,18 @@ class List {
 
 	def __string__() {
 		return "[" + this.join(", ") + "]";
+	}
+
+	def __equals__(lst) {
+		if(this.size() != lst.size()) {
+			return false;
+		}
+		for(var i in range(0, this.size())) {
+			if(!this[i].__equals__(lst[i])) {
+				return false;
+			}
+		}
+		return true;
 	}
 }
 
@@ -250,11 +276,18 @@ class InvalidArgException : Exception {}
 class IndexOutOfBoundException : Exception {}
 class AssertException : Exception {}
 
+def assert(cond, msg) {
+	if(!cond) raise AssertException(msg);
+}
+
 def print(o) {
+	writeout(o);
+	__printstr("\n");
+}
+
+def writeout(o) {
 	var s = o.__string__();
-	if(!(s is String)) {
-		error("__string__() didn't return a string: type " + s.__class__().getName());
-	}
+	assert(s is String, "__string__() didn't return a string, got " + s.__class__().getName());
 	__printstr(o.__string__());
 }
 
@@ -269,7 +302,7 @@ def str(e) {
 class range {
 	def new(from, to) {
 		if(!isInt(from) or !isInt(to)) {
-			error("Argument `from` and `to` must be integers");
+			raise InvalidArgException("Argument `from` and `to` must be integers");
 		}
 		this.from = from;
 		this.to = to;

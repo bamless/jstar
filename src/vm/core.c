@@ -200,7 +200,7 @@ NATIVE(bl_isInt) {
 }
 
 NATIVE(bl_printstr) {
-	printf("%s\n", AS_STRING(args[1])->data);
+	printf("%s", AS_STRING(args[1])->data);
 	BL_RETURN(NULL_VAL);
 }
 
