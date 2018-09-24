@@ -40,7 +40,7 @@ The following dependencies are required:
 * **libjemalloc**
 
 These libraries are found in most distributions' repositories, if they're not you'll need to build them manually.
-Optionally, one can disable the libjemalloc dependency by setting the environment variable **USE_GLIBC_ALLOC** to 1 during the build:
+Optionally, one can disable the **libjemalloc** dependency by setting the environment variable **USE_GLIBC_ALLOC** to 1 during the build:
 
 `make USE_GLIBC_ALLOC=1`
 
