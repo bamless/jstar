@@ -16,8 +16,8 @@ blang>> _
 When you eventually get bored, simply press Ctrl+d or Ctrl+x to exit the interpreter.
 
 ## Scripts
-If you want to run a script, just pass its path as the first argument to blang. If you pass more than one argument, all the other will be forwarded to blang as *script arguments*.
-You can read them from the script like this:
+If you want to run a script, just pass its path as the first argument to blang. If you pass more than one argument, all the others will be forwarded to blang as *script arguments*.
+You can then read them from the script this way:
 ```c#
 import sys;
 
