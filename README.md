@@ -66,4 +66,4 @@ During the compilation with make various environment variables can be used to en
 
 These environment variables can be exported in the terminal before executing `make`, or they can be set in a one liner like this:
 
-`make OPTION1**=1 OPTION2=1 ...`
+`make OPTION1=1 OPTION2=1 ...`
