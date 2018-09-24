@@ -6,6 +6,7 @@ var args = [];
 
 native getImportPaths();
 native platform();
-native __initArgs();
+native gc();
 
+native __initArgs();
 __initArgs();

@@ -27,8 +27,6 @@ static Obj *newObj(VM *vm, size_t size, ObjClass *cls, ObjType type) {
 	return o;
 }
 
-static void garbageCollect(VM *vm);
-
 void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 	vm->allocated += size - oldsize;
 	if(size > oldsize && !vm->disableGC) {
@@ -362,7 +360,7 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	}
 }
 
-static void garbageCollect(VM *vm) {
+void garbageCollect(VM *vm) {
 #ifdef DBG_PRINT_GC
 	size_t prevAlloc = vm->allocated;
 	puts("*--- Starting GC ---*");
@@ -421,6 +419,8 @@ static void garbageCollect(VM *vm) {
 	vm->reachedCount = 0;
 
 	vm->nextGC = vm->allocated * HEAP_GROW_RATE;
+
+
 
 #ifdef DBG_PRINT_GC
 	size_t curr = prevAlloc - vm->allocated;

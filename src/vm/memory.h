@@ -15,6 +15,7 @@ typedef struct VM VM;
 		allocate(vm, obj, sizeof(type) * count, 0)
 
 void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size);
+void garbageCollect(VM *vm);
 
 ObjNative *newNative(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn);
 ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method);

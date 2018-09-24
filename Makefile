@@ -42,7 +42,7 @@ STATIC_PATH = lib
 INCLUDES = -I$(SRC)/vm -I$(SRC)/builtin
 
 #Linker flags
-LDFLAGS = -Wl,-rpath=\$$ORIGIN/../lib/ #rpath for faster testing. Allows the built binary in bin/ to find all the shared libs
+LDFLAGS =
 
 # Compiler flags
 CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra -O3 -s
@@ -52,18 +52,25 @@ SRC_EXT = c
 
 ###### SETTINGS END ######
 
+ifneq ($(OS),Windows_NT)
+	OS := $(shell uname -s)
+endif
+
 SHARED_EXT = so
 ifeq ($(OS),Windows_NT)
 	SHARED_EXT = dll
-else
-	UNAME_S := $(shell uname -s)
-	ifeq ($(UNAME_S),Linux)
-        CFLAGS += -D_POSIX_SOURCE
-    endif
-    ifeq ($(UNAME_S),Darwin)
-		SHARED_EXT = dylib
-		CFLAGS += -D_POSIX_SOURCE
-    endif
+else ifeq ($(OS), Linux)
+	SHARED_EXT = test
+	CFLAGS += -D_POSIX_SOURCE
+else ifeq ($(OS), Darwin)
+	SHARED_EXT = dylib
+	CFLAGS += -D_POSIX_SOURCE
+endif
+
+ifeq ($(OS), Linux)
+	ifneq ($(USE_GLIBC_ALLOC),1)
+		VM_LIBS += -pthread -ljemalloc -ldl
+	endif
 endif
 
 ifeq ($(DBG_STRESS_GC),1)

@@ -1,6 +1,8 @@
 #include "sys.h"
 #include "vm.h"
 
+#include "memory.h"
+
 #include <string.h>
 
 static int argCount = 0 ;
@@ -23,6 +25,11 @@ NATIVE(bl_platform) {
 #elif __APPLE__
 	BL_RETURN(OBJ_VAL(copyString(vm, "OSX", 3)));
 #endif
+}
+
+NATIVE(bl_gc) {
+	garbageCollect(vm);
+	BL_RETURN(NULL_VAL);
 }
 
 NATIVE(bl_initArgs) {
