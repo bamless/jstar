@@ -42,8 +42,7 @@ typedef struct Compiler {
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s);
 
-static
-void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
+static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
 	c->vm = vm;
 	c->type = t;
 	c->func = NULL;
@@ -97,7 +96,7 @@ static void exitScope(Compiler *c) {
 		c->locals[c->localsCount - 1].depth > c->depth) {
 			c->localsCount--;
 			emitBytecode(c, OP_POP, 0);
-		}
+	}
 }
 
 static uint8_t createConst(Compiler *c, Value constant, int line) {
@@ -289,9 +288,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 
 		if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
 			error(c, line, "Can't use `super` outside method.");
-		} //else if(isSuper && !c->hasSuper) {
-		//	error(c, line, "Can use `super` only in subclass.");
-		//}
+		}
 
 		callCode   = isSuper ? OP_SUPER : OP_INVOKE;
 		callInline = isSuper ? OP_SUPER_0 : OP_INVOKE_0;
@@ -421,7 +418,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case SUPER_LIT:
-		error(c, e->line, "Can only use `super` in method calls inside methods");
+		error(c, e->line, "Can only use `super` inside methods");
 		break;
 	}
 }
@@ -626,6 +623,60 @@ static void compileNative(Compiler *c, Stmt *s) {
 	emitBytecode(c, i, s->line);
 }
 
+static void compileMethods(Compiler *c, Stmt* cls) {
+	LinkedList *methods = cls->classDecl.methods;
+	LinkedList *n;
+
+	Compiler methodc;
+	foreach(n, methods) {
+		Stmt *m = (Stmt*) n->elem;
+		switch(m->type) {
+		case FUNCDECL: {
+			initCompiler(&methodc, c, TYPE_METHOD, c->depth + 1, c->vm);
+
+			ObjFunction *met = method(&methodc, c->func->module, &cls->classDecl.id, m);
+
+			emitBytecode(c, OP_DEF_METHOD, cls->line);
+			emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), cls->line);
+			emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), cls->line);
+
+			endCompiler(&methodc);
+			break;
+		}
+		case NATIVEDECL: {
+			Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
+			if(identifierEquals(&ctor, &m->nativeDecl.id)) {
+				error(c, m->line, "Cannot declare native constructor");
+			}
+
+			size_t argsLen = listLength(m->nativeDecl.formalArgs);
+			ObjNative *n = newNative(c->vm, c->func->module, NULL, argsLen, NULL);
+
+			uint8_t native = createConst(c, OBJ_VAL(n), cls->line);
+			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
+
+			Identifier *classId = &cls->classDecl.id;
+			size_t len = classId->length + m->nativeDecl.id.length + 1;
+			char *name = ALLOC(c->vm, len + 1);
+
+			memcpy(name, classId->name, classId->length);
+			name[classId->length] = '.';
+			memcpy(name + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
+			name[len] = '\0';
+
+			n->name = newStringFromBuf(c->vm, name, len);
+
+			emitBytecode(c, OP_NAT_METHOD, cls->line);
+			emitBytecode(c, id, cls->line);
+			emitBytecode(c, native, cls->line);
+			break;
+		}
+		default: break;
+		}
+	}
+
+}
+
 static void compileClass(Compiler *c, Stmt *s) {
 	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
 
@@ -639,56 +690,7 @@ static void compileClass(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, id, s->line);
 
-	LinkedList *n;
-	Compiler mComp;
-	foreach(n, s->classDecl.methods) {
-
-		Stmt *m = (Stmt*) n->elem;
-		switch(m->type) {
-		case FUNCDECL: {
-			initCompiler(&mComp, c, TYPE_METHOD, c->depth + 1, c->vm);
-			mComp.hasSuper = isSubClass;
-
-			ObjFunction *met = method(&mComp, c->func->module, &s->classDecl.id, m);
-
-			emitBytecode(c, OP_DEF_METHOD, s->line);
-			emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), s->line);
-			emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), s->line);
-
-			endCompiler(&mComp);
-			break;
-		}
-		case NATIVEDECL: {
-			Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
-			if(identifierEquals(&ctor, &m->nativeDecl.id)) {
-				error(c, m->line, "Cannot declare native constructor");
-			}
-
-			size_t argsLen = listLength(m->nativeDecl.formalArgs);
-			ObjNative *n = newNative(c->vm, c->func->module, NULL, argsLen, NULL);
-
-			uint8_t nc = createConst(c, OBJ_VAL(n), s->line);
-			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
-
-			Identifier *classId = &s->classDecl.id;
-			size_t len = classId->length + m->nativeDecl.id.length + 1;
-			char *name = ALLOC(c->vm, len + 1);
-
-			memcpy(name, classId->name, classId->length);
-			name[classId->length] = '.';
-			memcpy(name + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
-			name[len] = '\0';
-
-			n->name = newStringFromBuf(c->vm, name, len);
-
-			emitBytecode(c, OP_NAT_METHOD, s->line);
-			emitBytecode(c, id, s->line);
-			emitBytecode(c, nc, s->line);
-			break;
-		}
-		default: break;
-		}
-	}
+	compileMethods(c, s);
 
 	declareVar(c, &s->classDecl.id, s->line);
 	defineVar(c, &s->classDecl.id, s->line);
@@ -724,7 +726,8 @@ static void compileExcept(Compiler *c, LinkedList *excs) {
 	emitBytecode(c, OP_EXC_HANDLED, 0);
 
 	declareVar(c, &exc->excStmt.var, exc->line);
-	c->locals[c->localsCount - 1].depth = c->depth;
+	defineVar(c, &exc->excStmt.var, exc->line);
+
 	compileStatements(c, exc->excStmt.block->blockStmt.stmts);
 
 	exitScope(c);
@@ -811,13 +814,13 @@ static void compileStatement(Compiler *c, Stmt *s) {
 	case IMPORT:
 		compileImportStatement(c, s);
 		break;
+	case RAISE_STMT:
+		compileRaiseStmt(c, s);
+		break;
 	case TRY_STMT:
 		c->tryDepth++;
 		compileTryExcept(c, s);
 		c->tryDepth--;
-		break;
-	case RAISE_STMT:
-		compileRaiseStmt(c, s);
 		break;
 	case EXCEPT_STMT: break;
 	}
