@@ -385,6 +385,14 @@ NATIVE(bl_printstr) {
 		BL_RETURN(NUM_VAL(AS_STRING(args[0])->length));
 	}
 
+	NATIVE(bl_String_equals) {
+		if(!IS_STRING(args[1])) {
+			BL_RETURN(FALSE_VAL);
+		}
+		bool r = strcmp(AS_STRING(args[0])->data, AS_STRING(args[1])->data) == 0;
+		BL_RETURN(BOOL_VAL(r));
+	}
+
 	NATIVE(bl_String_hash) {
 		BL_RETURN(NUM_VAL(AS_STRING(args[0])->hash));
 	}

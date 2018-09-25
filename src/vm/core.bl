@@ -83,6 +83,7 @@ class String {
 		return __StringIterator(this);
 	}
 
+	native __equals__(o);
 	native __hash__();
 }
 
