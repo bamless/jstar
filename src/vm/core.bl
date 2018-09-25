@@ -272,6 +272,13 @@ class Exception {
 	}
 }
 
+class TypeException : Exception {}
+class NameException : Exception {}
+class FieldException : Exception {}
+class MethodException : Exception {}
+class ImportException : Exception {}
+class StackOverflowException : Exception {}
+class DivisionByZeroException : Exception {}
 class InvalidArgException : Exception {}
 class IndexOutOfBoundException : Exception {}
 class AssertException : Exception {}

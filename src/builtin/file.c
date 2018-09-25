@@ -185,12 +185,12 @@ NATIVE(bl_open) {
 	  (mlen > 1 && (m[1] != 'b' && m[1] != '+')) ||
 	  (mlen > 2 && m[2] != 'b'))
 	{
-		  blRiseException(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+		BL_RISE_EXCEPTION(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
 	}
 
 	FILE *f = fopen(AS_STRING(args[1])->data, m);
 	if(f == NULL) {
-		blRiseException(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
+		BL_RISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
 	}
 
 	BL_RETURN(HANDLE_VAL(f));

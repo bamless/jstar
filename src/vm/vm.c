@@ -4,7 +4,8 @@
 #include "modules.h"
 #include "core.h"
 #include "util.h"
-#include "sys.h" // for intializing command line args
+#include "sys.h"
+#include "blang.h"
 
 #include "debug/disassemble.h"
 
@@ -19,7 +20,6 @@
 #include <limits.h>
 #include <string.h>
 
-static void runtimeError(VM *vm, const char* format, ...);
 static bool unwindStack(VM *vm);
 
 static void reset(VM *vm) {
@@ -108,13 +108,13 @@ static bool isInstance(VM *vm, Value i, ObjClass *cls) {
 
 static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
-		runtimeError(vm, "Function `%s` expected %d args, but instead %d "
-		             "supplied.", func->name->data, func->argsCount, argc);
+		blRise(vm, "TypeException", "Function `%s` expected %d args, but "
+		    "instead %d supplied.", func->name->data, func->argsCount, argc);
 		return false;
 	}
 
 	if(vm->frameCount == FRAME_SZ) {
-		runtimeError(vm, "Stack Overflow.");
+		blRise(vm, "StackOverflowException", NULL);
 		return false;
 	}
 
@@ -131,26 +131,20 @@ static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 
 static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
 	if(native->argsCount != argc) {
-		runtimeError(vm, "Native function `%s` expexted %d args, but instead %d"
-					 " supplied.", native->name->data, native->argsCount, argc);
+		blRise(vm, "TypeException", "Native function `%s` expexted %d args, "
+		        "but instead %d supplied.", native->name->data, native->argsCount, argc);
 		return false;
 	}
 
 	Value ret;
 	if(!native->fn(vm, vm->sp - (argc + 1), &ret)) {
-		runtimeError(vm, "Failed to call native %s().", native->name->data);
+		blRise(vm, "Exception", "Failed to call native %s().", native->name->data);
 		return false;
 	}
 	vm->sp -= argc + 1;
 	push(vm, ret);
 
-	if(vm->exception != NULL) {
-		if(!unwindStack(vm)) {
-			return false;
-		}
-	}
-
-	return true;
+	return vm->exception == NULL;
 }
 
 static bool callValue(VM *vm, Value callee, uint8_t argc) {
@@ -173,8 +167,8 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
 				return callFunction(vm, AS_FUNC(ctor), argc);
 			} else if(argc != 0) {
-				runtimeError(vm, "Function %s.new() Expected 0 args, but "
-						  "instead `%d` supplied.", cls->name->data, argc);
+				blRise(vm, "TypeException", "Function %s.new() Expected 0 "
+				    "args, but instead `%d` supplied.", cls->name->data, argc);
 				return false;
 			}
 
@@ -185,7 +179,7 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 	}
 
 	ObjClass *cls = getClass(vm, callee);
-	runtimeError(vm, "Object %s is not a callable.", cls->name->data);
+	blRise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
 	return false;
 }
 
@@ -202,8 +196,8 @@ static void createClass(VM *vm, ObjString *name, ObjClass *superCls) {
 static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
 	Value method;
 	if(!hashTableGet(&cls->methods, name, &method)) {
-		runtimeError(vm, "Method %s.%s() doesn't "
-			"exists", cls->name->data, name->data);
+		blRise(vm, "MethodException", "Method %s.%s() doesn't "
+			                "exists", cls->name->data, name->data);
 		return false;
 	}
 
@@ -244,8 +238,8 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 			}
 
 			if(!hashTableGet(&mod->globals, name, &func)) {
-				runtimeError(vm, "Name `%s` is not defined "
-					"in module %s.", name->data, mod->name->data);
+				blRise(vm, "NameException", "Name `%s` is not defined "
+					        "in module %s.", name->data, mod->name->data);
 				return false;
 			}
 
@@ -282,8 +276,8 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 			if(!hashTableGet(&inst->fields, name, &v)) {
 				//if we didnt find a field try to return bound method
 				if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
-					runtimeError(vm, "Object %s doesn't have field `%s`.",
-									  inst->base.cls->name->data, name->data);
+					blRise(vm, "FieldException", "Object %s doesn't have "
+						"field `%s`.", inst->base.cls->name->data, name->data);
 					return false;
 				}
 
@@ -299,8 +293,8 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 
 			Value v;
 			if(!hashTableGet(&mod->globals, name, &v)) {
-				runtimeError(vm, "Variable `%s` doesn't "
-					"exists in module %s", name->data, mod->name->data);
+				blRise(vm, "NameException", "Name `%s` is not "
+				    "defined in module %s", name->data, mod->name->data);
 				return false;
 			}
 
@@ -312,7 +306,8 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 	}
 
 	ObjClass *cls = getClass(vm, val);
-	runtimeError(vm, "Object %s doesn't have field `%s`.", cls->name->data, name->data);
+	blRise(vm, "FieldException", "Object %s doesn't "
+		    "have field `%s`.", cls->name->data, name->data);
 	return false;
 }
 
@@ -334,7 +329,8 @@ bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
 	}
 
 	ObjClass *cls = getClass(vm, val);
-	runtimeError(vm, "Object %s doesn't have field `%s`.", cls->name->data, name->data);
+	blRise(vm, "FieldException", "Object %s doesn't "
+	        "have field `%s`.", cls->name->data, name->data);
 	return false;
 }
 
@@ -365,12 +361,20 @@ static bool runEval(VM *vm) {
 
 	#define BINARY(type, op) do { \
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
-			runtimeError(vm, "Operands of `%s` must be numbers.", #op); \
-			return false; \
+			blRise(vm, "TypeException", "Operands of `%s` must be numbers.", #op); \
+			UNWIND_STACK(vm); \
 		} \
 		double b = AS_NUM(pop(vm)); \
 		double a = AS_NUM(pop(vm)); \
 		push(vm, type(a op b)); \
+	} while(0)
+
+	#define UNWIND_STACK(vm) do { \
+		if(!unwindStack(vm)) { \
+			return false; \
+		} \
+		frame = &vm->frames[vm->frameCount - 1]; \
+		DISPATCH(); \
 	} while(0)
 
 	#ifdef DBG_PRINT_EXEC
@@ -396,8 +400,7 @@ static bool runEval(VM *vm) {
 
 		#define DISPATCH() do { \
 			PRINT_DBG_STACK() \
-			op = NEXT_CODE(); \
-			goto *opJmpTable[op]; \
+			goto *opJmpTable[(op = NEXT_CODE())]; \
 		} while(0)
 
 		#define CASE(op) DISPATCH();
@@ -436,20 +439,20 @@ static bool runEval(VM *vm) {
 			push(vm, OBJ_VAL(conc));
 			DISPATCH();
 		}
-		runtimeError(vm, "Operands of `+` must be two numbers or two strings.");
-		return false;
+		blRise(vm, "TypeException", "Operands of + must be two numbers or strings.");
+		UNWIND_STACK(vm);
 	}
 	TARGET(OP_MOD): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			runtimeError(vm, "Operands of `%` must be numbers.");
-			return false;
+			blRise(vm, "TypeException", "Operands of % must be numbers.");
+			UNWIND_STACK(vm);
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
 
 		if(b == 0) {
-			runtimeError(vm, "Modulo by zero error.");
-			return false;
+			blRise(vm, "DivisionByZeroException", "Modulo by zero.");
+			UNWIND_STACK(vm);
 		}
 
 		push(vm, NUM_VAL(fmod(a, b)));
@@ -457,15 +460,15 @@ static bool runEval(VM *vm) {
 	}
 	TARGET(OP_DIV): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			runtimeError(vm, "Operands of `/` must be numbers.");
-			return false;
+			blRise(vm, "TypeException", "Operands of / must be numbers.");
+			UNWIND_STACK(vm);
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
 
 		if(b == 0) {
-			runtimeError(vm, "Division by zero error.");
-			return false;
+			blRise(vm, "DivisionByZeroException", "Division by zero.");
+			UNWIND_STACK(vm);
 		}
 
 		push(vm, NUM_VAL(a / b));
@@ -494,8 +497,8 @@ static bool runEval(VM *vm) {
 		Value a = pop(vm);
 
 		if(!IS_CLASS(b)) {
-			runtimeError(vm, "Right operand of `is` must be a class");
-			return false;
+			blRise(vm, "TypeException", "Right operand of `is` must be a class.");
+			UNWIND_STACK(vm);
 		}
 
 		push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
@@ -503,8 +506,8 @@ static bool runEval(VM *vm) {
 	}
 	TARGET(OP_NEG):
 		if(!IS_NUM(peek(vm))) {
-			runtimeError(vm, "Operand to `-` must be a number.");
-			return false;
+			blRise(vm, "TypeException", "Operand to `-` must be a number.");
+			UNWIND_STACK(vm);
 		}
 		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
 		DISPATCH();
@@ -514,36 +517,37 @@ static bool runEval(VM *vm) {
 	TARGET(OP_GET_FIELD): {
 		Value v = pop(vm);
 		if(!getFieldFromValue(vm, v, GET_STRING())) {
-			return false;
+			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	}
 	TARGET(OP_SET_FIELD): {
 		Value v = pop(vm);
 		if(!setFieldOfValue(vm, v, GET_STRING(), peek(vm))) {
-			return false;
+			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	}
 	TARGET(OP_ARR_GET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
-			runtimeError(vm, "Index of array access must be a number.");
-			return false;
+			blRise(vm, "TypeError", "Index of array access must be a number.");
+			UNWIND_STACK(vm);
 		}
 
 		double index = AS_NUM(i);
 		if((int64_t) index != index) {
-			runtimeError(vm, "Index of array access must be an integer.");
-			return false;
+			blRise(vm, "TypeError", "Index of array access must be an integer.");
+			UNWIND_STACK(vm);
 		}
 
 		Value o = peek(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
 			if(index < 0 || index >= lst->count) {
-				runtimeError(vm, "List index out of bound: %d.", (int) index);
-				return false;
+				blRise(vm, "IndexOutOfBoundException",
+				    "List index out of bound: %d.", (int) index);
+				UNWIND_STACK(vm);
 			}
 
 			pop(vm);
@@ -551,8 +555,9 @@ static bool runEval(VM *vm) {
 		} else if(IS_STRING(o)) {
 			ObjString *s = AS_STRING(o);
 			if(index < 0 || index >= s->length) {
-				runtimeError(vm, "String index out of bound: %d.", (int) index);
-				return false;
+				blRise(vm, "IndexOutOfBoundException",
+				    "String index out of bound: %d.", (int) index);
+				UNWIND_STACK(vm);
 			}
 
 			char c = s->data[(size_t)index];
@@ -562,36 +567,37 @@ static bool runEval(VM *vm) {
 			push(vm, OBJ_VAL(strc));
 		} else {
 			ObjClass *cls = getClass(vm, o);
-			runtimeError(vm, "Operand of get `[]` must be a String or a List, "
-					         "instead got %s.", cls->name->data);
-			return false;
+			blRise(vm, "TypeException", "Operand of get `[]` must be "
+			        "a String or a List, instead got %s.", cls->name->data);
+			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	}
 	TARGET(OP_ARR_SET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
-			runtimeError(vm, "Index of array access must be a number.");
-			return false;
+			blRise(vm, "TypeError", "Index of array access must be a number.");
+			UNWIND_STACK(vm);
 		}
 
 		double index = AS_NUM(i);
 		if((int64_t) index != index) {
-			runtimeError(vm, "Index of array access must be an integer.");
-			return false;
+			blRise(vm, "TypeError", "Index of array access must be an integer.");
+			UNWIND_STACK(vm);
 		}
 
 		Value o = pop(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
 			if(index < 0 || index >= lst->count) {
-				runtimeError(vm, "List index out of bound: %d.", (int) index);
-				return false;
+				blRise(vm, "IndexOutOfBoundException",
+					"List index out of bound: %d.", (int) index);
+				UNWIND_STACK(vm);
 			}
 
 			lst->arr[(size_t)index] = peek(vm);
 		} else {
-			runtimeError(vm, "Operand of set `[]` must be a list.");
+			blRise(vm, "TypeException", "Operand of set `[]` must be a List.");
 			return false;
 		}
 		DISPATCH();
@@ -631,7 +637,7 @@ static bool runEval(VM *vm) {
 		argc = op - OP_CALL_0;
 call:
 		if(!callValue(vm, peekn(vm, argc), argc)) {
-			return false;
+			UNWIND_STACK(vm);
 		}
 		frame = &vm->frames[vm->frameCount - 1];
 		DISPATCH();
@@ -653,7 +659,7 @@ call:
 		argc = op - OP_INVOKE_0;
 invoke:
 		if(!invokeFromValue(vm, GET_STRING(), argc)) {
-			return false;
+			UNWIND_STACK(vm);
 		}
 		frame = &vm->frames[vm->frameCount - 1];
 		DISPATCH();
@@ -676,7 +682,7 @@ invoke:
 sup_invoke:;
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
 		if(!invokeMethod(vm, inst->base.cls->superCls, GET_STRING(), argc)) {
-			return false;
+			UNWIND_STACK(vm);
 		}
 		frame = &vm->frames[vm->frameCount - 1];
 		DISPATCH();
@@ -700,8 +706,8 @@ sup_invoke:;
 	TARGET(OP_IMPORT):;
 		ObjString *name = GET_STRING();
 		if(!importModule(vm, name)) {
-			runtimeError(vm, "Cannot load module `%s`", name->data);
-			return false;
+			blRise(vm, "ImportException", "Cannot load module `%s`.", name->data);
+			UNWIND_STACK(vm);
 		}
 
 		//define name for the module in the importing module
@@ -730,8 +736,8 @@ sup_invoke:;
 		DISPATCH();
 	TARGET(OP_NEW_SUBCLASS):
 		if(!IS_CLASS(peek(vm))) {
-			runtimeError(vm, "Superclass in class declaration must be a Class.");
-			return false;
+			blRise(vm, "TypeException", "Superclass in class declaration must be a Class.");
+			UNWIND_STACK(vm);
 		}
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
 		DISPATCH();
@@ -748,8 +754,8 @@ sup_invoke:;
 
 		native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
 		if(native->fn == NULL) {
-			runtimeError(vm, "Cannot resolve native method %s().", native->name->data);
-			return false;
+			blRise(vm, "Exception", "Cannot resolve native method %s().", native->name->data);
+			UNWIND_STACK(vm);
 		}
 
 		hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
@@ -761,8 +767,8 @@ sup_invoke:;
 
 		nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
 		if(nat->fn == NULL) {
-			runtimeError(vm, "Cannot resolve native %s.", nat->name->data);
-			return false;
+			blRise(vm, "Exception", "Cannot resolve native %s.", nat->name->data);
+			UNWIND_STACK(vm);
 		}
 
 		hashTablePut(&vm->module->globals, name, OBJ_VAL(nat));
@@ -777,16 +783,16 @@ sup_invoke:;
 	TARGET(OP_GET_GLOBAL): {
 		ObjString *name = GET_STRING();
 		if(!hashTableGet(&vm->module->globals, name, vm->sp++)) {
-			runtimeError(vm, "Name `%s` is not defined.", name->data);
-			return false;
+			blRise(vm, "NameException", "Name `%s` is not defined.", name->data);
+			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	}
 	TARGET(OP_SET_GLOBAL): {
 		ObjString *name = GET_STRING();
 		if(hashTablePut(&vm->module->globals, name, peek(vm))) {
-			runtimeError(vm, "Name `%s` is not defined.", name->data);
-			return false;
+			blRise(vm, "NameException", "Name `%s` is not defined.", name->data);
+			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	}
@@ -806,10 +812,7 @@ sup_invoke:;
 	TARGET(OP_END_TRY):
 		if(vm->exception != NULL) {
 			frame->handlerc--;
-			if(!unwindStack(vm)){
-				return false;
-			}
-			frame = &vm->frames[vm->frameCount - 1];
+			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	TARGET(OP_RAISE): {
@@ -817,16 +820,13 @@ sup_invoke:;
 		Value exc = pop(vm);
 
 		if(!IS_INSTANCE(exc)) {
-			runtimeError(vm, "Can only raise object instances.");
-			return false;
+			blRise(vm, "TypeException", "Can only raise object instances.");
+			UNWIND_STACK(vm);
 		}
 
 		vm->exception = AS_OBJ(exc);
-		if(!unwindStack(vm)) {
-			return false;
-		}
-		frame = &vm->frames[vm->frameCount - 1];
-		DISPATCH();
+
+		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
 		push(vm, frame->stack[NEXT_CODE()]);
@@ -884,34 +884,6 @@ EvalResult evaluateModule(VM *vm, const char *fpath, const char *module, const c
 	}
 
 	return VM_EVAL_SUCCSESS;
-}
-
-static void runtimeError(VM *vm, const char* format, ...) {
-	fprintf(stderr, "Traceback (most recent call last):\n");
-
-	for(int i = 0; i < vm->frameCount; i++) {
-		Frame *frame = &vm->frames[i];
-		ObjFunction *func = frame->fn;
-		size_t op = frame->ip - func->chunk.code - 1;
-		fprintf(stderr, "    [line:%d] ", getBytecodeSrcLine(&func->chunk, op));
-
-		fprintf(stderr, "module %s in ", func->module->name->data);
-
-		if(func->name != NULL) {
-			fprintf(stderr, "%s()\n", func->name->data);
-		} else {
-			fprintf(stderr, "<main>\n");
-		}
-
-	}
-
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	fprintf(stderr, "\n");
-
-	reset(vm);
 }
 
 static void printStackTrace(VM *vm) {

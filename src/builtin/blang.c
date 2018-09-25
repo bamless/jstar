@@ -30,7 +30,7 @@ bool blGetGlobal(VM *vm, const char *fname, Value *ret) {
 	return hashTableGet(&vm->module->globals, copyString(vm, fname, strlen(fname)), ret);
 }
 
-bool blRiseExceptionImpl(VM *vm, const char* cls, const char *err, ...) {
+bool blRise(VM *vm, const char* cls, const char *err, ...) {
 	sbuf_clear(&vm->stacktrace);
 
 	Value excVal;
@@ -38,17 +38,20 @@ bool blRiseExceptionImpl(VM *vm, const char* cls, const char *err, ...) {
 		return false;
 	}
 
-	char errStr[1024] = {0};
-	va_list args;
-	va_start(args, err);
-	vsnprintf(errStr, sizeof(errStr) - 1, err, args);
-	va_end(args);
-
 	ObjInstance *excInst = newInstance(vm, AS_CLASS(excVal));
-	push(vm, OBJ_VAL(excInst));
 
-	blSetField(vm, excInst, "err", OBJ_VAL(copyString(vm, errStr, strlen(errStr))));
-	pop(vm);
+	if(err != NULL) {
+		push(vm, OBJ_VAL(excInst));
+
+		char errStr[1024] = {0};
+		va_list args;
+		va_start(args, err);
+		vsnprintf(errStr, sizeof(errStr) - 1, err, args);
+		va_end(args);
+
+		blSetField(vm, excInst, "err", OBJ_VAL(copyString(vm, errStr, strlen(errStr))));
+		pop(vm);
+	}
 
 	vm->exception = (Obj*) excInst;
 

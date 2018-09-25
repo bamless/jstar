@@ -24,13 +24,13 @@ bool blGetField(VM *vm, ObjInstance *o, const char *name, Value *ret);
 void blSetGlobal(VM *vm, const char *fname, Value val);
 bool blGetGlobal(VM *vm, const char *fname, Value *ret);
 
-#define blRiseException(vm, cls, err, ...) do { \
-		if(!blRiseExceptionImpl(vm, cls, err, ##__VA_ARGS__)) { \
+#define BL_RISE_EXCEPTION(vm, cls, err, ...) do { \
+		if(!blRise(vm, cls, err, ##__VA_ARGS__)) { \
 			return false; \
 		} \
 		return true; \
 	} while(0)
 
-bool blRiseExceptionImpl(VM *vm, const char* cls, const char *errfmt, ...);
+bool blRise(VM *vm, const char* cls, const char *errfmt, ...);
 
 #endif
