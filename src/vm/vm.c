@@ -220,10 +220,7 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 				}
 			}
 
-			if(!invokeMethod(vm, inst->base.cls, name, argc)) {
-				return false;
-			}
-			return true;
+			return invokeMethod(vm, inst->base.cls, name, argc);
 		}
 		case OBJ_MODULE: {
 			ObjModule *mod = AS_MODULE(val);
@@ -231,10 +228,7 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 			Value func;
 			// check if method shadows a function in the module
 			if(hashTableGet(&vm->modClass->methods, name, &func)) {
-				if(!callValue(vm, func, argc)) {
-					return false;
-				}
-				return true;
+				return callValue(vm, func, argc);
 			}
 
 			if(!hashTableGet(&mod->globals, name, &func)) {
@@ -243,27 +237,17 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 				return false;
 			}
 
-			if(!callValue(vm, func, argc)) {
-				return false;
-			}
-
-			return true;
+			return callValue(vm, func, argc);
 		}
 		default: {
 			Obj *o = AS_OBJ(val);
-			if(!invokeMethod(vm, o->cls, name, argc)) {
-				return false;
-			}
-			return true;
+			return invokeMethod(vm, o->cls, name, argc);
 		}
 		}
 	}
 
 	ObjClass *cls = getClass(vm, val);
-	if(!invokeMethod(vm, cls, name, argc)) {
-		return false;
-	}
-	return true;
+	return invokeMethod(vm, cls, name, argc);
 }
 
 bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
