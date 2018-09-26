@@ -157,7 +157,9 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(callee);
 			vm->sp[-argc - 1] = OBJ_VAL(m->bound);
-			return callFunction(vm, m->method, argc);
+			return m->method->type == OBJ_FUNCTION ?
+			        callFunction(vm, (ObjFunction*)m->method, argc) :
+			        callNative(vm, (ObjNative*)m->method, argc);
 		}
 		case OBJ_CLASS: {
 			ObjClass *cls = AS_CLASS(callee);
@@ -246,6 +248,7 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 		}
 	}
 
+	// if builtin type get the class and try to invoke
 	ObjClass *cls = getClass(vm, val);
 	return invokeMethod(vm, cls, name, argc);
 }
@@ -265,7 +268,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 					return false;
 				}
 
-				push(vm, OBJ_VAL(newBoundMethod(vm, inst, AS_FUNC(v))));
+				push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
 				return true;
 			}
 
@@ -277,9 +280,15 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 
 			Value v;
 			if(!hashTableGet(&mod->globals, name, &v)) {
-				blRise(vm, "NameException", "Name `%s` is not "
-				    "defined in module %s", name->data, mod->name->data);
-				return false;
+				//if we didnt find a global name try to return bound method
+				if(!hashTableGet(&mod->base.cls->methods, name, &v)) {
+					blRise(vm, "NameException", "Name `%s` is not "
+						"defined in module %s", name->data, mod->name->data);
+					return false;
+				}
+
+				push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
+				return true;
 			}
 
 			push(vm, v);
@@ -289,10 +298,17 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 		}
 	}
 
+	Value v;
 	ObjClass *cls = getClass(vm, val);
-	blRise(vm, "FieldException", "Object %s doesn't "
-		    "have field `%s`.", cls->name->data, name->data);
-	return false;
+
+	if(!hashTableGet(&cls->methods, name, &v)) {
+		blRise(vm, "FieldException", "Object %s doesn't have "
+			"field `%s`.", cls->name->data, name->data);
+		return false;
+	}
+
+	push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
+	return true;
 }
 
 bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {

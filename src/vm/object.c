@@ -57,7 +57,12 @@ void printObj(Obj *o) {
 	}
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
-		printf("<bound method %p:%s>", (void*) b->bound, b->method->name->data);
+		char *name = b->method->type == OBJ_FUNCTION ?
+		                ((ObjFunction*)b->method)->name->data :
+		                ((ObjNative*)b->method)->name->data;
+		printf("<bound method ");
+		printValue(b->bound);
+		printf(":%s>", name);
 		break;
 	}
 	}

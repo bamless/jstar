@@ -18,7 +18,7 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size);
 void garbageCollect(VM *vm);
 
 ObjNative *newNative(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn);
-ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method);
+ObjBoundMethod *newBoundMethod(VM *vm, Value b, Obj *method);
 ObjFunction *newFunction(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount);
 ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls);
 ObjString *newString(VM *vm, char *cstring, size_t size);

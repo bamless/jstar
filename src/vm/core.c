@@ -267,7 +267,7 @@ NATIVE(bl_printstr) {
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(args[0]);
 			funType = "bound method";
-			funName = m->method->base.type == OBJ_FUNCTION ?
+			funName = m->method->type == OBJ_FUNCTION ?
 			          ((ObjFunction*) m->method)->name->data :
 			          ((ObjNative*) m->method)->name->data;
 			break;

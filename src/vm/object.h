@@ -103,8 +103,8 @@ typedef struct ObjList {
 
 typedef struct ObjBoundMethod {
 	Obj base;
-	ObjInstance *bound;
-	ObjFunction *method;
+	Value bound;
+	Obj *method;
 } ObjBoundMethod;
 
 void printObj(Obj *o);

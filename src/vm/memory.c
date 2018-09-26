@@ -101,7 +101,7 @@ ObjModule *newModule(VM *vm, ObjString *name) {
 	return module;
 }
 
-ObjBoundMethod *newBoundMethod(VM *vm, ObjInstance *b, ObjFunction *method) {
+ObjBoundMethod *newBoundMethod(VM *vm, Value b, Obj *method) {
 	ObjBoundMethod *bound = (ObjBoundMethod*) newObj(vm, sizeof(*bound), vm->funClass, OBJ_BOUND_METHOD);
 	bound->bound = b;
 	bound->method = method;
@@ -352,7 +352,7 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	}
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
-		reachObject(vm, (Obj*) b->bound);
+		reachValue(vm, b->bound);
 		reachObject(vm, (Obj*) b->method);
 		break;
 	}
