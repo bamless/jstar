@@ -889,13 +889,13 @@ static void printStackTrace(VM *vm) {
 	// Print stacktrace in reverse order of recording (most recent call last)
 	char *st = sbuf_get_backing_buf(&vm->stacktrace);
 	int lastnl = sbuf_get_len(&vm->stacktrace);
-	for(int i = lastnl; i > 0; i--) {
+	for(int i = lastnl - 1; i > 0; i--) {
 		if(st[i - 1] == '\n') {
-			fprintf(stderr, "%.*s", lastnl - i, st + i);
+			fprintf(stderr, "    %.*s", lastnl - i, st + i);
 			lastnl = i;
 		}
 	}
-	fprintf(stderr, "%.*s", lastnl, st);
+	fprintf(stderr, "    %.*s", lastnl, st);
 
 	// print the exception instance information
 	Value v;
@@ -933,7 +933,7 @@ static bool unwindStack(VM *vm) {
 
 		char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
 		sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
-		sbuf_appendstr(&vm->stacktrace, "    [line ");
+		sbuf_appendstr(&vm->stacktrace, "[line ");
 		sbuf_appendstr(&vm->stacktrace, line);
 		sbuf_appendstr(&vm->stacktrace, "] ");
 
