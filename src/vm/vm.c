@@ -805,13 +805,10 @@ sup_invoke:;
 	}
 	TARGET(OP_EXC_HANDLED): {
 		vm->exception = NULL;
-		frame->handlerc--;
-		sbuf_clear(&vm->stacktrace);
 		DISPATCH();
 	}
 	TARGET(OP_END_TRY):
 		if(vm->exception != NULL) {
-			frame->handlerc--;
 			UNWIND_STACK(vm);
 		}
 		DISPATCH();
@@ -918,7 +915,7 @@ static bool unwindStack(VM *vm) {
 
 		// if current frame has except handlers
 		if(f->handlerc > 0) {
-			Handler *h = &f->handlers[f->handlerc - 1];
+			Handler *h = &f->handlers[--f->handlerc];
 
 			// restore vm state and set ip to handler start
 			f->ip = h->handler;
