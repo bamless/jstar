@@ -90,7 +90,7 @@ static int64_t getFileSize(FILE *stream) {
 #else
 	int fd = fileno(stream);
 	if(fd < 0) {
-		return NUM_VAL(-1);
+		return -1;
 	}
 
 	struct stat stat;

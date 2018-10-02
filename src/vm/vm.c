@@ -156,7 +156,7 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 			return callNative(vm, AS_NATIVE(callee), argc);
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(callee);
-			vm->sp[-argc - 1] = OBJ_VAL(m->bound);
+			vm->sp[-argc - 1] = m->bound;
 			return m->method->type == OBJ_FUNCTION ?
 			        callFunction(vm, (ObjFunction*)m->method, argc) :
 			        callNative(vm, (ObjNative*)m->method, argc);
