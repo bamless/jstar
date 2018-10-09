@@ -16,7 +16,7 @@
 
 #define FRAME_SZ 1000                       // Max stack depth
 #define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
-#define INIT_GC 1024 * 1024                 // 1MiB
+#define INIT_GC 1024 * 1024 * 20            // 20MiB
 
 #define HADLER_MAX 5
 

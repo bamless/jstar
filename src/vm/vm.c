@@ -86,12 +86,12 @@ Value pop(VM *vm) {
 }
 
 static ObjClass *getClass(VM *vm, Value v) {
-	if(IS_OBJ(v)) {
-		return AS_OBJ(v)->cls;
-	} else if(IS_NUM(v)) {
+  	if(IS_NUM(v)) {
 		return vm->numClass;
 	} else if(IS_BOOL(v)) {
 		return vm->boolClass;
+	} else if(IS_OBJ(v)) {
+		return AS_OBJ(v)->cls;
 	} else {
 		return vm->nullClass;
 	}
