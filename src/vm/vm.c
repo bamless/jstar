@@ -351,12 +351,23 @@ static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
 }
 
 static bool runEval(VM *vm) {
-	Frame *frame = &vm->frames[vm->frameCount - 1];
+	register Frame *frame;
+	register Value *frameStack;
+	register ObjFunction *fn;
+	register uint8_t *ip;
 
-	#define NEXT_CODE()  (*frame->ip++)
-	#define NEXT_SHORT() (frame->ip += 2, ((uint16_t) frame->ip[-2] << 8) | frame->ip[-1])
+	#define LOAD_FRAME() \
+		frame = &vm->frames[vm->frameCount - 1]; \
+		frameStack = frame->stack; \
+		fn = frame->fn; \
+		ip = frame->ip; \
 
-	#define GET_CONST()  (frame->fn->chunk.consts.arr[NEXT_CODE()])
+	#define SAVE_FRAME() frame->ip = ip;
+
+	#define NEXT_CODE()  (*ip++)
+	#define NEXT_SHORT() (ip += 2, ((uint16_t) ip[-2] << 8) | ip[-1])
+
+	#define GET_CONST()  (fn->chunk.consts.arr[NEXT_CODE()])
 	#define GET_STRING() (AS_STRING(GET_CONST()))
 
 	#define BINARY(type, op) do { \
@@ -373,7 +384,7 @@ static bool runEval(VM *vm) {
 		if(!unwindStack(vm)) { \
 			return false; \
 		} \
-		frame = &vm->frames[vm->frameCount - 1]; \
+		LOAD_FRAME(); \
 		DISPATCH(); \
 	} while(0)
 
@@ -386,7 +397,7 @@ static bool runEval(VM *vm) {
 				printf("]"); \
 			} \
 			printf("$\n"); \
-			disassembleIstr(&frame->fn->chunk, (size_t) (frame-> ip - frame->fn->chunk.code));
+			disassembleIstr(&fn->chunk, (size_t) (ip - fn->chunk.code));
 	#else
 		#define PRINT_DBG_STACK()
 	#endif
@@ -412,6 +423,8 @@ static bool runEval(VM *vm) {
 		#define CASE(op) switch((op = NEXT_CODE()))
 
 	#endif
+
+	LOAD_FRAME();
 
 	// Eval loop
 	for(;;) {
@@ -604,17 +617,17 @@ static bool runEval(VM *vm) {
 	}
 	TARGET(OP_JUMP): {
 		int16_t off = NEXT_SHORT();
-		frame->ip += off;
+		ip += off;
 		DISPATCH();
 	}
 	TARGET(OP_JUMPF): {
 		int16_t off = NEXT_SHORT();
-		if(!isValTrue(pop(vm))) frame->ip += off;
+		if(!isValTrue(pop(vm))) ip += off;
 		DISPATCH();
 	}
 	TARGET(OP_JUMPT): {
 		int16_t off = NEXT_SHORT();
-		if(isValTrue(pop(vm))) frame->ip += off;
+		if(isValTrue(pop(vm))) ip += off;
 		DISPATCH();
 	}
 	TARGET(OP_NULL):
@@ -636,10 +649,13 @@ static bool runEval(VM *vm) {
 	TARGET(OP_CALL_10):
 		argc = op - OP_CALL_0;
 call:
+		SAVE_FRAME();
+
 		if(!callValue(vm, peekn(vm, argc), argc)) {
 			UNWIND_STACK(vm);
 		}
-		frame = &vm->frames[vm->frameCount - 1];
+
+		LOAD_FRAME();
 		DISPATCH();
 	}
 	TARGET(OP_INVOKE): {
@@ -657,11 +673,15 @@ call:
 	TARGET(OP_INVOKE_9):
 	TARGET(OP_INVOKE_10):
 		argc = op - OP_INVOKE_0;
-invoke:
-		if(!invokeFromValue(vm, GET_STRING(), argc)) {
+invoke:;
+		ObjString *name = GET_STRING();
+		SAVE_FRAME();
+
+		if(!invokeFromValue(vm, name, argc)) {
 			UNWIND_STACK(vm);
 		}
-		frame = &vm->frames[vm->frameCount - 1];
+
+		LOAD_FRAME();
 		DISPATCH();
 	}
 	TARGET(OP_SUPER): {
@@ -680,11 +700,15 @@ invoke:
 	TARGET(OP_SUPER_10):
 		argc = op - OP_SUPER_0;
 sup_invoke:;
+		ObjString *name = GET_STRING();
+		SAVE_FRAME();
+
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
-		if(!invokeMethod(vm, inst->base.cls->superCls, GET_STRING(), argc)) {
+		if(!invokeMethod(vm, inst->base.cls->superCls, name, argc)) {
 			UNWIND_STACK(vm);
 		}
-		frame = &vm->frames[vm->frameCount - 1];
+
+		LOAD_FRAME();
 		DISPATCH();
 	}
 	TARGET(OP_RETURN): {
@@ -695,11 +719,11 @@ sup_invoke:;
 			return true;
 		}
 
-		vm->sp = frame->stack;
+		vm->sp = frameStack;
 		push(vm, ret);
 
-		frame = &vm->frames[vm->frameCount - 1];
-		vm->module = frame->fn->module;
+		LOAD_FRAME();
+		vm->module = fn->module;
 		DISPATCH();
 	}
 	TARGET(OP_IMPORT_AS): {
@@ -716,8 +740,9 @@ sup_invoke:;
 
 		//call the module's main if first time import
 		if(!valueEquals(peek(vm), NULL_VAL)) {
+			SAVE_FRAME();
 			callValue(vm, peek(vm), 0);
-			frame = &vm->frames[vm->frameCount - 1];
+			LOAD_FRAME();
 		}
 		DISPATCH();
 	}
@@ -799,7 +824,7 @@ sup_invoke:;
 	TARGET(OP_SETUP_TRY): {
 		uint16_t handlerOff = NEXT_SHORT();
 		Handler *handler = &frame->handlers[frame->handlerc++];
-		handler->handler = frame->ip + handlerOff;
+		handler->handler = ip + handlerOff;
 		handler->savesp = vm->sp;
 		DISPATCH();
 	}
@@ -826,10 +851,10 @@ sup_invoke:;
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
-		push(vm, frame->stack[NEXT_CODE()]);
+		push(vm, frameStack[NEXT_CODE()]);
 		DISPATCH();
 	TARGET(OP_SET_LOCAL):
-		frame->stack[NEXT_CODE()] = peek(vm);
+		frameStack[NEXT_CODE()] = peek(vm);
 		DISPATCH();
 	TARGET(OP_POP):
 		pop(vm);
