@@ -233,10 +233,6 @@ static Stmt *forStmt(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_FOR);
 
-	if(match(p, TOK_IDENTIFIER)) {
-
-	}
-
 	require(p, TOK_LPAREN);
 
 	Stmt *init = NULL;
@@ -261,7 +257,6 @@ static Stmt *forStmt(Parser *p) {
 		} else {
 			Expr *e = parseExpr(p);
 			if(e != NULL) init = newExprStmt(e->line, e);
-			require(p, TOK_SEMICOLON);
 		}
 	}
 
