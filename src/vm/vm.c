@@ -420,10 +420,10 @@ static bool runEval(VM *vm) {
 
 		#define TARGET(op) case op
 		#define DISPATCH() goto decode
-		#define DECODE(op) \
-			decode: \
-				PRINT_DBG_STACK(); \
-				switch((op = NEXT_CODE()))
+		#define DECODE(op)     \
+		decode:                \
+			PRINT_DBG_STACK(); \
+			switch((op = NEXT_CODE()))
 
 	#endif
 
