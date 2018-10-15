@@ -414,27 +414,25 @@ static bool runEval(VM *vm) {
 			goto *opJmpTable[(op = NEXT_CODE())]; \
 		} while(0)
 
-		#define CASE(op) DISPATCH();
+		#define DECODE(op) DISPATCH();
 
 	#else
 
 		#define TARGET(op) case op
-		#define DISPATCH() continue
-		#define CASE(op) switch((op = NEXT_CODE()))
+		#define DISPATCH() goto decode
+		#define DECODE(op) \
+			decode: \
+				PRINT_DBG_STACK(); \
+				switch((op = NEXT_CODE()))
 
 	#endif
 
 	LOAD_FRAME();
 
-	// Eval loop
-	for(;;) {
 
-#ifndef USE_COMPUTED_GOTOS
-	PRINT_DBG_STACK()
-#endif
 
 	uint8_t op;
-	CASE(op) {
+	DECODE(op) {
 
 	TARGET(OP_ADD): {
 		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
@@ -865,7 +863,7 @@ sup_invoke:;
 		DISPATCH();
 	}
 
-	}
+	return false;
 
 	#undef NEXT_CODE
 	#undef NEXT_SHORT
