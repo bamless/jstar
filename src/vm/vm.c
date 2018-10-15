@@ -429,8 +429,6 @@ static bool runEval(VM *vm) {
 
 	LOAD_FRAME();
 
-
-
 	uint8_t op;
 	DECODE(op) {
 
