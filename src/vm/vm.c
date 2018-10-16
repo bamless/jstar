@@ -420,8 +420,8 @@ static bool runEval(VM *vm) {
 
 		#define TARGET(op) case op
 		#define DISPATCH() goto decode
-		#define DECODE(op)     \
-		decode:                \
+		#define DECODE(op) \
+		decode: \
 			PRINT_DBG_STACK(); \
 			switch((op = NEXT_CODE()))
 
@@ -872,6 +872,9 @@ sup_invoke:;
 	#undef CASE
 	#undef TARGET
 	#undef DISPATCH
+	#undef SAVE_FRAME
+	#undef LOAD_FRAME
+	#undef UNWIND_STACK
 }
 
 EvalResult evaluate(VM *vm, const char *fpath, const char *src) {

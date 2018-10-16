@@ -1,8 +1,4 @@
-class FileNotFoundException : Exception {
-	def new(err) {
-		this.err = err;
-	}
-}
+class FileNotFoundException : Exception {}
 
 class File {
 	def new(name, mode) {

@@ -8,9 +8,9 @@
 #define match(parser, tokenType) (parser->peek.type == (tokenType))
 
 static void advance(Parser *p);
-static void require(Parser *p, TokenType type);
-static void error(Parser *p, const char *msg);
 static void synchronize(Parser *p);
+static void error(Parser *p, const char *msg);
+static Token require(Parser *p, TokenType type);
 
 static Stmt *parseProgram(Parser *p);
 
@@ -62,17 +62,7 @@ static Stmt *parseNativeDecl(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_NAT);
 
-	const char *name = NULL;
-	size_t length = 0;
-
-	if(match(p, TOK_IDENTIFIER)) {
-		name = p->peek.lexeme;
-		length = p->peek.length;
-		advance(p);
-	} else {
-		error(p, "Expected identifier.");
-		advance(p);
-	}
+	Token fname = require(p, TOK_IDENTIFIER);
 
 	require(p, TOK_LPAREN);
 	LinkedList *args = NULL;
@@ -80,35 +70,26 @@ static Stmt *parseNativeDecl(Parser *p) {
 	if(match(p, TOK_IDENTIFIER)) {
 		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
 		advance(p);
-	}
 
-	while(match(p, TOK_COMMA)) {
-		advance(p);
-		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
-		advance(p);
+		while(match(p, TOK_COMMA)) {
+			advance(p);
+
+			Token arg = require(p, TOK_IDENTIFIER);
+			args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+		}
 	}
 
 	require(p, TOK_RPAREN);
 	require(p, TOK_SEMICOLON);
 
-	return newNativeDecl(line, length, name, args);
+	return newNativeDecl(line, fname.length, fname.lexeme, args);
 }
 
 static Stmt *parseFuncDecl(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_DEF);
 
-	const char *name = NULL;
-	size_t length = 0;
-
-	if(match(p, TOK_IDENTIFIER)) {
-		name = p->peek.lexeme;
-		length = p->peek.length;
-		advance(p);
-	} else {
-		error(p, "Expected identifier.");
-		advance(p);
-	}
+	Token fname = require(p, TOK_IDENTIFIER);
 
 	require(p, TOK_LPAREN);
 	LinkedList *args = NULL;
@@ -116,19 +97,20 @@ static Stmt *parseFuncDecl(Parser *p) {
 	if(match(p, TOK_IDENTIFIER)) {
 		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
 		advance(p);
-	}
 
-	while(match(p, TOK_COMMA)) {
-		advance(p);
-		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
-		advance(p);
+		while(match(p, TOK_COMMA)) {
+			advance(p);
+
+			Token arg = require(p, TOK_IDENTIFIER);
+			args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+		}
 	}
 
 	require(p, TOK_RPAREN);
 
 	Stmt *body = blockStmt(p);
 
-	return newFuncDecl(line, length, name, args, body);
+	return newFuncDecl(line, fname.length, fname.lexeme, args, body);
 }
 
 static Expr *parseExpr(Parser *p);
@@ -137,20 +119,11 @@ static Stmt *parseClassDecl(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_CLASS);
 
-	const char *cname = NULL;
-	size_t clength = 0;
-	if(match(p, TOK_IDENTIFIER)) {
-		cname = p->peek.lexeme;
-		clength = p->peek.length;
-		advance(p);
-	} else {
-		error(p, "Expected class name.");
-		advance(p);
-	}
+	Token cls = require(p, TOK_IDENTIFIER);
 
 	Expr *sup = NULL;
 	if(match(p, TOK_COLON)) {
-		require(p, TOK_COLON);
+		advance(p);
 		sup = parseExpr(p);
 	}
 
@@ -167,7 +140,7 @@ static Stmt *parseClassDecl(Parser *p) {
 
 	require(p, TOK_RBRACE);
 
-	return newClassDecl(line, clength, cname, sup, methods);
+	return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
 }
 
 //----- Statements parse ------
@@ -176,17 +149,7 @@ static Stmt *varDecl(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_VAR);
 
-	const char *name = NULL;
-	size_t length = 0;
-
-	if(match(p, TOK_IDENTIFIER)) {
-		name = p->peek.lexeme;
-		length = p->peek.length;
-		advance(p);
-	} else {
-		error(p, "Expected identifier.");
-		advance(p);
-	}
+	Token name = require(p, TOK_IDENTIFIER);
 
 	Expr *init = NULL;
 	if(match(p, TOK_EQUAL)) {
@@ -194,7 +157,7 @@ static Stmt *varDecl(Parser *p) {
 		init = parseExpr(p);
 	}
 
-	return newVarDecl(line, name, length, init);
+	return newVarDecl(line, name.lexeme, name.length, init);
 }
 
 static Stmt *ifStmt(Parser *p) {
@@ -243,7 +206,8 @@ static Stmt *forStmt(Parser *p) {
 			//if we dont have a semicolon we're parsing a foreach
 			if(!match(p, TOK_SEMICOLON)) {
 				if(init->varDecl.init != NULL) {
-					error(p, "Variable declaration in for each cannot have initializer.");
+					error(p, "Variable declaration in for each "
+					                    "cannot have initializer.");
 				}
 				require(p, TOK_IN);
 
@@ -256,7 +220,9 @@ static Stmt *forStmt(Parser *p) {
 			}
 		} else {
 			Expr *e = parseExpr(p);
-			if(e != NULL) init = newExprStmt(e->line, e);
+			if(e != NULL) {
+				init = newExprStmt(e->line, e);
+			}
 		}
 	}
 
@@ -316,33 +282,17 @@ static Stmt *parseImport(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_IMPORT);
 
-	const char *name = NULL;
-	size_t length = 0;
-	if(match(p, TOK_IDENTIFIER)) {
-		name = p->peek.lexeme;
-		length = p->peek.length;
-	} else {
-		error(p, "Expected module name.");
-	}
-	advance(p);
+	Token mname = require(p, TOK_IDENTIFIER);
 
-	const char *as = NULL;
-	size_t asLength = 0;
+	Token as = {0};
 	if(match(p, TOK_AS)) {
 		advance(p);
-
-		if(match(p, TOK_IDENTIFIER)) {
-			as = p->peek.lexeme;
-			asLength = p->peek.length;
-		} else {
-			error(p, "Expected module name.");
-		}
-		advance(p);
+		as = require(p, TOK_IDENTIFIER);
 	}
 
 	require(p, TOK_SEMICOLON);
 
-	return newImportStmt(line, name, length, as, asLength);
+	return newImportStmt(line, mname.lexeme, mname.length, as.lexeme, as.length);
 }
 
 static Stmt *parseTryStmt(Parser *p) {
@@ -355,26 +305,16 @@ static Stmt *parseTryStmt(Parser *p) {
 	do {
 		int excLine = p->peek.line;
 
-		const char *var = NULL;
-		size_t varLen = 0;
-
 		require(p, TOK_EXCEPT);
 		require(p, TOK_LPAREN);
 
 		Expr *cls = parseExpr(p);
+		Token exc = require(p, TOK_IDENTIFIER);
 
-		if(match(p, TOK_IDENTIFIER)) {
-			var = p->peek.lexeme;
-			varLen = p->peek.length;
-		} else {
-			error(p, "Expected identifier.");
-		}
-
-		advance(p);
 		require(p, TOK_RPAREN);
 
 		Stmt *blck = blockStmt(p);
-		excs = addElement(excs, newExceptStmt(excLine, cls, varLen, var, blck));
+		excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, blck));
 	} while(match(p, TOK_EXCEPT));
 
 	return newTryStmt(line, tryBlock, excs);
@@ -529,9 +469,8 @@ static Expr *postfixExpr(Parser *p) {
 		switch(p->peek.type) {
 		case TOK_DOT: {
 			require(p, TOK_DOT);
-			if(p->peek.type != TOK_IDENTIFIER) error(p, "Expected identifier");
-			lit = newAccessExpr(line, lit, p->peek.lexeme, p->peek.length);
-			advance(p);
+			Token attr = require(p, TOK_IDENTIFIER);
+			lit = newAccessExpr(line, lit, attr.lexeme, attr.length);
 			break;
 		}
 		case TOK_LPAREN: {
@@ -736,16 +675,19 @@ static void error(Parser *p, const char *msg) {
 	p->hadError = true;
 }
 
-static void require(Parser *p, TokenType type) {
+static Token require(Parser *p, TokenType type) {
 	if(match(p, type)) {
+		Token t = p->peek;
 		advance(p);
-		return;
+		return t;
 	}
 
 	char msg[1025] = {'\0'};
 	snprintf(msg, 1024, "Expected token `%s` but instead `%s` found.",
 		tokNames[type], tokNames[p->peek.type]);
 	error(p, msg);
+
+	return (Token) {0, NULL, 0, 0};
 }
 
 static void advance(Parser *p) {

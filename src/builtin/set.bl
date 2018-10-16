@@ -57,7 +57,7 @@ class HashSet {
 	}
 
 	def empty() {
-		return size() == 0;
+		return this.size() == 0;
 	}
 
 	def intersect(c) {

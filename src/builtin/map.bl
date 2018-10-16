@@ -142,23 +142,23 @@ class HashMap {
 			}
 
 			def addAll(iterable) {
-				error("addAll not supported in KeySet");
+				raise Exception("addAll not supported in KeySet");
 			}
 
 			def add(e) {
-				error("add not supported in KeySet.");
+				raise Exception("add not supported in KeySet.");
 			}
 
 			def remove(e) {
-				error("remove not supported in KeySet.");
+				raise Exception("remove not supported in KeySet.");
 			}
 
 			def removeAll(iterable) {
-				error("removeAll not supported in KeySet");
+				raise Exception("removeAll not supported in KeySet");
 			}
 
 			def clear() {
-				error("clear not supported in KeySet");
+				raise Exception("clear not supported in KeySet");
 			}
 		}
 
