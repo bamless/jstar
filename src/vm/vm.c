@@ -106,6 +106,10 @@ static bool isInstance(VM *vm, Value i, ObjClass *cls) {
 	return false;
 }
 
+static bool isInt(double n) {
+	return (int64_t) n == n;
+}
+
 static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
 		blRise(vm, "TypeException", "Function `%s` expected %d args, but "
@@ -544,32 +548,35 @@ static bool runEval(VM *vm) {
 			UNWIND_STACK(vm);
 		}
 
-		double index = AS_NUM(i);
-		if((int64_t) index != index) {
+		double dindex = AS_NUM(i);
+		if(!isInt(dindex)) {
 			blRise(vm, "TypeError", "Index of array access must be an integer.");
 			UNWIND_STACK(vm);
 		}
 
+		bool fromend = dindex < 0;
+		size_t index = (size_t) fabs(dindex);
+
 		Value o = peek(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
-			if(index < 0 || index >= lst->count) {
+			if(index >= lst->count) {
 				blRise(vm, "IndexOutOfBoundException",
-				    "List index out of bound: %d.", (int) index);
+				    "List index out of bound: %lu.", index);
 				UNWIND_STACK(vm);
 			}
 
 			pop(vm);
-			push(vm, lst->arr[(size_t)index]);
+			push(vm, lst->arr[fromend ? lst->count - index : index]);
 		} else if(IS_STRING(o)) {
 			ObjString *s = AS_STRING(o);
-			if(index < 0 || index >= s->length) {
+			if(index >= s->length) {
 				blRise(vm, "IndexOutOfBoundException",
-				    "String index out of bound: %d.", (int) index);
+				    "String index out of bound: %lu.", index);
 				UNWIND_STACK(vm);
 			}
 
-			char c = s->data[(size_t)index];
+			char c = s->data[fromend ? s->length - index : index];
 			ObjString *strc = copyString(vm, &c, 1);
 
 			pop(vm);
@@ -589,22 +596,25 @@ static bool runEval(VM *vm) {
 			UNWIND_STACK(vm);
 		}
 
-		double index = AS_NUM(i);
-		if((int64_t) index != index) {
+		double dindex = AS_NUM(i);
+		if(!isInt(dindex)) {
 			blRise(vm, "TypeError", "Index of array access must be an integer.");
 			UNWIND_STACK(vm);
 		}
 
+		bool fromend = dindex < 0;
+		size_t index = (size_t) fabs(dindex);
+
 		Value o = pop(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
-			if(index < 0 || index >= lst->count) {
+			if(index >= lst->count) {
 				blRise(vm, "IndexOutOfBoundException",
 					"List index out of bound: %d.", (int) index);
 				UNWIND_STACK(vm);
 			}
 
-			lst->arr[(size_t)index] = peek(vm);
+			lst->arr[fromend ? lst->count - index : index] = peek(vm);
 		} else {
 			blRise(vm, "TypeException", "Operand of set `[]` must be a List.");
 			return false;
