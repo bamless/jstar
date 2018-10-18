@@ -1,12 +1,12 @@
-var OS_LINUX = "Linux";
-var OS_WIN32 = "Windows";
-var OS_OSX   = "Darwin";
+var OS_LINUX = "Linux"
+var OS_WIN32 = "Windows"
+var OS_OSX   = "Darwin"
 
-var args = [];
+var args = []
 
-native getImportPaths();
-native platform();
-native gc();
+native getImportPaths()
+native platform()
+native gc()
 
-native __initArgs();
-__initArgs();
+native __initArgs()
+__initArgs()
