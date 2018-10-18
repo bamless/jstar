@@ -1,241 +1,241 @@
-import set;
+import set
 
 class __Entry {
 	def new(k, v) {
-		this.key = k;
-		this.value = v;
-		this.next = null;
+		this.key = k
+		this.value = v
+		this.next = null
 	}
 
 	def __equals__(o) {
-		return this.e.__equals__(o);
+		return this.e.__equals__(o)
 	}
 
 	def __string__() {
-		return "{"+ this.key.__string__() + ":" + this.value.__string__() +"}";
+		return "{"+ this.key.__string__() + ":" + this.value.__string__() +"}"
 	}
 }
 
 class HashMap {
 	def new() {
-		this._size = 16;
-		this._count = 0;
-		this._entries = list(16, null);
+		this._size = 16
+		this._count = 0
+		this._entries = list(16, null)
 	}
 
 	def __getEntry(key) {
-		var i = key.__hash__() % this._size;
+		var i = key.__hash__() % this._size
 
-		var buck = this._entries[i];
+		var buck = this._entries[i]
 		while(buck != null) {
-			if(key.__equals__(buck.key)) return buck;
-			buck = buck.next;
+			if(key.__equals__(buck.key)) return buck
+			buck = buck.next
 		}
 
-		return null;
+		return null
 	}
 
 	def __addEntry(e) {
-		var i = e.key.__hash__() % this._size;
-		e.next = this._entries[i];
-		this._entries[i] = e;
+		var i = e.key.__hash__() % this._size
+		e.next = this._entries[i]
+		this._entries[i] = e
 	}
 
 	def __grow() {
-		var oldEntries = this._entries;
+		var oldEntries = this._entries
 
-		this._size = this._size * 2;
-		this._entries = list(this._size, null);
+		this._size = this._size * 2
+		this._entries = list(this._size, null)
 
 		for(var e in oldEntries) {
-			var head = e;
+			var head = e
 			while(head != null) {
-				var a = head;
-				head = head.next;
-				this.__addEntry(a);
+				var a = head
+				head = head.next
+				this.__addEntry(a)
 			}
 		}
 	}
 
 	def put(key, val) {
-		var e = this.__getEntry(key);
+		var e = this.__getEntry(key)
 		if(e != null) {
-			var old = e.value;
-			e.value = val;
-			return old;
+			var old = e.value
+			e.value = val
+			return old
 		}
 
 		// The max load factor is 0.75
 		if(this._count + 1 > this._size * 0.75) {
-			this.__grow();
+			this.__grow()
 		}
 
-		this.__addEntry(__Entry(key, val));
-		this._count = this._count + 1;
-		return null;
+		this.__addEntry(__Entry(key, val))
+		this._count = this._count + 1
+		return null
 	}
 
 	def get(key) {
-		var e = this.__getEntry(key);
+		var e = this.__getEntry(key)
 		if(e != null) {
-			return e.value;
+			return e.value
 		}
-		return null;
+		return null
 	}
 
 	def remove(key) {
-		var i = key.__hash__() % this._size;
+		var i = key.__hash__() % this._size
 
-		var prev;
-		var head = this._entries[i];
+		var prev
+		var head = this._entries[i]
 
 		while(head != null) {
 			if(key.__equals__(head.key)) {
 				if(prev == null)
-					this._entries[i] = head.next;
+					this._entries[i] = head.next
 				else
-					prev.next = head.next;
+					prev.next = head.next
 
-				this._count = this._count - 1;
-				return head.value;
+				this._count = this._count - 1
+				return head.value
 			}
 
-			prev = head;
-			head = head.next;
+			prev = head
+			head = head.next
 		}
 
-		return null;
+		return null
 	}
 
 	def containsKey(key) {
-		return this.get(key) != null;
+		return this.get(key) != null
 	}
 
 	def containsValue(val) {
-		var iterator = this.valueIterator();
+		var iterator = this.valueIterator()
 		while(iterator.hasNext()) {
 			if(val.__equals__(iterator.next())) {
-				return true;
+				return true
 			}
 		}
 	}
 
 	def clear() {
 		for(var i = 0; i < this._entries.size(); i = i + 1) {
-			this._entries[i] = null;
+			this._entries[i] = null
 		}
-		this._count = 0;
+		this._count = 0
 	}
 
 	def size() {
-		return this._count;
+		return this._count
 	}
 
 	def keySet() {
 		class __KeySet : set.HashSet {
 			def new(map) {
-				this._map = map;
+				this._map = map
 			}
 
 			def contains(e) {
-				return this._map.__getEntry(e) != null;
+				return this._map.__getEntry(e) != null
 			}
 
 			def addAll(iterable) {
-				raise Exception("addAll not supported in KeySet");
+				raise Exception("addAll not supported in KeySet")
 			}
 
 			def add(e) {
-				raise Exception("add not supported in KeySet.");
+				raise Exception("add not supported in KeySet.")
 			}
 
 			def remove(e) {
-				raise Exception("remove not supported in KeySet.");
+				raise Exception("remove not supported in KeySet.")
 			}
 
 			def removeAll(iterable) {
-				raise Exception("removeAll not supported in KeySet");
+				raise Exception("removeAll not supported in KeySet")
 			}
 
 			def clear() {
-				raise Exception("clear not supported in KeySet");
+				raise Exception("clear not supported in KeySet")
 			}
 		}
 
-		return __KeySet(this);
+		return __KeySet(this)
 	}
 
 	def keyIterator() {
-		return __KeyIterator(this);
+		return __KeyIterator(this)
 	}
 
 	def valueIterator() {
-		return __ValueIterator(this);
+		return __ValueIterator(this)
 	}
 
 	def __string__() {
-		var s = "[";
-		var count = 0;
-		var iterator = __EntryIterator(this);
+		var s = "["
+		var count = 0
+		var iterator = __EntryIterator(this)
 
 		while(iterator.hasNext()) {
-			var e = iterator.next();
-			count = count + 1;
-			s = s + e.__string__();
-			if(count < this._count) s = s + ", ";
+			var e = iterator.next()
+			count = count + 1
+			s = s + e.__string__()
+			if(count < this._count) s = s + ", "
 		}
 
-		return s + "]";
+		return s + "]"
 	}
 }
 
 class __EntryIterator {
 	def new(map) {
-		this.map = map;
-		this.index = 0;
-		this.next = null;
-		this.__nextBucket();
+		this.map = map
+		this.index = 0
+		this.next = null
+		this.__nextBucket()
 	}
 
 	def __nextBucket() {
-		if(this.index >= this.map._size) return;
+		if(this.index >= this.map._size) return
 
 		while(this.index < this.map._size - 1 and this.map._entries[this.index] == null) {
-			this.index = this.index + 1;
+			this.index = this.index + 1
 		}
 
-		this.next = this.map._entries[this.index];
+		this.next = this.map._entries[this.index]
 	}
 
 	def hasNext() {
-		return this.next != null;
+		return this.next != null
 	}
 
 	def next() {
-		var e = this.next;
-		this.next = e.next;
+		var e = this.next
+		this.next = e.next
 
 		if(this.next == null) {
-			this.index = this.index + 1;
-			this.__nextBucket();
+			this.index = this.index + 1
+			this.__nextBucket()
 		}
 
-		return e;
+		return e
 	}
 
 	def __iterator__() {
-		return this;
+		return this
 	}
 }
 
 class __KeyIterator : __EntryIterator {
 	def next() {
-		return super.next().key;
+		return super.next().key
 	}
 }
 
 class __ValueIterator : __EntryIterator {
 	def next() {
-		return super.next().value;
+		return super.next().value
 	}
 }

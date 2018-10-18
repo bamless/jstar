@@ -54,6 +54,7 @@ const char *tokNames[] = {
 	"except",
 	"raise",
 
+	"newline",
 	"error",
 	"end of file"
 };

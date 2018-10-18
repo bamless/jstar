@@ -1,275 +1,275 @@
 class Number {
 	def new() {
-		raise Exception("Class Number cannot be instantiated.");
+		raise Exception("Class Number cannot be instantiated.")
 	}
-	native __string__();
-	native __class__();
-	native __hash__();
+	native __string__()
+	native __class__()
+	native __hash__()
 }
 class Boolean {
 	def new() {
-		raise Exception("Class Boolean cannot be instantiated.");
+		raise Exception("Class Boolean cannot be instantiated.")
 	}
-	native __string__();
-	native __class__();
+	native __string__()
+	native __class__()
 }
 class Null {
 	def new() {
-		raise Exception("Class Null cannot be instantiated.");
+		raise Exception("Class Null cannot be instantiated.")
 	}
-	native __string__();
-	native __class__();
+	native __string__()
+	native __class__()
 }
 class Function {
 	def new() {
-		raise Exception("Class Function cannot be instantiated.");
+		raise Exception("Class Function cannot be instantiated.")
 	}
-	native __string__();
+	native __string__()
 }
 class Module   {
 	def new() {
-		raise Exception("Class Module cannot be instantiated.");
+		raise Exception("Class Module cannot be instantiated.")
 	}
-	native __string__();
+	native __string__()
 }
 
 class String {
 	def new() {
-		raise Exception("Class String cannot be instantiated, use \"...\".");
+		raise Exception("Class String cannot be instantiated, use \"...\".")
 	}
 
-	native substr(from, to);
-	native length();
+	native substr(from, to)
+	native length()
 
 	def format(args) {
-		var s = "";         // string being built
-		var lastformat = 0; // index of 1 past the end of last format symbol
-		var formatn = 0;    // keeps track of the format symbols encountered
+		var s = ""         // string being built
+		var lastformat = 0 // index of 1 past the end of last format symbol
+		var formatn = 0    // keeps track of the format symbols encountered
 		for(var i = 0; i < this.length(); i = i + 1) {
 			if(this[i] == "\\") {
-				i = i + 1; // skip escaped char
+				i = i + 1 // skip escaped char
 			} else if(this[i] == "{") {
-				var endformat = i;
+				var endformat = i
 				while(this[endformat] != "}") {
-					endformat = endformat + 1;
+					endformat = endformat + 1
 					if(endformat >= this.length()) {
-						raise InvalidArgException("Unterminated format.");
+						raise InvalidArgException("Unterminated format.")
 					}
 				}
 
-				var argn = formatn;
+				var argn = formatn
 				if(endformat - i > 1) {
-					argn = int(this.substr(i + 1, endformat));
+					argn = int(this.substr(i + 1, endformat))
 				}
 
-				s = s + this.substr(lastformat, i);
-				s = s + args[argn].__string__();
+				s = s + this.substr(lastformat, i)
+				s = s + args[argn].__string__()
 
-				lastformat = endformat + 1;
-				formatn = formatn + 1;
+				lastformat = endformat + 1
+				formatn = formatn + 1
 			}
 		}
 		if(lastformat < this.length()) {
-			s = s + this.substr(lastformat, this.length());
+			s = s + this.substr(lastformat, this.length())
 		}
-		return s;
+		return s
 	}
 
 	def __string__() {
-		return this;
+		return this
 	}
 
 	def __iterator__() {
-		return __StringIterator(this);
+		return __StringIterator(this)
 	}
 
-	native __equals__(o);
-	native __hash__();
+	native __equals__(o)
+	native __hash__()
 }
 
 class __StringIterator {
 	def new(str) {
-		this.str = str;
-		this.pos = 0;
+		this.str = str
+		this.pos = 0
 	}
 
 	def hasNext() {
-		return this.pos < this.str.length();
+		return this.pos < this.str.length()
 	}
 
 	def next() {
-		var c = this.str[this.pos];
-		this.pos = this.pos + 1;
-		return c;
+		var c = this.str[this.pos]
+		this.pos = this.pos + 1
+		return c
 	}
 }
 
 class List {
 	def new() {
-		raise Exception("Class List cannot be instantiated, use `[]`.");
+		raise Exception("Class List cannot be instantiated, use `[]`.")
 	}
 
-	native add(e);
-	native insert(i, e);
-	native removeAt(i);
-	native size();
-	native clear();
+	native add(e)
+	native insert(i, e)
+	native removeAt(i)
+	native size()
+	native clear()
 
 	def addAll(iterable) {
-		var changed = false;
+		var changed = false
 		for(var e in iterable) {
-			this.add(e);
-			changed = true;
+			this.add(e)
+			changed = true
 		}
-		return changed;
+		return changed
 	}
 
 	def insertAll(i, iterable) {
 		if(i < 0 or i >= this.size()) {
-			raise IndexOutOfBoundException(str(i));
+			raise IndexOutOfBoundException(str(i))
 		}
 
-		var changed = false;
+		var changed = false
 		for(var e in iterable) {
-			this.insert(i, e);
-			changed = true;
+			this.insert(i, e)
+			changed = true
 		}
-		return changed;
+		return changed
 	}
 
 	def remove(e) {
-		var i = this.indexOf(e);
+		var i = this.indexOf(e)
 		if(i >= 0) {
-			this.remove(i);
-			return true;
+			this.remove(i)
+			return true
 		}
-		return false;
+		return false
 	}
 
 	def removeAll(iterable) {
-		var changed = false;
+		var changed = false
 		for(var e in iterable) {
-			var r = this.remove(e);
-			changed = changed or r;
+			var r = this.remove(e)
+			changed = changed or r
 		}
-		return changed;
+		return changed
 	}
 
 	def contains(e) {
-		return this.indexOf(e) != -1;
+		return this.indexOf(e) != -1
 	}
 
 	def indexOf(e) {
 		for(var i = 0; i < this.size(); i = i + 1) {
 			if(this[i].__equals__(e)) {
-				return i;
+				return i
 			}
 		}
-		return -1;
+		return -1
 	}
 
 	def indexOfLast(e) {
 		for(var i = this.size() - 1; i >= 0; i = i - 1) {
 			if(this[i].__equals__(e)) {
-				return i;
+				return i
 			}
 		}
-		return -1;
+		return -1
 	}
 
 	def join(sep) {
-		var s = "";
+		var s = ""
 		for(var i = 0; i < this.size(); i = i + 1) {
-			s = s + this[i].__string__();
-			if(i != this.size() - 1) s = s + sep;
+			s = s + this[i].__string__()
+			if(i != this.size() - 1) s = s + sep
 		}
-		return s;
+		return s
 	}
 
 	def subList(from, to) {
 		if(to < from) {
-			raise InvalidArgException("to arg should be >= from arg");
+			raise InvalidArgException("to arg should be >= from arg")
 		}
 
-		var sub = [];
+		var sub = []
 		for(var i = from; i < to; i = i + 1) {
-			sub.add(this[i]);
+			sub.add(this[i])
 		}
-		return sub;
+		return sub
 	}
 
 	def empty() {
-		return this.size() == 0;
+		return this.size() == 0
 	}
 
 	def __iterator__() {
-		return __ListIterator(this);
+		return __ListIterator(this)
 	}
 
 	def __string__() {
-		return "[" + this.join(", ") + "]";
+		return "[" + this.join(", ") + "]"
 	}
 
 	def __equals__(lst) {
 		if(this.size() != lst.size()) {
-			return false;
+			return false
 		}
 		for(var i in range(0, this.size())) {
 			if(!this[i].__equals__(lst[i])) {
-				return false;
+				return false
 			}
 		}
-		return true;
+		return true
 	}
 }
 
 class __ListIterator {
 	def new(list) {
-		this.n = 0;
-		this.list = list;
+		this.n = 0
+		this.list = list
 	}
 
 	def hasNext() {
-		return this.n < this.list.size();
+		return this.n < this.list.size()
 	}
 
 	def next() {
-		var next = this.list[this.n];
-		this.n = this.n + 1;
-		return next;
+		var next = this.list[this.n]
+		this.n = this.n + 1
+		return next
 	}
 }
 
 class __ListReverseIterator {
 	def new(list) {
-		this.n = list.size() - 1;
-		this.list = list;
+		this.n = list.size() - 1
+		this.list = list
 	}
 
 	def hasNext() {
-		return this.n >= 0;
+		return this.n >= 0
 	}
 
 	def next() {
-		var prev = this.list[this.n];
-		this.n = this.n - 1;
-		return prev;
+		var prev = this.list[this.n]
+		this.n = this.n - 1
+		return prev
 	}
 
 	def __iterator__() {
-		return this;
+		return this
 	}
 }
 
 def reversed(lst) {
-	return __ListReverseIterator(lst);
+	return __ListReverseIterator(lst)
 }
 
 // Exceptions builtin classes
 
 class Exception {
 	def new(err) {
-		this.err = err;
+		this.err = err
 	}
 }
 
@@ -285,65 +285,65 @@ class IndexOutOfBoundException : Exception {}
 class AssertException : Exception {}
 
 def assert(cond, msg) {
-	if(!cond) raise AssertException(msg);
+	if(!cond) raise AssertException(msg)
 }
 
 def print(o) {
-	writeout(o);
-	__printstr("\n");
+	writeout(o)
+	__printstr("\n")
 }
 
 def writeout(o) {
-	var s = o.__string__();
-	assert(s is String, "__string__() didn't return a string, got " + s.__class__().getName());
-	__printstr(o.__string__());
+	var s = o.__string__()
+	assert(s is String, "__string__() didn't return a string, got " + s.__class__().getName())
+	__printstr(o.__string__())
 }
 
 def printf(fmt, args) {
-	__printstr(fmt.format(args));
+	__printstr(fmt.format(args))
 }
 
 def str(e) {
-	return e.__string__();
+	return e.__string__()
 }
 
 class range {
 	def new(from, to) {
 		if(!isInt(from) or !isInt(to)) {
-			raise InvalidArgException("Argument `from` and `to` must be integers");
+			raise InvalidArgException("Argument `from` and `to` must be integers")
 		}
-		this.from = from;
-		this.to = to;
-		this.count = from;
+		this.from = from
+		this.to = to
+		this.count = from
 	}
 
 	def hasNext() {
-		return this.count < this.to;
+		return this.count < this.to
 	}
 
 	def next() {
-		var i = this.count;
-		this.count = this.count + 1;
-		return i;
+		var i = this.count
+		this.count = this.count + 1
+		return i
 	}
 
 	def __iterator__() {
-		return this;
+		return this
 	}
 
 	def __string__() {
-		var s = "[";
+		var s = "["
 		for(var i = this.from; i < this.to; i = i + 1) {
-			s = s + i.__string__();
-			if(i != this.to - 1) s = s + ", ";
+			s = s + i.__string__()
+			if(i != this.to - 1) s = s + ", "
 		}
-		return s + "]";
+		return s + "]"
 	}
 }
 
-native int(n);
-native num(n);
-native list(n, init);
-native isInt(n);
+native int(n)
+native num(n)
+native list(n, init)
+native isInt(n)
 
-native __printstr(str);
+native __printstr(str)

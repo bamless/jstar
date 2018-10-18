@@ -45,7 +45,7 @@ INCLUDES = -I$(SRC)/vm -I$(SRC)/builtin
 LDFLAGS =
 
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra -O3 -s
+CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra -O0 -g
 # Source extension
 SRC_EXT = c
 

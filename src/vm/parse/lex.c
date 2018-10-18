@@ -82,14 +82,19 @@ void initLexer(Lexer *lex, const char * src) {
 static void skipSpacesAndComments(Lexer *lex) {
 	for(;;) {
 		switch(peekChar(lex)) {
+		case '\\':
+			if(peekChar2(lex) == '\n') {
+				lex->curr_line++;
+				advance(lex);
+				advance(lex);
+			} else {
+				return;
+			}
+			break;
 		case '\r':
 		case '\t':
 		case ' ':
 		 	advance(lex);
-			break;
-		case '\n':
-			lex->curr_line++;
-			advance(lex);
 			break;
 		case '/':
 			if(peekChar2(lex) == '/') {
@@ -228,6 +233,10 @@ void nextToken(Lexer *lex, Token *tok) {
 	case '>':
 		if(match(lex, '=')) makeToken(lex, tok, TOK_GE);
 		else makeToken(lex, tok, TOK_GT);
+		break;
+	case '\n':
+		makeToken(lex, tok, TOK_NEWLINE);
+		lex->curr_line++;
 		break;
 	default:
 		makeToken(lex, tok, TOK_ERR);

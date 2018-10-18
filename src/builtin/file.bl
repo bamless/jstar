@@ -3,34 +3,34 @@ class FileNotFoundException : Exception {}
 class File {
 	def new(name, mode) {
 		if(!(name is String and mode is String)) {
-			raise InvalidArgException("Arguments of File.new() must be 2 strings.");
+			raise InvalidArgException("Arguments of File.new() must be 2 strings.")
 		}
-		this.__handle = __open(name, mode);
+		this.__handle = __open(name, mode)
 	}
 
 	def __iterator__() {
-		return __FileIterator(this);
+		return __FileIterator(this)
 	}
 
-	native size();
-	native readAll();
-	native readLine();
-	native close();
+	native size()
+	native readAll()
+	native readLine()
+	native close()
 }
 
 class __FileIterator {
 	def new(file) {
-		this.file = file;
+		this.file = file
 	}
 
 	def hasNext() {
-		this.line = this.file.readLine();
-		return this.line != "";
+		this.line = this.file.readLine()
+		return this.line != ""
 	}
 
 	def next() {
-		return this.line;
+		return this.line
 	}
 }
 
-native __open(name, mode);
+native __open(name, mode)

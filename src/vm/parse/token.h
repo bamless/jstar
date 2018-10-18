@@ -57,6 +57,7 @@ typedef enum {
 	TOK_EXCEPT,
 	TOK_RAISE,
 
+	TOK_NEWLINE,
 	TOK_ERR,
 	TOK_EOF
 } TokenType;
