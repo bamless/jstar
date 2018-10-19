@@ -122,6 +122,21 @@ static Stmt *parseFuncDecl(Parser *p) {
 	return newFuncDecl(line, fname.length, fname.lexeme, args, body);
 }
 
+static void classSynchronize(Parser *p) {
+	p->panic = false;
+
+	while(!matchSkipnl(p, TOK_EOF)) {
+
+		switch(p->peek.type) {
+		case TOK_DEF:
+			return;
+		default: break;
+		}
+
+		advance(p);
+	}
+}
+
 static Expr *parseExpr(Parser *p);
 
 static Stmt *parseClassDecl(Parser *p) {
@@ -146,7 +161,7 @@ static Stmt *parseClassDecl(Parser *p) {
 			methods = addElement(methods, parseNativeDecl(p));
 		}
 
-		if(p->panic) break;
+		if(p->panic) classSynchronize(p);
 	}
 
 	require(p, TOK_RBRACE);
@@ -384,9 +399,9 @@ static void synchronize(Parser *p) {
 		case TOK_FOR:
 		case TOK_IF:
 		case TOK_WHILE:
-		case TOK_PRINT:
 		case TOK_RETURN:
 		case TOK_LBRACE:
+		case TOK_CLASS:
 			return;
 		default: break;
 		}
