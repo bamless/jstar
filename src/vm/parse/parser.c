@@ -9,13 +9,13 @@
 	if(match(p, TOK_NEWLINE)) \
 		advance(p);
 
-static void advance(Parser *p);
-static void synchronize(Parser *p);
-static void skipNewLines(Parser *p);
-static bool match(Parser *p, TokenType type);
-static void error(Parser *p, const char *msg);
+static void  advance(Parser *p);
+static void  synchronize(Parser *p);
+static void  skipNewLines(Parser *p);
+static bool  match(Parser *p, TokenType type);
+static void  error(Parser *p, const char *msg);
 static Token require(Parser *p, TokenType type);
-static bool matchNoSkip(Parser *p, TokenType type);
+static bool  matchNoSkipnl(Parser *p, TokenType type);
 
 static Stmt *parseProgram(Parser *p);
 
@@ -472,7 +472,7 @@ static Expr *literal(Parser *p) {
 static Expr *postfixExpr(Parser *p) {
 	Expr *lit = literal(p);
 
-	while(matchNoSkip(p, TOK_LPAREN) || matchNoSkip(p, TOK_DOT) || matchNoSkip(p, TOK_LSQUARE)) {
+	while(matchNoSkipnl(p, TOK_LPAREN) || matchNoSkipnl(p, TOK_DOT) || matchNoSkipnl(p, TOK_LSQUARE)) {
 		int line = p->peek.line;
 		switch(p->peek.type) {
 		case TOK_DOT: {
@@ -494,7 +494,10 @@ static Expr *postfixExpr(Parser *p) {
 		}
 		case TOK_LSQUARE: {
 			require(p, TOK_LSQUARE);
+			skipNewLines(p);
+
 			lit = newArrayAccExpr(line, lit, parseExpr(p));
+			
 			require(p, TOK_RSQUARE);
 			break;
 		}
@@ -508,11 +511,11 @@ static Expr *postfixExpr(Parser *p) {
 
 static Expr *unaryExpr(Parser *p) {
 	int line = p->peek.line;
-	if(matchNoSkip(p, TOK_BANG)) {
+	if(matchNoSkipnl(p, TOK_BANG)) {
 		advance(p);
 		return newUnary(line, NOT, unaryExpr(p));
 	}
-	if(matchNoSkip(p, TOK_MINUS)) {
+	if(matchNoSkipnl(p, TOK_MINUS)) {
 		advance(p);
 		return newUnary(line, MINUS, unaryExpr(p));
 	}
@@ -523,7 +526,7 @@ static Expr *unaryExpr(Parser *p) {
 static Expr *multiplicativeExpr(Parser *p) {
 	Expr *l = unaryExpr(p);
 
-	while(matchNoSkip(p, TOK_MULT) || matchNoSkip(p, TOK_DIV) || matchNoSkip(p, TOK_MOD)) {
+	while(matchNoSkipnl(p, TOK_MULT) || matchNoSkipnl(p, TOK_DIV) || matchNoSkipnl(p, TOK_MOD)) {
 		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
@@ -550,7 +553,7 @@ static Expr *multiplicativeExpr(Parser *p) {
 static Expr *additiveExpr(Parser *p) {
 	Expr *l = multiplicativeExpr(p);
 
-	while(matchNoSkip(p, TOK_PLUS) || matchNoSkip(p, TOK_MINUS)) {
+	while(matchNoSkipnl(p, TOK_PLUS) || matchNoSkipnl(p, TOK_MINUS)) {
 		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
@@ -574,8 +577,8 @@ static Expr *additiveExpr(Parser *p) {
 static Expr *relationalExpr(Parser *p) {
 	Expr *l = additiveExpr(p);
 
-	while(matchNoSkip(p, TOK_GT) || matchNoSkip(p, TOK_GE) ||
-			matchNoSkip(p, TOK_LT) || matchNoSkip(p, TOK_LE) || matchNoSkip(p, TOK_IS)) {
+	while(matchNoSkipnl(p, TOK_GT) || matchNoSkipnl(p, TOK_GE) ||
+			matchNoSkipnl(p, TOK_LT) || matchNoSkipnl(p, TOK_LE) || matchNoSkipnl(p, TOK_IS)) {
 		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
@@ -607,7 +610,7 @@ static Expr *relationalExpr(Parser *p) {
 static Expr *equalityExpr(Parser *p) {
 	Expr *l = relationalExpr(p);
 
-	while(matchNoSkip(p, TOK_EQUAL_EQUAL) || matchNoSkip(p, TOK_BANG_EQ)) {
+	while(matchNoSkipnl(p, TOK_EQUAL_EQUAL) || matchNoSkipnl(p, TOK_BANG_EQ)) {
 		int line = p->peek.line;
 		TokenType tokType = p->peek.type;
 		advance(p);
@@ -631,7 +634,7 @@ static Expr *equalityExpr(Parser *p) {
 static Expr *logicAndExpr(Parser *p) {
 	Expr *l = equalityExpr(p);
 
-	while(matchNoSkip(p, TOK_AND)) {
+	while(matchNoSkipnl(p, TOK_AND)) {
 		int line = p->peek.line;
 		advance(p);
 		Expr *r = equalityExpr(p);
@@ -645,7 +648,7 @@ static Expr *logicAndExpr(Parser *p) {
 static Expr *logicOrExpr(Parser *p) {
 	Expr *l = logicAndExpr(p);
 
-	while(matchNoSkip(p, TOK_OR)) {
+	while(matchNoSkipnl(p, TOK_OR)) {
 		int line = p->peek.line;
 		advance(p);
 		Expr *r = logicAndExpr(p);
@@ -660,7 +663,7 @@ static Expr *parseExpr(Parser *p) {
 	int line = p->peek.line;
 	Expr *l = logicOrExpr(p);
 
-	if(matchNoSkip(p, TOK_EQUAL)) {
+	if(matchNoSkipnl(p, TOK_EQUAL)) {
 		if(l != NULL && l->type != VAR_LIT && l->type != ACCESS_EXPR &&
 			l->type != ARR_ACC) {
 			error(p, "Left hand side of assignment must be an lvalue.");
@@ -696,7 +699,7 @@ static void skipNewLines(Parser *p) {
 		advance(p);
 }
 
-static bool matchNoSkip(Parser *p, TokenType type) {
+static bool matchNoSkipnl(Parser *p, TokenType type) {
 	return p->peek.type == type;
 }
 
@@ -726,7 +729,7 @@ static void advance(Parser *p) {
 	p->prevType = p->peek.type;
 	nextToken(&p->lex, &p->peek);
 
-	while(matchNoSkip(p, TOK_ERR)) {
+	while(matchNoSkipnl(p, TOK_ERR)) {
 		p->hadError = true;
 		fprintf(stderr, "[line:%d] Invalid token: %.*s\n",
 				p->peek.line, p->peek.length, p->peek.lexeme);
