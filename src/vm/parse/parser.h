@@ -11,6 +11,7 @@ typedef struct Parser {
 	Token peek;
 	const char *fname;
 	TokenType prevType;
+	const char *lnStart;
 	bool panic;
 	bool hadError;
 } Parser;

@@ -131,8 +131,8 @@ static void makeToken(Lexer *lex, Token *tok, TokenType type) {
 
 static void eofToken(Lexer *lex, Token *tok) {
 	tok->type = TOK_EOF;
-	tok->lexeme = "end of file";
-	tok->length = strlen(tok->lexeme);
+	tok->lexeme = lex->current;
+	tok->length = 0;
 	tok->line = lex->curr_line;
 }
 
@@ -158,9 +158,7 @@ static void string(Lexer *lex, Token *tok) {
 
 	//unterminated string
 	if(isAtEnd(lex)) {
-		fprintf(stderr, "[line:%d] `%.*s`: Unterminated string\n", lex->curr_line,
-			(int) (lex->current - lex->tokenStart), lex->tokenStart);
-		makeToken(lex, tok, TOK_ERR);
+		makeToken(lex, tok, TOK_UNTERMINATED_STR);
 		return;
 	}
 
