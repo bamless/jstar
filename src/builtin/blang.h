@@ -13,24 +13,24 @@
 #define BLANG_VERSION_PATCH 0
 
 #define IS_INT(v)      (IS_NUM(v) && (int64_t)AS_NUM(v) == AS_NUM(v))
-#define NATIVE(name)   bool name(VM *vm, Value *args, Value *ret)
+#define NATIVE(name)   bool name(BlangVM *vm, Value *args, Value *ret)
 #define BL_THIS        ((ObjInstance*) AS_OBJ(args[0]))
 #define BL_RETURN(val) do { *ret = val; return true; } while(0)
 
 // API functions
-void blSetField(VM *vm, ObjInstance *o, const char *name, Value val);
-bool blGetField(VM *vm, ObjInstance *o, const char *name, Value *ret);
+void blSetField(BlangVM *vm, ObjInstance *o, const char *name, Value val);
+bool blGetField(BlangVM *vm, ObjInstance *o, const char *name, Value *ret);
 
-void blSetGlobal(VM *vm, const char *fname, Value val);
-bool blGetGlobal(VM *vm, const char *fname, Value *ret);
+void blSetGlobal(BlangVM *vm, const char *fname, Value val);
+bool blGetGlobal(BlangVM *vm, const char *fname, Value *ret);
 
-#define BL_RISE_EXCEPTION(vm, cls, err, ...) do { \
-		if(!blRise(vm, cls, err, ##__VA_ARGS__)) { \
+#define BL_RAISE_EXCEPTION(vm, cls, err, ...) do { \
+		if(!blRaise(vm, cls, err, ##__VA_ARGS__)) { \
 			return false; \
 		} \
 		return true; \
 	} while(0)
 
-bool blRise(VM *vm, const char* cls, const char *errfmt, ...);
+bool blRaise(BlangVM *vm, const char* cls, const char *errfmt, ...);
 
 #endif

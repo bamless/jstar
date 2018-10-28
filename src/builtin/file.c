@@ -17,16 +17,16 @@
 
 // static helper functions
 
-static char *readline(VM *vm, FILE *file, size_t *len) {
+static char *readline(BlangVM *vm, FILE *file, size_t *len) {
 	*len = 0;
 	size_t size = 256;
-	char *line = ALLOC(vm, size);
+	char *line = GC_ALLOC(vm, size);
 	if(!line) goto error;
 
 	char *ret = fgets(line, size - 1, file);
 	if(ret == NULL) {
 		if(feof(file)) {
-			line = allocate(vm, line, size, 1);
+			line = GCallocate(vm, line, size, 1);
 			line[0] = '\0';
 			size = 1;
 			return line;
@@ -52,7 +52,7 @@ static char *readline(VM *vm, FILE *file, size_t *len) {
 		size_t bufLen = strlen(buf);
 		while(*len + bufLen >= size) {
 			size_t newSize = size * 2;
-			line = allocate(vm, line, size, newSize);
+			line = GCallocate(vm, line, size, newSize);
 			size = newSize;
 		}
 
@@ -61,11 +61,11 @@ static char *readline(VM *vm, FILE *file, size_t *len) {
 	}
 
 	line[*len] = '\0';
-	line = allocate(vm, line, size, *len + 1);
+	line = GCallocate(vm, line, size, *len + 1);
 	return line;
 
 error:
-	FREEARRAY(vm, char, line, size);
+	GC_FREEARRAY(vm, char, line, size);
 	return NULL;
 }
 
@@ -118,9 +118,9 @@ NATIVE(bl_File_readAll) {
 		BL_RETURN(NULL_VAL);
 	}
 
-	char *data = ALLOC(vm, size);
+	char *data = GC_ALLOC(vm, size);
 	if(fread(data, 1, size, f) < (size_t) size) {
-		FREEARRAY(vm, char, data, size);
+		GC_FREEARRAY(vm, char, data, size);
 		BL_RETURN(NULL_VAL);
 	}
 
@@ -185,12 +185,12 @@ NATIVE(bl_open) {
 	  (mlen > 1 && (m[1] != 'b' && m[1] != '+')) ||
 	  (mlen > 2 && m[2] != 'b'))
 	{
-		BL_RISE_EXCEPTION(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
 	}
 
 	FILE *f = fopen(AS_STRING(args[1])->data, m);
 	if(f == NULL) {
-		BL_RISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
+		BL_RAISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
 	}
 
 	BL_RETURN(HANDLE_VAL(f));

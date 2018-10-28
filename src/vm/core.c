@@ -9,7 +9,7 @@
 #include <limits.h>
 #include <errno.h>
 
-static ObjClass* createClass(VM *vm, ObjModule *m, ObjClass *sup, const char *name) {
+static ObjClass* createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
 	ObjString *n = copyString(vm, name, strlen(name));
 	push(vm, OBJ_VAL(n));
 
@@ -22,13 +22,13 @@ static ObjClass* createClass(VM *vm, ObjModule *m, ObjClass *sup, const char *na
 	return c;
 }
 
-static Value getDefinedName(VM *vm, ObjModule *m, const char *name) {
+static Value getDefinedName(BlangVM *vm, ObjModule *m, const char *name) {
 	Value v = NULL_VAL;
 	hashTableGet(&m->globals, copyString(vm, name, strlen(name)), &v);
 	return v;
 }
 
-static void defMethod(VM *vm, ObjModule *m, ObjClass *cls, Native n, const char *name, uint8_t argc) {
+static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const char *name, uint8_t argc) {
 	ObjString *strName = copyString(vm, name, strlen(name));
 	push(vm, OBJ_VAL(strName));
 
@@ -76,7 +76,7 @@ static uint64_t hash64(uint64_t x) {
 	}
 // Class
 
-void initCoreLibrary(VM *vm) {
+void initCoreLibrary(BlangVM *vm) {
 	ObjString *name = copyString(vm, "__core__", 8);
 
 	push(vm, OBJ_VAL(name));
@@ -102,7 +102,7 @@ void initCoreLibrary(VM *vm) {
 	hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
 	defMethod(vm, core, vm->clsClass, &bl_Class_getName, "getName", 0);
 
-	evaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
+	blEvaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
 
 	vm->strClass  = AS_CLASS(getDefinedName(vm, core, "String"));
 	vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
@@ -131,13 +131,13 @@ NATIVE(bl_int) {
 		long long n = strtoll(nstr, &end, 10);
 
 		if((n == 0 && end == nstr) || *end != '\0') {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException", "\"%s\".", nstr);
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "\"%s\".", nstr);
 		}
 		if(n == LLONG_MAX) {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
 		}
 		if(n == LLONG_MIN) {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
 		}
 
 		BL_RETURN(NUM_VAL(n));
@@ -146,7 +146,7 @@ NATIVE(bl_int) {
 		BL_RETURN(NUM_VAL((int64_t)AS_NUM(args[1])));
 	}
 
-	BL_RISE_EXCEPTION(vm, "InvalidArgException",
+	BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 			"Argument must be a number or a string.");
 }
 
@@ -159,14 +159,14 @@ NATIVE(bl_num) {
 		double n = strtod(nstr, &end);
 
 		if((n == 0 && end == nstr) || *end != '\0') {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException", "\"%s\".", nstr);
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "\"%s\".", nstr);
 		}
 		if(n == HUGE_VAL || n == -HUGE_VAL) {
-			BL_RISE_EXCEPTION(vm,
+			BL_RAISE_EXCEPTION(vm,
 				"InvalidArgException", "Overflow: \"%s\".", nstr);
 		}
 		if(n == 0 && errno == ERANGE) {
-			BL_RISE_EXCEPTION(vm,
+			BL_RAISE_EXCEPTION(vm,
 				"InvalidArgException", "Underflow: \"%s\".", nstr);
 		}
 
@@ -176,12 +176,12 @@ NATIVE(bl_num) {
 		BL_RETURN(args[1]);
 	}
 
-	BL_RISE_EXCEPTION(vm, "InvalidArgException", "Argument must be a number or a string.");
+	BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Argument must be a number or a string.");
 }
 
 NATIVE(bl_list) {
 	if(!IS_INT(args[1]) || AS_NUM(args[1]) < 0) {
-		BL_RISE_EXCEPTION(vm, "InvalidArgException",
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 				"Argument 1 of list(n, init) must be a positive integer.");
 	}
 
@@ -300,7 +300,7 @@ NATIVE(bl_printstr) {
 
 	NATIVE(bl_List_insert) {
 		if(!IS_INT(args[1])) {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException",
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 			 		"Argument 1 of insert() must be an integer.");
 			BL_RETURN(NULL_VAL);
 		}
@@ -308,7 +308,7 @@ NATIVE(bl_printstr) {
 		ObjList *l = AS_LIST(args[0]);
 		double index = AS_NUM(args[1]);
 		if(index < 0 || index > l->count) {
-			BL_RISE_EXCEPTION(vm, "IndexOutOfBoundException",
+			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
 					"List index out of bound: %d.", (int)index);
 			BL_RETURN(NULL_VAL);
 		}
@@ -323,7 +323,7 @@ NATIVE(bl_printstr) {
 
 	NATIVE(bl_List_removeAt) {
 		if(!IS_INT(args[1])) {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException",
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 			 		"Argument of removeAt() must be an integer.");
 			BL_RETURN(NULL_VAL);
 		}
@@ -331,7 +331,7 @@ NATIVE(bl_printstr) {
 		ObjList *l = AS_LIST(args[0]);
 		double index = AS_NUM(args[1]);
 		if(index < 0 || index > l->count) {
-			BL_RISE_EXCEPTION(vm, "IndexOutOfBoundException",
+			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
 						"List index out of bound: %d.", (int)index);
 			BL_RETURN(NULL_VAL);
 		}
@@ -349,7 +349,7 @@ NATIVE(bl_printstr) {
 // class String {
 	NATIVE(bl_substr) {
 		if(!IS_INT(args[1]) || !IS_INT(args[2])) {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException",
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 						"arguments of substr() must be integers.");
 			BL_RETURN(NULL_VAL);
 		}
@@ -359,20 +359,20 @@ NATIVE(bl_printstr) {
 		int64_t to = AS_NUM(args[2]);
 
 		if(from > to) {
-			BL_RISE_EXCEPTION(vm, "InvalidArgException",
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 							"argument to must be >= from.");
 		}
 		if(from < 0 || (size_t)from > str->length - 1) {
-			BL_RISE_EXCEPTION(vm, "IndexOutOfBoundException",
+			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
 					"String index out of bounds: from %d.", from);
 		}
 		if((size_t)to > str->length) {
-			BL_RISE_EXCEPTION(vm, "IndexOutOfBoundException",
+			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
 					"String index out of bounds: to %d.", from);
 		}
 
 		size_t len = to - from;
-		char *cstr = ALLOC(vm, len + 1);
+		char *cstr = GC_ALLOC(vm, len + 1);
 		for(size_t i = from; i < (size_t)to; i++) {
 			cstr[i - from] = str->data[i];
 		}

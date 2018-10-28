@@ -3,9 +3,9 @@
 
 #include "blang.h"
 
-typedef struct VM VM;
+typedef struct BlangVM BlangVM;
 
-void initCoreLibrary(VM *vm);
+void initCoreLibrary(BlangVM *vm);
 
 NATIVE(bl_int);
 NATIVE(bl_num);

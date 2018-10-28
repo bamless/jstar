@@ -20,15 +20,17 @@
 #include <limits.h>
 #include <string.h>
 
-static bool unwindStack(VM *vm);
+static bool unwindStack(BlangVM *vm);
 
-static void reset(VM *vm) {
+static void reset(BlangVM *vm) {
 	vm->sp = vm->stack;
 	vm->frameCount = 0;
 	vm->exception = NULL;
 }
 
-void initVM(VM *vm) {
+BlangVM *blNewVM() {
+	BlangVM *vm = malloc(sizeof(*vm));
+
 	vm->importpaths = NULL;
 
 	vm->currCompiler = NULL;
@@ -36,10 +38,6 @@ void initVM(VM *vm) {
 
 	vm->exception = NULL;
 	sbuf_create(&vm->stacktrace);
-
-	vm->stack  = malloc(sizeof(Value) * STACK_SZ);
-	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
-	vm->stackend = vm->stack + STACK_SZ;
 
 	vm->clsClass  = NULL;
 	vm->objClass  = NULL;
@@ -75,17 +73,35 @@ void initVM(VM *vm) {
 	// This is called after initCoreLibrary in order to correctly assign the
 	// List class to the object since it's created during the initialization
 	vm->importpaths = newList(vm, 8);
+
+	return vm;
 }
 
-void push(VM *vm, Value v) {
+void blFreeVM(BlangVM *vm) {
+	reset(vm);
+
+	sbuf_destroy(&vm->stacktrace);
+
+	freeHashTable(&vm->strings);
+	freeHashTable(&vm->modules);
+	freeObjects(vm);
+
+#ifdef DBG_PRINT_GC
+	printf("Allocated at exit: %lu bytes.\n", vm->allocated);
+#endif
+
+	free(vm);
+}
+
+void push(BlangVM *vm, Value v) {
 	*vm->sp++ = v;
 }
 
-Value pop(VM *vm) {
+Value pop(BlangVM *vm) {
 	return *--vm->sp;
 }
 
-static ObjClass *getClass(VM *vm, Value v) {
+static ObjClass *getClass(BlangVM *vm, Value v) {
   	if(IS_NUM(v)) {
 		return vm->numClass;
 	} else if(IS_BOOL(v)) {
@@ -97,7 +113,7 @@ static ObjClass *getClass(VM *vm, Value v) {
 	}
 }
 
-static bool isInstance(VM *vm, Value i, ObjClass *cls) {
+static bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
 	for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
 		if(c == cls) {
 			return true;
@@ -110,15 +126,15 @@ static bool isInt(double n) {
 	return (int64_t) n == n;
 }
 
-static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
+static bool callFunction(BlangVM *vm, ObjFunction *func, uint8_t argc) {
 	if(func->argsCount != argc) {
-		blRise(vm, "TypeException", "Function `%s` expected %d args, but "
+		blRaise(vm, "TypeException", "Function `%s` expected %d args, but "
 		    "instead %d supplied.", func->name->data, func->argsCount, argc);
 		return false;
 	}
 
 	if(vm->frameCount == FRAME_SZ) {
-		blRise(vm, "StackOverflowException", NULL);
+		blRaise(vm, "StackOverflowException", NULL);
 		return false;
 	}
 
@@ -133,16 +149,16 @@ static bool callFunction(VM *vm, ObjFunction *func, uint8_t argc) {
 	return true;
 }
 
-static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
+static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	if(native->argsCount != argc) {
-		blRise(vm, "TypeException", "Native function `%s` expexted %d args, "
+		blRaise(vm, "TypeException", "Native function `%s` expexted %d args, "
 		        "but instead %d supplied.", native->name->data, native->argsCount, argc);
 		return false;
 	}
 
 	Value ret;
 	if(!native->fn(vm, vm->sp - (argc + 1), &ret)) {
-		blRise(vm, "Exception", "Failed to call native %s().", native->name->data);
+		blRaise(vm, "Exception", "Failed to call native %s().", native->name->data);
 		return false;
 	}
 	vm->sp -= argc + 1;
@@ -151,7 +167,7 @@ static bool callNative(VM *vm, ObjNative *native, uint8_t argc) {
 	return vm->exception == NULL;
 }
 
-static bool callValue(VM *vm, Value callee, uint8_t argc) {
+static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 	if(IS_OBJ(callee)) {
 		switch(OBJ_TYPE(callee)) {
 		case OBJ_FUNCTION:
@@ -173,7 +189,7 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
 				return callFunction(vm, AS_FUNC(ctor), argc);
 			} else if(argc != 0) {
-				blRise(vm, "TypeException", "Function %s.new() Expected 0 "
+				blRaise(vm, "TypeException", "Function %s.new() Expected 0 "
 				    "args, but instead `%d` supplied.", cls->name->data, argc);
 				return false;
 			}
@@ -185,11 +201,11 @@ static bool callValue(VM *vm, Value callee, uint8_t argc) {
 	}
 
 	ObjClass *cls = getClass(vm, callee);
-	blRise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
+	blRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
 	return false;
 }
 
-static void createClass(VM *vm, ObjString *name, ObjClass *superCls) {
+static void createClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
 	ObjClass *cls = newClass(vm, name, superCls);
 
 	if(superCls != NULL) {
@@ -199,10 +215,10 @@ static void createClass(VM *vm, ObjString *name, ObjClass *superCls) {
 	push(vm, OBJ_VAL(cls));
 }
 
-static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
+static bool invokeMethod(BlangVM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
 	Value method;
 	if(!hashTableGet(&cls->methods, name, &method)) {
-		blRise(vm, "MethodException", "Method %s.%s() doesn't "
+		blRaise(vm, "MethodException", "Method %s.%s() doesn't "
 			                "exists", cls->name->data, name->data);
 		return false;
 	}
@@ -210,7 +226,7 @@ static bool invokeMethod(VM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
 	return callValue(vm, method, argc);
 }
 
-static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
+static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
 	Value val = peekn(vm, argc);
 	if(IS_OBJ(val)) {
 		switch(OBJ_TYPE(val)) {
@@ -238,7 +254,7 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 			}
 
 			if(!hashTableGet(&mod->globals, name, &func)) {
-				blRise(vm, "NameException", "Name `%s` is not defined "
+				blRaise(vm, "NameException", "Name `%s` is not defined "
 					        "in module %s.", name->data, mod->name->data);
 				return false;
 			}
@@ -257,7 +273,7 @@ static bool invokeFromValue(VM *vm, ObjString *name, uint8_t argc) {
 	return invokeMethod(vm, cls, name, argc);
 }
 
-bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
+bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
 	if(IS_OBJ(val)) {
 		switch(OBJ_TYPE(val)) {
 		case OBJ_INST: {
@@ -267,7 +283,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 			if(!hashTableGet(&inst->fields, name, &v)) {
 				//if we didnt find a field try to return bound method
 				if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
-					blRise(vm, "FieldException", "Object %s doesn't have "
+					blRaise(vm, "FieldException", "Object %s doesn't have "
 						"field `%s`.", inst->base.cls->name->data, name->data);
 					return false;
 				}
@@ -286,7 +302,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 			if(!hashTableGet(&mod->globals, name, &v)) {
 				//if we didnt find a global name try to return bound method
 				if(!hashTableGet(&mod->base.cls->methods, name, &v)) {
-					blRise(vm, "NameException", "Name `%s` is not "
+					blRaise(vm, "NameException", "Name `%s` is not "
 						"defined in module %s", name->data, mod->name->data);
 					return false;
 				}
@@ -306,7 +322,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 	ObjClass *cls = getClass(vm, val);
 
 	if(!hashTableGet(&cls->methods, name, &v)) {
-		blRise(vm, "FieldException", "Object %s doesn't have "
+		blRaise(vm, "FieldException", "Object %s doesn't have "
 			"field `%s`.", cls->name->data, name->data);
 		return false;
 	}
@@ -315,7 +331,7 @@ bool getFieldFromValue(VM *vm, Value val, ObjString *name) {
 	return true;
 }
 
-bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
+bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
 	if(IS_OBJ(val)) {
 		switch(OBJ_TYPE(val)) {
 		case OBJ_INST: {
@@ -333,7 +349,7 @@ bool setFieldOfValue(VM *vm, Value val, ObjString *name, Value s) {
 	}
 
 	ObjClass *cls = getClass(vm, val);
-	blRise(vm, "FieldException", "Object %s doesn't "
+	blRaise(vm, "FieldException", "Object %s doesn't "
 	        "have field `%s`.", cls->name->data, name->data);
 	return false;
 }
@@ -345,16 +361,16 @@ static bool isValTrue(Value val) {
 	      ||(IS_OBJ(val) && !IS_STRING(val)));
 }
 
-static ObjString* stringConcatenate(VM *vm, ObjString *s1, ObjString *s2) {
+static ObjString* stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
 	size_t length = s1->length + s2->length;
-	char *data = ALLOC(vm, length + 1);
+	char *data = GC_ALLOC(vm, length + 1);
 	memcpy(data, s1->data, s1->length);
 	memcpy(data + s1->length, s2->data, s2->length);
 	data[length] = '\0';
 	return newStringFromBuf(vm, data, length);
 }
 
-static bool runEval(VM *vm) {
+static bool runEval(BlangVM *vm) {
 	register Frame *frame;
 	register Value *frameStack;
 	register ObjFunction *fn;
@@ -376,7 +392,7 @@ static bool runEval(VM *vm) {
 
 	#define BINARY(type, op) do { \
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
-			blRise(vm, "TypeException", "Operands of `%s` must be numbers.", #op); \
+			blRaise(vm, "TypeException", "Operands of `%s` must be numbers.", #op); \
 			UNWIND_STACK(vm); \
 		} \
 		double b = AS_NUM(pop(vm)); \
@@ -452,19 +468,19 @@ static bool runEval(VM *vm) {
 			push(vm, OBJ_VAL(conc));
 			DISPATCH();
 		}
-		blRise(vm, "TypeException", "Operands of + must be two numbers or strings.");
+		blRaise(vm, "TypeException", "Operands of + must be two numbers or strings.");
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_MOD): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			blRise(vm, "TypeException", "Operands of % must be numbers.");
+			blRaise(vm, "TypeException", "Operands of % must be numbers.");
 			UNWIND_STACK(vm);
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
 
 		if(b == 0) {
-			blRise(vm, "DivisionByZeroException", "Modulo by zero.");
+			blRaise(vm, "DivisionByZeroException", "Modulo by zero.");
 			UNWIND_STACK(vm);
 		}
 
@@ -473,14 +489,14 @@ static bool runEval(VM *vm) {
 	}
 	TARGET(OP_DIV): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			blRise(vm, "TypeException", "Operands of / must be numbers.");
+			blRaise(vm, "TypeException", "Operands of / must be numbers.");
 			UNWIND_STACK(vm);
 		}
 		double b = AS_NUM(pop(vm));
 		double a = AS_NUM(pop(vm));
 
 		if(b == 0) {
-			blRise(vm, "DivisionByZeroException", "Division by zero.");
+			blRaise(vm, "DivisionByZeroException", "Division by zero.");
 			UNWIND_STACK(vm);
 		}
 
@@ -510,7 +526,7 @@ static bool runEval(VM *vm) {
 		Value a = pop(vm);
 
 		if(!IS_CLASS(b)) {
-			blRise(vm, "TypeException", "Right operand of `is` must be a class.");
+			blRaise(vm, "TypeException", "Right operand of `is` must be a class.");
 			UNWIND_STACK(vm);
 		}
 
@@ -519,7 +535,7 @@ static bool runEval(VM *vm) {
 	}
 	TARGET(OP_NEG):
 		if(!IS_NUM(peek(vm))) {
-			blRise(vm, "TypeException", "Operand to `-` must be a number.");
+			blRaise(vm, "TypeException", "Operand to `-` must be a number.");
 			UNWIND_STACK(vm);
 		}
 		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
@@ -544,13 +560,13 @@ static bool runEval(VM *vm) {
 	TARGET(OP_ARR_GET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
-			blRise(vm, "TypeError", "Index of array access must be a number.");
+			blRaise(vm, "TypeError", "Index of array access must be a number.");
 			UNWIND_STACK(vm);
 		}
 
 		double dindex = AS_NUM(i);
 		if(!isInt(dindex)) {
-			blRise(vm, "TypeError", "Index of array access must be an integer.");
+			blRaise(vm, "TypeError", "Index of array access must be an integer.");
 			UNWIND_STACK(vm);
 		}
 
@@ -561,7 +577,7 @@ static bool runEval(VM *vm) {
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
 			if(index >= lst->count) {
-				blRise(vm, "IndexOutOfBoundException",
+				blRaise(vm, "IndexOutOfBoundException",
 				    "List index out of bound: %lu.", index);
 				UNWIND_STACK(vm);
 			}
@@ -571,7 +587,7 @@ static bool runEval(VM *vm) {
 		} else if(IS_STRING(o)) {
 			ObjString *s = AS_STRING(o);
 			if(index >= s->length) {
-				blRise(vm, "IndexOutOfBoundException",
+				blRaise(vm, "IndexOutOfBoundException",
 				    "String index out of bound: %lu.", index);
 				UNWIND_STACK(vm);
 			}
@@ -583,7 +599,7 @@ static bool runEval(VM *vm) {
 			push(vm, OBJ_VAL(strc));
 		} else {
 			ObjClass *cls = getClass(vm, o);
-			blRise(vm, "TypeException", "Operand of get `[]` must be "
+			blRaise(vm, "TypeException", "Operand of get `[]` must be "
 			        "a String or a List, instead got %s.", cls->name->data);
 			UNWIND_STACK(vm);
 		}
@@ -592,13 +608,13 @@ static bool runEval(VM *vm) {
 	TARGET(OP_ARR_SET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
-			blRise(vm, "TypeError", "Index of array access must be a number.");
+			blRaise(vm, "TypeError", "Index of array access must be a number.");
 			UNWIND_STACK(vm);
 		}
 
 		double dindex = AS_NUM(i);
 		if(!isInt(dindex)) {
-			blRise(vm, "TypeError", "Index of array access must be an integer.");
+			blRaise(vm, "TypeError", "Index of array access must be an integer.");
 			UNWIND_STACK(vm);
 		}
 
@@ -609,14 +625,14 @@ static bool runEval(VM *vm) {
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
 			if(index >= lst->count) {
-				blRise(vm, "IndexOutOfBoundException",
+				blRaise(vm, "IndexOutOfBoundException",
 					"List index out of bound: %d.", (int) index);
 				UNWIND_STACK(vm);
 			}
 
 			lst->arr[fromend ? lst->count - index : index] = peek(vm);
 		} else {
-			blRise(vm, "TypeException", "Operand of set `[]` must be a List.");
+			blRaise(vm, "TypeException", "Operand of set `[]` must be a List.");
 			return false;
 		}
 		DISPATCH();
@@ -736,7 +752,7 @@ sup_invoke:;
 	TARGET(OP_IMPORT):;
 		ObjString *name = GET_STRING();
 		if(!importModule(vm, name)) {
-			blRise(vm, "ImportException", "Cannot load module `%s`.", name->data);
+			blRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
 			UNWIND_STACK(vm);
 		}
 
@@ -767,7 +783,7 @@ sup_invoke:;
 		DISPATCH();
 	TARGET(OP_NEW_SUBCLASS):
 		if(!IS_CLASS(peek(vm))) {
-			blRise(vm, "TypeException", "Superclass in class declaration must be a Class.");
+			blRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
 			UNWIND_STACK(vm);
 		}
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
@@ -785,7 +801,7 @@ sup_invoke:;
 
 		native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
 		if(native->fn == NULL) {
-			blRise(vm, "Exception", "Cannot resolve native method %s().", native->name->data);
+			blRaise(vm, "Exception", "Cannot resolve native method %s().", native->name->data);
 			UNWIND_STACK(vm);
 		}
 
@@ -798,7 +814,7 @@ sup_invoke:;
 
 		nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
 		if(nat->fn == NULL) {
-			blRise(vm, "Exception", "Cannot resolve native %s.", nat->name->data);
+			blRaise(vm, "Exception", "Cannot resolve native %s.", nat->name->data);
 			UNWIND_STACK(vm);
 		}
 
@@ -814,7 +830,7 @@ sup_invoke:;
 	TARGET(OP_GET_GLOBAL): {
 		ObjString *name = GET_STRING();
 		if(!hashTableGet(&vm->module->globals, name, vm->sp++)) {
-			blRise(vm, "NameException", "Name `%s` is not defined.", name->data);
+			blRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
 			UNWIND_STACK(vm);
 		}
 		DISPATCH();
@@ -822,7 +838,7 @@ sup_invoke:;
 	TARGET(OP_SET_GLOBAL): {
 		ObjString *name = GET_STRING();
 		if(hashTablePut(&vm->module->globals, name, peek(vm))) {
-			blRise(vm, "NameException", "Name `%s` is not defined.", name->data);
+			blRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
 			UNWIND_STACK(vm);
 		}
 		DISPATCH();
@@ -848,7 +864,7 @@ sup_invoke:;
 		Value exc = pop(vm);
 
 		if(!IS_INSTANCE(exc)) {
-			blRise(vm, "TypeException", "Can only raise object instances.");
+			blRaise(vm, "TypeException", "Can only raise object instances.");
 			UNWIND_STACK(vm);
 		}
 
@@ -887,11 +903,11 @@ sup_invoke:;
 	#undef UNWIND_STACK
 }
 
-EvalResult evaluate(VM *vm, const char *fpath, const char *src) {
-	return evaluateModule(vm, fpath, "__main__", src);
+EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src) {
+	return blEvaluateModule(vm, fpath, "__main__", src);
 }
 
-EvalResult evaluateModule(VM *vm, const char *fpath, const char *module, const char *src) {
+EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, const char *src) {
 	Parser p;
 
 	Stmt *program = parse(&p, fpath, src);
@@ -917,7 +933,7 @@ EvalResult evaluateModule(VM *vm, const char *fpath, const char *module, const c
 	return VM_EVAL_SUCCSESS;
 }
 
-static void printStackTrace(VM *vm) {
+static void printStackTrace(BlangVM *vm) {
 	fprintf(stderr, "Traceback (most recent call last):\n");
 
 	// Print stacktrace in reverse order of recording (most recent call last)
@@ -943,7 +959,7 @@ static void printStackTrace(VM *vm) {
 	}
 }
 
-static bool unwindStack(VM *vm) {
+static bool unwindStack(BlangVM *vm) {
 	for(;vm->frameCount > 0; vm->frameCount--) {
 		Frame *f = &vm->frames[vm->frameCount - 1];
 
@@ -993,23 +1009,6 @@ void blInitCommandLineArgs(int argc, const char **argv) {
 	sysInitArgs(argc, argv);
 }
 
-void blAddImportPath(VM *vm, const char *path) {
+void blAddImportPath(BlangVM *vm, const char *path) {
 	listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path))));
-}
-
-void freeVM(VM *vm) {
-	reset(vm);
-
-	sbuf_destroy(&vm->stacktrace);
-
-	freeHashTable(&vm->strings);
-	freeHashTable(&vm->modules);
-	freeObjects(vm);
-
-	free(vm->stack);
-	free(vm->frames);
-
-#ifdef DBG_PRINT_GC
-	printf("Allocated at exit: %lu bytes.\n", vm->allocated);
-#endif
 }

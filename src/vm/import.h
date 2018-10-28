@@ -8,9 +8,9 @@
 
 #define MAX_IMPORT_PATH_LEN 2048
 
-ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program);
-void setModule(VM *vm, ObjString *name, ObjModule *module);
-ObjModule *getModule(VM *vm, ObjString *name);
-bool importModule(VM *vm, ObjString *name);
+ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program);
+void setModule(BlangVM *vm, ObjString *name, ObjModule *module);
+ObjModule *getModule(BlangVM *vm, ObjString *name);
+bool importModule(BlangVM *vm, ObjString *name);
 
 #endif

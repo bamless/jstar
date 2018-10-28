@@ -22,7 +22,7 @@ typedef enum FuncType {
 } FuncType;
 
 typedef struct Compiler {
-	VM *vm;
+	BlangVM *vm;
 	Compiler *prev;
 
 	bool hasSuper;
@@ -42,7 +42,7 @@ typedef struct Compiler {
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s);
 
-static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, VM *vm) {
+static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, BlangVM *vm) {
 	c->vm = vm;
 	c->type = t;
 	c->func = NULL;
@@ -657,7 +657,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 
 			Identifier *classId = &cls->classDecl.id;
 			size_t len = classId->length + m->nativeDecl.id.length + 1;
-			char *name = ALLOC(c->vm, len + 1);
+			char *name = GC_ALLOC(c->vm, len + 1);
 
 			memcpy(name, classId->name, classId->length);
 			name[classId->length] = '.';
@@ -833,7 +833,7 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
 	}
 }
 
-ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s) {
+ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
 	Compiler c;
 
 	initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
@@ -879,7 +879,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
-	char *name = ALLOC(c->vm, length + 1);
+	char *name = GC_ALLOC(c->vm, length + 1);
 
 	memcpy(name, classId->name, classId->length);
 	name[classId->length] = '.';
@@ -956,7 +956,7 @@ static ObjString *readString(Compiler *c, Expr *e) {
 	return s;
 }
 
-void reachCompilerRoots(VM *vm, Compiler *c) {
+void reachCompilerRoots(BlangVM *vm, Compiler *c) {
 	while(c != NULL) {
 		reachObject(vm, (Obj*) c->func);
 		c = c->prev;

@@ -16,7 +16,7 @@
 
 #define FRAME_SZ 1000                       // Max stack depth
 #define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
-#define INIT_GC 1024 * 1024 * 20            // 20MiB
+#define INIT_GC  1024 * 1024 * 20            // 20MiB
 
 #define HADLER_MAX 5
 
@@ -41,7 +41,7 @@ typedef struct Frame {
 	uint8_t handlerc;             // Exception handlers count
 } Frame;
 
-typedef struct VM {
+typedef struct BlangVM {
 	// paths searched for import
 	ObjList *importpaths;
 
@@ -72,9 +72,9 @@ typedef struct VM {
 	ObjModule *module;
 
 	// VM program stack
-	Value *stack, *sp, *stackend;
+	Value stack[STACK_SZ], *sp;
 
-	Frame *frames;
+	Frame frames[FRAME_SZ];
 	int frameCount;
 
 	// Globals and constant strings pool
@@ -89,19 +89,19 @@ typedef struct VM {
 
 	Obj **reachedStack;
 	size_t reachedCapacity, reachedCount;
-} VM;
+} BlangVM;
 
-void initVM(VM *vm);
-void freeVM(VM *vm);
+BlangVM *blNewVM();
+void blFreeVM(BlangVM *vm);
 
-EvalResult evaluate(VM *vm, const char *fpath, const char *src);
-EvalResult evaluateModule(VM *vm, const char *fpath, const char *name, const char *src);
+EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src);
+EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *name, const char *src);
 
-void push(VM *vm, Value v);
-Value pop(VM *vm);
+void  push(BlangVM *vm, Value v);
+Value pop(BlangVM *vm);
 
 void blInitCommandLineArgs(int argc, const char **argv);
-void blAddImportPath(VM *vm, const char *path);
+void blAddImportPath(BlangVM *vm, const char *path);
 
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])

@@ -44,7 +44,7 @@ static int charCount(const char *str, char c) {
 	return count;
 }
 
-static void interactiveEval(VM *vm) {
+static void interactiveEval(BlangVM *vm) {
 	header();
 	rl_bind_key('\t', rl_insert);
 
@@ -90,7 +90,7 @@ static void interactiveEval(VM *vm) {
 			}
 		}
 
-		evaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
+		blEvaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
 
 		sbuf_clear(&src);
 	}
@@ -132,13 +132,12 @@ static char* readSrcFile(const char *path) {
 }
 
 int main(int argc, const char **argv) {
-	VM vm;
-	initVM(&vm);
+	BlangVM *vm = blNewVM();
 
 	EvalResult res = VM_EVAL_SUCCSESS;
 	if(argc == 1)
 	{
-		interactiveEval(&vm);
+		interactiveEval(vm);
 	}
 	else
 	{
@@ -153,7 +152,7 @@ int main(int argc, const char **argv) {
 			memcpy(path, argv[1], length);
 			path[length] = '\0';
 
-			blAddImportPath(&vm, path);
+			blAddImportPath(vm, path);
 
 			free(path);
 		}
@@ -164,10 +163,10 @@ int main(int argc, const char **argv) {
 			return VM_GENERIC_ERR;
 		}
 
-		res = evaluate(&vm, argv[1], src);
+		res = blEvaluate(vm, argv[1], src);
 		free(src);
 	}
 
-	freeVM(&vm);
+	blFreeVM(vm);
 	exit(res);
 }

@@ -10,7 +10,7 @@
 #include "value.h"
 #include "enum.h"
 
-typedef struct VM VM;
+typedef struct BlangVM BlangVM;
 
 #ifdef DBG_PRINT_GC
 DECLARE_TO_STRING(ObjType);
@@ -72,7 +72,7 @@ typedef struct ObjFunction {
 	ObjModule *module;
 } ObjFunction;
 
-typedef bool (*Native)(VM *vm, Value *argv, Value *ret);
+typedef bool (*Native)(BlangVM *vm, Value *argv, Value *ret);
 
 typedef struct ObjNative {
 	Obj base;

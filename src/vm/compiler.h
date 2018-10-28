@@ -11,12 +11,11 @@
 #define MAX_LOCALS UINT8_MAX
 #define MAX_TRY_DEPTH 5
 
-typedef struct VM VM;
-
+typedef struct BlangVM BlangVM;
 typedef struct Compiler Compiler;
 
-ObjFunction *compile(VM *vm, ObjModule *module, Stmt *s);
+ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s);
 
-void reachCompilerRoots(VM *vm, Compiler *c);
+void reachCompilerRoots(BlangVM *vm, Compiler *c);
 
 #endif

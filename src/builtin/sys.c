@@ -37,7 +37,7 @@ NATIVE(bl_initArgs) {
 
 	Value a;
 	if(!blGetGlobal(vm, "args", &a)) {
-		BL_RISE_EXCEPTION(vm, "Exception", "This shouldn't happend: sys.args not found.");
+		BL_RAISE_EXCEPTION(vm, "Exception", "This shouldn't happend: sys.args not found.");
 	}
 
 	ObjList *lst = AS_LIST(a);

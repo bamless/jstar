@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 
-void blSetField(VM *vm, ObjInstance *o, const char *name, Value val) {
+void blSetField(BlangVM *vm, ObjInstance *o, const char *name, Value val) {
 	push(vm, val);
 	push(vm, OBJ_VAL(o));
 	hashTablePut(&o->fields, copyString(vm, name, strlen(name)), val);
@@ -13,24 +13,24 @@ void blSetField(VM *vm, ObjInstance *o, const char *name, Value val) {
 	pop(vm);
 }
 
-bool blGetField(VM *vm, ObjInstance *o, const char *name, Value *ret) {
+bool blGetField(BlangVM *vm, ObjInstance *o, const char *name, Value *ret) {
 	push(vm, OBJ_VAL(o));
 	bool found = hashTableGet(&o->fields, copyString(vm, name, strlen(name)), ret);
 	pop(vm);
 	return found;
 }
 
-void blSetGlobal(VM *vm, const char *fname, Value val) {
+void blSetGlobal(BlangVM *vm, const char *fname, Value val) {
 	push(vm, val);
 	hashTablePut(&vm->module->globals, copyString(vm, fname, strlen(fname)), val);
 	pop(vm);
 }
 
-bool blGetGlobal(VM *vm, const char *fname, Value *ret) {
+bool blGetGlobal(BlangVM *vm, const char *fname, Value *ret) {
 	return hashTableGet(&vm->module->globals, copyString(vm, fname, strlen(fname)), ret);
 }
 
-bool blRise(VM *vm, const char* cls, const char *err, ...) {
+bool blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 	sbuf_clear(&vm->stacktrace);
 
 	Value excVal;

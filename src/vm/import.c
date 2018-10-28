@@ -40,7 +40,7 @@ static char *loadSource(const char *path) {
 	return src;
 }
 
-ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program) {
+ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program) {
 	ObjModule *module = getModule(vm, name);
 
 	if(module == NULL) {
@@ -65,11 +65,11 @@ ObjFunction *compileWithModule(VM *vm, ObjString *name, Stmt *program) {
 	return fn;
 }
 
-void setModule(VM *vm, ObjString *name, ObjModule *module) {
+void setModule(BlangVM *vm, ObjString *name, ObjModule *module) {
 	hashTablePut(&vm->modules, name, OBJ_VAL(module));
 }
 
-ObjModule *getModule(VM *vm, ObjString *name) {
+ObjModule *getModule(BlangVM *vm, ObjString *name) {
 	Value module;
 	if(!hashTableGet(&vm->modules, name, &module)) {
 		return NULL;
@@ -77,7 +77,7 @@ ObjModule *getModule(VM *vm, ObjString *name) {
 	return AS_MODULE(module);
 }
 
-bool importModule(VM *vm, ObjString *name) {
+bool importModule(BlangVM *vm, ObjString *name) {
 	if(hashTableContainsKey(&vm->modules, name)) {
 		push(vm, NULL_VAL);
 		return true;

@@ -17,8 +17,8 @@
 #include <string.h>
 #endif
 
-static Obj *newObj(VM *vm, size_t size, ObjClass *cls, ObjType type) {
-	Obj *o = ALLOC(vm, size);
+static Obj *newObj(BlangVM *vm, size_t size, ObjClass *cls, ObjType type) {
+	Obj *o = GC_ALLOC(vm, size);
 	o->cls = cls;
 	o->type = type;
 	o->reached = false;
@@ -27,7 +27,7 @@ static Obj *newObj(VM *vm, size_t size, ObjClass *cls, ObjType type) {
 	return o;
 }
 
-void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
+void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
 	vm->allocated += size - oldsize;
 	if(size > oldsize && !vm->disableGC) {
 #ifdef DBG_STRESS_GC
@@ -55,7 +55,7 @@ void *allocate(VM *vm, void *ptr, size_t oldsize, size_t size) {
 
 static uint32_t hashString(const char *str, size_t length);
 
-ObjString *newString(VM *vm, char *cstring, size_t length) {
+ObjString *newString(BlangVM *vm, char *cstring, size_t length) {
 	ObjString *str = (ObjString*) newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
 	str->length = length;
 	str->data = cstring;
@@ -63,7 +63,7 @@ ObjString *newString(VM *vm, char *cstring, size_t length) {
 	return str;
 }
 
-ObjFunction *newFunction(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount) {
+ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argsCount) {
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
 	f->argsCount = argsCount;
 	f->module = module;
@@ -72,7 +72,7 @@ ObjFunction *newFunction(VM *vm, ObjModule *module, ObjString *name, uint8_t arg
 	return f;
 }
 
-ObjNative *newNative(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn) {
+ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn) {
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
 	n->argsCount = argsCount;
 	n->module = module;
@@ -81,27 +81,27 @@ ObjNative *newNative(VM *vm, ObjModule *module, ObjString *name, uint8_t argsCou
 	return n;
 }
 
-ObjClass *newClass(VM *vm, ObjString *name, ObjClass *superCls) {
+ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
 	ObjClass *cls = (ObjClass*) newObj(vm, sizeof(*cls), vm->clsClass, OBJ_CLASS);
 	cls->name = name;
 	cls->superCls = superCls;
 	initHashTable(&cls->methods);
 	return cls;
 }
-ObjInstance *newInstance(VM *vm, ObjClass *cls) {
+ObjInstance *newInstance(BlangVM *vm, ObjClass *cls) {
 	ObjInstance *inst = (ObjInstance*) newObj(vm, sizeof(*inst), cls, OBJ_INST);
 	initHashTable(&inst->fields);
 	return inst;
 }
 
-ObjModule *newModule(VM *vm, ObjString *name) {
+ObjModule *newModule(BlangVM *vm, ObjString *name) {
 	ObjModule *module = (ObjModule*) newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
 	module->name = name;
 	initHashTable(&module->globals);
 	return module;
 }
 
-ObjBoundMethod *newBoundMethod(VM *vm, Value b, Obj *method) {
+ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
 	ObjBoundMethod *bound = (ObjBoundMethod*) newObj(vm, sizeof(*bound), vm->funClass, OBJ_BOUND_METHOD);
 	bound->bound = b;
 	bound->method = method;
@@ -111,9 +111,9 @@ ObjBoundMethod *newBoundMethod(VM *vm, Value b, Obj *method) {
 #define LIST_DEF_SZ    8
 #define LIST_GROW_RATE 2
 
-ObjList *newList(VM *vm, size_t startSize) {
+ObjList *newList(BlangVM *vm, size_t startSize) {
 	size_t size = startSize == 0 ? LIST_DEF_SZ : startSize;
-	Value *arr = ALLOC(vm, sizeof(Value) * size);
+	Value *arr = GC_ALLOC(vm, sizeof(Value) * size);
 	ObjList *l = (ObjList*) newObj(vm, sizeof(*l), vm->lstClass, OBJ_LIST);
 	l->size  = size;
 	l->count = 0;
@@ -121,13 +121,13 @@ ObjList *newList(VM *vm, size_t startSize) {
 	return l;
 }
 
-static void growList(VM *vm, ObjList *lst) {
+static void growList(BlangVM *vm, ObjList *lst) {
 	size_t newSize = lst->size * LIST_GROW_RATE;
-	lst->arr  = allocate(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
+	lst->arr  = GCallocate(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
 	lst->size = newSize;
 }
 
-void listAppend(VM *vm, ObjList *lst, Value val) {
+void listAppend(BlangVM *vm, ObjList *lst, Value val) {
 	// if the list get resized a GC may kick in, so push val as root
 	push(vm, val);
 	if(lst->count + 1 > lst->size) {
@@ -137,7 +137,7 @@ void listAppend(VM *vm, ObjList *lst, Value val) {
 	pop(vm); // pop val
 }
 
-void listInsert(VM *vm, ObjList *lst, size_t index, Value val) {
+void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val) {
 	// if the list get resized a GC may kick in, so push val as root
 	push(vm, val);
 	if(lst->count + 1 > lst->size) {
@@ -153,7 +153,7 @@ void listInsert(VM *vm, ObjList *lst, size_t index, Value val) {
 	pop(vm); // pop val
 }
 
-void listRemove(VM *vm, ObjList *lst, size_t index) {
+void listRemove(BlangVM *vm, ObjList *lst, size_t index) {
 	Value *arr = lst->arr;
 	for(size_t i = index + 1; i < lst->count; i++) {
 		arr[i - 1] = arr[i];
@@ -161,10 +161,10 @@ void listRemove(VM *vm, ObjList *lst, size_t index) {
 	lst->count--;
 }
 
-ObjString *copyString(VM *vm, const char *str, size_t length) {
+ObjString *copyString(BlangVM *vm, const char *str, size_t length) {
 	ObjString *interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
 	if(interned == NULL) {
-		char *data = ALLOC(vm, length + 1);
+		char *data = GC_ALLOC(vm, length + 1);
 		memcpy(data, str, length);
 		data[length] = '\0';
 
@@ -174,7 +174,7 @@ ObjString *copyString(VM *vm, const char *str, size_t length) {
 	return interned;
 }
 
-ObjString *newStringFromBuf(VM *vm, char *buf, size_t length) {
+ObjString *newStringFromBuf(BlangVM *vm, char *buf, size_t length) {
 	ObjString *interned = HashTableGetString(&vm->strings, buf, length, hashString(buf, length));
 	if(interned == NULL) {
 		interned = newString(vm, buf, length);
@@ -182,62 +182,62 @@ ObjString *newStringFromBuf(VM *vm, char *buf, size_t length) {
 		return interned;
 	}
 
-	FREEARRAY(vm, char, buf, length + 1);
+	GC_FREEARRAY(vm, char, buf, length + 1);
 	return interned;
 }
 
-static void freeObject(VM *vm, Obj *o) {
+static void freeObject(BlangVM *vm, Obj *o) {
 	switch(o->type) {
 	case OBJ_STRING: {
 		ObjString *s = (ObjString*) o;
-		FREEARRAY(vm, char, s->data, s->length + 1);
-		FREE(vm, ObjString, s);
+		GC_FREEARRAY(vm, char, s->data, s->length + 1);
+		GC_FREE(vm, ObjString, s);
 		break;
 	}
 	case OBJ_NATIVE: {
 		ObjNative *n = (ObjNative*) o;
-		FREE(vm, ObjNative, n);
+		GC_FREE(vm, ObjNative, n);
 		break;
 	}
 	case OBJ_FUNCTION: {
 		ObjFunction *f = (ObjFunction*) o;
 		freeChunk(&f->chunk);
-		FREE(vm, ObjFunction, f);
+		GC_FREE(vm, ObjFunction, f);
 		break;
 	}
 	case OBJ_CLASS: {
 		ObjClass *cls = (ObjClass*) o;
 		freeHashTable(&cls->methods);
-		FREE(vm, ObjClass, cls);
+		GC_FREE(vm, ObjClass, cls);
 		break;
 	}
 	case OBJ_INST: {
 		ObjInstance *i = (ObjInstance*) o;
 		freeHashTable(&i->fields);
-		FREE(vm, ObjInstance, i);
+		GC_FREE(vm, ObjInstance, i);
 		break;
 	}
 	case OBJ_MODULE: {
 		ObjModule *m = (ObjModule*) o;
 		freeHashTable(&m->globals);
-		FREE(vm, ObjModule, m);
+		GC_FREE(vm, ObjModule, m);
 		break;
 	}
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
-		FREE(vm, ObjBoundMethod, b);
+		GC_FREE(vm, ObjBoundMethod, b);
 		break;
 	}
 	case OBJ_LIST: {
 		ObjList *l = (ObjList*) o;
-		FREEARRAY(vm, Value, l->arr, l->size);
-		FREE(vm, ObjList, l);
+		GC_FREEARRAY(vm, Value, l->arr, l->size);
+		GC_FREE(vm, ObjList, l);
 		break;
 	}
 	}
 }
 
-void freeObjects(VM *vm) {
+void freeObjects(BlangVM *vm) {
 	Obj **head = &vm->objects;
 	while(*head != NULL) {
 		if(!(*head)->reached)  {
@@ -245,7 +245,7 @@ void freeObjects(VM *vm) {
 			*head = u->next;
 
 #ifdef DBG_PRINT_GC
-			printf("FREE: unreached object %p type: %s\n", (void*)u, ObjTypeName[u->type]);
+			printf("GC_FREE: unreached object %p type: %s\n", (void*)u, ObjTypeName[u->type]);
 #endif
 
 			freeObject(vm, u);
@@ -256,23 +256,23 @@ void freeObjects(VM *vm) {
 	}
 }
 
-void disableGC(VM *vm , bool disable) {
+void disableGC(BlangVM *vm , bool disable) {
 	vm->disableGC = disable;
 }
 
-static void growReached(VM *vm) {
+static void growReached(BlangVM *vm) {
 	vm->reachedCapacity *= REACHED_GROW_RATE;
 	vm->reachedStack = realloc(vm->reachedStack, sizeof(Obj*) * vm->reachedCapacity);
 }
 
-static void addReachedObject(VM *vm, Obj *o) {
+static void addReachedObject(BlangVM *vm, Obj *o) {
 	if(vm->reachedCount + 1 > vm->reachedCapacity) {
 		growReached(vm);
 	}
 	vm->reachedStack[vm->reachedCount++] = o;
 }
 
-void reachObject(VM *vm, Obj *o) {
+void reachObject(BlangVM *vm, Obj *o) {
 	if(o == NULL || o->reached) return;
 
 #ifdef DBG_PRINT_GC
@@ -285,17 +285,17 @@ void reachObject(VM *vm, Obj *o) {
 	addReachedObject(vm, o);
 }
 
-void reachValue(VM *vm, Value v) {
+void reachValue(BlangVM *vm, Value v) {
 	if(IS_OBJ(v)) reachObject(vm, AS_OBJ(v));
 }
 
-static void reachValueArray(VM *vm, ValueArray *a) {
+static void reachValueArray(BlangVM *vm, ValueArray *a) {
 	for(size_t i = 0; i < a->count; i++) {
 		reachValue(vm, a->arr[i]);
 	}
 }
 
-static void reachHashTable(VM *vm, HashTable *t) {
+static void reachHashTable(BlangVM *vm, HashTable *t) {
 	for(size_t i = 0; i < t->size; i++) {
 		Entry *buckHead = t->entries[i];
 		while(buckHead != NULL) {
@@ -306,7 +306,7 @@ static void reachHashTable(VM *vm, HashTable *t) {
 	}
 }
 
-static void recursevelyReach(VM *vm, Obj *o) {
+static void recursevelyReach(BlangVM *vm, Obj *o) {
 #ifdef DBG_PRINT_GC
 	printf("Recursevely exploring object %p...\n", (void*)o);
 #endif
@@ -360,7 +360,7 @@ static void recursevelyReach(VM *vm, Obj *o) {
 	}
 }
 
-void garbageCollect(VM *vm) {
+void garbageCollect(BlangVM *vm) {
 #ifdef DBG_PRINT_GC
 	size_t prevAlloc = vm->allocated;
 	puts("*--- Starting GC ---*");
