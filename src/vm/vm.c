@@ -401,6 +401,7 @@ static bool runEval(BlangVM *vm) {
 	} while(0)
 
 	#define UNWIND_STACK(vm) do { \
+		SAVE_FRAME() \
 		if(!unwindStack(vm)) { \
 			return false; \
 		} \
@@ -979,7 +980,7 @@ static bool unwindStack(BlangVM *vm) {
 
 		// if no handler is encountered save stack info to stacktrace
 		ObjFunction *fn = f->fn;
-		size_t op = f->ip - fn->chunk.code;
+		size_t op = f->ip - fn->chunk.code - 1;
 
 		char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
 		sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
