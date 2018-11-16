@@ -24,7 +24,7 @@ import sys;
 if(sys.args.size() > 0) {
   print(sys.args[0])
 } else {
-  print("No args provided")
+  raise Exception("No args provided")
 }
 ```
 
