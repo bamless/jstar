@@ -4,6 +4,7 @@ var OS_OSX   = "Darwin"
 
 var args = []
 
+native exit(n)
 native getImportPaths()
 native platform()
 native gc()

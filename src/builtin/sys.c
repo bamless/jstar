@@ -13,6 +13,13 @@ void sysInitArgs(int argc, const char **argv) {
 	argVector = argv;
 }
 
+NATIVE(bl_exit) {
+	if(!IS_INT(args[1])) {
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Argrument must be an integer");
+	}
+	exit((int)AS_NUM(args[1]));
+}
+
 NATIVE(bl_getImportPaths) {
 	BL_RETURN(OBJ_VAL(vm->importpaths));
 }
