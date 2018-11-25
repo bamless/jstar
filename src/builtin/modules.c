@@ -103,6 +103,7 @@ Module builtInModules[] = {
 		FUNCTION(getImportPaths, &bl_getImportPaths)
 		FUNCTION(platform, &bl_platform)
 		FUNCTION(gc, &bl_gc)
+		FUNCTION(gets, &bl_gets)
 		FUNCTION(__initArgs, &bl_initArgs)
 	ENDMODULE
 	MODULE(file)

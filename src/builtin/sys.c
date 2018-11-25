@@ -4,6 +4,7 @@
 #include "memory.h"
 
 #include <string.h>
+#include <stdio.h>
 
 static int argCount = 0 ;
 static const char **argVector = NULL;
@@ -37,6 +38,26 @@ NATIVE(bl_platform) {
 NATIVE(bl_gc) {
 	garbageCollect(vm);
 	BL_RETURN(NULL_VAL);
+}
+
+NATIVE(bl_gets) {
+	char *str = GC_ALLOC(vm, 16);
+	size_t strlen = 16;
+	size_t strsz = 0;
+
+	int c;
+	while((c = getc(stdin)) != EOF && c != '\n') {
+		if(strsz + 1 > strlen) {
+			GCallocate(vm, str, strlen, strlen * 2);
+			strlen *= 2;
+		}
+		str[strsz++] = c;
+	}
+
+	GCallocate(vm, str, strlen, strsz + 2);
+	str[strsz] = '\0';
+
+	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, str, strsz)));
 }
 
 NATIVE(bl_initArgs) {
