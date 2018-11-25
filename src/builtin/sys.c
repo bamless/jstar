@@ -42,19 +42,22 @@ NATIVE(bl_gc) {
 
 NATIVE(bl_gets) {
 	char *str = GC_ALLOC(vm, 16);
-	size_t strlen = 16;
+	size_t strl = 16;
 	size_t strsz = 0;
 
 	int c;
 	while((c = getc(stdin)) != EOF && c != '\n') {
-		if(strsz + 1 > strlen) {
-			GCallocate(vm, str, strlen, strlen * 2);
-			strlen *= 2;
+		if(strsz + 1 > strl) {
+			GCallocate(vm, str, strl, strl * 2);
+			strl *= 2;
 		}
 		str[strsz++] = c;
 	}
 
-	GCallocate(vm, str, strlen, strsz + 2);
+	if(strsz + 1 > strl) {
+		GCallocate(vm, str, strl, strl + 1);
+		strl += 1;
+	}
 	str[strsz] = '\0';
 
 	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, str, strsz)));
