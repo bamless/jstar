@@ -38,6 +38,7 @@ BlangVM *blNewVM() {
 
 	vm->exception = NULL;
 	sbuf_create(&vm->stacktrace);
+	vm->lastTracedFrame = -1;
 
 	vm->clsClass  = NULL;
 	vm->objClass  = NULL;
@@ -855,13 +856,20 @@ sup_invoke:;
 		vm->exception = NULL;
 		DISPATCH();
 	}
-	TARGET(OP_END_TRY):
+	TARGET(OP_EXC_HANDLER_END): {
 		if(vm->exception != NULL) {
 			UNWIND_STACK(vm);
 		}
 		DISPATCH();
+	}
+	TARGET(OP_END_TRY): {
+		frame->handlerc--;
+		DISPATCH();
+	}
 	TARGET(OP_RAISE): {
 		sbuf_clear(&vm->stacktrace);
+		vm->lastTracedFrame = -1;
+
 		Value exc = pop(vm);
 
 		if(!IS_INSTANCE(exc)) {
@@ -964,6 +972,31 @@ static bool unwindStack(BlangVM *vm) {
 	for(;vm->frameCount > 0; vm->frameCount--) {
 		Frame *f = &vm->frames[vm->frameCount - 1];
 
+		//save current frame info to stacktrace if it hasn't been saved yet
+		if(vm->lastTracedFrame != vm->frameCount) {
+			ObjFunction *fn = f->fn;
+			size_t op = f->ip - fn->chunk.code - 1;
+
+			char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
+			sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
+			sbuf_appendstr(&vm->stacktrace, "[line ");
+			sbuf_appendstr(&vm->stacktrace, line);
+			sbuf_appendstr(&vm->stacktrace, "] ");
+
+			sbuf_appendstr(&vm->stacktrace, "module ");
+			sbuf_appendstr(&vm->stacktrace, fn->module->name->data);
+			sbuf_appendstr(&vm->stacktrace, " in ");
+
+			if(fn->name != NULL) {
+				sbuf_appendstr(&vm->stacktrace, fn->name->data);
+				sbuf_appendstr(&vm->stacktrace, "()\n");
+			} else {
+				sbuf_appendstr(&vm->stacktrace, "<main>\n");
+			}
+		}
+		//signal that current frame has been saved
+		vm->lastTracedFrame = vm->frameCount;
+
 		// if current frame has except handlers
 		if(f->handlerc > 0) {
 			Handler *h = &f->handlers[--f->handlerc];
@@ -978,26 +1011,6 @@ static bool unwindStack(BlangVM *vm) {
 			return true;
 		}
 
-		// if no handler is encountered save stack info to stacktrace
-		ObjFunction *fn = f->fn;
-		size_t op = f->ip - fn->chunk.code - 1;
-
-		char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
-		sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
-		sbuf_appendstr(&vm->stacktrace, "[line ");
-		sbuf_appendstr(&vm->stacktrace, line);
-		sbuf_appendstr(&vm->stacktrace, "] ");
-
-		sbuf_appendstr(&vm->stacktrace, "module ");
-		sbuf_appendstr(&vm->stacktrace, fn->module->name->data);
-		sbuf_appendstr(&vm->stacktrace, " in ");
-
-		if(fn->name != NULL) {
-			sbuf_appendstr(&vm->stacktrace, fn->name->data);
-			sbuf_appendstr(&vm->stacktrace, "()\n");
-		} else {
-			sbuf_appendstr(&vm->stacktrace, "<main>\n");
-		}
 	}
 
 	// We have reached the bottom of the stack, print the stacktrace and exit

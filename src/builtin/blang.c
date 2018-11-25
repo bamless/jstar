@@ -32,6 +32,7 @@ bool blGetGlobal(BlangVM *vm, const char *fname, Value *ret) {
 
 bool blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 	sbuf_clear(&vm->stacktrace);
+	vm->lastTracedFrame = -1;
 
 	Value excVal;
 	if(!(blGetGlobal(vm, cls, &excVal) && IS_CLASS(excVal))) {

@@ -763,9 +763,15 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
 	compileExcept(c, s->tryStmt.excs);
 
+	emitBytecode(c, OP_EXC_HANDLER_END, 0);
+	uint8_t handlerJmp = emitBytecode(c, OP_JUMP, 0);
+	emitShort(c, 0, 0);
+
 	setJumpTo(c, excJmp, c->func->chunk.count, 0);
 
 	emitBytecode(c, OP_END_TRY, 0);
+
+	setJumpTo(c, handlerJmp, c->func->chunk.count, 0);
 }
 
 static void compileRaiseStmt(Compiler *c, Stmt *s) {

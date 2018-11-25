@@ -61,6 +61,7 @@ typedef struct BlangVM {
 	Obj *exception;
 	// Stack trace of current expression
 	StringBuffer stacktrace;
+	int lastTracedFrame;
 
 	// Current VM compiler
 	Compiler *currCompiler;
