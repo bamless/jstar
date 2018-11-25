@@ -846,6 +846,7 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_SETUP_TRY): {
+		//setup the handler address and save stackpointer
 		uint16_t handlerOff = NEXT_SHORT();
 		Handler *handler = &frame->handlers[frame->handlerc++];
 		handler->handler = ip + handlerOff;
@@ -853,16 +854,22 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_EXC_HANDLED): {
+		//exception thrown in try is caught and handled
+		frame->handlerc--;
 		vm->exception = NULL;
 		DISPATCH();
 	}
 	TARGET(OP_EXC_HANDLER_END): {
+		//exception was thrown in try but no handler handled the exception
 		if(vm->exception != NULL) {
+			//decrement the hadler count and continue to unwind stack
+			frame->handlerc--;
 			UNWIND_STACK(vm);
 		}
 		DISPATCH();
 	}
 	TARGET(OP_END_TRY): {
+		//no exception was thrown inside try, decrement handler count and continue execution
 		frame->handlerc--;
 		DISPATCH();
 	}
@@ -999,7 +1006,7 @@ static bool unwindStack(BlangVM *vm) {
 
 		// if current frame has except handlers
 		if(f->handlerc > 0) {
-			Handler *h = &f->handlers[--f->handlerc];
+			Handler *h = &f->handlers[f->handlerc - 1];
 
 			// restore vm state and set ip to handler start
 			f->ip = h->handler;
