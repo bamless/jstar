@@ -562,13 +562,13 @@ static bool runEval(BlangVM *vm) {
 	TARGET(OP_ARR_GET): {
 		Value i = pop(vm);
 		if(!IS_NUM(i)) {
-			blRaise(vm, "TypeError", "Index of array access must be a number.");
+			blRaise(vm, "TypeException", "Index of array access must be a number.");
 			UNWIND_STACK(vm);
 		}
 
 		double dindex = AS_NUM(i);
 		if(!isInt(dindex)) {
-			blRaise(vm, "TypeError", "Index of array access must be an integer.");
+			blRaise(vm, "TypeException", "Index of array access must be an integer.");
 			UNWIND_STACK(vm);
 		}
 
