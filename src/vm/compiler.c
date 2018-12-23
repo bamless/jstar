@@ -520,14 +520,21 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	exitScope(c);
 }
 
+static void callMethod(Compiler *c, const char *name, int args) {
+	Identifier method = {strlen(name), name};
+	emitBytecode(c, OP_INVOKE_0 + args, 0);
+	emitBytecode(c, identifierConst(c, &method, 0), 0);
+}
+
 static void compileForEach(Compiler *c, Stmt *s) {
 	enterScope(c);
 
 	// set the iterator variable with a name that it's not an identifier.
 	// this will avoid the user shadowing the iterator with a declared variable.
 	Identifier iterator = {1, "."};
-	addLocal(c, &iterator, s->line);
-	c->locals[c->localsCount - 1].depth = c->depth;
+	declareVar(c, &iterator, s->line);
+	defineVar(c, &iterator, s->line);
+
 	int iteratorID = c->localsCount - 1;
 
 	enterScope(c);
@@ -538,36 +545,30 @@ static void compileForEach(Compiler *c, Stmt *s) {
 	int varID = c->localsCount - 1;
 
 	// call the iterator() method over the object
-	Identifier iterMethod = {12, "__iterator__"};
 	compileExpr(c, s->forEach.iterable);
-	emitBytecode(c, OP_INVOKE_0, s->line);
-	emitBytecode(c, identifierConst(c, &iterMethod, s->line), 0);
+	callMethod(c, "__iterator__", 0);
 
 	emitBytecode(c, OP_SET_LOCAL, 0);
 	emitBytecode(c, iteratorID, 0);
 
 	size_t start = c->func->chunk.count;
 
-	Identifier hasNextMethod = {7, "hasNext"};
-	Identifier nextMethod = {4 , "next"};
-
 	emitBytecode(c, OP_GET_LOCAL, 0);
 	emitBytecode(c, iteratorID, 0);
-	emitBytecode(c, OP_INVOKE_0, 0);
-	emitBytecode(c, identifierConst(c, &hasNextMethod, s->line), 0);
+	callMethod(c, "hasNext", 0);
 
 	size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
 	emitShort(c, 0, 0);
 
 	emitBytecode(c, OP_GET_LOCAL, 0);
 	emitBytecode(c, iteratorID, 0);
-	emitBytecode(c, OP_INVOKE_0, 0);
-	emitBytecode(c, identifierConst(c, &nextMethod, s->line), 0);
+	callMethod(c, "next", 0);
 
 	emitBytecode(c, OP_SET_LOCAL, 0);
 	emitBytecode(c, varID, 0);
 
 	compileStatement(c, s->forEach.body);
+
 	exitScope(c);
 
 	emitJumpTo(c, OP_JUMP, start, 0);
@@ -576,6 +577,7 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 	exitScope(c);
 }
+
 
 static void compileWhileStatement(Compiler *c, Stmt *s) {
 	size_t start = c->func->chunk.count;
@@ -756,6 +758,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
 	compileStatement(c, s->tryStmt.block);
 
+	emitBytecode(c, OP_END_TRY, 0);
 	uint8_t excJmp = emitBytecode(c, OP_JUMP, 0);
 	emitShort(c, 0, 0);
 
@@ -764,14 +767,8 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 	compileExcept(c, s->tryStmt.excs);
 
 	emitBytecode(c, OP_EXC_HANDLER_END, 0);
-	uint8_t handlerJmp = emitBytecode(c, OP_JUMP, 0);
-	emitShort(c, 0, 0);
 
 	setJumpTo(c, excJmp, c->func->chunk.count, 0);
-
-	emitBytecode(c, OP_END_TRY, 0);
-
-	setJumpTo(c, handlerJmp, c->func->chunk.count, 0);
 }
 
 static void compileRaiseStmt(Compiler *c, Stmt *s) {
