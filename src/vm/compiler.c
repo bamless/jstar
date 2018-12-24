@@ -531,7 +531,6 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 
 	// condition
 	size_t forStart = c->func->chunk.count;
-	size_t cont = forStart;
 
 	size_t exitJmp = 0;
 	if(s->forStmt.cond != NULL) {
@@ -543,9 +542,10 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	// body
 	compileStatement(c, s->forStmt.body);
 
+	size_t cont = c->func->chunk.count;
+	
 	// act
 	if(s->forStmt.act != NULL) {
-		cont = c->func->chunk.count;
 		compileExpr(c, s->forStmt.act);
 		emitBytecode(c, OP_POP, 0);
 	}
