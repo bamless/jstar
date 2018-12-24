@@ -11,4 +11,10 @@
 	(((t) -1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
 				  : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
 
+#define UNREACHABLE() do { \
+	fprintf(stderr, "%s[%d]@%s(): reached unreachable code.\n", \
+	    __FILE__, __LINE__, __func__); \
+	abort(); \
+} while(0) \
+
 #endif

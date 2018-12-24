@@ -899,9 +899,13 @@ sup_invoke:;
 		*vm->sp = *(vm->sp - 1);
 		vm->sp++;
 		DISPATCH();
+		
+	TARGET(OP_SIGN_CONT):
+	TARGET(OP_SING_BRK):
+		UNREACHABLE();
 	}
 
-	return false;
+	UNREACHABLE();
 
 	#undef NEXT_CODE
 	#undef NEXT_SHORT

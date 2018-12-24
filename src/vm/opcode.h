@@ -89,7 +89,11 @@ DECLARE_TO_STRING(Opcode);
 	X(OP_RAISE) \
 	X(OP_POP) \
 	X(OP_DUP) \
+	X(OP_SIGN_CONT) \
+	X(OP_SING_BRK) \
 
 DEFINE_ENUM(Opcode, OPCODE);
+
+int opcodeArgsNumber(Opcode op);
 
 #endif

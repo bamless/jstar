@@ -331,6 +331,22 @@ Stmt *newRaiseStmt(int line, Expr *e) {
 	return s;
 }
 
+Stmt *newContinueStmt(int line) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = CONTINUE_STMT;
+	s->exprStmt = NULL;
+	return s;
+}
+
+Stmt *newBreakStmt(int line) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = BREAK_STMT;
+	s->exprStmt = NULL;
+	return s;
+}
+
 void freeStmt(Stmt *s) {
 	if(s == NULL) return;
 
@@ -423,7 +439,10 @@ void freeStmt(Stmt *s) {
 	case RAISE_STMT:
 		freeExpr(s->raiseStmt.exc);
 		break;
-	case IMPORT: break;
+	case CONTINUE_STMT:
+	case BREAK_STMT:
+	case IMPORT:
+		break;
 	}
 
 	free(s);

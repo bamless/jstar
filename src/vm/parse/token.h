@@ -52,6 +52,8 @@ typedef enum {
 	TOK_TRUE,
 	TOK_VAR,
 	TOK_WHILE,
+	TOK_CONTINUE,
+	TOK_BREAK,
 
 	TOK_TRY,
 	TOK_EXCEPT,

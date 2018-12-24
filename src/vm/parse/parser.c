@@ -380,6 +380,14 @@ static Stmt *parseStmt(Parser *p) {
 		return parseTryStmt(p);
 	case TOK_RAISE:
 		return parseRaiseStmt(p);
+	case TOK_CONTINUE:
+		advance(p);
+		NEWLINE(p);
+		return newContinueStmt(line);
+	case TOK_BREAK:
+		advance(p);
+		NEWLINE(p);
+		return newBreakStmt(line);
 	default: {
 		Expr *e = parseExpr(p);
 		NEWLINE(p);

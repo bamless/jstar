@@ -27,6 +27,8 @@ typedef struct Compiler {
 
 	bool hasSuper;
 
+	int loopDepth;
+
 	FuncType type;
 	ObjFunction *func;
 
@@ -48,6 +50,7 @@ static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, Bla
 	c->func = NULL;
 	c->prev = prev;
 	c->tryDepth = 0;
+	c->loopDepth = 0;
 	c->depth = depth;
 	c->localsCount = 0;
 	c->hasSuper = false;
@@ -97,6 +100,24 @@ static void exitScope(Compiler *c) {
 			c->localsCount--;
 			emitBytecode(c, OP_POP, 0);
 	}
+}
+
+static void discardScope(Compiler *c) {
+	int depth = c->depth - 1;
+	int localsCount = c->localsCount;
+	while(localsCount > 0 &&
+		c->locals[localsCount - 1].depth > depth) {
+			localsCount--;
+			emitBytecode(c, OP_POP, 0);
+	}
+}
+
+static void startLoop(Compiler *c) {
+	c->loopDepth++;
+}
+
+static void endLoop(Compiler *c) {
+	c->loopDepth--;
 }
 
 static uint8_t createConst(Compiler *c, Value constant, int line) {
@@ -178,6 +199,7 @@ static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
 
 static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 	int32_t offset = target - (jumpAddr + 3);
+
 	if(offset > INT16_MAX || offset < INT16_MIN) {
 		error(c, line, "Too much code to jump over.");
 	}
@@ -483,6 +505,20 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
 	}
 }
 
+static void patchLoopExitStmts(Compiler *c, size_t start, size_t cont, size_t brk) {
+	for(size_t i = start; i < c->func->chunk.count; i++) {
+		Opcode code = c->func->chunk.code[i];
+
+		if(code == OP_SING_BRK || code == OP_SIGN_CONT) {
+			c->func->chunk.code[i] = OP_JUMP;
+			setJumpTo(c, i, code == OP_SIGN_CONT ? cont : brk, 0);
+			code = OP_JUMP;
+		}
+
+		i += opcodeArgsNumber(code);
+	}
+}
+
 static void compileForStatement(Compiler *c, Stmt *s) {
 	enterScope(c);
 
@@ -491,8 +527,12 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 		compileStatement(c, s->forStmt.init);
 	}
 
+	startLoop(c);
+
 	// condition
 	size_t forStart = c->func->chunk.count;
+	size_t cont = forStart;
+
 	size_t exitJmp = 0;
 	if(s->forStmt.cond != NULL) {
 		compileExpr(c, s->forStmt.cond);
@@ -505,17 +545,21 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 
 	// act
 	if(s->forStmt.act != NULL) {
+		cont = c->func->chunk.count;
 		compileExpr(c, s->forStmt.act);
 		emitBytecode(c, OP_POP, 0);
 	}
 
 	// jump back to for start
 	emitJumpTo(c, OP_JUMP, forStart, 0);
+	endLoop(c);
 
 	// set the exit jump
 	if(s->forStmt.cond != NULL) {
 		setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
 	}
+
+	patchLoopExitStmts(c, forStart, cont, c->func->chunk.count);
 
 	exitScope(c);
 }
@@ -526,6 +570,20 @@ static void callMethod(Compiler *c, const char *name, int args) {
 	emitBytecode(c, identifierConst(c, &method, 0), 0);
 }
 
+/*
+ * for(var i in iterable) {
+ *     ...
+ * }
+ *
+ * {
+ *     var _iter = iterable.__iterator__()
+ *     var i
+ *     while(_iter.hasNext()) {
+ *         i = _iter.next()
+ *         ...
+ *     }
+ * }
+**/
 static void compileForEach(Compiler *c, Stmt *s) {
 	enterScope(c);
 
@@ -537,8 +595,6 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 	int iteratorID = c->localsCount - 1;
 
-	enterScope(c);
-
 	// declare the variable used for iteration
 	declareVar(c, &s->forEach.var->varDecl.id, s->line);
 	defineVar(c, &s->forEach.var->varDecl.id, s->line);
@@ -548,9 +604,9 @@ static void compileForEach(Compiler *c, Stmt *s) {
 	compileExpr(c, s->forEach.iterable);
 	callMethod(c, "__iterator__", 0);
 
-	emitBytecode(c, OP_SET_LOCAL, 0);
-	emitBytecode(c, iteratorID, 0);
+	emitBytecode(c, OP_NULL, 0);
 
+	startLoop(c);
 	size_t start = c->func->chunk.count;
 
 	emitBytecode(c, OP_GET_LOCAL, 0);
@@ -566,20 +622,24 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, OP_SET_LOCAL, 0);
 	emitBytecode(c, varID, 0);
+	emitBytecode(c, OP_POP, 0);
 
 	compileStatement(c, s->forEach.body);
 
-	exitScope(c);
+	size_t cont = c->func->chunk.count;
 
 	emitJumpTo(c, OP_JUMP, start, 0);
+	endLoop(c);
 
 	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+	patchLoopExitStmts(c, start, cont, c->func->chunk.count);
 
 	exitScope(c);
 }
 
 
 static void compileWhileStatement(Compiler *c, Stmt *s) {
+	startLoop(c);
 	size_t start = c->func->chunk.count;
 
 	compileExpr(c, s->whileStmt.cond);
@@ -588,9 +648,13 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 
 	compileStatement(c, s->whileStmt.body);
 
+	size_t cont = c->func->chunk.count;
+
 	emitJumpTo(c, OP_JUMP, start, 0);
+	endLoop(c);
 
 	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+	patchLoopExitStmts(c, start, cont, c->func->chunk.count);
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
@@ -824,6 +888,24 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		c->tryDepth++;
 		compileTryExcept(c, s);
 		c->tryDepth--;
+		break;
+	case CONTINUE_STMT:
+		if(c->loopDepth == 0) {
+			error(c, s->line, "cannot use continue outside loop.");
+			break;
+		}
+		discardScope(c);
+		emitBytecode(c, OP_SIGN_CONT, s->line);
+		emitShort(c, 0, 0);
+		break;
+	case BREAK_STMT:
+		if(c->loopDepth == 0) {
+			error(c, s->line, "cannot use break outside loop.");
+			break;
+		}
+		discardScope(c);
+		emitBytecode(c, OP_SING_BRK, s->line);
+		emitShort(c, 0, 0);
 		break;
 	case EXCEPT_STMT: break;
 	}

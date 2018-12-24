@@ -49,6 +49,8 @@ const char *tokNames[] = {
 	"true",
 	"var",
 	"while",
+	"continue",
+	"break",
 
 	"try",
 	"except",
