@@ -205,8 +205,8 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 	}
 
 	Chunk *chunk = &c->func->chunk;
-	chunk->code[jumpAddr + 1] = (uint8_t) (uint16_t) offset >> 8;
-	chunk->code[jumpAddr + 2] = (uint8_t) (uint16_t) offset;
+	chunk->code[jumpAddr + 1] = (uint8_t) ((uint16_t) offset >> 8);
+	chunk->code[jumpAddr + 2] = (uint8_t) ((uint16_t) offset);
 }
 
 static void compileExpr(Compiler *c, Expr *e);
@@ -531,6 +531,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 
 	// condition
 	size_t forStart = c->func->chunk.count;
+	size_t cont = forStart;
 
 	size_t exitJmp = 0;
 	if(s->forStmt.cond != NULL) {
@@ -542,10 +543,9 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	// body
 	compileStatement(c, s->forStmt.body);
 
-	size_t cont = c->func->chunk.count;
-	
 	// act
 	if(s->forStmt.act != NULL) {
+		cont = c->func->chunk.count;
 		compileExpr(c, s->forStmt.act);
 		emitBytecode(c, OP_POP, 0);
 	}
@@ -626,13 +626,11 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 	compileStatement(c, s->forEach.body);
 
-	size_t cont = c->func->chunk.count;
-
 	emitJumpTo(c, OP_JUMP, start, 0);
 	endLoop(c);
 
 	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
-	patchLoopExitStmts(c, start, cont, c->func->chunk.count);
+	patchLoopExitStmts(c, start, start, c->func->chunk.count);
 
 	exitScope(c);
 }
@@ -648,13 +646,11 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 
 	compileStatement(c, s->whileStmt.body);
 
-	size_t cont = c->func->chunk.count;
-
 	emitJumpTo(c, OP_JUMP, start, 0);
 	endLoop(c);
 
 	setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
-	patchLoopExitStmts(c, start, cont, c->func->chunk.count);
+	patchLoopExitStmts(c, start, start, c->func->chunk.count);
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
