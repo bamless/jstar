@@ -21,9 +21,9 @@ You can then read them from the script this way:
 ```c#
 import sys;
 
-if(sys.args.size() > 0) {
+if(sys.args.size() > 0)
   print(sys.args[0])
-} else {
+else
   raise Exception("No args provided")
 }
 ```
