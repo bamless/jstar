@@ -1,5 +1,3 @@
-import set
-
 class __Entry {
 	def new(k, v) {
 		this.key = k
@@ -132,36 +130,6 @@ class HashMap {
 	}
 
 	def keySet() {
-		class __KeySet : set.HashSet {
-			def new(map) {
-				this._map = map
-			}
-
-			def contains(e) {
-				return this._map.__getEntry(e) != null
-			}
-
-			def addAll(iterable) {
-				raise Exception("addAll not supported in KeySet")
-			}
-
-			def add(e) {
-				raise Exception("add not supported in KeySet.")
-			}
-
-			def remove(e) {
-				raise Exception("remove not supported in KeySet.")
-			}
-
-			def removeAll(iterable) {
-				raise Exception("removeAll not supported in KeySet")
-			}
-
-			def clear() {
-				raise Exception("clear not supported in KeySet")
-			}
-		}
-
 		return __KeySet(this)
 	}
 
@@ -186,6 +154,38 @@ class HashMap {
 		}
 
 		return s + "]"
+	}
+}
+
+import set
+
+class __KeySet : set.HashSet {
+	def new(map) {
+		this._map = map
+	}
+
+	def contains(e) {
+		return this._map.__getEntry(e) != null
+	}
+
+	def addAll(iterable) {
+		raise Exception("addAll not supported in KeySet")
+	}
+
+	def add(e) {
+		raise Exception("add not supported in KeySet.")
+	}
+
+	def remove(e) {
+		raise Exception("remove not supported in KeySet.")
+	}
+
+	def removeAll(iterable) {
+		raise Exception("removeAll not supported in KeySet")
+	}
+
+	def clear() {
+		raise Exception("clear not supported in KeySet")
 	}
 }
 

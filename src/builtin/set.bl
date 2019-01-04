@@ -1,7 +1,6 @@
-import map
-
 class HashSet {
 	def new() {
+		import map
 		this._map = map.HashMap()
 	}
 
@@ -69,6 +68,7 @@ class HashSet {
 	}
 
 	def __iterator__() {
+		import map
 		return map.__KeyIterator(this._map)
 	}
 
