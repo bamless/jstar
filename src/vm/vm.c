@@ -626,6 +626,7 @@ static bool runEval(BlangVM *vm) {
 		Value o = pop(vm);
 		if(IS_LIST(o)) {
 			ObjList *lst = AS_LIST(o);
+
 			if(index >= lst->count) {
 				blRaise(vm, "IndexOutOfBoundException",
 					"List index out of bound: %d.", (int) index);
@@ -635,8 +636,9 @@ static bool runEval(BlangVM *vm) {
 			lst->arr[fromend ? lst->count - index : index] = peek(vm);
 		} else {
 			blRaise(vm, "TypeException", "Operand of set `[]` must be a List.");
-			return false;
+			UNWIND_STACK(vm);
 		}
+		
 		DISPATCH();
 	}
 	TARGET(OP_JUMP): {
@@ -899,7 +901,7 @@ sup_invoke:;
 		*vm->sp = *(vm->sp - 1);
 		vm->sp++;
 		DISPATCH();
-		
+
 	TARGET(OP_SIGN_CONT):
 	TARGET(OP_SING_BRK):
 		UNREACHABLE();

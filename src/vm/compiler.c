@@ -17,6 +17,11 @@ typedef struct Local {
 	int depth;
 } Local;
 
+typedef struct Loop {
+	int depth;
+	struct Loop *next;
+} Loop;
+
 typedef enum FuncType {
 	TYPE_FUNC, TYPE_METHOD, TYPE_CTOR
 } FuncType;
@@ -27,7 +32,7 @@ typedef struct Compiler {
 
 	bool hasSuper;
 
-	int loopDepth;
+	Loop *loops;
 
 	FuncType type;
 	ObjFunction *func;
@@ -49,8 +54,8 @@ static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, Bla
 	c->type = t;
 	c->func = NULL;
 	c->prev = prev;
+	c->loops = NULL;
 	c->tryDepth = 0;
-	c->loopDepth = 0;
 	c->depth = depth;
 	c->localsCount = 0;
 	c->hasSuper = false;
@@ -102,8 +107,7 @@ static void exitScope(Compiler *c) {
 	}
 }
 
-static void discardScope(Compiler *c) {
-	int depth = c->depth - 1;
+static void discardScope(Compiler *c, int depth) {
 	int localsCount = c->localsCount;
 	while(localsCount > 0 &&
 		c->locals[localsCount - 1].depth > depth) {
@@ -112,12 +116,14 @@ static void discardScope(Compiler *c) {
 	}
 }
 
-static void startLoop(Compiler *c) {
-	c->loopDepth++;
+static void startLoop(Compiler *c, Loop *loop) {
+	loop->depth = c->depth;
+	loop->next = c->loops;
+	c->loops = loop;
 }
 
 static void endLoop(Compiler *c) {
-	c->loopDepth--;
+	c->loops = c->loops->next;
 }
 
 static uint8_t createConst(Compiler *c, Value constant, int line) {
@@ -527,7 +533,8 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 		compileStatement(c, s->forStmt.init);
 	}
 
-	startLoop(c);
+	Loop l;
+	startLoop(c, &l);
 
 	// condition
 	size_t forStart = c->func->chunk.count;
@@ -560,7 +567,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	}
 
 	patchLoopExitStmts(c, forStart, cont, c->func->chunk.count);
-
+	
 	exitScope(c);
 }
 
@@ -606,7 +613,9 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, OP_NULL, 0);
 
-	startLoop(c);
+	Loop l;
+	startLoop(c, &l);
+
 	size_t start = c->func->chunk.count;
 
 	emitBytecode(c, OP_GET_LOCAL, 0);
@@ -637,7 +646,9 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 
 static void compileWhileStatement(Compiler *c, Stmt *s) {
-	startLoop(c);
+	Loop l;
+	startLoop(c, &l);
+
 	size_t start = c->func->chunk.count;
 
 	compileExpr(c, s->whileStmt.cond);
@@ -886,20 +897,20 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		c->tryDepth--;
 		break;
 	case CONTINUE_STMT:
-		if(c->loopDepth == 0) {
+		if(c->loops == NULL) {
 			error(c, s->line, "cannot use continue outside loop.");
 			break;
 		}
-		discardScope(c);
+		discardScope(c, c->loops->depth);
 		emitBytecode(c, OP_SIGN_CONT, s->line);
 		emitShort(c, 0, 0);
 		break;
 	case BREAK_STMT:
-		if(c->loopDepth == 0) {
+		if(c->loops == NULL) {
 			error(c, s->line, "cannot use break outside loop.");
 			break;
 		}
-		discardScope(c);
+		discardScope(c, c->loops->depth);
 		emitBytecode(c, OP_SING_BRK, s->line);
 		emitShort(c, 0, 0);
 		break;

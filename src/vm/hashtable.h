@@ -31,6 +31,7 @@ bool hashTableGet(HashTable *t, ObjString *key, Value *res);
 bool hashTableContainsKey(HashTable *t, ObjString *key);
 bool hashTableDel(HashTable *t, ObjString *key);
 void hashTableMerge(HashTable *t, HashTable *o);
+
 // Similar to merge, but doesn't merge entries with a key starting with an underscore.
 void hashTableImportNames(HashTable *t, HashTable *o);
 
