@@ -25,7 +25,6 @@ if(sys.args.size() > 0)
   print(sys.args[0])
 else
   raise Exception("No args provided")
-}
 ```
 
 For other examples of the language you can look at the **.bl** files in *src/builtin*.
