@@ -8,7 +8,8 @@
 #include "hashtable.h"
 #include "chunk.h"
 #include "value.h"
-#include "enum.h"
+
+#include "util/enum.h"
 
 typedef struct BlangVM BlangVM;
 

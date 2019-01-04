@@ -1,7 +1,7 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
-#include "enum.h"
+#include "util/enum.h"
 
 #ifdef DBG_PRINT_EXEC
 DECLARE_TO_STRING(Opcode);
