@@ -264,6 +264,22 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
 	}
 }
 
+static void compileTernaryExpr(Compiler *c, Expr *e) {
+	compileExpr(c, e->ternary.cond);
+
+	uint8_t falseJmp = emitBytecode(c, OP_JUMPF, e->line);
+	emitShort(c, 0, 0);
+
+	compileExpr(c, e->ternary.thenExpr);
+	uint8_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
+	emitShort(c, 0, 0);
+
+	setJumpTo(c, falseJmp, c->func->chunk.count, e->line);
+	compileExpr(c, e->ternary.elseExpr);
+
+	setJumpTo(c, exitJmp, c->func->chunk.count, e->line);
+}
+
 static void compileAssignExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->assign.rval);
 
@@ -396,6 +412,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	case UNARY:
 		compileUnaryExpr(c, e);
+		break;
+	case TERNARY:
+		compileTernaryExpr(c, e);
 		break;
 	case CALL_EXPR:
 		compileCallExpr(c, e);

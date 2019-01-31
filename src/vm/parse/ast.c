@@ -138,6 +138,16 @@ Expr *newArrayAccExpr(int line, Expr *left, Expr *index) {
 	return e;
 }
 
+Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = TERNARY;
+	e->ternary.cond = cond;
+	e->ternary.thenExpr = thenExpr;
+	e->ternary.elseExpr = elseExpr;
+	return e;
+}
+
 void freeExpr(Expr *e) {
 	if(e == NULL) return;
 
@@ -177,6 +187,11 @@ void freeExpr(Expr *e) {
 	case ARR_ACC:
 		freeExpr(e->arrAccExpr.left);
 		freeExpr(e->arrAccExpr.index);
+		break;
+	case TERNARY:
+		freeExpr(e->ternary.cond);
+		freeExpr(e->ternary.thenExpr);
+		freeExpr(e->ternary.elseExpr);
 		break;
 	default: break;
 	}

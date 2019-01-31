@@ -686,9 +686,27 @@ static Expr *logicOrExpr(Parser *p) {
 	return l;
 }
 
+static Expr *ternaryExpr(Parser *p) {
+	int line = p->peek.line;
+	Expr *expr = logicOrExpr(p);
+
+	if(match(p, TOK_IF)) {
+		advance(p);
+		Expr *cond = ternaryExpr(p);
+
+		require(p, TOK_ELSE);
+
+		Expr *elseExpr = ternaryExpr(p);
+
+		return newTernary(line, cond, expr, elseExpr);
+	}
+
+	return expr;
+}
+
 static Expr *parseExpr(Parser *p) {
 	int line = p->peek.line;
-	Expr *l = logicOrExpr(p);
+	Expr *l = ternaryExpr(p);
 
 	if(match(p, TOK_EQUAL)) {
 		if(l != NULL && l->type != VAR_LIT && l->type != ACCESS_EXPR &&
