@@ -75,10 +75,7 @@ class HashMap {
 
 	def get(key) {
 		var e = this.__getEntry(key)
-		if(e != null) {
-			return e.value
-		}
-		return null
+		return e.value if e != null else null
 	}
 
 	def remove(key) {
@@ -198,7 +195,8 @@ class __EntryIterator {
 	}
 
 	def __nextBucket() {
-		if(this.index >= this.map._size) return
+		if(this.index >= this.map._size)
+			return
 
 		while(this.index < this.map._size - 1 and this.map._entries[this.index] == null) {
 			this.index = this.index + 1

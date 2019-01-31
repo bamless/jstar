@@ -41,7 +41,7 @@ class HashSet {
 	def containsAll(iterable) {
 		var ret = true
 		for(var e in iterable) {
-			var r = contains(e)
+			var r = this.contains(e)
 			ret = ret and r
 		}
 		return ret
