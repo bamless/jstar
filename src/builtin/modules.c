@@ -11,7 +11,11 @@
 #include "file.bl.h"
 
 #include "map.bl.h"
+
 #include "set.bl.h"
+
+#include "debug.h"
+#include "debug.bl.h"
 
 #include <string.h>
 
@@ -117,6 +121,9 @@ Module builtInModules[] = {
 	ENDMODULE
 	MODULE(map) ENDMODULE
 	MODULE(set) ENDMODULE
+	MODULE(debug)
+		FUNCTION(dis, &bl_dis)
+	ENDMODULE
 	MODULES_END
 };
 

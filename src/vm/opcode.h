@@ -3,9 +3,7 @@
 
 #include "util/enum.h"
 
-#ifdef DBG_PRINT_EXEC
 DECLARE_TO_STRING(Opcode);
-#endif
 
 #define OPCODE(X) \
 	X(OP_ADD) \
