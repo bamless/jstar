@@ -496,7 +496,7 @@ static Expr *literal(Parser *p) {
 	return NULL;
 }
 
- 	static Expr *postfixExpr(Parser *p) {
+static Expr *postfixExpr(Parser *p) {
 	Expr *lit = literal(p);
 
 	while(match(p, TOK_LPAREN) || match(p, TOK_DOT) || match(p, TOK_LSQUARE)) {
