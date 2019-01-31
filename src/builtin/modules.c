@@ -122,6 +122,7 @@ Module builtInModules[] = {
 	MODULE(map) ENDMODULE
 	MODULE(set) ENDMODULE
 	MODULE(debug)
+		FUNCTION(printStack, &bl_printStack)
 		FUNCTION(dis, &bl_dis)
 	ENDMODULE
 	MODULES_END

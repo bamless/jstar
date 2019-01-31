@@ -3,8 +3,6 @@
 
 #include "util/enum.h"
 
-DECLARE_TO_STRING(Opcode);
-
 #define OPCODE(X) \
 	X(OP_ADD) \
 	X(OP_SUB) \
@@ -91,6 +89,7 @@ DECLARE_TO_STRING(Opcode);
 	X(OP_SING_BRK) \
 
 DEFINE_ENUM(Opcode, OPCODE);
+DECLARE_TO_STRING(Opcode);
 
 int opcodeArgsNumber(Opcode op);
 

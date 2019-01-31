@@ -935,6 +935,14 @@ ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
 	return c.hadError ? NULL : func;
 }
 
+static void enterFunctionScope(Compiler *c) {
+	c->depth++;
+}
+
+static void exitFunctionScope(Compiler *c) {
+	c->depth--;
+}
+
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	c->func = newFunction(c->vm, module, NULL, listLength(s->funcDecl.formalArgs));
 	if(s->funcDecl.id.length != 0) {
@@ -942,7 +950,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 			s->funcDecl.id.name, s->funcDecl.id.length);
 	}
 
-	enterScope(c);
+	enterFunctionScope(c);
 
 	//add phony variable for function receiver (in the case of functions the
 	//receiver is the function itself but it ins't accessible)
@@ -961,7 +969,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	emitBytecode(c, OP_NULL, 0);
 	emitBytecode(c, OP_RETURN, 0);
 
-	exitScope(c);
+	exitFunctionScope(c);
 
 	return c->func;
 }
@@ -986,7 +994,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 		c->type = TYPE_CTOR;
 	}
 
-	enterScope(c);
+	enterFunctionScope(c);
 
 	//add `this` for method receiver (the object from which was called)
 	Identifier thisId = {strlen(THIS_STR), THIS_STR};
@@ -1011,7 +1019,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	}
 	emitBytecode(c, OP_RETURN, 0);
 
-	exitScope(c);
+	exitFunctionScope(c);
 
 	return c->func;
 }

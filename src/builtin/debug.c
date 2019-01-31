@@ -1,12 +1,24 @@
 #include "debug.h"
 #include "chunk.h"
+#include "vm.h"
 
 #include "debug/disassemble.h"
 
 #include <stdio.h>
 
+NATIVE(bl_printStack) {
+	for(Value *v = vm->stack; v < vm->sp; v++) {
+		printf("[");
+		printValue(*v);
+		printf("]");
+	}
+	printf("$\n");
+
+	BL_RETURN(NULL_VAL);
+}
+
 NATIVE(bl_dis) {
-	if(!IS_OBJ(args[1]) && !(IS_FUNC(args[1]) ||
+	if(!IS_OBJ(args[1]) || !(IS_FUNC(args[1]) ||
 			IS_NATIVE(args[1]) || IS_BOUND_METHOD(args[1]))) {
 		BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 		 	"Argument to dis must be a function object.");

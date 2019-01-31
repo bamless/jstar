@@ -3,6 +3,7 @@
 
 #include "blang.h"
 
+NATIVE(bl_printStack);
 NATIVE(bl_dis);
 
 #endif
