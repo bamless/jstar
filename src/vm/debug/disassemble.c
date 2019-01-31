@@ -16,18 +16,23 @@ void disassembleIstr(Chunk *c, size_t i) {
 
 	case OP_IMPORT_AS:
 	case OP_INVOKE:
-	case OP_SUPER:
+	case OP_SUPER: // TODO: fix call and invoke
 	case OP_NAT_METHOD:
-	case OP_DEF_METHOD:
-		printf("%d %d", c->code[i + 1], c->code[i + 2]);
+	case OP_DEF_METHOD: {
+		int op1 = c->code[i + 1], op2 =  c->code[i + 2];
+		printf("%d %d (", op1, op2);
+		printValue(c->consts.arr[op1]);
+		printf(", ");
+		printValue(c->consts.arr[op2]);
+		printf(")");
 		break;
+	}
 
 	case OP_IMPORT:
 	case OP_GET_FIELD:
 	case OP_SET_FIELD:
 	case OP_NEW_CLASS:
 	case OP_NEW_SUBCLASS:
-	case OP_CALL:
 	//stack operations
 	case OP_INVOKE_0:
 	case OP_INVOKE_1:
@@ -52,14 +57,23 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_SUPER_9:
 	case OP_SUPER_10:
 	case OP_GET_CONST:
-	case OP_GET_LOCAL:
 	case OP_GET_GLOBAL:
-	case OP_SET_LOCAL:
 	case OP_SET_GLOBAL:
 	case OP_DEFINE_NATIVE:
-	case OP_DEFINE_GLOBAL:
+	case OP_DEFINE_GLOBAL: {
+		int op = c->code[i + 1];
+		printf("%d (", op);
+		printValue(c->consts.arr[op]);
+		printf(")");
+		break;
+	}
+
+	case OP_CALL:
+	case OP_GET_LOCAL:
+	case OP_SET_LOCAL:
 		printf("%d", c->code[i + 1]);
 		break;
+
 	default: break;
 	}
 	printf("\n");

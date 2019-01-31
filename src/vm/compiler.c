@@ -567,7 +567,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	}
 
 	patchLoopExitStmts(c, forStart, cont, c->func->chunk.count);
-	
+
 	exitScope(c);
 }
 
@@ -1038,7 +1038,7 @@ static ObjString *readString(Compiler *c, Expr *e) {
 			}
 			i++;
 		} else {
-		  sbuf_appendchar(&sb, c);
+			sbuf_appendchar(&sb, c);
 	  	}
 	}
 
