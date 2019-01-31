@@ -389,8 +389,7 @@ NATIVE(bl_printstr) {
 		if(!IS_STRING(args[1])) {
 			BL_RETURN(FALSE_VAL);
 		}
-		bool r = strcmp(AS_STRING(args[0])->data, AS_STRING(args[1])->data) == 0;
-		BL_RETURN(BOOL_VAL(r));
+		return AS_STRING(args[0]) == AS_STRING(args[1]);
 	}
 
 	NATIVE(bl_String_hash) {
