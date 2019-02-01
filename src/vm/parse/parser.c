@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "token.h"
 #include "linkedlist.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -769,17 +770,43 @@ static Expr *ternaryExpr(Parser *p) {
 	return expr;
 }
 
+static Operator tokenToOperator(TokenType t) {
+	switch(t) {
+	case TOK_PLUS:
+		return PLUS;
+	case TOK_MINUS:
+		return MINUS;
+	case TOK_DIV:
+		return DIV;
+	case TOK_MULT:
+		return MULT;
+	case TOK_MOD:
+		return MOD;
+	default:
+		UNREACHABLE();
+		return -1;
+	}
+}
+
 static Expr *parseExpr(Parser *p) {
 	int line = p->peek.line;
 	Expr *l = ternaryExpr(p);
 
-	if(match(p, TOK_EQUAL)) {
+	if(IS_ASSIGN(p->peek.type)) {
 		if(l != NULL && !IS_LVALUE(l->type)) {
 			error(p, "Left hand side of assignment must be an lvalue.");
 		}
 
+		TokenType t = p->peek.type;
+
 		advance(p);
 		Expr *r = parseExpr(p);
+
+		// if compund assign expand in full form (e.g. a += b -> a = a + b)
+		if(IS_COMPUND_ASSIGN(t)) {
+			r = newBinary(line, tokenToOperator(COMPUND_ASS_TO_OP(t)), l, r);
+		}
+
 		l = newAssign(line, l, r);
 	}
 

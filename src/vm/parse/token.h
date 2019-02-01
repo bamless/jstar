@@ -3,6 +3,12 @@
 
 extern const char *tokNames[];
 
+#define IS_ASSIGN(tok)          (tok <= TOK_MOD_EQ && tok >= TOK_EQUAL)
+#define IS_COMPUND_ASSIGN(tok)  (tok <= TOK_MOD_EQ && tok > TOK_EQUAL)
+
+#define _COMPOUND_ASS_TO_OP_OFF (TOK_PLUS - TOK_PLUS_EQ)
+#define COMPUND_ASS_TO_OP(ass)  (ass + _COMPOUND_ASS_TO_OP_OFF)
+
 typedef enum {
 	TOK_LPAREN,
 	TOK_RPAREN,
@@ -10,23 +16,32 @@ typedef enum {
 	TOK_RBRACE,
 	TOK_LSQUARE,
 	TOK_RSQUARE,
+
 	TOK_BANG,
 	TOK_BANG_EQ,
 	TOK_COMMA,
 	TOK_DOT,
+
 	TOK_EQUAL,
+	TOK_PLUS_EQ,
+	TOK_MINUS_EQ,
+	TOK_DIV_EQ,
+	TOK_MULT_EQ,
+	TOK_MOD_EQ,
+
 	TOK_EQUAL_EQUAL,
 	TOK_GT,
 	TOK_GE,
 	TOK_LT,
 	TOK_LE,
-	TOK_MINUS,
 	TOK_PLUS,
-	TOK_SEMICOLON,
-	TOK_COLON,
+	TOK_MINUS,
 	TOK_DIV,
 	TOK_MULT,
 	TOK_MOD,
+
+	TOK_COLON,
+	TOK_SEMICOLON,
 	TOK_IN,
 
 	TOK_IDENTIFIER,

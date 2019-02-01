@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "opcode.h"
 #include "value.h"
+#include "util.h"
 #include "vm.h"
 
 #include "util/stringbuf.h"
@@ -234,7 +235,7 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 	case LE:    emitBytecode(c, OP_LE, e->line);   break;
 	case IS:    emitBytecode(c, OP_IS, e->line);   break;
 	default:
-		error(c, e->line, "Wrong operator for binary expression.");
+		UNREACHABLE();
 		break;
 	}
 }
@@ -259,7 +260,7 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
 	case MINUS: emitBytecode(c, OP_NEG, e->line); break;
 	case NOT:   emitBytecode(c, OP_NOT, e->line); break;
 	default:
-		error(c, e->line, "Wrong operator for unary expression.");
+		UNREACHABLE();
 		break;
 	}
 }
@@ -315,7 +316,9 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		emitBytecode(c, OP_ARR_SET, e->line);
 		break;
 	}
-	default: break;
+	default:
+	 	UNREACHABLE();
+		break;
 	}
 }
 
@@ -933,7 +936,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		emitBytecode(c, OP_SING_BRK, s->line);
 		emitShort(c, 0, 0);
 		break;
-	case EXCEPT_STMT: break;
+	case EXCEPT_STMT:
+		UNREACHABLE();
+		break;
 	}
 }
 

@@ -82,6 +82,10 @@ ifeq ($(DBG_PRINT_EXEC),1)
 	CFLAGS += -DDBG_PRINT_EXEC
 endif
 
+ifeq ($(MODE), debug1)
+	CFLAGS += -DDEBUG_1
+endif
+
 # Recursive wildcard, used to get all c files in SRC directory recursively
 rwildcard = $(foreach d, $(wildcard $1*), $(call rwildcard,$d/,$2) \
 						$(filter $(subst *,%,$2), $d))
@@ -107,6 +111,14 @@ all: createdirs
 	@echo "Beginning build..."
 	@echo ""
 	@$(MAKE) cli --no-print-directory
+	@echo ""
+	@echo "Build successful"
+
+.PHONY: debug
+debug: createdirs
+	@echo "Beginning build..."
+	@echo ""
+	@$(MAKE) MODE=debug1 cli --no-print-directory
 	@echo ""
 	@echo "Build successful"
 

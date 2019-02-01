@@ -210,14 +210,29 @@ void nextToken(Lexer *lex, Token *tok) {
 	case ':': makeToken(lex, tok, TOK_COLON);     break;
 	case ',': makeToken(lex, tok, TOK_COMMA);     break;
 	case '.': makeToken(lex, tok, TOK_DOT);       break;
-	case '-': makeToken(lex, tok, TOK_MINUS);     break;
-	case '+': makeToken(lex, tok, TOK_PLUS);      break;
-	case '/': makeToken(lex, tok, TOK_DIV);       break;
-	case '*': makeToken(lex, tok, TOK_MULT);      break;
-	case '%': makeToken(lex, tok, TOK_MOD);       break;
 	case '[': makeToken(lex, tok, TOK_LSQUARE);   break;
 	case ']': makeToken(lex, tok, TOK_RSQUARE);   break;
 	case '"': string(lex, tok);                   break;
+	case '-':
+		if(match(lex, '=')) makeToken(lex, tok, TOK_MINUS_EQ);
+		makeToken(lex, tok, TOK_MINUS);
+		break;
+	case '+':
+		if(match(lex, '=')) makeToken(lex, tok, TOK_PLUS_EQ);
+		else makeToken(lex, tok, TOK_PLUS);
+		break;
+	case '/':
+		if(match(lex, '=')) makeToken(lex, tok, TOK_DIV_EQ);
+		else makeToken(lex, tok, TOK_DIV);
+		break;
+	case '*':
+		if(match(lex, '=')) makeToken(lex, tok, TOK_MULT_EQ);
+		else makeToken(lex, tok, TOK_MULT);
+		break;
+	case '%':
+		if(match(lex, '=')) makeToken(lex, tok, TOK_MOD_EQ);
+		else makeToken(lex, tok, TOK_MOD);
+		break;
 	case '!':
 		if(match(lex, '=')) makeToken(lex, tok, TOK_BANG_EQ);
 		else makeToken(lex, tok, TOK_BANG);

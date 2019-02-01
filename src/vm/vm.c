@@ -638,7 +638,7 @@ static bool runEval(BlangVM *vm) {
 			blRaise(vm, "TypeException", "Operand of set `[]` must be a List.");
 			UNWIND_STACK(vm);
 		}
-		
+
 		DISPATCH();
 	}
 	TARGET(OP_JUMP): {
@@ -905,9 +905,11 @@ sup_invoke:;
 	TARGET(OP_SIGN_CONT):
 	TARGET(OP_SING_BRK):
 		UNREACHABLE();
+		return false;
 	}
 
 	UNREACHABLE();
+	return false;
 
 	#undef NEXT_CODE
 	#undef NEXT_SHORT
