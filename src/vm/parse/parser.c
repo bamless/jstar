@@ -11,88 +11,111 @@
 		require(p, TOK_NEWLINE); \
 } while(0)
 
-static void  advance(Parser *p);
-static void  synchronize(Parser *p);
-static void  skipNewLines(Parser *p);
-static bool  matchSkipnl(Parser *p, TokenType type);
-static void  error(Parser *p, const char *msg);
-static Token require(Parser *p, TokenType type);
-static bool  match(Parser *p, TokenType type);
+#define IS_LVALUE(type) \
+	(type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC)
 
-static Stmt *parseProgram(Parser *p);
 
-Stmt *parse(Parser *p, const char *fname, const char *src) {
-	p->panic = false;
-	p->hadError = false;
-	p->fname = fname;
-	p->prevType = -1;
+//----- Utility functions ------
 
-	initLexer(&p->lex, src);
-	nextToken(&p->lex, &p->peek);
-
-	p->lnStart = p->peek.lexeme;
-
-	Stmt *program = parseProgram(p);
-
-	if(!matchSkipnl(p, TOK_EOF))
-		error(p, "Unexpected token.");
-
-	return program;
+static bool match(Parser *p, TokenType type) {
+	return p->peek.type == type;
 }
 
-static Stmt *parseNativeDecl(Parser *p);
-static Stmt *parseFuncDecl(Parser *p);
+static char *strchrnul(const char *str, char c) {
+	char *ret;
+	return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
+}
+
+static void error(Parser *p, const char *msg) {
+	if(p->panic) return;
+	fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
+
+	int tokOff  = (int)((p->peek.lexeme) - p->lnStart);
+	int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
+
+	fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
+	fprintf(stderr, "    ");
+	for(int i = 0; i < tokOff; i++) {
+		fprintf(stderr, " ");
+	}
+	fprintf(stderr, "^\n");
+	fprintf(stderr, "%s\n", msg);
+
+	p->panic = true;
+	p->hadError = true;
+}
+
+static void advance(Parser *p) {
+	p->prevType = p->peek.type;
+	nextToken(&p->lex, &p->peek);
+
+	if(p->prevType == TOK_NEWLINE) {
+		p->lnStart = p->peek.lexeme;
+	}
+
+	while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
+		error(p, p->peek.type == TOK_ERR ? "Invalid token."
+		                                 : "Unterminated string.");
+		nextToken(&p->lex, &p->peek);
+	}
+}
+
+static void skipNewLines(Parser *p) {
+	while(p->peek.type == TOK_NEWLINE)
+		advance(p);
+}
+
+static bool matchSkipnl(Parser *p, TokenType type) {
+	if(type != TOK_NEWLINE) {
+		skipNewLines(p);
+	}
+	return p->peek.type == type;
+}
+
+static Token require(Parser *p, TokenType type) {
+	if(matchSkipnl(p, type)) {
+		Token t = p->peek;
+		advance(p);
+		return t;
+	}
+
+	char msg[1025] = {'\0'};
+	snprintf(msg, 1024, "Expected token `%s` but instead `%s` found.",
+	                            tokNames[type], tokNames[p->peek.type]);
+	error(p, msg);
+
+	return (Token) {0, NULL, 0, 0};
+}
+
+static void synchronize(Parser *p) {
+	p->panic = false;
+
+	while(!matchSkipnl(p, TOK_EOF)) {
+
+		switch(p->peek.type) {
+		case TOK_DEF:
+		case TOK_VAR:
+		case TOK_FOR:
+		case TOK_IF:
+		case TOK_WHILE:
+		case TOK_RETURN:
+		case TOK_LBRACE:
+		case TOK_CLASS:
+			return;
+		default: break;
+		}
+
+		advance(p);
+	}
+}
+
+//----- Recursive descent parser implementation ------
+
+static Expr *parseExpr(Parser *p);
+
 static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
 static Stmt *varDecl(Parser *p);
-
-static Stmt *parseProgram(Parser *p) {
-	LinkedList *stmts = NULL;
-
-	while(!matchSkipnl(p, TOK_EOF)) {
-		if(matchSkipnl(p, TOK_DEF)) {
-			stmts = addElement(stmts, parseFuncDecl(p));
-		} else if(matchSkipnl(p, TOK_NAT)) {
-			stmts = addElement(stmts, parseNativeDecl(p));
-		} else if(matchSkipnl(p, TOK_VAR)) {
-			stmts = addElement(stmts, varDecl(p));
-			NEWLINE(p);
-		} else {
-			stmts = addElement(stmts, parseStmt(p));
-		}
-
-		if(p->panic) synchronize(p);
-	}
-
-	return newFuncDecl(0, 0, NULL, NULL, newBlockStmt(0, stmts));
-}
-
-static Stmt *parseNativeDecl(Parser *p) {
-	int line = p->peek.line;
-	require(p, TOK_NAT);
-
-	Token fname = require(p, TOK_IDENTIFIER);
-
-	require(p, TOK_LPAREN);
-	LinkedList *args = NULL;
-
-	if(matchSkipnl(p, TOK_IDENTIFIER)) {
-		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
-		advance(p);
-
-		while(matchSkipnl(p, TOK_COMMA)) {
-			advance(p);
-
-			Token arg = require(p, TOK_IDENTIFIER);
-			args = addElement(args, newIdentifier(arg.length, arg.lexeme));
-		}
-	}
-
-	require(p, TOK_RPAREN);
-	NEWLINE(p);
-
-	return newNativeDecl(line, fname.length, fname.lexeme, args);
-}
 
 static Stmt *parseFuncDecl(Parser *p) {
 	int line = p->peek.line;
@@ -122,6 +145,73 @@ static Stmt *parseFuncDecl(Parser *p) {
 	return newFuncDecl(line, fname.length, fname.lexeme, args, body);
 }
 
+static Stmt *parseNativeDecl(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_NAT);
+
+	Token fname = require(p, TOK_IDENTIFIER);
+
+	require(p, TOK_LPAREN);
+	LinkedList *args = NULL;
+
+	if(matchSkipnl(p, TOK_IDENTIFIER)) {
+		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
+		advance(p);
+
+		while(matchSkipnl(p, TOK_COMMA)) {
+			advance(p);
+
+			Token arg = require(p, TOK_IDENTIFIER);
+			args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+		}
+	}
+
+	require(p, TOK_RPAREN);
+	NEWLINE(p);
+
+	return newNativeDecl(line, fname.length, fname.lexeme, args);
+}
+
+static Stmt *parseProgram(Parser *p) {
+	LinkedList *stmts = NULL;
+
+	while(!matchSkipnl(p, TOK_EOF)) {
+		if(matchSkipnl(p, TOK_DEF)) {
+			stmts = addElement(stmts, parseFuncDecl(p));
+		} else if(matchSkipnl(p, TOK_NAT)) {
+			stmts = addElement(stmts, parseNativeDecl(p));
+		} else if(matchSkipnl(p, TOK_VAR)) {
+			stmts = addElement(stmts, varDecl(p));
+			NEWLINE(p);
+		} else {
+			stmts = addElement(stmts, parseStmt(p));
+		}
+
+		if(p->panic) synchronize(p);
+	}
+
+	return newFuncDecl(0, 0, NULL, NULL, newBlockStmt(0, stmts));
+}
+
+Stmt *parse(Parser *p, const char *fname, const char *src) {
+	p->panic = false;
+	p->hadError = false;
+	p->fname = fname;
+	p->prevType = -1;
+
+	initLexer(&p->lex, src);
+	nextToken(&p->lex, &p->peek);
+
+	p->lnStart = p->peek.lexeme;
+
+	Stmt *program = parseProgram(p);
+
+	if(!matchSkipnl(p, TOK_EOF))
+		error(p, "Unexpected token.");
+
+	return program;
+}
+
 static void classSynchronize(Parser *p) {
 	p->panic = false;
 
@@ -136,8 +226,6 @@ static void classSynchronize(Parser *p) {
 		advance(p);
 	}
 }
-
-static Expr *parseExpr(Parser *p);
 
 static Stmt *parseClassDecl(Parser *p) {
 	int line = p->peek.line;
@@ -396,28 +484,6 @@ static Stmt *parseStmt(Parser *p) {
 	}
 }
 
-static void synchronize(Parser *p) {
-	p->panic = false;
-
-	while(!matchSkipnl(p, TOK_EOF)) {
-
-		switch(p->peek.type) {
-		case TOK_DEF:
-		case TOK_VAR:
-		case TOK_FOR:
-		case TOK_IF:
-		case TOK_WHILE:
-		case TOK_RETURN:
-		case TOK_LBRACE:
-		case TOK_CLASS:
-			return;
-		default: break;
-		}
-
-		advance(p);
-	}
-}
-
 //----- Expressions parse ------
 
 LinkedList *parseExprLst(Parser *p) {
@@ -530,7 +596,6 @@ static Expr *postfixExpr(Parser *p) {
 		}
 		default: break;
 		}
-
 	}
 
 	return lit;
@@ -709,8 +774,7 @@ static Expr *parseExpr(Parser *p) {
 	Expr *l = ternaryExpr(p);
 
 	if(match(p, TOK_EQUAL)) {
-		if(l != NULL && l->type != VAR_LIT && l->type != ACCESS_EXPR &&
-			l->type != ARR_ACC) {
+		if(l != NULL && !IS_LVALUE(l->type)) {
 			error(p, "Left hand side of assignment must be an lvalue.");
 		}
 
@@ -720,74 +784,4 @@ static Expr *parseExpr(Parser *p) {
 	}
 
 	return l;
-}
-
-static char *strchrnul(const char *str, char c) {
-	char *ret;
-	return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
-}
-
-static void error(Parser *p, const char *msg) {
-	if(p->panic) return;
-	fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
-
-	int tokOff  = (int)((p->peek.lexeme) - p->lnStart);
-	int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
-
-	fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
-	fprintf(stderr, "    ");
-	for(int i = 0; i < tokOff; i++) {
-		fprintf(stderr, " ");
-	}
-	fprintf(stderr, "^\n");
-	fprintf(stderr, "%s\n", msg);
-
-	p->panic = true;
-	p->hadError = true;
-}
-
-static void skipNewLines(Parser *p) {
-	while(p->peek.type == TOK_NEWLINE)
-		advance(p);
-}
-
-static bool match(Parser *p, TokenType type) {
-	return p->peek.type == type;
-}
-
-static bool matchSkipnl(Parser *p, TokenType type) {
-	if(type != TOK_NEWLINE) {
-		skipNewLines(p);
-	}
-	return p->peek.type == type;
-}
-
-static Token require(Parser *p, TokenType type) {
-	if(matchSkipnl(p, type)) {
-		Token t = p->peek;
-		advance(p);
-		return t;
-	}
-
-	char msg[1025] = {'\0'};
-	snprintf(msg, 1024, "Expected token `%s` but instead `%s` found.",
-	                            tokNames[type], tokNames[p->peek.type]);
-	error(p, msg);
-
-	return (Token) {0, NULL, 0, 0};
-}
-
-static void advance(Parser *p) {
-	p->prevType = p->peek.type;
-	nextToken(&p->lex, &p->peek);
-
-	if(p->prevType == TOK_NEWLINE) {
-		p->lnStart = p->peek.lexeme;
-	}
-
-	while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
-		error(p, p->peek.type == TOK_ERR ? "Invalid token."
-		                                 : "Unterminated string.");
-		nextToken(&p->lex, &p->peek);
-	}
 }
