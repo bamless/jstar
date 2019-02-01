@@ -215,7 +215,7 @@ void nextToken(Lexer *lex, Token *tok) {
 	case '"': string(lex, tok);                   break;
 	case '-':
 		if(match(lex, '=')) makeToken(lex, tok, TOK_MINUS_EQ);
-		makeToken(lex, tok, TOK_MINUS);
+		else makeToken(lex, tok, TOK_MINUS);
 		break;
 	case '+':
 		if(match(lex, '=')) makeToken(lex, tok, TOK_PLUS_EQ);

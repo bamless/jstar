@@ -802,12 +802,12 @@ static Expr *parseExpr(Parser *p) {
 		advance(p);
 		Expr *r = parseExpr(p);
 
-		// if compund assign expand in full form (e.g. a += b -> a = a + b)
+		// check if we're parsing a compund assginment
 		if(IS_COMPUND_ASSIGN(t)) {
-			r = newBinary(line, tokenToOperator(COMPUND_ASS_TO_OP(t)), l, r);
+			l = newCompoundAssing(line, tokenToOperator(COMPUND_ASS_TO_OP(t)), l, r);
+		} else {
+			l = newAssign(line, l, r);
 		}
-
-		l = newAssign(line, l, r);
 	}
 
 	return l;

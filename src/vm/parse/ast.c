@@ -148,6 +148,16 @@ Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr) {
 	return e;
 }
 
+Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = COMP_ASSIGN;
+	e->compundAssign.op = op;
+	e->compundAssign.lval = lval;
+	e->compundAssign.rval = rval;
+	return e;
+}
+
 void freeExpr(Expr *e) {
 	if(e == NULL) return;
 
@@ -192,6 +202,10 @@ void freeExpr(Expr *e) {
 		freeExpr(e->ternary.cond);
 		freeExpr(e->ternary.thenExpr);
 		freeExpr(e->ternary.elseExpr);
+		break;
+	case COMP_ASSIGN:
+		freeExpr(e->compundAssign.lval);
+		freeExpr(e->compundAssign.rval);
 		break;
 	default: break;
 	}

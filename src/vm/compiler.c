@@ -322,6 +322,19 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 	}
 }
 
+static void compileCompundAssign(Compiler *c, Expr *e) {
+	Operator op = e->compundAssign.op;
+	Expr *l = e->compundAssign.lval;
+	Expr *r = e->compundAssign.rval;
+
+	// expand compound assignement (e.g. a += b -> a = a + b)
+	Expr binary = {e->line, BINARY, .bin = {op, l, r}};
+	Expr assignment = {e->line, ASSIGN, .assign = {l, &binary}};
+
+	// compile as a normal assignment
+	compileAssignExpr(c, &assignment);
+}
+
 static void compileCallExpr(Compiler *c, Expr *e) {
 	Opcode callCode   = OP_CALL;
 	Opcode callInline = OP_CALL_0;
@@ -405,6 +418,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 	switch(e->type) {
 	case ASSIGN:
 	 	compileAssignExpr(c, e);
+		break;
+	case COMP_ASSIGN:
+		compileCompundAssign(c, e);
 		break;
 	case BINARY:
 		if(e->bin.op == AND || e->bin.op == OR) {
