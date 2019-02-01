@@ -10,7 +10,7 @@ class __Entry {
 	}
 
 	def __string__() {
-		return "{"+ this.key.__string__() + ":" + this.value.__string__() +"}"
+		return "{" + this.key.__string__() + ":" + this.value.__string__() + "}"
 	}
 }
 
@@ -69,7 +69,7 @@ class HashMap {
 		}
 
 		this.__addEntry(__Entry(key, val))
-		this._count = this._count + 1
+		this._count += 1
 		return null
 	}
 
@@ -91,7 +91,7 @@ class HashMap {
 				else
 					prev.next = head.next
 
-				this._count = this._count - 1
+				this._count -= 1
 				return head.value
 			}
 
@@ -116,7 +116,7 @@ class HashMap {
 	}
 
 	def clear() {
-		for(var i = 0; i < this._entries.size(); i = i + 1) {
+		for(var i = 0; i < this._entries.size(); i += 1) {
 			this._entries[i] = null
 		}
 		this._count = 0
@@ -145,9 +145,9 @@ class HashMap {
 
 		while(iterator.hasNext()) {
 			var e = iterator.next()
-			count = count + 1
+			count += 1
 			s = s + e.__string__()
-			if(count < this._count) s = s + ", "
+			if(count < this._count) s += ", "
 		}
 
 		return s + "]"
@@ -199,7 +199,7 @@ class __EntryIterator {
 			return
 
 		while(this.index < this.map._size - 1 and this.map._entries[this.index] == null) {
-			this.index = this.index + 1
+			this.index += 1
 		}
 
 		this.next = this.map._entries[this.index]
@@ -214,7 +214,7 @@ class __EntryIterator {
 		this.next = e.next
 
 		if(this.next == null) {
-			this.index = this.index + 1
+			this.index += 1
 			this.__nextBucket()
 		}
 

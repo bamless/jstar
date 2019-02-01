@@ -46,10 +46,10 @@ class String {
 		var lastf = 0      // index of 1 past the end of last format symbol
 		var formatn = 0    // keeps track of the format symbols encountered
 
-		for(var i = 0; i < this.length(); i = i + 1) {
+		for(var i = 0; i < this.length(); i += 1) {
 			//skip escaped char
 			if(this[i] == "\\")
-				i = i + 1
+				i += 1
 			else if(this[i] == "{") {
 				var endformat = i
 
@@ -73,12 +73,12 @@ class String {
 				s = s + args[argn].__string__()
 
 				lastf = endformat + 1
-				formatn = formatn + 1
+				formatn += 1
 			}
 		}
 
 		if(lastf < this.length()) {
-			s = s + this.substr(lastf, this.length())
+			s += this.substr(lastf, this.length())
 		}
 
 		return s
@@ -108,7 +108,7 @@ class __StringIterator {
 
 	def next() {
 		var c = this.str[this.pos]
-		this.pos = this.pos + 1
+		this.pos += 1
 		return c
 	}
 }
@@ -169,7 +169,7 @@ class List {
 	}
 
 	def indexOf(e) {
-		for(var i = 0; i < this.size(); i = i + 1) {
+		for(var i = 0; i < this.size(); i += 1) {
 			if(this[i].__equals__(e)) {
 				return i
 			}
@@ -178,7 +178,7 @@ class List {
 	}
 
 	def indexOfLast(e) {
-		for(var i = this.size() - 1; i >= 0; i = i - 1) {
+		for(var i = this.size() - 1; i >= 0; i -= 1) {
 			if(this[i].__equals__(e)) {
 				return i
 			}
@@ -188,7 +188,7 @@ class List {
 
 	def join(sep) {
 		var s = ""
-		for(var i = 0; i < this.size(); i = i + 1) {
+		for(var i = 0; i < this.size(); i += 1) {
 			s = s + this[i].__string__()
 			if(i != this.size() - 1) s = s + sep
 		}
@@ -201,7 +201,7 @@ class List {
 		}
 
 		var sub = []
-		for(var i = from; i < to; i = i + 1) {
+		for(var i = from; i < to; i += 1) {
 			sub.add(this[i])
 		}
 		return sub
@@ -244,7 +244,7 @@ class __ListIterator {
 
 	def next() {
 		var next = this.list[this.n]
-		this.n = this.n + 1
+		this.n += 1
 		return next
 	}
 }
@@ -261,7 +261,7 @@ class __ListReverseIterator {
 
 	def next() {
 		var prev = this.list[this.n]
-		this.n = this.n - 1
+		this.n -= 1
 		return prev
 	}
 
@@ -332,7 +332,7 @@ class range {
 
 	def next() {
 		var i = this.count
-		this.count = this.count + 1
+		this.count += 1
 		return i
 	}
 
@@ -342,9 +342,9 @@ class range {
 
 	def __string__() {
 		var s = "["
-		for(var i = this.from; i < this.to; i = i + 1) {
+		for(var i = this.from; i < this.to; i += 1) {
 			s = s + i.__string__()
-			if(i != this.to - 1) s = s + ", "
+			if(i != this.to - 1) s += ", "
 		}
 		return s + "]"
 	}

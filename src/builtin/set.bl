@@ -79,7 +79,7 @@ class HashSet {
 		for(var k in this) {
 			count = count + 1
 			s = s + k.__string__()
-			if(count < this._map.size()) s = s + ", "
+			if(count < this._map.size()) s += ", "
 		}
 
 		return s + "}"
