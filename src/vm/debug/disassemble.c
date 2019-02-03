@@ -18,9 +18,11 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_JUMP:
 	case OP_JUMPT:
 	case OP_JUMPF:
-	case OP_SETUP_TRY:
-		printf("%d", (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]);
+	case OP_SETUP_TRY: {
+		int16_t off = (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
+		printf("%d (to %lu)", off, i + off + 3);
 		break;
+	}
 
 	// instructions with 2 arguments representing 2 constant values
 	case OP_IMPORT_AS:
