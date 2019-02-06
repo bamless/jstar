@@ -236,10 +236,6 @@ NATIVE(bl_File_close) {
 		BL_RAISE_EXCEPTION(vm, "IOException", "An I/O error occurred.");
 	}
 
-	if(fclose(f)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "An I/O error occurred.");
-	}
-
 	BL_RETURN(NULL_VAL);
 }
 
