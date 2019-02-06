@@ -68,6 +68,8 @@ Module builtInModules[] = {
 		FUNCTION(num, &bl_num)
 		FUNCTION(list, &bl_list)
 		FUNCTION(isInt, &bl_isInt)
+		FUNCTION(char, &bl_char)
+		FUNCTION(ascii, &bl_ascii)
 		FUNCTION(__printstr, &bl_printstr)
 		CLASS(Number)
 			METHOD(__string__, &bl_Number_string)

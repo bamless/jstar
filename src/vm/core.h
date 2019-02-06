@@ -11,6 +11,10 @@ NATIVE(bl_int);
 NATIVE(bl_num);
 NATIVE(bl_list);
 NATIVE(bl_isInt);
+
+NATIVE(bl_char);
+NATIVE(bl_ascii);
+
 NATIVE(bl_printstr);
 
 // class Number {

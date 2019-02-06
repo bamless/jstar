@@ -355,4 +355,7 @@ native num(n)
 native list(n, init)
 native isInt(n)
 
+native char(num)
+native ascii(char)
+
 native __printstr(str)

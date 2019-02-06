@@ -202,6 +202,24 @@ NATIVE(bl_isInt) {
 	BL_RETURN(FALSE_VAL);
 }
 
+NATIVE(bl_char) {
+	if(!IS_INT(args[1])) {
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "num must be an integer");
+	}
+
+	char c = AS_NUM(args[1]);
+	BL_RETURN(OBJ_VAL(copyString(vm, &c, 1)));
+}
+
+NATIVE(bl_ascii) {
+	if(!IS_STRING(args[1]) || AS_STRING(args[1])->length != 1) {
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "arg must be a string of length 1");
+	}
+
+	char c = AS_STRING(args[1])->data[0];
+	BL_RETURN(NUM_VAL((int) c));
+}
+
 NATIVE(bl_printstr) {
 	printf("%s", AS_STRING(args[1])->data);
 	BL_RETURN(NULL_VAL);
