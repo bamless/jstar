@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14,6 +15,10 @@
 #endif
 
 #define FIELD_FILE_HANDLE "__handle"
+
+#define BL_SEEK_SET  0
+#define BL_SEEK_CURR 1
+#define BL_SEEK_END  2
 
 // static helper functions
 
@@ -104,7 +109,81 @@ static int64_t getFileSize(FILE *stream) {
 	return fsize;
 }
 
+static int blSeek(FILE *file, long offset, int blWhence) {
+	int whence = 0;
+	switch(blWhence) {
+	case BL_SEEK_SET:
+		whence = SEEK_SET;
+		break;
+	case BL_SEEK_CURR:
+		whence = SEEK_CUR;
+		break;
+	case BL_SEEK_END:
+		whence = SEEK_END;
+		break;
+	}
+	return fseek(file, offset, whence);
+}
+
 // class File {
+
+NATIVE(bl_File_seek) {
+	Value h;
+	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
+		BL_RETURN(NULL_VAL);
+	}
+	if(!IS_INT(args[1])){
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "off must be an integer");
+	}
+	if(!IS_INT(args[2])) {
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "whence must be an integer");
+	}
+
+	FILE *f = (FILE*) AS_HANDLE(h);
+
+	double offset = AS_NUM(args[1]);
+	double whence = AS_NUM(args[2]);
+
+	if(whence != BL_SEEK_SET && whence != BL_SEEK_CURR && whence != BL_SEEK_END) {
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException",
+			"whence must be SEEK_SET, SEEK_CUR or SEEK_END");
+	}
+
+	if(blSeek(f, offset, whence)) {
+		if(errno == EINVAL)
+			BL_RAISE_EXCEPTION(vm, "IOException", "resulting offset would be negative.");
+		else
+			BL_RAISE_EXCEPTION(vm, "IOException", "an I/O error occurred.");
+	}
+
+	BL_RETURN(NULL_VAL);
+}
+
+NATIVE(bl_File_setpos) {
+	Value fwdArgs[] = {args[0], args[1], NUM_VAL(BL_SEEK_SET)};
+	return bl_File_seek(vm, fwdArgs, ret);
+}
+
+NATIVE(bl_File_tell) {
+	Value h;
+	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
+		BL_RETURN(NULL_VAL);
+	}
+
+	FILE *f = (FILE*) AS_HANDLE(h);
+	BL_RETURN(NUM_VAL(ftell(f)));
+}
+
+NATIVE(bl_File_rewind) {
+	Value h;
+	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
+		BL_RETURN(NULL_VAL);
+	}
+
+	FILE *f = (FILE*) AS_HANDLE(h);
+	rewind(f);
+	BL_RETURN(NULL_VAL);
+}
 
 NATIVE(bl_File_readAll) {
 	Value h;
@@ -147,17 +226,21 @@ NATIVE(bl_File_readLine) {
 NATIVE(bl_File_close) {
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(FALSE_VAL);
+		BL_RETURN(NULL_VAL);
 	}
 
 	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
 
 	FILE *f = (void*) AS_HANDLE(h);
 	if(fclose(f)) {
-		BL_RETURN(FALSE_VAL);
+		BL_RAISE_EXCEPTION(vm, "IOException", "An I/O error occurred.");
 	}
 
-	BL_RETURN(TRUE_VAL);
+	if(fclose(f)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "An I/O error occurred.");
+	}
+
+	BL_RETURN(NULL_VAL);
 }
 
 NATIVE(bl_File_size) {

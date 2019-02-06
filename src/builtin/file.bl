@@ -1,4 +1,9 @@
 class FileNotFoundException : Exception {}
+class IOException : Exception {}
+
+var SEEK_SET = 0
+var SEEK_CUR = 1
+var SEEK_END = 2
 
 class File {
 	def new(name, mode) {
@@ -11,6 +16,11 @@ class File {
 	def __iterator__() {
 		return __FileIterator(this)
 	}
+
+	native tell()
+	native seek(off, whence)
+	native setpos(off)
+	native rewind()
 
 	native size()
 	native readAll()
@@ -25,7 +35,7 @@ class __FileIterator {
 
 	def hasNext() {
 		this.line = this.file.readLine()
-		return this.line != ""
+		return this.line != "" and this.line != null
 	}
 
 	def next() {

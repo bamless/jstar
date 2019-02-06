@@ -116,6 +116,10 @@ Module builtInModules[] = {
 			METHOD(readAll, &bl_File_readAll)
 			METHOD(readLine, &bl_File_readLine)
 			METHOD(close, &bl_File_close)
+			METHOD(seek, &bl_File_seek)
+			METHOD(setpos, &bl_File_setpos)
+			METHOD(tell, &bl_File_tell)
+			METHOD(rewind, &bl_File_rewind)
 		ENDCLASS
 		FUNCTION(__open, &bl_open)
 	ENDMODULE
