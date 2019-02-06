@@ -407,7 +407,7 @@ NATIVE(bl_printstr) {
 		if(!IS_STRING(args[1])) {
 			BL_RETURN(FALSE_VAL);
 		}
-		return AS_STRING(args[0]) == AS_STRING(args[1]);
+		BL_RETURN(AS_STRING(args[0]) == AS_STRING(args[1]));
 	}
 
 	NATIVE(bl_String_hash) {
