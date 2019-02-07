@@ -197,11 +197,12 @@ NATIVE(bl_File_readAll) {
 		BL_RETURN(NULL_VAL);
 	}
 
-	char *data = GC_ALLOC(vm, size);
-	if(fread(data, 1, size, f) < (size_t) size) {
+	char *data = GC_ALLOC(vm, size + 1);
+	if(fread(data, sizeof(char), size, f) < (size_t) size) {
 		GC_FREEARRAY(vm, char, data, size);
 		BL_RETURN(NULL_VAL);
 	}
+	data[size] = '\0';
 
 	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, data, strlen(data))));
 }
