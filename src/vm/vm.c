@@ -475,7 +475,7 @@ static bool runEval(BlangVM *vm) {
 	}
 	TARGET(OP_MOD): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			blRaise(vm, "TypeException", "Operands of % must be numbers.");
+			blRaise(vm, "TypeException", "Operands of %% must be numbers.");
 			UNWIND_STACK(vm);
 		}
 		double b = AS_NUM(pop(vm));
