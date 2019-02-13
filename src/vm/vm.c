@@ -58,6 +58,7 @@ BlangVM *blNewVM() {
 
 	vm->module = NULL;
 
+	// init GC
 	vm->nextGC = INIT_GC;
 	vm->objects = NULL;
 	vm->disableGC = false;
@@ -67,7 +68,22 @@ BlangVM *blNewVM() {
 	vm->reachedCapacity = 0;
 	vm->reachedCount = 0;
 
+	// Create constants strings
 	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
+
+	vm->add = copyString(vm, "__add__", 7);
+	vm->sub = copyString(vm, "__sub__", 7);
+	vm->mul = copyString(vm, "__mul__", 7);
+	vm->div = copyString(vm, "__div__", 7);
+	vm->mod = copyString(vm, "__mod__", 7);
+	vm->get = copyString(vm, "__get__", 7);
+	vm->set = copyString(vm, "__set__", 7);
+
+	vm->radd = copyString(vm, "__radd__", 8);
+	vm->rsub = copyString(vm, "__rsub__", 8);
+	vm->rmul = copyString(vm, "__rmul__", 8);
+	vm->rdiv = copyString(vm, "__rdiv__", 8);
+	vm->rmod = copyString(vm, "__rmod__", 8);
 
 	initCoreLibrary(vm);
 
@@ -371,6 +387,28 @@ static ObjString* stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
 	return newStringFromBuf(vm, data, length);
 }
 
+#define SWAP_STACK_TOP(vm) do { \
+	Value b = peek(vm); \
+	vm->sp[-1] = vm->sp[-2]; \
+	vm->sp[-2] = b; \
+} while(0)
+
+static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse) {
+	ObjClass *cls = getClass(vm, peek2(vm));
+
+	if(!invokeMethod(vm, cls, name, 1)) {
+		SWAP_STACK_TOP(vm);
+		vm->exception = NULL;
+
+		cls = getClass(vm, peek2(vm));
+
+		if(!invokeMethod(vm, cls, reverse == NULL ? name : reverse, 1)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 static bool runEval(BlangVM *vm) {
 	register Frame *frame;
 	register Value *frameStack;
@@ -459,7 +497,6 @@ static bool runEval(BlangVM *vm) {
 			double b = AS_NUM(pop(vm));
 			double a = AS_NUM(pop(vm));
 			push(vm, NUM_VAL(a + b));
-			DISPATCH();
 		} else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
 			ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)),
 			                                        AS_STRING(peek(vm)));
@@ -468,10 +505,20 @@ static bool runEval(BlangVM *vm) {
 			pop(vm);
 
 			push(vm, OBJ_VAL(conc));
-			DISPATCH();
+		} else {
+			SAVE_FRAME();
+
+			if(!callBinaryOverload(vm, vm->add, vm->radd)) {
+				ObjString *t1 = getClass(vm, peek(vm))->name;
+				ObjString *t2 = getClass(vm, peek2(vm))->name;
+				blRaise(vm, "TypeException", "Operator + not "
+					"defined for types %s, %s", t1->data, t2->data);
+				UNWIND_STACK(vm);
+			}
+			
+			LOAD_FRAME();
 		}
-		blRaise(vm, "TypeException", "Operands of + must be two numbers or strings.");
-		UNWIND_STACK(vm);
+		DISPATCH();
 	}
 	TARGET(OP_MOD): {
 		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {

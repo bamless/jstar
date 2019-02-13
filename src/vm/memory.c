@@ -370,6 +370,7 @@ void garbageCollect(BlangVM *vm) {
 	vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
 	vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
+	// reach objects in vm
 	reachObject(vm, (Obj*) vm->importpaths);
 
 	reachObject(vm, (Obj*) vm->clsClass);
@@ -383,13 +384,26 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->nullClass);
 	reachObject(vm, (Obj*) vm->excClass);
 
+	reachObject(vm, (Obj*) vm->add);
+	reachObject(vm, (Obj*) vm->mul);
+	reachObject(vm, (Obj*) vm->div);
+	reachObject(vm, (Obj*) vm->mod);
+	reachObject(vm, (Obj*) vm->get);
+	reachObject(vm, (Obj*) vm->set);
+
+	reachObject(vm, (Obj*) vm->radd);
+	reachObject(vm, (Obj*) vm->rsub);
+	reachObject(vm, (Obj*) vm->rmul);
+	reachObject(vm, (Obj*) vm->rdiv);
+	reachObject(vm, (Obj*) vm->rmod);
+
 	//reach current exception if present
 	reachObject(vm, vm->exception);
 
 	reachObject(vm, (Obj*) vm->ctor);
 	//reach vm global vars
 	reachHashTable(vm, &vm->modules);
-	//reach elemnts on the stack
+	//reach elements on the stack
 	for(Value *v = vm->stack; v < vm->sp; v++) {
 		reachValue(vm, *v);
 	}
