@@ -282,10 +282,10 @@ static void compileTernaryExpr(Compiler *c, Expr *e) {
 }
 
 static void compileAssignExpr(Compiler *c, Expr *e) {
-	compileExpr(c, e->assign.rval);
-
 	switch(e->assign.lval->type) {
 	case VAR_LIT: {
+		compileExpr(c, e->assign.rval);
+
 		int i = resolveVariable(c, &e->assign.lval->var.id, e->line);
 		if(i != -1) {
 			emitBytecode(c, OP_SET_LOCAL, e->line);
@@ -298,8 +298,9 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case ACCESS_EXPR: {
-		Expr *acc = e->assign.lval;
+		compileExpr(c, e->assign.rval);
 
+		Expr *acc = e->assign.lval;
 		compileExpr(c, acc->accessExpr.left);
 
 		uint8_t id = identifierConst(c, &acc->accessExpr.id, e->line);
@@ -312,6 +313,7 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 
 		compileExpr(c, acc->arrAccExpr.left);
 		compileExpr(c, acc->arrAccExpr.index);
+		compileExpr(c, e->assign.rval);
 
 		emitBytecode(c, OP_ARR_SET, e->line);
 		break;

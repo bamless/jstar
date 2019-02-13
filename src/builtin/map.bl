@@ -78,6 +78,14 @@ class HashMap {
 		return e.value if e != null else null
 	}
 
+	def __set__(key, val) {
+		return this.put(key, val)
+	}
+
+	def __get__(key) {
+		return this.get(key)
+	}
+
 	def remove(key) {
 		var i = key.__hash__() % this._size
 

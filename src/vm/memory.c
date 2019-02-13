@@ -390,6 +390,11 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->mod);
 	reachObject(vm, (Obj*) vm->get);
 	reachObject(vm, (Obj*) vm->set);
+	reachObject(vm, (Obj*) vm->lt);
+	reachObject(vm, (Obj*) vm->le);
+	reachObject(vm, (Obj*) vm->gt);
+	reachObject(vm, (Obj*) vm->ge);
+
 
 	reachObject(vm, (Obj*) vm->radd);
 	reachObject(vm, (Obj*) vm->rsub);

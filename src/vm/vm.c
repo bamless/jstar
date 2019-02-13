@@ -78,6 +78,10 @@ BlangVM *blNewVM() {
 	vm->mod = copyString(vm, "__mod__", 7);
 	vm->get = copyString(vm, "__get__", 7);
 	vm->set = copyString(vm, "__set__", 7);
+	vm->lt  = copyString(vm, "__lt__" , 6);
+	vm->le  = copyString(vm, "__le__" , 6);
+	vm->gt  = copyString(vm, "__gt__" , 6);
+	vm->ge  = copyString(vm, "__ge__" , 6);
 
 	vm->radd = copyString(vm, "__radd__", 8);
 	vm->rsub = copyString(vm, "__rsub__", 8);
@@ -387,25 +391,24 @@ static ObjString* stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
 	return newStringFromBuf(vm, data, length);
 }
 
-#define SWAP_STACK_TOP(vm) do { \
-	Value b = peek(vm); \
-	vm->sp[-1] = vm->sp[-2]; \
-	vm->sp[-2] = b; \
-} while(0)
-
 static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse) {
 	ObjClass *cls = getClass(vm, peek2(vm));
 
 	if(!invokeMethod(vm, cls, name, 1)) {
-		SWAP_STACK_TOP(vm);
+		// swap callee and arg
+		Value b = peek(vm);
+		vm->sp[-1] = vm->sp[-2];
+		vm->sp[-2] = b;
+
+		// reset exception
 		vm->exception = NULL;
 
 		cls = getClass(vm, peek2(vm));
-
 		if(!invokeMethod(vm, cls, reverse == NULL ? name : reverse, 1)) {
 			return false;
 		}
 	}
+
 	return true;
 }
 
@@ -429,14 +432,22 @@ static bool runEval(BlangVM *vm) {
 	#define GET_CONST()  (fn->chunk.consts.arr[NEXT_CODE()])
 	#define GET_STRING() (AS_STRING(GET_CONST()))
 
-	#define BINARY(type, op) do { \
-		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) { \
-			blRaise(vm, "TypeException", "Operands of `%s` must be numbers.", #op); \
-			UNWIND_STACK(vm); \
+	#define BINARY(type, op, overload, reverse) do { \
+		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) { \
+			double b = AS_NUM(pop(vm)); \
+			double a = AS_NUM(pop(vm)); \
+			push(vm, type(a op b)); \
+		} else { \
+			SAVE_FRAME(); \
+			if(!callBinaryOverload(vm, overload, reverse)) {   \
+				ObjString *t1 = getClass(vm, peek(vm))->name;  \
+				ObjString *t2 = getClass(vm, peek2(vm))->name; \
+				blRaise(vm, "TypeException", "Operator %s not defined "  \
+				            "for types %s, %s", #op, t1->data, t2->data); \
+				UNWIND_STACK(vm); \
+			} \
+			LOAD_FRAME(); \
 		} \
-		double b = AS_NUM(pop(vm)); \
-		double a = AS_NUM(pop(vm)); \
-		push(vm, type(a op b)); \
 	} while(0)
 
 	#define UNWIND_STACK(vm) do { \
@@ -507,57 +518,76 @@ static bool runEval(BlangVM *vm) {
 			push(vm, OBJ_VAL(conc));
 		} else {
 			SAVE_FRAME();
-
 			if(!callBinaryOverload(vm, vm->add, vm->radd)) {
 				ObjString *t1 = getClass(vm, peek(vm))->name;
 				ObjString *t2 = getClass(vm, peek2(vm))->name;
-				blRaise(vm, "TypeException", "Operator + not "
-					"defined for types %s, %s", t1->data, t2->data);
+
+				blRaise(vm, "TypeException", "Operator + not defined"
+				            " for types %s, %s", t1->data, t2->data);
 				UNWIND_STACK(vm);
 			}
-			
 			LOAD_FRAME();
 		}
 		DISPATCH();
 	}
-	TARGET(OP_MOD): {
-		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			blRaise(vm, "TypeException", "Operands of %% must be numbers.");
-			UNWIND_STACK(vm);
-		}
-		double b = AS_NUM(pop(vm));
-		double a = AS_NUM(pop(vm));
-
-		if(b == 0) {
-			blRaise(vm, "DivisionByZeroException", "Modulo by zero.");
-			UNWIND_STACK(vm);
-		}
-
-		push(vm, NUM_VAL(fmod(a, b)));
-		DISPATCH();
-	}
 	TARGET(OP_DIV): {
-		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-			blRaise(vm, "TypeException", "Operands of / must be numbers.");
-			UNWIND_STACK(vm);
-		}
-		double b = AS_NUM(pop(vm));
-		double a = AS_NUM(pop(vm));
+		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
+			double b = AS_NUM(pop(vm));
+			double a = AS_NUM(pop(vm));
 
-		if(b == 0) {
-			blRaise(vm, "DivisionByZeroException", "Division by zero.");
-			UNWIND_STACK(vm);
+			if(b == 0) {
+				blRaise(vm, "DivisionByZeroException", "Division by zero.");
+				UNWIND_STACK(vm);
+			}
+
+			push(vm, NUM_VAL(a / b));
+		} else {
+			SAVE_FRAME();
+			if(!callBinaryOverload(vm, vm->div, vm->rdiv)) {
+				ObjString *t1 = getClass(vm, peek(vm))->name;
+				ObjString *t2 = getClass(vm, peek2(vm))->name;
+
+				blRaise(vm, "TypeException", "Operator / not defined"
+							" for types %s, %s", t1->data, t2->data);
+				UNWIND_STACK(vm);
+			}
+			LOAD_FRAME();
 		}
 
-		push(vm, NUM_VAL(a / b));
 		DISPATCH();
 	}
-	TARGET(OP_SUB): BINARY(NUM_VAL, -);   DISPATCH();
-	TARGET(OP_MUL): BINARY(NUM_VAL, *);   DISPATCH();
-	TARGET(OP_LT):  BINARY(BOOL_VAL, <);  DISPATCH();
-	TARGET(OP_LE):  BINARY(BOOL_VAL, <=); DISPATCH();
-	TARGET(OP_GT):  BINARY(BOOL_VAL, >);  DISPATCH();
-	TARGET(OP_GE):  BINARY(BOOL_VAL, >=); DISPATCH();
+	TARGET(OP_MOD): {
+		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
+			double b = AS_NUM(pop(vm));
+			double a = AS_NUM(pop(vm));
+
+			if(b == 0) {
+				blRaise(vm, "DivisionByZeroException", "Modulo by zero.");
+				UNWIND_STACK(vm);
+			}
+
+			push(vm, NUM_VAL(fmod(a, b)));
+		} else {
+			SAVE_FRAME();
+			if(!callBinaryOverload(vm, vm->mod, vm->rmod)) {
+				ObjString *t1 = getClass(vm, peek(vm))->name;
+				ObjString *t2 = getClass(vm, peek2(vm))->name;
+
+				blRaise(vm, "TypeException", "Operator %% not defined"
+							" for types %s, %s", t1->data, t2->data);
+				UNWIND_STACK(vm);
+			}
+			LOAD_FRAME();
+		}
+
+		DISPATCH();
+	}
+	TARGET(OP_SUB): BINARY(NUM_VAL, -,   vm->sub, vm->rsub); DISPATCH();
+	TARGET(OP_MUL): BINARY(NUM_VAL, *,   vm->mul, vm->rmul); DISPATCH();
+	TARGET(OP_LT):  BINARY(BOOL_VAL, <,  vm->lt, NULL);      DISPATCH();
+	TARGET(OP_LE):  BINARY(BOOL_VAL, <=, vm->le, NULL);      DISPATCH();
+	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);      DISPATCH();
+	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);      DISPATCH();
 	TARGET(OP_EQ): {
 		Value b = pop(vm);
 		Value a = pop(vm);
@@ -592,6 +622,86 @@ static bool runEval(BlangVM *vm) {
 	TARGET(OP_NOT):
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
 		DISPATCH();
+	TARGET(OP_ARR_GET): {
+		if(IS_LIST(peek2(vm))) {
+			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
+				blRaise(vm, "TypeException", "Index of list access must be an integer.");
+				UNWIND_STACK(vm);
+			}
+
+			size_t index = AS_NUM(pop(vm));
+			ObjList *list = AS_LIST(pop(vm));
+
+			if(index >= list->count) {
+				blRaise(vm, "IndexOutOfBoundException",
+					"List index out of bound: %lu.", index);
+				UNWIND_STACK(vm);
+			}
+
+			push(vm, list->arr[index]);
+		} else if(IS_STRING(peek2(vm))) {
+			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
+				blRaise(vm, "TypeException", "Index of string access must be an integer.");
+				UNWIND_STACK(vm);
+			}
+
+			size_t index = AS_NUM(pop(vm));
+			ObjString *str = AS_STRING(pop(vm));
+
+			if(index >= str->length) {
+				blRaise(vm, "IndexOutOfBoundException",
+				    "String index out of bound: %lu.", index);
+				UNWIND_STACK(vm);
+			}
+
+			char character = str->data[index];
+			push(vm, OBJ_VAL(copyString(vm, &character, 1)));
+		} else {
+			ObjClass *cls = getClass(vm, peek2(vm));
+
+			SAVE_FRAME();
+			if(!invokeMethod(vm, cls, vm->get, 1)) {
+				blRaise(vm, "TypeException", "Operator get [] "
+					"not defined for type %s", cls->name->data);
+				UNWIND_STACK(vm);
+			}
+			LOAD_FRAME();
+		}
+		DISPATCH();
+	}
+	TARGET(OP_ARR_SET): {
+		if(IS_LIST(peekn(vm, 2))) {
+			if(!IS_NUM(peek2(vm)) || !isInt(AS_NUM(peek2(vm)))) {
+				blRaise(vm, "TypeException", "Index of list access must be an integer.");
+				UNWIND_STACK(vm);
+			}
+
+			Value val = pop(vm);
+
+			size_t index = AS_NUM(pop(vm));
+			ObjList *list = AS_LIST(pop(vm));
+
+			if(index >= list->count) {
+				blRaise(vm, "IndexOutOfBoundException",
+					"List index out of bound: %lu.", index);
+				UNWIND_STACK(vm);
+			}
+
+			list->arr[index] = val;
+			push(vm, val);
+		} else {
+			ObjClass *cls = getClass(vm, peekn(vm, 2));
+
+			SAVE_FRAME();
+			if(!invokeMethod(vm, cls, vm->set, 2)) {
+				blRaise(vm, "TypeException", "Operator set [] "
+					"not defined for type %s", cls->name->data);
+				UNWIND_STACK(vm);
+			}
+			LOAD_FRAME();
+		}
+		DISPATCH();
+	}
 	TARGET(OP_GET_FIELD): {
 		Value v = pop(vm);
 		if(!getFieldFromValue(vm, v, GET_STRING())) {
@@ -604,88 +714,6 @@ static bool runEval(BlangVM *vm) {
 		if(!setFieldOfValue(vm, v, GET_STRING(), peek(vm))) {
 			UNWIND_STACK(vm);
 		}
-		DISPATCH();
-	}
-	TARGET(OP_ARR_GET): {
-		Value i = pop(vm);
-		if(!IS_NUM(i)) {
-			blRaise(vm, "TypeException", "Index of array access must be a number.");
-			UNWIND_STACK(vm);
-		}
-
-		double dindex = AS_NUM(i);
-		if(!isInt(dindex)) {
-			blRaise(vm, "TypeException", "Index of array access must be an integer.");
-			UNWIND_STACK(vm);
-		}
-
-		bool fromend = dindex < 0;
-		size_t index = (size_t) fabs(dindex);
-
-		Value o = peek(vm);
-		if(IS_LIST(o)) {
-			ObjList *lst = AS_LIST(o);
-			if(index >= lst->count) {
-				blRaise(vm, "IndexOutOfBoundException",
-				    "List index out of bound: %lu.", index);
-				UNWIND_STACK(vm);
-			}
-
-			pop(vm);
-			push(vm, lst->arr[fromend ? lst->count - index : index]);
-		} else if(IS_STRING(o)) {
-			ObjString *s = AS_STRING(o);
-			if(index >= s->length) {
-				blRaise(vm, "IndexOutOfBoundException",
-				    "String index out of bound: %lu.", index);
-				UNWIND_STACK(vm);
-			}
-
-			char c = s->data[fromend ? s->length - index : index];
-			ObjString *strc = copyString(vm, &c, 1);
-
-			pop(vm);
-			push(vm, OBJ_VAL(strc));
-		} else {
-			ObjClass *cls = getClass(vm, o);
-			blRaise(vm, "TypeException", "Operand of get `[]` must be "
-			        "a String or a List, instead got %s.", cls->name->data);
-			UNWIND_STACK(vm);
-		}
-		DISPATCH();
-	}
-	TARGET(OP_ARR_SET): {
-		Value i = pop(vm);
-		if(!IS_NUM(i)) {
-			blRaise(vm, "TypeError", "Index of array access must be a number.");
-			UNWIND_STACK(vm);
-		}
-
-		double dindex = AS_NUM(i);
-		if(!isInt(dindex)) {
-			blRaise(vm, "TypeError", "Index of array access must be an integer.");
-			UNWIND_STACK(vm);
-		}
-
-		bool fromend = dindex < 0;
-		size_t index = (size_t) fabs(dindex);
-
-		Value o = pop(vm);
-		if(IS_LIST(o)) {
-			ObjList *lst = AS_LIST(o);
-
-			if(index >= lst->count) {
-				blRaise(vm, "IndexOutOfBoundException",
-					"List index out of bound: %d.", (int) index);
-				UNWIND_STACK(vm);
-			}
-
-			lst->arr[fromend ? lst->count - index : index] = peek(vm);
-		} else {
-			blRaise(vm, "TypeException", "Operand of set `[]` must be a List.");
-			UNWIND_STACK(vm);
-		}
-
 		DISPATCH();
 	}
 	TARGET(OP_JUMP): {
