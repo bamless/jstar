@@ -70,8 +70,10 @@ typedef struct BlangVM {
 	ObjString *ctor;
 
 	// Names of overloadable operator's methods
-	ObjString *add, *sub, *mul, *div, *mod, *get, *set, *lt, *le, *gt, *ge;
+	ObjString *add, *sub, *mul, *div, *mod, *get, *set;
 	ObjString *radd, *rsub, *rmul, *rdiv, *rmod;
+	ObjString *lt, *le, *gt, *ge;
+	ObjString *eq, *neq;
 
 	//loaded modules
 	HashTable modules;

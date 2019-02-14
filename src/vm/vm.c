@@ -78,16 +78,19 @@ BlangVM *blNewVM() {
 	vm->mod = copyString(vm, "__mod__", 7);
 	vm->get = copyString(vm, "__get__", 7);
 	vm->set = copyString(vm, "__set__", 7);
-	vm->lt  = copyString(vm, "__lt__" , 6);
-	vm->le  = copyString(vm, "__le__" , 6);
-	vm->gt  = copyString(vm, "__gt__" , 6);
-	vm->ge  = copyString(vm, "__ge__" , 6);
 
 	vm->radd = copyString(vm, "__radd__", 8);
 	vm->rsub = copyString(vm, "__rsub__", 8);
 	vm->rmul = copyString(vm, "__rmul__", 8);
 	vm->rdiv = copyString(vm, "__rdiv__", 8);
 	vm->rmod = copyString(vm, "__rmod__", 8);
+
+	vm->lt  = copyString(vm, "__lt__", 6);
+	vm->le  = copyString(vm, "__le__", 6);
+	vm->gt  = copyString(vm, "__gt__", 6);
+	vm->ge  = copyString(vm, "__ge__", 6);
+	vm->eq  = copyString(vm, "__eq__", 6);
+	vm->neq = copyString(vm, "__neq__", 7);
 
 	initCoreLibrary(vm);
 
@@ -589,15 +592,33 @@ static bool runEval(BlangVM *vm) {
 	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);      DISPATCH();
 	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);      DISPATCH();
 	TARGET(OP_EQ): {
-		Value b = pop(vm);
-		Value a = pop(vm);
-		push(vm, BOOL_VAL(valueEquals(a, b)));
+		ObjClass *cls = getClass(vm, peek2(vm));
+
+		SAVE_FRAME();
+
+		if(!invokeMethod(vm, cls, vm->eq, 1)) {
+			vm->exception = NULL;
+			
+			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
+			DISPATCH();
+		}
+
+		LOAD_FRAME()
 		DISPATCH();
 	}
 	TARGET(OP_NEQ): {
-		Value b = pop(vm);
-		Value a = pop(vm);
-		push(vm, BOOL_VAL(!valueEquals(a, b)));
+		ObjClass *cls = getClass(vm, peek2(vm));
+
+		SAVE_FRAME();
+
+		if(!invokeMethod(vm, cls, vm->neq, 1)) {
+			vm->exception = NULL;
+
+			push(vm, BOOL_VAL(!valueEquals(pop(vm), pop(vm))));
+			DISPATCH();
+		}
+
+		LOAD_FRAME()
 		DISPATCH();
 	}
 	TARGET(OP_IS): {
