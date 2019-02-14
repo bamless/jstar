@@ -404,6 +404,8 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->eq);
 	reachObject(vm, (Obj*) vm->neq);
 
+	reachObject(vm, (Obj*) vm->neg);
+
 	//reach current exception if present
 	reachObject(vm, vm->exception);
 

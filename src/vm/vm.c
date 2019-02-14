@@ -92,6 +92,8 @@ BlangVM *blNewVM() {
 	vm->eq  = copyString(vm, "__eq__", 6);
 	vm->neq = copyString(vm, "__neq__", 7);
 
+	vm->neg = copyString(vm, "__neg__", 7);
+
 	initCoreLibrary(vm);
 
 	// This is called after initCoreLibrary in order to correctly assign the
@@ -598,7 +600,7 @@ static bool runEval(BlangVM *vm) {
 
 		if(!invokeMethod(vm, cls, vm->eq, 1)) {
 			vm->exception = NULL;
-			
+
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
 			DISPATCH();
 		}
@@ -621,6 +623,24 @@ static bool runEval(BlangVM *vm) {
 		LOAD_FRAME()
 		DISPATCH();
 	}
+	TARGET(OP_NEG): {
+		if(IS_NUM(peek(vm))) {
+			push(vm, NUM_VAL(-AS_NUM(pop(vm))));
+		} else {
+			ObjClass *cls = getClass(vm, peek(vm));
+
+			SAVE_FRAME();
+
+			if(!invokeMethod(vm, cls, vm->neg, 0)) {
+				blRaise(vm, "TypeException", "Operator unary - not "
+							"defined for type %s", cls->name->data);
+				UNWIND_STACK(vm);
+			}
+
+			LOAD_FRAME();
+		}
+		DISPATCH();
+	}
 	TARGET(OP_IS): {
 		Value b = pop(vm);
 		Value a = pop(vm);
@@ -633,13 +653,6 @@ static bool runEval(BlangVM *vm) {
 		push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
 		DISPATCH();
 	}
-	TARGET(OP_NEG):
-		if(!IS_NUM(peek(vm))) {
-			blRaise(vm, "TypeException", "Operand to `-` must be a number.");
-			UNWIND_STACK(vm);
-		}
-		push(vm, NUM_VAL(-AS_NUM(pop(vm))));
-		DISPATCH();
 	TARGET(OP_NOT):
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
 		DISPATCH();
