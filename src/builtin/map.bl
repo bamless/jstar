@@ -5,12 +5,13 @@ class __Entry {
 		this.next = null
 	}
 
-	def __equals__(o) {
-		return this.e.__equals__(o)
+	def __eq__(o) {
+		if(!(o is __Entry) or o == null) return false
+		return this.key == o.key and this.value == o.value
 	}
 
 	def __string__() {
-		return "{" + this.key.__string__() + ":" + this.value.__string__() + "}"
+		return "{" + str(this.key) + ":" + str(this.value) + "}"
 	}
 }
 
@@ -55,7 +56,12 @@ class HashMap {
 		}
 	}
 
-	def put(key, val) {
+	def __get__(key) {
+		var e = this.__getEntry(key)
+		return e.value if e != null else null
+	}
+
+	def __set__(key, val) {
 		var e = this.__getEntry(key)
 		if(e != null) {
 			var old = e.value
@@ -73,19 +79,6 @@ class HashMap {
 		return null
 	}
 
-	def get(key) {
-		var e = this.__getEntry(key)
-		return e.value if e != null else null
-	}
-
-	def __set__(key, val) {
-		return this.put(key, val)
-	}
-
-	def __get__(key) {
-		return this.get(key)
-	}
-
 	def remove(key) {
 		var i = key.__hash__() % this._size
 
@@ -93,7 +86,7 @@ class HashMap {
 		var head = this._entries[i]
 
 		while(head != null) {
-			if(key.__equals__(head.key)) {
+			if(key == head.key) {
 				if(prev == null)
 					this._entries[i] = head.next
 				else
@@ -111,13 +104,13 @@ class HashMap {
 	}
 
 	def containsKey(key) {
-		return this.get(key) != null
+		return this[key] != null
 	}
 
 	def containsValue(val) {
 		var iterator = this.valueIterator()
 		while(iterator.hasNext()) {
-			if(val.__equals__(iterator.next())) {
+			if(val == iterator.next()) {
 				return true
 			}
 		}

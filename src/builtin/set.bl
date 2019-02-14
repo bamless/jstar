@@ -6,7 +6,7 @@ class HashSet {
 
 	def add(e) {
 		if(!this.contains(e)) {
-			this._map.put(e, 0)
+			this._map[e] = 0
 			return true
 		}
 		return false
@@ -35,7 +35,7 @@ class HashSet {
 	}
 
 	def contains(e) {
-		return this._map.get(e) != null
+		return this._map[e] != null
 	}
 
 	def containsAll(iterable) {
@@ -78,7 +78,7 @@ class HashSet {
 
 		for(var k in this) {
 			count = count + 1
-			s = s + k.__string__()
+			s = s + str(k)
 			if(count < this._map.size()) s += ", "
 		}
 
