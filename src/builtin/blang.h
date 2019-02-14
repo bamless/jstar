@@ -6,7 +6,7 @@
 #include "object.h"
 #include "memory.h"
 
-#define BLANG_VERSION_STR "1.0.0"
+#define BLANG_VERSION_STR "1.1.0"
 
 #define BLANG_VERSION_MAJOR 1
 #define BLANG_VERSION_MINOR 0
