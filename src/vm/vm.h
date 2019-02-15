@@ -73,7 +73,7 @@ typedef struct BlangVM {
 	ObjString *add, *sub, *mul, *div, *mod, *get, *set;
 	ObjString *radd, *rsub, *rmul, *rdiv, *rmod;
 	ObjString *lt, *le, *gt, *ge;
-	ObjString *eq, *neq, *neg;
+	ObjString *eq, *neg;
 
 	//loaded modules
 	HashTable modules;

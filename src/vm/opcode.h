@@ -11,7 +11,6 @@
 	X(OP_MOD) \
 	X(OP_NEG) \
 	X(OP_EQ) \
-	X(OP_NEQ) \
 	X(OP_NOT) \
 	X(OP_GT) \
 	X(OP_GE) \

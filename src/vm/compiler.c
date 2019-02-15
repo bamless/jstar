@@ -228,12 +228,15 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 	case DIV:   emitBytecode(c, OP_DIV, e->line);  break;
 	case MOD:   emitBytecode(c, OP_MOD, e->line);  break;
 	case EQ:    emitBytecode(c, OP_EQ, e->line);   break;
-	case NEQ:   emitBytecode(c, OP_NEQ, e->line);  break;
 	case GT:    emitBytecode(c, OP_GT, e->line);   break;
 	case GE:    emitBytecode(c, OP_GE, e->line);   break;
 	case LT:    emitBytecode(c, OP_LT, e->line);   break;
 	case LE:    emitBytecode(c, OP_LE, e->line);   break;
 	case IS:    emitBytecode(c, OP_IS, e->line);   break;
+	case NEQ:
+		emitBytecode(c, OP_EQ, e->line);
+		emitBytecode(c, OP_NOT, e->line);
+		break;
 	default:
 		UNREACHABLE();
 		break;

@@ -90,7 +90,6 @@ BlangVM *blNewVM() {
 	vm->gt  = copyString(vm, "__gt__", 6);
 	vm->ge  = copyString(vm, "__ge__", 6);
 	vm->eq  = copyString(vm, "__eq__", 6);
-	vm->neq = copyString(vm, "__neq__", 7);
 
 	vm->neg = copyString(vm, "__neg__", 7);
 
@@ -602,21 +601,6 @@ static bool runEval(BlangVM *vm) {
 			vm->exception = NULL;
 
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
-			DISPATCH();
-		}
-
-		LOAD_FRAME()
-		DISPATCH();
-	}
-	TARGET(OP_NEQ): {
-		ObjClass *cls = getClass(vm, peek2(vm));
-
-		SAVE_FRAME();
-
-		if(!invokeMethod(vm, cls, vm->neq, 1)) {
-			vm->exception = NULL;
-
-			push(vm, BOOL_VAL(!valueEquals(pop(vm), pop(vm))));
 			DISPATCH();
 		}
 

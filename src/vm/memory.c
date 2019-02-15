@@ -402,7 +402,6 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->gt);
 	reachObject(vm, (Obj*) vm->ge);
 	reachObject(vm, (Obj*) vm->eq);
-	reachObject(vm, (Obj*) vm->neq);
 
 	reachObject(vm, (Obj*) vm->neg);
 
