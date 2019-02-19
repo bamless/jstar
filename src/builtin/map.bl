@@ -104,7 +104,7 @@ class HashMap {
 	}
 
 	def containsKey(key) {
-		return this[key] != null
+		return this.__getEntry(key) != null
 	}
 
 	def containsValue(val) {
