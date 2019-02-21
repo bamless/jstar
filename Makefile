@@ -82,12 +82,6 @@ else ifeq ($(OS), Darwin)
 	CFLAGS += -D_POSIX_SOURCE
 endif
 
-ifeq ($(OS), Linux)
-	ifneq ($(USE_GLIBC_ALLOC),1)
-		VM_LIBS += -pthread -ljemalloc -ldl
-	endif
-endif
-
 # Recursive wildcard, used to get all c files in SRC directory recursively
 rwildcard = $(foreach d, $(wildcard $1*), $(call rwildcard,$d/,$2) \
 						$(filter $(subst *,%,$2), $d))

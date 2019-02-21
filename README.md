@@ -36,13 +36,8 @@ For building under linux just open a terminal in the poject's root and issue the
 
 The following dependencies are required:
 * **libreadline**
-* **libjemalloc**
 
 These libraries are found in most distributions' repositories, if they're not you'll need to build them manually.
-Optionally, one can disable the **libjemalloc** dependency by setting the environment variable **USE_GLIBC_ALLOC** to 1 during the build:
-
-`make USE_GLIBC_ALLOC=1`
-
 
 ## Windows
 
