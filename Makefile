@@ -45,31 +45,16 @@ INCLUDES = -I$(SRC)/vm -I$(SRC)/builtin
 LDFLAGS =
 
 # Compiler flags
-CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra -O3 -s
+CFLAGS = -DNAN_TAGGING -DUSE_COMPUTED_GOTOS -std=c11 -Wall -Wno-unused-parameter -Wextra
 # Source extension
 SRC_EXT = c
 
 ###### SETTINGS END ######
 
-ifneq ($(OS),Windows_NT)
-	OS := $(shell uname -s)
-endif
-
-SHARED_EXT = so
-ifeq ($(OS),Windows_NT)
-	SHARED_EXT = dll
-else ifeq ($(OS), Linux)
-	SHARED_EXT = test
-	CFLAGS += -D_POSIX_SOURCE
-else ifeq ($(OS), Darwin)
-	SHARED_EXT = dylib
-	CFLAGS += -D_POSIX_SOURCE
-endif
-
-ifeq ($(OS), Linux)
-	ifneq ($(USE_GLIBC_ALLOC),1)
-		VM_LIBS += -pthread -ljemalloc -ldl
-	endif
+ifeq ($(MODE), debug1)
+	CFLAGS += -DDEBUG_1 -O0 -g
+else
+	CFLAGS += -O3 -s
 endif
 
 ifeq ($(DBG_STRESS_GC),1)
@@ -82,8 +67,25 @@ ifeq ($(DBG_PRINT_EXEC),1)
 	CFLAGS += -DDBG_PRINT_EXEC
 endif
 
-ifeq ($(MODE), debug1)
-	CFLAGS += -DDEBUG_1
+# Libary name setup
+ifneq ($(OS),Windows_NT)
+	OS := $(shell uname -s)
+endif
+
+SHARED_EXT = so
+ifeq ($(OS),Windows_NT)
+	SHARED_EXT = dll
+else ifeq ($(OS), Linux)
+	CFLAGS += -D_POSIX_SOURCE
+else ifeq ($(OS), Darwin)
+	SHARED_EXT = dylib
+	CFLAGS += -D_POSIX_SOURCE
+endif
+
+ifeq ($(OS), Linux)
+	ifneq ($(USE_GLIBC_ALLOC),1)
+		VM_LIBS += -pthread -ljemalloc -ldl
+	endif
 endif
 
 # Recursive wildcard, used to get all c files in SRC directory recursively
@@ -92,10 +94,9 @@ rwildcard = $(foreach d, $(wildcard $1*), $(call rwildcard,$d/,$2) \
 
 VM_SOURCES  = $(call rwildcard, $(SRC)/vm,  *.$(SRC_EXT)) $(call rwildcard, $(SRC)/builtin, *.$(SRC_EXT))
 CLI_SOURCES = $(call rwildcard, $(SRC)/cli, *.$(SRC_EXT))
-
 BLANG_SOURCES = $(call rwildcard, $(SRC), *.bl)
-STATIC_LIBS = $(call rwildcard, $(STATIC_PATH), *.a)
 
+STATIC_LIBS = $(call rwildcard, $(STATIC_PATH), *.a)
 
 VM_OBJECTS  = $(VM_SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
 CLI_OBJECTS = $(CLI_SOURCES:$(SRC)/%.$(SRC_EXT)=$(BUILD)/%.o)
@@ -110,7 +111,7 @@ DEPEND_CLI = $(CLI_OBJECTS:.o=.d)
 all: createdirs
 	@echo "Beginning build..."
 	@echo ""
-	@$(MAKE) cli --no-print-directory
+	@$(MAKE) $(BIN)/$(EXEC_NAME) --no-print-directory
 	@echo ""
 	@echo "Build successful"
 
@@ -118,7 +119,7 @@ all: createdirs
 debug: createdirs
 	@echo "Beginning build..."
 	@echo ""
-	@$(MAKE) MODE=debug1 cli --no-print-directory
+	@$(MAKE) MODE=debug1  $(BIN)/$(EXEC_NAME) --no-print-directory
 	@echo ""
 	@echo "Build successful"
 
@@ -126,7 +127,7 @@ debug: createdirs
 libs: createdirs
 	@echo "Beginning build..."
 	@echo ""
-	@$(MAKE) vm --no-print-directory
+	@$(MAKE) $(LIB)/lib$(EXEC_NAME).a $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT) --no-print-directory
 	@echo ""
 	@echo "Build successful"
 
@@ -140,9 +141,6 @@ createdirs:
 	@mkdir -p $(LIB)
 	@mkdir -p $(BIN)
 
-.PHONY: vm
-vm: $(LIB)/lib$(EXEC_NAME).a $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT)
-
 $(LIB)/lib$(EXEC_NAME).a: $(BLANG_HEADERS) $(VM_OBJECTS)
 	@echo "Creating $@..."
 	@$(AR) rc $@ $(VM_OBJECTS)
@@ -151,14 +149,12 @@ $(LIB)/lib$(EXEC_NAME).$(SHARED_EXT): $(BLANG_HEADERS) $(VM_OBJECTS)
 	@echo "Creating $@..."
 	@$(CC) $(CFLAGS) -shared $(VM_OBJECTS) -o $@ $(VM_LIBS)
 
-.PHONY: cli
-cli: $(BIN)/$(EXEC_NAME)
-
 # Links the object files into an executable
 $(BIN)/$(EXEC_NAME): $(CLI_OBJECTS) $(STATIC_LIBS) $(LIB)/lib$(EXEC_NAME).a
 	@echo "Linking $@..."
-	@$(CC) $(CFLAGS) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
+	@$(CC) $(LDFLAGS) $(CLI_OBJECTS) -o $@ $(LIBS_PATH) $(CLI_LIBS)
 
+#rules for .bl files. They will be converted to header files containing the source
 $(SRC)/%.bl.h: $(SRC)/%.bl util/txt2incl.py
 	@echo "Generating $@ from $<..."
 	@util/txt2incl.py $< $@
