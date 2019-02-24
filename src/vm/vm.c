@@ -586,25 +586,24 @@ static bool runEval(BlangVM *vm) {
 
 		DISPATCH();
 	}
-	TARGET(OP_SUB): BINARY(NUM_VAL, -,   vm->sub, vm->rsub); DISPATCH();
-	TARGET(OP_MUL): BINARY(NUM_VAL, *,   vm->mul, vm->rmul); DISPATCH();
-	TARGET(OP_LT):  BINARY(BOOL_VAL, <,  vm->lt, NULL);      DISPATCH();
-	TARGET(OP_LE):  BINARY(BOOL_VAL, <=, vm->le, NULL);      DISPATCH();
-	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);      DISPATCH();
-	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);      DISPATCH();
+	TARGET(OP_SUB): BINARY(NUM_VAL,  -,   vm->sub, vm->rsub); DISPATCH();
+	TARGET(OP_MUL): BINARY(NUM_VAL,  *,   vm->mul, vm->rmul); DISPATCH();
+	TARGET(OP_LT):  BINARY(BOOL_VAL, <,  vm->lt, NULL);       DISPATCH();
+	TARGET(OP_LE):  BINARY(BOOL_VAL, <=, vm->le, NULL);       DISPATCH();
+	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);       DISPATCH();
+	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);       DISPATCH();
 	TARGET(OP_EQ): {
 		ObjClass *cls = getClass(vm, peek2(vm));
 
 		SAVE_FRAME();
-
 		if(!invokeMethod(vm, cls, vm->eq, 1)) {
 			vm->exception = NULL;
 
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
 			DISPATCH();
 		}
-
 		LOAD_FRAME()
+
 		DISPATCH();
 	}
 	TARGET(OP_NEG): {
@@ -614,13 +613,11 @@ static bool runEval(BlangVM *vm) {
 			ObjClass *cls = getClass(vm, peek(vm));
 
 			SAVE_FRAME();
-
 			if(!invokeMethod(vm, cls, vm->neg, 0)) {
 				blRaise(vm, "TypeException", "Operator unary - not "
 							"defined for type %s", cls->name->data);
 				UNWIND_STACK(vm);
 			}
-
 			LOAD_FRAME();
 		}
 		DISPATCH();
@@ -769,12 +766,11 @@ static bool runEval(BlangVM *vm) {
 		argc = op - OP_CALL_0;
 call:
 		SAVE_FRAME();
-
 		if(!callValue(vm, peekn(vm, argc), argc)) {
 			UNWIND_STACK(vm);
 		}
-
 		LOAD_FRAME();
+
 		DISPATCH();
 	}
 	TARGET(OP_INVOKE): {
@@ -794,13 +790,13 @@ call:
 		argc = op - OP_INVOKE_0;
 invoke:;
 		ObjString *name = GET_STRING();
-		SAVE_FRAME();
 
+		SAVE_FRAME();
 		if(!invokeFromValue(vm, name, argc)) {
 			UNWIND_STACK(vm);
 		}
-
 		LOAD_FRAME();
+
 		DISPATCH();
 	}
 	TARGET(OP_SUPER): {
@@ -820,21 +816,20 @@ invoke:;
 		argc = op - OP_SUPER_0;
 sup_invoke:;
 		ObjString *name = GET_STRING();
-		SAVE_FRAME();
 
+		SAVE_FRAME();
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
 		if(!invokeMethod(vm, inst->base.cls->superCls, name, argc)) {
 			UNWIND_STACK(vm);
 		}
-
 		LOAD_FRAME();
+
 		DISPATCH();
 	}
 	TARGET(OP_RETURN): {
 		Value ret = pop(vm);
 
-		vm->frameCount--;
-		if(vm->frameCount == 0) {
+		if(--vm->frameCount == 0) {
 			return true;
 		}
 
@@ -843,10 +838,11 @@ sup_invoke:;
 
 		LOAD_FRAME();
 		vm->module = fn->module;
+
 		DISPATCH();
 	}
-	TARGET(OP_IMPORT_AS): {
-	TARGET(OP_IMPORT):;
+	TARGET(OP_IMPORT_AS):
+	TARGET(OP_IMPORT): {
 		ObjString *name = GET_STRING();
 		if(!importModule(vm, name)) {
 			blRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
@@ -863,12 +859,11 @@ sup_invoke:;
 			callValue(vm, peek(vm), 0);
 			LOAD_FRAME();
 		}
+
 		DISPATCH();
 	}
 	TARGET(OP_APPEND_LIST): {
-		ObjList *l = AS_LIST(peek2(vm));
-
-		listAppend(vm, l, peek(vm));
+		listAppend(vm, AS_LIST(peek2(vm)), peek(vm));
 		pop(vm);
 		DISPATCH();
 	}
@@ -978,7 +973,6 @@ sup_invoke:;
 		}
 
 		vm->exception = AS_OBJ(exc);
-
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
@@ -1052,15 +1046,15 @@ static void printStackTrace(BlangVM *vm) {
 	fprintf(stderr, "Traceback (most recent call last):\n");
 
 	// Print stacktrace in reverse order of recording (most recent call last)
-	char *st = sbuf_get_backing_buf(&vm->stacktrace);
+	char *stacktrace = sbuf_get_backing_buf(&vm->stacktrace);
 	int lastnl = sbuf_get_len(&vm->stacktrace);
 	for(int i = lastnl - 1; i > 0; i--) {
-		if(st[i - 1] == '\n') {
-			fprintf(stderr, "    %.*s", lastnl - i, st + i);
+		if(stacktrace[i - 1] == '\n') {
+			fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
 			lastnl = i;
 		}
 	}
-	fprintf(stderr, "    %.*s", lastnl, st);
+	fprintf(stderr, "    %.*s", lastnl, stacktrace);
 
 	// print the exception instance information
 	Value v;

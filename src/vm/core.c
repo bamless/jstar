@@ -60,10 +60,6 @@ static uint64_t hash64(uint64_t x) {
 		BL_RETURN(OBJ_VAL(AS_OBJ(args[0])->cls));
 	}
 
-	static NATIVE(bl_Object_equals) {
-		BL_RETURN(BOOL_VAL(valueEquals(args[0], args[1])));
-	}
-
 	static NATIVE(bl_Object_hash) {
 		uint64_t x = hash64((uint64_t) AS_OBJ(args[0]));
 		BL_RETURN(NUM_VAL((uint32_t) x));
@@ -95,7 +91,6 @@ void initCoreLibrary(BlangVM *vm) {
 	defMethod(vm, core, vm->objClass, &bl_Object_string, "__string__", 0);
 	defMethod(vm, core, vm->objClass, &bl_Object_class,  "__class__", 0);
 	defMethod(vm, core, vm->objClass, &bl_Object_hash,   "__hash__", 0);
-	defMethod(vm, core, vm->objClass, &bl_Object_equals, "__equals__", 1);
 
 	// Patch up Class object information
 	vm->clsClass->superCls = vm->objClass;
@@ -401,13 +396,6 @@ NATIVE(bl_printstr) {
 
 	NATIVE(bl_String_length) {
 		BL_RETURN(NUM_VAL(AS_STRING(args[0])->length));
-	}
-
-	NATIVE(bl_String_equals) {
-		if(!IS_STRING(args[1])) {
-			BL_RETURN(FALSE_VAL);
-		}
-		BL_RETURN(AS_STRING(args[0]) == AS_STRING(args[1]));
 	}
 
 	NATIVE(bl_String_hash) {

@@ -27,7 +27,7 @@ class HashMap {
 
 		var buck = this._entries[i]
 		while(buck != null) {
-			if(key.__equals__(buck.key)) return buck
+			if(key == buck.key) return buck
 			buck = buck.next
 		}
 

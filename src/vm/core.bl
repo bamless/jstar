@@ -92,7 +92,6 @@ class String {
 		return __StringIterator(this)
 	}
 
-	native __equals__(o)
 	native __hash__()
 }
 
@@ -170,7 +169,7 @@ class List {
 
 	def indexOf(e) {
 		for(var i = 0; i < this.size(); i += 1) {
-			if(this[i].__equals__(e)) {
+			if(this[i] == e) {
 				return i
 			}
 		}
@@ -179,7 +178,7 @@ class List {
 
 	def indexOfLast(e) {
 		for(var i = this.size() - 1; i >= 0; i -= 1) {
-			if(this[i].__equals__(e)) {
+			if(this[i] == e) {
 				return i
 			}
 		}
@@ -219,12 +218,12 @@ class List {
 		return "[" + this.join(", ") + "]"
 	}
 
-	def __equals__(lst) {
+	def __eq__(lst) {
 		if(this.size() != lst.size()) {
 			return false
 		}
 		for(var i in range(0, this.size())) {
-			if(!this[i].__equals__(lst[i])) {
+			if(!this[i] == lst[i]) {
 				return false
 			}
 		}

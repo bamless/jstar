@@ -100,7 +100,6 @@ Module builtInModules[] = {
 		CLASS(String)
 			METHOD(substr, &bl_substr)
 			METHOD(length, &bl_String_length)
-			METHOD(__equals__, &bl_String_equals)
 			METHOD(__hash__, &bl_String_hash)
 		ENDCLASS
 	ENDMODULE
