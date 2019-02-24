@@ -5,6 +5,7 @@
 
 typedef struct BlangVM BlangVM;
 
+// Blang core libray bootstrap
 void initCoreLibrary(BlangVM *vm);
 
 NATIVE(bl_int);

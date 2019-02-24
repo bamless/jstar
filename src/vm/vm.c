@@ -32,7 +32,6 @@ BlangVM *blNewVM() {
 	BlangVM *vm = malloc(sizeof(*vm));
 
 	vm->importpaths = NULL;
-
 	vm->currCompiler = NULL;
 	vm->ctor = NULL;
 
@@ -93,10 +92,11 @@ BlangVM *blNewVM() {
 
 	vm->neg = copyString(vm, "__neg__", 7);
 
+	// Bootstrap the core module
 	initCoreLibrary(vm);
 
 	// This is called after initCoreLibrary in order to correctly assign the
-	// List class to the object since it's created during the initialization
+	// List class to the object since classes are created during initialization
 	vm->importpaths = newList(vm, 8);
 
 	return vm;
@@ -997,19 +997,6 @@ sup_invoke:;
 
 	UNREACHABLE();
 	return false;
-
-	#undef NEXT_CODE
-	#undef NEXT_SHORT
-	#undef GET_CONST
-	#undef GET_STRING
-	#undef BINARY
-	#undef PRINT_DBG_STACK
-	#undef CASE
-	#undef TARGET
-	#undef DISPATCH
-	#undef SAVE_FRAME
-	#undef LOAD_FRAME
-	#undef UNWIND_STACK
 }
 
 EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src) {

@@ -15,19 +15,19 @@
 #define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
 #define INIT_GC  1024 * 1024 * 20           // 20MiB
 
-#define HADLER_MAX 5
+#define HADLER_MAX 5 // Max number of nested TryExcepts
 
 typedef enum {
-	VM_EVAL_SUCCSESS,
-	VM_SYNTAX_ERR,
-	VM_COMPILE_ERR,
-	VM_RUNTIME_ERR,
-	VM_GENERIC_ERR
+	VM_EVAL_SUCCSESS, // The VM successfully executed the code
+	VM_SYNTAX_ERR,    // A syntax error has been encountered in parsing
+	VM_COMPILE_ERR,   // An error has been encountered during compilation
+	VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } EvalResult;
 
+// TryExcept Handler
 typedef struct Handler {
-	uint8_t *handler;
-	Value *savesp;
+	uint8_t *handler; // The start of except handler
+	Value *savesp;    // Stack pointer to restore when handling exceptions
 } Handler;
 
 typedef struct Frame {
@@ -39,7 +39,7 @@ typedef struct Frame {
 } Frame;
 
 typedef struct BlangVM {
-	// paths searched for import
+	// Paths searched for import
 	ObjList *importpaths;
 
 	// Built in classes
@@ -63,14 +63,13 @@ typedef struct BlangVM {
 	// Current VM compiler
 	Compiler *currCompiler;
 
-	// Constant strings
+	// Constant strings needed by compiler and runtime
 	ObjString *ctor;
 
 	// Names of overloadable operator's methods
 	ObjString *add, *sub, *mul, *div, *mod, *get, *set;
 	ObjString *radd, *rsub, *rmul, *rdiv, *rmod;
-	ObjString *lt, *le, *gt, *ge;
-	ObjString *eq, *neg;
+	ObjString *lt, *le, *gt, *ge, *eq, *neg;
 
 	//loaded modules
 	HashTable modules;
@@ -83,7 +82,7 @@ typedef struct BlangVM {
 	Frame frames[FRAME_SZ];
 	int frameCount;
 
-	// Globals and constant strings pool
+	// Constant strings pool, all strings are interned
 	HashTable strings;
 
 	// Memory management

@@ -46,7 +46,7 @@ static uint64_t hash64(uint64_t x) {
 	return x;
 }
 
-// class Object methods
+// class Object
 	static NATIVE(bl_Object_string) {
 		Obj *o = AS_OBJ(args[0]);
 
@@ -66,7 +66,7 @@ static uint64_t hash64(uint64_t x) {
 	}
 // Object
 
-// class Class methods
+// class Class
 	static NATIVE(bl_Class_getName) {
 		BL_RETURN(OBJ_VAL(AS_CLASS(args[0])->name));
 	}
@@ -110,6 +110,8 @@ void initCoreLibrary(BlangVM *vm) {
 
 	core->base.cls = vm->modClass;
 
+	// Patch up the class field of any string or function that was allocated
+	// before the creation of their corresponding class object
 	for(Obj *o = vm->objects; o != NULL; o = o->next) {
 		if(o->type == OBJ_STRING) {
 			o->cls = vm->strClass;

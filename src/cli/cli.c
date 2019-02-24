@@ -160,7 +160,7 @@ int main(int argc, const char **argv) {
 		//read file and evaluate
 		char *src = readSrcFile(argv[1]);
 		if(src == NULL) {
-			return VM_GENERIC_ERR;
+			exit(EXIT_FAILURE);
 		}
 
 		res = blEvaluate(vm, argv[1], src);
@@ -168,5 +168,5 @@ int main(int argc, const char **argv) {
 	}
 
 	blFreeVM(vm);
-	exit(res);
+	return res;
 }
