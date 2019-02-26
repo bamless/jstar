@@ -1,6 +1,6 @@
 class Number {
 	def new() {
-		raise Exception("Class Number cannot be instantiated.")
+		__noinstance(this)
 	}
 	native __string__()
 	native __class__()
@@ -8,34 +8,34 @@ class Number {
 }
 class Boolean {
 	def new() {
-		raise Exception("Class Boolean cannot be instantiated.")
+		__noinstance(this)
 	}
 	native __string__()
 	native __class__()
 }
 class Null {
 	def new() {
-		raise Exception("Class Null cannot be instantiated.")
+		__noinstance(this)
 	}
 	native __string__()
 	native __class__()
 }
 class Function {
 	def new() {
-		raise Exception("Class Function cannot be instantiated.")
+		__noinstance(this)
 	}
 	native __string__()
 }
 class Module   {
 	def new() {
-		raise Exception("Class Module cannot be instantiated.")
+		__noinstance(this)
 	}
 	native __string__()
 }
 
 class String {
 	def new() {
-		raise Exception("Class String cannot be instantiated, use \"...\".")
+		__noinstance(this)
 	}
 
 	native substr(from, to)
@@ -114,7 +114,7 @@ class __StringIterator {
 
 class List {
 	def new() {
-		raise Exception("Class List cannot be instantiated, use `[]`.")
+		__noinstance(this)
 	}
 
 	native add(e)
@@ -132,7 +132,7 @@ class List {
 		return changed
 	}
 
-	def insertAll(i, iterable) {
+	def insertAll(iterable, i=0) {
 		if(i < 0 or i >= this.size()) {
 			raise IndexOutOfBoundException(str(i))
 		}
@@ -222,8 +222,8 @@ class List {
 		if(this.size() != lst.size()) {
 			return false
 		}
-		for(var i in range(0, this.size())) {
-			if(!this[i] == lst[i]) {
+		for(var i in range(this.size())) {
+			if(this[i] != lst[i]) {
 				return false
 			}
 		}
@@ -273,6 +273,10 @@ def reversed(lst) {
 	return __ListReverseIterator(lst)
 }
 
+def __noinstance(inst) {
+	raise Exception("Class " + inst.__class__().getName() + " cannot be directly instantiated")
+}
+
 // Exceptions builtin classes
 
 class Exception {
@@ -291,24 +295,21 @@ class DivisionByZeroException : Exception {}
 class InvalidArgException : Exception {}
 class IndexOutOfBoundException : Exception {}
 class AssertException : Exception {}
+class IOException : Exception {}
 
 def assert(cond, msg="assertion failed") {
 	if(!cond) raise AssertException(msg)
 }
 
-def print(o="") {
-	writeout(o)
-	__printstr("\n")
+def print(o="", file=null) {
+	write(o, file)
+	__printstr("\n", file)
 }
 
-def writeout(o) {
-	var s = o.__string__()
+def write(o, file=null) {
+	var s = str(o)
 	assert(s is String, "__string__() didn't return a string, got " + s.__class__().getName())
-	__printstr(o.__string__())
-}
-
-def printf(fmt, args) {
-	__printstr(fmt.format(args))
+	__printstr(s, file)
 }
 
 def str(e) {
@@ -349,7 +350,7 @@ class range {
 	def __string__() {
 		var s = "["
 		for(var i = this.from; i < this.to; i += 1) {
-			s = s + i.__string__()
+			s += i.__string__()
 			if(i != this.to - 1) s += ", "
 		}
 		return s + "]"
@@ -358,10 +359,9 @@ class range {
 
 native int(n)
 native num(n)
-native list(n, init)
-native isInt(n)
-
 native char(num)
 native ascii(char)
+native isInt(n)
+native list(size=0, init=null)
 
-native __printstr(str)
+native __printstr(str, file=null)

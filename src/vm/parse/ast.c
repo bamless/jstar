@@ -227,13 +227,14 @@ Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Lin
 	return f;
 }
 
-Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args) {
+Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs) {
 	Stmt *n = malloc(sizeof(*n));
 	n->line = line;
 	n->type = NATIVEDECL;
 	n->nativeDecl.id.name = id;
 	n->nativeDecl.id.length = length;
 	n->nativeDecl.formalArgs = args;
+	n->nativeDecl.defArgs = defArgs;
 	return n;
 }
 
@@ -443,6 +444,14 @@ void freeStmt(Stmt *s) {
 			LinkedList *f = head;
 			head = head->next;
 			free(f->elem);
+			free(f);
+		}
+
+		head = s->nativeDecl.defArgs;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			freeExpr(f->elem);
 			free(f);
 		}
 		break;

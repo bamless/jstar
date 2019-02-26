@@ -108,6 +108,8 @@ typedef struct ObjNative {
 	Obj base;
 	uint8_t argsCount; // The arity of the native
 	Native fn;         // The c native function that gets called
+	Value *defaults;   // default arguments
+	uint8_t defaultc;  // number of default arguments
 	ObjString *name;   // The name of the native
 	ObjModule *module; // The module to which the native belongs
 } ObjNative;

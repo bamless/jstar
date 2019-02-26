@@ -32,7 +32,7 @@ static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const 
 	ObjString *strName = copyString(vm, name, strlen(name));
 	push(vm, OBJ_VAL(strName));
 
-	ObjNative *native = newNative(vm, m, strName, argc, n);
+	ObjNative *native = newNative(vm, m, strName, argc, n, 0);
 
 	pop(vm);
 
@@ -218,7 +218,36 @@ NATIVE(bl_ascii) {
 }
 
 NATIVE(bl_printstr) {
-	printf("%s", AS_STRING(args[1])->data);
+	FILE *stream = stdout;
+
+	if(!IS_NULL(args[2])) {
+		if(!IS_INSTANCE(args[2])) {
+			BL_RAISE_EXCEPTION(vm, "TypeException", "stream is not a file");
+		}
+
+		ObjInstance *file = AS_INSTANCE(args[2]);
+
+		Value h, closed;
+		bool fail = false;
+
+		fail |= !blGetField(vm, file, "_closed", &closed) || !IS_BOOL(closed);
+		fail |= !blGetField(vm, file, "_handle", &h) || !IS_BOOL(h);
+
+		if(fail) {
+			BL_RAISE_EXCEPTION(vm, "TypeException", "stream is not a file");
+		}
+
+		if(AS_BOOL(closed)) {
+			BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+		}
+
+		stream = AS_HANDLE(h);
+	}
+
+	if(fprintf(stream, "%s", AS_STRING(args[1])->data) < 0) {
+		BL_RAISE_EXCEPTION(vm, "IOException", NULL);
+	}
+
 	BL_RETURN(NULL_VAL);
 }
 

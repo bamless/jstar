@@ -63,7 +63,30 @@ NATIVE(bl_gets) {
 	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, str, strsz)));
 }
 
-NATIVE(bl_initArgs) {
+NATIVE(bl_init) {
+	// Set up the standard I/O streams (this is a little bit of an hack)
+	Value file;
+	blGetGlobal(vm, "file", &file);
+
+	Value fileCls;
+	hashTableGet(&AS_MODULE(file)->globals, copyString(vm, "File", 4), &fileCls);
+
+	ObjInstance *fileout = newInstance(vm, AS_CLASS(fileCls));
+	blSetField(vm, fileout, "_handle", HANDLE_VAL(stdout));
+	blSetField(vm, fileout, "_closed", BOOL_VAL(false));
+	blSetGlobal(vm, "stdout", OBJ_VAL(fileout));
+
+	ObjInstance *filein = newInstance(vm, AS_CLASS(fileCls));
+	blSetField(vm, filein, "_handle", HANDLE_VAL(stdin));
+	blSetField(vm, filein, "_closed", BOOL_VAL(false));
+	blSetGlobal(vm, "stdin", OBJ_VAL(filein));
+
+	ObjInstance *fileerr = newInstance(vm, AS_CLASS(fileCls));
+	blSetField(vm, fileerr, "_handle", HANDLE_VAL(stderr));
+	blSetField(vm, fileerr, "_closed", BOOL_VAL(false));
+	blSetGlobal(vm, "stderr", OBJ_VAL(fileerr));
+
+	// Set up command line arguments
 	if(argCount == 0) BL_RETURN(NULL_VAL);
 
 	Value a;

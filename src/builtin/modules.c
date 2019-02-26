@@ -109,7 +109,7 @@ Module builtInModules[] = {
 		FUNCTION(platform, &bl_platform)
 		FUNCTION(gc, &bl_gc)
 		FUNCTION(gets, &bl_gets)
-		FUNCTION(__initArgs, &bl_initArgs)
+		FUNCTION(__init, &bl_init)
 	ENDMODULE
 	MODULE(file)
 		CLASS(File)
@@ -118,7 +118,6 @@ Module builtInModules[] = {
 			METHOD(readLine, &bl_File_readLine)
 			METHOD(close, &bl_File_close)
 			METHOD(seek, &bl_File_seek)
-			METHOD(setpos, &bl_File_setpos)
 			METHOD(tell, &bl_File_tell)
 			METHOD(rewind, &bl_File_rewind)
 		ENDCLASS

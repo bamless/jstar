@@ -216,6 +216,32 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 	chunk->code[jumpAddr + 2] = (uint8_t) ((uint16_t) offset);
 }
 
+static ObjString *readString(Compiler *c, Expr *e);
+
+static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) {
+	int i = 0;
+
+	LinkedList *n;
+	foreach(n, defArgs) {
+		Expr *e = (Expr*) n->elem;
+		switch(e->type) {
+		case NUM_LIT:
+			defaults[i++] = NUM_VAL(e->num);
+			break;
+		case BOOL_LIT:
+			defaults[i++] = BOOL_VAL(e->boolean);
+			break;
+		case STR_LIT:
+			defaults[i++] = OBJ_VAL(readString(c, e));
+			break;
+		case NULL_LIT:
+			defaults[i++] = NULL_VAL;
+			break;
+		default: break;
+		}
+	}
+}
+
 static void compileExpr(Compiler *c, Expr *e);
 
 static void compileBinaryExpr(Compiler *c, Expr *e) {
@@ -725,8 +751,10 @@ static void compileFunction(Compiler *c, Stmt *s) {
 }
 
 static void compileNative(Compiler *c, Stmt *s) {
-	size_t length = listLength(s->nativeDecl.formalArgs);
-	ObjNative *native = newNative(c->vm, c->func->module, NULL, length, NULL);
+	size_t defaults = listLength(s->nativeDecl.defArgs);
+	size_t arity    = listLength(s->nativeDecl.formalArgs);
+
+	ObjNative *native = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
 
 	uint8_t n = createConst(c, OBJ_VAL(native), s->line);
 	uint8_t i = identifierConst(c, &s->nativeDecl.id, s->line);
@@ -737,6 +765,8 @@ static void compileNative(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, OP_DEFINE_NATIVE, s->line);
 	emitBytecode(c, i, s->line);
+
+	addDefaultConsts(c, native->defaults, s->nativeDecl.defArgs);
 }
 
 static void compileMethods(Compiler *c, Stmt* cls) {
@@ -765,8 +795,10 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 				error(c, m->line, "Cannot declare native constructor");
 			}
 
-			size_t argsLen = listLength(m->nativeDecl.formalArgs);
-			ObjNative *n = newNative(c->vm, c->func->module, NULL, argsLen, NULL);
+			size_t defaults = listLength(m->nativeDecl.defArgs);
+			size_t arity    = listLength(m->nativeDecl.formalArgs);
+
+			ObjNative *n = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
 
 			uint8_t native = createConst(c, OBJ_VAL(n), cls->line);
 			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
@@ -785,6 +817,8 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			emitBytecode(c, OP_NAT_METHOD, cls->line);
 			emitBytecode(c, id, cls->line);
 			emitBytecode(c, native, cls->line);
+
+			addDefaultConsts(c, n->defaults, m->nativeDecl.defArgs);
 			break;
 		}
 		default: break;
@@ -980,30 +1014,6 @@ ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
 	return c.hadError ? NULL : func;
 }
 
-static void addDefaultConsts(Compiler *c, ObjFunction *fn, LinkedList *defArgs) {
-	int i = 0;
-
-	LinkedList *n;
-	foreach(n, defArgs) {
-		Expr *e = (Expr*) n->elem;
-		switch(e->type) {
-		case NUM_LIT:
-			fn->defaults[i++] = NUM_VAL(e->num);
-			break;
-		case BOOL_LIT:
-			fn->defaults[i++] = BOOL_VAL(e->boolean);
-			break;
-		case STR_LIT:
-			fn->defaults[i++] = OBJ_VAL(readString(c, e));
-			break;
-		case NULL_LIT:
-			fn->defaults[i++] = NULL_VAL;
-			break;
-		default: break;
-		}
-	}
-}
-
 static void enterFunctionScope(Compiler *c) {
 	c->depth++;
 }
@@ -1044,7 +1054,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
 	exitFunctionScope(c);
 
-	addDefaultConsts(c, c->func, s->funcDecl.defArgs);
+	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
 
 	return c->func;
 }
@@ -1099,7 +1109,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
 	exitFunctionScope(c);
 
-	addDefaultConsts(c, c->func, s->funcDecl.defArgs);
+	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
 
 	return c->func;
 }

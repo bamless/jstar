@@ -14,7 +14,8 @@
 #include <sys/stat.h>
 #endif
 
-#define FIELD_FILE_HANDLE "__handle"
+#define FIELD_FILE_HANDLE "_handle"
+#define FIELD_FILE_CLOSED "_closed"
 
 #define BL_SEEK_SET  0
 #define BL_SEEK_CURR 1
@@ -127,7 +128,17 @@ static int blSeek(FILE *file, long offset, int blWhence) {
 
 // class File {
 
+static bool isClosed(BlangVM *vm, ObjInstance *file) {
+	Value closed;
+	blGetField(vm, file, FIELD_FILE_CLOSED, &closed);
+	return AS_BOOL(closed);
+}
+
 NATIVE(bl_File_seek) {
+	if(isClosed(vm, BL_THIS)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+	}
+
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NULL_VAL);
@@ -159,12 +170,11 @@ NATIVE(bl_File_seek) {
 	BL_RETURN(NULL_VAL);
 }
 
-NATIVE(bl_File_setpos) {
-	Value fwdArgs[] = {args[0], args[1], NUM_VAL(BL_SEEK_SET)};
-	return bl_File_seek(vm, fwdArgs, ret);
-}
-
 NATIVE(bl_File_tell) {
+	if(isClosed(vm, BL_THIS)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+	}
+
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NULL_VAL);
@@ -175,6 +185,10 @@ NATIVE(bl_File_tell) {
 }
 
 NATIVE(bl_File_rewind) {
+	if(isClosed(vm, BL_THIS)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+	}
+
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NULL_VAL);
@@ -186,6 +200,10 @@ NATIVE(bl_File_rewind) {
 }
 
 NATIVE(bl_File_readAll) {
+	if(isClosed(vm, BL_THIS)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+	}
+
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NULL_VAL);
@@ -208,6 +226,10 @@ NATIVE(bl_File_readAll) {
 }
 
 NATIVE(bl_File_readLine) {
+	if(isClosed(vm, BL_THIS)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+	}
+
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NULL_VAL);
@@ -237,10 +259,17 @@ NATIVE(bl_File_close) {
 		BL_RAISE_EXCEPTION(vm, "IOException", "An I/O error occurred.");
 	}
 
+	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
+	blSetField(vm, BL_THIS, FIELD_FILE_CLOSED, BOOL_VAL(true));
+
 	BL_RETURN(NULL_VAL);
 }
 
 NATIVE(bl_File_size) {
+	if(isClosed(vm, BL_THIS)) {
+		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
+	}
+
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NUM_VAL(-1));

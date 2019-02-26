@@ -75,12 +75,15 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
 	return f;
 }
 
-ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn) {
+ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc) {
+	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
-	n->argsCount = argsCount;
+	n->argsCount = argc;
 	n->module = module;
 	n->name = name;
 	n->fn = fn;
+	n->defaults = defArr;
+	n->defaultc = defaultc;
 	return n;
 }
 
@@ -199,6 +202,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
 	}
 	case OBJ_NATIVE: {
 		ObjNative *n = (ObjNative*) o;
+		GC_FREEARRAY(vm, Value, n->defaults, n->defaultc);
 		GC_FREE(vm, ObjNative, n);
 		break;
 	}
@@ -318,10 +322,15 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 	reachObject(vm, (Obj*) o->cls);
 
 	switch(o->type) {
-	case OBJ_NATIVE:
-		reachObject(vm, (Obj*) ((ObjNative*)o)->name);
-		reachObject(vm, (Obj*) ((ObjNative*)o)->module);
+	case OBJ_NATIVE: {
+		ObjNative *n = (ObjNative*) o;
+		reachObject(vm, (Obj*) n->name);
+		reachObject(vm, (Obj*) n->module);
+		for(uint8_t i = 0; i < n->defaultc; i++) {
+			reachValue(vm, n->defaults[i]);
+		}
 		break;
+	}
 	case OBJ_FUNCTION: {
 		ObjFunction *func = (ObjFunction*) o;
 		reachObject(vm, (Obj*) func->name);

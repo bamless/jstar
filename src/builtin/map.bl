@@ -6,7 +6,9 @@ class __Entry {
 	}
 
 	def __eq__(o) {
-		if(!(o is __Entry) or o == null) return false
+		if(!(o is __Entry) or o == null) {
+			return false
+		}
 		return this.key == o.key and this.value == o.value
 	}
 
@@ -19,7 +21,7 @@ class HashMap {
 	def new() {
 		this._size = 16
 		this._count = 0
-		this._entries = list(16, null)
+		this._entries = list(16)
 	}
 
 	def __getEntry(key) {
@@ -44,7 +46,7 @@ class HashMap {
 		var oldEntries = this._entries
 
 		this._size = this._size * 2
-		this._entries = list(this._size, null)
+		this._entries = list(this._size)
 
 		for(var e in oldEntries) {
 			var head = e

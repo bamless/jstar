@@ -190,18 +190,33 @@ static bool callFunction(BlangVM *vm, ObjFunction *func, uint8_t argc) {
 }
 
 static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
-	if(native->argsCount != argc) {
-		blRaise(vm, "TypeException", "Native function `%s` expexted %d args, "
-		        "but instead %d supplied.", native->name->data, native->argsCount, argc);
+	if(native->defaultc != 0) {
+		uint8_t most  = native->argsCount;
+		uint8_t least = most - native->defaultc;
+
+		if(argc > most || argc < least) {
+			blRaise(vm, "TypeException", "Native `%s` takes at %s %d args, "
+						 "%d supplied.", native->name->data, argc > most ?
+						 "most" : "least", argc > most ? most : least, argc);
+			return false;
+		}
+
+		// push remaining args taking the default value
+		for(uint8_t i = argc - least; i < native->defaultc; i++) {
+			push(vm, native->defaults[i]);
+		}
+	} else if(native->argsCount != argc) {
+		blRaise(vm, "TypeException", "Native `%s` takes exactly %d args, "
+				"%d supplied.", native->name->data, native->argsCount, argc);
 		return false;
 	}
 
 	Value ret;
-	if(!native->fn(vm, vm->sp - (argc + 1), &ret)) {
+	if(!native->fn(vm, vm->sp - (native->argsCount + 1), &ret)) {
 		blRaise(vm, "Exception", "Failed to call native %s().", native->name->data);
 		return false;
 	}
-	vm->sp -= argc + 1;
+	vm->sp -= native->argsCount + 1;
 	push(vm, ret);
 
 	return vm->exception == NULL;

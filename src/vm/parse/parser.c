@@ -122,21 +122,13 @@ static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
 static Stmt *varDecl(Parser *p);
 
-static Stmt *parseFuncDecl(Parser *p) {
-	int line = p->peek.line;
-	require(p, TOK_DEF);
-
-	Token fname = require(p, TOK_IDENTIFIER);
-
+static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
 	require(p, TOK_LPAREN);
-
-	LinkedList *args = NULL;
-	LinkedList *optArgs = NULL;
 
 	Token arg = {0};
 
-	while((args == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
-		if(args != NULL) {
+	while((*args == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
+		if(*args != NULL) {
 			advance(p); // skip comma if not first element
 		}
 
@@ -146,11 +138,11 @@ static Stmt *parseFuncDecl(Parser *p) {
 			break;
 		}
 
-		args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+		*args = addElement(*args, newIdentifier(arg.length, arg.lexeme));
 	}
 
-	while((optArgs == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
-		if(optArgs != NULL) {
+	while((*defArgs == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
+		if(*defArgs != NULL) {
 			if(matchSkipnl(p, TOK_COMMA)) {
 				advance(p);
 			}
@@ -164,15 +156,25 @@ static Stmt *parseFuncDecl(Parser *p) {
 			error(p, "Default argument must be a constant");
 		}
 
-		args = addElement(args, newIdentifier(arg.length, arg.lexeme));
-		optArgs = addElement(optArgs, c);
+		*args = addElement(*args, newIdentifier(arg.length, arg.lexeme));
+		*defArgs = addElement(*defArgs, c);
 	}
 
 	require(p, TOK_RPAREN);
+}
+
+static Stmt *parseFuncDecl(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_DEF);
+
+	Token fname = require(p, TOK_IDENTIFIER);
+
+	LinkedList *args = NULL, *defArgs = NULL;
+	formalArgs(p, &args, &defArgs);
 
 	Stmt *body = blockStmt(p);
 
-	return newFuncDecl(line, fname.length, fname.lexeme, args, optArgs, body);
+	return newFuncDecl(line, fname.length, fname.lexeme, args, defArgs, body);
 }
 
 static Stmt *parseNativeDecl(Parser *p) {
@@ -181,25 +183,12 @@ static Stmt *parseNativeDecl(Parser *p) {
 
 	Token fname = require(p, TOK_IDENTIFIER);
 
-	require(p, TOK_LPAREN);
-	LinkedList *args = NULL;
+	LinkedList *args = NULL, *defArgs = NULL;
+	formalArgs(p, &args, &defArgs);
 
-	if(matchSkipnl(p, TOK_IDENTIFIER)) {
-		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
-		advance(p);
-
-		while(matchSkipnl(p, TOK_COMMA)) {
-			advance(p);
-
-			Token arg = require(p, TOK_IDENTIFIER);
-			args = addElement(args, newIdentifier(arg.length, arg.lexeme));
-		}
-	}
-
-	require(p, TOK_RPAREN);
 	NEWLINE(p);
 
-	return newNativeDecl(line, fname.length, fname.lexeme, args);
+	return newNativeDecl(line, fname.length, fname.lexeme, args, defArgs);
 }
 
 static Stmt *parseProgram(Parser *p) {

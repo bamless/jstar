@@ -1,14 +1,17 @@
+import file
+
 var OS_LINUX = "Linux"
 var OS_WIN32 = "Windows"
 var OS_OSX   = "Darwin"
 
 var args = []
 
-native exit(n)
 native getImportPaths()
 native platform()
-native gc()
+native exit(n=0)
 native gets()
+native gc()
 
-native __initArgs()
-__initArgs()
+native __init()
+
+__init()
