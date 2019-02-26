@@ -185,7 +185,7 @@ class List {
 		return -1
 	}
 
-	def join(sep) {
+	def join(sep=",") {
 		var s = ""
 		for(var i = 0; i < this.size(); i += 1) {
 			s = s + this[i].__string__()
@@ -276,7 +276,7 @@ def reversed(lst) {
 // Exceptions builtin classes
 
 class Exception {
-	def new(err) {
+	def new(err=null) {
 		this.err = err
 	}
 }
@@ -292,11 +292,11 @@ class InvalidArgException : Exception {}
 class IndexOutOfBoundException : Exception {}
 class AssertException : Exception {}
 
-def assert(cond, msg) {
+def assert(cond, msg="assertion failed") {
 	if(!cond) raise AssertException(msg)
 }
 
-def print(o) {
+def print(o="") {
 	writeout(o)
 	__printstr("\n")
 }
@@ -316,13 +316,20 @@ def str(e) {
 }
 
 class range {
-	def new(from, to) {
+	def new(from, to=null, step=1) {
+		if(to == null) {
+			to = from
+			from = 0
+		}
+
 		if(!isInt(from) or !isInt(to)) {
 			raise InvalidArgException("Argument `from` and `to` must be integers")
 		}
+
 		this.from = from
 		this.to = to
 		this.count = from
+		this.step = step
 	}
 
 	def hasNext() {
@@ -331,7 +338,7 @@ class range {
 
 	def next() {
 		var i = this.count
-		this.count += 1
+		this.count += this.step
 		return i
 	}
 

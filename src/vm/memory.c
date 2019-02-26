@@ -63,9 +63,12 @@ ObjString *newString(BlangVM *vm, char *cstring, size_t length) {
 	return str;
 }
 
-ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argsCount) {
+ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc) {
+	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
-	f->argsCount = argsCount;
+	f->argsCount = argc;
+	f->defaultc = defaultc;
+	f->defaults = defArr;
 	f->module = module;
 	f->name = name;
 	initChunk(&f->chunk);
@@ -202,6 +205,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
 	case OBJ_FUNCTION: {
 		ObjFunction *f = (ObjFunction*) o;
 		freeChunk(&f->chunk);
+		GC_FREEARRAY(vm, Value, f->defaults, f->defaultc);
 		GC_FREE(vm, ObjFunction, f);
 		break;
 	}
@@ -323,6 +327,9 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 		reachObject(vm, (Obj*) func->name);
 		reachObject(vm, (Obj*) func->module);
 		reachValueArray(vm, &func->chunk.consts);
+		for(uint8_t i = 0; i < func->defaultc; i++) {
+			reachValue(vm, func->defaults[i]);
+		}
 		break;
 	}
 	case OBJ_CLASS: {

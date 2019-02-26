@@ -139,7 +139,7 @@ struct Stmt {
 		} varDecl;
 		struct {
 			Identifier id;
-			LinkedList *formalArgs;
+			LinkedList *formalArgs, *defArgs;
 			Stmt *body;
 		} funcDecl;
 		struct {
@@ -171,9 +171,9 @@ struct Stmt {
 	};
 };
 
-Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
+Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
 Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength);
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body);
+Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);

@@ -152,9 +152,24 @@ static bool isInt(double n) {
 }
 
 static bool callFunction(BlangVM *vm, ObjFunction *func, uint8_t argc) {
-	if(func->argsCount != argc) {
-		blRaise(vm, "TypeException", "Function `%s` expected %d args, but "
-		    "instead %d supplied.", func->name->data, func->argsCount, argc);
+	if(func->defaultc != 0) {
+		uint8_t most  = func->argsCount;
+		uint8_t least = most - func->defaultc;
+
+		if(argc > most || argc < least) {
+			blRaise(vm, "TypeException", "Function `%s` takes at %s %d args, "
+						 "%d supplied.", func->name->data, argc > most ?
+						 "most" : "least", argc > most ? most : least, argc);
+			return false;
+		}
+
+		// push remaining args taking the default value
+		for(uint8_t i = argc - least; i < func->defaultc; i++) {
+			push(vm, func->defaults[i]);
+		}
+	} else if(func->argsCount != argc) {
+		blRaise(vm, "TypeException", "Function `%s` takes exactly %d args, "
+		        "%d supplied.", func->name->data, func->argsCount, argc);
 		return false;
 	}
 
@@ -166,7 +181,7 @@ static bool callFunction(BlangVM *vm, ObjFunction *func, uint8_t argc) {
 	Frame *callFrame = &vm->frames[vm->frameCount++];
 	callFrame->fn = func;
 	callFrame->ip = func->chunk.code;
-	callFrame->stack = vm->sp - (argc + 1);
+	callFrame->stack = vm->sp - (func->argsCount + 1);
 	callFrame->handlerc = 0;
 
 	vm->module = func->module;

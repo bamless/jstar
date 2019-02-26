@@ -23,9 +23,9 @@ void garbageCollect(BlangVM *vm);
 // These functions use GCallocate to acquire memory and then init the objects
 // with the supplied arguments, as well as initializing all the bookkeping
 // nformation needed by the garbage collector (see struct Obj)
+ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argsCount, Native fn);
 ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
-ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argsCount);
 ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
 ObjString *newString(BlangVM *vm, char *cstring, size_t size);
 ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);

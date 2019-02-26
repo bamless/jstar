@@ -15,6 +15,9 @@
 #define IS_LVALUE(type) \
 	(type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC)
 
+#define IS_CONSTANT_LITERAL(type) \
+	(type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT)
+
 
 //----- Utility functions ------
 
@@ -113,6 +116,7 @@ static void synchronize(Parser *p) {
 //----- Recursive descent parser implementation ------
 
 static Expr *parseExpr(Parser *p);
+static Expr *literal(Parser *p);
 
 static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
@@ -125,25 +129,50 @@ static Stmt *parseFuncDecl(Parser *p) {
 	Token fname = require(p, TOK_IDENTIFIER);
 
 	require(p, TOK_LPAREN);
+
 	LinkedList *args = NULL;
+	LinkedList *optArgs = NULL;
 
-	if(matchSkipnl(p, TOK_IDENTIFIER)) {
-		args = addElement(args, newIdentifier(p->peek.length, p->peek.lexeme));
-		advance(p);
+	Token arg = {0};
 
-		while(matchSkipnl(p, TOK_COMMA)) {
-			advance(p);
-
-			Token arg = require(p, TOK_IDENTIFIER);
-			args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+	while((args == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
+		if(args != NULL) {
+			advance(p); // skip comma if not first element
 		}
+
+		arg = require(p, TOK_IDENTIFIER);
+
+		if(matchSkipnl(p, TOK_EQUAL)) {
+			break;
+		}
+
+		args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+	}
+
+	while((optArgs == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
+		if(optArgs != NULL) {
+			if(matchSkipnl(p, TOK_COMMA)) {
+				advance(p);
+			}
+			arg = require(p, TOK_IDENTIFIER);
+		}
+
+		require(p, TOK_EQUAL); // skip TOK_EQUAL
+
+		Expr *c = literal(p);
+		if(c != NULL && !IS_CONSTANT_LITERAL(c->type)) {
+			error(p, "Default argument must be a constant");
+		}
+
+		args = addElement(args, newIdentifier(arg.length, arg.lexeme));
+		optArgs = addElement(optArgs, c);
 	}
 
 	require(p, TOK_RPAREN);
 
 	Stmt *body = blockStmt(p);
 
-	return newFuncDecl(line, fname.length, fname.lexeme, args, body);
+	return newFuncDecl(line, fname.length, fname.lexeme, args, optArgs, body);
 }
 
 static Stmt *parseNativeDecl(Parser *p) {
@@ -191,7 +220,7 @@ static Stmt *parseProgram(Parser *p) {
 		if(p->panic) synchronize(p);
 	}
 
-	return newFuncDecl(0, 0, NULL, NULL, newBlockStmt(0, stmts));
+	return newFuncDecl(0, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
 }
 
 Stmt *parse(Parser *p, const char *fname, const char *src) {

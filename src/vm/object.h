@@ -95,6 +95,8 @@ typedef struct ObjFunction {
 	Obj base;
 	uint8_t argsCount; // The arity of the function
 	Chunk chunk;       // The actual code chunk containing bytecodes
+	Value *defaults;   // default arguments
+	uint8_t defaultc;  // number of default arguments
 	ObjString *name;   // The name of the function
 	ObjModule *module; // The module to which the function belongs
 } ObjFunction;

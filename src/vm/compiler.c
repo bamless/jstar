@@ -175,7 +175,7 @@ static void declareVar(Compiler *c, Identifier *id, int line) {
 	for(int i = c->localsCount - 1; i >= 0; i--) {
 		if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
 		if(identifierEquals(&c->locals[i].id, id)) {
-			error(c, line, "Variable %.*s already"
+			error(c, line, "Variable `%.*s` already"
 					" declared.", id->length, id->name);
 		}
 	}
@@ -980,6 +980,30 @@ ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
 	return c.hadError ? NULL : func;
 }
 
+static void addDefaultConsts(Compiler *c, ObjFunction *fn, LinkedList *defArgs) {
+	int i = 0;
+
+	LinkedList *n;
+	foreach(n, defArgs) {
+		Expr *e = (Expr*) n->elem;
+		switch(e->type) {
+		case NUM_LIT:
+			fn->defaults[i++] = NUM_VAL(e->num);
+			break;
+		case BOOL_LIT:
+			fn->defaults[i++] = BOOL_VAL(e->boolean);
+			break;
+		case STR_LIT:
+			fn->defaults[i++] = OBJ_VAL(readString(c, e));
+			break;
+		case NULL_LIT:
+			fn->defaults[i++] = NULL_VAL;
+			break;
+		default: break;
+		}
+	}
+}
+
 static void enterFunctionScope(Compiler *c) {
 	c->depth++;
 }
@@ -989,7 +1013,11 @@ static void exitFunctionScope(Compiler *c) {
 }
 
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
-	c->func = newFunction(c->vm, module, NULL, listLength(s->funcDecl.formalArgs));
+	size_t defaults = listLength(s->funcDecl.defArgs);
+	size_t arity    = listLength(s->funcDecl.formalArgs);
+
+	c->func = newFunction(c->vm, module, NULL, arity, defaults);
+
 	if(s->funcDecl.id.length != 0) {
 		c->func->name = copyString(c->vm,
 			s->funcDecl.id.name, s->funcDecl.id.length);
@@ -1016,11 +1044,16 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
 	exitFunctionScope(c);
 
+	addDefaultConsts(c, c->func, s->funcDecl.defArgs);
+
 	return c->func;
 }
 
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s) {
-	c->func = newFunction(c->vm, module, NULL, listLength(s->funcDecl.formalArgs));
+	size_t defaults = listLength(s->funcDecl.defArgs);
+	size_t arity    = listLength(s->funcDecl.formalArgs);
+
+	c->func = newFunction(c->vm, module, NULL, arity, defaults);
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
@@ -1065,6 +1098,8 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	emitBytecode(c, OP_RETURN, 0);
 
 	exitFunctionScope(c);
+
+	addDefaultConsts(c, c->func, s->funcDecl.defArgs);
 
 	return c->func;
 }

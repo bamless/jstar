@@ -215,13 +215,14 @@ void freeExpr(Expr *e) {
 
 //----- Statements -----
 
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Stmt *body) {
+Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body) {
 	Stmt *f = malloc(sizeof(*f));
 	f->line = line;
 	f->type = FUNCDECL;
 	f->funcDecl.id.name = id;
 	f->funcDecl.id.length = length;
 	f->funcDecl.formalArgs = args;
+	f->funcDecl.defArgs = defArgs;
 	f->funcDecl.body = body;
 	return f;
 }
@@ -424,6 +425,15 @@ void freeStmt(Stmt *s) {
 			free(f->elem);
 			free(f);
 		}
+
+		head = s->funcDecl.defArgs;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			freeExpr(f->elem);
+			free(f);
+		}
+
 		freeStmt(s->funcDecl.body);
 		break;
 	}
