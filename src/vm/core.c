@@ -231,7 +231,7 @@ NATIVE(bl_printstr) {
 		bool fail = false;
 
 		fail |= !blGetField(vm, file, "_closed", &closed) || !IS_BOOL(closed);
-		fail |= !blGetField(vm, file, "_handle", &h) || !IS_BOOL(h);
+		fail |= !blGetField(vm, file, "_handle", &h) || !IS_HANDLE(h);
 
 		if(fail) {
 			BL_RAISE_EXCEPTION(vm, "TypeException", "stream is not a file");
