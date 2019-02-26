@@ -1,0 +1,21 @@
+def randint(a, b=null) {
+	if(!isInt(a) or (b != null and !isInt(b))) {
+		raise InvalidArgException("a and b must be integers")
+	}
+	return int(randrange(a, b))
+}
+
+def randrange(a, b=null) {
+	if(b == null) {
+		b = a
+		a = 0
+	}
+
+	if(a > b) raise InvalidArgException("a must be <= b")
+	return a + random() * (b - a)
+}
+
+native random()
+
+native __initseed()
+__initseed()

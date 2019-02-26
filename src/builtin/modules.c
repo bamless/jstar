@@ -17,6 +17,9 @@
 #include "debug.h"
 #include "debug.bl.h"
 
+#include "rand.h"
+#include "rand.bl.h"
+
 #include <string.h>
 
 typedef enum {
@@ -128,6 +131,10 @@ Module builtInModules[] = {
 	MODULE(debug)
 		FUNCTION(printStack, &bl_printStack)
 		FUNCTION(dis, &bl_dis)
+	ENDMODULE
+	MODULE(rand)
+		FUNCTION(__initseed, &bl_initseed)
+		FUNCTION(random, &bl_random)
 	ENDMODULE
 	MODULES_END
 };
