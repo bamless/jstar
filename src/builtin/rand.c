@@ -62,13 +62,13 @@ static double genRand(MTRand* rand) {
 }
 
 // For now there is only one global random generator (this will change)
-static MTRand random;
+static MTRand mtrand;
 
 NATIVE(bl_random) {
-	BL_RETURN(NUM_VAL(genRand(&random)));
+	BL_RETURN(NUM_VAL(genRand(&mtrand)));
 }
 
 NATIVE(bl_initseed) {
-	random = seedRand(time(NULL));
+	mtrand = seedRand(time(NULL));
 	BL_RETURN(NULL_VAL);
 }
