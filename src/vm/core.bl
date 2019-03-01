@@ -210,6 +210,47 @@ class List {
 		return this.size() == 0
 	}
 
+	def sort() {
+		import rand
+		this.__quickSort(0, this.size() - 1)
+	}
+
+	def __quickSort(from, to) {
+		if(from < to) {
+			var p = this.__partition(from, to)
+
+			this.__quickSort(from, p - 1)
+			this.__quickSort(p + 1, to)
+		}
+	}
+
+	def __partition(from, to) {
+		var piv = this[from]
+		var l = from + 1
+		var r = to
+
+		while(l <= r) {
+			while(this[r] > piv)
+				r -= 1
+			while(l <= r and this[l] <= piv)
+				l += 1
+
+			if(l < r) {
+				var tmp = this[l]
+				this[l] = this[r]
+				this[r] = tmp
+				l += 1
+				r -= 1
+			}
+		}
+
+		var tmp = this[from]
+		this[from] = this[r]
+		this[r] = tmp
+
+		return r
+	}
+
 	def __iterator__() {
 		return __ListIterator(this)
 	}
