@@ -185,6 +185,12 @@ class List {
 		return -1
 	}
 
+	def swap(a, b) {
+		var temp = this[a]
+		this[a] = this[b]
+		this[b] = temp
+	}
+
 	def join(sep=",") {
 		var s = ""
 		for(var i = 0; i < this.size(); i += 1) {
@@ -225,6 +231,9 @@ class List {
 	}
 
 	def __partition(from, to) {
+		var p = rand.randint(from, to + 1)
+		this.swap(from, p)
+
 		var piv = this[from]
 		var l = from + 1
 		var r = to
@@ -236,18 +245,13 @@ class List {
 				l += 1
 
 			if(l < r) {
-				var tmp = this[l]
-				this[l] = this[r]
-				this[r] = tmp
+				this.swap(l, r)
 				l += 1
 				r -= 1
 			}
 		}
 
-		var tmp = this[from]
-		this[from] = this[r]
-		this[r] = tmp
-
+		this.swap(from, r)
 		return r
 	}
 
