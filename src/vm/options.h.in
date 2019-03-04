@@ -1,0 +1,14 @@
+#ifndef OPTIONS_H
+#define OPTIONS_H
+
+#define BLANG_VERSION_MAJOR @Blang_VERSION_MAJOR@
+#define BLANG_VERSION_MINOR @Blang_VERSION_MINOR@
+#define BLANG_VERSION_PATCH @Blang_VERSION_PATCH@
+
+#cmakedefine USE_COMPUTED_GOTOS
+#cmakedefine NAN_TAGGING
+#cmakedefine DBG_PRINT_EXEC
+#cmakedefine DBG_PRINT_GC
+#cmakedefine DBG_STRESS_GC
+
+#endif /* end of include guard: OPTIONS_H */

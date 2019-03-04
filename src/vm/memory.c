@@ -2,6 +2,7 @@
 #include "chunk.h"
 #include "hashtable.h"
 #include "compiler.h"
+#include "options.h"
 #include "vm.h"
 
 #include <stdio.h>

@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "options.h"
+
 typedef struct Obj Obj;
 
 #ifdef NAN_TAGGING

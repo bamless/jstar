@@ -11,8 +11,8 @@
 #endif
 
 #include "vm.h"
-#include "blang.h"
 #include "util/stringbuf.h"
+#include "options.h"
 
 static void header() {
 	const char blang_ascii_art[] = {
@@ -29,8 +29,8 @@ static void header() {
 	  0
 	};
 
-	printf(blang_ascii_art);
-	printf("Version %s\n", BLANG_VERSION_STR);
+	printf("%s", blang_ascii_art);
+	printf("Version %d.%d.%d\n", BLANG_VERSION_MAJOR, BLANG_VERSION_MINOR, BLANG_VERSION_PATCH);
 }
 
 static int charCount(const char *str, char c) {

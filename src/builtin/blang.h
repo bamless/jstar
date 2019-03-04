@@ -6,12 +6,6 @@
 #include "object.h"
 #include "memory.h"
 
-#define BLANG_VERSION_STR "1.1.1"
-
-#define BLANG_VERSION_MAJOR 1
-#define BLANG_VERSION_MINOR 0
-#define BLANG_VERSION_PATCH 0
-
 #define IS_INT(v)      (IS_NUM(v) && (int64_t)AS_NUM(v) == AS_NUM(v))
 #define NATIVE(name)   bool name(BlangVM *vm, Value *args, Value *ret)
 #define BL_THIS        ((ObjInstance*) AS_OBJ(args[0]))

@@ -6,6 +6,7 @@
 #include "util.h"
 #include "sys.h"
 #include "blang.h"
+#include "options.h"
 
 #include "debug/disassemble.h"
 
