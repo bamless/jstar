@@ -8,6 +8,7 @@
 #include <math.h>
 #include <limits.h>
 #include <errno.h>
+#include <float.h>
 
 static ObjClass* createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
 	ObjString *n = copyString(vm, name, strlen(name));
@@ -254,7 +255,7 @@ NATIVE(bl_printstr) {
 // class Number {
 	NATIVE(bl_Number_string) {
 		char str[24];
-		snprintf(str, sizeof(str) - 1, "%.*g", __DBL_DIG__, AS_NUM(args[0]));
+		snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, AS_NUM(args[0]));
 		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str))));
 	}
 

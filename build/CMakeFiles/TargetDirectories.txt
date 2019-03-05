@@ -1,0 +1,11 @@
+/d/Fabrizio/WorkSpace/C/blang/build/CMakeFiles/rebuild_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/CMakeFiles/edit_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/vm/CMakeFiles/rebuild_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/vm/CMakeFiles/libblang.dir
+/d/Fabrizio/WorkSpace/C/blang/build/vm/CMakeFiles/edit_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/cli/linenoise/CMakeFiles/rebuild_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/cli/linenoise/CMakeFiles/linenoise.dir
+/d/Fabrizio/WorkSpace/C/blang/build/cli/linenoise/CMakeFiles/edit_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/cli/CMakeFiles/rebuild_cache.dir
+/d/Fabrizio/WorkSpace/C/blang/build/cli/CMakeFiles/blang.dir
+/d/Fabrizio/WorkSpace/C/blang/build/cli/CMakeFiles/edit_cache.dir

@@ -20,7 +20,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_JUMPF:
 	case OP_SETUP_TRY: {
 		int16_t off = (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
-		printf("%d (to %lu)", off, i + off + 3);
+		printf("%d (to %lu)", off, (unsigned long)(i + off + 3));
 		break;
 	}
 

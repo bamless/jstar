@@ -1,18 +1,12 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-
-#ifdef __unix
-#include <unistd.h>
-#elif _WIN32
-#include <windows.h>
-#endif
 
 #include "vm.h"
-#include "util/stringbuf.h"
 #include "options.h"
+
+#include "linenoise/linenoise.h"
+#include "util/stringbuf.h"
 
 static void header() {
 	const char blang_ascii_art[] = {
@@ -33,6 +27,10 @@ static void header() {
 	printf("Version %d.%d.%d\n", BLANG_VERSION_MAJOR, BLANG_VERSION_MINOR, BLANG_VERSION_PATCH);
 }
 
+static void completion(const char *buf, linenoiseCompletions *lc) {
+	linenoiseAddCompletion(lc, "    ");
+}
+
 static int charCount(const char *str, char c) {
 	int count = 0;
 	size_t len = strlen(str);
@@ -46,12 +44,12 @@ static int charCount(const char *str, char c) {
 
 static void interactiveEval(BlangVM *vm) {
 	header();
-	rl_bind_key('\t', rl_insert);
+	linenoiseSetCompletionCallback(completion);
 
 	StringBuffer src;
 	sbuf_create(&src);
 	for(;;) {
-		char *line = readline("blang>> ");
+		char *line = linenoise("blang>> ");
 		if(line == NULL) {
 			printf("\n");
 			break;
@@ -63,7 +61,7 @@ static void interactiveEval(BlangVM *vm) {
 		}
 
 		sbuf_appendstr(&src, line);
-		add_history(line);
+		linenoiseHistoryAdd(line);
 
 		int openc = charCount(line, '{');
 		int closec = charCount(line, '}');
@@ -73,12 +71,12 @@ static void interactiveEval(BlangVM *vm) {
 
 		if(depth > 0) {
 			char *blockLine;
-			while((blockLine = readline("....... ")) != NULL) {
+			while((blockLine = linenoise("....... ")) != NULL) {
 				if(strlen(blockLine) == 0) continue;
 
 				sbuf_appendchar(&src, '\n');
 				sbuf_appendstr(&src, blockLine);
-				add_history(blockLine);
+				linenoiseHistoryAdd(blockLine);
 
 				openc = charCount(blockLine, '{');
 				closec = charCount(blockLine, '}');

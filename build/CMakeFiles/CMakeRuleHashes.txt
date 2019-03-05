@@ -1,0 +1,8 @@
+# Hashes of file build rules.
+23c2acaca26ebe8630c8e56a5ad30b82 /d/Fabrizio/WorkSpace/C/blang/src/builtin/debug.bl.h
+6c020e7b622825d31ec975d086156410 /d/Fabrizio/WorkSpace/C/blang/src/builtin/file.bl.h
+ef08570dab1efd7a4705e1b5b198ba48 /d/Fabrizio/WorkSpace/C/blang/src/builtin/map.bl.h
+d3db9db9ecb0ce6ec75723fb4aa548bf /d/Fabrizio/WorkSpace/C/blang/src/builtin/rand.bl.h
+fc625fd3698d571117d09563e168271a /d/Fabrizio/WorkSpace/C/blang/src/builtin/set.bl.h
+d883486a48cbdee891cdb38fd8730c93 /d/Fabrizio/WorkSpace/C/blang/src/builtin/sys.bl.h
+462556a39e4f5c0f47e236b6ffd036a5 /d/Fabrizio/WorkSpace/C/blang/src/vm/core.bl.h

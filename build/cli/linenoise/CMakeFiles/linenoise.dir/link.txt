@@ -1,0 +1,2 @@
+/mingw64/bin/ar.exe qc ../../lib/liblinenoise.a  CMakeFiles/linenoise.dir/ConvertUTF.cpp.o CMakeFiles/linenoise.dir/linenoise.cpp.o CMakeFiles/linenoise.dir/wcwidth.cpp.o
+/mingw64/bin/ranlib.exe ../../lib/liblinenoise.a

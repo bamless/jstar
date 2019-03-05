@@ -1,4 +1,4 @@
-FILE(GLOB_RECURSE SOURCES *.c "${PROJECT_SOURCE_DIR}/builtin/*.c") 
+FILE(GLOB_RECURSE SOURCES *.c "${PROJECT_SOURCE_DIR}/builtin/*.c")
 FILE(GLOB_RECURSE BLANG_SOURCES *bl "${PROJECT_SOURCE_DIR}/builtin/*.bl")
 
 # create blang source headers names
@@ -11,10 +11,12 @@ endforeach()
 foreach(bl ${BLANG_SOURCES})
 	add_custom_command(
 		OUTPUT  "${bl}.h"
-		COMMAND "${PROJECT_SOURCE_DIR}/../util/txt2incl.py" ${bl} "${bl}.h"
+		COMMAND python2 "${PROJECT_SOURCE_DIR}/../util/txt2incl.py" ${bl} "${bl}.h"
 		DEPENDS ${bl}
 	)
 endforeach()
+
+include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/builtin")
 
 # create library
 add_library(libblang ${SOURCES} ${BLANG_HEADERS})
