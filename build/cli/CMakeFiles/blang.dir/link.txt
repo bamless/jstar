@@ -1,1 +1,0 @@
-/mingw64/bin/c++.exe -O3 -DNDEBUG  -Wl,--enable-auto-import CMakeFiles/blang.dir/cli.c.o  -o ../bin/blang.exe -Wl,--out-implib,../lib/libblang.dll.a -Wl,--major-image-version,0,--minor-image-version,0 ../lib/libblang.a ../lib/liblinenoise.a -lm 
