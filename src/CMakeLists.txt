@@ -31,15 +31,16 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
 	set(CMAKE_C_FLAGS "-Wall -Wextra -std=gnu11 -Wno-unused-parameter")
-
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -s")
-
-	if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
-		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Qunused-arguments -Wno-unused-command-line-argument")
-	endif()
+elseif(${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -std=gnu11 -Wno-unused-parameter")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -s -Qunused-arguments -Wno-unused-command-line-argument")
+elseif()
+	set(CMAKE_C_FLAGS_RELEASE "/Ox")
 endif()
 
 # build
