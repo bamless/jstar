@@ -28,7 +28,11 @@ static void header() {
 }
 
 static void completion(const char *buf, linenoiseCompletions *lc) {
-	linenoiseAddCompletion(lc, "    ");
+	char *ret = malloc(strlen(buf) + 5);
+	strcpy(ret, buf);
+	strcat(ret, "    ");
+	linenoiseAddCompletion(lc, ret);
+	free(ret);
 }
 
 static int charCount(const char *str, char c) {
