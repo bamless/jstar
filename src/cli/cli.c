@@ -5,7 +5,7 @@
 #include "vm.h"
 #include "options.h"
 
-#include "libnoise/linenoise.h"
+#include "linenoise/linenoise.h"
 #include "util/stringbuf.h"
 
 static void header() {

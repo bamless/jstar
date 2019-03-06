@@ -68,7 +68,7 @@ endif()
 
 # build liblinenoise
 add_library(
-  noise
+  linenoise
   STATIC
   ConvertUTF.cpp
   linenoise.cpp
