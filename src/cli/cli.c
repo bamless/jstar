@@ -22,7 +22,6 @@ static void header() {
 	  0x20, 0x20, 0x20, 0x20, 0x20, 0x7c, 0x5f, 0x5f, 0x5f, 0x2f, 0x20, 0x0a,
 	  0
 	};
-
 	printf("%s", blang_ascii_art);
 	printf("Version %d.%d.%d\n", BLANG_VERSION_MAJOR, BLANG_VERSION_MINOR, BLANG_VERSION_PATCH);
 }
@@ -52,13 +51,9 @@ static void interactiveEval(BlangVM *vm) {
 
 	StringBuffer src;
 	sbuf_create(&src);
-	for(;;) {
-		char *line = linenoise("blang>> ");
-		if(line == NULL) {
-			printf("\n");
-			break;
-		}
 
+	char *line;
+	while((line = linenoise("blang>> ")) != NULL) {
 		if(strlen(line) == 0) {
 			free(line);
 			continue;
@@ -67,33 +62,31 @@ static void interactiveEval(BlangVM *vm) {
 		sbuf_appendstr(&src, line);
 		linenoiseHistoryAdd(line);
 
-		int openc = charCount(line, '{');
-		int closec = charCount(line, '}');
-		int depth = openc - closec;
+		int depth = charCount(line, '{') - charCount(line, '}');
 
 		free(line);
 
 		if(depth > 0) {
-			char *blockLine;
-			while((blockLine = linenoise("....... ")) != NULL) {
-				if(strlen(blockLine) == 0) continue;
+			while((line = linenoise("....... ")) != NULL) {
+				if(strlen(line) == 0) {
+					free(line);
+					continue;
+				}
 
 				sbuf_appendchar(&src, '\n');
-				sbuf_appendstr(&src, blockLine);
-				linenoiseHistoryAdd(blockLine);
+				sbuf_appendstr(&src, line);
+				linenoiseHistoryAdd(line);
 
-				openc = charCount(blockLine, '{');
-				closec = charCount(blockLine, '}');
-				depth += openc - closec;
+				depth = charCount(line, '{') - charCount(line, '}');
 
-				free(blockLine);
+				free(line);
 
-				if(depth <= 0) break;
+				if(depth <= 0)
+					break;
 			}
 		}
 
 		blEvaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
-
 		sbuf_clear(&src);
 	}
 
