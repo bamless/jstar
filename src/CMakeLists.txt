@@ -32,16 +32,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
-	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -std=gnu11 -Wno-unused-parameter")
+
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -s")
-	if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Qunused-arguments")
+
+	if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Qunused-arguments -Wno-unused-command-line-argument")
 	endif()
 endif()
 
 # build
 include_directories(${PROJECT_BINARY_DIR})
 add_subdirectory("${PROJECT_SOURCE_DIR}/vm")
-add_subdirectory("${PROJECT_SOURCE_DIR}/cli/linenoise")
+add_subdirectory("${PROJECT_SOURCE_DIR}/thirdparty/libnoise")
 add_subdirectory("${PROJECT_SOURCE_DIR}/cli")

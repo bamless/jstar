@@ -1,4 +1,4 @@
-project(linenoise)
+project(libnoise)
 
 set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
 
@@ -68,7 +68,7 @@ endif()
 
 # build liblinenoise
 add_library(
-  linenoise
+  noise
   STATIC
   ConvertUTF.cpp
   linenoise.cpp
