@@ -7,7 +7,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # INFO
-set(LINENOISE_VERSION "1.0.0" CACHE path "Linenoise version")
+set(LINENOISE_VERSION "1.0.0")
 set(LINENOISE_DISPLAY_NAME "Linenoise-NG")
 set(LINENOISE_URL_INFO_ABOUT "https://github.com/arangodb/linenoise-ng")
 set(LINENOISE_CONTACT "hackers@arangodb.org")

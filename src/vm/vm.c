@@ -508,7 +508,7 @@ static bool runEval(BlangVM *vm) {
 		#define PRINT_DBG_STACK()
 	#endif
 
-	#ifdef USE_COMPUTED_GOTOS
+	#if defined(USE_COMPUTED_GOTOS) && !defined(_MSC_VER)
 		//import jumptable
 		#include "opcode_jmp_table.h"
 
