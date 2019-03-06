@@ -29,7 +29,7 @@ header = WARNING + "const char *{} =\n".format(fileName)
 
 with open(sys.argv[1], "r") as src:
 	for line in src:
-		cstr = stringify(line);
+		cstr = stringify(line)
 		header += cstr + '\n' if cstr else ""
 	header += ';'
 
