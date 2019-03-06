@@ -59,6 +59,12 @@ static void interactiveEval(BlangVM *vm) {
 			continue;
 		}
 
+		if(strcmp(line, "\\clear") == 0) {
+			linenoiseClearScreen();
+			free(line);
+			continue;
+		}
+
 		sbuf_appendstr(&src, line);
 		linenoiseHistoryAdd(line);
 
