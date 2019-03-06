@@ -77,7 +77,7 @@ static void interactiveEval(BlangVM *vm) {
 				sbuf_appendstr(&src, line);
 				linenoiseHistoryAdd(line);
 
-				depth = charCount(line, '{') - charCount(line, '}');
+				depth += charCount(line, '{') - charCount(line, '}');
 
 				free(line);
 
