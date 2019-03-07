@@ -31,6 +31,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
+# set compiler flags
 if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
 	set(CMAKE_C_FLAGS "-Wall -Wextra -std=gnu11 -Wno-unused-parameter")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")

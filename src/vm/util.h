@@ -11,7 +11,7 @@
 	(((t) -1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) \
 				  : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
 
-#ifdef DEBUG_1
+#ifndef NDEBUG
 
 	#define UNREACHABLE() do { \
 		fprintf(stderr, "%s[%d]@%s(): reached unreachable code.\n", \
