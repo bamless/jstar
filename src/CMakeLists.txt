@@ -46,6 +46,9 @@ elseif(MSVC)
 	set(CMAKE_C_FLAGS_RELEASE "/Ox")
 endif()
 
+# required programs
+find_package(PythonInterp 2.7 REQUIRED)
+
 # build
 include_directories(${PROJECT_BINARY_DIR})
 add_subdirectory("${PROJECT_SOURCE_DIR}/vm")
