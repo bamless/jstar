@@ -666,6 +666,11 @@ static bool runEval(BlangVM *vm) {
 		DISPATCH();
 	}
 	TARGET(OP_POW): {
+		if(!IS_NUM(peek(vm)) && !IS_NUM(peek2(vm))) {
+			blRaise(vm, "TypeException", "Operands of `^` must be numbers");
+			UNWIND_STACK(vm);
+		}
+
 		double y = AS_NUM(pop(vm));
 		double x = AS_NUM(pop(vm));
 		push(vm, NUM_VAL(pow(x, y)));
