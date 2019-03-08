@@ -1,17 +1,8 @@
-project(libnoise)
-
 set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE string "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif()
-
-# INFO
-set(LINENOISE_VERSION "1.0.0")
-set(LINENOISE_DISPLAY_NAME "Linenoise-NG")
-set(LINENOISE_URL_INFO_ABOUT "https://github.com/arangodb/linenoise-ng")
-set(LINENOISE_CONTACT "hackers@arangodb.org")
-set(LINENOISE_FRIENDLY_STRING "Linenoise NG - Linenoise Next Generation")
 
 # compiler options
 if(CMAKE_COMPILER_IS_GNUCXX)
