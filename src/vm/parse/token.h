@@ -39,6 +39,7 @@ typedef enum {
 	TOK_DIV,
 	TOK_MULT,
 	TOK_MOD,
+	TOK_POW,
 
 	TOK_COLON,
 	TOK_SEMICOLON,

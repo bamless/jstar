@@ -665,6 +665,12 @@ static bool runEval(BlangVM *vm) {
 		push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
 		DISPATCH();
 	}
+	TARGET(OP_POW): {
+		double y = AS_NUM(pop(vm));
+		double x = AS_NUM(pop(vm));
+		push(vm, NUM_VAL(pow(x, y)));
+		DISPATCH();
+	}
 	TARGET(OP_NOT):
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
 		DISPATCH();

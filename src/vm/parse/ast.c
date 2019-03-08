@@ -111,6 +111,15 @@ Expr *newCallExpr(int line, Expr *callee, LinkedList *args) {
 	return e;
 }
 
+Expr *newExpExpr(int line, Expr *base, Expr *exp) {
+	Expr *e = malloc(sizeof(*e));
+	e->line = line;
+	e->type = EXP_EXPR;
+	e->expExpr.base = base;
+	e->expExpr.exp = exp;
+	return e;
+}
+
 Expr *newSuperLiteral(int line) {
 	Expr *e = malloc(sizeof(*e));
 	e->line = line;

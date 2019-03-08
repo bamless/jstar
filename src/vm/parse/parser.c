@@ -620,6 +620,22 @@ static Expr *postfixExpr(Parser *p) {
 	return lit;
 }
 
+static Expr *unaryExpr(Parser *p);
+
+static Expr *powExpr(Parser *p) {
+	Expr *base = postfixExpr(p);
+
+	while(match(p, TOK_POW)) {
+		int line = p->peek.line;
+		advance(p);
+
+		Expr *exp = unaryExpr(p);
+		base = newExpExpr(line, base, exp);
+	}
+
+	return base;
+}
+
 static Expr *unaryExpr(Parser *p) {
 	int line = p->peek.line;
 	if(match(p, TOK_BANG)) {
@@ -631,7 +647,7 @@ static Expr *unaryExpr(Parser *p) {
 		return newUnary(line, MINUS, unaryExpr(p));
 	}
 
-	return postfixExpr(p);
+	return powExpr(p);
 }
 
 static Expr *multiplicativeExpr(Parser *p) {

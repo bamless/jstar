@@ -432,6 +432,12 @@ static void compileArraryAccExpression(Compiler *c, Expr *e) {
 	emitBytecode(c, OP_ARR_GET, e->line);
 }
 
+static void compileExpExpr(Compiler *c, Expr *e) {
+	compileExpr(c, e->expExpr.base);
+	compileExpr(c, e->expExpr.exp);
+	emitBytecode(c, OP_POW, e->line);
+}
+
 static void compileVar(Compiler *c, Identifier *id, int line) {
 	int i = resolveVariable(c, id, line);
 	if(i != -1) {
@@ -474,6 +480,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	case ARR_ACC:
 		compileArraryAccExpression(c, e);
+		break;
+	case EXP_EXPR:
+		compileExpExpr(c, e);
 		break;
 	case EXPR_LST: {
 		LinkedList *n;

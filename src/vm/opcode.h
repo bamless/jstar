@@ -17,6 +17,7 @@
 	X(OP_LT) \
 	X(OP_LE) \
 	X(OP_IS) \
+	X(OP_POW) \
 	X(OP_GET_FIELD) \
 	X(OP_SET_FIELD) \
 	X(OP_ARR_SET) \
