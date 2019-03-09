@@ -44,6 +44,8 @@ void sbuf_append(StringBuffer *sbuf, const char *str, size_t len);
 void sbuf_appendstr(StringBuffer *sbuf, const char *str);
 /*Appends a char to the stringbuffer*/
 void sbuf_appendchar(StringBuffer *sbuf, char c);
+/*Replace char src with r starting from start*/
+void sbuf_replacechar(StringBuffer *sb, size_t start, char src, char r);
 /*It truncates the string at length 'len'*/
 void sbuf_truncate(StringBuffer *sbuf, size_t len);
 /*It shifts the buffer to the left by 'len' positions deleting all previous chars.*/

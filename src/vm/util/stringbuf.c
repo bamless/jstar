@@ -81,6 +81,14 @@ void sbuf_appendchar(StringBuffer *sbuf, char c) {
 	sbuf->buff[sbuf->len] = '\0';
 }
 
+void sbuf_replacechar(StringBuffer *sbuf, size_t start, char src, char r) {
+	for(size_t i = start; i < sbuf->len; i++) {
+		if(sbuf->buff[i] == src) {
+			sbuf->buff[i] = r;
+		}
+	}
+}
+
 void sbuf_truncate(StringBuffer *sbuf, size_t len) {
 	if(len >= sbuf->len) return;
 	sbuf->len = len;

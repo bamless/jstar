@@ -5,6 +5,7 @@
 #include "modules.h"
 
 #include "parse/parser.h"
+#include "util/stringbuf.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -89,6 +90,23 @@ static Stmt *parseModule(const char *path, const char *source) {
 	return program;
 }
 
+static bool importWithSource(BlangVM *vm, const char* path, ObjString *name, const char *source) {
+	Stmt *program = parseModule(path, source);
+	if(program == NULL) {
+		return false;
+	}
+
+	ObjFunction *module = compileWithModule(vm, name, program);
+	freeStmt(program);
+
+	if(module == NULL) {
+		return false;
+	}
+	
+	push(vm, OBJ_VAL(module));
+	return true;
+}
+
 bool importModule(BlangVM *vm, ObjString *name) {
 	if(hashTableContainsKey(&vm->modules, name)) {
 		push(vm, NULL_VAL);
@@ -96,25 +114,15 @@ bool importModule(BlangVM *vm, ObjString *name) {
 	}
 
 	// check if builtin
-	const char *source = NULL;
-	if((source = readBuiltInModule(name->data)) != NULL) {
-		Stmt *program = parseModule(name->data, source);
-		if(program == NULL) {
-			return false;
-		}
-
-		ObjFunction *module = compileWithModule(vm, name, program);
-		freeStmt(program);
-
-		if(module == NULL) {
-			return false;
-		}
-		
-		push(vm, OBJ_VAL(module));
-		return true;
+	const char *builtinSrc = NULL;
+	if((builtinSrc = readBuiltInModule(name->data)) != NULL) {
+		return importWithSource(vm, name->data, name, builtinSrc);
 	}
 
-	char fpath[MAX_IMPORT_PATH_LEN];
+	// try to read module or package
+	StringBuffer sb;
+	sbuf_create(&sb);
+
 	char *src = NULL;
 
 	ObjList *paths = vm->importpaths;
@@ -123,48 +131,75 @@ bool importModule(BlangVM *vm, ObjString *name) {
 			continue;
 		}
 
-		char *path = AS_STRING(paths->arr[i])->data;
-		int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s/%s.bl", path, name->data);
-		if(r >= MAX_IMPORT_PATH_LEN) {
-			return false;
+		sbuf_appendstr(&sb, AS_STRING(paths->arr[i])->data);
+		sbuf_appendchar(&sb, '/');
+
+		size_t s = sb.len - 1;
+		sbuf_appendstr(&sb, name->data);
+		sbuf_replacechar(&sb, s, '.', '/');
+
+		// try to see if it is a package
+		size_t packStart = sb.len;
+		sbuf_appendstr(&sb, "/__package__.bl");
+
+		char *path = sbuf_get_backing_buf(&sb); 
+		if((src = loadSource(path)) != NULL) {
+			if(!importWithSource(vm, path, name, src)) {
+				free(src);
+				sbuf_destroy(&sb);
+				return false;
+			}
+			// success! exit the loop
+			break;
 		}
 
-		if((src = loadSource(fpath)) == NULL) {
-			continue;
+		// try to see if it's a normal module
+		sbuf_truncate(&sb, packStart);
+		sbuf_appendstr(&sb, ".bl");
+		
+		path = sbuf_get_backing_buf(&sb); 
+		if((src = loadSource(path)) != NULL) {
+			if(!importWithSource(vm, path, name, src)) {
+				free(src);
+				sbuf_destroy(&sb);
+				return false;
+			}
+			// success! exit the loop
+			break;
 		}
+
+		// not found, try the next path
+		sbuf_clear(&sb);
 	}
 
-	// if the file is not found in the specified import paths try in CWD
+	sbuf_destroy(&sb);
+
+	// no module found
 	if(src == NULL) {
-		int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s.bl", name->data);
-		if(r >= MAX_IMPORT_PATH_LEN) {
-			return false;
-		}
-		src = loadSource(fpath);
-	}
-	
-
-	if(src == NULL) {
 		return false;
 	}
 
-	Parser p;
-	Stmt *program = parse(&p, fpath, src);
+	free(src);
 
-	program = parseModule(fpath, src);
+	// we loaded the module (or package), set simple name in parent package if any
+	char *nameStart = strrchr(name->data, '.');
 
-	if(program == NULL) {
-		free(src);
-		return false;
+	// not a nested module, nothing to do
+	if(nameStart == NULL) {
+		return true;
 	}
+	nameStart++;
 
-	ObjFunction *fn = compileWithModule(vm, name, program);
-	freeStmt(program);
 
-	if(fn == NULL) {
-		return false;
-	}
+	ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data);
+	push(vm, OBJ_VAL(parentName));
 
-	push(vm, OBJ_VAL(fn));
+	ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart));
+
+	ObjModule *module = getModule(vm, name);
+	ObjModule *parent = getModule(vm, parentName);
+	hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
+
+	pop(vm);
 	return true;
 }
