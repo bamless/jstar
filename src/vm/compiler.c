@@ -805,7 +805,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			}
 
 			size_t defaults = listLength(m->nativeDecl.defArgs);
-			size_t arity    = listLength(m->nativeDecl.formalArgs);
+			size_t arity = listLength(m->nativeDecl.formalArgs);
 
 			ObjNative *n = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
 
@@ -856,15 +856,31 @@ static void compileClass(Compiler *c, Stmt *s) {
 }
 
 static void compileImportStatement(Compiler *c, Stmt *s) {
-	bool isAs = s->importStmt.as.name != NULL;
+	const char *base = ((Identifier*)s->importStmt.modules->elem)->name;
+	LinkedList *n;
 
-	emitBytecode(c, isAs ? OP_IMPORT_AS : OP_IMPORT, s->line);
-	uint8_t name = identifierConst(c, &s->importStmt.module, s->line);
-	emitBytecode(c, name, s->line);
+	// import module (if nested module, import all from outer to inner)
+	size_t length = -1;
+	foreach(n, s->importStmt.modules) {
+		Identifier *name = (Identifier*) n->elem;
 
-	if(isAs) {
-		uint8_t as = identifierConst(c, &s->importStmt.as, s->line);
-		emitBytecode(c, as, s->line);
+		// create fully qualified name of module
+		length += name->length + 1;         // length of current submodule plus a dot
+		Identifier module = {length, base}; // name of current submodule
+
+		emitBytecode(c, OP_IMPORT, s->line);
+		emitBytecode(c, identifierConst(c, &module, s->line), s->line);
+
+		if(n->next != NULL) {
+			emitBytecode(c, OP_POP, s->line);
+		}
+	}
+
+	if(s->importStmt.as.name != NULL) {
+		// set last import as an import as
+		c->func->chunk.code[c->func->chunk.count - 2] = OP_IMPORT_AS;
+		// emit the as name
+		emitBytecode(c, identifierConst(c, &s->importStmt.as, s->line), s->line);
 	}
 
 	emitBytecode(c, OP_POP, s->line);

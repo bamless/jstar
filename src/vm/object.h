@@ -15,7 +15,7 @@
  * Object system of the Blang language.
  * Every object shares the base fields of the struct Obj, including it as the
  * first field in their declaration. This permits the casting of any pinter to
- * an object to Obj* and back, implementing a sort of manual inheritance.
+ * an object to Obj* and back, implementing a sort of manual polymorphism.
  *
  * Object should be tested by using the IS_* macro before casting them with the
  * corresponding AS_* macro, since this last one doesn't perform any checking,

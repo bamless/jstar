@@ -415,7 +415,16 @@ static Stmt *parseImport(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_IMPORT);
 
-	Token mname = require(p, TOK_IDENTIFIER);
+	LinkedList *modules = NULL;
+
+	do {
+		Token name = require(p, TOK_IDENTIFIER);
+		modules = addElement(modules, newIdentifier(name.length, name.lexeme));
+
+		if(match(p, TOK_DOT)) {
+			advance(p);
+		}
+	} while(match(p, TOK_IDENTIFIER));
 
 	Token as = {0};
 	if(match(p, TOK_AS)) {
@@ -425,7 +434,7 @@ static Stmt *parseImport(Parser *p) {
 
 	NEWLINE(p);
 
-	return newImportStmt(line, mname.lexeme, mname.length, as.lexeme, as.length);
+	return newImportStmt(line, modules, as.lexeme, as.length);
 }
 
 static Stmt *parseTryStmt(Parser *p) {

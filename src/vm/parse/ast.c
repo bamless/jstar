@@ -324,12 +324,11 @@ Stmt *newBlockStmt(int line, LinkedList *list) {
 	return s;
 }
 
-Stmt *newImportStmt(int line, const char *module, size_t length, const char *as, size_t asLength) {
+Stmt *newImportStmt(int line, LinkedList *modules, const char *as, size_t asLength) {
 	Stmt *s = malloc(sizeof(*s));
 	s->line = line;
 	s->type = IMPORT;
-	s->importStmt.module.name = module;
-	s->importStmt.module.length = length;
+	s->importStmt.modules = modules;
 	s->importStmt.as.name = as;
 	s->importStmt.as.length = asLength;
 	return s;
@@ -496,9 +495,18 @@ void freeStmt(Stmt *s) {
 	case RAISE_STMT:
 		freeExpr(s->raiseStmt.exc);
 		break;
+	case IMPORT: {
+		LinkedList *head = s->importStmt.modules;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			free(f->elem);
+			free(f);
+		}
+		break;
+	}
 	case CONTINUE_STMT:
 	case BREAK_STMT:
-	case IMPORT:
 		break;
 	}
 

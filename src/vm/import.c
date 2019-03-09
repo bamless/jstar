@@ -77,49 +77,72 @@ ObjModule *getModule(BlangVM *vm, ObjString *name) {
 	return AS_MODULE(module);
 }
 
+static Stmt *parseModule(const char *path, const char *source) {
+	Parser p;
+	Stmt *program = parse(&p, path, source);
+
+	if(p.hadError) {
+		freeStmt(program);
+		return NULL;
+	}
+
+	return program;
+}
+
 bool importModule(BlangVM *vm, ObjString *name) {
 	if(hashTableContainsKey(&vm->modules, name)) {
 		push(vm, NULL_VAL);
 		return true;
 	}
 
-	char fpath[MAX_IMPORT_PATH_LEN];
-	const char *src = NULL;
-	bool dyn = true;
+	// check if builtin
+	const char *source = NULL;
+	if((source = readBuiltInModule(name->data)) != NULL) {
+		Stmt *program = parseModule(name->data, source);
+		if(program == NULL) {
+			return false;
+		}
 
-	if((src = readBuiltInModule(name->data)) != NULL) {
-		int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "builtin %s", name->data);
+		ObjFunction *module = compileWithModule(vm, name, program);
+		freeStmt(program);
+
+		if(module == NULL) {
+			return false;
+		}
+		
+		push(vm, OBJ_VAL(module));
+		return true;
+	}
+
+	char fpath[MAX_IMPORT_PATH_LEN];
+	char *src = NULL;
+
+	ObjList *paths = vm->importpaths;
+	for(size_t i = 0; i < paths->count; i++) {
+		if(!IS_STRING(paths->arr[i])) {
+			continue;
+		}
+
+		char *path = AS_STRING(paths->arr[i])->data;
+		int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s/%s.bl", path, name->data);
 		if(r >= MAX_IMPORT_PATH_LEN) {
 			return false;
 		}
-		dyn = false;
-	} else {
-		ObjList *paths = vm->importpaths;
-		for(size_t i = 0; i < paths->count; i++) {
-			if(!IS_STRING(paths->arr[i])) {
-				continue;
-			}
 
-			char *path = AS_STRING(paths->arr[i])->data;
-			int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s/%s.bl", path, name->data);
-			if(r >= MAX_IMPORT_PATH_LEN) {
-				return false;
-			}
-
-			if((src = loadSource(fpath)) == NULL) {
-				continue;
-			}
-		}
-
-		// if the file is not found in the specified import paths try in CWD
-		if(src == NULL) {
-			int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s.bl", name->data);
-			if(r >= MAX_IMPORT_PATH_LEN) {
-				return false;
-			}
-			src = loadSource(fpath);
+		if((src = loadSource(fpath)) == NULL) {
+			continue;
 		}
 	}
+
+	// if the file is not found in the specified import paths try in CWD
+	if(src == NULL) {
+		int r = snprintf(fpath, MAX_IMPORT_PATH_LEN, "%s.bl", name->data);
+		if(r >= MAX_IMPORT_PATH_LEN) {
+			return false;
+		}
+		src = loadSource(fpath);
+	}
+	
 
 	if(src == NULL) {
 		return false;
@@ -128,18 +151,19 @@ bool importModule(BlangVM *vm, ObjString *name) {
 	Parser p;
 	Stmt *program = parse(&p, fpath, src);
 
-	if(p.hadError) {
-		freeStmt(program);
-		if(dyn) free((char*)src);
+	program = parseModule(fpath, src);
+
+	if(program == NULL) {
+		free(src);
 		return false;
 	}
 
 	ObjFunction *fn = compileWithModule(vm, name, program);
-
-	if(dyn) free((char*)src);
 	freeStmt(program);
 
-	if(fn == NULL) return false;
+	if(fn == NULL) {
+		return false;
+	}
 
 	push(vm, OBJ_VAL(fn));
 	return true;

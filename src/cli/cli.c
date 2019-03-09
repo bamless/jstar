@@ -149,9 +149,8 @@ int main(int argc, const char **argv) {
 		char *directory = strrchr(argv[1], '/');
 		if(directory != NULL) {
 			size_t length = directory - argv[1] + 1;
-			char *path = malloc(length + 1);
+			char *path = calloc(length + 1, 1);
 			memcpy(path, argv[1], length);
-			path[length] = '\0';
 
 			blAddImportPath(vm, path);
 
