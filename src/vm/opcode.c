@@ -13,8 +13,10 @@ int opcodeArgsNumber(Opcode op) {
 	case OP_SUPER:
 	case OP_NAT_METHOD:
 	case OP_DEF_METHOD:
+	case OP_IMPORT_NAME:
 		return 2;
 	case OP_IMPORT:
+	case OP_IMPORT_FROM:
 	case OP_GET_FIELD:
 	case OP_SET_FIELD:
 	case OP_NEW_CLASS:

@@ -427,14 +427,32 @@ static Stmt *parseImport(Parser *p) {
 	} while(match(p, TOK_IDENTIFIER));
 
 	Token as = {0};
-	if(match(p, TOK_AS)) {
+	LinkedList *importNames = NULL;
+
+	if(match(p, TOK_FOR)) {
+		advance(p);
+
+		if(match(p, TOK_MULT)) {
+			Token all = require(p, TOK_MULT);
+			importNames = addElement(importNames, newIdentifier(all.length, all.lexeme));
+		} else {
+			do {
+				Token name = require(p, TOK_IDENTIFIER);
+				importNames = addElement(importNames, newIdentifier(name.length, name.lexeme));
+
+				if(match(p, TOK_COMMA)) {
+					advance(p);
+				}
+			} while(match(p, TOK_IDENTIFIER));
+		}
+	} else if(match(p, TOK_AS)) {
 		advance(p);
 		as = require(p, TOK_IDENTIFIER);
 	}
 
 	NEWLINE(p);
 
-	return newImportStmt(line, modules, as.lexeme, as.length);
+	return newImportStmt(line, modules, importNames, as.lexeme, as.length);
 }
 
 static Stmt *parseTryStmt(Parser *p) {

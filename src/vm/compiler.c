@@ -859,6 +859,8 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 	const char *base = ((Identifier*)s->importStmt.modules->elem)->name;
 	LinkedList *n;
 
+	uint8_t nameConst;
+
 	// import module (if nested module, import all from outer to inner)
 	size_t length = -1;
 	foreach(n, s->importStmt.modules) {
@@ -868,15 +870,27 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 		length += name->length + 1;         // length of current submodule plus a dot
 		Identifier module = {length, base}; // name of current submodule
 
-		emitBytecode(c, OP_IMPORT, s->line);
-		emitBytecode(c, identifierConst(c, &module, s->line), s->line);
+		if(n == s->importStmt.modules && s->importStmt.
+				impNames == NULL && s->importStmt.as.name == NULL) {
+			emitBytecode(c, OP_IMPORT, s->line);
+		} else {
+			emitBytecode(c, OP_IMPORT_FROM, s->line);
+		}
+		nameConst = identifierConst(c, &module, s->line);
+		emitBytecode(c, nameConst, s->line);
 
 		if(n->next != NULL) {
 			emitBytecode(c, OP_POP, s->line);
 		}
 	}
 
-	if(s->importStmt.as.name != NULL) {
+	if(s->importStmt.impNames != NULL) {
+		foreach(n, s->importStmt.impNames) {
+			emitBytecode(c, OP_IMPORT_NAME, s->line);
+			emitBytecode(c, nameConst, s->line);
+			emitBytecode(c, identifierConst(c, (Identifier*) n->elem, s->line), s->line);
+		}
+	} else if(s->importStmt.as.name != NULL) {
 		// set last import as an import as
 		c->func->chunk.code[c->func->chunk.count - 2] = OP_IMPORT_AS;
 		// emit the as name

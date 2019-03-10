@@ -158,6 +158,7 @@ struct Stmt {
 		struct {
 			LinkedList *modules;
 			Identifier as;
+			LinkedList *impNames;
 		} importStmt;
 		struct {
 			Stmt *block;
@@ -176,8 +177,8 @@ struct Stmt {
 };
 
 Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
+Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength);
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
-Stmt *newImportStmt(int line, LinkedList *modules, const char *as, size_t asLength);
 Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);

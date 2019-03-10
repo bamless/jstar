@@ -27,7 +27,8 @@ void disassembleIstr(Chunk *c, size_t i) {
 	// instructions with 2 arguments representing 2 constant values
 	case OP_IMPORT_AS:
 	case OP_NAT_METHOD:
-	case OP_DEF_METHOD: {
+	case OP_DEF_METHOD:
+	case OP_IMPORT_NAME: {
 		int arg1 = c->code[i + 1], arg2 =  c->code[i + 2];
 		printf("%d %d (", arg1, arg2);
 		printValue(c->consts.arr[arg1]);
@@ -49,6 +50,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 
 	// instructions with 1 argument representing constant value
 	case OP_IMPORT:
+	case OP_IMPORT_FROM:
 	case OP_GET_FIELD:
 	case OP_SET_FIELD:
 	case OP_NEW_CLASS:

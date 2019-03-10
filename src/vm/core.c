@@ -300,14 +300,18 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_Function_string) {
 		const char *funType = NULL;
 		const char *funName = NULL;
+		const char *modName = NULL;
+
 		switch(OBJ_TYPE(args[0])) {
 		case OBJ_FUNCTION:
 			funType = "function";
 			funName = AS_FUNC(args[0])->name->data;
+			modName = AS_FUNC(args[0])->module->name->data;
 			break;
 		case OBJ_NATIVE:
 			funType = "native";
 			funName = AS_NATIVE(args[0])->name->data;
+			modName = AS_NATIVE(args[0])->module->name->data;
 			break;
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(args[0]);
@@ -315,13 +319,16 @@ NATIVE(bl_printstr) {
 			funName = m->method->type == OBJ_FUNCTION ?
 			          ((ObjFunction*) m->method)->name->data :
 			          ((ObjNative*) m->method)->name->data;
+			funName = m->method->type == OBJ_FUNCTION ?
+			          ((ObjFunction*) m->method)->module->name->data :
+			          ((ObjNative*) m->method)->module->name->data;
 			break;
 		}
 		default: break;
 		}
 
-		char str[256] = {0};
-		snprintf(str, sizeof(str) - 1, "<%s %s@%p>", funType, funName, AS_OBJ(args[0]));
+		char str[512] = {0};
+		snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName, AS_OBJ(args[0]));
 
 		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str))));
 	}

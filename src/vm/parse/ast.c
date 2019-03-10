@@ -17,10 +17,15 @@ bool identifierEquals(Identifier *id1, Identifier *id2) {
 
 //----- Expressions -----
 
-Expr *newBinary(int line, Operator op, Expr *l, Expr *r) {
+static Expr *newExpr(int line, ExprType type) {
 	Expr *e = malloc(sizeof(*e));
 	e->line = line;
-	e->type = BINARY;
+	e->type = type;
+	return e;
+}
+
+Expr *newBinary(int line, Operator op, Expr *l, Expr *r) {
+	Expr *e = newExpr(line, BINARY);
 	e->bin.op = op;
 	e->bin.left = l;
 	e->bin.right = r;
@@ -28,110 +33,84 @@ Expr *newBinary(int line, Operator op, Expr *l, Expr *r) {
 }
 
 Expr *newAssign(int line, Expr *lval, Expr *rval) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = ASSIGN;
+	Expr *e = newExpr(line, ASSIGN);
 	e->assign.lval = lval;
 	e->assign.rval = rval;
 	return e;
 }
 
 Expr *newUnary(int line, Operator op, Expr *operand) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = UNARY;
+	Expr *e = newExpr(line, UNARY);
 	e->unary.op = op;
 	e->unary.operand = operand;
 	return e;
 }
 
 Expr *newNullLiteral(int line) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = NULL_LIT;
+	Expr *e = newExpr(line, NULL_LIT);
 	return e;
 }
 
 Expr *newNumLiteral(int line, double num) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = NUM_LIT;
+	Expr *e = newExpr(line, NUM_LIT);
 	e->num = num;
 	return e;
 }
 
 Expr *newBoolLiteral(int line, bool boolean) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = BOOL_LIT;
+	Expr *e = newExpr(line, BOOL_LIT);
 	e->boolean = boolean;
 	return e;
 }
 
 Expr *newStrLiteral(int line, const char *str, size_t len) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = STR_LIT;
+	Expr *e = newExpr(line, STR_LIT);
 	e->str.str = str;
 	e->str.length = len;
 	return e;
 }
 
 Expr *newVarLiteral(int line, const char *var, size_t len) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = VAR_LIT;
+	Expr *e = newExpr(line, VAR_LIT);
 	e->var.id.name = var;
 	e->var.id.length = len;
 	return e;
 }
 
 Expr *newArrLiteral(int line, Expr *exprs) {
-	Expr *a = malloc(sizeof(*a));
-	a->line = line;
-	a->type = ARR_LIT;
+	Expr *a = newExpr(line, ARR_LIT);
 	a->arr.exprs = exprs;
 	return a;
 }
 
 Expr *newExprList(int line, LinkedList *exprs) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = EXPR_LST;
+	Expr *e = newExpr(line, EXPR_LST);
 	e->exprList.lst = exprs;
 	return e;
 }
 
 Expr *newCallExpr(int line, Expr *callee, LinkedList *args) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = CALL_EXPR;
+	Expr *e = newExpr(line, CALL_EXPR);
 	e->callExpr.callee = callee;
 	e->callExpr.args = newExprList(line, args);
 	return e;
 }
 
 Expr *newExpExpr(int line, Expr *base, Expr *exp) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = EXP_EXPR;
+	Expr *e = newExpr(line, EXP_EXPR);
 	e->expExpr.base = base;
 	e->expExpr.exp = exp;
 	return e;
 }
 
 Expr *newSuperLiteral(int line) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = SUPER_LIT;
+	Expr *e = newExpr(line, SUPER_LIT);
 	e->num = 0;
 	return e;
 }
 
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = ACCESS_EXPR;
+	Expr *e = newExpr(line, ACCESS_EXPR);
 	e->accessExpr.left = left;
 	e->accessExpr.id.name = name;
 	e->accessExpr.id.length = length;
@@ -139,18 +118,14 @@ Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
 }
 
 Expr *newArrayAccExpr(int line, Expr *left, Expr *index) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = ARR_ACC;
+	Expr *e = newExpr(line, ARR_ACC);
 	e->arrAccExpr.left = left;
 	e->arrAccExpr.index = index;
 	return e;
 }
 
 Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = TERNARY;
+	Expr *e = newExpr(line, TERNARY);
 	e->ternary.cond = cond;
 	e->ternary.thenExpr = thenExpr;
 	e->ternary.elseExpr = elseExpr;
@@ -158,9 +133,7 @@ Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr) {
 }
 
 Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
-	Expr *e = malloc(sizeof(*e));
-	e->line = line;
-	e->type = COMP_ASSIGN;
+	Expr *e = newExpr(line, COMP_ASSIGN);
 	e->compundAssign.op = op;
 	e->compundAssign.lval = lval;
 	e->compundAssign.rval = rval;
@@ -224,10 +197,15 @@ void freeExpr(Expr *e) {
 
 //----- Statements -----
 
+static Stmt *newStmt(int line, StmtType type) {
+	Stmt *s = malloc(sizeof(*s));
+	s->line = line;
+	s->type = type;
+	return s;
+}
+
 Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body) {
-	Stmt *f = malloc(sizeof(*f));
-	f->line = line;
-	f->type = FUNCDECL;
+	Stmt *f = newStmt(line, FUNCDECL);
 	f->funcDecl.id.name = id;
 	f->funcDecl.id.length = length;
 	f->funcDecl.formalArgs = args;
@@ -237,9 +215,7 @@ Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, Lin
 }
 
 Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs) {
-	Stmt *n = malloc(sizeof(*n));
-	n->line = line;
-	n->type = NATIVEDECL;
+	Stmt *n = newStmt(line, NATIVEDECL);
 	n->nativeDecl.id.name = id;
 	n->nativeDecl.id.length = length;
 	n->nativeDecl.formalArgs = args;
@@ -248,9 +224,7 @@ Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, L
 }
 
 Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods) {
-	Stmt *c = malloc(sizeof(*c));
-	c->line = line;
-	c->type = CLASSDECL;
+	Stmt *c = newStmt(line, CLASSDECL);
 	c->classDecl.sup = sup;
 	c->classDecl.id.name = cid;
 	c->classDecl.id.length = clength;
@@ -259,9 +233,7 @@ Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedL
 }
 
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = FOR;
+	Stmt *s = newStmt(line, FOR);
 	s->forStmt.init = init;
 	s->forStmt.cond = cond;
 	s->forStmt.act = act;
@@ -270,9 +242,7 @@ Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
 }
 
 Stmt *newForEach(int line, Stmt *var, Expr *iter, Stmt *body) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = FOREACH;
+	Stmt *s = newStmt(line, FOREACH);
 	s->forEach.var = var;
 	s->forEach.iterable = iter;
 	s->forEach.body = body;
@@ -280,9 +250,7 @@ Stmt *newForEach(int line, Stmt *var, Expr *iter, Stmt *body) {
 }
 
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = VARDECL;
+	Stmt *s = newStmt(line, VARDECL);
 	s->varDecl.id.name = name;
 	s->varDecl.id.length = length;
 	s->varDecl.init = init;
@@ -290,26 +258,20 @@ Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init) {
 }
 
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = WHILE;
+	Stmt *s = newStmt(line, WHILE);
 	s->whileStmt.cond = cond;
 	s->whileStmt.body = body;
 	return s;
 }
 
 Stmt *newReturnStmt(int line, Expr *e) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = RETURN_STMT;
+	Stmt *s = newStmt(line, RETURN_STMT);
 	s->returnStmt.e = e;
 	return s;
 }
 
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = IF;
+	Stmt *s = newStmt(line, IF);
 	s->ifStmt.cond = cond;
 	s->ifStmt.thenStmt = thenStmt;
 	s->ifStmt.elseStmt = elseStmt;
@@ -317,44 +279,35 @@ Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt) {
 }
 
 Stmt *newBlockStmt(int line, LinkedList *list) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = BLOCK;
+	Stmt *s = newStmt(line, BLOCK);
 	s->blockStmt.stmts = list;
 	return s;
 }
 
-Stmt *newImportStmt(int line, LinkedList *modules, const char *as, size_t asLength) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = IMPORT;
+Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength) {
+	Stmt *s = newStmt(line, IMPORT);
 	s->importStmt.modules = modules;
+	s->importStmt.impNames = impNames;
 	s->importStmt.as.name = as;
 	s->importStmt.as.length = asLength;
 	return s;
 }
 
 Stmt *newExprStmt(int line, Expr *e) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = EXPR;
+	Stmt *s = newStmt(line, EXPR);
 	s->exprStmt = e;
 	return s;
 }
 
 Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = TRY_STMT;
+	Stmt *s = newStmt(line, TRY_STMT);
 	s->tryStmt.block = blck;
 	s->tryStmt.excs = excs;
 	return s;
 }
 
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = EXCEPT_STMT;
+	Stmt *s = newStmt(line, EXCEPT_STMT);
 	s->excStmt.block = block;
 	s->excStmt.cls = cls;
 	s->excStmt.var.length = vlen;
@@ -363,25 +316,19 @@ Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *blo
 }
 
 Stmt *newRaiseStmt(int line, Expr *e) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = RAISE_STMT;
+	Stmt *s = newStmt(line, RAISE_STMT);
 	s->raiseStmt.exc = e;
 	return s;
 }
 
 Stmt *newContinueStmt(int line) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = CONTINUE_STMT;
+	Stmt *s = newStmt(line, CONTINUE_STMT);
 	s->exprStmt = NULL;
 	return s;
 }
 
 Stmt *newBreakStmt(int line) {
-	Stmt *s = malloc(sizeof(*s));
-	s->line = line;
-	s->type = BREAK_STMT;
+	Stmt *s = newStmt(line, BREAK_STMT);
 	s->exprStmt = NULL;
 	return s;
 }
@@ -497,6 +444,14 @@ void freeStmt(Stmt *s) {
 		break;
 	case IMPORT: {
 		LinkedList *head = s->importStmt.modules;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			free(f->elem);
+			free(f);
+		}
+
+		head = s->importStmt.impNames;
 		while(head != NULL) {
 			LinkedList *f = head;
 			head = head->next;

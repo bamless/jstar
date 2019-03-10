@@ -885,17 +885,20 @@ sup_invoke:;
 
 		DISPATCH();
 	}
+	TARGET(OP_IMPORT):
 	TARGET(OP_IMPORT_AS):
-	TARGET(OP_IMPORT): {
+	TARGET(OP_IMPORT_FROM): {
 		ObjString *name = GET_STRING();
 		if(!importModule(vm, name)) {
 			blRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
 			UNWIND_STACK(vm);
 		}
 
-		//define name for the module in the importing module
-		hashTablePut(&vm->module->globals, op == OP_IMPORT ?
-					name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
+		if(op == OP_IMPORT || op == OP_IMPORT_AS) {
+			//define name for the module in the importing module
+			hashTablePut(&vm->module->globals, op == OP_IMPORT ?
+						name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
+		}
 
 		//call the module's main if first time import
 		if(!valueEquals(peek(vm), NULL_VAL)) {
@@ -904,6 +907,23 @@ sup_invoke:;
 			LOAD_FRAME();
 		}
 
+		DISPATCH();
+	}
+	TARGET(OP_IMPORT_NAME): {
+		ObjModule *m = getModule(vm, GET_STRING());
+		ObjString *n = GET_STRING();
+
+		if(n->data[0] == '*') {
+			hashTableImportNames(&vm->module->globals, &m->globals);
+		} else {
+			Value val;
+			if(!hashTableGet(&m->globals, n, &val)) {
+				blRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", n->data, m->name->data);
+				UNWIND_STACK(vm);
+			} 
+
+			hashTablePut(&vm->module->globals, n, val);
+		}
 		DISPATCH();
 	}
 	TARGET(OP_APPEND_LIST): {
