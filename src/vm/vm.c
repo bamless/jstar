@@ -99,8 +99,6 @@ BlangVM *blNewVM() {
 	// This is called after initCoreLibrary in order to correctly assign the
 	// List class to the object since classes are created during initialization
 	vm->importpaths = newList(vm, 8);
-	// add current directory to list of import paths
-	listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, ".", 1)));
 
 	return vm;
 }

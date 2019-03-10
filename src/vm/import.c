@@ -107,6 +107,36 @@ static bool importWithSource(BlangVM *vm, const char* path, ObjString *name, con
 	return true;
 }
 
+static bool importModuleOrPackage(BlangVM *vm, StringBuffer *importPath, ObjString *name, char **src) {
+	// try to see if it is a package
+	size_t packStart = importPath->len;
+	sbuf_appendstr(importPath, "/__package__.bl");
+
+	char *path = sbuf_get_backing_buf(importPath);
+	if((*src = loadSource(path)) != NULL) {
+		if(!importWithSource(vm, path, name, *src)) {
+			free(src);
+			return false;
+		}
+		return true;
+	}
+
+	// try to see if it's a normal module
+	sbuf_truncate(importPath, packStart);
+	sbuf_appendstr(importPath, ".bl");
+	
+	path = sbuf_get_backing_buf(importPath); 
+	if((*src = loadSource(path)) != NULL) {
+		if(!importWithSource(vm, path, name, *src)) {
+			free(src);
+			return false;
+		}
+		return true;
+	}
+
+	return false;
+}
+
 bool importModule(BlangVM *vm, ObjString *name) {
 	if(hashTableContainsKey(&vm->modules, name)) {
 		push(vm, NULL_VAL);
@@ -138,33 +168,12 @@ bool importModule(BlangVM *vm, ObjString *name) {
 		sbuf_appendstr(&sb, name->data);
 		sbuf_replacechar(&sb, s, '.', '/');
 
-		// try to see if it is a package
-		size_t packStart = sb.len;
-		sbuf_appendstr(&sb, "/__package__.bl");
-
-		char *path = sbuf_get_backing_buf(&sb); 
-		if((src = loadSource(path)) != NULL) {
-			if(!importWithSource(vm, path, name, src)) {
-				free(src);
-				sbuf_destroy(&sb);
-				return false;
-			}
-			// success! exit the loop
-			break;
+		if(!importModuleOrPackage(vm, &sb, name, &src)) {
+			sbuf_destroy(&sb);
+			return false;
 		}
 
-		// try to see if it's a normal module
-		sbuf_truncate(&sb, packStart);
-		sbuf_appendstr(&sb, ".bl");
-		
-		path = sbuf_get_backing_buf(&sb); 
-		if((src = loadSource(path)) != NULL) {
-			if(!importWithSource(vm, path, name, src)) {
-				free(src);
-				sbuf_destroy(&sb);
-				return false;
-			}
-			// success! exit the loop
+		if(src != NULL) {
 			break;
 		}
 
@@ -172,13 +181,28 @@ bool importModule(BlangVM *vm, ObjString *name) {
 		sbuf_clear(&sb);
 	}
 
-	sbuf_destroy(&sb);
 
 	// no module found
 	if(src == NULL) {
-		return false;
+		// try current cwd
+		sbuf_appendstr(&sb, "./");
+
+		size_t s = sb.len - 1;
+		sbuf_appendstr(&sb, name->data);
+		sbuf_replacechar(&sb, s, '.', '/');
+
+		if(!importModuleOrPackage(vm, &sb, name, &src)) {
+			sbuf_destroy(&sb); 
+			return false;
+		}
+
+		if(src == NULL) {
+			sbuf_destroy(&sb); 
+			return false;
+		}
 	}
 
+	sbuf_destroy(&sb); 
 	free(src);
 
 	// we loaded the module (or package), set simple name in parent package if any
