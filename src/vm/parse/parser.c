@@ -461,23 +461,34 @@ static Stmt *parseTryStmt(Parser *p) {
 
 	Stmt *tryBlock = blockStmt(p);
 	LinkedList *excs = NULL;
+	Stmt *ensure= NULL;
 
-	do {
-		int excLine = p->peek.line;
+	if(match(p, TOK_EXCEPT)) {
+		while(match(p, TOK_EXCEPT)) {
+			int excLine = p->peek.line;
 
-		require(p, TOK_EXCEPT);
-		require(p, TOK_LPAREN);
+			require(p, TOK_EXCEPT);
+			require(p, TOK_LPAREN);
 
-		Expr *cls = parseExpr(p);
-		Token exc = require(p, TOK_IDENTIFIER);
+			Expr *cls = parseExpr(p);
+			Token exc = require(p, TOK_IDENTIFIER);
 
-		require(p, TOK_RPAREN);
+			require(p, TOK_RPAREN);
 
-		Stmt *blck = blockStmt(p);
-		excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, blck));
-	} while(matchSkipnl(p, TOK_EXCEPT));
+			Stmt *blck = blockStmt(p);
+			excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, blck));
+		}
 
-	return newTryStmt(line, tryBlock, excs);
+		if(match(p, TOK_ENSURE)) {
+			advance(p);
+			ensure = blockStmt(p);
+		}
+	} else {
+		require(p, TOK_ENSURE);
+		ensure = blockStmt(p);
+	}
+
+	return newTryStmt(line, tryBlock, excs, ensure);
 }
 
 static Stmt *parseRaiseStmt(Parser *p) {

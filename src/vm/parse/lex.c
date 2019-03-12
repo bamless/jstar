@@ -32,6 +32,7 @@ static Keyword keywords[] = {
 	{"as",       2, TOK_AS},
 	{"is",       2, TOK_IS},
 	{"try",      3, TOK_TRY},
+	{"ensure",   6, TOK_ENSURE},
 	{"except",   6, TOK_EXCEPT},
 	{"raise",    5, TOK_RAISE},
 	{"continue", 8, TOK_CONTINUE},

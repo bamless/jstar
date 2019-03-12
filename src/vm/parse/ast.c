@@ -299,10 +299,11 @@ Stmt *newExprStmt(int line, Expr *e) {
 	return s;
 }
 
-Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs) {
+Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure) {
 	Stmt *s = newStmt(line, TRY_STMT);
 	s->tryStmt.block = blck;
 	s->tryStmt.excs = excs;
+	s->tryStmt.ensure = ensure;
 	return s;
 }
 

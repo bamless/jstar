@@ -73,6 +73,7 @@ typedef enum {
 
 	TOK_TRY,
 	TOK_EXCEPT,
+	TOK_ENSURE,
 	TOK_RAISE,
 
 	TOK_UNTERMINATED_STR,

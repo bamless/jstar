@@ -997,10 +997,12 @@ sup_invoke:;
 		}
 		DISPATCH();
 	}
-	TARGET(OP_SETUP_TRY): {
+	TARGET(OP_SETUP_EXCEPT): 
+	TARGET(OP_SETUP_ENSURE): {
 		//setup the handler address and save stackpointer
 		uint16_t handlerOff = NEXT_SHORT();
 		Handler *handler = &frame->handlers[frame->handlerc++];
+		handler->type = op == OP_SETUP_EXCEPT ? HANDLER_EXCEPT : HANDLER_ENSURE;
 		handler->handler = ip + handlerOff;
 		handler->savesp = vm->sp;
 		DISPATCH();
@@ -1010,7 +1012,7 @@ sup_invoke:;
 		vm->exception = NULL;
 		DISPATCH();
 	}
-	TARGET(OP_EXC_HANDLER_END): {
+	TARGET(OP_EXCEPT_END): {
 		//exception was thrown in try but no handler handled the exception
 		if(vm->exception != NULL) {
 			//continue to unwind stack
@@ -1018,8 +1020,10 @@ sup_invoke:;
 		}
 		DISPATCH();
 	}
-	TARGET(OP_END_TRY): {
-		//no exception was thrown inside try, decrement handler count and continue execution
+	TARGET(OP_ENSURE_END):{
+		DISPATCH();
+	}
+	TARGET(OP_POP_BLOCK): {
 		frame->handlerc--;
 		DISPATCH();
 	}

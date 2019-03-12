@@ -163,6 +163,7 @@ struct Stmt {
 		struct {
 			Stmt *block;
 			LinkedList *excs;
+			Stmt *ensure;
 		} tryStmt;
 		struct {
 			Expr *cls;
@@ -183,9 +184,9 @@ Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedL
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
+Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
 Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
-Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs);
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
 Stmt *newBlockStmt(int line, LinkedList *list);
 Stmt *newReturnStmt(int line, Expr *e);

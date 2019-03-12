@@ -24,8 +24,14 @@ typedef enum {
 	VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } EvalResult;
 
+typedef enum HandlerType {
+	HANDLER_ENSURE,
+	HANDLER_EXCEPT
+} HandlerType;
+
 // TryExcept Handler
 typedef struct Handler {
+	HandlerType type; // The type of the handler block
 	uint8_t *handler; // The start of except handler
 	Value *savesp;    // Stack pointer to restore when handling exceptions
 } Handler;
