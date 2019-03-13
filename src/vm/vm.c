@@ -30,31 +30,12 @@ static void reset(BlangVM *vm) {
 }
 
 BlangVM *blNewVM() {
-	BlangVM *vm = malloc(sizeof(*vm));
-
-	vm->importpaths = NULL;
-	vm->currCompiler = NULL;
-	vm->ctor = NULL;
-
-	vm->exception = NULL;
-
-	vm->clsClass  = NULL;
-	vm->objClass  = NULL;
-	vm->strClass  = NULL;
-	vm->boolClass = NULL;
-	vm->lstClass  = NULL;
-	vm->numClass  = NULL;
-	vm->funClass  = NULL;
-	vm->modClass  = NULL;
-	vm->nullClass = NULL;
-	vm->excClass  = NULL;
+	BlangVM *vm = calloc(1, sizeof(*vm));
 
 	reset(vm);
 
 	initHashTable(&vm->modules);
 	initHashTable(&vm->strings);
-
-	vm->module = NULL;
 
 	// init GC
 	vm->nextGC = INIT_GC;
@@ -68,7 +49,7 @@ BlangVM *blNewVM() {
 
 	// Create constants strings
 	vm->ctor     = copyString(vm, CTOR_STR, strlen(CTOR_STR));
-	vm->stField  = copyString(vm, "stacktrace", 11);
+	vm->stField  = copyString(vm, "stacktrace", 10);
 
 	vm->add = copyString(vm, "__add__", 7);
 	vm->sub = copyString(vm, "__sub__", 7);
@@ -1029,7 +1010,7 @@ sup_invoke:;
 		}
 
 		ObjInstance *excInst = AS_INSTANCE(exc);
-		hashTablePut(&excInst->fields, copyString(vm, "stacktrace", 11), OBJ_VAL(st));
+		hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
 
 		pop(vm);
 		pop(vm);

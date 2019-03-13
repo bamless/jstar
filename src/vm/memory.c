@@ -309,6 +309,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
 		ObjStackTrace *st = (ObjStackTrace*) o;
 		GC_FREEARRAY(vm, char, st->trace, st->size);
 		GC_FREE(vm, ObjStackTrace, st);
+		break;
 	}
 	}
 }
