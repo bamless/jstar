@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <limits.h>
+
 #define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \
 	(((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
 

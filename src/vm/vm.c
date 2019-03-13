@@ -37,8 +37,6 @@ BlangVM *blNewVM() {
 	vm->ctor = NULL;
 
 	vm->exception = NULL;
-	sbuf_create(&vm->stacktrace);
-	vm->lastTracedFrame = -1;
 
 	vm->clsClass  = NULL;
 	vm->objClass  = NULL;
@@ -69,7 +67,8 @@ BlangVM *blNewVM() {
 	vm->reachedCount = 0;
 
 	// Create constants strings
-	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
+	vm->ctor     = copyString(vm, CTOR_STR, strlen(CTOR_STR));
+	vm->stField  = copyString(vm, "stacktrace", 11);
 
 	vm->add = copyString(vm, "__add__", 7);
 	vm->sub = copyString(vm, "__sub__", 7);
@@ -105,8 +104,6 @@ BlangVM *blNewVM() {
 
 void blFreeVM(BlangVM *vm) {
 	reset(vm);
-
-	sbuf_destroy(&vm->stacktrace);
 
 	freeHashTable(&vm->strings);
 	freeHashTable(&vm->modules);
@@ -1011,7 +1008,7 @@ sup_invoke:;
 		// if we still have the exception on top of the stack
 		if(!IS_NULL(peek(vm))) {
 			// continue unwinding
-			vm->exception = AS_OBJ(peek(vm));
+			vm->exception = AS_INSTANCE(peek(vm));
 			UNWIND_STACK(vm);
 		}
 		DISPATCH();
@@ -1021,17 +1018,23 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_RAISE): {
-		sbuf_clear(&vm->stacktrace);
-		vm->lastTracedFrame = -1;
+		ObjStackTrace *st = newStackTrace(vm);
+		Value exc = peek(vm);
 
-		Value exc = pop(vm);
+		push(vm, OBJ_VAL(st));
 
 		if(!IS_INSTANCE(exc)) {
-			blRaise(vm, "TypeException", "Can only raise object instances.");
+			blRaise(vm, "TypeException", "Can only raise Object instances.");
 			UNWIND_STACK(vm);
 		}
 
-		vm->exception = AS_OBJ(exc);
+		ObjInstance *excInst = AS_INSTANCE(exc);
+		hashTablePut(&excInst->fields, copyString(vm, "stacktrace", 11), OBJ_VAL(st));
+
+		pop(vm);
+		pop(vm);
+
+		vm->exception = AS_INSTANCE(exc);
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
@@ -1088,12 +1091,12 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 	return VM_EVAL_SUCCSESS;
 }
 
-static void printStackTrace(BlangVM *vm) {
+static void printStackTrace(BlangVM *vm, ObjStackTrace *st) {
 	fprintf(stderr, "Traceback (most recent call last):\n");
 
 	// Print stacktrace in reverse order of recording (most recent call last)
-	char *stacktrace = sbuf_get_backing_buf(&vm->stacktrace);
-	int lastnl = sbuf_get_len(&vm->stacktrace);
+	char *stacktrace = st->trace;
+	int lastnl = st->length;
 	for(int i = lastnl - 1; i > 0; i--) {
 		if(stacktrace[i - 1] == '\n') {
 			fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
@@ -1104,7 +1107,7 @@ static void printStackTrace(BlangVM *vm) {
 
 	// print the exception instance information
 	Value v;
-	ObjInstance *exc = (ObjInstance*)vm->exception;
+	ObjInstance *exc = (ObjInstance*) vm->exception;
 	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3), &v);
 
 	if(found && IS_STRING(v)) {
@@ -1115,33 +1118,14 @@ static void printStackTrace(BlangVM *vm) {
 }
 
 static bool unwindStack(BlangVM *vm) {
+	Value stVal;
+	hashTableGet(&vm->exception->fields, vm->stField, &stVal);
+	ObjStackTrace *st = AS_STACK_TRACE(stVal);
+
 	for(;vm->frameCount > 0; vm->frameCount--) {
 		Frame *f = &vm->frames[vm->frameCount - 1];
 
-		//save current frame info to stacktrace if it hasn't been saved yet
-		if(vm->lastTracedFrame != vm->frameCount) {
-			ObjFunction *fn = f->fn;
-			size_t op = f->ip - fn->chunk.code - 1;
-
-			char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
-			sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
-			sbuf_appendstr(&vm->stacktrace, "[line ");
-			sbuf_appendstr(&vm->stacktrace, line);
-			sbuf_appendstr(&vm->stacktrace, "] ");
-
-			sbuf_appendstr(&vm->stacktrace, "module ");
-			sbuf_appendstr(&vm->stacktrace, fn->module->name->data);
-			sbuf_appendstr(&vm->stacktrace, " in ");
-
-			if(fn->name != NULL) {
-				sbuf_appendstr(&vm->stacktrace, fn->name->data);
-				sbuf_appendstr(&vm->stacktrace, "()\n");
-			} else {
-				sbuf_appendstr(&vm->stacktrace, "<main>\n");
-			}
-		}
-		//signal that current frame has been saved
-		vm->lastTracedFrame = vm->frameCount;
+		stRecordFrame(vm, st, f, vm->frameCount);
 
 		// if current frame has except or ensure handlers
 		if(f->handlerc > 0) {
@@ -1162,7 +1146,7 @@ static bool unwindStack(BlangVM *vm) {
 	}
 
 	// We have reached the bottom of the stack, print the stacktrace and exit
-	printStackTrace(vm);
+	printStackTrace(vm, st);
 	reset(vm);
 	return false;
 }

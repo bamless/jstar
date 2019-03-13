@@ -32,6 +32,11 @@ class Module   {
 	}
 	native __string__()
 }
+class StackTrace {
+	def new() {
+		__noinstance(this)
+	}
+}
 
 class String {
 	def new() {

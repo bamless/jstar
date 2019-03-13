@@ -108,6 +108,7 @@ void initCoreLibrary(BlangVM *vm) {
 	vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
 	vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
 	vm->excClass  = AS_CLASS(getDefinedName(vm, core, "Exception"));
+	vm->stClass   = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
 
 	core->base.cls = vm->modClass;
 

@@ -38,6 +38,7 @@ DECLARE_TO_STRING(ObjType);
 #define IS_CLASS(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLASS)
 #define IS_INSTANCE(o)     (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_INST)
 #define IS_MODULE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_MODULE)
+#define IS_STACK_TRACE(o)  (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STACK_TRACE)
 
 #define AS_BOUND_METHOD(o) ((ObjBoundMethod*) AS_OBJ(o))
 #define AS_LIST(o)         ((ObjList*)        AS_OBJ(o))
@@ -47,12 +48,13 @@ DECLARE_TO_STRING(ObjType);
 #define AS_CLASS(o)        ((ObjClass*)       AS_OBJ(o))
 #define AS_INSTANCE(o)     ((ObjInstance*)    AS_OBJ(o))
 #define AS_MODULE(o)       ((ObjModule*)      AS_OBJ(o))
+#define AS_STACK_TRACE(o)  ((ObjStackTrace*) AS_OBJ(o))
 
 // Type of objects. These types are used internally by the object system and are
 // Never exposed to the user (unless when using the c interface)
 #define OBJTYPE(X) \
 	X(OBJ_STRING) X(OBJ_NATIVE) X(OBJ_FUNCTION) X(OBJ_CLASS) X(OBJ_INST) \
-	X(OBJ_MODULE) X(OBJ_LIST) X(OBJ_BOUND_METHOD)
+	X(OBJ_MODULE) X(OBJ_LIST) X(OBJ_BOUND_METHOD) X(OBJ_STACK_TRACE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
@@ -138,6 +140,14 @@ typedef struct ObjBoundMethod {
 	Value bound; // The value to which the method is bound
 	Obj *method; // The actual method
 } ObjBoundMethod;
+
+typedef struct ObjStackTrace {
+	Obj base;
+	int lastTracedFrame;
+	size_t size;
+	size_t length;
+	char *trace;
+} ObjStackTrace;
 
 void printObj(Obj *o);
 

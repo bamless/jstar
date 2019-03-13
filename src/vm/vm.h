@@ -59,18 +59,17 @@ typedef struct BlangVM {
 	ObjClass *modClass;
 	ObjClass *nullClass;
 	ObjClass *excClass;
+	ObjClass *stClass;
 
 	// Current exception
-	Obj *exception;
-	// Stack trace of current expression
-	StringBuffer stacktrace;
-	int lastTracedFrame;
+	ObjInstance *exception;
 
 	// Current VM compiler
 	Compiler *currCompiler;
 
 	// Constant strings needed by compiler and runtime
 	ObjString *ctor;
+	ObjString *stField;
 
 	// Names of overloadable operator's methods
 	ObjString *add, *sub, *mul, *div, *mod, *get, *set;

@@ -31,19 +31,18 @@ bool blGetGlobal(BlangVM *vm, const char *fname, Value *ret) {
 }
 
 bool blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
-	sbuf_clear(&vm->stacktrace);
-	vm->lastTracedFrame = -1;
-
 	Value excVal;
 	if(!(blGetGlobal(vm, cls, &excVal) && IS_CLASS(excVal))) {
 		return false;
 	}
 
 	ObjInstance *excInst = newInstance(vm, AS_CLASS(excVal));
+	push(vm, OBJ_VAL(excInst));
+
+	ObjStackTrace *st = newStackTrace(vm);
+	hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
 
 	if(err != NULL) {
-		push(vm, OBJ_VAL(excInst));
-
 		char errStr[1024] = {0};
 		va_list args;
 		va_start(args, err);
@@ -51,10 +50,10 @@ bool blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 		va_end(args);
 
 		blSetField(vm, excInst, "err", OBJ_VAL(copyString(vm, errStr, strlen(errStr))));
-		pop(vm);
 	}
 
-	vm->exception = (Obj*) excInst;
+	pop(vm);
+	vm->exception = excInst;
 
 	return true;
 }

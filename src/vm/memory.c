@@ -3,6 +3,7 @@
 #include "hashtable.h"
 #include "compiler.h"
 #include "options.h"
+#include "util.h"
 #include "vm.h"
 
 #include <stdio.h>
@@ -113,6 +114,67 @@ ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
 	bound->bound = b;
 	bound->method = method;
 	return bound;
+}
+
+#define ST_DEF_SIZE 16
+
+ObjStackTrace *newStackTrace(BlangVM *vm) {
+	char *trace = GC_ALLOC(vm, sizeof(char) * ST_DEF_SIZE);
+	ObjStackTrace *st = (ObjStackTrace*) newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
+	st->size = ST_DEF_SIZE;
+	st->length = 0;
+	st->trace = trace;
+	st->trace[0] = '\0';
+	st->lastTracedFrame = -1;
+	return st;
+}
+
+static void growStackTrace(BlangVM *vm, ObjStackTrace *st, size_t len) {
+	size_t newSize = st->size;
+
+	while(newSize < st->length + len)
+		newSize <<= 1;
+
+	char *newBuf = GCallocate(vm, st->trace, st->size, newSize);
+	st->size = newSize;
+	st->trace = newBuf;
+}
+
+static void stAppenString(BlangVM *vm, ObjStackTrace *st, const char *str) {
+	size_t len = strlen(str);
+	if(st->length + len >= st->size) 
+		growStackTrace(vm, st, len + 1); //the >= and the +1 are for the terminating NUL
+
+	memcpy(&st->trace[st->length], str, len);
+	st->length += len;
+	st->trace[st->length] = '\0';
+}
+
+void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
+	if(st->lastTracedFrame == depth) return;
+
+	st->lastTracedFrame = depth;
+
+	ObjFunction *fn = f->fn;
+	size_t op = f->ip - fn->chunk.code - 1;
+
+	char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
+	sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
+
+	stAppenString(vm, st, "[line ");
+	stAppenString(vm, st, line);
+	stAppenString(vm, st, "] ");
+
+	stAppenString(vm, st, "module ");
+	stAppenString(vm, st, fn->module->name->data);
+	stAppenString(vm, st, " in ");
+
+	if(fn->name != NULL) {
+		stAppenString(vm, st, fn->name->data);
+		stAppenString(vm, st, "()\n");
+	} else {
+		stAppenString(vm, st, "<main>\n");
+	}
 }
 
 #define LIST_DEF_SZ    8
@@ -242,6 +304,11 @@ static void freeObject(BlangVM *vm, Obj *o) {
 		GC_FREEARRAY(vm, Value, l->arr, l->size);
 		GC_FREE(vm, ObjList, l);
 		break;
+	}
+	case OBJ_STACK_TRACE: {
+		ObjStackTrace *st = (ObjStackTrace*) o;
+		GC_FREEARRAY(vm, char, st->trace, st->size);
+		GC_FREE(vm, ObjStackTrace, st);
 	}
 	}
 }
@@ -374,6 +441,7 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 		break;
 	}
 	case OBJ_STRING: break;
+	case OBJ_STACK_TRACE: break;
 	}
 }
 
@@ -423,7 +491,7 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->neg);
 
 	//reach current exception if present
-	reachObject(vm, vm->exception);
+	reachObject(vm, (Obj*) vm->exception);
 
 	reachObject(vm, (Obj*) vm->ctor);
 	//reach vm global vars

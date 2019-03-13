@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+typedef struct Frame Frame;
 typedef struct BlangVM BlangVM;
 
 #define GC_ALLOC(vm, size) GCallocate(vm, NULL, 0, size)
@@ -31,6 +32,7 @@ ObjString *newString(BlangVM *vm, char *cstring, size_t size);
 ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);
 ObjModule *newModule(BlangVM *vm, ObjString *name);
 ObjList *newList(BlangVM *vm, size_t startSize);
+ObjStackTrace *newStackTrace(BlangVM *vm);
 
 // Utility function for creating an ObjString from a regular cstring.
 ObjString *copyString(BlangVM *vm, const char *str, size_t length);
@@ -39,6 +41,8 @@ ObjString *copyString(BlangVM *vm, const char *str, size_t length);
 // invalid (it may be freed if an identical string is already present in the
 // runtime, see ObjString documentation for more details)
 ObjString *newStringFromBuf(BlangVM *vm, char *buf, size_t length);
+
+void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
 
 void listAppend(BlangVM *vm, ObjList *lst, Value v);
 void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val);

@@ -65,5 +65,9 @@ void printObj(Obj *o) {
 		printf(":%s>", name);
 		break;
 	}
+	case OBJ_STACK_TRACE: {
+		printf("< stacktrace %p>", (void*) o);
+		break;
+	}
 	}
 }
