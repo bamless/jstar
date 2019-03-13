@@ -67,6 +67,8 @@ ObjString *newString(BlangVM *vm, char *cstring, size_t length) {
 
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc) {
 	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
+	memset(defArr, 0, defaultc * sizeof(Value));
+
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
 	f->argsCount = argc;
 	f->defaultc = defaultc;
@@ -79,6 +81,8 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
 
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc) {
 	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
+	memset(defArr, 0, defaultc * sizeof(Value));
+
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
 	n->argsCount = argc;
 	n->module = module;
@@ -495,6 +499,8 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->exception);
 
 	reachObject(vm, (Obj*) vm->ctor);
+	reachObject(vm, (Obj*) vm->stField);
+
 	//reach vm global vars
 	reachHashTable(vm, &vm->modules);
 	//reach elements on the stack

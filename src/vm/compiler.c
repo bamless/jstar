@@ -764,6 +764,7 @@ static void compileNative(Compiler *c, Stmt *s) {
 	size_t arity    = listLength(s->nativeDecl.formalArgs);
 
 	ObjNative *native = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
+	addDefaultConsts(c, native->defaults, s->nativeDecl.defArgs);
 
 	uint8_t n = createConst(c, OBJ_VAL(native), s->line);
 	uint8_t i = identifierConst(c, &s->nativeDecl.id, s->line);
@@ -774,8 +775,6 @@ static void compileNative(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, OP_DEFINE_NATIVE, s->line);
 	emitBytecode(c, i, s->line);
-
-	addDefaultConsts(c, native->defaults, s->nativeDecl.defArgs);
 }
 
 static void compileMethods(Compiler *c, Stmt* cls) {
@@ -808,6 +807,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			size_t arity = listLength(m->nativeDecl.formalArgs);
 
 			ObjNative *n = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
+			addDefaultConsts(c, n->defaults, m->nativeDecl.defArgs);
 
 			uint8_t native = createConst(c, OBJ_VAL(n), cls->line);
 			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
@@ -826,8 +826,6 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			emitBytecode(c, OP_NAT_METHOD, cls->line);
 			emitBytecode(c, id, cls->line);
 			emitBytecode(c, native, cls->line);
-
-			addDefaultConsts(c, n->defaults, m->nativeDecl.defArgs);
 			break;
 		}
 		default: break;
@@ -1113,6 +1111,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	size_t arity    = listLength(s->funcDecl.formalArgs);
 
 	c->func = newFunction(c->vm, module, NULL, arity, defaults);
+	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
 
 	if(s->funcDecl.id.length != 0) {
 		c->func->name = copyString(c->vm,
@@ -1140,8 +1139,6 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
 	exitFunctionScope(c);
 
-	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
-
 	return c->func;
 }
 
@@ -1150,6 +1147,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	size_t arity    = listLength(s->funcDecl.formalArgs);
 
 	c->func = newFunction(c->vm, module, NULL, arity, defaults);
+	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
@@ -1194,8 +1192,6 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	emitBytecode(c, OP_RETURN, 0);
 
 	exitFunctionScope(c);
-
-	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
 
 	return c->func;
 }

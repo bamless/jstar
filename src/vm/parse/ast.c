@@ -428,6 +428,8 @@ void freeStmt(Stmt *s) {
 		break;
 	case TRY_STMT:
 		freeStmt(s->tryStmt.block);
+		freeStmt(s->tryStmt.ensure);
+		
 		LinkedList *head = s->tryStmt.excs;
 		while(head != NULL) {
 			LinkedList *f = head;
