@@ -912,12 +912,19 @@ static void compileExcept(Compiler *c, LinkedList *excs) {
 
 	enterScope(c);
 
-	emitBytecode(c, OP_EXC_HANDLED, 0);
+	emitBytecode(c, OP_DUP, exc->line);
 
 	declareVar(c, &exc->excStmt.var, exc->line);
 	defineVar(c, &exc->excStmt.var, exc->line);
 
 	compileStatements(c, exc->excStmt.block->blockStmt.stmts);
+
+	emitBytecode(c, OP_NULL, exc->line);
+	emitBytecode(c, OP_SET_LOCAL, exc->line);
+
+	Identifier excId = {11, ".exception"};
+	emitBytecode(c, resolveVariable(c, &excId, exc->line), exc->line);
+	emitBytecode(c, OP_POP, exc->line);
 
 	exitScope(c);
 
@@ -940,22 +947,62 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 		error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
 	}
 
-	uint8_t setup = emitBytecode(c, OP_SETUP_TRY, s->line);
-	emitShort(c, 0, 0);
+	bool hasExcept = s->tryStmt.excs != NULL;
+	bool hasEnsure = s->tryStmt.ensure != NULL;
+
+	size_t excSetup = 0;
+	size_t ensSetup = 0;
+
+	if(hasEnsure) {
+		ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
+		emitShort(c, 0, 0);
+	}
+	if(hasExcept) {
+		excSetup = emitBytecode(c, OP_SETUP_EXCEPT, s->line);
+		emitShort(c, 0, 0);
+	}
 
 	compileStatement(c, s->tryStmt.block);
 
-	emitBytecode(c, OP_END_TRY, 0);
-	uint8_t excJmp = emitBytecode(c, OP_JUMP, 0);
-	emitShort(c, 0, 0);
+	if(hasExcept)
+		emitBytecode(c, OP_POP_BLOCK, s->line);
+	
+	if(hasEnsure) {
+		emitBytecode(c, OP_POP_BLOCK, s->line);
+		// esnure block expects exception on top or the
+		// stack or null if no exception has been raised
+		emitBytecode(c, OP_NULL, s->line);
+	}
 
-	setJumpTo(c, setup, c->func->chunk.count, s->line);
+	size_t excJmp = 0;
 
-	compileExcept(c, s->tryStmt.excs);
+	enterScope(c);
 
-	emitBytecode(c, OP_EXC_HANDLER_END, 0);
+	Identifier exc = {11, ".exception"};
+	declareVar(c, &exc, 0);
+	defineVar(c, &exc, 0);
 
-	setJumpTo(c, excJmp, c->func->chunk.count, 0);
+	if(hasExcept) {
+		excJmp = emitBytecode(c, OP_JUMP, 0);
+		emitShort(c, 0, 0);
+
+		setJumpTo(c, excSetup, c->func->chunk.count, s->line);
+
+		compileExcept(c, s->tryStmt.excs);
+
+		if(hasEnsure)
+			emitBytecode(c, OP_POP_BLOCK, 0);
+
+		setJumpTo(c, excJmp, c->func->chunk.count, 0);
+	}
+
+	if(hasEnsure) {
+		setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
+		compileStatements(c, s->tryStmt.ensure->blockStmt.stmts);
+	}
+
+	emitBytecode(c, OP_ENSURE_END, 0);
+	exitScope(c);
 }
 
 static void compileRaiseStmt(Compiler *c, Stmt *s) {

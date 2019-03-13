@@ -1007,20 +1007,13 @@ sup_invoke:;
 		handler->savesp = vm->sp;
 		DISPATCH();
 	}
-	TARGET(OP_EXC_HANDLED): {
-		//exception thrown in try is caught and handled
-		vm->exception = NULL;
-		DISPATCH();
-	}
-	TARGET(OP_EXCEPT_END): {
-		//exception was thrown in try but no handler handled the exception
-		if(vm->exception != NULL) {
-			//continue to unwind stack
+	TARGET(OP_ENSURE_END): {
+		// if we still have the exception on top of the stack
+		if(!IS_NULL(peek(vm))) {
+			// continue unwinding
+			vm->exception = AS_OBJ(peek(vm));
 			UNWIND_STACK(vm);
 		}
-		DISPATCH();
-	}
-	TARGET(OP_ENSURE_END):{
 		DISPATCH();
 	}
 	TARGET(OP_POP_BLOCK): {
@@ -1150,7 +1143,7 @@ static bool unwindStack(BlangVM *vm) {
 		//signal that current frame has been saved
 		vm->lastTracedFrame = vm->frameCount;
 
-		// if current frame has except handlers
+		// if current frame has except or ensure handlers
 		if(f->handlerc > 0) {
 			Handler *h = &f->handlers[--f->handlerc];
 
@@ -1161,6 +1154,8 @@ static bool unwindStack(BlangVM *vm) {
 
 			// push the exception for use in the handler and return to execution
 			push(vm, OBJ_VAL(vm->exception));
+			vm->exception = NULL;
+
 			return true;
 		}
 
