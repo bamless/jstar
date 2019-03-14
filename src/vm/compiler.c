@@ -985,10 +985,9 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 		emitBytecode(c, OP_POP_HANDLER, s->line);
 		// esnure block expects exception on top or the
 		// stack or null if no exception has been raised
+		emitBytecode(c, OP_NULL, s->line);
+		emitBytecode(c, OP_NULL, s->line);
 	}
-	
-	emitBytecode(c, OP_NULL, s->line);
-	emitBytecode(c, OP_NULL, s->line);
 
 	size_t excJmp = 0;
 
@@ -1010,8 +1009,12 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
 		compileExcept(c, s->tryStmt.excs);
 
-		if(hasEnsure)
+		if(hasEnsure) {
 			emitBytecode(c, OP_POP_HANDLER, 0);
+		} else {
+			emitBytecode(c, OP_ENSURE_END, 0);
+			exitScope(c);
+		}
 
 		setJumpTo(c, excJmp, c->func->chunk.count, 0);
 	}
@@ -1019,10 +1022,10 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 	if(hasEnsure) {
 		setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
 		compileStatements(c, s->tryStmt.ensure->blockStmt.stmts);
+		emitBytecode(c, OP_ENSURE_END, 0);
+		exitScope(c);
 	}
 
-	emitBytecode(c, OP_ENSURE_END, 0);
-	exitScope(c);
 
 	exitTryBlok(c, s);
 }
