@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define FRAME_SZ 1000                       // Max stack depth
-#define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
-#define INIT_GC  1024 * 1024 * 20           // 20MiB
+#define FRAME_SZ 1000                             // Max stack depth
+#define STACK_SZ (FRAME_SZ + 1) * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
+#define INIT_GC  1024 * 1024 * 20                 // 20MiB
 
-#define HADLER_MAX 5 // Max number of nested TryExcepts
+#define HANDLER_MAX 10 // Max number of nested TryExcepts
 
 typedef enum {
 	VM_EVAL_SUCCSESS, // The VM successfully executed the code
@@ -23,6 +23,11 @@ typedef enum {
 	VM_COMPILE_ERR,   // An error has been encountered during compilation
 	VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } EvalResult;
+
+typedef enum UnwindCause {
+	CAUSE_EXCEPT,
+	CAUSE_RETURN
+} UnwindCause;
 
 typedef enum HandlerType {
 	HANDLER_ENSURE,
@@ -37,11 +42,11 @@ typedef struct Handler {
 } Handler;
 
 typedef struct Frame {
-	uint8_t *ip;                  // Instruction pointer
-	Value *stack;                 // Base of stack for current frame
-	ObjFunction *fn;              // The function associated with the frame
-	Handler handlers[HADLER_MAX]; // Exception handlers
-	uint8_t handlerc;             // Exception handlers count
+	uint8_t *ip;                   // Instruction pointer
+	Value *stack;                  // Base of stack for current frame
+	ObjFunction *fn;               // The function associated with the frame
+	Handler handlers[HANDLER_MAX]; // Exception handlers
+	uint8_t handlerc;              // Exception handlers count
 } Frame;
 
 typedef struct BlangVM {

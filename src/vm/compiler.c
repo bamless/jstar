@@ -13,6 +13,8 @@
 #include <string.h>
 #include <stdarg.h>
 
+#define MAX_TRY_DEPTH HANDLER_MAX
+
 typedef struct Local {
 	Identifier id;
 	int depth;
@@ -920,7 +922,7 @@ static void compileExcept(Compiler *c, LinkedList *excs) {
 	emitBytecode(c, OP_NULL, exc->line);
 	emitBytecode(c, OP_SET_LOCAL, exc->line);
 
-	Identifier excId = {11, ".exception"};
+	Identifier excId = {10, ".exception"};
 	emitBytecode(c, resolveVariable(c, &excId, exc->line), exc->line);
 	emitBytecode(c, OP_POP, exc->line);
 
@@ -940,7 +942,21 @@ static void compileExcept(Compiler *c, LinkedList *excs) {
 	}
 }
 
+static void enterTryBlock(Compiler *c, Stmt *try) {
+	if(try->tryStmt.ensure != NULL && try->tryStmt.excs != NULL)
+		c->tryDepth++;
+	c->tryDepth++;
+}
+
+static void exitTryBlok(Compiler *c, Stmt *try) {
+	if(try->tryStmt.ensure != NULL && try->tryStmt.excs != NULL)
+		c->tryDepth--;
+	c->tryDepth--;
+}
+
 static void compileTryExcept(Compiler *c, Stmt *s) {
+	enterTryBlock(c, s);
+
 	if(c->tryDepth > MAX_TRY_DEPTH) {
 		error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
 	}
@@ -963,20 +979,26 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 	compileStatement(c, s->tryStmt.block);
 
 	if(hasExcept)
-		emitBytecode(c, OP_POP_BLOCK, s->line);
+		emitBytecode(c, OP_POP_HANDLER, s->line);
 	
 	if(hasEnsure) {
-		emitBytecode(c, OP_POP_BLOCK, s->line);
+		emitBytecode(c, OP_POP_HANDLER, s->line);
 		// esnure block expects exception on top or the
 		// stack or null if no exception has been raised
-		emitBytecode(c, OP_NULL, s->line);
 	}
+	
+	emitBytecode(c, OP_NULL, s->line);
+	emitBytecode(c, OP_NULL, s->line);
 
 	size_t excJmp = 0;
 
 	enterScope(c);
 
-	Identifier exc = {11, ".exception"};
+	Identifier cause = {6, ".cause"};
+	declareVar(c, &cause, 0);
+	defineVar(c, &cause, 0);
+
+	Identifier exc = {10, ".exception"};
 	declareVar(c, &exc, 0);
 	defineVar(c, &exc, 0);
 
@@ -989,7 +1011,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 		compileExcept(c, s->tryStmt.excs);
 
 		if(hasEnsure)
-			emitBytecode(c, OP_POP_BLOCK, 0);
+			emitBytecode(c, OP_POP_HANDLER, 0);
 
 		setJumpTo(c, excJmp, c->func->chunk.count, 0);
 	}
@@ -1001,6 +1023,8 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
 	emitBytecode(c, OP_ENSURE_END, 0);
 	exitScope(c);
+
+	exitTryBlok(c, s);
 }
 
 static void compileRaiseStmt(Compiler *c, Stmt *s) {
@@ -1053,14 +1077,15 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		compileRaiseStmt(c, s);
 		break;
 	case TRY_STMT:
-		c->tryDepth++;
 		compileTryExcept(c, s);
-		c->tryDepth--;
 		break;
 	case CONTINUE_STMT:
 		if(c->loops == NULL) {
 			error(c, s->line, "cannot use continue outside loop.");
 			break;
+		}
+		if(c->tryDepth != 0) {
+			error(c, s->line, "cannot use continue inside a try except.");
 		}
 		discardScope(c, c->loops->depth);
 		emitBytecode(c, OP_SIGN_CONT, s->line);
@@ -1070,6 +1095,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		if(c->loops == NULL) {
 			error(c, s->line, "cannot use break outside loop.");
 			break;
+		}
+		if(c->tryDepth != 0) {
+			error(c, s->line, "cannot use break inside a try except.");
 		}
 		discardScope(c, c->loops->depth);
 		emitBytecode(c, OP_SING_BRK, s->line);

@@ -463,6 +463,14 @@ static bool runEval(BlangVM *vm) {
 		} \
 	} while(0)
 
+	#define UNWIND_HANDLER(h, cause, ret) do { \
+		frame->ip = h->handler; \
+		vm->sp = h->savesp; \
+		vm->module = frame->fn->module; \
+		push(vm, cause); \
+		push(vm, ret); \
+	} while(0)
+
 	#define UNWIND_STACK(vm) do { \
 		SAVE_FRAME() \
 		if(!unwindStack(vm)) { \
@@ -500,6 +508,8 @@ static bool runEval(BlangVM *vm) {
 
 		#define DECODE(op) DISPATCH();
 
+		#define GOTO(op) goto TARGET(op)
+
 	#else
 
 		#define TARGET(op) case op
@@ -508,6 +518,8 @@ static bool runEval(BlangVM *vm) {
 		decode: \
 			PRINT_DBG_STACK(); \
 			switch((op = NEXT_CODE()))
+
+		#define GOTO(op) goto op
 
 	#endif
 
@@ -848,17 +860,27 @@ sup_invoke:;
 	}
 	TARGET(OP_RETURN): {
 		Value ret = pop(vm);
+		
+		if(frame->handlerc > 0) {
+			while(frame->handlerc > 0) {
+				Handler *h = &frame->handlers[--frame->handlerc];
+				if(h->type == HANDLER_EXCEPT)
+					continue;
+				UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_RETURN), ret);
+				break;
+			}
+			LOAD_FRAME();
+		} else {
+			if(--vm->frameCount == 0) {
+				return true;
+			}
 
-		if(--vm->frameCount == 0) {
-			return true;
+			vm->sp = frameStack;
+			push(vm, ret);
+
+			LOAD_FRAME();
+			vm->module = fn->module;
 		}
-
-		vm->sp = frameStack;
-		push(vm, ret);
-
-		LOAD_FRAME();
-		vm->module = fn->module;
-
 		DISPATCH();
 	}
 	TARGET(OP_IMPORT):
@@ -986,15 +1008,35 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_ENSURE_END): {
-		// if we still have the exception on top of the stack
-		if(!IS_NULL(peek(vm))) {
-			// continue unwinding
-			vm->exception = AS_INSTANCE(peek(vm));
-			UNWIND_STACK(vm);
+		UnwindCause cause = AS_NUM(peek2(vm));
+
+		if(cause == CAUSE_EXCEPT) {
+			// if we still have the exception on top of the stack
+			if(!IS_NULL(peek(vm))) {
+				// continue unwinding
+				vm->exception = AS_INSTANCE(peek(vm));
+				UNWIND_STACK(vm);
+			}
+		} else if(cause == CAUSE_RETURN) {
+			if(frame->handlerc == 0) {
+				GOTO(OP_RETURN);
+			}
+
+			Value ret = pop(vm);
+			Value cause = pop(vm);
+
+			while(frame->handlerc > 0) {
+				Handler *h = &frame->handlers[--frame->handlerc];
+				if(h->type == HANDLER_EXCEPT)
+					continue;
+				UNWIND_HANDLER(h, cause, ret);
+				break;
+			}
+			LOAD_FRAME();
 		}
 		DISPATCH();
 	}
-	TARGET(OP_POP_BLOCK): {
+	TARGET(OP_POP_HANDLER): {
 		frame->handlerc--;
 		DISPATCH();
 	}
@@ -1104,23 +1146,15 @@ static bool unwindStack(BlangVM *vm) {
 	ObjStackTrace *st = AS_STACK_TRACE(stVal);
 
 	for(;vm->frameCount > 0; vm->frameCount--) {
-		Frame *f = &vm->frames[vm->frameCount - 1];
+		Frame *frame = &vm->frames[vm->frameCount - 1];
 
-		stRecordFrame(vm, st, f, vm->frameCount);
+		stRecordFrame(vm, st, frame, vm->frameCount);
 
 		// if current frame has except or ensure handlers
-		if(f->handlerc > 0) {
-			Handler *h = &f->handlers[--f->handlerc];
-
-			// restore vm state and set ip to handler start
-			f->ip = h->handler;
-			vm->sp = h->savesp;
-			vm->module = f->fn->module;
-
-			// push the exception for use in the handler and return to execution
-			push(vm, OBJ_VAL(vm->exception));
+		if(frame->handlerc > 0) {
+			Handler *h = &frame->handlers[--frame->handlerc];
+			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), OBJ_VAL(vm->exception));
 			vm->exception = NULL;
-
 			return true;
 		}
 
