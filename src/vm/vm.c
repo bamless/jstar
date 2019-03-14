@@ -1041,15 +1041,15 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_RAISE): {
-		ObjStackTrace *st = newStackTrace(vm);
 		Value exc = peek(vm);
-
-		push(vm, OBJ_VAL(st));
 
 		if(!IS_INSTANCE(exc)) {
 			blRaise(vm, "TypeException", "Can only raise Object instances.");
 			UNWIND_STACK(vm);
 		}
+
+		ObjStackTrace *st = newStackTrace(vm);
+		push(vm, OBJ_VAL(st));
 
 		ObjInstance *excInst = AS_INSTANCE(exc);
 		hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
@@ -1058,6 +1058,7 @@ sup_invoke:;
 		pop(vm);
 
 		vm->exception = AS_INSTANCE(exc);
+		
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
