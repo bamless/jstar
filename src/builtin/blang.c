@@ -27,7 +27,11 @@ void blSetGlobal(BlangVM *vm, const char *fname, Value val) {
 }
 
 bool blGetGlobal(BlangVM *vm, const char *fname, Value *ret) {
-	return hashTableGet(&vm->module->globals, copyString(vm, fname, strlen(fname)), ret);
+	ObjString *name = copyString(vm, fname, strlen(fname));
+	if(!hashTableGet(&vm->module->globals, name, ret)) {
+		return hashTableGet(&vm->core->globals, name, ret);
+	}
+	return true;
 }
 
 bool blRaise(BlangVM *vm, const char* cls, const char *err, ...) {

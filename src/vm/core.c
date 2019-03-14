@@ -80,6 +80,7 @@ void initCoreLibrary(BlangVM *vm) {
 
 	ObjModule *core = newModule(vm, name);
 	setModule(vm, core->name, core);
+	vm->core = core;
 
 	pop(vm);
 

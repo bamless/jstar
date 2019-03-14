@@ -85,6 +85,8 @@ typedef struct BlangVM {
 	HashTable modules;
 	//current module
 	ObjModule *module;
+	//core module
+	ObjModule *core;
 
 	// VM program stack
 	Value stack[STACK_SZ], *sp;
