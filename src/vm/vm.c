@@ -512,7 +512,7 @@ static bool runEval(BlangVM *vm) {
 
 	#else
 
-		#define TARGET(op) case op
+		#define TARGET(op) op: case op
 		#define DISPATCH() goto decode
 		#define DECODE(op) \
 		decode: \
