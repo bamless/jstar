@@ -27,7 +27,9 @@ static char *readline(BlangVM *vm, FILE *file, size_t *len) {
 	*len = 0;
 	size_t size = 256;
 	char *line = GC_ALLOC(vm, size);
-	if(!line) goto error;
+	if(!line) {
+		goto error;
+	}
 
 	char *ret = fgets(line, size - 1, file);
 	if(ret == NULL) {
@@ -143,6 +145,7 @@ NATIVE(bl_File_seek) {
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
 		BL_RETURN(NULL_VAL);
 	}
+
 	if(!IS_INT(args[1])){
 		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "off must be an integer");
 	}
@@ -161,10 +164,7 @@ NATIVE(bl_File_seek) {
 	}
 
 	if(blSeek(f, offset, whence)) {
-		if(errno == EINVAL)
-			BL_RAISE_EXCEPTION(vm, "IOException", "resulting offset would be negative.");
-		else
-			BL_RAISE_EXCEPTION(vm, "IOException", "an I/O error occurred.");
+		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
 	BL_RETURN(NULL_VAL);
@@ -181,7 +181,13 @@ NATIVE(bl_File_tell) {
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
-	BL_RETURN(NUM_VAL(ftell(f)));
+
+	long off = ftell(f);
+	if(off == -1) {
+		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+	}
+
+	BL_RETURN(NUM_VAL(off));
 }
 
 NATIVE(bl_File_rewind) {
@@ -210,7 +216,13 @@ NATIVE(bl_File_readAll) {
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
-	int64_t size = getFileSize(f) - ftell(f);
+
+	long off = ftell(f);
+	if(off == -1) {
+		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+	}
+
+	int64_t size = getFileSize(f) - off;
 	if(size < 0) {
 		BL_RETURN(NULL_VAL);
 	}
@@ -218,7 +230,7 @@ NATIVE(bl_File_readAll) {
 	char *data = GC_ALLOC(vm, size + 1);
 	if(fread(data, sizeof(char), size, f) < (size_t) size) {
 		GC_FREEARRAY(vm, char, data, size);
-		BL_RETURN(NULL_VAL);
+		BL_RAISE_EXCEPTION(vm, "IOException", "Couldn't read the whole file.");
 	}
 	data[size] = '\0';
 
@@ -240,7 +252,7 @@ NATIVE(bl_File_readLine) {
 	size_t length;
 	char *line = readline(vm, f, &length);
 	if(line == NULL) {
-		BL_RETURN(NULL_VAL);
+		BL_RAISE_EXCEPTION(vm, "IOException", "Couldn't read the line.");
 	}
 
 	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, line, length)));
@@ -256,7 +268,7 @@ NATIVE(bl_File_close) {
 
 	FILE *f = (void*) AS_HANDLE(h);
 	if(fclose(f)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "An I/O error occurred.");
+		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
 	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
@@ -299,7 +311,10 @@ NATIVE(bl_open) {
 
 	FILE *f = fopen(AS_STRING(args[1])->data, m);
 	if(f == NULL) {
-		BL_RAISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
+		if(errno == ENOENT)
+			BL_RAISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
+		
+		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
 	BL_RETURN(HANDLE_VAL(f));
