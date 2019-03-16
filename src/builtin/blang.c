@@ -8,26 +8,26 @@
 void blSetField(BlangVM *vm, ObjInstance *o, const char *name, Value val) {
 	push(vm, val);
 	push(vm, OBJ_VAL(o));
-	hashTablePut(&o->fields, copyString(vm, name, strlen(name)), val);
+	hashTablePut(&o->fields, copyString(vm, name, strlen(name), true), val);
 	pop(vm);
 	pop(vm);
 }
 
 bool blGetField(BlangVM *vm, ObjInstance *o, const char *name, Value *ret) {
 	push(vm, OBJ_VAL(o));
-	bool found = hashTableGet(&o->fields, copyString(vm, name, strlen(name)), ret);
+	bool found = hashTableGet(&o->fields, copyString(vm, name, strlen(name), true), ret);
 	pop(vm);
 	return found;
 }
 
 void blSetGlobal(BlangVM *vm, const char *fname, Value val) {
 	push(vm, val);
-	hashTablePut(&vm->module->globals, copyString(vm, fname, strlen(fname)), val);
+	hashTablePut(&vm->module->globals, copyString(vm, fname, strlen(fname), true), val);
 	pop(vm);
 }
 
 bool blGetGlobal(BlangVM *vm, const char *fname, Value *ret) {
-	ObjString *name = copyString(vm, fname, strlen(fname));
+	ObjString *name = copyString(vm, fname, strlen(fname), true);
 	if(!hashTableGet(&vm->module->globals, name, ret)) {
 		return hashTableGet(&vm->core->globals, name, ret);
 	}
@@ -53,7 +53,7 @@ bool blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 		vsnprintf(errStr, sizeof(errStr) - 1, err, args);
 		va_end(args);
 
-		blSetField(vm, excInst, "err", OBJ_VAL(copyString(vm, errStr, strlen(errStr))));
+		blSetField(vm, excInst, "err", OBJ_VAL(copyString(vm, errStr, strlen(errStr), false)));
 	}
 
 	pop(vm);

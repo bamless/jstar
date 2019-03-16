@@ -19,17 +19,12 @@
 #include <string.h>
 #endif
 
-static Obj *newObj(BlangVM *vm, size_t size, ObjClass *cls, ObjType type) {
-	Obj *o = GC_ALLOC(vm, size);
-	o->cls = cls;
-	o->type = type;
-	o->reached = false;
-	o->next = vm->objects;
-	vm->objects = o;
-	return o;
-}
+#define GC_ALLOC(vm, size) GCallocate(vm, NULL, 0, size)
 
-void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
+#define GC_FREE(vm, type, obj) GCallocate(vm, obj, sizeof(type), 0)
+#define GC_FREEARRAY(vm, type, obj, count) GCallocate(vm, obj, sizeof(type) * count, 0)
+
+static void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
 	vm->allocated += size - oldsize;
 	if(size > oldsize && !vm->disableGC) {
 #ifdef DBG_STRESS_GC
@@ -55,14 +50,14 @@ void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
 	return mem;
 }
 
-static uint32_t hashString(const char *str, size_t length);
-
-ObjString *newString(BlangVM *vm, char *cstring, size_t length) {
-	ObjString *str = (ObjString*) newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
-	str->length = length;
-	str->data = cstring;
-	str->hash = hashString(cstring, length);
-	return str;
+static Obj *newObj(BlangVM *vm, size_t size, ObjClass *cls, ObjType type) {
+	Obj *o = GC_ALLOC(vm, size);
+	o->cls = cls;
+	o->type = type;
+	o->reached = false;
+	o->next = vm->objects;
+	vm->objects = o;
+	return o;
 }
 
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc) {
@@ -234,29 +229,66 @@ void listRemove(BlangVM *vm, ObjList *lst, size_t index) {
 	lst->count--;
 }
 
-ObjString *copyString(BlangVM *vm, const char *str, size_t length) {
-	ObjString *interned = HashTableGetString(&vm->strings, str, length, hashString(str, length));
-	if(interned == NULL) {
-		char *data = GC_ALLOC(vm, length + 1);
-		memcpy(data, str, length);
-		data[length] = '\0';
-
-		interned = newString(vm, data, length);
-		hashTablePut(&vm->strings, interned, NULL_VAL);
-	}
-	return interned;
+ObjString *allocateString(BlangVM *vm, size_t length) {
+	char *data = GC_ALLOC(vm, length + 1);
+	ObjString *str = (ObjString*) newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
+	str->length = length;
+	str->hash = 0;
+	str->interned = false;
+	str->data = data;
+	str->data[str->length] = '\0';
+	return str;
 }
 
-ObjString *newStringFromBuf(BlangVM *vm, char *buf, size_t length) {
-	ObjString *interned = HashTableGetString(&vm->strings, buf, length, hashString(buf, length));
-	if(interned == NULL) {
-		interned = newString(vm, buf, length);
-		hashTablePut(&vm->strings, interned, NULL_VAL);
-		return interned;
+void reallocateString(BlangVM *vm, ObjString *str, size_t newLen) {
+	if(str->hash != 0) {
+		fprintf(stderr, "Cannot use reallocateString to reallocate a string already in use by the runtime.\n");
+		abort();
 	}
 
-	GC_FREEARRAY(vm, char, buf, length + 1);
-	return interned;
+	push(vm, OBJ_VAL(str));
+	str->data = GCallocate(vm, str->data, str->length + 1, newLen + 1);
+	str->length = newLen;
+	str->data[str->length] = '\0';
+	pop(vm);
+}
+
+static ObjString *newString(BlangVM *vm, const char *cstring, size_t length) {
+	ObjString *str = allocateString(vm, length);
+	memcpy(str->data, cstring, length);
+	return str;
+}
+
+static uint32_t hashString(const char *str, size_t length) {
+	uint32_t hash = 5381;
+
+	for(size_t i = 0; i < length; i++) {
+		hash = ((hash << 5) + hash) + str[i];
+	}
+
+	return hash;
+}
+
+ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern) {
+	if(intern) {
+		uint32_t hash = hashString(str, length);
+		ObjString *interned = HashTableGetString(&vm->strings, str, length, hash);
+		if(interned == NULL) {
+			interned = newString(vm, str, length);
+			interned->hash = hash;
+			interned->interned = true;
+			hashTablePut(&vm->strings, interned, NULL_VAL);
+		}
+		return interned;
+	}
+	return newString(vm, str, length);
+}
+
+uint32_t stringGetHash(ObjString *str) {
+	if(str->hash == 0) {
+		str->hash = hashString(str->data, str->length);
+	}
+	return str->hash;
 }
 
 static void freeObject(BlangVM *vm, Obj *o) {
@@ -543,14 +575,4 @@ void garbageCollect(BlangVM *vm) {
 		   prevAlloc, vm->allocated, curr, vm->nextGC);
 	puts("*--- End  of  GC ---*\n");
 #endif
-}
-
-static uint32_t hashString(const char *str, size_t length) {
-	uint32_t hash = 5381;
-
-	for(size_t i = 0; i < length; i++) {
-		hash = ((hash << 5) + hash) + str[i];
-	}
-
-	return hash;
 }

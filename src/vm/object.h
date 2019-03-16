@@ -83,8 +83,9 @@ typedef struct Obj {
 typedef struct ObjString {
 	Obj base;
 	size_t length; // Length of the string
-	char *data;    // The actual data of the string (NUL terminated)
 	uint32_t hash; // The string's hash (gets calculated once at allocation)
+	bool interned; 
+	char *data;    // The actual data of the string (NUL terminated)
 } ObjString;
 
 typedef struct ObjModule {

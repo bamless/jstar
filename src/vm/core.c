@@ -11,7 +11,7 @@
 #include <float.h>
 
 static ObjClass* createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
-	ObjString *n = copyString(vm, name, strlen(name));
+	ObjString *n = copyString(vm, name, strlen(name), true);
 	push(vm, OBJ_VAL(n));
 
 	ObjClass *c = newClass(vm, n, sup);
@@ -25,12 +25,12 @@ static ObjClass* createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const cha
 
 static Value getDefinedName(BlangVM *vm, ObjModule *m, const char *name) {
 	Value v = NULL_VAL;
-	hashTableGet(&m->globals, copyString(vm, name, strlen(name)), &v);
+	hashTableGet(&m->globals, copyString(vm, name, strlen(name), true), &v);
 	return v;
 }
 
 static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const char *name, uint8_t argc) {
-	ObjString *strName = copyString(vm, name, strlen(name));
+	ObjString *strName = copyString(vm, name, strlen(name), true);
 	push(vm, OBJ_VAL(strName));
 
 	ObjNative *native = newNative(vm, m, strName, argc, n, 0);
@@ -54,7 +54,7 @@ static uint64_t hash64(uint64_t x) {
 		char str[256];
 		snprintf(str, 255, "<%s@%p>", o->cls->name->data, (void*) o);
 
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str))));
+		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
 	}
 
 	static NATIVE(bl_Object_class) {
@@ -74,7 +74,7 @@ static uint64_t hash64(uint64_t x) {
 // Class
 
 void initCoreLibrary(BlangVM *vm) {
-	ObjString *name = copyString(vm, "__core__", 8);
+	ObjString *name = copyString(vm, "__core__", 8, true);
 
 	push(vm, OBJ_VAL(name));
 
@@ -208,7 +208,7 @@ NATIVE(bl_char) {
 	}
 
 	char c = AS_NUM(args[1]);
-	BL_RETURN(OBJ_VAL(copyString(vm, &c, 1)));
+	BL_RETURN(OBJ_VAL(copyString(vm, &c, 1, true)));
 }
 
 NATIVE(bl_ascii) {
@@ -258,7 +258,7 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_Number_string) {
 		char str[24];
 		snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, AS_NUM(args[0]));
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str))));
+		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
 	}
 
 	NATIVE(bl_Number_class) {
@@ -279,8 +279,8 @@ NATIVE(bl_printstr) {
 
 // class Boolean {
 	NATIVE(bl_Boolean_string) {
-		BL_RETURN(AS_BOOL(args[0]) ? OBJ_VAL(copyString(vm, "true", 4))
-		                        : OBJ_VAL(copyString(vm, "false", 5)));
+		BL_RETURN(AS_BOOL(args[0]) ? OBJ_VAL(copyString(vm, "true", 4, true))
+		                        : OBJ_VAL(copyString(vm, "false", 5, true)));
 	}
 
 	NATIVE(bl_Boolean_class) {
@@ -290,7 +290,7 @@ NATIVE(bl_printstr) {
 
 // class Null {
 	NATIVE(bl_Null_string) {
-		BL_RETURN(OBJ_VAL(copyString(vm, "null", 4)));
+		BL_RETURN(OBJ_VAL(copyString(vm, "null", 4, true)));
 	}
 
 	NATIVE(bl_Null_class) {
@@ -332,7 +332,7 @@ NATIVE(bl_printstr) {
 		char str[512] = {0};
 		snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName, AS_OBJ(args[0]));
 
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str))));
+		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
 	}
 // } Function
 
@@ -341,7 +341,7 @@ NATIVE(bl_printstr) {
 		char str[256];
 		ObjModule *m = AS_MODULE(args[0]);
 		snprintf(str, sizeof(str) - 1, "<module %s@%p>", m->name->data, m);
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str))));
+		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
 	}
 // } Module
 
@@ -426,13 +426,46 @@ NATIVE(bl_printstr) {
 		}
 
 		size_t len = to - from;
-		char *cstr = GC_ALLOC(vm, len + 1);
-		for(size_t i = from; i < (size_t)to; i++) {
-			cstr[i - from] = str->data[i];
-		}
-		cstr[len] = '\0';
+		ObjString *sub = allocateString(vm, len);
+		memcpy(sub->data, str->data + from, len);
 
-		BL_RETURN(OBJ_VAL(newStringFromBuf(vm, cstr, len)));
+		BL_RETURN(OBJ_VAL(sub));
+	}
+
+	NATIVE(bl_String_join) {
+		if(!IS_LIST(args[1])) {
+			BL_RAISE_EXCEPTION(vm, "TypeException", "Argument to join must be a List");
+		}
+
+		ObjString *sep = AS_STRING(args[0]);
+		ObjList *strings = AS_LIST(args[1]);
+
+		size_t length = 0;
+		for(size_t i = 0; i < strings->count; i++) {
+			if(!IS_STRING(strings->arr[i]))
+				BL_RAISE_EXCEPTION(vm, "TypeException", "All elements in iterable must be strings.");
+			
+			length += AS_STRING(strings->arr[i])->length;
+			if(strings->count > 1 && i != strings->count - 1)
+				length += sep->length;
+		}
+
+		ObjString *joined = allocateString(vm, length);
+
+		length = 0;
+		for(size_t i = 0; i < strings->count; i++) {
+			ObjString *str = AS_STRING(strings->arr[i]);
+
+			memcpy(joined->data + length, str->data, str->length);
+			length += str->length;
+
+			if(strings->count > 1 && i != strings->count - 1) {
+				memcpy(joined->data + length, sep->data, sep->length);
+				length += sep->length;
+			}
+		}
+
+		BL_RETURN(OBJ_VAL(joined));
 	}
 
 	NATIVE(bl_String_length) {
@@ -440,6 +473,19 @@ NATIVE(bl_printstr) {
 	}
 
 	NATIVE(bl_String_hash) {
-		BL_RETURN(NUM_VAL(AS_STRING(args[0])->hash));
+		BL_RETURN(NUM_VAL(stringGetHash(AS_STRING(args[0]))));
+	}
+
+	NATIVE(bl_String_eq) {
+		if(!IS_STRING(args[1])) {
+			BL_RETURN(FALSE_VAL);
+		}
+		ObjString *s1 = AS_STRING(args[0]);
+		ObjString *s2 = AS_STRING(args[1]);
+
+		if(s1->interned && s2->interned) {
+			BL_RETURN(s1 == s2 ? TRUE_VAL : FALSE_VAL);
+		}
+		BL_RETURN(strcmp(s1->data, s2->data) == 0 ? TRUE_VAL : FALSE_VAL);
 	}
 // } String

@@ -48,30 +48,30 @@ BlangVM *blNewVM() {
 	vm->reachedCount = 0;
 
 	// Create constants strings
-	vm->ctor     = copyString(vm, CTOR_STR, strlen(CTOR_STR));
-	vm->stField  = copyString(vm, "stacktrace", 10);
+	vm->ctor     = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
+	vm->stField  = copyString(vm, "stacktrace", 10, true);
 
-	vm->add = copyString(vm, "__add__", 7);
-	vm->sub = copyString(vm, "__sub__", 7);
-	vm->mul = copyString(vm, "__mul__", 7);
-	vm->div = copyString(vm, "__div__", 7);
-	vm->mod = copyString(vm, "__mod__", 7);
-	vm->get = copyString(vm, "__get__", 7);
-	vm->set = copyString(vm, "__set__", 7);
+	vm->add = copyString(vm, "__add__", 7, true);
+	vm->sub = copyString(vm, "__sub__", 7, true);
+	vm->mul = copyString(vm, "__mul__", 7, true);
+	vm->div = copyString(vm, "__div__", 7, true);
+	vm->mod = copyString(vm, "__mod__", 7, true);
+	vm->get = copyString(vm, "__get__", 7, true);
+	vm->set = copyString(vm, "__set__", 7, true);
 
-	vm->radd = copyString(vm, "__radd__", 8);
-	vm->rsub = copyString(vm, "__rsub__", 8);
-	vm->rmul = copyString(vm, "__rmul__", 8);
-	vm->rdiv = copyString(vm, "__rdiv__", 8);
-	vm->rmod = copyString(vm, "__rmod__", 8);
+	vm->radd = copyString(vm, "__radd__", 8, true);
+	vm->rsub = copyString(vm, "__rsub__", 8, true);
+	vm->rmul = copyString(vm, "__rmul__", 8, true);
+	vm->rdiv = copyString(vm, "__rdiv__", 8, true);
+	vm->rmod = copyString(vm, "__rmod__", 8, true);
 
-	vm->lt  = copyString(vm, "__lt__", 6);
-	vm->le  = copyString(vm, "__le__", 6);
-	vm->gt  = copyString(vm, "__gt__", 6);
-	vm->ge  = copyString(vm, "__ge__", 6);
-	vm->eq  = copyString(vm, "__eq__", 6);
+	vm->lt  = copyString(vm, "__lt__", 6, true);
+	vm->le  = copyString(vm, "__le__", 6, true);
+	vm->gt  = copyString(vm, "__gt__", 6, true);
+	vm->ge  = copyString(vm, "__ge__", 6, true);
+	vm->eq  = copyString(vm, "__eq__", 6, true);
 
-	vm->neg = copyString(vm, "__neg__", 7);
+	vm->neg = copyString(vm, "__neg__", 7, true);
 
 	// Bootstrap the core module
 	initCoreLibrary(vm);
@@ -397,11 +397,10 @@ static bool isValTrue(Value val) {
 
 static ObjString* stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
 	size_t length = s1->length + s2->length;
-	char *data = GC_ALLOC(vm, length + 1);
-	memcpy(data, s1->data, s1->length);
-	memcpy(data + s1->length, s2->data, s2->length);
-	data[length] = '\0';
-	return newStringFromBuf(vm, data, length);
+	ObjString *str = allocateString(vm, length);
+	memcpy(str->data, s1->data, s1->length);
+	memcpy(str->data + s1->length, s2->data, s2->length);
+	return str;
 }
 
 static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse) {
@@ -619,7 +618,6 @@ static bool runEval(BlangVM *vm) {
 		SAVE_FRAME();
 		if(!invokeMethod(vm, cls, vm->eq, 1)) {
 			vm->exception = NULL;
-
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
 			DISPATCH();
 		}
@@ -702,7 +700,7 @@ static bool runEval(BlangVM *vm) {
 			}
 
 			char character = str->data[index];
-			push(vm, OBJ_VAL(copyString(vm, &character, 1)));
+			push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
 		} else {
 			ObjClass *cls = getClass(vm, peek2(vm));
 
@@ -1101,7 +1099,7 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 		return VM_SYNTAX_ERR;
 	}
 
-	ObjString *name = copyString(vm, module, strlen(module));
+	ObjString *name = copyString(vm, module, strlen(module), true);
 	ObjFunction *fn = compileWithModule(vm, name, program);
 
 	freeStmt(program);
@@ -1135,7 +1133,7 @@ static void printStackTrace(BlangVM *vm, ObjStackTrace *st) {
 	// print the exception instance information
 	Value v;
 	ObjInstance *exc = (ObjInstance*) vm->exception;
-	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3), &v);
+	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3, true), &v);
 
 	if(found && IS_STRING(v)) {
 		fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
@@ -1175,5 +1173,5 @@ void blInitCommandLineArgs(int argc, const char **argv) {
 }
 
 void blAddImportPath(BlangVM *vm, const char *path) {
-	listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path))));
+	listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path), false)));
 }

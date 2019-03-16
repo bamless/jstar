@@ -27,11 +27,11 @@ NATIVE(bl_getImportPaths) {
 
 NATIVE(bl_platform) {
 #ifdef __linux
-	BL_RETURN(OBJ_VAL(copyString(vm, "Linux", 5)));
+	BL_RETURN(OBJ_VAL(copyString(vm, "Linux", 5, true)));
 #elif _WIN32
-	BL_RETURN(OBJ_VAL(copyString(vm, "Win32", 5)));
+	BL_RETURN(OBJ_VAL(copyString(vm, "Win32", 5, true)));
 #elif __APPLE__
-	BL_RETURN(OBJ_VAL(copyString(vm, "OSX", 3)));
+	BL_RETURN(OBJ_VAL(copyString(vm, "OSX", 3, true)));
 #endif
 }
 
@@ -41,26 +41,21 @@ NATIVE(bl_gc) {
 }
 
 NATIVE(bl_gets) {
-	char *str = GC_ALLOC(vm, 16);
-	size_t strl = 16;
-	size_t strsz = 0;
+	ObjString *str = allocateString(vm, 16);
+	size_t i = 0;
 
 	int c;
 	while((c = getc(stdin)) != EOF && c != '\n') {
-		if(strsz + 1 > strl) {
-			GCallocate(vm, str, strl, strl * 2);
-			strl *= 2;
+		if(i + 1 > str->length) {
+			reallocateString(vm, str, str->length * 2);
 		}
-		str[strsz++] = c;
+		str->data[i++] = c;
 	}
 
-	if(strsz + 1 > strl) {
-		GCallocate(vm, str, strl, strl + 1);
-		strl += 1;
-	}
-	str[strsz] = '\0';
+	if(str->length != i)
+		reallocateString(vm, str, i);
 
-	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, str, strsz)));
+	BL_RETURN(OBJ_VAL(str));
 }
 
 NATIVE(bl_init) {
@@ -69,7 +64,7 @@ NATIVE(bl_init) {
 	blGetGlobal(vm, "file", &file);
 
 	Value fileCls;
-	hashTableGet(&AS_MODULE(file)->globals, copyString(vm, "File", 4), &fileCls);
+	hashTableGet(&AS_MODULE(file)->globals, copyString(vm, "File", 4, true), &fileCls);
 
 	ObjInstance *fileout = newInstance(vm, AS_CLASS(fileCls));
 	blSetField(vm, fileout, "_handle", HANDLE_VAL(stdout));
@@ -97,7 +92,7 @@ NATIVE(bl_init) {
 	ObjList *lst = AS_LIST(a);
 
 	for(int i = 0; i < argCount; i++) {
-		listAppend(vm, lst, OBJ_VAL(copyString(vm, argVector[i], strlen(argVector[i]))));
+		listAppend(vm, lst, OBJ_VAL(copyString(vm, argVector[i], strlen(argVector[i]), false)));
 	}
 
 	BL_RETURN(NULL_VAL);

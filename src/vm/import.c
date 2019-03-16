@@ -48,7 +48,7 @@ ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program) {
 		disableGC(vm, true);
 
 		module = newModule(vm, name);
-		hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
+		hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
 		setModule(vm, name, module);
 
 		disableGC(vm, false);
@@ -208,10 +208,10 @@ bool importModule(BlangVM *vm, ObjString *name) {
 	nameStart++;
 
 
-	ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data);
+	ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
 	push(vm, OBJ_VAL(parentName));
 
-	ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart));
+	ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart), true);
 
 	ObjModule *module = getModule(vm, name);
 	ObjModule *parent = getModule(vm, parentName);

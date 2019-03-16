@@ -1,4 +1,5 @@
 #include "hashtable.h"
+#include "memory.h"
 #include "object.h"
 
 #include <stdbool.h>
@@ -37,7 +38,7 @@ static bool keyEquals(ObjString *k1, ObjString *k2) {
 }
 
 static void addEntry(HashTable *t, Entry *e) {
-	size_t index = e->key->hash & t->mask;
+	size_t index = stringGetHash(e->key) & t->mask;
 	e->next = t->entries[index];
 	t->entries[index] = e;
 }
@@ -45,7 +46,7 @@ static void addEntry(HashTable *t, Entry *e) {
 static Entry *getEntry(HashTable *t, ObjString *key) {
 	if(t->entries == NULL) return NULL;
 
-	size_t index = key->hash & t->mask;
+	size_t index = stringGetHash(key) & t->mask;
 
 	Entry *buckHead = t->entries[index];
 	while(buckHead != NULL) {
@@ -110,7 +111,7 @@ bool hashTableContainsKey(HashTable *t, ObjString *key) {
 }
 
 bool hashTableDel(HashTable *t, ObjString *key) {
-	size_t index = key->hash & t->mask;
+	size_t index = stringGetHash(key) & t->mask;
 
 	Entry **buckHead = &t->entries[index];
 	while(*buckHead != NULL) {

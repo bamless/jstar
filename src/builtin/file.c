@@ -23,58 +23,50 @@
 
 // static helper functions
 
-static char *readline(BlangVM *vm, FILE *file, size_t *len) {
-	*len = 0;
+static ObjString *readline(BlangVM *vm, FILE *file) {
+	size_t len = 0;
 	size_t size = 256;
-	char *line = GC_ALLOC(vm, size);
-	if(!line) {
-		goto error;
-	}
+	ObjString *line = allocateString(vm, size);
 
-	char *ret = fgets(line, size - 1, file);
+	char *ret = fgets(line->data, size + 1, file);
 	if(ret == NULL) {
 		if(feof(file)) {
-			line = GCallocate(vm, line, size, 1);
-			line[0] = '\0';
-			size = 1;
+			reallocateString(vm, line, 0);
 			return line;
 		} else {
-			goto error;
+			return NULL;
 		}
 	}
-	*len = strlen(line);
+	len = strlen(line->data);
 
 	char *newLine;
-	while((newLine = strchr(line, '\n')) == NULL) {
+	while((newLine = strchr(line->data, '\n')) == NULL) {
 		char buf[256];
 
-		ret = fgets(buf, 255, file);
+		ret = fgets(buf, 256, file);
 		if(ret == NULL) {
 			if(feof(file)) {
 				break;
 			} else {
-				goto error;
+				return NULL;
 			}
 		}
 
 		size_t bufLen = strlen(buf);
-		while(*len + bufLen >= size) {
+		while(len + bufLen >= size) {
 			size_t newSize = size * 2;
-			line = GCallocate(vm, line, size, newSize);
+			reallocateString(vm, line, newSize);
 			size = newSize;
 		}
 
-		strcat(line, buf);
-		*len += bufLen;
+		memcpy(line->data + len, buf, bufLen);
+		len += bufLen;
 	}
 
-	line[*len] = '\0';
-	line = GCallocate(vm, line, size, *len + 1);
+	if(line->length != len)
+		reallocateString(vm, line, len);
+	
 	return line;
-
-error:
-	GC_FREEARRAY(vm, char, line, size);
-	return NULL;
 }
 
 static int64_t getFileSize(FILE *stream) {
@@ -227,14 +219,13 @@ NATIVE(bl_File_readAll) {
 		BL_RETURN(NULL_VAL);
 	}
 
-	char *data = GC_ALLOC(vm, size + 1);
-	if(fread(data, sizeof(char), size, f) < (size_t) size) {
-		GC_FREEARRAY(vm, char, data, size);
+	ObjString *data = allocateString(vm, size);
+
+	if(fread(data->data, sizeof(char), size, f) < (size_t) size) {
 		BL_RAISE_EXCEPTION(vm, "IOException", "Couldn't read the whole file.");
 	}
-	data[size] = '\0';
 
-	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, data, strlen(data))));
+	BL_RETURN(OBJ_VAL(data));
 }
 
 NATIVE(bl_File_readLine) {
@@ -249,13 +240,12 @@ NATIVE(bl_File_readLine) {
 
 	FILE *f = (FILE*) AS_HANDLE(h);
 
-	size_t length;
-	char *line = readline(vm, f, &length);
+	ObjString *line = readline(vm, f);
 	if(line == NULL) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "Couldn't read the line.");
+		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN(OBJ_VAL(newStringFromBuf(vm, line, length)));
+	BL_RETURN(OBJ_VAL(line));
 }
 
 NATIVE(bl_File_close) {

@@ -43,8 +43,22 @@ class String {
 		__noinstance(this)
 	}
 
+	native __eq__(o)
 	native substr(from, to)
 	native length()
+
+	def join(iterable) {
+		var lst = iterable
+		if(!(lst is List)) {
+			lst = []
+			for(var e in iterable) {
+				lst.add(e)
+			}
+		}
+		return this.__join(lst)
+	}
+
+	native __join(lst)
 
 	def format(args) {
 		var s = ""         // string being built
@@ -194,15 +208,6 @@ class List {
 		var temp = this[a]
 		this[a] = this[b]
 		this[b] = temp
-	}
-
-	def join(sep=",") {
-		var s = ""
-		for(var i = 0; i < this.size(); i += 1) {
-			s = s + this[i].__string__()
-			if(i != this.size() - 1) s = s + sep
-		}
-		return s
 	}
 
 	def subList(from, to) {

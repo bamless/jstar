@@ -53,7 +53,9 @@ NATIVE(bl_printstr);
 // class String {
 	NATIVE(bl_substr);
 	NATIVE(bl_String_length);
+	NATIVE(bl_String_join);
 	NATIVE(bl_String_hash);
+	NATIVE(bl_String_eq);
 // } String
 
 #endif

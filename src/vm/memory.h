@@ -9,15 +9,6 @@
 typedef struct Frame Frame;
 typedef struct BlangVM BlangVM;
 
-#define GC_ALLOC(vm, size) GCallocate(vm, NULL, 0, size)
-
-#define GC_FREE(vm, type, obj) GCallocate(vm, obj, sizeof(type), 0)
-#define GC_FREEARRAY(vm, type, obj, count) \
-		GCallocate(vm, obj, sizeof(type) * count, 0)
-
-// Blang memory allocator. It is a wrapper around realloc that keeps track of
-// The number of bytes allocated and starts a garbage collection when needed
-void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size);
 void garbageCollect(BlangVM *vm);
 
 // Function for allocating objects.
@@ -28,19 +19,16 @@ ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t ar
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
 ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
 ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
-ObjString *newString(BlangVM *vm, char *cstring, size_t size);
 ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);
 ObjModule *newModule(BlangVM *vm, ObjString *name);
 ObjList *newList(BlangVM *vm, size_t startSize);
 ObjStackTrace *newStackTrace(BlangVM *vm);
 
-// Utility function for creating an ObjString from a regular cstring.
-ObjString *copyString(BlangVM *vm, const char *str, size_t length);
-// Function for creating an ObjString from a char* allocated using GCallocate.
-// Once this funcion is called the buffer passed as input should be considered
-// invalid (it may be freed if an identical string is already present in the
-// runtime, see ObjString documentation for more details)
-ObjString *newStringFromBuf(BlangVM *vm, char *buf, size_t length);
+ObjString *allocateString(BlangVM *vm, size_t length);
+void reallocateString(BlangVM *vm, ObjString *str, size_t newLen);
+ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
+
+uint32_t stringGetHash(ObjString *str);
 
 void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
 

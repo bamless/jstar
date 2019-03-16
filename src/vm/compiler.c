@@ -140,7 +140,7 @@ static uint8_t createConst(Compiler *c, Value constant, int line) {
 }
 
 static uint8_t identifierConst(Compiler *c, Identifier *id, int line) {
-	ObjString *idStr = copyString(c->vm, id->name, id->length);
+	ObjString *idStr = copyString(c->vm, id->name, id->length, true);
 	return createConst(c, OBJ_VAL(idStr), line);
 }
 
@@ -816,14 +816,13 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 
 			Identifier *classId = &cls->classDecl.id;
 			size_t len = classId->length + m->nativeDecl.id.length + 1;
-			char *name = GC_ALLOC(c->vm, len + 1);
+			ObjString *name = allocateString(c->vm, len);
 
-			memcpy(name, classId->name, classId->length);
-			name[classId->length] = '.';
-			memcpy(name + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
-			name[len] = '\0';
+			memcpy(name->data, classId->name, classId->length);
+			name->data[classId->length] = '.';
+			memcpy(name->data + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
 
-			n->name = newStringFromBuf(c->vm, name, len);
+			n->name = name;
 
 			emitBytecode(c, OP_NAT_METHOD, cls->line);
 			emitBytecode(c, id, cls->line);
@@ -1146,7 +1145,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
 	if(s->funcDecl.id.length != 0) {
 		c->func->name = copyString(c->vm,
-			s->funcDecl.id.name, s->funcDecl.id.length);
+			s->funcDecl.id.name, s->funcDecl.id.length, true);
 	}
 
 	enterFunctionScope(c);
@@ -1182,14 +1181,13 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
-	char *name = GC_ALLOC(c->vm, length + 1);
+	ObjString *name = allocateString(c->vm, length);
 
-	memcpy(name, classId->name, classId->length);
-	name[classId->length] = '.';
-	memcpy(name + classId->length + 1, s->funcDecl.id.name, s->funcDecl.id.length);
-	name[length] = '\0';
+	memcpy(name->data, classId->name, classId->length);
+	name->data[classId->length] = '.';
+	memcpy(name->data + classId->length + 1, s->funcDecl.id.name, s->funcDecl.id.length);
 
-	c->func->name = newStringFromBuf(c->vm, name, length);
+	c->func->name = name;
 
 	//if in costructor change the type
 	Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
@@ -1253,7 +1251,7 @@ static ObjString *readString(Compiler *c, Expr *e) {
 	  	}
 	}
 
-	ObjString *s = copyString(c->vm, sbuf_get_backing_buf(&sb),  sbuf_get_len(&sb));
+	ObjString *s = copyString(c->vm, sbuf_get_backing_buf(&sb),  sbuf_get_len(&sb), true);
 	sbuf_destroy(&sb);
 
 	return s;

@@ -103,7 +103,9 @@ Module builtInModules[] = {
 		CLASS(String)
 			METHOD(substr, &bl_substr)
 			METHOD(length, &bl_String_length)
+			METHOD(__join, &bl_String_join)
 			METHOD(__hash__, &bl_String_hash)
+			METHOD(__eq__, &bl_String_eq)
 		ENDCLASS
 	ENDMODULE
 	MODULE(sys)
