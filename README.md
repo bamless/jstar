@@ -4,7 +4,7 @@ A dynamic lightweight scripting language
 # How to use
 ## Repl
 If the blang binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and blang will execute it. You can also write multiline code, it will look like this:
-```c#
+```lua
 blang>> for var i in range(3) do
 .......   print("Hello World!")
 ....... end
@@ -18,7 +18,7 @@ When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpr
 ## Scripts
 If you want to run a script, just pass its path as the first argument to blang. If you pass more than one argument, all the others will be forwarded to blang as *script arguments*.
 You can then read them from the script this way:
-```c#
+```lua
 import sys;
 
 if sys.args.size() > 0 then
