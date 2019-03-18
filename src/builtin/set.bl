@@ -1,87 +1,87 @@
-class HashSet {
-	def new() {
+class HashSet
+	def new()
 		import map
 		this._map = map.HashMap()
-	}
+	end
 
-	def add(e) {
-		if(!this.contains(e)) {
+	def add(e)
+		if !this.contains(e) then
 			this._map[e] = 0
 			return true
-		}
+		end
 		return false
-	}
+	end
 
-	def addAll(iterable) {
+	def addAll(iterable)
 		var changed = false
-		for(var e in iterable) {
+		for var e in iterable do
 			var r = this.add(e)
 			changed = changed or r
-		}
+		end
 		return changed
-	}
+	end
 
-	def remove(e) {
+	def remove(e)
 		return this._map.remove(e) != null
-	}
+	end
 
-	def removeAll(iterable) {
+	def removeAll(iterable)
 		var changed = false
-		for(var e in iterable) {
+		for var e in iterable do
 			var r = this.remove(e)
 			changed = changed or r
-		}
+		end
 		return changed
-	}
+	end
 
-	def contains(e) {
+	def contains(e)
 		return this._map[e] != null
-	}
+	end
 
-	def containsAll(iterable) {
+	def containsAll(iterable)
 		var ret = true
-		for(var e in iterable) {
+		for var e in iterable do
 			var r = this.contains(e)
 			ret = ret and r
-		}
+		end
 		return ret
-	}
+	end
 
-	def clear() {
+	def clear()
 		this._map.clear()
-	}
+	end
 
-	def size() {
+	def size()
 		return this._map.size()
-	}
+	end
 
-	def empty() {
+	def empty()
 		return this.size() == 0
-	}
+	end
 
-	def intersect(c) {
-		for(var e in this) {
-			if(!c.contains(e)) {
+	def intersect(c)
+		for var e in this do
+			if !c.contains(e) then
 				this.remove(e)
-			}
-		}
-	}
+			end
+		end
+	end
 
-	def __iterator__() {
+	def __iterator__()
 		import map
 		return map.__KeyIterator(this._map)
-	}
+	end
 
-	def __string__() {
+	def __string__()
 		var s = "{"
 		var count = 0
 
-		for(var k in this) {
-			count = count + 1
-			s = s + str(k)
-			if(count < this._map.size()) s += ", "
-		}
+		for var k in this do
+			count += 1
+			s += str(k)
+			if count < this._map.size() then s += ", " end
+		end
 
 		return s + "}"
-	}
-}
+	end
+end

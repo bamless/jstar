@@ -3,8 +3,6 @@
 const char *tokNames[] = {
 	"(",
 	")",
-	"{",
-	"}",
 	"[",
 	"]",
 
@@ -36,6 +34,11 @@ const char *tokNames[] = {
 	";",
 	"in",
 
+	"then",
+	"do",
+	"begin",
+	"end",
+
 	"IDENTIFIER",
 	"STRING",
 	"NUMBER",
@@ -48,6 +51,7 @@ const char *tokNames[] = {
 	"def",
 	"for",
 	"if",
+	"elif",
 	"null",
 	"or",
 	"print",

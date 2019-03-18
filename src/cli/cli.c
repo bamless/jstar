@@ -5,8 +5,22 @@
 #include "vm.h"
 #include "options.h"
 
+#include "parse/lex.h"
+
 #include "linenoise/linenoise.h"
 #include "util/stringbuf.h"
+
+static Lexer lex;
+static Token prev;
+static Token cur;
+
+static BlangVM *vm;
+
+static Token *lexNext() {
+	prev = cur;
+	nextToken(&lex, &cur);
+	return &cur;
+}
 
 static void header() {
 	const char blang_ascii_art[] = {
@@ -34,62 +48,85 @@ static void completion(const char *buf, linenoiseCompletions *lc) {
 	free(ret);
 }
 
-static int charCount(const char *str, char c) {
-	int count = 0;
-	size_t len = strlen(str);
-	for(size_t i = 0; i < len; i++) {
-		if(str[i] == c) {
-			count++;
+static int countBlocks() {
+	static bool inelif = false;
+
+	int depth = 0;
+	while(cur.type != TOK_EOF && cur.type != TOK_NEWLINE) {
+		switch(cur.type) {
+		case TOK_BEGIN:
+		case TOK_DO:
+		case TOK_CLASS:
+		case TOK_DEF:
+		case TOK_TRY:
+			depth++;
+			break;
+		case TOK_THEN:
+			if(inelif)
+				inelif = false;
+			else
+				depth++;
+			break;
+		case TOK_END:
+			depth--;
+			break;
+		case TOK_ELIF:
+			inelif = true;
+			break;
+		default: break;
 		}
+		lexNext();
 	}
-	return count;
+	return depth;
 }
 
-static void interactiveEval(BlangVM *vm) {
+static void dorepl() {
 	header();
 	linenoiseSetCompletionCallback(completion);
+
+	blEvaluate(vm, "<stdin>", "def _(s) if s != null then print(s) end end");
 
 	StringBuffer src;
 	sbuf_create(&src);
 
 	char *line;
 	while((line = linenoise("blang>> ")) != NULL) {
-		if(strlen(line) == 0) {
-			free(line);
-			continue;
-		}
-
-		if(strcmp(line, "\\clear") == 0) {
-			linenoiseClearScreen();
-			free(line);
-			continue;
-		}
-
-		sbuf_appendstr(&src, line);
 		linenoiseHistoryAdd(line);
 
-		int depth = charCount(line, '{') - charCount(line, '}');
+		initLexer(&lex, line);
+		TokenType type = lexNext()->type;
+
+		bool expr = type == TOK_NUMBER ||
+		            type == TOK_TRUE ||
+					type == TOK_FALSE ||
+					type == TOK_IDENTIFIER ||
+					type == TOK_LPAREN ||
+					type == TOK_MINUS ||
+					type == TOK_BANG ||
+					type == TOK_STRING;
+
+		if(expr) sbuf_appendstr(&src, "_(");
+		sbuf_appendstr(&src, line);
+		if(expr) sbuf_appendstr(&src, ")");
+
+		sbuf_appendchar(&src, '\n');
+
+		int depth = countBlocks();
 
 		free(line);
 
-		if(depth > 0) {
-			while((line = linenoise("....... ")) != NULL) {
-				if(strlen(line) == 0) {
-					free(line);
-					continue;
-				}
+		while(depth > 0 && (line = linenoise("....... ")) != NULL) {
+			linenoiseHistoryAdd(line);
 
-				sbuf_appendchar(&src, '\n');
-				sbuf_appendstr(&src, line);
-				linenoiseHistoryAdd(line);
+			initLexer(&lex, line);
+			lexNext();
 
-				depth += charCount(line, '{') - charCount(line, '}');
+			sbuf_appendstr(&src, line);
+			sbuf_appendchar(&src, '\n');
 
-				free(line);
+			depth += countBlocks();
 
-				if(depth <= 0)
-					break;
-			}
+			free(line);
 		}
 
 		blEvaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
@@ -133,12 +170,12 @@ static char* readSrcFile(const char *path) {
 }
 
 int main(int argc, const char **argv) {
-	BlangVM *vm = blNewVM();
+	vm = blNewVM();
 
 	EvalResult res = VM_EVAL_SUCCSESS;
 	if(argc == 1)
 	{
-		interactiveEval(vm);
+		dorepl();
 	}
 	else
 	{

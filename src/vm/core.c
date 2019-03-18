@@ -247,7 +247,8 @@ NATIVE(bl_printstr) {
 		stream = AS_HANDLE(h);
 	}
 
-	if(fprintf(stream, "%s", AS_STRING(args[1])->data) < 0) {
+	ObjString *s = AS_STRING(args[1]);
+	if(fwrite(s->data, 1, s->length, stream) == 0) {
 		BL_RAISE_EXCEPTION(vm, "IOException", NULL);
 	}
 

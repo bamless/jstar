@@ -899,7 +899,7 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_POP, s->line);
 }
 
-static void compileExcept(Compiler *c, LinkedList *excs) {
+static void compileExcepts(Compiler *c, LinkedList *excs) {
 	Stmt *exc = (Stmt*) excs->elem;
 
 	emitBytecode(c, OP_DUP, exc->line);
@@ -936,7 +936,7 @@ static void compileExcept(Compiler *c, LinkedList *excs) {
 	setJumpTo(c, falseJmp, c->func->chunk.count, exc->line);
 
 	if(excs->next != NULL) {
-		compileExcept(c, excs->next);
+		compileExcepts(c, excs->next);
 		setJumpTo(c, exitJmp, c->func->chunk.count, exc->line);
 	}
 }
@@ -1006,7 +1006,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
 		setJumpTo(c, excSetup, c->func->chunk.count, s->line);
 
-		compileExcept(c, s->tryStmt.excs);
+		compileExcepts(c, s->tryStmt.excs);
 
 		if(hasEnsure) {
 			emitBytecode(c, OP_POP_HANDLER, 0);
@@ -1024,7 +1024,6 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 		emitBytecode(c, OP_ENSURE_END, 0);
 		exitScope(c);
 	}
-
 
 	exitTryBlok(c, s);
 }
@@ -1243,6 +1242,7 @@ static ObjString *readString(Compiler *c, Expr *e) {
 			case 'r':  sbuf_appendchar(&sb, '\r'); break;
 			case 't':  sbuf_appendchar(&sb, '\t'); break;
 			case 'v':  sbuf_appendchar(&sb, '\v'); break;
+			case 'e':  sbuf_appendchar(&sb, '\e'); break;  
 			default:   sbuf_appendchar(&sb, str[i + 1]); break;
 			}
 			i++;

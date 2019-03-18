@@ -20,6 +20,7 @@ static Keyword keywords[] = {
 	{"def",      3, TOK_DEF},
 	{"native",   6, TOK_NAT},
 	{"if",       2, TOK_IF},
+	{"elif",     4, TOK_ELIF},
 	{"null",     4, TOK_NULL},
 	{"or",       2, TOK_OR},
 	{"return",   6, TOK_RETURN},
@@ -29,6 +30,10 @@ static Keyword keywords[] = {
 	{"while",    5, TOK_WHILE},
 	{"import",   6, TOK_IMPORT},
 	{"in",       2, TOK_IN},
+	{"then",     4, TOK_THEN},
+	{"do",       2, TOK_DO},
+	{"begin",    5, TOK_BEGIN},
+	{"end",      3, TOK_END},
 	{"as",       2, TOK_AS},
 	{"is",       2, TOK_IS},
 	{"try",      3, TOK_TRY},
@@ -37,6 +42,7 @@ static Keyword keywords[] = {
 	{"raise",    5, TOK_RAISE},
 	{"continue", 8, TOK_CONTINUE},
 	{"break",    5, TOK_BREAK},
+	// sentinel
 	{NULL,       0, TOK_EOF}
 };
 
@@ -121,6 +127,10 @@ static bool isNum(char c) {
 	return c >= '0' && c <= '9';
 }
 
+static bool isHex(char c) {
+	return isNum(c) || (c >= 'a' && c <= 'f');
+}
+
 static bool isAlphaNum(char c) {
 	return isAlpha(c) || isNum(c);
 }
@@ -139,13 +149,35 @@ static void eofToken(Lexer *lex, Token *tok) {
 	tok->line = lex->curr_line;
 }
 
-static void number(Lexer *lex, Token *tok) {
+static void integer(Lexer *lex) {
 	while(isNum(peekChar(lex)))
 		advance(lex);
+}
+
+static void number(Lexer *lex, Token *tok) {
+	integer(lex);
 
 	if(match(lex, '.')) {
-		while(isNum(peekChar(lex)))
-			advance(lex);
+		integer(lex);
+	}
+
+	if(match(lex, 'e')) {
+		char c = peekChar(lex);
+		if(c == '-' || c == '+') advance(lex);
+		integer(lex);
+	}
+
+	makeToken(lex, tok, TOK_NUMBER);
+}
+
+static void hexNumber(Lexer *lex, Token *tok) {
+	while(isHex(peekChar(lex)))
+		advance(lex);
+
+	if(match(lex, 'e')) {
+		char c = peekChar(lex);
+		if(c == '-' || c == '+') advance(lex);
+		integer(lex);
 	}
 
 	makeToken(lex, tok, TOK_NUMBER);
@@ -199,14 +231,17 @@ void nextToken(Lexer *lex, Token *tok) {
 	lex->tokenStart = lex->current;
 	char c = advance(lex);
 
+	if(c == '0' && match(lex, 'x')) {
+		hexNumber(lex, tok);
+		return;
+	}
+
 	if(isNum(c))   { number(lex, tok);     return; }
 	if(isAlpha(c)) { identifier(lex, tok); return; }
 
 	switch(c) {
 	case '(': makeToken(lex, tok, TOK_LPAREN);    break;
 	case ')': makeToken(lex, tok, TOK_RPAREN);    break;
-	case '{': makeToken(lex, tok, TOK_LBRACE);    break;
-	case '}': makeToken(lex, tok, TOK_RBRACE);    break;
 	case ';': makeToken(lex, tok, TOK_SEMICOLON); break;
 	case ':': makeToken(lex, tok, TOK_COLON);     break;
 	case ',': makeToken(lex, tok, TOK_COMMA);     break;

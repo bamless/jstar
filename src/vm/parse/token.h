@@ -12,8 +12,6 @@ extern const char *tokNames[];
 typedef enum {
 	TOK_LPAREN,
 	TOK_RPAREN,
-	TOK_LBRACE,
-	TOK_RBRACE,
 	TOK_LSQUARE,
 	TOK_RSQUARE,
 
@@ -45,6 +43,11 @@ typedef enum {
 	TOK_SEMICOLON,
 	TOK_IN,
 
+	TOK_THEN,
+	TOK_DO,
+	TOK_BEGIN,
+	TOK_END,
+
 	TOK_IDENTIFIER,
 	TOK_STRING,
 	TOK_NUMBER,
@@ -57,6 +60,7 @@ typedef enum {
 	TOK_DEF,
 	TOK_FOR,
 	TOK_IF,
+	TOK_ELIF,
 	TOK_NULL,
 	TOK_OR,
 	TOK_PRINT,

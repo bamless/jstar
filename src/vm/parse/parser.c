@@ -8,7 +8,8 @@
 #include <string.h>
 
 #define NEWLINE(p) do { \
-	if(!match(p, TOK_EOF)) \
+	if(!match(p, TOK_EOF) && !match(p, TOK_END) && !match(p, TOK_ELSE) \
+		&& !match(p, TOK_ELIF) && !match(p, TOK_ENSURE) && !match(p, TOK_EXCEPT)) \
 		require(p, TOK_NEWLINE); \
 } while(0)
 
@@ -103,7 +104,9 @@ static void synchronize(Parser *p) {
 		case TOK_IF:
 		case TOK_WHILE:
 		case TOK_RETURN:
-		case TOK_LBRACE:
+		case TOK_THEN:
+		case TOK_DO:
+		case TOK_BEGIN:
 		case TOK_CLASS:
 			return;
 		default: break;
@@ -173,6 +176,8 @@ static Stmt *parseFuncDecl(Parser *p) {
 	formalArgs(p, &args, &defArgs);
 
 	Stmt *body = blockStmt(p);
+
+	require(p, TOK_END);
 
 	return newFuncDecl(line, fname.length, fname.lexeme, args, defArgs, body);
 }
@@ -258,10 +263,8 @@ static Stmt *parseClassDecl(Parser *p) {
 		sup = parseExpr(p);
 	}
 
-	require(p, TOK_LBRACE);
-
 	LinkedList *methods = NULL;
-	while(!matchSkipnl(p, TOK_RBRACE) && !matchSkipnl(p, TOK_EOF)) {
+	while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_EOF)) {
 		if(matchSkipnl(p, TOK_DEF)) {
 			methods = addElement(methods, parseFuncDecl(p));
 		} else {
@@ -271,7 +274,7 @@ static Stmt *parseClassDecl(Parser *p) {
 		if(p->panic) classSynchronize(p);
 	}
 
-	require(p, TOK_RBRACE);
+	require(p, TOK_END);
 
 	return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
 }
@@ -293,34 +296,56 @@ static Stmt *varDecl(Parser *p) {
 	return newVarDecl(line, name.lexeme, name.length, init);
 }
 
+static Stmt *parseElif(Parser *p);
+
+static Stmt *parseIfBody(Parser *p, int line) {
+	Expr *cond = parseExpr(p);
+
+	require(p, TOK_THEN);
+
+	Stmt *thenBody = blockStmt(p);
+	Stmt *elseBody = NULL;
+
+	if(matchSkipnl(p, TOK_ELIF)) {
+		elseBody = parseElif(p);
+	}
+
+	if(matchSkipnl(p, TOK_ELSE)) {
+		advance(p);
+		elseBody = blockStmt(p);
+	}
+
+	return newIfStmt(line, cond, thenBody, elseBody);
+}
+
+static Stmt *parseElif(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_ELIF);
+	return parseIfBody(p, line);
+}
+
 static Stmt *ifStmt(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_IF);
 
-	require(p, TOK_LPAREN);
-	Expr *cond = parseExpr(p);
-	require(p, TOK_RPAREN);
+	Stmt *ifStmt = parseIfBody(p, line);
+	
+	require(p, TOK_END);
 
-	Stmt *thenBody = parseStmt(p);
-	Stmt *elseBody = NULL;
-
-	if(matchSkipnl(p, TOK_ELSE)) {
-		advance(p);
-		elseBody = parseStmt(p);
-	}
-
-	return newIfStmt(line, cond, thenBody, elseBody);
+	return ifStmt;
 }
 
 static Stmt *whileStmt(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_WHILE);
 
-	require(p, TOK_LPAREN);
 	Expr *cond = parseExpr(p);
-	require(p, TOK_RPAREN);
 
-	Stmt *body = parseStmt(p);
+	require(p, TOK_DO);
+
+	Stmt *body = blockStmt(p);
+
+	require(p, TOK_END);
 
 	return newWhileStmt(line, cond, body);
 }
@@ -328,8 +353,6 @@ static Stmt *whileStmt(Parser *p) {
 static Stmt *forStmt(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_FOR);
-
-	require(p, TOK_LPAREN);
 
 	Stmt *init = NULL;
 	if(!matchSkipnl(p, TOK_SEMICOLON)) {
@@ -345,9 +368,12 @@ static Stmt *forStmt(Parser *p) {
 				require(p, TOK_IN);
 
 				Expr *e = parseExpr(p);
-				require(p, TOK_RPAREN);
 
-				Stmt *body = parseStmt(p);
+				require(p, TOK_DO);
+
+				Stmt *body = blockStmt(p);
+
+				require(p, TOK_END);
 
 				return newForEach(line, init, e, body);
 			}
@@ -368,12 +394,14 @@ static Stmt *forStmt(Parser *p) {
 	require(p, TOK_SEMICOLON);
 
 	Expr *act = NULL;
-	if(!matchSkipnl(p, TOK_RPAREN))
+	if(!matchSkipnl(p, TOK_DO))
 		act = parseExpr(p);
 
-	require(p, TOK_RPAREN);
+	require(p, TOK_DO);
 
-	Stmt *body = parseStmt(p);
+	Stmt *body = blockStmt(p);
+
+	require(p, TOK_END);
 
 	return newForStmt(line, init, cond, act, body);
 }
@@ -395,9 +423,10 @@ static Stmt *blockStmt(Parser *p) {
 	int line = p->peek.line;
 	LinkedList *stmts = NULL;
 
-	require(p, TOK_LBRACE);
-
-	while(!matchSkipnl(p, TOK_RBRACE) && !matchSkipnl(p, TOK_EOF)) {
+	while(!matchSkipnl(p, TOK_END) &&  !matchSkipnl(p, TOK_ENSURE) && 
+		  !matchSkipnl(p, TOK_EXCEPT) && !matchSkipnl(p, TOK_ELSE) && 
+		  !matchSkipnl(p, TOK_ELIF) && !matchSkipnl(p, TOK_EOF)) 
+	{
 		if(matchSkipnl(p, TOK_VAR)) {
 			stmts = addElement(stmts, varDecl(p));
 			NEWLINE(p);
@@ -405,8 +434,6 @@ static Stmt *blockStmt(Parser *p) {
 			stmts = addElement(stmts, parseStmt(p));
 		}
 	}
-
-	require(p, TOK_RBRACE);
 
 	return newBlockStmt(line, stmts);
 }
@@ -463,23 +490,20 @@ static Stmt *parseTryStmt(Parser *p) {
 	LinkedList *excs = NULL;
 	Stmt *ensure= NULL;
 
-	if(match(p, TOK_EXCEPT)) {
-		while(match(p, TOK_EXCEPT)) {
+	if(matchSkipnl(p, TOK_EXCEPT)) {
+		while(matchSkipnl(p, TOK_EXCEPT)) {
 			int excLine = p->peek.line;
 
 			require(p, TOK_EXCEPT);
-			require(p, TOK_LPAREN);
 
 			Expr *cls = parseExpr(p);
 			Token exc = require(p, TOK_IDENTIFIER);
-
-			require(p, TOK_RPAREN);
 
 			Stmt *blck = blockStmt(p);
 			excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, blck));
 		}
 
-		if(match(p, TOK_ENSURE)) {
+		if(matchSkipnl(p, TOK_ENSURE)) {
 			advance(p);
 			ensure = blockStmt(p);
 		}
@@ -487,6 +511,8 @@ static Stmt *parseTryStmt(Parser *p) {
 		require(p, TOK_ENSURE);
 		ensure = blockStmt(p);
 	}
+
+	require(p, TOK_END);
 
 	return newTryStmt(line, tryBlock, excs, ensure);
 }
@@ -515,8 +541,11 @@ static Stmt *parseStmt(Parser *p) {
 		return whileStmt(p);
 	case TOK_RETURN:
 		return returnStmt(p);
-	case TOK_LBRACE:
-		return blockStmt(p);
+	case TOK_BEGIN:
+		require(p, TOK_BEGIN);
+		Stmt *block = blockStmt(p);
+		require(p, TOK_END);
+		return block;
 	case TOK_CLASS:
 		return parseClassDecl(p);
 	case TOK_IMPORT:

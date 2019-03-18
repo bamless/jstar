@@ -1,21 +1,22 @@
-class FileNotFoundException : Exception {}
+class FileNotFoundException : Exception end
 
 var SEEK_SET = 0
 var SEEK_CUR = 1
 var SEEK_END = 2
 
-class File {
-	def new(name, mode) {
-		if(!(name is String and mode is String)) {
+class File
+	def new(name, mode)
+		if !(name is String and mode is String) then
 			raise InvalidArgException("Arguments of File.new() must be 2 strings.")
-		}
+		end
+
 		this._handle = __open(name, mode)
 		this._closed = false
-	}
+	end
 
-	def __iterator__() {
+	def __iterator__()
 		return __FileIterator(this)
-	}
+	end
 
 	native tell()
 	native seek(off, whence=0)
@@ -26,24 +27,24 @@ class File {
 	native readLine()
 	native close()
 
-	def __string__() {
+	def __string__()
 		return "<" + ("closed " if this._closed else "open ") + super.__string__() + ">"
-	}
-}
+	end
+end
 
-class __FileIterator {
-	def new(file) {
+class __FileIterator
+	def new(file)
 		this.file = file
-	}
+	end
 
-	def hasNext() {
+	def hasNext()
 		this.line = this.file.readLine()
 		return this.line != "" and this.line != null
-	}
+	end
 
-	def next() {
+	def next()
 		return this.line
-	}
-}
+	end
+end
 
 native __open(name, mode)
