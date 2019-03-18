@@ -108,7 +108,7 @@ static bool importModuleOrPackage(BlangVM *vm, StringBuffer *importPath, ObjStri
 	char *path = sbuf_get_backing_buf(importPath);
 	if((*src = loadSource(path)) != NULL) {
 		if(!importWithSource(vm, path, name, *src)) {
-			free(src);
+			free(*src);
 			return false;
 		}
 		return true;
@@ -121,7 +121,7 @@ static bool importModuleOrPackage(BlangVM *vm, StringBuffer *importPath, ObjStri
 	path = sbuf_get_backing_buf(importPath); 
 	if((*src = loadSource(path)) != NULL) {
 		if(!importWithSource(vm, path, name, *src)) {
-			free(src);
+			free(*src);
 			return false;
 		}
 		return true;
