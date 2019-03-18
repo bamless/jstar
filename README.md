@@ -3,11 +3,11 @@ A dynamic lightweight scripting language
 
 # How to use
 ## Repl
-If the blang binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and blang will execute it. You can also write multiline code using curly brackets, it will look like this:
+If the blang binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and blang will execute it. You can also write multiline code, it will look like this:
 ```c#
-blang>> for(var i in range(0, 3)) {
+blang>> for var i in range(3) do
 .......   print("Hello World!")
-....... }
+....... end
 Hello World!
 Hello World!
 Hello World!
@@ -21,10 +21,11 @@ You can then read them from the script this way:
 ```c#
 import sys;
 
-if(sys.args.size() > 0)
+if sys.args.size() > 0 then
   print(sys.args[0])
 else
   raise Exception("No args provided")
+end
 ```
 
 For other examples of the language you can look at the **.bl** files in *src/builtin*.
