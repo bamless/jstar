@@ -98,12 +98,13 @@ static void dorepl() {
 
 		bool expr = type == TOK_NUMBER ||
 		            type == TOK_TRUE ||
-					type == TOK_FALSE ||
-					type == TOK_IDENTIFIER ||
-					type == TOK_LPAREN ||
-					type == TOK_MINUS ||
-					type == TOK_BANG ||
-					type == TOK_STRING;
+								type == TOK_FALSE ||
+								type == TOK_IDENTIFIER ||
+								type == TOK_LPAREN ||
+								type == TOK_MINUS ||
+								type == TOK_BANG ||
+								type == TOK_STRING ||
+								type == TOK_LSQUARE;
 
 		if(expr) sbuf_appendstr(&src, "_(");
 		sbuf_appendstr(&src, line);

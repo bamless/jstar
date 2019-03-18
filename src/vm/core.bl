@@ -229,10 +229,20 @@ class List
 	end
 
 	def __string__()
-		return "[" + this.join(", ") + "]"
+		var s = "["
+		var length = this.size()
+		
+		for var i = 0; i < length; i += 1 do
+			s += str(this[i])
+			if i < length - 1 then s += ", " end
+		end
+
+		return s + "]"
 	end
 
 	def __eq__(lst)
+		if !(lst is List) then return false end
+		
 		if this.size() != lst.size() then
 			return false
 		end

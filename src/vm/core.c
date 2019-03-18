@@ -185,11 +185,12 @@ NATIVE(bl_list) {
 				"Argument 1 of list(n, init) must be a positive integer.");
 	}
 
+	double size = AS_NUM(args[1]);
+
 	ObjList *l = newList(vm, AS_NUM(args[1]));
-	for(size_t i = 0; i < l->size; i++) {
-		l->arr[i] = args[2];
+	for(; l->count < size; l->count++) {
+		l->arr[l->count] = args[2];
 	}
-	l->count = l->size;
 
 	BL_RETURN(OBJ_VAL(l));
 }
@@ -248,9 +249,7 @@ NATIVE(bl_printstr) {
 	}
 
 	ObjString *s = AS_STRING(args[1]);
-	if(fwrite(s->data, 1, s->length, stream) == 0) {
-		BL_RAISE_EXCEPTION(vm, "IOException", NULL);
-	}
+	fwrite(s->data, 1, s->length, stream);
 
 	BL_RETURN(NULL_VAL);
 }
