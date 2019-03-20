@@ -13,4 +13,6 @@ typedef struct Lexer {
 void initLexer(Lexer *lex, const char *src);
 void nextToken(Lexer *lex, Token *tok);
 
+void rewindTo(Lexer *lex, Token *tok);
+
 #endif

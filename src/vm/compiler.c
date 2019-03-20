@@ -146,8 +146,8 @@ static void endLoop(Compiler *c) {
 static uint8_t createConst(Compiler *c, Value constant, int line) {
 	int index = addConstant(&c->func->chunk, constant);
 	if(index == -1) {
-		error(c, line, "too many constants "
-				"in function %s", c->func->name->data);
+		const char *name = c->func->name == NULL ? "<main>" : c->func->name->data;
+		error(c, line, "too many constants in function %s", name);
 		return 0;
 	}
 	return (uint8_t) index;

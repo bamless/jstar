@@ -295,3 +295,9 @@ void nextToken(Lexer *lex, Token *tok) {
 		break;
 	}
 }
+
+
+void rewindTo(Lexer *lex, Token *tok) {
+	lex->tokenStart = lex->current = tok->lexeme;
+	lex->curr_line = tok->line;
+}

@@ -7,11 +7,18 @@
 #include <stdio.h>
 #include <string.h>
 
-#define NEWLINE(p) do { \
-	if(!match(p, TOK_EOF) && !match(p, TOK_END) && !match(p, TOK_ELSE) \
-		&& !match(p, TOK_ELIF) && !match(p, TOK_ENSURE) && !match(p, TOK_EXCEPT)) \
-		require(p, TOK_NEWLINE); \
-} while(0)
+#define STATEMENT_END(p) do { \
+	if(!IS_IMPLICIT_END(p->peek.type)) { \
+		if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) \
+			advance(p); \
+		else \
+			error(p, "Expected token `newline` or `;`."); \
+	} \
+} while(0) \
+
+// tokens that implicitly signal the end of a statement (without requiring a ';' or '\n')
+#define IS_IMPLICIT_END(t) \
+	(t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE || t == TOK_EXCEPT)
 
 #define IS_LVALUE(type) \
 	(type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC)
@@ -181,7 +188,13 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
 
 static Stmt *parseFuncDecl(Parser *p) {
 	int line = p->peek.line;
-	require(p, TOK_FUN);
+	Token fun = require(p, TOK_FUN);
+
+	if(!match(p, TOK_IDENTIFIER)) {
+		rewindTo(&p->lex, &fun);
+		nextToken(&p->lex, &p->peek);
+		return NULL;
+	}
 
 	Token fname = require(p, TOK_IDENTIFIER);
 
@@ -204,7 +217,7 @@ static Stmt *parseNativeDecl(Parser *p) {
 	LinkedList *args = NULL, *defArgs = NULL;
 	formalArgs(p, &args, &defArgs);
 
-	NEWLINE(p);
+	STATEMENT_END(p);
 
 	return newNativeDecl(line, fname.length, fname.lexeme, args, defArgs);
 }
@@ -241,15 +254,16 @@ static Stmt *parseDeclaration(Parser *p) {
 	if(matchSkipnl(p, TOK_CLASS)) {
 		return parseClassDecl(p);
 	}
-	if(matchSkipnl(p, TOK_FUN)) {
-		return parseFuncDecl(p);
-	}
 	if(matchSkipnl(p, TOK_NAT)) {
 		return parseNativeDecl(p);
 	}
+	if(matchSkipnl(p, TOK_FUN)) {
+		Stmt *funcDecl = parseFuncDecl(p);
+		if(funcDecl != NULL) return funcDecl;
+	}
 	if(matchSkipnl(p, TOK_VAR)) {
 		Stmt *var = varDecl(p);
-		NEWLINE(p);
+		STATEMENT_END(p);
 		return var;
 	}
 
@@ -421,7 +435,7 @@ static Stmt *returnStmt(Parser *p) {
 	if(!matchSkipnl(p, TOK_NEWLINE) && !matchSkipnl(p, TOK_EOF)) {
 		e = parseExpr(p);
 	}
-	NEWLINE(p);
+	STATEMENT_END(p);
 
 	return newReturnStmt(line, e);
 }
@@ -479,7 +493,7 @@ static Stmt *parseImport(Parser *p) {
 		as = require(p, TOK_IDENTIFIER);
 	}
 
-	NEWLINE(p);
+	STATEMENT_END(p);
 
 	return newImportStmt(line, modules, importNames, as.lexeme, as.length);
 }
@@ -524,7 +538,7 @@ static Stmt *parseRaiseStmt(Parser *p) {
 	advance(p);
 
 	Expr *exc = parseExpr(p);
-	NEWLINE(p);
+	STATEMENT_END(p);
 
 	return newRaiseStmt(line, exc);
 }
@@ -556,15 +570,15 @@ static Stmt *parseStmt(Parser *p) {
 		return parseRaiseStmt(p);
 	case TOK_CONTINUE:
 		advance(p);
-		NEWLINE(p);
+		STATEMENT_END(p);
 		return newContinueStmt(line);
 	case TOK_BREAK:
 		advance(p);
-		NEWLINE(p);
+		STATEMENT_END(p);
 		return newBreakStmt(line);
 	default: {
 		Expr *e = parseExpr(p);
-		NEWLINE(p);
+		STATEMENT_END(p);
 		return newExprStmt(line, e);
 	}
 	}
