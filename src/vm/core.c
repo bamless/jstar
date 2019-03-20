@@ -390,9 +390,9 @@ NATIVE(bl_printstr) {
 			BL_RETURN(NULL_VAL);
 		}
 
-		Value ret = l->arr[(size_t)index];
+		Value r = l->arr[(size_t)index];
 		listRemove(vm, l, index);
-		BL_RETURN(ret);
+		BL_RETURN(r);
 	}
 
 	NATIVE(bl_List_clear) {
