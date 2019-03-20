@@ -3,7 +3,7 @@ project(Blang)
 
 # blang version
 set(Blang_VERSION_MAJOR 2)
-set(Blang_VERSION_MINOR 0)
+set(Blang_VERSION_MINOR 1)
 set(Blang_VERSION_PATCH 0)
 
 # options

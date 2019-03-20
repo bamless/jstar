@@ -19,7 +19,7 @@ When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpr
 If you want to run a script, just pass its path as the first argument to blang. If you pass more than one argument, all the others will be forwarded to blang as *script arguments*.
 You can then read them from the script this way:
 ```lua
-import sys;
+import sys
 
 if sys.args.size() > 0 then
   print(sys.args[0])
