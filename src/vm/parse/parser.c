@@ -116,6 +116,21 @@ static void synchronize(Parser *p) {
 	}
 }
 
+static void classSynchronize(Parser *p) {
+	p->panic = false;
+
+	while(!matchSkipnl(p, TOK_EOF)) {
+
+		switch(p->peek.type) {
+		case TOK_DEF:
+			return;
+		default: break;
+		}
+
+		advance(p);
+	}
+}
+
 //----- Recursive descent parser implementation ------
 
 static Expr *parseExpr(Parser *p);
@@ -131,10 +146,8 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
 	Token arg = {0};
 
 	while((*args == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
-		if(*args != NULL) {
-			advance(p); // skip comma if not first element
-		}
-
+		if(*args != NULL) advance(p);
+		
 		arg = require(p, TOK_IDENTIFIER);
 
 		if(matchSkipnl(p, TOK_EQUAL)) {
@@ -196,21 +209,58 @@ static Stmt *parseNativeDecl(Parser *p) {
 	return newNativeDecl(line, fname.length, fname.lexeme, args, defArgs);
 }
 
+static Stmt *parseClassDecl(Parser *p) {
+	int line = p->peek.line;
+	require(p, TOK_CLASS);
+
+	Token cls = require(p, TOK_IDENTIFIER);
+
+	Expr *sup = NULL;
+	if(matchSkipnl(p, TOK_COLON)) {
+		advance(p);
+		sup = parseExpr(p);
+	}
+
+	LinkedList *methods = NULL;
+	while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_EOF)) {
+		if(matchSkipnl(p, TOK_NAT)) {
+			methods = addElement(methods, parseNativeDecl(p));
+		} else {
+			methods = addElement(methods, parseFuncDecl(p));
+		}
+
+		if(p->panic) classSynchronize(p);
+	}
+
+	require(p, TOK_END);
+
+	return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
+}
+
+static Stmt *parseDeclaration(Parser *p) {
+	if(matchSkipnl(p, TOK_CLASS)) {
+		return parseClassDecl(p);
+	}
+	if(matchSkipnl(p, TOK_DEF)) {
+		return parseFuncDecl(p);
+	}
+	if(matchSkipnl(p, TOK_NAT)) {
+		return parseNativeDecl(p);
+	}
+	if(matchSkipnl(p, TOK_VAR)) {
+		Stmt *var = varDecl(p);
+		NEWLINE(p);
+		return var;
+	}
+
+	return parseStmt(p);
+}
+
 static Stmt *parseProgram(Parser *p) {
 	LinkedList *stmts = NULL;
 
 	while(!matchSkipnl(p, TOK_EOF)) {
-		if(matchSkipnl(p, TOK_DEF)) {
-			stmts = addElement(stmts, parseFuncDecl(p));
-		} else if(matchSkipnl(p, TOK_NAT)) {
-			stmts = addElement(stmts, parseNativeDecl(p));
-		} else if(matchSkipnl(p, TOK_VAR)) {
-			stmts = addElement(stmts, varDecl(p));
-			NEWLINE(p);
-		} else {
-			stmts = addElement(stmts, parseStmt(p));
-		}
-
+		stmts = addElement(stmts, parseDeclaration(p));
 		if(p->panic) synchronize(p);
 	}
 
@@ -234,49 +284,6 @@ Stmt *parse(Parser *p, const char *fname, const char *src) {
 		error(p, "Unexpected token.");
 
 	return program;
-}
-
-static void classSynchronize(Parser *p) {
-	p->panic = false;
-
-	while(!matchSkipnl(p, TOK_EOF)) {
-
-		switch(p->peek.type) {
-		case TOK_DEF:
-			return;
-		default: break;
-		}
-
-		advance(p);
-	}
-}
-
-static Stmt *parseClassDecl(Parser *p) {
-	int line = p->peek.line;
-	require(p, TOK_CLASS);
-
-	Token cls = require(p, TOK_IDENTIFIER);
-
-	Expr *sup = NULL;
-	if(matchSkipnl(p, TOK_COLON)) {
-		advance(p);
-		sup = parseExpr(p);
-	}
-
-	LinkedList *methods = NULL;
-	while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_EOF)) {
-		if(matchSkipnl(p, TOK_DEF)) {
-			methods = addElement(methods, parseFuncDecl(p));
-		} else {
-			methods = addElement(methods, parseNativeDecl(p));
-		}
-
-		if(p->panic) classSynchronize(p);
-	}
-
-	require(p, TOK_END);
-
-	return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
 }
 
 //----- Statements parse ------
@@ -427,12 +434,7 @@ static Stmt *blockStmt(Parser *p) {
 		  !matchSkipnl(p, TOK_EXCEPT) && !matchSkipnl(p, TOK_ELSE) && 
 		  !matchSkipnl(p, TOK_ELIF) && !matchSkipnl(p, TOK_EOF)) 
 	{
-		if(matchSkipnl(p, TOK_VAR)) {
-			stmts = addElement(stmts, varDecl(p));
-			NEWLINE(p);
-		} else {
-			stmts = addElement(stmts, parseStmt(p));
-		}
+		stmts = addElement(stmts, parseDeclaration(p));
 	}
 
 	return newBlockStmt(line, stmts);
@@ -546,8 +548,6 @@ static Stmt *parseStmt(Parser *p) {
 		Stmt *block = blockStmt(p);
 		require(p, TOK_END);
 		return block;
-	case TOK_CLASS:
-		return parseClassDecl(p);
 	case TOK_IMPORT:
 		return parseImport(p);
 	case TOK_TRY:

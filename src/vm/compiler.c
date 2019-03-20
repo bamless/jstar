@@ -17,8 +17,14 @@
 
 typedef struct Local {
 	Identifier id;
+	bool isUpvalue;
 	int depth;
 } Local;
+
+typedef struct Upvalue {
+	bool isLocal;
+	uint8_t index;
+} Upvalue;
 
 typedef struct Loop {
 	int depth;
@@ -42,6 +48,8 @@ typedef struct Compiler {
 
 	uint8_t localsCount;
 	Local locals[MAX_LOCALS];
+
+	Upvalue upvalues[MAX_LOCALS];
 
 	bool hadError;
 	int depth;
@@ -97,16 +105,23 @@ static size_t emitShort(Compiler *c, uint16_t s, int line) {
 	return i;
 }
 
+static void discardLocal(Compiler *c, Local *local) {
+	if(local->isUpvalue) {
+		emitBytecode(c, OP_CLOSE_UPVALUE, 0);
+	} else {
+		emitBytecode(c, OP_POP, 0);
+	}
+}
+
 static void enterScope(Compiler *c) {
 	c->depth++;
 }
 
 static void exitScope(Compiler *c) {
 	c->depth--;
-	while(c->localsCount > 0 &&
+	while(c->localsCount > 0 && 
 		c->locals[c->localsCount - 1].depth > c->depth) {
-			c->localsCount--;
-			emitBytecode(c, OP_POP, 0);
+			discardLocal(c, &c->locals[--c->localsCount]);
 	}
 }
 
@@ -114,8 +129,7 @@ static void discardScope(Compiler *c, int depth) {
 	int localsCount = c->localsCount;
 	while(localsCount > 0 &&
 		c->locals[localsCount - 1].depth > depth) {
-			localsCount--;
-			emitBytecode(c, OP_POP, 0);
+			discardLocal(c, &c->locals[--localsCount]);
 	}
 }
 
@@ -144,10 +158,24 @@ static uint8_t identifierConst(Compiler *c, Identifier *id, int line) {
 	return createConst(c, OBJ_VAL(idStr), line);
 }
 
-static int resolveVariable(Compiler *c, Identifier *id, int line) {
+static void addLocal(Compiler *c, Identifier *id, int line) {
+	if(c->localsCount == MAX_LOCALS) {
+		error(c, line, "Too many local variables"
+				" in function %s.", c->func->name->data);
+		return;
+	}
+
+	Local *local = &c->locals[c->localsCount];
+	local->isUpvalue = false;
+	local->depth = -1;
+	local->id = *id;
+	c->localsCount++;
+}
+
+static int resolveVariable(Compiler *c, Identifier *id, bool inFunc, int line) {
 	for(int i = c->localsCount - 1; i >= 0; i--) {
 		if(identifierEquals(&c->locals[i].id, id)) {
-			if (c->locals[i].depth == -1) {
+			if (inFunc && c->locals[i].depth == -1) {
 				error(c, line, "Cannot read local"
 						" variable in its own initializer.");
 				return 0;
@@ -158,17 +186,42 @@ static int resolveVariable(Compiler *c, Identifier *id, int line) {
 	return -1;
 }
 
-static void addLocal(Compiler *c, Identifier *id, int line) {
-	if(c->localsCount == MAX_LOCALS) {
-		error(c, line, "Too many local variables"
-				" in function %s.", c->func->name->data);
-		return;
+static int addUpvalue(Compiler *c, uint8_t index, bool local, int line) {
+	uint8_t upvalueCount = c->func->upvaluec;
+	for(uint8_t i = 0; i < upvalueCount; i++) {
+		Upvalue *upval = &c->upvalues[i];
+		if(upval->index == index && upval->isLocal == local) {
+			return i;
+		}
 	}
 
-	Local *local = &c->locals[c->localsCount];
-	local->id = *id;
-	local->depth = -1;
-	c->localsCount++;
+	if(c->func->upvaluec == MAX_LOCALS) {
+		error(c, line, "Too many upvalues in function %s.", c->func->name->data);
+		return -1;
+	}
+
+	c->upvalues[c->func->upvaluec].isLocal = local;
+	c->upvalues[c->func->upvaluec].index = index;
+	return c->func->upvaluec++;
+}
+
+static int resolveUpvalue(Compiler *c, Identifier *id, int line) {
+	if(c->prev == NULL) {
+		return -1;
+	}
+
+	int i = resolveVariable(c->prev, id, false, line);
+	if(i != -1) {
+		c->prev->locals[i].isUpvalue = true;
+		return addUpvalue(c, i, true, line);
+	}
+	
+	i = resolveUpvalue(c->prev, id, line);
+	if(i != -1) {
+		return addUpvalue(c, i, false, line);
+	}
+
+	return -1;
 }
 
 static void declareVar(Compiler *c, Identifier *id, int line) {
@@ -312,20 +365,39 @@ static void compileTernaryExpr(Compiler *c, Expr *e) {
 	setJumpTo(c, exitJmp, c->func->chunk.count, e->line);
 }
 
+static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
+	uint8_t setOp = OP_SET_GLOBAL;
+	uint8_t getOp = OP_GET_GLOBAL;
+
+	uint8_t arg = 0;
+
+	int i = resolveVariable(c, id, true, line);
+	if(i != -1) {
+		setOp = OP_SET_LOCAL;
+		getOp = OP_GET_LOCAL;
+		arg = i;
+	} else if((i = resolveUpvalue(c, id, line)) != -1){
+		setOp = OP_SET_UPVALUE;
+		getOp = OP_GET_UPVALUE;
+		arg = i;
+	} else {
+		arg = identifierConst(c, id, line);
+	}
+
+	if(set) {
+		emitBytecode(c, setOp, line);
+	} else {
+		emitBytecode(c, getOp, line);
+	}
+
+	emitBytecode(c, arg, line);
+}
+
 static void compileAssignExpr(Compiler *c, Expr *e) {
 	switch(e->assign.lval->type) {
 	case VAR_LIT: {
 		compileExpr(c, e->assign.rval);
-
-		int i = resolveVariable(c, &e->assign.lval->var.id, e->line);
-		if(i != -1) {
-			emitBytecode(c, OP_SET_LOCAL, e->line);
-			emitBytecode(c, (uint8_t) i, e->line);
-		} else {
-			emitBytecode(c, OP_SET_GLOBAL, e->line);
-			uint8_t id = identifierConst(c, &e->assign.lval->var.id, e->line);
-			emitBytecode(c, id, e->line);
-		}
+		compileVariable(c, &e->assign.lval->var.id, true, e->line);
 		break;
 	}
 	case ACCESS_EXPR: {
@@ -440,17 +512,6 @@ static void compileExpExpr(Compiler *c, Expr *e) {
 	emitBytecode(c, OP_POW, e->line);
 }
 
-static void compileVar(Compiler *c, Identifier *id, int line) {
-	int i = resolveVariable(c, id, line);
-	if(i != -1) {
-		emitBytecode(c, OP_GET_LOCAL, line);
-		emitBytecode(c, (uint8_t) i, line);
-	} else {
-		emitBytecode(c, OP_GET_GLOBAL, line);
-		emitBytecode(c, identifierConst(c, id, line), line);
-	}
-}
-
 static ObjString *readString(Compiler *c, Expr *e);
 
 static void compileExpr(Compiler *c, Expr *e) {
@@ -508,7 +569,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case VAR_LIT: {
-		compileVar(c, &e->var.id, e->line);
+		compileVariable(c, &e->var.id, false, e->line);
 		break;
 	}
 	case NULL_LIT:
@@ -745,18 +806,22 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
+	declareVar(c, &s->funcDecl.id, s->line);
+	
 	Compiler funComp;
 	initCompiler(&funComp, c, TYPE_FUNC, c->depth + 1, c->vm);
 
 	ObjFunction *func = function(&funComp, c->func->module, s);
 
-	uint8_t fnConst = createConst(c, OBJ_VAL(func), s->line);
-	uint8_t idConst = identifierConst(c, &s->funcDecl.id, s->line);
+	emitBytecode(c, OP_NEW_CLOSURE, s->line);
+	emitBytecode(c, createConst(c, OBJ_VAL(func), s->line), s->line);
 
-	emitBytecode(c, OP_GET_CONST, s->line);
-	emitBytecode(c, fnConst, s->line);
-	emitBytecode(c, OP_DEFINE_GLOBAL, s->line);
-	emitBytecode(c, idConst, s->line);
+	for(uint8_t i = 0; i < func->upvaluec; i++) {
+		emitBytecode(c, funComp.upvalues[i].isLocal ? 1 : 0, s->line);
+		emitBytecode(c, funComp.upvalues[i].index, s->line);
+	}
+
+	defineVar(c, &s->funcDecl.id, s->line);
 
 	endCompiler(&funComp);
 }
@@ -792,9 +857,16 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 
 			ObjFunction *met = method(&methodc, c->func->module, &cls->classDecl.id, m);
 
+			emitBytecode(c, OP_NEW_CLOSURE, m->line);
+			emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), m->line);
+
+			for(uint8_t i = 0; i < met->upvaluec; i++) {
+				emitBytecode(c, methodc.upvalues[i].isLocal ? 1 : 0, m->line);
+				emitBytecode(c, methodc.upvalues[i].index, m->line);
+			}
+
 			emitBytecode(c, OP_DEF_METHOD, cls->line);
 			emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), cls->line);
-			emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), cls->line);
 
 			endCompiler(&methodc);
 			break;
@@ -922,7 +994,7 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
 	emitBytecode(c, OP_SET_LOCAL, exc->line);
 
 	Identifier excId = {10, ".exception"};
-	emitBytecode(c, resolveVariable(c, &excId, exc->line), exc->line);
+	emitBytecode(c, resolveVariable(c, &excId, true, exc->line), exc->line);
 	emitBytecode(c, OP_POP, exc->line);
 
 	exitScope(c);

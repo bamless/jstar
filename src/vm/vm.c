@@ -130,7 +130,57 @@ static bool isInt(double n) {
 	return (int64_t) n == n;
 }
 
-static bool callFunction(BlangVM *vm, ObjFunction *func, uint8_t argc) {
+static void createClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
+	ObjClass *cls = newClass(vm, name, superCls);
+
+	if(superCls != NULL) {
+		hashTableMerge(&cls->methods, &superCls->methods);
+	}
+
+	push(vm, OBJ_VAL(cls));
+}
+
+static ObjUpvalue *captureUpvalue(BlangVM *vm, Value *addr) {
+	if(vm->upvalues == NULL) {
+		vm->upvalues = newUpvalue(vm, addr);
+		return vm->upvalues;
+	}
+
+	ObjUpvalue *prev = NULL;
+	ObjUpvalue *upvalue = vm->upvalues;
+
+	while(upvalue != NULL && upvalue->addr > addr) {
+		prev = upvalue;
+		upvalue = upvalue->next;
+	}
+
+	if(upvalue != NULL && upvalue->addr == addr)
+		return upvalue;
+
+	ObjUpvalue *createdUpvalue = newUpvalue(vm, addr);
+	if(prev == NULL)
+		vm->upvalues = createdUpvalue;
+	else
+		upvalue->next = createdUpvalue;
+
+	createdUpvalue->next = upvalue;
+	return createdUpvalue;
+}
+
+static void closeUpvalues(BlangVM *vm, Value *last) {
+	while(vm->upvalues != NULL && vm->upvalues->addr >= last) {
+		ObjUpvalue *upvalue = vm->upvalues;
+
+		upvalue->closed = *upvalue->addr;
+		upvalue->addr = &upvalue->closed;
+
+		vm->upvalues = upvalue->next;
+	}
+}
+
+static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
+	ObjFunction *func = closure->fn;
+
 	if(func->defaultc != 0) {
 		uint8_t most  = func->argsCount;
 		uint8_t least = most - func->defaultc;
@@ -158,7 +208,7 @@ static bool callFunction(BlangVM *vm, ObjFunction *func, uint8_t argc) {
 	}
 
 	Frame *callFrame = &vm->frames[vm->frameCount++];
-	callFrame->fn = func;
+	callFrame->closure = closure;
 	callFrame->ip = func->chunk.code;
 	callFrame->stack = vm->sp - (func->argsCount + 1);
 	callFrame->handlerc = 0;
@@ -204,15 +254,15 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 	if(IS_OBJ(callee)) {
 		switch(OBJ_TYPE(callee)) {
-		case OBJ_FUNCTION:
-			return callFunction(vm, AS_FUNC(callee), argc);
+		case OBJ_CLOSURE:
+			return callFunction(vm, AS_CLOSURE(callee), argc);
 		case OBJ_NATIVE:
 			return callNative(vm, AS_NATIVE(callee), argc);
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(callee);
 			vm->sp[-argc - 1] = m->bound;
 			return m->method->type == OBJ_FUNCTION ?
-			        callFunction(vm, (ObjFunction*)m->method, argc) :
+			        callFunction(vm, (ObjClosure*)m->method, argc) :
 			        callNative(vm, (ObjNative*)m->method, argc);
 		}
 		case OBJ_CLASS: {
@@ -221,7 +271,7 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 
 			Value ctor;
 			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
-				return callFunction(vm, AS_FUNC(ctor), argc);
+				return callFunction(vm, AS_CLOSURE(ctor), argc);
 			} else if(argc != 0) {
 				blRaise(vm, "TypeException", "Function %s.new() Expected 0 "
 				    "args, but instead `%d` supplied.", cls->name->data, argc);
@@ -237,16 +287,6 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 	ObjClass *cls = getClass(vm, callee);
 	blRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
 	return false;
-}
-
-static void createClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
-	ObjClass *cls = newClass(vm, name, superCls);
-
-	if(superCls != NULL) {
-		hashTableMerge(&cls->methods, &superCls->methods);
-	}
-
-	push(vm, OBJ_VAL(cls));
 }
 
 static bool invokeMethod(BlangVM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
@@ -270,7 +310,7 @@ static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
 			// Check if field shadows a method
 			Value f;
 			if(hashTableGet(&inst->fields, name, &f)) {
-				if(!IS_OBJ(f) && (IS_FUNC(f) || IS_NATIVE(f)
+				if(IS_OBJ(f) && (IS_CLOSURE(f) || IS_NATIVE(f)
 								|| IS_CLASS(f) || IS_BOUND_METHOD(f))) {
 					return callValue(vm, f, argc);
 				}
@@ -427,13 +467,15 @@ static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse)
 static bool runEval(BlangVM *vm) {
 	register Frame *frame;
 	register Value *frameStack;
+	register ObjClosure *closure;
 	register ObjFunction *fn;
 	register uint8_t *ip;
 
 	#define LOAD_FRAME() \
 		frame = &vm->frames[vm->frameCount - 1]; \
 		frameStack = frame->stack; \
-		fn = frame->fn; \
+		closure = frame->closure; \
+		fn = closure->fn; \
 		ip = frame->ip; \
 
 	#define SAVE_FRAME() frame->ip = ip;
@@ -465,7 +507,8 @@ static bool runEval(BlangVM *vm) {
 	#define UNWIND_HANDLER(h, cause, ret) do { \
 		frame->ip = h->handler; \
 		vm->sp = h->savesp; \
-		vm->module = frame->fn->module; \
+		closeUpvalues(vm, vm->sp - 1); \
+		vm->module = frame->closure->fn->module; \
 		push(vm, cause); \
 		push(vm, ret); \
 	} while(0)
@@ -858,7 +901,7 @@ sup_invoke:;
 	}
 	TARGET(OP_RETURN): {
 		Value ret = pop(vm);
-		
+
 		if(frame->handlerc > 0) {
 			while(frame->handlerc > 0) {
 				Handler *h = &frame->handlers[--frame->handlerc];
@@ -869,6 +912,8 @@ sup_invoke:;
 			}
 			LOAD_FRAME();
 		} else {
+			closeUpvalues(vm, frameStack);
+
 			if(--vm->frameCount == 0) {
 				return true;
 			}
@@ -899,7 +944,9 @@ sup_invoke:;
 		//call the module's main if first time import
 		if(!valueEquals(peek(vm), NULL_VAL)) {
 			SAVE_FRAME();
-			callValue(vm, peek(vm), 0);
+			ObjClosure *closure = newClosure(vm, AS_FUNC(peek(vm)));
+			*(vm->sp - 1) = OBJ_VAL(closure); 
+			callFunction(vm, closure, 0);
 			LOAD_FRAME();
 		}
 
@@ -930,6 +977,21 @@ sup_invoke:;
 	TARGET(OP_NEW_LIST):
 		push(vm, OBJ_VAL(newList(vm, 0)));
 		DISPATCH();
+	TARGET(OP_NEW_CLOSURE): {
+		ObjClosure *closure = newClosure(vm, AS_FUNC(GET_CONST()));
+		push(vm, OBJ_VAL(closure));
+
+		for(uint8_t i = 0; i < closure->fn->upvaluec; i++) {
+			uint8_t isLocal = NEXT_CODE();
+			uint8_t index = NEXT_CODE();
+			if(isLocal) {
+				closure->upvalues[i] = captureUpvalue(vm, frame->stack + index);
+			} else {
+				closure->upvalues[i] = frame->closure->upvalues[i];
+			}
+		}
+		DISPATCH();
+	}
 	TARGET(OP_NEW_CLASS):
 		createClass(vm, GET_STRING(), vm->objClass);
 		DISPATCH();
@@ -941,9 +1003,9 @@ sup_invoke:;
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
 		DISPATCH();
 	TARGET(OP_DEF_METHOD): {
-		ObjClass *cls = AS_CLASS(peek(vm));
+		ObjClass *cls = AS_CLASS(peek2(vm));
 		ObjString *methodName = GET_STRING();
-		hashTablePut(&cls->methods, methodName, GET_CONST());
+		hashTablePut(&cls->methods, methodName, pop(vm));
 		DISPATCH();
 	}
 	TARGET(OP_NAT_METHOD): {
@@ -1068,7 +1130,17 @@ sup_invoke:;
 	TARGET(OP_SET_LOCAL):
 		frameStack[NEXT_CODE()] = peek(vm);
 		DISPATCH();
+	TARGET(OP_GET_UPVALUE):
+		push(vm, *closure->upvalues[NEXT_CODE()]->addr);
+		DISPATCH();
+	TARGET(OP_SET_UPVALUE):
+		*closure->upvalues[NEXT_CODE()]->addr = peek(vm);
+		DISPATCH();
 	TARGET(OP_POP):
+		pop(vm);
+		DISPATCH();
+	TARGET(OP_CLOSE_UPVALUE):
+		closeUpvalues(vm, vm->sp - 1);
 		pop(vm);
 		DISPATCH();
 	TARGET(OP_DUP):
@@ -1107,7 +1179,13 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 		return VM_COMPILE_ERR;
 	}
 
-	callFunction(vm, fn, 0);
+	push(vm, OBJ_VAL(fn));
+
+	ObjClosure *closure = newClosure(vm, fn);
+
+	pop(vm);
+
+	callFunction(vm, closure, 0);
 
 	if(!runEval(vm)) {
 		return VM_RUNTIME_ERR;

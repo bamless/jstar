@@ -24,6 +24,9 @@
 #define GC_FREE(vm, type, obj) GCallocate(vm, obj, sizeof(type), 0)
 #define GC_FREEARRAY(vm, type, obj, count) GCallocate(vm, obj, sizeof(type) * count, 0)
 
+#define GC_FREE_VAR(vm, type, vartype, count, obj) \
+	GCallocate(vm, obj, sizeof(type) + sizeof(vartype) * count, 0)
+
 static void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
 	vm->allocated += size - oldsize;
 	if(size > oldsize && !vm->disableGC) {
@@ -60,6 +63,10 @@ static Obj *newObj(BlangVM *vm, size_t size, ObjClass *cls, ObjType type) {
 	return o;
 }
 
+static Obj *newVarObj(BlangVM *vm, size_t size, size_t varSize, size_t count, ObjClass *cls, ObjType type) {
+	return newObj(vm, size + varSize * count, cls, type);
+}
+
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc) {
 	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
 	memset(defArr, 0, defaultc * sizeof(Value));
@@ -69,6 +76,7 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
 	f->defaultc = defaultc;
 	f->defaults = defArr;
 	f->module = module;
+	f->upvaluec = 0;
 	f->name = name;
 	initChunk(&f->chunk);
 	return f;
@@ -101,11 +109,28 @@ ObjInstance *newInstance(BlangVM *vm, ObjClass *cls) {
 	return inst;
 }
 
+ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn) {
+	ObjClosure *c = (ObjClosure*) newVarObj(vm, sizeof(*c), sizeof(ObjUpvalue*), fn->upvaluec, vm->funClass, OBJ_CLOSURE);
+	memset(c->upvalues, 0, sizeof(ObjUpvalue*) * fn->upvaluec);
+	c->upvalueCount = fn->upvaluec;
+	c->fn = fn;
+	return c;
+}
+
+
 ObjModule *newModule(BlangVM *vm, ObjString *name) {
 	ObjModule *module = (ObjModule*) newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
 	module->name = name;
 	initHashTable(&module->globals);
 	return module;
+}
+
+ObjUpvalue *newUpvalue(BlangVM *vm, Value *addr) {
+	ObjUpvalue *upvalue = (ObjUpvalue*) newObj(vm, sizeof(*upvalue), NULL, OBJ_UPVALUE);
+	upvalue->addr = addr;
+	upvalue->closed = NULL_VAL;
+	upvalue->next = NULL;
+	return upvalue;
 }
 
 ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
@@ -154,7 +179,7 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 
 	st->lastTracedFrame = depth;
 
-	ObjFunction *fn = f->fn;
+	ObjFunction *fn = f->closure->fn;
 	size_t op = f->ip - fn->chunk.code - 1;
 
 	char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
@@ -347,6 +372,16 @@ static void freeObject(BlangVM *vm, Obj *o) {
 		GC_FREE(vm, ObjStackTrace, st);
 		break;
 	}
+	case OBJ_CLOSURE: {
+		ObjClosure *closure = (ObjClosure*) o;
+		GC_FREE_VAR(vm, ObjClosure, ObjUpvalue*, closure->upvalueCount, o);
+		break;
+	}
+	case OBJ_UPVALUE: {
+		ObjUpvalue *upvalue = (ObjUpvalue*) o;
+		GC_FREE(vm, ObjUpvalue, upvalue);
+		break;
+	}
 	}
 }
 
@@ -477,6 +512,19 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 		reachObject(vm, (Obj*) b->method);
 		break;
 	}
+	case OBJ_CLOSURE: {
+		ObjClosure *closure = (ObjClosure*) o;
+		reachObject(vm, (Obj*) closure->fn);
+		for(uint8_t i = 0; i < closure->fn->upvaluec; i++) {
+			reachObject(vm, (Obj*) closure->upvalues[i]);
+		}
+		break;
+	}
+	case OBJ_UPVALUE: {
+		ObjUpvalue *upvalue = (ObjUpvalue*) o;
+		reachValue(vm, *upvalue->addr);
+		break;
+	}
 	case OBJ_STRING: break;
 	case OBJ_STACK_TRACE: break;
 	}
@@ -541,7 +589,7 @@ void garbageCollect(BlangVM *vm) {
 	}
 	//reach elements on the frame stack
 	for(int i = 0; i < vm->frameCount; i++) {
-		reachObject(vm, (Obj*) vm->frames[i].fn);
+		reachObject(vm, (Obj*) vm->frames[i].closure);
 	}
 
 	//reach the compiler objects

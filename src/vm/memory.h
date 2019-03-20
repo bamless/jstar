@@ -20,7 +20,9 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
 ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
 ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
 ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);
+ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn);
 ObjModule *newModule(BlangVM *vm, ObjString *name);
+ObjUpvalue *newUpvalue(BlangVM *vm, Value *addr);
 ObjList *newList(BlangVM *vm, size_t startSize);
 ObjStackTrace *newStackTrace(BlangVM *vm);
 

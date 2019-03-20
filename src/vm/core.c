@@ -118,7 +118,7 @@ void initCoreLibrary(BlangVM *vm) {
 	for(Obj *o = vm->objects; o != NULL; o = o->next) {
 		if(o->type == OBJ_STRING) {
 			o->cls = vm->strClass;
-		} else if(o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
+		} else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
 			o->cls = vm->funClass;
 		}
 	}
@@ -305,10 +305,10 @@ NATIVE(bl_printstr) {
 		const char *modName = NULL;
 
 		switch(OBJ_TYPE(args[0])) {
-		case OBJ_FUNCTION:
+		case OBJ_CLOSURE:
 			funType = "function";
-			funName = AS_FUNC(args[0])->name->data;
-			modName = AS_FUNC(args[0])->module->name->data;
+			funName = AS_CLOSURE(args[0])->fn->name->data;
+			modName = AS_CLOSURE(args[0])->fn->module->name->data;
 			break;
 		case OBJ_NATIVE:
 			funType = "native";
@@ -318,11 +318,11 @@ NATIVE(bl_printstr) {
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(args[0]);
 			funType = "bound method";
-			funName = m->method->type == OBJ_FUNCTION ?
-			          ((ObjFunction*) m->method)->name->data :
+			funName = m->method->type == OBJ_CLOSURE ?
+			          ((ObjClosure*) m->method)->fn->name->data :
 			          ((ObjNative*) m->method)->name->data;
-			funName = m->method->type == OBJ_FUNCTION ?
-			          ((ObjFunction*) m->method)->module->name->data :
+			modName = m->method->type == OBJ_CLOSURE ?
+			          ((ObjClosure*) m->method)->fn->module->name->data :
 			          ((ObjNative*) m->method)->module->name->data;
 			break;
 		}

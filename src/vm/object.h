@@ -38,6 +38,7 @@ DECLARE_TO_STRING(ObjType);
 #define IS_CLASS(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLASS)
 #define IS_INSTANCE(o)     (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_INST)
 #define IS_MODULE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_MODULE)
+#define IS_CLOSURE(o)      (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLOSURE)
 #define IS_STACK_TRACE(o)  (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STACK_TRACE)
 
 #define AS_BOUND_METHOD(o) ((ObjBoundMethod*) AS_OBJ(o))
@@ -48,13 +49,15 @@ DECLARE_TO_STRING(ObjType);
 #define AS_CLASS(o)        ((ObjClass*)       AS_OBJ(o))
 #define AS_INSTANCE(o)     ((ObjInstance*)    AS_OBJ(o))
 #define AS_MODULE(o)       ((ObjModule*)      AS_OBJ(o))
-#define AS_STACK_TRACE(o)  ((ObjStackTrace*) AS_OBJ(o))
+#define AS_CLOSURE(o)      ((ObjClosure*)     AS_OBJ(o))
+#define AS_STACK_TRACE(o)  ((ObjStackTrace*)  AS_OBJ(o))
 
 // Type of objects. These types are used internally by the object system and are
 // Never exposed to the user (unless when using the c interface)
 #define OBJTYPE(X) \
 	X(OBJ_STRING) X(OBJ_NATIVE) X(OBJ_FUNCTION) X(OBJ_CLASS) X(OBJ_INST) \
-	X(OBJ_MODULE) X(OBJ_LIST) X(OBJ_BOUND_METHOD) X(OBJ_STACK_TRACE)
+	X(OBJ_MODULE) X(OBJ_LIST) X(OBJ_BOUND_METHOD) X(OBJ_STACK_TRACE) \
+	X(OBJ_CLOSURE) X(OBJ_UPVALUE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
@@ -96,10 +99,11 @@ typedef struct ObjModule {
 
 typedef struct ObjFunction {
 	Obj base;
-	uint8_t argsCount; // The arity of the function
 	Chunk chunk;       // The actual code chunk containing bytecodes
-	Value *defaults;   // default arguments
+	uint8_t upvaluec;  // The upvalues of the functions
+	uint8_t argsCount; // The arity of the function
 	uint8_t defaultc;  // number of default arguments
+	Value *defaults;   // default arguments
 	ObjString *name;   // The name of the function
 	ObjModule *module; // The module to which the function belongs
 } ObjFunction;
@@ -110,9 +114,9 @@ typedef bool (*Native)(BlangVM *vm, Value *argv, Value *ret);
 typedef struct ObjNative {
 	Obj base;
 	uint8_t argsCount; // The arity of the native
+	uint8_t defaultc;  // Number of default arguments
 	Native fn;         // The c native function that gets called
-	Value *defaults;   // default arguments
-	uint8_t defaultc;  // number of default arguments
+	Value *defaults;   // Default arguments
 	ObjString *name;   // The name of the native
 	ObjModule *module; // The module to which the native belongs
 } ObjNative;
@@ -141,6 +145,20 @@ typedef struct ObjBoundMethod {
 	Value bound; // The value to which the method is bound
 	Obj *method; // The actual method
 } ObjBoundMethod;
+
+typedef struct ObjUpvalue {
+	Obj base;
+	Value *addr;
+	Value closed;
+	struct ObjUpvalue *next;
+} ObjUpvalue;
+
+typedef struct ObjClosure {
+	Obj base;
+	ObjFunction *fn;
+	uint8_t upvalueCount;
+	ObjUpvalue *upvalues[];
+} ObjClosure;
 
 typedef struct ObjStackTrace {
 	Obj base;

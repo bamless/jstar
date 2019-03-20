@@ -1,11 +1,19 @@
 #include "disassemble.h"
 #include "opcode.h"
+#include "object.h"
 
 #include <stdio.h>
 
 void disassembleChunk(Chunk *c) {
 	for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {
+		int extraArgs = 0;
+		if(c->code[i] == OP_NEW_CLOSURE) {
+			extraArgs = AS_FUNC(c->consts.arr[c->code[i + 1]])->upvaluec * 2 + 1;
+		}
+			
 		disassembleIstr(c, i);
+
+		i += extraArgs;
 	}
 }
 
@@ -28,7 +36,6 @@ void disassembleIstr(Chunk *c, size_t i) {
 	// instructions with 2 arguments representing 2 constant values
 	case OP_IMPORT_AS:
 	case OP_NAT_METHOD:
-	case OP_DEF_METHOD:
 	case OP_IMPORT_NAME: {
 		int arg1 = c->code[i + 1], arg2 =  c->code[i + 2];
 		printf("%d %d (", arg1, arg2);
@@ -56,6 +63,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_SET_FIELD:
 	case OP_NEW_CLASS:
 	case OP_NEW_SUBCLASS:
+	case OP_DEF_METHOD:
 	case OP_INVOKE_0:
 	case OP_INVOKE_1:
 	case OP_INVOKE_2:
@@ -94,8 +102,29 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_CALL:
 	case OP_GET_LOCAL:
 	case OP_SET_LOCAL:
+	case OP_GET_UPVALUE:
+	case OP_SET_UPVALUE:
 		printf("%d", c->code[i + 1]);
 		break;
+
+	case OP_NEW_CLOSURE: {
+		int op = c->code[i + 1];
+		printf("%d (", op);
+		printValue(c->consts.arr[op]);
+		printf(")\n");
+
+		ObjFunction *fn = AS_FUNC(c->consts.arr[op]);
+
+		int offset = i + 2;
+		for(uint8_t j = 0; j < fn->upvaluec; j++) {
+			bool isLocal = c->code[offset++];
+			int index = c->code[offset++];
+			printf("%04d              | %s %d\n",  
+				offset - 2, isLocal ? "local" : "upvalue", index);
+		}
+
+		break;
+	}
 	}
 
 	printf("\n");

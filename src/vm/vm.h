@@ -44,7 +44,7 @@ typedef struct Handler {
 typedef struct Frame {
 	uint8_t *ip;                   // Instruction pointer
 	Value *stack;                  // Base of stack for current frame
-	ObjFunction *fn;               // The function associated with the frame
+	ObjClosure *closure;           // The function associated with the frame
 	Handler handlers[HANDLER_MAX]; // Exception handlers
 	uint8_t handlerc;              // Exception handlers count
 } Frame;
@@ -96,6 +96,9 @@ typedef struct BlangVM {
 
 	// Constant strings pool, all strings are interned
 	HashTable strings;
+
+	// Linked list of all open upvalues
+	ObjUpvalue *upvalues;
 
 	// Memory management
 	Obj *objects;

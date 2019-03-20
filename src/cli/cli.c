@@ -106,9 +106,9 @@ static void dorepl() {
 								type == TOK_STRING ||
 								type == TOK_LSQUARE;
 
-		if(expr) sbuf_appendstr(&src, "_(");
+		//if(expr) sbuf_appendstr(&src, "_(");
 		sbuf_appendstr(&src, line);
-		if(expr) sbuf_appendstr(&src, ")");
+		//if(expr) sbuf_appendstr(&src, ")");
 
 		sbuf_appendchar(&src, '\n');
 
