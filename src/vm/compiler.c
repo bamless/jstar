@@ -294,8 +294,6 @@ static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) 
 		default: break;
 		}
 	}
-
-	// TODO: error
 }
 
 static void compileExpr(Compiler *c, Expr *e);
@@ -660,7 +658,7 @@ static void patchLoopExitStmts(Compiler *c, size_t start, size_t cont, size_t br
 	for(size_t i = start; i < c->func->chunk.count; i++) {
 		Opcode code = c->func->chunk.code[i];
 
-		if(code == OP_SING_BRK || code == OP_SIGN_CONT) {
+		if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
 			c->func->chunk.code[i] = OP_JUMP;
 			setJumpTo(c, i, code == OP_SIGN_CONT ? cont : brk, 0);
 			code = OP_JUMP;
@@ -1055,6 +1053,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 		// esnure block expects exception on top or the
 		// stack or null if no exception has been raised
 		emitBytecode(c, OP_NULL, s->line);
+		// the cause of the unwind null, CAUSE_RETURN or CAUSE_EXCEPT
 		emitBytecode(c, OP_NULL, s->line);
 	}
 
@@ -1173,7 +1172,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 			error(c, s->line, "cannot use break inside a try except.");
 		}
 		discardScope(c, c->loops->depth);
-		emitBytecode(c, OP_SING_BRK, s->line);
+		emitBytecode(c, OP_SIGN_BRK, s->line);
 		emitShort(c, 0, 0);
 		break;
 	case EXCEPT_STMT:

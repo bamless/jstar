@@ -1073,14 +1073,16 @@ sup_invoke:;
 	TARGET(OP_ENSURE_END): {
 		UnwindCause cause = AS_NUM(peek2(vm));
 
-		if(cause == CAUSE_EXCEPT) {
+		switch(cause) {
+		case CAUSE_EXCEPT:
 			// if we still have the exception on top of the stack
 			if(!IS_NULL(peek(vm))) {
 				// continue unwinding
 				vm->exception = AS_INSTANCE(peek(vm));
 				UNWIND_STACK(vm);
 			}
-		} else if(cause == CAUSE_RETURN) {
+			break;
+		case CAUSE_RETURN:
 			if(frame->handlerc == 0) {
 				GOTO(OP_RETURN);
 			}
@@ -1096,7 +1098,10 @@ sup_invoke:;
 				break;
 			}
 			LOAD_FRAME();
+			break;
+		default: break;
 		}
+
 		DISPATCH();
 	}
 	TARGET(OP_POP_HANDLER): {
@@ -1149,7 +1154,7 @@ sup_invoke:;
 		DISPATCH();
 
 	TARGET(OP_SIGN_CONT):
-	TARGET(OP_SING_BRK):
+	TARGET(OP_SIGN_BRK):
 		UNREACHABLE();
 		return false;
 	}
