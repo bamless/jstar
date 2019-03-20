@@ -368,7 +368,7 @@ NATIVE(bl_printstr) {
 		}
 
 		listInsert(vm, l, index, args[2]);
-		BL_RETURN(TRUE_VAL);
+		BL_RETURN(NULL_VAL);
 	}
 
 	NATIVE(bl_List_size) {
@@ -390,8 +390,9 @@ NATIVE(bl_printstr) {
 			BL_RETURN(NULL_VAL);
 		}
 
+		Value ret = l->arr[(size_t)index];
 		listRemove(vm, l, index);
-		BL_RETURN(NULL_VAL);
+		BL_RETURN(ret);
 	}
 
 	NATIVE(bl_List_clear) {
