@@ -821,9 +821,9 @@ static void compileFunction(Compiler *c, Stmt *s) {
 		emitBytecode(c, funComp.upvalues[i].index, s->line);
 	}
 
-	defineVar(c, &s->funcDecl.id, s->line);
-
 	endCompiler(&funComp);
+	
+	defineVar(c, &s->funcDecl.id, s->line);
 }
 
 static void compileNative(Compiler *c, Stmt *s) {
