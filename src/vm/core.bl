@@ -360,7 +360,7 @@ class range
 	end
 
 	fun hasNext()
-		return this.count < this.to
+		return this.count < this.to if this.step > 0 else this.count >= this.to
 	end
 
 	fun next()
