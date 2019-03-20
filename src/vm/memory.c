@@ -438,7 +438,7 @@ void reachValue(BlangVM *vm, Value v) {
 }
 
 static void reachValueArray(BlangVM *vm, ValueArray *a) {
-	for(size_t i = 0; i < a->count; i++) {
+	for(int i = 0; i < a->count; i++) {
 		reachValue(vm, a->arr[i]);
 	}
 }

@@ -51,9 +51,9 @@ int getBytecodeSrcLine(Chunk *c, size_t index) {
 int addConstant(Chunk *c, Value constant) {
 	ValueArray *consts = &c->consts;
 
-	if(consts->count == UINT8_MAX) return -1;
+	if(consts->count == UINT16_MAX) return -1;
 
-	for(size_t i = 0; i < consts->count; i++) {
+	for(int i = 0; i < consts->count; i++) {
 		if(valueEquals(consts->arr[i], constant)) {
 			return i;
 		}

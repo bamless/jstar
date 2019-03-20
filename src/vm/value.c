@@ -21,7 +21,7 @@ static void grow(ValueArray *a) {
 	a->arr = realloc(a->arr, a->size * sizeof(Value));
 }
 
-size_t valueArrayAppend(ValueArray *a, Value v) {
+int valueArrayAppend(ValueArray *a, Value v) {
 	if(a->count + 1 > a->size)
 		grow(a);
 

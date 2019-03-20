@@ -12,7 +12,6 @@ void disassembleChunk(Chunk *c) {
 		}
 			
 		disassembleIstr(c, i);
-
 		i += extraArgs;
 	}
 }
@@ -37,7 +36,9 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_IMPORT_AS:
 	case OP_NAT_METHOD:
 	case OP_IMPORT_NAME: {
-		int arg1 = c->code[i + 1], arg2 =  c->code[i + 2];
+		int arg1 = ((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
+		int arg2 = ((uint16_t)c->code[i + 3] << 8) | c->code[i + 4];
+
 		printf("%d %d (", arg1, arg2);
 		printValue(c->consts.arr[arg1]);
 		printf(", ");
@@ -49,7 +50,8 @@ void disassembleIstr(Chunk *c, size_t i) {
 	// method call instructions, 2 arguments representing argc and method name
 	case OP_INVOKE:
 	case OP_SUPER: {
-		int argc = c->code[i + 1], name = c->code[i + 2];
+		int argc = c->code[i + 1];
+		int name = ((uint16_t)c->code[i + 2] << 8) | c->code[i + 3];
 		printf("%d %d (", argc, name);
 		printValue(c->consts.arr[name]);
 		printf(")");
@@ -91,7 +93,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 	case OP_SET_GLOBAL:
 	case OP_DEFINE_NATIVE:
 	case OP_DEFINE_GLOBAL: {
-		int op = c->code[i + 1];
+		int op = ((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
 		printf("%d (", op);
 		printValue(c->consts.arr[op]);
 		printf(")");
@@ -108,14 +110,15 @@ void disassembleIstr(Chunk *c, size_t i) {
 		break;
 
 	case OP_NEW_CLOSURE: {
-		int op = c->code[i + 1];
+		int op = ((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
+
 		printf("%d (", op);
 		printValue(c->consts.arr[op]);
 		printf(")\n");
 
 		ObjFunction *fn = AS_FUNC(c->consts.arr[op]);
 
-		int offset = i + 2;
+		int offset = i + 3;
 		for(uint8_t j = 0; j < fn->upvaluec; j++) {
 			bool isLocal = c->code[offset++];
 			int index = c->code[offset++];

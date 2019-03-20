@@ -143,17 +143,17 @@ static void endLoop(Compiler *c) {
 	c->loops = c->loops->next;
 }
 
-static uint8_t createConst(Compiler *c, Value constant, int line) {
+static uint16_t createConst(Compiler *c, Value constant, int line) {
 	int index = addConstant(&c->func->chunk, constant);
 	if(index == -1) {
 		const char *name = c->func->name == NULL ? "<main>" : c->func->name->data;
 		error(c, line, "too many constants in function %s", name);
 		return 0;
 	}
-	return (uint8_t) index;
+	return (uint16_t) index;
 }
 
-static uint8_t identifierConst(Compiler *c, Identifier *id, int line) {
+static uint16_t identifierConst(Compiler *c, Identifier *id, int line) {
 	ObjString *idStr = copyString(c->vm, id->name, id->length, true);
 	return createConst(c, OBJ_VAL(idStr), line);
 }
@@ -240,9 +240,8 @@ static void declareVar(Compiler *c, Identifier *id, int line) {
 
 static void defineVar(Compiler *c, Identifier *id, int line) {
 	if(c->depth == 0) {
-		uint8_t idConst = identifierConst(c, id, line);
 		emitBytecode(c, OP_DEFINE_GLOBAL, line);
-		emitBytecode(c, idConst, line);
+		emitShort(c, identifierConst(c, id, line), line);
 	} else {
 		c->locals[c->localsCount - 1].depth = c->depth;
 	}
@@ -295,6 +294,8 @@ static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) 
 		default: break;
 		}
 	}
+
+	// TODO: error
 }
 
 static void compileExpr(Compiler *c, Expr *e);
@@ -352,11 +353,11 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
 static void compileTernaryExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->ternary.cond);
 
-	uint8_t falseJmp = emitBytecode(c, OP_JUMPF, e->line);
+	size_t falseJmp = emitBytecode(c, OP_JUMPF, e->line);
 	emitShort(c, 0, 0);
 
 	compileExpr(c, e->ternary.thenExpr);
-	uint8_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
+	size_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
 	emitShort(c, 0, 0);
 
 	setJumpTo(c, falseJmp, c->func->chunk.count, e->line);
@@ -366,31 +367,20 @@ static void compileTernaryExpr(Compiler *c, Expr *e) {
 }
 
 static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
-	uint8_t setOp = OP_SET_GLOBAL;
-	uint8_t getOp = OP_GET_GLOBAL;
-
-	uint8_t arg = 0;
-
 	int i = resolveVariable(c, id, true, line);
 	if(i != -1) {
-		setOp = OP_SET_LOCAL;
-		getOp = OP_GET_LOCAL;
-		arg = i;
+		if(set) emitBytecode(c, OP_SET_LOCAL, line);
+		else    emitBytecode(c, OP_GET_LOCAL, line);
+		emitBytecode(c, i, line);
 	} else if((i = resolveUpvalue(c, id, line)) != -1){
-		setOp = OP_SET_UPVALUE;
-		getOp = OP_GET_UPVALUE;
-		arg = i;
+		if(set) emitBytecode(c, OP_SET_UPVALUE, line);
+		else    emitBytecode(c, OP_GET_UPVALUE, line);
+		emitBytecode(c, i, line);
 	} else {
-		arg = identifierConst(c, id, line);
+		if(set) emitBytecode(c, OP_SET_GLOBAL, line);
+		else    emitBytecode(c, OP_GET_GLOBAL, line);
+		emitShort(c, identifierConst(c, id, line), line);
 	}
-
-	if(set) {
-		emitBytecode(c, setOp, line);
-	} else {
-		emitBytecode(c, getOp, line);
-	}
-
-	emitBytecode(c, arg, line);
 }
 
 static void compileAssignExpr(Compiler *c, Expr *e) {
@@ -406,9 +396,8 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		Expr *acc = e->assign.lval;
 		compileExpr(c, acc->accessExpr.left);
 
-		uint8_t id = identifierConst(c, &acc->accessExpr.id, e->line);
 		emitBytecode(c, OP_SET_FIELD, e->line);
-		emitBytecode(c, id, e->line);
+		emitShort(c, identifierConst(c, &acc->accessExpr.id, e->line), e->line);
 		break;
 	}
 	case ARR_ACC: {
@@ -488,16 +477,14 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	}
 
 	if(isMethod) {
-		uint8_t id = identifierConst(c, &callee->accessExpr.id, e->line);
-		emitBytecode(c, id, e->line);
+		emitShort(c, identifierConst(c, &callee->accessExpr.id, e->line), e->line);
 	}
 }
 
 static void compileAccessExpression(Compiler *c, Expr *e) {
 	compileExpr(c, e->accessExpr.left);
-	uint8_t id = identifierConst(c, &e->accessExpr.id, e->line);
 	emitBytecode(c, OP_GET_FIELD, e->line);
-	emitBytecode(c, id, e->line);
+	emitShort(c, identifierConst(c, &e->accessExpr.id, e->line), e->line);
 }
 
 static void compileArraryAccExpression(Compiler *c, Expr *e) {
@@ -570,16 +557,16 @@ static void compileExpr(Compiler *c, Expr *e) {
 	}
 	case NUM_LIT:
 		emitBytecode(c, OP_GET_CONST, e->line);
-		emitBytecode(c, createConst(c, NUM_VAL(e->num), e->line), e->line);
+		emitShort(c, createConst(c, NUM_VAL(e->num), e->line), e->line);
 		break;
 	case BOOL_LIT:
 		emitBytecode(c, OP_GET_CONST, e->line);
-		emitBytecode(c, createConst(c, BOOL_VAL(e->boolean), e->line), e->line);
+		emitShort(c, createConst(c, BOOL_VAL(e->boolean), e->line), e->line);
 		break;
 	case STR_LIT: {
 		ObjString *str = readString(c, e);
 		emitBytecode(c, OP_GET_CONST, e->line);
-		emitBytecode(c, createConst(c, OBJ_VAL(str), e->line), e->line);
+		emitShort(c, createConst(c, OBJ_VAL(str), e->line), e->line);
 		break;
 	}
 	case VAR_LIT: {
@@ -732,7 +719,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 static void callMethod(Compiler *c, const char *name, int args) {
 	Identifier method = {strlen(name), name};
 	emitBytecode(c, OP_INVOKE_0 + args, 0);
-	emitBytecode(c, identifierConst(c, &method, 0), 0);
+	emitShort(c, identifierConst(c, &method, 0), 0);
 }
 
 /*
@@ -829,7 +816,7 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	ObjFunction *func = function(&compiler, c->func->module, s);
 
 	emitBytecode(c, OP_NEW_CLOSURE, s->line);
-	emitBytecode(c, createConst(c, OBJ_VAL(func), s->line), s->line);
+	emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
 
 	for(uint8_t i = 0; i < func->upvaluec; i++) {
 		emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, s->line);
@@ -846,15 +833,15 @@ static void compileNative(Compiler *c, Stmt *s) {
 	ObjNative *native = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
 	addDefaultConsts(c, native->defaults, s->nativeDecl.defArgs);
 
-	uint8_t n = createConst(c, OBJ_VAL(native), s->line);
-	uint8_t i = identifierConst(c, &s->nativeDecl.id, s->line);
+	uint16_t n = createConst(c, OBJ_VAL(native), s->line);
+	uint16_t i = identifierConst(c, &s->nativeDecl.id, s->line);
 	native->name = AS_STRING(c->func->chunk.consts.arr[i]);
 
 	emitBytecode(c, OP_GET_CONST, s->line);
-	emitBytecode(c, n, s->line);
+	emitShort(c, n, s->line);
 
 	emitBytecode(c, OP_DEFINE_NATIVE, s->line);
-	emitBytecode(c, i, s->line);
+	emitShort(c, i, s->line);
 }
 
 static void compileMethods(Compiler *c, Stmt* cls) {
@@ -871,7 +858,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			ObjFunction *met = method(&methodc, c->func->module, &cls->classDecl.id, m);
 
 			emitBytecode(c, OP_NEW_CLOSURE, m->line);
-			emitBytecode(c, createConst(c, OBJ_VAL(met), m->line), m->line);
+			emitShort(c, createConst(c, OBJ_VAL(met), m->line), m->line);
 
 			for(uint8_t i = 0; i < met->upvaluec; i++) {
 				emitBytecode(c, methodc.upvalues[i].isLocal ? 1 : 0, m->line);
@@ -879,7 +866,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			}
 
 			emitBytecode(c, OP_DEF_METHOD, cls->line);
-			emitBytecode(c, identifierConst(c, &m->funcDecl.id, m->line), cls->line);
+			emitShort(c, identifierConst(c, &m->funcDecl.id, m->line), cls->line);
 
 			endCompiler(&methodc);
 			break;
@@ -896,8 +883,8 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			ObjNative *n = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
 			addDefaultConsts(c, n->defaults, m->nativeDecl.defArgs);
 
-			uint8_t native = createConst(c, OBJ_VAL(n), cls->line);
-			uint8_t id = identifierConst(c, &m->nativeDecl.id, m->line);
+			uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
+			uint16_t id = identifierConst(c, &m->nativeDecl.id, m->line);
 
 			Identifier *classId = &cls->classDecl.id;
 			size_t len = classId->length + m->nativeDecl.id.length + 1;
@@ -910,8 +897,8 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			n->name = name;
 
 			emitBytecode(c, OP_NAT_METHOD, cls->line);
-			emitBytecode(c, id, cls->line);
-			emitBytecode(c, native, cls->line);
+			emitShort(c, id, cls->line);
+			emitShort(c, native, cls->line);
 			break;
 		}
 		default: break;
@@ -921,8 +908,6 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 }
 
 static void compileClass(Compiler *c, Stmt *s) {
-	uint8_t id = identifierConst(c, &s->classDecl.id, s->line);
-
 	bool isSubClass = s->classDecl.sup != NULL;
 	if(isSubClass) {
 		compileExpr(c, s->classDecl.sup);
@@ -931,7 +916,7 @@ static void compileClass(Compiler *c, Stmt *s) {
 		emitBytecode(c, OP_NEW_CLASS, s->line);
 	}
 
-	emitBytecode(c, id, s->line);
+	emitShort(c, identifierConst(c, &s->classDecl.id, s->line), s->line);
 
 	compileMethods(c, s);
 
@@ -943,7 +928,7 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 	const char *base = ((Identifier*)s->importStmt.modules->elem)->name;
 	LinkedList *n;
 
-	uint8_t nameConst;
+	uint16_t nameConst;
 
 	// import module (if nested module, import all from outer to inner)
 	size_t length = -1;
@@ -961,7 +946,7 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 			emitBytecode(c, OP_IMPORT_FROM, s->line);
 		}
 		nameConst = identifierConst(c, &module, s->line);
-		emitBytecode(c, nameConst, s->line);
+		emitShort(c, nameConst, s->line);
 
 		if(n->next != NULL) {
 			emitBytecode(c, OP_POP, s->line);
@@ -971,14 +956,14 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 	if(s->importStmt.impNames != NULL) {
 		foreach(n, s->importStmt.impNames) {
 			emitBytecode(c, OP_IMPORT_NAME, s->line);
-			emitBytecode(c, nameConst, s->line);
-			emitBytecode(c, identifierConst(c, (Identifier*) n->elem, s->line), s->line);
+			emitShort(c, nameConst, s->line);
+			emitShort(c, identifierConst(c, (Identifier*) n->elem, s->line), s->line);
 		}
 	} else if(s->importStmt.as.name != NULL) {
 		// set last import as an import as
 		c->func->chunk.code[c->func->chunk.count - 2] = OP_IMPORT_AS;
 		// emit the as name
-		emitBytecode(c, identifierConst(c, &s->importStmt.as, s->line), s->line);
+		emitShort(c, identifierConst(c, &s->importStmt.as, s->line), s->line);
 	}
 
 	emitBytecode(c, OP_POP, s->line);

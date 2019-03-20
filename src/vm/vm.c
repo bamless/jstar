@@ -483,7 +483,7 @@ static bool runEval(BlangVM *vm) {
 	#define NEXT_CODE()  (*ip++)
 	#define NEXT_SHORT() (ip += 2, ((uint16_t) ip[-2] << 8) | ip[-1])
 
-	#define GET_CONST()  (fn->chunk.consts.arr[NEXT_CODE()])
+	#define GET_CONST()  (fn->chunk.consts.arr[NEXT_SHORT()])
 	#define GET_STRING() (AS_STRING(GET_CONST()))
 
 	#define BINARY(type, op, overload, reverse) do { \

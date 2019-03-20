@@ -123,13 +123,13 @@ static inline bool valueEquals(Value v1, Value v2) {
 #define VAL_ARR_GROW_FAC 2
 
 typedef struct ValueArray {
-	size_t size, count;
+	int size, count;
 	Value *arr;
 } ValueArray;
 
 void initValueArray(ValueArray *a);
 void freeValueArray(ValueArray *a);
-size_t valueArrayAppend(ValueArray *a, Value v);
+int valueArrayAppend(ValueArray *a, Value v);
 
 void printValue(Value val);
 
