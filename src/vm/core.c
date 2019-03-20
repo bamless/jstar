@@ -361,7 +361,7 @@ NATIVE(bl_printstr) {
 
 		ObjList *l = AS_LIST(args[0]);
 		double index = AS_NUM(args[1]);
-		if(index < 0 || index > l->count) {
+		if(index < 0 || index > l->count - 1) {
 			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
 					"List index out of bound: %d.", (int)index);
 			BL_RETURN(NULL_VAL);
@@ -384,7 +384,7 @@ NATIVE(bl_printstr) {
 
 		ObjList *l = AS_LIST(args[0]);
 		double index = AS_NUM(args[1]);
-		if(index < 0 || index > l->count) {
+		if(index < 0 || index > l->count - 1) {
 			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
 						"List index out of bound: %d.", (int)index);
 			BL_RETURN(NULL_VAL);
