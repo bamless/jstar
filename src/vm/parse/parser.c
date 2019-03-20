@@ -98,7 +98,7 @@ static void synchronize(Parser *p) {
 	while(!matchSkipnl(p, TOK_EOF)) {
 
 		switch(p->peek.type) {
-		case TOK_DEF:
+		case TOK_FUN:
 		case TOK_VAR:
 		case TOK_FOR:
 		case TOK_IF:
@@ -122,7 +122,7 @@ static void classSynchronize(Parser *p) {
 	while(!matchSkipnl(p, TOK_EOF)) {
 
 		switch(p->peek.type) {
-		case TOK_DEF:
+		case TOK_FUN:
 			return;
 		default: break;
 		}
@@ -181,7 +181,7 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
 
 static Stmt *parseFuncDecl(Parser *p) {
 	int line = p->peek.line;
-	require(p, TOK_DEF);
+	require(p, TOK_FUN);
 
 	Token fname = require(p, TOK_IDENTIFIER);
 
@@ -241,7 +241,7 @@ static Stmt *parseDeclaration(Parser *p) {
 	if(matchSkipnl(p, TOK_CLASS)) {
 		return parseClassDecl(p);
 	}
-	if(matchSkipnl(p, TOK_DEF)) {
+	if(matchSkipnl(p, TOK_FUN)) {
 		return parseFuncDecl(p);
 	}
 	if(matchSkipnl(p, TOK_NAT)) {
@@ -687,10 +687,27 @@ static Expr *postfixExpr(Parser *p) {
 	return lit;
 }
 
+static Expr *anonymousFunc(Parser *p) {
+	if(match(p, TOK_FUN)) {
+		int line = p->peek.line;
+		require(p, TOK_FUN);
+
+		LinkedList *args = NULL, *defArgs = NULL;
+		formalArgs(p, &args, &defArgs);
+
+		Stmt *body = blockStmt(p);
+
+		require(p, TOK_END);
+
+		return newAnonymousFunc(line, args, defArgs, body);
+	}
+	return postfixExpr(p);
+}
+
 static Expr *unaryExpr(Parser *p);
 
 static Expr *powExpr(Parser *p) {
-	Expr *base = postfixExpr(p);
+	Expr *base = anonymousFunc(p);
 
 	while(match(p, TOK_POW)) {
 		int line = p->peek.line;

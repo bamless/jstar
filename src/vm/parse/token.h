@@ -57,7 +57,7 @@ typedef enum {
 	TOK_ELSE,
 	TOK_FALSE,
 	TOK_NAT,
-	TOK_DEF,
+	TOK_FUN,
 	TOK_FOR,
 	TOK_IF,
 	TOK_ELIF,

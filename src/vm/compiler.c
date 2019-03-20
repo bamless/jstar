@@ -512,6 +512,20 @@ static void compileExpExpr(Compiler *c, Expr *e) {
 	emitBytecode(c, OP_POW, e->line);
 }
 
+static void compileFunction(Compiler *c, Stmt *s);
+
+static void compileAnonymousFunc(Compiler *c, Expr *e) {
+	Stmt *f = e->anonFunc.func;
+
+	char name[strlen("anon:") + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
+	sprintf(name, "anon:%d", f->line);
+	
+	f->funcDecl.id.length = strlen(name);
+	f->funcDecl.id.name = name;
+
+	compileFunction(c, f);
+}
+
 static ObjString *readString(Compiler *c, Expr *e);
 
 static void compileExpr(Compiler *c, Expr *e) {
@@ -586,6 +600,9 @@ static void compileExpr(Compiler *c, Expr *e) {
 		}
 		break;
 	}
+	case ANON_FUNC:
+		compileAnonymousFunc(c, e);
+		break;
 	case SUPER_LIT:
 		error(c, e->line, "Can only use `super` inside methods");
 		break;
@@ -806,24 +823,20 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
-	declareVar(c, &s->funcDecl.id, s->line);
-	
-	Compiler funComp;
-	initCompiler(&funComp, c, TYPE_FUNC, c->depth + 1, c->vm);
+	Compiler compiler;
+	initCompiler(&compiler, c, TYPE_FUNC, c->depth + 1, c->vm);
 
-	ObjFunction *func = function(&funComp, c->func->module, s);
+	ObjFunction *func = function(&compiler, c->func->module, s);
 
 	emitBytecode(c, OP_NEW_CLOSURE, s->line);
 	emitBytecode(c, createConst(c, OBJ_VAL(func), s->line), s->line);
 
 	for(uint8_t i = 0; i < func->upvaluec; i++) {
-		emitBytecode(c, funComp.upvalues[i].isLocal ? 1 : 0, s->line);
-		emitBytecode(c, funComp.upvalues[i].index, s->line);
+		emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, s->line);
+		emitBytecode(c, compiler.upvalues[i].index, s->line);
 	}
 
-	endCompiler(&funComp);
-	
-	defineVar(c, &s->funcDecl.id, s->line);
+	endCompiler(&compiler);
 }
 
 static void compileNative(Compiler *c, Stmt *s) {
@@ -1019,7 +1032,7 @@ static void enterTryBlock(Compiler *c, Stmt *try) {
 	c->tryDepth++;
 }
 
-static void exitTryBlok(Compiler *c, Stmt *try) {
+static void exitTryBlock(Compiler *c, Stmt *try) {
 	if(try->tryStmt.ensure != NULL && try->tryStmt.excs != NULL)
 		c->tryDepth--;
 	c->tryDepth--;
@@ -1097,7 +1110,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 		exitScope(c);
 	}
 
-	exitTryBlok(c, s);
+	exitTryBlock(c, s);
 }
 
 static void compileRaiseStmt(Compiler *c, Stmt *s) {
@@ -1135,7 +1148,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		compileVarDecl(c, s);
 		break;
 	case FUNCDECL:
+		declareVar(c, &s->funcDecl.id, s->line);
 		compileFunction(c, s);
+		defineVar(c, &s->funcDecl.id, s->line);
 		break;
 	case NATIVEDECL:
 		compileNative(c, s);

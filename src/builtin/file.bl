@@ -5,7 +5,7 @@ var SEEK_CUR = 1
 var SEEK_END = 2
 
 class File
-	def new(name, mode)
+	fun new(name, mode)
 		if !(name is String and mode is String) then
 			raise InvalidArgException("Arguments of File.new() must be 2 strings.")
 		end
@@ -14,7 +14,7 @@ class File
 		this._closed = false
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		return __FileIterator(this)
 	end
 
@@ -27,22 +27,22 @@ class File
 	native readLine()
 	native close()
 
-	def __string__()
+	fun __string__()
 		return "<" + ("closed " if this._closed else "open ") + super.__string__() + ">"
 	end
 end
 
 class __FileIterator
-	def new(file)
+	fun new(file)
 		this.file = file
 	end
 
-	def hasNext()
+	fun hasNext()
 		this.line = this.file.readLine()
 		return this.line != "" and this.line != null
 	end
 
-	def next()
+	fun next()
 		return this.line
 	end
 end

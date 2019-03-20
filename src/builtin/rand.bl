@@ -1,11 +1,11 @@
-def randint(a, b=null)
+fun randint(a, b=null)
 	if !isInt(a) or (b != null and !isInt(b)) then
 		raise InvalidArgException("a and b must be integers")
 	end
 	return int(randrange(a, b))
 end
 
-def randrange(a, b=null)
+fun randrange(a, b=null)
 	if b == null then
 		b = a
 		a = 0

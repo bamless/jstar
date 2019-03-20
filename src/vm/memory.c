@@ -591,6 +591,10 @@ void garbageCollect(BlangVM *vm) {
 	for(int i = 0; i < vm->frameCount; i++) {
 		reachObject(vm, (Obj*) vm->frames[i].closure);
 	}
+	//reach open upvalues
+	for(ObjUpvalue *upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
+		reachObject(vm, (Obj*)upvalue);
+	}
 
 	//reach the compiler objects
 	reachCompilerRoots(vm, vm->currCompiler);

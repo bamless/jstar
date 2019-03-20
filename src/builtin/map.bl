@@ -1,30 +1,37 @@
 class __Entry
-	def new(k, v)
+	fun new(k, v)
 		this.key = k
 		this.value = v
 		this.next = null
 	end
 
-	def __eq__(o)
+	fun __eq__(o)
 		if !(o is __Entry) or o == null then
 			return false
 		end
 		return this.key == o.key and this.value == o.value
 	end
 
-	def __string__()
+	fun __string__()
 		return "{" + str(this.key) + ":" + str(this.value) + "}"
 	end
 end
 
 class HashMap
-	def new()
+	fun new(init=null)
 		this._size = 16
 		this._count = 0
 		this._entries = list(16)
+
+		if init != null then
+			var iter = init.__iterator__()
+			while iter.hasNext() do
+				this[iter.next()] = iter.next()
+			end
+		end
 	end
 
-	def __getEntry(key)
+	fun __getEntry(key)
 		var i = key.__hash__() % this._size
 
 		var buck = this._entries[i]
@@ -36,13 +43,13 @@ class HashMap
 		return null
 	end
 
-	def __addEntry(e)
+	fun __addEntry(e)
 		var i = e.key.__hash__() % this._size
 		e.next = this._entries[i]
 		this._entries[i] = e
 	end
 
-	def __grow()
+	fun __grow()
 		var oldEntries = this._entries
 
 		this._size *= 2
@@ -58,12 +65,12 @@ class HashMap
 		end
 	end
 
-	def __get__(key)
+	fun __get__(key)
 		var e = this.__getEntry(key)
 		return e.value if e != null else null
 	end
 
-	def __set__(key, val)
+	fun __set__(key, val)
 		var e = this.__getEntry(key)
 		if e != null then
 			var old = e.value
@@ -81,7 +88,7 @@ class HashMap
 		return null
 	end
 
-	def remove(key)
+	fun remove(key)
 		var i = key.__hash__() % this._size
 
 		var prev
@@ -106,11 +113,11 @@ class HashMap
 		return null
 	end
 
-	def containsKey(key)
+	fun containsKey(key)
 		return this.__getEntry(key) != null
 	end
 
-	def containsValue(val)
+	fun containsValue(val)
 		var iterator = this.valueIterator()
 		while iterator.hasNext() do
 			if val == iterator.next() then
@@ -119,30 +126,30 @@ class HashMap
 		end
 	end
 
-	def clear()
+	fun clear()
 		for var i = 0; i < this._entries.size(); i += 1 do
 			this._entries[i] = null
 		end
 		this._count = 0
 	end
 
-	def size()
+	fun size()
 		return this._count
 	end
 
-	def keySet()
+	fun keySet()
 		return __KeySet(this)
 	end
 
-	def keyIterator()
+	fun keyIterator()
 		return __KeyIterator(this)
 	end
 
-	def valueIterator()
+	fun valueIterator()
 		return __ValueIterator(this)
 	end
 
-	def __string__()
+	fun __string__()
 		var s = "["
 		var count = 0
 		var iterator = __EntryIterator(this)
@@ -161,44 +168,44 @@ end
 import set
 
 class __KeySet : set.HashSet
-	def new(map)
+	fun new(map)
 		this._map = map
 	end
 
-	def contains(e)
+	fun contains(e)
 		return this._map.__getEntry(e) != null
 	end
 
-	def addAll(iterable)
+	fun addAll(iterable)
 		raise Exception("addAll not supported in KeySet")
 	end
 
-	def add(e)
+	fun add(e)
 		raise Exception("add not supported in KeySet.")
 	end
 
-	def remove(e)
+	fun remove(e)
 		raise Exception("remove not supported in KeySet.")
 	end
 
-	def removeAll(iterable)
+	fun removeAll(iterable)
 		raise Exception("removeAll not supported in KeySet")
 	end
 
-	def clear()
+	fun clear()
 		raise Exception("clear not supported in KeySet")
 	end
 end
 
 class __EntryIterator
-	def new(map)
+	fun new(map)
 		this.map = map
 		this.index = 0
 		this.next = null
 		this.__nextBucket()
 	end
 
-	def __nextBucket()
+	fun __nextBucket()
 		if this.index >= this.map._size then
 			return
 		end
@@ -210,11 +217,11 @@ class __EntryIterator
 		this.next = this.map._entries[this.index]
 	end
 
-	def hasNext()
+	fun hasNext()
 		return this.next != null
 	end
 
-	def next()
+	fun next()
 		var e = this.next
 		this.next = e.next
 
@@ -226,19 +233,19 @@ class __EntryIterator
 		return e
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		return this
 	end
 end
 
 class __KeyIterator : __EntryIterator
-	def next()
+	fun next()
 		return super.next().key
 	end
 end
 
 class __ValueIterator : __EntryIterator
-	def next()
+	fun next()
 		return super.next().value
 	end
 end

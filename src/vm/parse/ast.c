@@ -140,6 +140,12 @@ Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
 	return e;
 }
 
+Expr *newAnonymousFunc(int line, LinkedList *args, LinkedList *defArgs, Stmt *body) {
+	Expr *e = newExpr(line, ANON_FUNC);
+	e->anonFunc.func = newFuncDecl(line, 0, NULL, args, defArgs, body);
+	return e;
+}
+
 void freeExpr(Expr *e) {
 	if(e == NULL) return;
 
@@ -188,6 +194,9 @@ void freeExpr(Expr *e) {
 	case COMP_ASSIGN:
 		freeExpr(e->compundAssign.lval);
 		freeExpr(e->compundAssign.rval);
+		break;
+	case ANON_FUNC:
+		freeStmt(e->anonFunc.func);
 		break;
 	default: break;
 	}

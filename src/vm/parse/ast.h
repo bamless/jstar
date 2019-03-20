@@ -13,7 +13,7 @@ typedef enum Operator {
 typedef enum ExprType {
 	BINARY, UNARY, ASSIGN, NUM_LIT, BOOL_LIT, STR_LIT, VAR_LIT, NULL_LIT,
 	EXPR_LST, CALL_EXPR, EXP_EXPR, SUPER_LIT, ACCESS_EXPR, ARR_LIT, ARR_ACC, 
-	TERNARY, COMP_ASSIGN
+	TERNARY, COMP_ASSIGN, ANON_FUNC
 } ExprType;
 
 typedef struct Identifier {
@@ -25,6 +25,8 @@ Identifier *newIdentifier(size_t length, const char *name);
 bool identifierEquals(Identifier *id1, Identifier *id2);
 
 typedef struct Expr Expr;
+typedef struct Stmt Stmt;
+
 struct Expr {
 	int line;
 	ExprType type;
@@ -76,6 +78,9 @@ struct Expr {
 			Expr *thenExpr;
 			Expr *elseExpr;
 		} ternary;
+		struct {
+			Stmt *func;
+		} anonFunc;
 		double num;
 		bool boolean;
 	};
@@ -98,6 +103,7 @@ Expr *newExpExpr(int line, Expr *base, Expr *exp);
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
 Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
+Expr *newAnonymousFunc(int line, LinkedList *args, LinkedList *defArgs, Stmt *body);
 
 void freeExpr(Expr *e);
 
@@ -106,8 +112,6 @@ typedef enum StmtType {
 	NATIVEDECL, CLASSDECL, IMPORT, TRY_STMT, EXCEPT_STMT, RAISE_STMT,
 	CONTINUE_STMT, BREAK_STMT
 } StmtType;
-
-typedef struct Stmt Stmt;
 
 struct Stmt {
 	int line;

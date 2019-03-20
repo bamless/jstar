@@ -1,5 +1,5 @@
 class Number
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 	native __string__()
@@ -7,39 +7,39 @@ class Number
 	native __hash__()
 end
 class Boolean
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 	native __string__()
 	native __class__()
 end
 class Null
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 	native __string__()
 	native __class__()
 end
 class Function
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 	native __string__()
 end
 class Module
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 	native __string__()
 end
 class StackTrace
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 end
 
 class String
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 
@@ -47,7 +47,7 @@ class String
 	native substr(from, to)
 	native length()
 
-	def join(iterable)
+	fun join(iterable)
 		var lst = iterable
 		if !(lst is List) then
 			lst = []
@@ -60,11 +60,11 @@ class String
 
 	native __join(lst)
 
-	def __string__()
+	fun __string__()
 		return this
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		return __StringIterator(this)
 	end
 
@@ -72,16 +72,16 @@ class String
 end
 
 class __StringIterator
-	def new(str)
+	fun new(str)
 		this.str = str
 		this.pos = 0
 	end
 
-	def hasNext()
+	fun hasNext()
 		return this.pos < this.str.length()
 	end
 
-	def next()
+	fun next()
 		var c = this.str[this.pos]
 		this.pos += 1
 		return c
@@ -89,7 +89,7 @@ class __StringIterator
 end
 
 class List
-	def new()
+	fun new()
 		__noinstance(this)
 	end
 
@@ -99,7 +99,7 @@ class List
 	native size()
 	native clear()
 
-	def addAll(iterable)
+	fun addAll(iterable)
 		var changed = false
 		for var e in iterable do
 			this.add(e)
@@ -108,7 +108,7 @@ class List
 		return changed
 	end
 
-	def insertAll(iterable, i=0)
+	fun insertAll(iterable, i=0)
 		if i < 0 or i >= this.size() then
 			raise IndexOutOfBoundException(str(i))
 		end
@@ -121,7 +121,7 @@ class List
 		return changed
 	end
 
-	def remove(e)
+	fun remove(e)
 		var i = this.indexOf(e)
 		if i >= 0 then
 			this.remove(i)
@@ -130,7 +130,7 @@ class List
 		return false
 	end
 
-	def removeAll(iterable)
+	fun removeAll(iterable)
 		var changed = false
 		for var e in iterable do
 			var r = this.remove(e)
@@ -139,11 +139,11 @@ class List
 		return changed
 	end
 
-	def contains(e)
+	fun contains(e)
 		return this.indexOf(e) != -1
 	end
 
-	def indexOf(e)
+	fun indexOf(e)
 		for var i = 0; i < this.size(); i += 1 do
 			if this[i] == e then
 				return i
@@ -152,7 +152,7 @@ class List
 		return -1
 	end
 
-	def indexOfLast(e)
+	fun indexOfLast(e)
 		for var i = this.size() - 1; i >= 0; i -= 1 do
 			if this[i] == e then
 				return i
@@ -161,13 +161,13 @@ class List
 		return -1
 	end
 
-	def swap(a, b)
+	fun swap(a, b)
 		var temp = this[a]
 		this[a] = this[b]
 		this[b] = temp
 	end
 
-	def subList(from, to)
+	fun subList(from, to)
 		if to < from then
 			raise InvalidArgException("to arg should be >= from arg")
 		end
@@ -179,16 +179,16 @@ class List
 		return sub
 	end
 
-	def empty()
+	fun empty()
 		return this.size() == 0
 	end
 
-	def sort()
+	fun sort()
 		import rand
 		this.__quickSort(0, this.size() - 1)
 	end
 
-	def __quickSort(from, to)
+	fun __quickSort(from, to)
 		if from < to then
 			var p = this.__partition(from, to)
 
@@ -197,7 +197,7 @@ class List
 		end
 	end
 
-	def __partition(from, to)
+	fun __partition(from, to)
 		var p = rand.randint(from, to + 1)
 		this.swap(from, p)
 
@@ -224,11 +224,11 @@ class List
 		return r
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		return __ListIterator(this)
 	end
 
-	def __string__()
+	fun __string__()
 		var s = "["
 		var length = this.size()
 		
@@ -240,7 +240,7 @@ class List
 		return s + "]"
 	end
 
-	def __eq__(lst)
+	fun __eq__(lst)
 		if !(lst is List) then return false end
 		
 		if this.size() != lst.size() then
@@ -256,16 +256,16 @@ class List
 end
 
 class __ListIterator
-	def new(list)
+	fun new(list)
 		this.n = 0
 		this.list = list
 	end
 
-	def hasNext()
+	fun hasNext()
 		return this.n < this.list.size()
 	end
 
-	def next()
+	fun next()
 		var next = this.list[this.n]
 		this.n += 1
 		return next
@@ -273,38 +273,38 @@ class __ListIterator
 end
 
 class __ListReverseIterator
-	def new(list)
+	fun new(list)
 		this.n = list.size() - 1
 		this.list = list
 	end
 
-	def hasNext()
+	fun hasNext()
 		return this.n >= 0
 	end
 
-	def next()
+	fun next()
 		var prev = this.list[this.n]
 		this.n -= 1
 		return prev
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		return this
 	end
 end
 
-def reversed(lst)
+fun reversed(lst)
 	return __ListReverseIterator(lst)
 end
 
-def __noinstance(inst)
+fun __noinstance(inst)
 	raise Exception("Class " + inst.__class__().getName() + " cannot be directly instantiated")
 end
 
 // Exceptions builtin classes
 
 class Exception
-	def new(err=null)
+	fun new(err=null)
 		this.err = err
 	end
 end
@@ -321,29 +321,29 @@ class IndexOutOfBoundException : Exception end
 class AssertException : Exception end
 class IOException : Exception end
 
-def assert(cond, msg="assertion failed")
+fun assert(cond, msg="assertion failed")
 	if !cond then 
 		raise AssertException(msg) 
 	end
 end
 
-def print(o="", file=null)
+fun print(o="", file=null)
 	write(o, file)
 	__printstr("\n", file)
 end
 
-def write(o, file=null)
+fun write(o, file=null)
 	var s = str(o)
 	assert(s is String, "__string__() didn't return a string, got " + s.__class__().getName())
 	__printstr(s, file)
 end
 
-def str(e)
+fun str(e)
 	return e.__string__()
 end
 
 class range
-	def new(from, to=null, step=1)
+	fun new(from, to=null, step=1)
 		if to == null then
 			to = from
 			from = 0
@@ -359,21 +359,21 @@ class range
 		this.step = step
 	end
 
-	def hasNext()
+	fun hasNext()
 		return this.count < this.to
 	end
 
-	def next()
+	fun next()
 		var i = this.count
 		this.count += this.step
 		return i
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		return this
 	end
 
-	def __string__()
+	fun __string__()
 		var s = "["
 		for var i = this.from; i < this.to; i += 1 do
 			s += i.__string__()

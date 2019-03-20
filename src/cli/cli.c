@@ -57,7 +57,7 @@ static int countBlocks() {
 		case TOK_BEGIN:
 		case TOK_DO:
 		case TOK_CLASS:
-		case TOK_DEF:
+		case TOK_FUN:
 		case TOK_TRY:
 			depth++;
 			break;
@@ -84,8 +84,6 @@ static void dorepl() {
 	header();
 	linenoiseSetCompletionCallback(completion);
 
-	blEvaluate(vm, "<stdin>", "def _(s) if s != null then print(s) end end");
-
 	StringBuffer src;
 	sbuf_create(&src);
 
@@ -94,21 +92,9 @@ static void dorepl() {
 		linenoiseHistoryAdd(line);
 
 		initLexer(&lex, line);
-		TokenType type = lexNext()->type;
+		lexNext();
 
-		bool expr = type == TOK_NUMBER ||
-		            type == TOK_TRUE ||
-								type == TOK_FALSE ||
-								type == TOK_IDENTIFIER ||
-								type == TOK_LPAREN ||
-								type == TOK_MINUS ||
-								type == TOK_BANG ||
-								type == TOK_STRING ||
-								type == TOK_LSQUARE;
-
-		//if(expr) sbuf_appendstr(&src, "_(");
 		sbuf_appendstr(&src, line);
-		//if(expr) sbuf_appendstr(&src, ")");
 
 		sbuf_appendchar(&src, '\n');
 

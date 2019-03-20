@@ -1,10 +1,10 @@
 class HashSet
-	def new()
+	fun new()
 		import map
 		this._map = map.HashMap()
 	end
 
-	def add(e)
+	fun add(e)
 		if !this.contains(e) then
 			this._map[e] = 0
 			return true
@@ -12,7 +12,7 @@ class HashSet
 		return false
 	end
 
-	def addAll(iterable)
+	fun addAll(iterable)
 		var changed = false
 		for var e in iterable do
 			var r = this.add(e)
@@ -21,11 +21,11 @@ class HashSet
 		return changed
 	end
 
-	def remove(e)
+	fun remove(e)
 		return this._map.remove(e) != null
 	end
 
-	def removeAll(iterable)
+	fun removeAll(iterable)
 		var changed = false
 		for var e in iterable do
 			var r = this.remove(e)
@@ -34,11 +34,11 @@ class HashSet
 		return changed
 	end
 
-	def contains(e)
+	fun contains(e)
 		return this._map[e] != null
 	end
 
-	def containsAll(iterable)
+	fun containsAll(iterable)
 		var ret = true
 		for var e in iterable do
 			var r = this.contains(e)
@@ -47,19 +47,19 @@ class HashSet
 		return ret
 	end
 
-	def clear()
+	fun clear()
 		this._map.clear()
 	end
 
-	def size()
+	fun size()
 		return this._map.size()
 	end
 
-	def empty()
+	fun empty()
 		return this.size() == 0
 	end
 
-	def intersect(c)
+	fun intersect(c)
 		for var e in this do
 			if !c.contains(e) then
 				this.remove(e)
@@ -67,12 +67,12 @@ class HashSet
 		end
 	end
 
-	def __iterator__()
+	fun __iterator__()
 		import map
 		return map.__KeyIterator(this._map)
 	end
 
-	def __string__()
+	fun __string__()
 		var s = "{"
 		var count = 0
 

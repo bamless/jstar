@@ -186,9 +186,9 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 		uint8_t least = most - func->defaultc;
 
 		if(argc > most || argc < least) {
-			blRaise(vm, "TypeException", "Function `%s` takes at %s %d args, "
-						 "%d supplied.", func->name->data, argc > most ?
-						 "most" : "least", argc > most ? most : least, argc);
+			blRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, "
+						 "%d supplied.", func->module->name->data, func->name->data, 
+						 argc > most ? "most" : "least", argc > most ? most : least, argc);
 			return false;
 		}
 
@@ -197,8 +197,8 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 			push(vm, func->defaults[i]);
 		}
 	} else if(func->argsCount != argc) {
-		blRaise(vm, "TypeException", "Function `%s` takes exactly %d args, "
-		        "%d supplied.", func->name->data, func->argsCount, argc);
+		blRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, "
+		        "%d supplied.", func->module->name->data, func->name->data, func->argsCount, argc);
 		return false;
 	}
 
@@ -697,7 +697,7 @@ static bool runEval(BlangVM *vm) {
 		DISPATCH();
 	}
 	TARGET(OP_POW): {
-		if(!IS_NUM(peek(vm)) && !IS_NUM(peek2(vm))) {
+		if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
 			blRaise(vm, "TypeException", "Operands of `^` must be numbers");
 			UNWIND_STACK(vm);
 		}

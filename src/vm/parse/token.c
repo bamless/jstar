@@ -48,7 +48,7 @@ const char *tokNames[] = {
 	"else",
 	"false",
 	"native",
-	"def",
+	"fun",
 	"for",
 	"if",
 	"elif",
