@@ -68,10 +68,10 @@ The project provides some cmake options to enable and disable certain functional
 
 | Variable value   | Description   |
 | :--------------: | :------------ |
-| NAN_TAGGING        | use the NaN tagging technique for storing the VM internal type (decreases the memory occupation of blang)
-| USE_COMPUTED_GOTOS | use computed gotos to implement the VM eval loop (more cache friendly, increases performance). Not all compilers support computed gotos, so if you're using one of them disable this option.
-| DBG_PRINT_EXEC     | trace the execution of instructions of the virtual machine to stdout|
+| NAN_TAGGING        | use the NaN tagging technique for storing the VM internal type (decreases the memory occupation of the VM)
+| USE_COMPUTED_GOTOS | use computed gotos to implement the VM eval loop (branch predictor friendly, increases performance). Not all compilers support computed gotos, so if you're using one of them disable this option.
+| DBG_PRINT_EXEC     | trace the execution of instructions of the virtual machine |
 | DBG_STRESS_GC      | stress the garbage collector by calling it on every allocation |
-| DBG_PRINT_GC       | trace the execution of the garbage collector to stdout |
+| DBG_PRINT_GC       | trace the execution of the garbage collector |
 
 The NAN_TAGGING and USE_COMPUTED_GOTOS options are set to ON as default.
