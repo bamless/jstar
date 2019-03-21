@@ -98,6 +98,7 @@ class List
 	native removeAt(i)
 	native size()
 	native clear()
+	native subList(from, to)
 
 	fun addAll(iterable)
 		var changed = false
@@ -122,10 +123,11 @@ class List
 	end
 
 	fun remove(e)
-		var i = this.indexOf(e)
-		if i >= 0 then
-			this.remove(i)
-			return true
+		for var i = 0; i < this.size(); i += 1 do
+			if e == this[i] then
+				this.removeAt(i)
+				return true
+			end
 		end
 		return false
 	end
@@ -165,18 +167,6 @@ class List
 		var temp = this[a]
 		this[a] = this[b]
 		this[b] = temp
-	end
-
-	fun subList(from, to)
-		if to < from then
-			raise InvalidArgException("to arg should be >= from arg")
-		end
-
-		var sub = []
-		for var i = from; i < to; i += 1 do
-			sub.add(this[i])
-		end
-		return sub
 	end
 
 	fun empty()

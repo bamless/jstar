@@ -99,6 +99,7 @@ Module builtInModules[] = {
 			METHOD(size, &bl_List_size)
 			METHOD(removeAt, &bl_List_removeAt)
 			METHOD(clear,  &bl_List_clear)
+			METHOD(subList, &bl_List_subList)
 		ENDCLASS
 		CLASS(String)
 			METHOD(substr, &bl_substr)

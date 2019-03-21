@@ -48,6 +48,7 @@ NATIVE(bl_printstr);
 	NATIVE(bl_List_size);
 	NATIVE(bl_List_removeAt);
 	NATIVE(bl_List_clear);
+	NATIVE(bl_List_subList);
 // } List
 
 // class String {

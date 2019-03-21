@@ -395,6 +395,34 @@ NATIVE(bl_printstr) {
 		BL_RETURN(r);
 	}
 
+	NATIVE(bl_List_subList) {
+		if(!IS_INT(args[1]) || !IS_INT(args[2]) || 
+			AS_NUM(args[1]) < 0 || AS_NUM(args[2]) < 0) {
+			BL_RAISE_EXCEPTION(vm, "TypeException", "from and to must be positive integers.");
+		}
+
+		size_t from = AS_NUM(args[1]);
+		size_t to = AS_NUM(args[2]);
+
+		if(from >= to) {
+			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "from must be < to.");
+		}
+
+		ObjList *thisList = AS_LIST(args[0]);
+
+		if(to > thisList->count) {
+			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException", "%d.", to);
+		}
+
+		size_t numElems = to - from;
+		ObjList *subList = newList(vm, numElems < 16 ? 16 : numElems);
+
+		memcpy(subList->arr, thisList->arr + from, numElems * sizeof(Value));
+		subList->count = numElems;
+
+		BL_RETURN(OBJ_VAL(subList));
+	}
+
 	NATIVE(bl_List_clear) {
 		AS_LIST(args[0])->count = 0;
 		BL_RETURN(NULL_VAL);
@@ -481,12 +509,16 @@ NATIVE(bl_printstr) {
 		if(!IS_STRING(args[1])) {
 			BL_RETURN(FALSE_VAL);
 		}
+		
 		ObjString *s1 = AS_STRING(args[0]);
 		ObjString *s2 = AS_STRING(args[1]);
 
 		if(s1->interned && s2->interned) {
 			BL_RETURN(s1 == s2 ? TRUE_VAL : FALSE_VAL);
 		}
-		BL_RETURN(strcmp(s1->data, s2->data) == 0 ? TRUE_VAL : FALSE_VAL);
+
+		if(s1->length != s2->length) BL_RETURN(FALSE_VAL);
+
+		BL_RETURN(memcmp(s1->data, s2->data, s1->length) == 0 ? TRUE_VAL : FALSE_VAL);
 	}
 // } String
