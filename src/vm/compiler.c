@@ -502,7 +502,7 @@ static void compileFunction(Compiler *c, Stmt *s);
 static void compileAnonymousFunc(Compiler *c, Expr *e) {
 	Stmt *f = e->anonFunc.func;
 
-	char name[strlen("anon:") + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
+	char name[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
 	sprintf(name, "anon:%d", f->line);
 	
 	f->funcDecl.id.length = strlen(name);
