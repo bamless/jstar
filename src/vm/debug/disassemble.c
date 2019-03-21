@@ -8,7 +8,8 @@ void disassembleChunk(Chunk *c) {
 	for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {
 		int extraArgs = 0;
 		if(c->code[i] == OP_NEW_CLOSURE) {
-			extraArgs = AS_FUNC(c->consts.arr[c->code[i + 1]])->upvaluec * 2 + 1;
+			Value v = c->consts.arr[((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]];
+			extraArgs = AS_FUNC(v)->upvaluec * 2 + 1;
 		}
 			
 		disassembleIstr(c, i);
