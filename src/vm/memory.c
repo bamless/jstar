@@ -140,6 +140,12 @@ ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
 	return bound;
 }
 
+ObjTuple *newTuple(BlangVM *vm, size_t size) {
+	ObjTuple *tuple = (ObjTuple*) newVarObj(vm, sizeof(*tuple), sizeof(Value), size, NULL, 0);
+	tuple->size = size;
+	return tuple;
+}
+
 #define ST_DEF_SIZE 16
 
 ObjStackTrace *newStackTrace(BlangVM *vm) {
@@ -366,6 +372,11 @@ static void freeObject(BlangVM *vm, Obj *o) {
 		GC_FREE(vm, ObjList, l);
 		break;
 	}
+	case OBJ_TUPLE: {
+		ObjTuple *t = (ObjTuple*) o;
+		GC_FREE_VAR(vm, ObjTuple, Value, t->size, t);
+		break;
+	}
 	case OBJ_STACK_TRACE: {
 		ObjStackTrace *st = (ObjStackTrace*) o;
 		GC_FREEARRAY(vm, char, st->trace, st->size);
@@ -503,6 +514,13 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 		ObjList *l = (ObjList*) o;
 		for(size_t i = 0; i < l->count; i++) {
 			reachValue(vm, l->arr[i]);
+		}
+		break;
+	}
+	case OBJ_TUPLE: {
+		ObjTuple *t = (ObjTuple*) o;
+		for(size_t i = 0; i < t->size; i++) {
+			reachValue(vm, t->arr[i]);
 		}
 		break;
 	}

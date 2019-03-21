@@ -287,6 +287,12 @@ fun reversed(lst)
 	return __ListReverseIterator(lst)
 end
 
+class Tuple
+	fun new()
+		__noinstance(this)
+	end
+end
+
 fun __noinstance(inst)
 	raise Exception("Class " + inst.__class__().getName() + " cannot be directly instantiated")
 end

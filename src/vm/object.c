@@ -55,6 +55,16 @@ void printObj(Obj *o) {
 		printf("]");
 		break;
 	}
+	case OBJ_TUPLE: {
+		ObjTuple *t = (ObjTuple*) o;
+		printf("(");
+		for(size_t i = 0; i < t->size; i++) {
+			printValue(t->arr[i]);
+			if(i != t->size - 1) printf(", ");
+		}
+		printf(")");
+		break;
+	}
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
 		char *name = b->method->type == OBJ_FUNCTION ?

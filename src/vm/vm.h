@@ -65,6 +65,7 @@ typedef struct BlangVM {
 	ObjClass *nullClass;
 	ObjClass *excClass;
 	ObjClass *stClass;
+	ObjClass *tupClass;
 
 	// Current exception
 	ObjInstance *exception;

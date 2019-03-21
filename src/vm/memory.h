@@ -24,6 +24,7 @@ ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn);
 ObjModule *newModule(BlangVM *vm, ObjString *name);
 ObjUpvalue *newUpvalue(BlangVM *vm, Value *addr);
 ObjList *newList(BlangVM *vm, size_t startSize);
+ObjTuple *newTuple(BlangVM *vm, size_t size);
 ObjStackTrace *newStackTrace(BlangVM *vm);
 
 ObjString *allocateString(BlangVM *vm, size_t length);

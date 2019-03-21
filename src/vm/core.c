@@ -110,6 +110,7 @@ void initCoreLibrary(BlangVM *vm) {
 	vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
 	vm->excClass  = AS_CLASS(getDefinedName(vm, core, "Exception"));
 	vm->stClass   = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+	vm->tupClass  = AS_CLASS(getDefinedName(vm, core, "Tuple"));
 
 	core->base.cls = vm->modClass;
 
