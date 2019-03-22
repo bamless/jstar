@@ -626,7 +626,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case TUPLE_LIT: {
-		LinkedList *exprs = e->arr.exprs->exprList.lst;
+		LinkedList *exprs = e->tuple.exprs->exprList.lst;
 
 		int i = 0;
 		LinkedList *n;

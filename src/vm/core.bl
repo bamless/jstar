@@ -217,6 +217,20 @@ class Tuple
 		return s + ")"
 	end
 
+	fun __eq__(tup)
+		if !(tup is Tuple) then return false end
+
+		if this.size() != tup.size() then
+			return false
+		end
+		for var i in range(this.size()) do
+			if this[i] != tup[i] then
+				return false
+			end
+		end
+		return true
+	end
+
 	fun __iterator__()
 		return __SequenceIterator(this)
 	end

@@ -664,7 +664,13 @@ static Expr *literal(Parser *p) {
 		return newSuperLiteral(line);
 	}
 	case TOK_LPAREN: {
-		require(p, TOK_LPAREN);
+		advance(p);
+
+		if(match(p, TOK_RPAREN)) {
+			advance(p);
+			return newTupleLiteral(line, newExprList(line, NULL));
+		}
+
 		Expr *e = parseExpr(p, true);
 		require(p, TOK_RPAREN);
 		return e;
