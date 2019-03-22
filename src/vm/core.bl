@@ -163,59 +163,12 @@ class List
 		return -1
 	end
 
-	fun swap(a, b)
-		var temp = this[a]
-		this[a] = this[b]
-		this[b] = temp
-	end
-
 	fun empty()
 		return this.size() == 0
 	end
 
-	fun sort()
-		import rand
-		this.__quickSort(0, this.size() - 1)
-	end
-
-	fun __quickSort(from, to)
-		if from < to then
-			var p = this.__partition(from, to)
-
-			this.__quickSort(from, p - 1)
-			this.__quickSort(p + 1, to)
-		end
-	end
-
-	fun __partition(from, to)
-		var p = rand.randint(from, to + 1)
-		this.swap(from, p)
-
-		var piv = this[from]
-		var l = from + 1
-		var r = to
-
-		while l <= r do
-			while this[r] > piv do
-				r -= 1
-			end
-			while l <= r and this[l] <= piv do
-				l += 1
-			end
-
-			if l < r then
-				this.swap(l, r)
-				l += 1
-				r -= 1
-			end
-		end
-
-		this.swap(from, r)
-		return r
-	end
-
 	fun __iterator__()
-		return __ListIterator(this)
+		return __SequenceIterator(this)
 	end
 
 	fun __string__()
@@ -245,48 +198,6 @@ class List
 	end
 end
 
-class __ListIterator
-	fun new(list)
-		this.n = 0
-		this.list = list
-	end
-
-	fun hasNext()
-		return this.n < this.list.size()
-	end
-
-	fun next()
-		var next = this.list[this.n]
-		this.n += 1
-		return next
-	end
-end
-
-class __ListReverseIterator
-	fun new(list)
-		this.n = list.size() - 1
-		this.list = list
-	end
-
-	fun hasNext()
-		return this.n >= 0
-	end
-
-	fun next()
-		var prev = this.list[this.n]
-		this.n -= 1
-		return prev
-	end
-
-	fun __iterator__()
-		return this
-	end
-end
-
-fun reversed(lst)
-	return __ListReverseIterator(lst)
-end
-
 class Tuple
 	fun new()
 		__noinstance(this)
@@ -305,6 +216,56 @@ class Tuple
 
 		return s + ")"
 	end
+
+	fun __iterator__()
+		return __SequenceIterator(this)
+	end
+end
+
+class __SequenceIterator
+	fun new(seq)
+		this.n = 0
+		this.seq = seq
+	end
+
+	fun hasNext()
+		return this.n < this.seq.size()
+	end
+
+	fun next()
+		var next = this.seq[this.n]
+		this.n += 1
+		return next
+	end
+
+	fun __iterator__()
+		return this
+	end
+end
+
+class __SeqReverseIterator
+	fun new(seq)
+		this.n = seq.size() - 1
+		this.seq = seq
+	end
+
+	fun hasNext()
+		return this.n >= 0
+	end
+
+	fun next()
+		var prev = this.seq[this.n]
+		this.n -= 1
+		return prev
+	end
+
+	fun __iterator__()
+		return this
+	end
+end
+
+fun reversed(seq)
+	return __SeqReverseIterator(seq)
 end
 
 fun __noinstance(inst)

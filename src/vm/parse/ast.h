@@ -146,7 +146,8 @@ struct Stmt {
 			LinkedList *stmts;
 		} blockStmt;
 		struct {
-			Identifier id;
+			bool isUnpack;
+			LinkedList *ids;
 			Expr *init;
 		} varDecl;
 		struct {
@@ -191,7 +192,7 @@ Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, L
 Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
-Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init);
+Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init);
 Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure);
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
 Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);

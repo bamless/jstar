@@ -103,6 +103,7 @@ void disassembleIstr(Chunk *c, size_t i) {
 
 	// instructions with 1 argument representing an unsigned 1 byte integer
 	case OP_CALL:
+	case OP_UNPACK:
 	case OP_NEW_TUPLE:
 	case OP_GET_LOCAL:
 	case OP_SET_LOCAL:

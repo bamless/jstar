@@ -774,16 +774,16 @@ static bool runEval(BlangVM *vm) {
 		DISPATCH();
 	}
 	TARGET(OP_ARR_SET): {
-		if(IS_LIST(peekn(vm, 2))) {
-			if(!IS_NUM(peek2(vm)) || !isInt(AS_NUM(peek2(vm)))) {
+		if(IS_LIST(peek2(vm))) {
+			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
 				blRaise(vm, "TypeException", "Index of list access must be an integer.");
 				UNWIND_STACK(vm);
 			}
 
-			Value val = pop(vm);
 
 			size_t index = AS_NUM(pop(vm));
 			ObjList *list = AS_LIST(pop(vm));
+			Value val = pop(vm);
 
 			if(index >= list->count) {
 				blRaise(vm, "IndexOutOfBoundException",
@@ -794,6 +794,12 @@ static bool runEval(BlangVM *vm) {
 			list->arr[index] = val;
 			push(vm, val);
 		} else {
+			// Invert arguments so that the object is the first argument for the call
+			Value index = pop(vm), obj = pop(vm), val = pop(vm);
+			push(vm, obj);
+			push(vm, index);
+			push(vm, val);
+
 			ObjClass *cls = getClass(vm, peekn(vm, 2));
 
 			SAVE_FRAME();
@@ -1028,6 +1034,42 @@ sup_invoke:;
 			UNWIND_STACK(vm);
 		}
 		createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
+		DISPATCH();
+	TARGET(OP_UNPACK):
+		if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+			blRaise(vm, "TypeException", "Can unpack only Tuple "
+				"or List, got %s.", getClass(vm, peek(vm))->name->data);
+			UNWIND_STACK(vm);
+		}
+
+		uint8_t num = NEXT_CODE();
+
+		Obj *seq = AS_OBJ(pop(vm));
+		Value *arr = NULL;
+		size_t size = 0;
+
+		switch(seq->type) {
+		case OBJ_TUPLE:
+			arr = ((ObjTuple*)seq)->arr;
+			size = ((ObjTuple*)seq)->size;
+			break;
+		case OBJ_LIST:
+			arr = ((ObjList*)seq)->arr;
+			size = ((ObjList*)seq)->count;
+			break;
+		default: 
+			UNREACHABLE();
+			break;
+		}
+
+		if(num > size) {
+			blRaise(vm, "TypeException", "Too little values to unpack.");
+			UNWIND_STACK(vm);
+		}
+
+		for(uint8_t i = 0; i < num; i++) {
+			push(vm, arr[i]);
+		}
 		DISPATCH();
 	TARGET(OP_DEF_METHOD): {
 		ObjClass *cls = AS_CLASS(peek2(vm));

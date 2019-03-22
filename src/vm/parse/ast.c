@@ -266,10 +266,10 @@ Stmt *newForEach(int line, Stmt *var, Expr *iter, Stmt *body) {
 	return s;
 }
 
-Stmt *newVarDecl(int line, const char *name, size_t length, Expr *init) {
+Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init) {
 	Stmt *s = newStmt(line, VARDECL);
-	s->varDecl.id.name = name;
-	s->varDecl.id.length = length;
+	s->varDecl.ids = ids;
+	s->varDecl.isUnpack = isUnpack;
 	s->varDecl.init = init;
 	return s;
 }
@@ -440,9 +440,17 @@ void freeStmt(Stmt *s) {
 		}
 		break;
 	}
-	case VARDECL:
+	case VARDECL: {
 		freeExpr(s->varDecl.init);
+		LinkedList *head = s->varDecl.ids;
+		while(head != NULL) {
+			LinkedList *f = head;
+			head = head->next;
+			free(f->elem);
+			free(f);
+		}
 		break;
+	}
 	case TRY_STMT:
 		freeStmt(s->tryStmt.block);
 		freeStmt(s->tryStmt.ensure);

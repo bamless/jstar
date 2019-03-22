@@ -92,6 +92,7 @@
 	X(OP_POP) \
 	X(OP_CLOSE_UPVALUE) \
 	X(OP_DUP) \
+	X(OP_UNPACK) \
 	X(OP_SIGN_CONT) \
 	X(OP_SIGN_BRK) \
 

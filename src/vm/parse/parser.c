@@ -21,10 +21,25 @@
 	(t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE || t == TOK_EXCEPT)
 
 #define IS_LVALUE(type) \
-	(type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC)
+	(type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC || type == TUPLE_LIT)
 
 #define IS_CONSTANT_LITERAL(type) \
 	(type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT)
+
+#define IS_EXPR_START(t) ( \
+	t == TOK_NUMBER || \
+	t == TOK_TRUE || \
+	t ==  TOK_FALSE || \
+	t ==  TOK_IDENTIFIER || \
+	t ==  TOK_STRING || \
+	t ==  TOK_NULL || \
+	t ==  TOK_SUPER || \
+	t ==  TOK_LPAREN || \
+	t ==  TOK_LSQUARE || \
+	t == TOK_BANG || \
+	t == TOK_MINUS || \
+	t == TOK_FUN \
+)
 
 
 //----- Utility functions ------
@@ -304,9 +319,22 @@ Stmt *parse(Parser *p, const char *fname, const char *src) {
 
 static Stmt *varDecl(Parser *p) {
 	int line = p->peek.line;
+
+	bool isUnpack = false;
+	LinkedList *ids = NULL;
+
 	require(p, TOK_VAR);
 
-	Token name = require(p, TOK_IDENTIFIER);
+	do {
+		Token id = require(p, TOK_IDENTIFIER);
+		ids = addElement(ids, newIdentifier(id.length, id.lexeme));
+
+		if(match(p, TOK_COMMA)) {
+			advance(p);
+			isUnpack = true;
+			if(!match(p, TOK_IDENTIFIER)) break;
+		}
+	} while(match(p, TOK_IDENTIFIER));
 
 	Expr *init = NULL;
 	if(match(p, TOK_EQUAL)) {
@@ -314,7 +342,7 @@ static Stmt *varDecl(Parser *p) {
 		init = parseExpr(p, true);
 	}
 
-	return newVarDecl(line, name.lexeme, name.length, init);
+	return newVarDecl(line, isUnpack, ids, init);
 }
 
 static Stmt *parseElif(Parser *p);
@@ -383,7 +411,7 @@ static Stmt *forStmt(Parser *p) {
 			//if we dont have a semicolon we're parsing a foreach
 			if(!matchSkipnl(p, TOK_SEMICOLON)) {
 				if(init->varDecl.init != NULL) {
-					error(p, "Variable declaration in for each "
+					error(p, "Variable declaration in foreach "
 					                    "cannot have initializer.");
 				}
 				require(p, TOK_IN);
@@ -925,11 +953,24 @@ static Expr *parseExpr(Parser *p, bool tuple) {
 	Expr *l = ternaryExpr(p);
 
 	if(tuple && match(p, TOK_COMMA)) {
-		LinkedList *exprs =  addElement(NULL, l);;
+		LinkedList *exprs =  addElement(NULL, l);
 
 		while(match(p, TOK_COMMA)) {
 			advance(p);
+			
+			if(!IS_EXPR_START(p->peek.type)) 
+				break;
+
 			exprs = addElement(exprs, ternaryExpr(p));
+		}
+
+		if(match(p, TOK_EQUAL)) {
+			LinkedList *n;
+			foreach(n, exprs) {
+				if(!IS_LVALUE(((Expr*)n->elem)->type)) {
+					error(p, "Left hand side of assignment must be an lvalue.HERE");
+				}
+			}
 		}
 
 		l = newTupleLiteral(line, newExprList(line, exprs));

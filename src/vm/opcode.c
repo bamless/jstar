@@ -58,6 +58,7 @@ int opcodeArgsNumber(Opcode op) {
 		return 2;
 	
 	case OP_CALL:
+	case OP_UNPACK:
 	case OP_NEW_TUPLE:
 	case OP_GET_LOCAL:
 	case OP_SET_LOCAL:

@@ -381,35 +381,75 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
 	}
 }
 
-static void compileAssignExpr(Compiler *c, Expr *e) {
-	switch(e->assign.lval->type) {
-	case VAR_LIT: {
-		compileExpr(c, e->assign.rval);
-		compileVariable(c, &e->assign.lval->var.id, true, e->line);
+static void compileLval(Compiler *c, Expr *e) {
+	switch(e->type) {
+	case VAR_LIT:
+		compileVariable(c, &e->var.id, true, e->line);
 		break;
-	}
 	case ACCESS_EXPR: {
-		compileExpr(c, e->assign.rval);
-
-		Expr *acc = e->assign.lval;
-		compileExpr(c, acc->accessExpr.left);
+		compileExpr(c, e->accessExpr.left);
 
 		emitBytecode(c, OP_SET_FIELD, e->line);
-		emitShort(c, identifierConst(c, &acc->accessExpr.id, e->line), e->line);
+		emitShort(c, identifierConst(c, &e->accessExpr.id, e->line), e->line);
 		break;
 	}
 	case ARR_ACC: {
-		Expr *acc = e->assign.lval;
-
-		compileExpr(c, acc->arrAccExpr.left);
-		compileExpr(c, acc->arrAccExpr.index);
-		compileExpr(c, e->assign.rval);
-
+		compileExpr(c, e->arrAccExpr.left);
+		compileExpr(c, e->arrAccExpr.index);
 		emitBytecode(c, OP_ARR_SET, e->line);
 		break;
 	}
 	default:
-	 	UNREACHABLE();
+		UNREACHABLE();
+		break;
+	}
+	
+}
+
+static void compileAssignExpr(Compiler *c, Expr *e) {
+	switch(e->assign.lval->type) {
+	case VAR_LIT: {
+		compileExpr(c, e->assign.rval);
+		compileLval(c, e->assign.lval);
+		break;
+	}
+	case ACCESS_EXPR: {
+		compileExpr(c, e->assign.rval);
+		compileLval(c, e->assign.lval);
+		break;
+	}
+	case ARR_ACC: {
+		compileExpr(c, e->assign.rval);
+		compileLval(c, e->assign.lval);
+		break;
+	}
+	case TUPLE_LIT: {
+		compileExpr(c, e->assign.rval);
+		emitBytecode(c, OP_UNPACK, e->line);
+
+		int i = 0;
+		Expr *ass[UINT8_MAX];
+		
+		LinkedList *n;
+		foreach(n, e->assign.lval->tuple.exprs->exprList.lst) {
+			if(i == UINT8_MAX) {
+				error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
+				break;
+			}
+			ass[i++] = (Expr*) n->elem;
+		}
+
+		emitBytecode(c, (uint8_t) i, e->line);
+
+		for(int n = i - 1; n >= 0; n--) {
+			Expr *e = ass[n];
+			compileLval(c, e);
+			if(n != 0) emitBytecode(c, OP_POP, e->line);
+		}
+		break;
+	}
+	default: 
+		UNREACHABLE(); 
 		break;
 	}
 }
@@ -614,15 +654,40 @@ static void compileExpr(Compiler *c, Expr *e) {
 }
 
 static void compileVarDecl(Compiler *c, Stmt *s) {
-	declareVar(c, &s->varDecl.id, s->line);
+	LinkedList *n;
+
+	int num = 0;
+	Identifier *ids[UINT8_MAX + 1];
+
+	foreach(n, s->varDecl.ids) {
+		ids[num++] = (Identifier*) n->elem;
+	}
+
+	for(int i = 0; i < num; i++) {
+		declareVar(c, ids[i], s->line);
+	}
 
 	if(s->varDecl.init != NULL) {
 		compileExpr(c, s->varDecl.init);
+
+		if(s->varDecl.isUnpack) {
+			emitBytecode(c, OP_UNPACK, s->line);
+			emitBytecode(c, (uint8_t) num, s->line);
+		}
 	} else {
-		emitBytecode(c, OP_NULL, s->line);
+		for(int i = 0; i < num; i++) {
+			emitBytecode(c, OP_NULL, s->line);
+		}
 	}
 
-	defineVar(c, &s->varDecl.id, s->line);
+	// define in reverse ordeer in order to define global vars
+	// in the right order
+	for(int i = num - 1; i >= 0; i--) {
+		if(c->depth == 0)
+			defineVar(c, ids[i], s->line);
+		else
+			c->locals[c->localsCount - i - 1].depth = c->depth;
+	}
 }
 
 static void compileStatement(Compiler *c, Stmt *s);
@@ -746,9 +811,8 @@ static void callMethod(Compiler *c, const char *name, int args) {
  *
  * {
  *     var _iter = iterable.__iterator__()
- *     var i
  *     while(_iter.hasNext()) {
- *         i = _iter.next()
+ *         var i = _iter.next()
  *         ...
  *     }
  * }
@@ -764,16 +828,9 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
 	int iteratorID = c->localsCount - 1;
 
-	// declare the variable used for iteration
-	declareVar(c, &s->forEach.var->varDecl.id, s->line);
-	defineVar(c, &s->forEach.var->varDecl.id, s->line);
-	int varID = c->localsCount - 1;
-
 	// call the iterator() method over the object
 	compileExpr(c, s->forEach.iterable);
 	callMethod(c, "__iterator__", 0);
-
-	emitBytecode(c, OP_NULL, 0);
 
 	Loop l;
 	startLoop(c, &l);
@@ -791,11 +848,27 @@ static void compileForEach(Compiler *c, Stmt *s) {
 	emitBytecode(c, iteratorID, 0);
 	callMethod(c, "next", 0);
 
-	emitBytecode(c, OP_SET_LOCAL, 0);
-	emitBytecode(c, varID, 0);
-	emitBytecode(c, OP_POP, 0);
+	Stmt *varDecl = s->forEach.var;
 
-	compileStatement(c, s->forEach.body);
+	enterScope(c);
+
+	// declare the variables used for iteration
+	int num = 0;
+	LinkedList *n;
+	foreach(n, varDecl->varDecl.ids) {
+		declareVar(c, (Identifier*) n->elem, s->line);
+		defineVar(c, (Identifier*) n->elem, s->line);
+		num++;
+	}
+
+	if(varDecl->varDecl.isUnpack) {
+		emitBytecode(c, OP_UNPACK, s->line);
+		emitBytecode(c, (uint8_t) num, s->line);
+	}
+
+	compileStatements(c, s->forEach.body->blockStmt.stmts);
+
+	exitScope(c);
 
 	emitJumpTo(c, OP_JUMP, start, 0);
 	endLoop(c);
