@@ -101,6 +101,9 @@ Module builtInModules[] = {
 			METHOD(clear,  &bl_List_clear)
 			METHOD(subList, &bl_List_subList)
 		ENDCLASS
+		CLASS(Tuple)
+			METHOD(size, bl_Tuple_size)
+		ENDCLASS
 		CLASS(String)
 			METHOD(substr, &bl_substr)
 			METHOD(length, &bl_String_length)

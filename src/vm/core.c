@@ -430,6 +430,12 @@ NATIVE(bl_printstr) {
 	}
 // } List
 
+// class Tuple {
+	NATIVE(bl_Tuple_size) {
+		BL_RETURN(NUM_VAL(AS_TUPLE(args[0])->size));
+	}
+// }
+
 // class String {
 	NATIVE(bl_substr) {
 		if(!IS_INT(args[1]) || !IS_INT(args[2])) {

@@ -51,6 +51,10 @@ NATIVE(bl_printstr);
 	NATIVE(bl_List_subList);
 // } List
 
+// class Tuple {
+	NATIVE(bl_Tuple_size);
+// }
+
 // class String {
 	NATIVE(bl_substr);
 	NATIVE(bl_String_length);

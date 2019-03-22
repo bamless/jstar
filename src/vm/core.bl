@@ -291,6 +291,20 @@ class Tuple
 	fun new()
 		__noinstance(this)
 	end
+
+	native size()
+
+	fun __string__()
+		var s = "("
+		var size = this.size()
+
+		for var i = 0; i < size; i += 1 do
+			s += str(this[i])
+			if(i != size - 1) then s += ", " end
+		end
+
+		return s + ")"
+	end
 end
 
 fun __noinstance(inst)

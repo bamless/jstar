@@ -140,7 +140,7 @@ static void classSynchronize(Parser *p) {
 
 //----- Recursive descent parser implementation ------
 
-static Expr *parseExpr(Parser *p);
+static Expr *parseExpr(Parser *p, bool tuple);
 static Expr *literal(Parser *p);
 
 static Stmt *parseStmt(Parser *p);
@@ -231,7 +231,7 @@ static Stmt *parseClassDecl(Parser *p) {
 	Expr *sup = NULL;
 	if(matchSkipnl(p, TOK_COLON)) {
 		advance(p);
-		sup = parseExpr(p);
+		sup = parseExpr(p, true);
 	}
 
 	LinkedList *methods = NULL;
@@ -311,7 +311,7 @@ static Stmt *varDecl(Parser *p) {
 	Expr *init = NULL;
 	if(match(p, TOK_EQUAL)) {
 		advance(p);
-		init = parseExpr(p);
+		init = parseExpr(p, true);
 	}
 
 	return newVarDecl(line, name.lexeme, name.length, init);
@@ -320,7 +320,7 @@ static Stmt *varDecl(Parser *p) {
 static Stmt *parseElif(Parser *p);
 
 static Stmt *parseIfBody(Parser *p, int line) {
-	Expr *cond = parseExpr(p);
+	Expr *cond = parseExpr(p, true);
 
 	require(p, TOK_THEN);
 
@@ -360,7 +360,7 @@ static Stmt *whileStmt(Parser *p) {
 	int line = p->peek.line;
 	require(p, TOK_WHILE);
 
-	Expr *cond = parseExpr(p);
+	Expr *cond = parseExpr(p, true);
 
 	require(p, TOK_DO);
 
@@ -388,7 +388,7 @@ static Stmt *forStmt(Parser *p) {
 				}
 				require(p, TOK_IN);
 
-				Expr *e = parseExpr(p);
+				Expr *e = parseExpr(p, true);
 
 				require(p, TOK_DO);
 
@@ -399,7 +399,7 @@ static Stmt *forStmt(Parser *p) {
 				return newForEach(line, init, e, body);
 			}
 		} else {
-			Expr *e = parseExpr(p);
+			Expr *e = parseExpr(p, true);
 			if(e != NULL) {
 				init = newExprStmt(e->line, e);
 			}
@@ -410,13 +410,13 @@ static Stmt *forStmt(Parser *p) {
 
 	Expr *cond = NULL;
 	if(!matchSkipnl(p, TOK_SEMICOLON))
-		cond = parseExpr(p);
+		cond = parseExpr(p, true);
 
 	require(p, TOK_SEMICOLON);
 
 	Expr *act = NULL;
 	if(!matchSkipnl(p, TOK_DO))
-		act = parseExpr(p);
+		act = parseExpr(p, true);
 
 	require(p, TOK_DO);
 
@@ -433,7 +433,7 @@ static Stmt *returnStmt(Parser *p) {
 
 	Expr *e = NULL;
 	if(!matchSkipnl(p, TOK_NEWLINE) && !matchSkipnl(p, TOK_EOF)) {
-		e = parseExpr(p);
+		e = parseExpr(p, true);
 	}
 	STATEMENT_END(p);
 
@@ -512,7 +512,7 @@ static Stmt *parseTryStmt(Parser *p) {
 
 			require(p, TOK_EXCEPT);
 
-			Expr *cls = parseExpr(p);
+			Expr *cls = parseExpr(p, true);
 			Token exc = require(p, TOK_IDENTIFIER);
 
 			Stmt *blck = blockStmt(p);
@@ -537,7 +537,7 @@ static Stmt *parseRaiseStmt(Parser *p) {
 	int line = p->peek.line;
 	advance(p);
 
-	Expr *exc = parseExpr(p);
+	Expr *exc = parseExpr(p, true);
 	STATEMENT_END(p);
 
 	return newRaiseStmt(line, exc);
@@ -577,7 +577,7 @@ static Stmt *parseStmt(Parser *p) {
 		STATEMENT_END(p);
 		return newBreakStmt(line);
 	default: {
-		Expr *e = parseExpr(p);
+		Expr *e = parseExpr(p, true);
 		STATEMENT_END(p);
 		return newExprStmt(line, e);
 	}
@@ -589,12 +589,12 @@ static Stmt *parseStmt(Parser *p) {
 LinkedList *parseExprLst(Parser *p) {
 	LinkedList *exprs = NULL;
 
-	exprs = addElement(NULL, parseExpr(p));
+	exprs = addElement(NULL, parseExpr(p, false));
 	while(matchSkipnl(p, TOK_COMMA)) {
 		advance(p);
 		skipNewLines(p);
 
-		exprs = addElement(exprs, parseExpr(p));
+		exprs = addElement(exprs, parseExpr(p, false));
 	}
 
 	return exprs;
@@ -637,7 +637,7 @@ static Expr *literal(Parser *p) {
 	}
 	case TOK_LPAREN: {
 		require(p, TOK_LPAREN);
-		Expr *e = parseExpr(p);
+		Expr *e = parseExpr(p, true);
 		require(p, TOK_RPAREN);
 		return e;
 	}
@@ -648,14 +648,6 @@ static Expr *literal(Parser *p) {
 			exprs = parseExprLst(p);
 		require(p, TOK_RSQUARE);
 		return newArrLiteral(line, newExprList(line, exprs));
-	}
-	case TOK_BAR: {
-		require(p, TOK_BAR);
-		LinkedList *exprs = NULL;
-		if(!matchSkipnl(p, TOK_BAR))
-			exprs = parseExprLst(p);
-		require(p, TOK_BAR);
-		return newTupleLiteral(line, newExprList(line, exprs));
 	}
 	case TOK_ERR:
 		error(p, "Unexpected token");
@@ -697,7 +689,7 @@ static Expr *postfixExpr(Parser *p) {
 			require(p, TOK_LSQUARE);
 			skipNewLines(p);
 
-			lit = newArrayAccExpr(line, lit, parseExpr(p));
+			lit = newArrayAccExpr(line, lit, parseExpr(p, true));
 
 			require(p, TOK_RSQUARE);
 			break;
@@ -928,9 +920,20 @@ static Operator tokenToOperator(TokenType t) {
 	}
 }
 
-static Expr *parseExpr(Parser *p) {
+static Expr *parseExpr(Parser *p, bool tuple) {
 	int line = p->peek.line;
 	Expr *l = ternaryExpr(p);
+
+	if(tuple && match(p, TOK_COMMA)) {
+		LinkedList *exprs =  addElement(NULL, l);;
+
+		while(match(p, TOK_COMMA)) {
+			advance(p);
+			exprs = addElement(exprs, ternaryExpr(p));
+		}
+
+		l = newTupleLiteral(line, newExprList(line, exprs));
+	}
 
 	if(IS_ASSIGN(p->peek.type)) {
 		if(l != NULL && !IS_LVALUE(l->type)) {
@@ -940,7 +943,7 @@ static Expr *parseExpr(Parser *p) {
 		TokenType t = p->peek.type;
 
 		advance(p);
-		Expr *r = parseExpr(p);
+		Expr *r = parseExpr(p, true);
 
 		// check if we're parsing a compund assginment
 		if(IS_COMPUND_ASSIGN(t)) {
