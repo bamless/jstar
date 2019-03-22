@@ -381,6 +381,19 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
 	}
 }
 
+static void compileExprList(Compiler *c, Expr *e, int num) {
+	int i = 0;
+	LinkedList *n;
+	foreach(n, e->exprList.lst) {
+		if(++i > num) break;
+		compileExpr(c, (Expr*) n->elem);
+	}
+
+	if(i < num) {
+		error(c, e->line, "Too little values to unpack.");
+	}
+}
+
 static void compileLval(Compiler *c, Expr *e) {
 	switch(e->type) {
 	case VAR_LIT:
@@ -424,8 +437,16 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case TUPLE_LIT: {
-		compileExpr(c, e->assign.rval);
-		emitBytecode(c, OP_UNPACK, e->line);
+		Expr *rval = e->assign.rval;
+		size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
+
+		if(rval->type == ARR_LIT || rval->type == TUPLE_LIT) {
+			Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
+			compileExprList(c, lst, num);
+		} else {
+			compileExpr(c, e->assign.rval);
+			emitBytecode(c, OP_UNPACK, e->line);
+		}
 
 		int i = 0;
 		Expr *ass[UINT8_MAX];
@@ -439,7 +460,9 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 			ass[i++] = (Expr*) n->elem;
 		}
 
-		emitBytecode(c, (uint8_t) i, e->line);
+		if(rval->type != ARR_LIT && rval->type != TUPLE_LIT) {
+			emitBytecode(c, (uint8_t) i, e->line);
+		}
 
 		for(int n = i - 1; n >= 0; n--) {
 			Expr *e = ass[n];
@@ -668,11 +691,18 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 	}
 
 	if(s->varDecl.init != NULL) {
-		compileExpr(c, s->varDecl.init);
+		ExprType t = s->varDecl.init->type;
+		
+		if(s->varDecl.isUnpack && (t == ARR_LIT || t == TUPLE_LIT)) {
+			Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
+			compileExprList(c, e, num);
+		} else {
+			compileExpr(c, s->varDecl.init);
 
-		if(s->varDecl.isUnpack) {
-			emitBytecode(c, OP_UNPACK, s->line);
-			emitBytecode(c, (uint8_t) num, s->line);
+			if(s->varDecl.isUnpack) {
+				emitBytecode(c, OP_UNPACK, s->line);
+				emitBytecode(c, (uint8_t) num, s->line);
+			}
 		}
 	} else {
 		for(int i = 0; i < num; i++) {

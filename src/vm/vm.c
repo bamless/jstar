@@ -446,22 +446,23 @@ static ObjString* stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
 static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse) {
 	ObjClass *cls = getClass(vm, peek2(vm));
 
-	if(!invokeMethod(vm, cls, name, 1)) {
-		// swap callee and arg
-		Value b = peek(vm);
-		vm->sp[-1] = vm->sp[-2];
-		vm->sp[-2] = b;
-
-		// reset exception
-		vm->exception = NULL;
-
-		cls = getClass(vm, peek2(vm));
-		if(!invokeMethod(vm, cls, reverse == NULL ? name : reverse, 1)) {
-			return false;
-		}
+	Value op;
+	if(hashTableGet(&cls->methods, name, &op)) {
+		return callValue(vm, op, 1);
 	}
 
-	return true;
+	// swap callee and arg
+	Value b = peek(vm);
+	vm->sp[-1] = vm->sp[-2];
+	vm->sp[-2] = b;
+
+	ObjClass *cls2 = getClass(vm, peek2(vm));
+
+	if(hashTableGet(&cls2->methods, name, &op)) {
+		return callValue(vm, op, 1);
+	}
+
+	return false;
 }
 
 static bool runEval(BlangVM *vm) {
@@ -658,13 +659,16 @@ static bool runEval(BlangVM *vm) {
 	TARGET(OP_EQ): {
 		ObjClass *cls = getClass(vm, peek2(vm));
 
-		SAVE_FRAME();
-		if(!invokeMethod(vm, cls, vm->eq, 1)) {
-			vm->exception = NULL;
+		Value eq;
+		if(hashTableGet(&cls->methods, vm->eq, &eq)) {
+			SAVE_FRAME();
+			if(!callValue(vm, eq, 1)) {
+				UNWIND_STACK(vm);
+			}
+			LOAD_FRAME()
+		} else {
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
-			DISPATCH();
 		}
-		LOAD_FRAME()
 
 		DISPATCH();
 	}

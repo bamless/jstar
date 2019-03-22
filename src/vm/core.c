@@ -71,6 +71,14 @@ static uint64_t hash64(uint64_t x) {
 	static NATIVE(bl_Class_getName) {
 		BL_RETURN(OBJ_VAL(AS_CLASS(args[0])->name));
 	}
+
+	static NATIVE(bl_Class_string) {
+		Obj *o = AS_OBJ(args[0]);
+
+		char str[256];
+		snprintf(str, 255, "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*) o);
+		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
+	}
 // Class
 
 void initCoreLibrary(BlangVM *vm) {
@@ -98,6 +106,7 @@ void initCoreLibrary(BlangVM *vm) {
 	vm->clsClass->superCls = vm->objClass;
 	hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
 	defMethod(vm, core, vm->clsClass, &bl_Class_getName, "getName", 0);
+	defMethod(vm, core, vm->clsClass, &bl_Class_string,  "__string__", 0);
 
 	blEvaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
 
@@ -126,6 +135,9 @@ void initCoreLibrary(BlangVM *vm) {
 }
 
 NATIVE(bl_int) {
+	if(IS_NUM(args[1])) {
+		BL_RETURN(NUM_VAL((int64_t)AS_NUM(args[1])));
+	}
 	if(IS_STRING(args[1])) {
 		char *end = NULL;
 		char *nstr = AS_STRING(args[1])->data;
@@ -142,9 +154,6 @@ NATIVE(bl_int) {
 		}
 
 		BL_RETURN(NUM_VAL(n));
-	}
-	if(IS_NUM(args[1])) {
-		BL_RETURN(NUM_VAL((int64_t)AS_NUM(args[1])));
 	}
 
 	BL_RAISE_EXCEPTION(vm, "InvalidArgException",
