@@ -727,6 +727,22 @@ static bool runEval(BlangVM *vm) {
 			}
 
 			push(vm, list->arr[index]);
+		} else if(IS_TUPLE(peek2(vm))) {
+			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
+				blRaise(vm, "TypeException", "Index of list access must be an integer.");
+				UNWIND_STACK(vm);
+			}
+
+			size_t index = AS_NUM(pop(vm));
+			ObjTuple *tuple = AS_TUPLE(pop(vm));
+
+			if(index >= tuple->size) {
+				blRaise(vm, "IndexOutOfBoundException",
+					"Tuple index out of bound: %lu.", index);
+				UNWIND_STACK(vm);
+			}
+
+			push(vm, tuple->arr[index]);
 		} else if(IS_STRING(peek2(vm))) {
 			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
 				blRaise(vm, "TypeException", "Index of string access must be an integer.");
@@ -977,6 +993,17 @@ sup_invoke:;
 	TARGET(OP_NEW_LIST):
 		push(vm, OBJ_VAL(newList(vm, 0)));
 		DISPATCH();
+	TARGET(OP_NEW_TUPLE): {
+		uint8_t size = NEXT_CODE();
+		ObjTuple *t = newTuple(vm, size);
+
+		for(int i = size - 1; i >= 0; i--) {
+			t->arr[i] = pop(vm);
+		}
+
+		push(vm, OBJ_VAL(t));
+		DISPATCH();
+	}
 	TARGET(OP_NEW_CLOSURE): {
 		ObjClosure *closure = newClosure(vm, AS_FUNC(GET_CONST()));
 		push(vm, OBJ_VAL(closure));

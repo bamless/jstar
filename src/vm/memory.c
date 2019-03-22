@@ -117,7 +117,6 @@ ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn) {
 	return c;
 }
 
-
 ObjModule *newModule(BlangVM *vm, ObjString *name) {
 	ObjModule *module = (ObjModule*) newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
 	module->name = name;
@@ -141,8 +140,11 @@ ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
 }
 
 ObjTuple *newTuple(BlangVM *vm, size_t size) {
-	ObjTuple *tuple = (ObjTuple*) newVarObj(vm, sizeof(*tuple), sizeof(Value), size, NULL, 0);
+	ObjTuple *tuple = (ObjTuple*) newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
 	tuple->size = size;
+	for(uint8_t i = 0; i < tuple->size; i++) {
+		tuple->arr[i] = NULL_VAL;
+	}
 	return tuple;
 }
 

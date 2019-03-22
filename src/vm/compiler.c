@@ -585,6 +585,25 @@ static void compileExpr(Compiler *c, Expr *e) {
 		}
 		break;
 	}
+	case TUPLE_LIT: {
+		LinkedList *exprs = e->arr.exprs->exprList.lst;
+
+		int i = 0;
+		LinkedList *n;
+		foreach(n, exprs) {
+			compileExpr(c, (Expr*) n->elem);
+			i++;
+		}
+
+		if(i >= UINT8_MAX) {
+			error(c, e->line, "too many elements in tuple");
+			break;
+		}
+
+		emitBytecode(c, OP_NEW_TUPLE, e->line);
+		emitBytecode(c, i, e->line);
+		break;
+	}
 	case ANON_FUNC:
 		compileAnonymousFunc(c, e);
 		break;

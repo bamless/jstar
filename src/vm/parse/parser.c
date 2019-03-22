@@ -649,6 +649,14 @@ static Expr *literal(Parser *p) {
 		require(p, TOK_RSQUARE);
 		return newArrLiteral(line, newExprList(line, exprs));
 	}
+	case TOK_BAR: {
+		require(p, TOK_BAR);
+		LinkedList *exprs = NULL;
+		if(!matchSkipnl(p, TOK_BAR))
+			exprs = parseExprLst(p);
+		require(p, TOK_BAR);
+		return newTupleLiteral(line, newExprList(line, exprs));
+	}
 	case TOK_ERR:
 		error(p, "Unexpected token");
 		advance(p);

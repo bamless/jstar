@@ -83,6 +83,12 @@ Expr *newArrLiteral(int line, Expr *exprs) {
 	return a;
 }
 
+Expr *newTupleLiteral(int line, Expr *exprs) {
+	Expr *a = newExpr(line, TUPLE_LIT);
+	a->tuple.exprs = exprs;
+	return a;
+}
+
 Expr *newExprList(int line, LinkedList *exprs) {
 	Expr *e = newExpr(line, EXPR_LST);
 	e->exprList.lst = exprs;
@@ -161,10 +167,12 @@ void freeExpr(Expr *e) {
 		freeExpr(e->assign.lval);
 		freeExpr(e->assign.rval);
 		break;
-	case ARR_LIT: {
+	case ARR_LIT:
 		freeExpr(e->arr.exprs);
 		break;
-	}
+	case TUPLE_LIT:
+		freeExpr(e->tuple.exprs);
+		break;
 	case EXPR_LST: {
 		LinkedList *head = e->exprList.lst;
 		while(head != NULL) {
