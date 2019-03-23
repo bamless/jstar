@@ -167,6 +167,10 @@ class List
 		return this.size() == 0
 	end
 
+	fun swap(a, b)
+		this[a], this[b] = this[b], this[a]
+	end
+
 	fun __iterator__()
 		return __SequenceIterator(this)
 	end
@@ -325,6 +329,12 @@ end
 
 fun str(e)
 	return e.__string__()
+end
+
+fun foreach(iter, pred)
+	for var e in iter do
+		pred(e)
+	end
 end
 
 class range

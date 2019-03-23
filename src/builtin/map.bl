@@ -1,7 +1,6 @@
 class __Entry
 	fun new(k, v)
-		this.key = k
-		this.value = v
+		this.key, this.value = k, v
 		this.next = null
 	end
 
@@ -19,8 +18,7 @@ end
 
 class HashMap
 	fun new(init=null)
-		this._size = 16
-		this._count = 0
+		this._count, this._size = 0, 16
 		this._entries = list(16)
 
 		if init != null then
