@@ -132,11 +132,7 @@ static bool isInt(double n) {
 
 static void createClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
 	ObjClass *cls = newClass(vm, name, superCls);
-
-	if(superCls != NULL) {
-		hashTableMerge(&cls->methods, &superCls->methods);
-	}
-
+	hashTableMerge(&cls->methods, &superCls->methods);
 	push(vm, OBJ_VAL(cls));
 }
 
@@ -310,10 +306,7 @@ static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
 			// Check if field shadows a method
 			Value f;
 			if(hashTableGet(&inst->fields, name, &f)) {
-				if(IS_OBJ(f) && (IS_CLOSURE(f) || IS_NATIVE(f)
-								|| IS_CLASS(f) || IS_BOUND_METHOD(f))) {
-					return callValue(vm, f, argc);
-				}
+				return callValue(vm, f, argc);
 			}
 
 			return invokeMethod(vm, inst->base.cls, name, argc);
@@ -657,17 +650,21 @@ static bool runEval(BlangVM *vm) {
 	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);       DISPATCH();
 	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);       DISPATCH();
 	TARGET(OP_EQ): {
-		ObjClass *cls = getClass(vm, peek2(vm));
-
-		Value eq;
-		if(hashTableGet(&cls->methods, vm->eq, &eq)) {
-			SAVE_FRAME();
-			if(!callValue(vm, eq, 1)) {
-				UNWIND_STACK(vm);
-			}
-			LOAD_FRAME()
-		} else {
+		if(IS_NUM(peek2(vm)) || IS_BOOL(peek2(vm)) || IS_NULL(peek2(vm))) {
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
+		} else {
+			ObjClass *cls = getClass(vm, peek2(vm));
+
+			Value eq;
+			if(hashTableGet(&cls->methods, vm->eq, &eq)) {
+				SAVE_FRAME();
+				if(!callValue(vm, eq, 1)) {
+					UNWIND_STACK(vm);
+				}
+				LOAD_FRAME()
+			} else {
+				push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
+			}
 		}
 
 		DISPATCH();

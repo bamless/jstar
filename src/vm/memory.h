@@ -31,13 +31,29 @@ ObjString *allocateString(BlangVM *vm, size_t length);
 void reallocateString(BlangVM *vm, ObjString *str, size_t newLen);
 ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
 
-uint32_t stringGetHash(ObjString *str);
-
 void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
 
 void listAppend(BlangVM *vm, ObjList *lst, Value v);
 void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val);
 void listRemove(BlangVM *vm, ObjList *lst, size_t index);
+
+static inline uint32_t hashString(const char *str, size_t length) {
+	uint32_t hash = 2166136261u;
+
+	for (size_t i = 0; i < length; i++) {
+		hash ^= str[i];
+		hash *= 16777619;
+	}
+
+	return hash;
+}
+
+static inline uint32_t stringGetHash(ObjString *str) {
+	if(str->hash == 0) {
+		str->hash = hashString(str->data, str->length);
+	}
+	return str->hash;
+}
 
 void disableGC(BlangVM *vm, bool disable);
 void freeObjects(BlangVM *vm);

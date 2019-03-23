@@ -9,7 +9,7 @@ typedef struct ObjString ObjString;
 
 #define MAX_LOAD_FACTOR 0.75
 #define GROW_FACTOR 2
-#define INITIAL_CAPACITY 8
+#define INITIAL_CAPACITY 16
 
 typedef struct Entry {
 	struct Entry *next;

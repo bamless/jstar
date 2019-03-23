@@ -197,7 +197,7 @@ NATIVE(bl_list) {
 
 	double size = AS_NUM(args[1]);
 
-	ObjList *l = newList(vm, AS_NUM(args[1]));
+	ObjList *l = newList(vm, size);
 	for(; l->count < size; l->count++) {
 		l->arr[l->count] = args[2];
 	}

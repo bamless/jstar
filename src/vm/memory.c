@@ -292,16 +292,6 @@ static ObjString *newString(BlangVM *vm, const char *cstring, size_t length) {
 	return str;
 }
 
-static uint32_t hashString(const char *str, size_t length) {
-	uint32_t hash = 5381;
-
-	for(size_t i = 0; i < length; i++) {
-		hash = ((hash << 5) + hash) + str[i];
-	}
-
-	return hash;
-}
-
 ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern) {
 	if(intern) {
 		uint32_t hash = hashString(str, length);
@@ -315,13 +305,6 @@ ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern) 
 		return interned;
 	}
 	return newString(vm, str, length);
-}
-
-uint32_t stringGetHash(ObjString *str) {
-	if(str->hash == 0) {
-		str->hash = hashString(str->data, str->length);
-	}
-	return str->hash;
 }
 
 static void freeObject(BlangVM *vm, Obj *o) {
