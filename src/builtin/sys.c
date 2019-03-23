@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 static int argCount = 0 ;
 static const char **argVector = NULL;
@@ -33,6 +34,10 @@ NATIVE(bl_platform) {
 #elif __APPLE__
 	BL_RETURN(OBJ_VAL(copyString(vm, "OSX", 3, true)));
 #endif
+}
+
+NATIVE(bl_clock) {
+	BL_RETURN(NUM_VAL((double) clock() / CLOCKS_PER_SEC));
 }
 
 NATIVE(bl_gc) {

@@ -116,6 +116,7 @@ Module builtInModules[] = {
 		FUNCTION(exit, &bl_exit)
 		FUNCTION(getImportPaths, &bl_getImportPaths)
 		FUNCTION(platform, &bl_platform)
+		FUNCTION(clock, &bl_clock)
 		FUNCTION(gc, &bl_gc)
 		FUNCTION(gets, &bl_gets)
 		FUNCTION(__init, &bl_init)

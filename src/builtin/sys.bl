@@ -9,6 +9,7 @@ var args = []
 native getImportPaths()
 native platform()
 native exit(n=0)
+native clock()
 native gets()
 native gc()
 
