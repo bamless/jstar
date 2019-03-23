@@ -100,9 +100,13 @@ Module builtInModules[] = {
 			METHOD(removeAt, &bl_List_removeAt)
 			METHOD(clear,  &bl_List_clear)
 			METHOD(subList, &bl_List_subList)
+			METHOD(__iter__, &bl_List_iter)
+			METHOD(__next__, &bl_List_next)
 		ENDCLASS
 		CLASS(Tuple)
 			METHOD(size, bl_Tuple_size)
+			METHOD(__iter__, &bl_Tuple_iter)
+			METHOD(__next__, &bl_Tuple_next)
 		ENDCLASS
 		CLASS(String)
 			METHOD(substr, &bl_substr)
@@ -110,6 +114,8 @@ Module builtInModules[] = {
 			METHOD(__join, &bl_String_join)
 			METHOD(__hash__, &bl_String_hash)
 			METHOD(__eq__, &bl_String_eq)
+			METHOD(__iter__, &bl_String_iter)
+			METHOD(__next__, &bl_String_next)
 		ENDCLASS
 	ENDMODULE
 	MODULE(sys)

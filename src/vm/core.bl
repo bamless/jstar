@@ -59,33 +59,14 @@ class String
 	end
 
 	native __join(lst)
+	native __iter__(iter)
+	native __next__(idx)
 
 	fun __string__()
 		return this
 	end
 
-	fun __iterator__()
-		return __StringIterator(this)
-	end
-
 	native __hash__()
-end
-
-class __StringIterator
-	fun new(str)
-		this.str = str
-		this.pos = 0
-	end
-
-	fun hasNext()
-		return this.pos < this.str.length()
-	end
-
-	fun next()
-		var c = this.str[this.pos]
-		this.pos += 1
-		return c
-	end
 end
 
 class List
@@ -171,9 +152,8 @@ class List
 		this[a], this[b] = this[b], this[a]
 	end
 
-	fun __iterator__()
-		return __SequenceIterator(this)
-	end
+	native __iter__(iter)
+	native __next__(idx)
 
 	fun __string__()
 		var s = "["
@@ -221,6 +201,9 @@ class Tuple
 		return s + ")"
 	end
 
+	native __iter__(iter)
+	native __next__(idx)
+
 	fun __eq__(tup)
 		if !(tup is Tuple) then return false end
 
@@ -235,55 +218,6 @@ class Tuple
 		return true
 	end
 
-	fun __iterator__()
-		return __SequenceIterator(this)
-	end
-end
-
-class __SequenceIterator
-	fun new(seq)
-		this.n = 0
-		this.seq = seq
-	end
-
-	fun hasNext()
-		return this.n < this.seq.size()
-	end
-
-	fun next()
-		var next = this.seq[this.n]
-		this.n += 1
-		return next
-	end
-
-	fun __iterator__()
-		return this
-	end
-end
-
-class __SeqReverseIterator
-	fun new(seq)
-		this.n = seq.size() - 1
-		this.seq = seq
-	end
-
-	fun hasNext()
-		return this.n >= 0
-	end
-
-	fun next()
-		var prev = this.seq[this.n]
-		this.n -= 1
-		return prev
-	end
-
-	fun __iterator__()
-		return this
-	end
-end
-
-fun reversed(seq)
-	return __SeqReverseIterator(seq)
 end
 
 fun __noinstance(inst)
@@ -339,45 +273,30 @@ end
 
 class range
 	fun new(from, to=null, step=1)
-		if to == null then
-			to = from
-			from = 0
+		if to == null then 
+			this.from, this.to = 0, from 
+		else
+			this.from, this.to = from, to
 		end
-
-		if !isInt(from) or !isInt(to) then
-			raise InvalidArgException("Argument `from` and `to` must be integers")
-		end
-
-		this.from = from
-		this.to = to
-		this.count = from
 		this.step = step
 	end
 
-	fun hasNext()
-		return this.count < this.to if this.step > 0 else this.count >= this.to
+	fun __iter__(iter)
+		if !iter then
+			return this.from + 1
+		end
+
+		return iter + this.step if iter < this.to else false
 	end
 
-	fun next()
-		var i = this.count
-		this.count += this.step
-		return i
-	end
-
-	fun __iterator__()
-		return this
+	fun __next__(idx)
+		return idx - 1
 	end
 
 	fun __string__()
-		var s = "["
-		for var i = this.from; i < this.to; i += 1 do
-			s += i.__string__()
-			if i != this.to - 1 then
-				s += ", "
-			end
-		end
-		return s + "]"
+		return "range(" + str(this.from) + ", " + str(this.to) + ")"
 	end
+
 end
 
 native int(n)

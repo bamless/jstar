@@ -49,10 +49,14 @@ NATIVE(bl_printstr);
 	NATIVE(bl_List_removeAt);
 	NATIVE(bl_List_clear);
 	NATIVE(bl_List_subList);
+	NATIVE(bl_List_iter);
+	NATIVE(bl_List_next);
 // } List
 
 // class Tuple {
 	NATIVE(bl_Tuple_size);
+	NATIVE(bl_Tuple_iter);
+	NATIVE(bl_Tuple_next);
 // }
 
 // class String {
@@ -61,6 +65,8 @@ NATIVE(bl_printstr);
 	NATIVE(bl_String_join);
 	NATIVE(bl_String_hash);
 	NATIVE(bl_String_eq);
+	NATIVE(bl_String_iter);
+	NATIVE(bl_String_next);
 // } String
 
 #endif

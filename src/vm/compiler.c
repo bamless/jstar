@@ -835,32 +835,38 @@ static void callMethod(Compiler *c, const char *name, int args) {
 }
 
 /*
- * for(var i in iterable) {
+ * for var i in iterable do
  *     ...
- * }
+ * end
  *
- * {
- *     var _iter = iterable.__iterator__()
- *     while(_iter.hasNext()) {
- *         var i = _iter.next()
+ * begin
+ *     var _expr = iterable
+ *     var _iter
+ *     while _iter = _expr.__iter__(_iter) do
+ *         var i = _iter.__next__(_iter)
  *         ...
- *     }
- * }
+ *     end
+ * end
 **/
 static void compileForEach(Compiler *c, Stmt *s) {
 	enterScope(c);
 
+	Identifier expr = {5, ".expr"};
+	declareVar(c, &expr, s->forEach.iterable->line);
+	defineVar(c, &expr, s->forEach.iterable->line);
+	int exprID = c->localsCount - 1;
+
+	compileExpr(c, s->forEach.iterable);
+
 	// set the iterator variable with a name that it's not an identifier.
 	// this will avoid the user shadowing the iterator with a declared variable.
-	Identifier iterator = {1, "."};
+	Identifier iterator = {5, ".iter"};
 	declareVar(c, &iterator, s->line);
 	defineVar(c, &iterator, s->line);
 
-	int iteratorID = c->localsCount - 1;
+	int iterID = c->localsCount - 1;
 
-	// call the iterator() method over the object
-	compileExpr(c, s->forEach.iterable);
-	callMethod(c, "__iterator__", 0);
+	emitBytecode(c, OP_NULL, 0);
 
 	Loop l;
 	startLoop(c, &l);
@@ -868,15 +874,22 @@ static void compileForEach(Compiler *c, Stmt *s) {
 	size_t start = c->func->chunk.count;
 
 	emitBytecode(c, OP_GET_LOCAL, 0);
-	emitBytecode(c, iteratorID, 0);
-	callMethod(c, "hasNext", 0);
+	emitBytecode(c, exprID, 0);
+	emitBytecode(c, OP_GET_LOCAL, 0);
+	emitBytecode(c, iterID, 0);
+	callMethod(c, "__iter__", 1);
+
+	emitBytecode(c, OP_SET_LOCAL, 0);
+	emitBytecode(c, iterID, 0);
 
 	size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
 	emitShort(c, 0, 0);
 
 	emitBytecode(c, OP_GET_LOCAL, 0);
-	emitBytecode(c, iteratorID, 0);
-	callMethod(c, "next", 0);
+	emitBytecode(c, exprID, 0);
+	emitBytecode(c, OP_GET_LOCAL, 0);
+	emitBytecode(c, iterID, 0);
+	callMethod(c, "__next__", 1);
 
 	Stmt *varDecl = s->forEach.var;
 
@@ -1039,9 +1052,6 @@ static void compileClass(Compiler *c, Stmt *s) {
 	emitShort(c, identifierConst(c, &s->classDecl.id, s->line), s->line);
 
 	compileMethods(c, s);
-
-	declareVar(c, &s->classDecl.id, s->line);
-	defineVar(c, &s->classDecl.id, s->line);
 }
 
 static void compileImportStatement(Compiler *c, Stmt *s) {
@@ -1262,7 +1272,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		compileNative(c, s);
 		break;
 	case CLASSDECL:
+		declareVar(c, &s->classDecl.id, s->line);
 		compileClass(c, s);
+		defineVar(c, &s->classDecl.id, s->line);
 		break;
 	case IMPORT:
 		compileImportStatement(c, s);

@@ -437,11 +437,63 @@ NATIVE(bl_printstr) {
 		AS_LIST(args[0])->count = 0;
 		BL_RETURN(NULL_VAL);
 	}
+
+	NATIVE(bl_List_iter) {
+		ObjList *lst = AS_LIST(args[0]);
+
+		if(IS_NULL(args[1])) {
+			BL_RETURN(NUM_VAL(1));
+		}
+
+		if(IS_INT(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 1 && idx < lst->count) BL_RETURN(NUM_VAL(idx + 1));
+		}
+
+		BL_RETURN(FALSE_VAL);
+	}
+
+	NATIVE(bl_List_next) {
+		ObjList *lst = AS_LIST(args[0]);
+
+		if(IS_INT(args[1])) {
+			double idx = AS_NUM(args[1]) - 1;
+			if(idx >= 0 && idx < lst->count) BL_RETURN(lst->arr[(size_t)idx]);
+		}
+
+		BL_RETURN(NULL_VAL);
+	}
 // } List
 
 // class Tuple {
 	NATIVE(bl_Tuple_size) {
 		BL_RETURN(NUM_VAL(AS_TUPLE(args[0])->size));
+	}
+
+	NATIVE(bl_Tuple_iter) {
+		ObjTuple *tup = AS_TUPLE(args[0]);
+
+		if(IS_NULL(args[1])) {
+			BL_RETURN(NUM_VAL(1));
+		}
+
+		if(IS_INT(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 1 && idx < tup->size) BL_RETURN(NUM_VAL(idx + 1));
+		}
+
+		BL_RETURN(FALSE_VAL);
+	}
+
+	NATIVE(bl_Tuple_next) {
+		ObjTuple *tup = AS_TUPLE(args[0]);
+
+		if(IS_INT(args[1])) {
+			double idx = AS_NUM(args[1]) - 1;
+			if(idx >= 0 && idx < tup->size) BL_RETURN(tup->arr[(size_t)idx]);
+		}
+
+		BL_RETURN(NULL_VAL);
 	}
 // }
 
@@ -536,5 +588,33 @@ NATIVE(bl_printstr) {
 		if(s1->length != s2->length) BL_RETURN(FALSE_VAL);
 
 		BL_RETURN(memcmp(s1->data, s2->data, s1->length) == 0 ? TRUE_VAL : FALSE_VAL);
+	}
+
+	NATIVE(bl_String_iter) {
+		ObjString *s = AS_STRING(args[0]);
+
+		if(IS_NULL(args[1])) {
+			BL_RETURN(NUM_VAL(1));
+		}
+
+		if(IS_INT(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 1 && idx < s->length) BL_RETURN(NUM_VAL(idx + 1));
+		}
+
+		BL_RETURN(FALSE_VAL);
+	}
+
+	NATIVE(bl_String_next) {
+		ObjString *s = AS_STRING(args[0]);
+
+		if(IS_INT(args[1])) {
+			double idx = AS_NUM(args[1]) - 1;
+			if(idx >= 0 && idx < s->length) {
+				BL_RETURN(OBJ_VAL(copyString(vm, s->data + (size_t)idx, 1, true)));
+			}
+		}
+
+		BL_RETURN(NULL_VAL);
 	}
 // } String
