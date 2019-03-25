@@ -586,6 +586,7 @@ void garbageCollect(BlangVM *vm) {
 
 	reachObject(vm, (Obj*) vm->ctor);
 	reachObject(vm, (Obj*) vm->stField);
+	reachObject(vm, (Obj*) vm->emptyTup);
 
 	//reach vm global vars
 	reachHashTable(vm, &vm->modules);
