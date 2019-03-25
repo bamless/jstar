@@ -63,7 +63,6 @@ typedef struct BlangVM {
 	ObjClass *funClass;
 	ObjClass *modClass;
 	ObjClass *nullClass;
-	ObjClass *excClass;
 	ObjClass *stClass;
 	ObjClass *tupClass;
 

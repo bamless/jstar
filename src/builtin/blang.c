@@ -4,6 +4,42 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
+
+bool checkNum(BlangVM *vm, Value val, const char *name) {
+	if(IS_NUM(val)) return true;
+	blRaise(vm, "TypeException", "%s must be a number.", name);
+	return false;
+}
+
+bool checkInt(BlangVM *vm, Value val, const char *name) {
+	if(!checkNum(vm, val, name)) return false;
+	double num = AS_NUM(val);
+	if(trunc(num) == num) return true;
+	blRaise(vm, "TypeException", "%s must be an integer.", name);
+	return false;
+}
+
+bool checkStr(BlangVM *vm, Value val, const char *name) {
+	if(IS_STRING(val)) return true;
+	blRaise(vm, "TypeException", "%s must be a String.", name);
+	return false;
+}
+
+bool checkList(BlangVM *vm, Value val, const char *name) {
+	if(IS_LIST(val)) return true;
+	blRaise(vm, "TypeException", "%s must be a List.", name);
+	return false;
+}
+
+
+size_t checkIndex(BlangVM *vm, Value val, size_t max, const char *name) {
+	if(!checkInt(vm, val, name)) return SIZE_MAX;
+	double idx = AS_NUM(val);
+	if(idx >= 0 && idx < max) return (size_t) idx;
+	blRaise(vm, "IndexOutOfBoundException", "index out of bounds: %g.", idx);
+	return SIZE_MAX;
+}
 
 void blSetField(BlangVM *vm, ObjInstance *o, const char *name, Value val) {
 	push(vm, val);

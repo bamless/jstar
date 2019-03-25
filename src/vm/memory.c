@@ -555,7 +555,6 @@ void garbageCollect(BlangVM *vm) {
 	reachObject(vm, (Obj*) vm->funClass);
 	reachObject(vm, (Obj*) vm->modClass);
 	reachObject(vm, (Obj*) vm->nullClass);
-	reachObject(vm, (Obj*) vm->excClass);
 
 	reachObject(vm, (Obj*) vm->add);
 	reachObject(vm, (Obj*) vm->mul);

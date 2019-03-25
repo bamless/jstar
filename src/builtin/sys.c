@@ -16,33 +16,33 @@ void sysInitArgs(int argc, const char **argv) {
 }
 
 NATIVE(bl_exit) {
-	if(!IS_INT(args[1])) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Argrument must be an integer");
+	if(!checkInt(vm, args[1], "n")) {
+		return true;
 	}
 	exit((int)AS_NUM(args[1]));
 }
 
 NATIVE(bl_getImportPaths) {
-	BL_RETURN(OBJ_VAL(vm->importpaths));
+	BL_RETURN_OBJ(vm->importpaths);
 }
 
 NATIVE(bl_platform) {
 #ifdef __linux
-	BL_RETURN(OBJ_VAL(copyString(vm, "Linux", 5, true)));
+	BL_RETURN_OBJ(copyString(vm, "Linux", 5, true));
 #elif _WIN32
-	BL_RETURN(OBJ_VAL(copyString(vm, "Win32", 5, true)));
+	BL_RETURN_OBJ(copyString(vm, "Win32", 5, true));
 #elif __APPLE__
-	BL_RETURN(OBJ_VAL(copyString(vm, "OSX", 3, true)));
+	BL_RETURN_OBJ(copyString(vm, "OSX", 3, true));
 #endif
 }
 
 NATIVE(bl_clock) {
-	BL_RETURN(NUM_VAL((double) clock() / CLOCKS_PER_SEC));
+	BL_RETURN_NUM((double) clock() / CLOCKS_PER_SEC);
 }
 
 NATIVE(bl_gc) {
 	garbageCollect(vm);
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }
 
 NATIVE(bl_gets) {
@@ -60,7 +60,7 @@ NATIVE(bl_gets) {
 	if(str->length != i)
 		reallocateString(vm, str, i);
 
-	BL_RETURN(OBJ_VAL(str));
+	BL_RETURN_OBJ(str);
 }
 
 NATIVE(bl_init) {
@@ -100,5 +100,5 @@ NATIVE(bl_init) {
 		listAppend(vm, lst, OBJ_VAL(copyString(vm, argVector[i], strlen(argVector[i]), false)));
 	}
 
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }

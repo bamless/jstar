@@ -117,6 +117,21 @@ static ObjClass *getClass(BlangVM *vm, Value v) {
 	}
 }
 
+static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
+	return cls == vm->numClass  || 
+	       cls == vm->strClass  ||
+		   cls == vm->boolClass ||
+		   cls == vm->nullClass ||
+		   cls == vm->funClass  ||
+		   cls == vm->modClass  ||
+		   cls == vm->stClass   ||
+		   cls == vm->tupClass;
+}
+
+static bool isInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
+	return cls == vm->lstClass;
+}
+
 static bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
 	for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
 		if(c == cls) {
@@ -243,7 +258,7 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	}
 	vm->sp -= native->argsCount + 1;
 	push(vm, ret);
-
+	
 	return vm->exception == NULL;
 }
 
@@ -263,11 +278,17 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 		}
 		case OBJ_CLASS: {
 			ObjClass *cls = AS_CLASS(callee);
-			vm->sp[-argc - 1] = OBJ_VAL(newInstance(vm, cls));
+
+			if(isNonInstatiablePrimitive(vm, cls)) {
+				blRaise(vm, "Exception", "class %s can't be directly instatiated", cls->name->data);
+				return false;
+			}
+
+			vm->sp[-argc - 1] = isInstatiablePrimitive(vm, cls) ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
 
 			Value ctor;
 			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
-				return callFunction(vm, AS_CLOSURE(ctor), argc);
+				return callValue(vm, ctor, argc);
 			} else if(argc != 0) {
 				blRaise(vm, "TypeException", "Function %s.new() Expected 0 "
 				    "args, but instead `%d` supplied.", cls->name->data, argc);
@@ -718,48 +739,48 @@ static bool runEval(BlangVM *vm) {
 				UNWIND_STACK(vm);
 			}
 
-			size_t index = AS_NUM(pop(vm));
+			double index = AS_NUM(pop(vm));
 			ObjList *list = AS_LIST(pop(vm));
 
-			if(index >= list->count) {
+			if(index < 0 || index >= list->count) {
 				blRaise(vm, "IndexOutOfBoundException",
-					"List index out of bound: %lu.", index);
+					"List index out of bound: %g.", index);
 				UNWIND_STACK(vm);
 			}
 
-			push(vm, list->arr[index]);
+			push(vm, list->arr[(size_t)index]);
 		} else if(IS_TUPLE(peek2(vm))) {
 			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
 				blRaise(vm, "TypeException", "Index of list access must be an integer.");
 				UNWIND_STACK(vm);
 			}
 
-			size_t index = AS_NUM(pop(vm));
+			double index = AS_NUM(pop(vm));
 			ObjTuple *tuple = AS_TUPLE(pop(vm));
 
 			if(index >= tuple->size) {
 				blRaise(vm, "IndexOutOfBoundException",
-					"Tuple index out of bound: %lu.", index);
+					"Tuple index out of bound: %g.", index);
 				UNWIND_STACK(vm);
 			}
 
-			push(vm, tuple->arr[index]);
+			push(vm, tuple->arr[(size_t)index]);
 		} else if(IS_STRING(peek2(vm))) {
 			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
 				blRaise(vm, "TypeException", "Index of string access must be an integer.");
 				UNWIND_STACK(vm);
 			}
 
-			size_t index = AS_NUM(pop(vm));
+			double index = AS_NUM(pop(vm));
 			ObjString *str = AS_STRING(pop(vm));
 
-			if(index >= str->length) {
+			if(index < 0 || index >= str->length) {
 				blRaise(vm, "IndexOutOfBoundException",
 				    "String index out of bound: %lu.", index);
 				UNWIND_STACK(vm);
 			}
 
-			char character = str->data[index];
+			char character = str->data[(size_t)index];
 			push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
 		} else {
 			ObjClass *cls = getClass(vm, peek2(vm));
@@ -782,17 +803,17 @@ static bool runEval(BlangVM *vm) {
 			}
 
 
-			size_t index = AS_NUM(pop(vm));
+			double index = AS_NUM(pop(vm));
 			ObjList *list = AS_LIST(pop(vm));
 			Value val = pop(vm);
 
-			if(index >= list->count) {
+			if(index < 0 || index >= list->count) {
 				blRaise(vm, "IndexOutOfBoundException",
-					"List index out of bound: %lu.", index);
+					"List index out of bound: %g.", index);
 				UNWIND_STACK(vm);
 			}
 
-			list->arr[index] = val;
+			list->arr[(size_t)index] = val;
 			push(vm, val);
 		} else {
 			// Invert arguments so that the object is the first argument for the call
@@ -1046,6 +1067,7 @@ sup_invoke:;
 		uint8_t num = NEXT_CODE();
 
 		Obj *seq = AS_OBJ(pop(vm));
+		
 		Value *arr = NULL;
 		size_t size = 0;
 
@@ -1068,7 +1090,7 @@ sup_invoke:;
 			UNWIND_STACK(vm);
 		}
 
-		for(uint8_t i = 0; i < num; i++) {
+		for(int i = 0; i < num; i++) {
 			push(vm, arr[i]);
 		}
 		DISPATCH();

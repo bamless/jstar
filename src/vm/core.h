@@ -43,6 +43,7 @@ NATIVE(bl_printstr);
 // } Module
 
 // class List {
+	NATIVE(bl_List_new);
 	NATIVE(bl_List_add);
 	NATIVE(bl_List_insert);
 	NATIVE(bl_List_size);

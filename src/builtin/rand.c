@@ -65,10 +65,10 @@ static double genRand(MTRand* rand) {
 static MTRand mtrand;
 
 NATIVE(bl_random) {
-	BL_RETURN(NUM_VAL(genRand(&mtrand)));
+	BL_RETURN_NUM(genRand(&mtrand));
 }
 
 NATIVE(bl_initseed) {
 	mtrand = seedRand(time(NULL));
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }

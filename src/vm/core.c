@@ -4,6 +4,7 @@
 #include "vm.h"
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <math.h>
 #include <limits.h>
@@ -40,6 +41,24 @@ static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const 
 	hashTablePut(&cls->methods, strName, OBJ_VAL(native));
 }
 
+static void defMethodDefaults(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const char *name, uint8_t argc, uint8_t defc, ...) {
+	ObjString *strName = copyString(vm, name, strlen(name), true);
+	push(vm, OBJ_VAL(strName));
+
+	ObjNative *native = newNative(vm, m, strName, argc, n, defc);
+
+	va_list args;
+	va_start(args, defc);
+	for(size_t i = 0; i < defc; i++) {
+		native->defaults[i] = va_arg(args, Value);
+	}
+	va_end(args);
+
+	pop(vm);
+
+	hashTablePut(&cls->methods, strName, OBJ_VAL(native));
+}
+
 static uint64_t hash64(uint64_t x) {
 	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
 	x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
@@ -54,22 +73,22 @@ static uint64_t hash64(uint64_t x) {
 		char str[256];
 		snprintf(str, 255, "<%s@%p>", o->cls->name->data, (void*) o);
 
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
+		BL_RETURN_OBJ(copyString(vm, str, strlen(str), false));
 	}
 
 	static NATIVE(bl_Object_class) {
-		BL_RETURN(OBJ_VAL(AS_OBJ(args[0])->cls));
+		BL_RETURN_OBJ(AS_OBJ(args[0])->cls);
 	}
 
 	static NATIVE(bl_Object_hash) {
 		uint64_t x = hash64((uint64_t) AS_OBJ(args[0]));
-		BL_RETURN(NUM_VAL((uint32_t) x));
+		BL_RETURN_NUM((uint32_t) x);
 	}
 // Object
 
 // class Class
 	static NATIVE(bl_Class_getName) {
-		BL_RETURN(OBJ_VAL(AS_CLASS(args[0])->name));
+		BL_RETURN_OBJ(AS_CLASS(args[0])->name);
 	}
 
 	static NATIVE(bl_Class_string) {
@@ -77,7 +96,7 @@ static uint64_t hash64(uint64_t x) {
 
 		char str[256];
 		snprintf(str, 255, "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*) o);
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
+		BL_RETURN_OBJ(copyString(vm, str, strlen(str), false));
 	}
 // Class
 
@@ -117,11 +136,13 @@ void initCoreLibrary(BlangVM *vm) {
 	vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
 	vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
 	vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-	vm->excClass  = AS_CLASS(getDefinedName(vm, core, "Exception"));
 	vm->stClass   = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
 	vm->tupClass  = AS_CLASS(getDefinedName(vm, core, "Tuple"));
 
 	core->base.cls = vm->modClass;
+
+	// Set constructor for instatiable primitive classes
+	defMethodDefaults(vm, core, vm->lstClass, &bl_List_new, "new", 2, 2, NUM_VAL(0), NULL_VAL);
 
 	// Patch up the class field of any string or function that was allocated
 	// before the creation of their corresponding class object
@@ -136,7 +157,7 @@ void initCoreLibrary(BlangVM *vm) {
 
 NATIVE(bl_int) {
 	if(IS_NUM(args[1])) {
-		BL_RETURN(NUM_VAL((int64_t)AS_NUM(args[1])));
+		BL_RETURN_NUM((int64_t)AS_NUM(args[1]));
 	}
 	if(IS_STRING(args[1])) {
 		char *end = NULL;
@@ -153,7 +174,7 @@ NATIVE(bl_int) {
 			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
 		}
 
-		BL_RETURN(NUM_VAL(n));
+		BL_RETURN_NUM(n);
 	}
 
 	BL_RAISE_EXCEPTION(vm, "InvalidArgException",
@@ -180,7 +201,7 @@ NATIVE(bl_num) {
 				"InvalidArgException", "Underflow: \"%s\".", nstr);
 		}
 
-		BL_RETURN(NUM_VAL(n));
+		BL_RETURN_NUM(n);
 	}
 	if(IS_NUM(args[1])) {
 		BL_RETURN(args[1]);
@@ -190,9 +211,8 @@ NATIVE(bl_num) {
 }
 
 NATIVE(bl_list) {
-	if(!IS_INT(args[1]) || AS_NUM(args[1]) < 0) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException",
-				"Argument 1 of list(n, init) must be a positive integer.");
+	if(!checkInt(vm, args[1], "n")) {
+		return true;
 	}
 
 	double size = AS_NUM(args[1]);
@@ -202,33 +222,37 @@ NATIVE(bl_list) {
 		l->arr[l->count] = args[2];
 	}
 
-	BL_RETURN(OBJ_VAL(l));
+	BL_RETURN_OBJ(l);
 }
 
 NATIVE(bl_isInt) {
-	if(IS_NUM(args[1])) {
-		double n = AS_NUM(args[1]);
-		BL_RETURN(BOOL_VAL((int64_t) n == n));
+	if(!checkInt(vm, args[1], "n")) {
+		return true;
 	}
-	BL_RETURN(FALSE_VAL);
+	double n = AS_NUM(args[1]);
+	BL_RETURN(BOOL_VAL(trunc(n) == n));
 }
 
 NATIVE(bl_char) {
-	if(!IS_INT(args[1])) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "num must be an integer");
+	if(!checkInt(vm, args[1], "num")) {
+		return true;
 	}
-
 	char c = AS_NUM(args[1]);
-	BL_RETURN(OBJ_VAL(copyString(vm, &c, 1, true)));
+	BL_RETURN_OBJ(copyString(vm, &c, 1, true));
 }
 
 NATIVE(bl_ascii) {
-	if(!IS_STRING(args[1]) || AS_STRING(args[1])->length != 1) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "arg must be a string of length 1");
+	if(!checkStr(vm, args[1], "arg")) {
+		return true;
 	}
 
-	char c = AS_STRING(args[1])->data[0];
-	BL_RETURN(NUM_VAL((int) c));
+	ObjString *arg = AS_STRING(args[1]);
+	if(arg->length != 1) {
+		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "arg must be a String of length 1");
+	}
+
+	char c = arg->data[0];
+	BL_RETURN_NUM((int) c);
 }
 
 NATIVE(bl_printstr) {
@@ -261,18 +285,18 @@ NATIVE(bl_printstr) {
 	ObjString *s = AS_STRING(args[1]);
 	fwrite(s->data, 1, s->length, stream);
 
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }
 
 // class Number {
 	NATIVE(bl_Number_string) {
-		char str[24];
+		char str[24]; // enough for .*g with DBL_DIG
 		snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, AS_NUM(args[0]));
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
+		BL_RETURN_OBJ(copyString(vm, str, strlen(str), false));
 	}
 
 	NATIVE(bl_Number_class) {
-		BL_RETURN(OBJ_VAL(vm->numClass));
+		BL_RETURN_OBJ(vm->numClass);
 	}
 
 	NATIVE(bl_Number_hash) {
@@ -283,28 +307,28 @@ NATIVE(bl_printstr) {
 			uint64_t r;
 		} c = {.d = num};
 		uint64_t n = hash64(c.r);
-		BL_RETURN(NUM_VAL((uint32_t) n));
+		BL_RETURN_NUM((double) (uint32_t) n);
 	}
 // } Number
 
 // class Boolean {
 	NATIVE(bl_Boolean_string) {
-		BL_RETURN(AS_BOOL(args[0]) ? OBJ_VAL(copyString(vm, "true", 4, true))
-		                        : OBJ_VAL(copyString(vm, "false", 5, true)));
+		BL_RETURN_OBJ(AS_BOOL(args[0]) ? copyString(vm, "true", 4, true)
+		                               : copyString(vm, "false", 5, true));
 	}
 
 	NATIVE(bl_Boolean_class) {
-		BL_RETURN(OBJ_VAL(vm->boolClass));
+		BL_RETURN_OBJ(vm->boolClass);
 	}
 // } Boolean
 
 // class Null {
 	NATIVE(bl_Null_string) {
-		BL_RETURN(OBJ_VAL(copyString(vm, "null", 4, true)));
+		BL_RETURN_OBJ(copyString(vm, "null", 4, true));
 	}
 
 	NATIVE(bl_Null_class) {
-		BL_RETURN(OBJ_VAL(vm->nullClass));
+		BL_RETURN_OBJ(vm->nullClass);
 	}
 // } Null
 
@@ -342,7 +366,7 @@ NATIVE(bl_printstr) {
 		char str[512] = {0};
 		snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName, AS_OBJ(args[0]));
 
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
+		BL_RETURN_OBJ(copyString(vm, str, strlen(str), false));
 	}
 // } Function
 
@@ -351,106 +375,98 @@ NATIVE(bl_printstr) {
 		char str[256];
 		ObjModule *m = AS_MODULE(args[0]);
 		snprintf(str, sizeof(str) - 1, "<module %s@%p>", m->name->data, m);
-		BL_RETURN(OBJ_VAL(copyString(vm, str, strlen(str), false)));
+		BL_RETURN_OBJ(copyString(vm, str, strlen(str), false));
 	}
 // } Module
 
 // class List {
+	NATIVE(bl_List_new) {
+		if(!checkInt(vm, args[1], "size")) {
+			return true;
+		}
+
+		double count = AS_NUM(args[1]);
+
+		if(count < 0) BL_RAISE_EXCEPTION(vm, "TypeException", "size must be >= 0");
+		ObjList *lst = newList(vm, count < 16 ? 16 : count);
+
+		size_t c = count;
+		for(size_t i = 0; i < c; i++) {
+			lst->arr[i] = args[2];
+		}
+		lst->count = c;
+
+		BL_RETURN_OBJ(lst);
+	}
+
 	NATIVE(bl_List_add) {
 		ObjList *l = AS_LIST(args[0]);
 		listAppend(vm, l, args[1]);
-		BL_RETURN(TRUE_VAL);
+		BL_RETURN_TRUE;
 	}
 
 	NATIVE(bl_List_insert) {
-		if(!IS_INT(args[1])) {
-			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
-			 		"Argument 1 of insert() must be an integer.");
-			BL_RETURN(NULL_VAL);
-		}
-
 		ObjList *l = AS_LIST(args[0]);
-		double index = AS_NUM(args[1]);
-		if(index < 0 || index > l->count - 1) {
-			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
-					"List index out of bound: %d.", (int)index);
-			BL_RETURN(NULL_VAL);
-		}
+		size_t index = checkIndex(vm, args[1], l->count, "i");
+		if(index == SIZE_MAX) return true;
 
 		listInsert(vm, l, index, args[2]);
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	NATIVE(bl_List_size) {
-		BL_RETURN(NUM_VAL(AS_LIST(args[0])->count));
+		BL_RETURN_NUM(AS_LIST(args[0])->count);
 	}
 
 	NATIVE(bl_List_removeAt) {
-		if(!IS_INT(args[1])) {
-			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
-			 		"Argument of removeAt() must be an integer.");
-			BL_RETURN(NULL_VAL);
-		}
-
 		ObjList *l = AS_LIST(args[0]);
-		double index = AS_NUM(args[1]);
-		if(index < 0 || index > l->count - 1) {
-			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
-						"List index out of bound: %d.", (int)index);
-			BL_RETURN(NULL_VAL);
-		}
+		size_t index = checkIndex(vm, args[1], l->count, "i");
+		if(index == SIZE_MAX) return true;
 
-		Value r = l->arr[(size_t)index];
+		Value r = l->arr[index];
 		listRemove(vm, l, index);
 		BL_RETURN(r);
 	}
 
 	NATIVE(bl_List_subList) {
-		if(!IS_INT(args[1]) || !IS_INT(args[2]) || 
-			AS_NUM(args[1]) < 0 || AS_NUM(args[2]) < 0) {
-			BL_RAISE_EXCEPTION(vm, "TypeException", "from and to must be positive integers.");
-		}
+		ObjList *list = AS_LIST(args[0]);
 
-		size_t from = AS_NUM(args[1]);
-		size_t to = AS_NUM(args[2]);
+		size_t from = checkIndex(vm, args[1], list->count, "from");
+		if(from == SIZE_MAX) return true;
+		size_t to = checkIndex(vm, args[2], list->count + 1, "to");
+		if(to == SIZE_MAX) return true;
 
 		if(from >= to) {
 			BL_RAISE_EXCEPTION(vm, "InvalidArgException", "from must be < to.");
 		}
 
-		ObjList *thisList = AS_LIST(args[0]);
-
-		if(to > thisList->count) {
-			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException", "%d.", to);
-		}
-
 		size_t numElems = to - from;
 		ObjList *subList = newList(vm, numElems < 16 ? 16 : numElems);
 
-		memcpy(subList->arr, thisList->arr + from, numElems * sizeof(Value));
+		memcpy(subList->arr, list->arr + from, numElems * sizeof(Value));
 		subList->count = numElems;
 
-		BL_RETURN(OBJ_VAL(subList));
+		BL_RETURN_OBJ(subList);
 	}
 
 	NATIVE(bl_List_clear) {
 		AS_LIST(args[0])->count = 0;
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	NATIVE(bl_List_iter) {
 		ObjList *lst = AS_LIST(args[0]);
 
 		if(IS_NULL(args[1])) {
-			BL_RETURN(NUM_VAL(1));
+			BL_RETURN_NUM(1);
 		}
 
 		if(IS_INT(args[1])) {
 			double idx = AS_NUM(args[1]);
-			if(idx >= 1 && idx < lst->count) BL_RETURN(NUM_VAL(idx + 1));
+			if(idx >= 1 && idx < lst->count) BL_RETURN_NUM(idx + 1);
 		}
 
-		BL_RETURN(FALSE_VAL);
+		BL_RETURN_FALSE;
 	}
 
 	NATIVE(bl_List_next) {
@@ -461,28 +477,28 @@ NATIVE(bl_printstr) {
 			if(idx >= 0 && idx < lst->count) BL_RETURN(lst->arr[(size_t)idx]);
 		}
 
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 // } List
 
 // class Tuple {
 	NATIVE(bl_Tuple_size) {
-		BL_RETURN(NUM_VAL(AS_TUPLE(args[0])->size));
+		BL_RETURN_NUM(AS_TUPLE(args[0])->size);
 	}
 
 	NATIVE(bl_Tuple_iter) {
 		ObjTuple *tup = AS_TUPLE(args[0]);
 
 		if(IS_NULL(args[1])) {
-			BL_RETURN(NUM_VAL(1));
+			BL_RETURN_NUM(1);
 		}
 
 		if(IS_INT(args[1])) {
 			double idx = AS_NUM(args[1]);
-			if(idx >= 1 && idx < tup->size) BL_RETURN(NUM_VAL(idx + 1));
+			if(idx >= 1 && idx < tup->size) BL_RETURN_NUM(idx + 1);
 		}
 
-		BL_RETURN(FALSE_VAL);
+		BL_RETURN_FALSE;
 	}
 
 	NATIVE(bl_Tuple_next) {
@@ -493,45 +509,34 @@ NATIVE(bl_printstr) {
 			if(idx >= 0 && idx < tup->size) BL_RETURN(tup->arr[(size_t)idx]);
 		}
 
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 // }
 
 // class String {
 	NATIVE(bl_substr) {
-		if(!IS_INT(args[1]) || !IS_INT(args[2])) {
-			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
-						"arguments of substr() must be integers.");
-			BL_RETURN(NULL_VAL);
-		}
-
 		ObjString *str = AS_STRING(args[0]);
-		int64_t from = AS_NUM(args[1]);
-		int64_t to = AS_NUM(args[2]);
 
-		if(from > to) {
+		size_t from = checkIndex(vm, args[1], str->length, "from");
+		if(from == SIZE_MAX) return true;
+		size_t to = checkIndex(vm, args[2], str->length + 1, "to");
+		if(to == SIZE_MAX) return true;
+
+		if(from >= to) {
 			BL_RAISE_EXCEPTION(vm, "InvalidArgException",
 							"argument to must be >= from.");
-		}
-		if(from < 0 || (size_t)from > str->length - 1) {
-			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
-					"String index out of bounds: from %d.", from);
-		}
-		if((size_t)to > str->length) {
-			BL_RAISE_EXCEPTION(vm, "IndexOutOfBoundException",
-					"String index out of bounds: to %d.", from);
 		}
 
 		size_t len = to - from;
 		ObjString *sub = allocateString(vm, len);
 		memcpy(sub->data, str->data + from, len);
 
-		BL_RETURN(OBJ_VAL(sub));
+		BL_RETURN_OBJ(sub);
 	}
 
 	NATIVE(bl_String_join) {
-		if(!IS_LIST(args[1])) {
-			BL_RAISE_EXCEPTION(vm, "TypeException", "Argument to join must be a List");
+		if(!checkList(vm, args[1], "lst")) {
+			return false;
 		}
 
 		ObjString *sep = AS_STRING(args[0]);
@@ -562,20 +567,20 @@ NATIVE(bl_printstr) {
 			}
 		}
 
-		BL_RETURN(OBJ_VAL(joined));
+		BL_RETURN_OBJ(joined);
 	}
 
 	NATIVE(bl_String_length) {
-		BL_RETURN(NUM_VAL(AS_STRING(args[0])->length));
+		BL_RETURN_NUM(AS_STRING(args[0])->length);
 	}
 
 	NATIVE(bl_String_hash) {
-		BL_RETURN(NUM_VAL(stringGetHash(AS_STRING(args[0]))));
+		BL_RETURN_NUM(stringGetHash(AS_STRING(args[0])));
 	}
 
 	NATIVE(bl_String_eq) {
 		if(!IS_STRING(args[1])) {
-			BL_RETURN(FALSE_VAL);
+			BL_RETURN_FALSE;
 		}
 		
 		ObjString *s1 = AS_STRING(args[0]);
@@ -594,15 +599,15 @@ NATIVE(bl_printstr) {
 		ObjString *s = AS_STRING(args[0]);
 
 		if(IS_NULL(args[1])) {
-			BL_RETURN(NUM_VAL(1));
+			BL_RETURN_NUM(1);
 		}
 
 		if(IS_INT(args[1])) {
 			double idx = AS_NUM(args[1]);
-			if(idx >= 1 && idx < s->length) BL_RETURN(NUM_VAL(idx + 1));
+			if(idx >= 1 && idx < s->length) BL_RETURN_NUM(idx + 1);
 		}
 
-		BL_RETURN(FALSE_VAL);
+		BL_RETURN_FALSE;
 	}
 
 	NATIVE(bl_String_next) {
@@ -611,10 +616,10 @@ NATIVE(bl_printstr) {
 		if(IS_INT(args[1])) {
 			double idx = AS_NUM(args[1]) - 1;
 			if(idx >= 0 && idx < s->length) {
-				BL_RETURN(OBJ_VAL(copyString(vm, s->data + (size_t)idx, 1, true)));
+				BL_RETURN_OBJ(copyString(vm, s->data + (size_t)idx, 1, true));
 			}
 		}
 
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 // } String

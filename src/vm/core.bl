@@ -1,48 +1,26 @@
 class Number
-	fun new()
-		__noinstance(this)
-	end
 	native __string__()
 	native __class__()
 	native __hash__()
 end
 class Boolean
-	fun new()
-		__noinstance(this)
-	end
 	native __string__()
 	native __class__()
 end
 class Null
-	fun new()
-		__noinstance(this)
-	end
 	native __string__()
 	native __class__()
 end
 class Function
-	fun new()
-		__noinstance(this)
-	end
 	native __string__()
 end
 class Module
-	fun new()
-		__noinstance(this)
-	end
 	native __string__()
 end
 class StackTrace
-	fun new()
-		__noinstance(this)
-	end
 end
 
 class String
-	fun new()
-		__noinstance(this)
-	end
-
 	native __eq__(o)
 	native substr(from, to)
 	native length()
@@ -70,10 +48,6 @@ class String
 end
 
 class List
-	fun new()
-		__noinstance(this)
-	end
-
 	native add(e)
 	native insert(i, e)
 	native removeAt(i)
@@ -152,6 +126,10 @@ class List
 		this[a], this[b] = this[b], this[a]
 	end
 
+	fun foreach(pred)
+		for var e in this do pred(e) end
+	end
+
 	native __iter__(iter)
 	native __next__(idx)
 
@@ -183,10 +161,6 @@ class List
 end
 
 class Tuple
-	fun new()
-		__noinstance(this)
-	end
-
 	native size()
 
 	fun __string__()
@@ -218,10 +192,6 @@ class Tuple
 		return true
 	end
 
-end
-
-fun __noinstance(inst)
-	raise Exception("Class " + inst.__class__().getName() + " cannot be directly instantiated")
 end
 
 // Exceptions builtin classes
@@ -265,12 +235,6 @@ fun str(e)
 	return e.__string__()
 end
 
-fun foreach(iter, pred)
-	for var e in iter do
-		pred(e)
-	end
-end
-
 class range
 	fun new(from, to=null, step=1)
 		if to == null then 
@@ -304,6 +268,5 @@ native num(n)
 native char(num)
 native ascii(char)
 native isInt(n)
-native list(size=0, init=null)
 
 native __printstr(str, file=null)

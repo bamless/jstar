@@ -135,14 +135,11 @@ NATIVE(bl_File_seek) {
 
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
-	if(!IS_INT(args[1])){
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "off must be an integer");
-	}
-	if(!IS_INT(args[2])) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "whence must be an integer");
+	if(!checkInt(vm, args[1], "off") || !checkInt(vm, args[2], "whence")) {
+		return true;
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
@@ -159,7 +156,7 @@ NATIVE(bl_File_seek) {
 		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }
 
 NATIVE(bl_File_tell) {
@@ -169,7 +166,7 @@ NATIVE(bl_File_tell) {
 
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
@@ -179,7 +176,7 @@ NATIVE(bl_File_tell) {
 		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN(NUM_VAL(off));
+	BL_RETURN_NUM(off);
 }
 
 NATIVE(bl_File_rewind) {
@@ -189,12 +186,12 @@ NATIVE(bl_File_rewind) {
 
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
 	rewind(f);
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }
 
 NATIVE(bl_File_readAll) {
@@ -204,7 +201,7 @@ NATIVE(bl_File_readAll) {
 
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
@@ -216,7 +213,7 @@ NATIVE(bl_File_readAll) {
 
 	int64_t size = getFileSize(f) - off;
 	if(size < 0) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	ObjString *data = allocateString(vm, size);
@@ -225,7 +222,7 @@ NATIVE(bl_File_readAll) {
 		BL_RAISE_EXCEPTION(vm, "IOException", "Couldn't read the whole file.");
 	}
 
-	BL_RETURN(OBJ_VAL(data));
+	BL_RETURN_OBJ(data);
 }
 
 NATIVE(bl_File_readLine) {
@@ -235,7 +232,7 @@ NATIVE(bl_File_readLine) {
 
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	FILE *f = (FILE*) AS_HANDLE(h);
@@ -245,13 +242,13 @@ NATIVE(bl_File_readLine) {
 		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN(OBJ_VAL(line));
+	BL_RETURN_OBJ(line);
 }
 
 NATIVE(bl_File_close) {
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NULL_VAL);
+		BL_RETURN_NULL;
 	}
 
 	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
@@ -264,7 +261,7 @@ NATIVE(bl_File_close) {
 	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
 	blSetField(vm, BL_THIS, FIELD_FILE_CLOSED, BOOL_VAL(true));
 
-	BL_RETURN(NULL_VAL);
+	BL_RETURN_NULL;
 }
 
 NATIVE(bl_File_size) {
@@ -274,12 +271,12 @@ NATIVE(bl_File_size) {
 
 	Value h;
 	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN(NUM_VAL(-1));
+		BL_RETURN_NUM(-1);
 	}
 
 	FILE *stream = (FILE*) AS_HANDLE(h);
 
-	BL_RETURN(NUM_VAL(getFileSize(stream)));
+	BL_RETURN_NUM(getFileSize(stream));
 }
 
 // } class File
@@ -301,9 +298,9 @@ NATIVE(bl_open) {
 
 	FILE *f = fopen(AS_STRING(args[1])->data, m);
 	if(f == NULL) {
-		if(errno == ENOENT)
+		if(errno == ENOENT) {
 			BL_RAISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
-		
+		}
 		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
 	}
 
