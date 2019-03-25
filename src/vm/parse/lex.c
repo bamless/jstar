@@ -89,7 +89,7 @@ void initLexer(Lexer *lex, const char * src) {
 }
 
 static void skipSpacesAndComments(Lexer *lex) {
-	for(;;) {
+	while(!isAtEnd(lex)) {
 		switch(peekChar(lex)) {
 		case '\\':
 			if(peekChar2(lex) == '\n') {
@@ -221,12 +221,12 @@ static void identifier(Lexer *lex, Token *tok) {
 }
 
 void nextToken(Lexer *lex, Token *tok) {
-	skipSpacesAndComments(lex);
-
 	if(isAtEnd(lex)) {
 		eofToken(lex, tok);
 		return;
 	}
+
+	skipSpacesAndComments(lex);
 
 	lex->tokenStart = lex->current;
 	char c = advance(lex);
