@@ -76,6 +76,9 @@ typedef struct BlangVM {
 	ObjString *ctor;
 	ObjString *stField;
 
+	// The empty tuple (singleton)
+	ObjTuple *emptyTup;
+
 	// Names of overloadable operator's methods
 	ObjString *add, *sub, *mul, *div, *mod, *get, *set;
 	ObjString *radd, *rsub, *rmul, *rdiv, *rmod;

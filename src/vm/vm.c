@@ -79,6 +79,7 @@ BlangVM *blNewVM() {
 	// This is called after initCoreLibrary in order to correctly assign the
 	// List class to the object since classes are created during initialization
 	vm->importpaths = newList(vm, 8);
+	vm->emptyTup = newTuple(vm, 0);
 
 	return vm;
 }
@@ -189,27 +190,50 @@ static void closeUpvalues(BlangVM *vm, Value *last) {
 	}
 }
 
+static void packVarargs(BlangVM *vm, uint8_t count) {
+	ObjTuple *args = newTuple(vm, count);
+	for(int i = count - 1; i >= 0; i--) {
+		args->arr[i] = pop(vm);
+	}
+	push(vm, OBJ_VAL(args));
+}
+
 static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 	ObjFunction *func = closure->fn;
+	bool isVararg = func->vararg;
 
-	if(func->defaultc != 0) {
+	if(func->defaultc != 0) 
+	{
 		uint8_t most  = func->argsCount;
 		uint8_t least = most - func->defaultc;
 
-		if(argc > most || argc < least) {
+		if((!isVararg && argc > most) || argc < least) {
 			blRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, "
 						 "%d supplied.", func->module->name->data, func->name->data, 
 						 argc > most ? "most" : "least", argc > most ? most : least, argc);
 			return false;
 		}
-
+	
 		// push remaining args taking the default value
 		for(uint8_t i = argc - least; i < func->defaultc; i++) {
 			push(vm, func->defaults[i]);
 		}
-	} else if(func->argsCount != argc) {
-		blRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, "
-		        "%d supplied.", func->module->name->data, func->name->data, func->argsCount, argc);
+		
+		if(isVararg) packVarargs(vm, argc > most ? argc - most : 0);
+	} 
+	else if(isVararg)
+	{
+		if(argc < func->argsCount) {
+			blRaise(vm, "TypeException", "Function `%s.%s` takes at least %d args, %d supplied.", 
+			            func->module->name->data, func->name->data, func->argsCount, argc);
+			return false;
+		}
+		packVarargs(vm, argc - func->argsCount);
+	} 
+	else if(func->argsCount != argc) 
+	{
+		blRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, %d supplied.", 
+		            func->module->name->data, func->name->data, func->argsCount, argc);
 		return false;
 	}
 
@@ -223,6 +247,7 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 	callFrame->ip = func->chunk.code;
 	callFrame->stack = vm->sp - (func->argsCount + 1);
 	callFrame->handlerc = 0;
+	if(isVararg) callFrame->stack--;
 
 	vm->module = func->module;
 
@@ -230,35 +255,54 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 }
 
 static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
-	if(native->defaultc != 0) {
+	bool isVararg = native->vararg;
+
+	if(native->defaultc != 0) 
+	{
 		uint8_t most  = native->argsCount;
 		uint8_t least = most - native->defaultc;
 
-		if(argc > most || argc < least) {
-			blRaise(vm, "TypeException", "Native `%s` takes at %s %d args, "
-						 "%d supplied.", native->name->data, argc > most ?
-						 "most" : "least", argc > most ? most : least, argc);
+		if((!isVararg && argc > most) || argc < least) {
+			blRaise(vm, "TypeException", "Native `%s.%s` takes at %s %d args, "
+						 "%d supplied.", native->module->name->data, native->name->data, 
+						 argc > most ? "most" : "least", argc > most ? most : least, argc);
 			return false;
 		}
-
+	
 		// push remaining args taking the default value
 		for(uint8_t i = argc - least; i < native->defaultc; i++) {
 			push(vm, native->defaults[i]);
 		}
-	} else if(native->argsCount != argc) {
-		blRaise(vm, "TypeException", "Native `%s` takes exactly %d args, "
-				"%d supplied.", native->name->data, native->argsCount, argc);
+		
+		if(isVararg) packVarargs(vm, argc > most ? argc - most : 0);
+	} 
+	else if(isVararg) 
+	{
+		if(argc < native->argsCount) {
+			blRaise(vm, "TypeException", "Native `%s.%s` takes at least %d args, %d supplied.", 
+			            native->module->name->data, native->name->data, native->argsCount, argc);
+			return false;
+		}
+		packVarargs(vm, argc - native->argsCount);
+	} 
+	else if(native->argsCount != argc) 
+	{
+		blRaise(vm, "TypeException", "Native `%s.%s` takes exactly %d args, %d supplied.", 
+		            native->module->name->data, native->name->data, native->argsCount, argc);
 		return false;
 	}
 
+	Value *args = vm->sp - (native->argsCount + 1);
+	if(isVararg) args--;
+
 	Value ret;
-	if(!native->fn(vm, vm->sp - (native->argsCount + 1), &ret)) {
+	if(!native->fn(vm, args, &ret)) {
 		blRaise(vm, "Exception", "Failed to call native %s().", native->name->data);
 		return false;
 	}
-	vm->sp -= native->argsCount + 1;
+
+	vm->sp = args;
 	push(vm, ret);
-	
 	return vm->exception == NULL;
 }
 

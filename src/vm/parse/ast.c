@@ -146,9 +146,9 @@ Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
 	return e;
 }
 
-Expr *newAnonymousFunc(int line, LinkedList *args, LinkedList *defArgs, Stmt *body) {
+Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body) {
 	Expr *e = newExpr(line, ANON_FUNC);
-	e->anonFunc.func = newFuncDecl(line, 0, NULL, args, defArgs, body);
+	e->anonFunc.func = newFuncDecl(line, vararg, 0, NULL, args, defArgs, body);
 	return e;
 }
 
@@ -221,21 +221,23 @@ static Stmt *newStmt(int line, StmtType type) {
 	return s;
 }
 
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body) {
+Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body) {
 	Stmt *f = newStmt(line, FUNCDECL);
 	f->funcDecl.id.name = id;
 	f->funcDecl.id.length = length;
 	f->funcDecl.formalArgs = args;
 	f->funcDecl.defArgs = defArgs;
+	f->funcDecl.isVararg = vararg;
 	f->funcDecl.body = body;
 	return f;
 }
 
-Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs) {
+Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs) {
 	Stmt *n = newStmt(line, NATIVEDECL);
 	n->nativeDecl.id.name = id;
 	n->nativeDecl.id.length = length;
 	n->nativeDecl.formalArgs = args;
+	n->nativeDecl.isVararg = vararg;
 	n->nativeDecl.defArgs = defArgs;
 	return n;
 }

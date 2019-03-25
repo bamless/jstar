@@ -107,7 +107,7 @@ Expr *newExpExpr(int line, Expr *base, Expr *exp);
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
 Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
-Expr *newAnonymousFunc(int line, LinkedList *args, LinkedList *defArgs, Stmt *body);
+Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
 
 void freeExpr(Expr *e);
 
@@ -153,11 +153,13 @@ struct Stmt {
 		struct {
 			Identifier id;
 			LinkedList *formalArgs, *defArgs;
+			bool isVararg;
 			Stmt *body;
 		} funcDecl;
 		struct {
 			Identifier id;
 			LinkedList *formalArgs, *defArgs;
+			bool isVararg;
 		} nativeDecl;
 		struct {
 			Identifier id;
@@ -186,9 +188,9 @@ struct Stmt {
 	};
 };
 
-Stmt *newFuncDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
+Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
+Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
 Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength);
-Stmt *newNativeDecl(int line, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
 Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);

@@ -964,6 +964,7 @@ static void compileNative(Compiler *c, Stmt *s) {
 	size_t arity    = listLength(s->nativeDecl.formalArgs);
 
 	ObjNative *native = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
+	native->vararg = s->nativeDecl.isVararg;
 	addDefaultConsts(c, native->defaults, s->nativeDecl.defArgs);
 
 	uint16_t n = createConst(c, OBJ_VAL(native), s->line);
@@ -1345,6 +1346,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	size_t arity    = listLength(s->funcDecl.formalArgs);
 
 	c->func = newFunction(c->vm, module, NULL, arity, defaults);
+	c->func->vararg = s->funcDecl.isVararg;
 	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
 
 	if(s->funcDecl.id.length != 0) {
@@ -1364,6 +1366,12 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	foreach(n, s->funcDecl.formalArgs) {
 		declareVar(c, (Identifier*) n->elem, s->line);
 		defineVar(c, (Identifier*) n->elem, s->line);
+	}
+
+	if(s->funcDecl.isVararg) {
+		Identifier args = {4, "args"};
+		declareVar(c, &args, s->line);
+		defineVar(c, &args, s->line);
 	}
 
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);

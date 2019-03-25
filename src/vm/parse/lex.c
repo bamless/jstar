@@ -245,11 +245,19 @@ void nextToken(Lexer *lex, Token *tok) {
 	case ';': makeToken(lex, tok, TOK_SEMICOLON); break;
 	case ':': makeToken(lex, tok, TOK_COLON);     break;
 	case ',': makeToken(lex, tok, TOK_COMMA);     break;
-	case '.': makeToken(lex, tok, TOK_DOT);       break;
 	case '[': makeToken(lex, tok, TOK_LSQUARE);   break;
 	case ']': makeToken(lex, tok, TOK_RSQUARE);   break;
 	case '^': makeToken(lex, tok, TOK_POW);       break;
 	case '"': string(lex, tok);                   break;
+	case '.':
+		if(peekChar(lex) == '.' && peekChar2(lex) == '.') {
+			advance(lex);
+			advance(lex);
+			makeToken(lex, tok, TOK_VARARG);
+		} else {
+			makeToken(lex, tok, TOK_DOT);
+		}
+		break;
 	case '-':
 		if(match(lex, '=')) makeToken(lex, tok, TOK_MINUS_EQ);
 		else makeToken(lex, tok, TOK_MINUS);

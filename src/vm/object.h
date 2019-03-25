@@ -105,6 +105,7 @@ typedef struct ObjFunction {
 	uint8_t upvaluec;  // The upvalues of the functions
 	uint8_t argsCount; // The arity of the function
 	uint8_t defaultc;  // number of default arguments
+	bool vararg;
 	Value *defaults;   // default arguments
 	ObjString *name;   // The name of the function
 	ObjModule *module; // The module to which the function belongs
@@ -117,6 +118,7 @@ typedef struct ObjNative {
 	Obj base;
 	uint8_t argsCount; // The arity of the native
 	uint8_t defaultc;  // Number of default arguments
+	bool vararg;
 	Native fn;         // The c native function that gets called
 	Value *defaults;   // Default arguments
 	ObjString *name;   // The name of the native

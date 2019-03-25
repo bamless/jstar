@@ -457,7 +457,7 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_List_iter) {
 		ObjList *lst = AS_LIST(args[0]);
 
-		if(IS_NULL(args[1])) {
+		if(IS_NULL(args[1]) && lst->count > 0) {
 			BL_RETURN_NUM(1);
 		}
 
@@ -489,7 +489,7 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_Tuple_iter) {
 		ObjTuple *tup = AS_TUPLE(args[0]);
 
-		if(IS_NULL(args[1])) {
+		if(IS_NULL(args[1]) && tup->size > 0) {
 			BL_RETURN_NUM(1);
 		}
 
@@ -598,7 +598,7 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_String_iter) {
 		ObjString *s = AS_STRING(args[0]);
 
-		if(IS_NULL(args[1])) {
+		if(IS_NULL(args[1]) && s->length > 0) {
 			BL_RETURN_NUM(1);
 		}
 

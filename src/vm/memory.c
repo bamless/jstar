@@ -74,6 +74,7 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
 	f->argsCount = argc;
 	f->defaultc = defaultc;
+	f->vararg = false;
 	f->defaults = defArr;
 	f->module = module;
 	f->upvaluec = 0;
@@ -88,6 +89,7 @@ ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t ar
 
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
 	n->argsCount = argc;
+	n->vararg = false;
 	n->module = module;
 	n->name = name;
 	n->fn = fn;
@@ -140,6 +142,8 @@ ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
 }
 
 ObjTuple *newTuple(BlangVM *vm, size_t size) {
+	if(size == 0 && vm->emptyTup) return vm->emptyTup;
+
 	ObjTuple *tuple = (ObjTuple*) newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
 	tuple->size = size;
 	for(uint8_t i = 0; i < tuple->size; i++) {

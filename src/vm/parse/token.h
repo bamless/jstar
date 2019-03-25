@@ -19,6 +19,7 @@ typedef enum {
 	TOK_BANG_EQ,
 	TOK_COMMA,
 	TOK_DOT,
+	TOK_VARARG,
 
 	TOK_EQUAL,
 	TOK_PLUS_EQ,

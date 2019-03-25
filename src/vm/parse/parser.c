@@ -162,7 +162,7 @@ static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
 static Stmt *varDecl(Parser *p);
 
-static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
+static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, bool *vararg) {
 	require(p, TOK_LPAREN);
 
 	Token arg = {0};
@@ -170,6 +170,13 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
 	while((*args == NULL || matchSkipnl(p, TOK_COMMA)) && !matchSkipnl(p, TOK_RPAREN)) {
 		if(*args != NULL) advance(p);
 		
+		if(match(p, TOK_VARARG)) {
+			advance(p);
+			*vararg = true;
+			require(p, TOK_RPAREN);
+			return;
+		}
+
 		arg = require(p, TOK_IDENTIFIER);
 
 		if(matchSkipnl(p, TOK_EQUAL)) {
@@ -184,6 +191,14 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs) {
 			if(matchSkipnl(p, TOK_COMMA)) {
 				advance(p);
 			}
+
+			if(match(p, TOK_VARARG)) {
+				advance(p);
+				*vararg = true;
+				require(p, TOK_RPAREN);
+				return;
+			}
+
 			arg = require(p, TOK_IDENTIFIER);
 		}
 
@@ -213,14 +228,15 @@ static Stmt *parseFuncDecl(Parser *p) {
 
 	Token fname = require(p, TOK_IDENTIFIER);
 
+	bool vararg = false;
 	LinkedList *args = NULL, *defArgs = NULL;
-	formalArgs(p, &args, &defArgs);
+	formalArgs(p, &args, &defArgs, &vararg);
 
 	Stmt *body = blockStmt(p);
 
 	require(p, TOK_END);
 
-	return newFuncDecl(line, fname.length, fname.lexeme, args, defArgs, body);
+	return newFuncDecl(line, vararg, fname.length, fname.lexeme, args, defArgs, body);
 }
 
 static Stmt *parseNativeDecl(Parser *p) {
@@ -229,12 +245,13 @@ static Stmt *parseNativeDecl(Parser *p) {
 
 	Token fname = require(p, TOK_IDENTIFIER);
 
+	bool vararg = false;
 	LinkedList *args = NULL, *defArgs = NULL;
-	formalArgs(p, &args, &defArgs);
+	formalArgs(p, &args, &defArgs, &vararg);
 
 	STATEMENT_END(p);
 
-	return newNativeDecl(line, fname.length, fname.lexeme, args, defArgs);
+	return newNativeDecl(line, vararg, fname.length, fname.lexeme, args, defArgs);
 }
 
 static Stmt *parseClassDecl(Parser *p) {
@@ -293,7 +310,7 @@ static Stmt *parseProgram(Parser *p) {
 		if(p->panic) synchronize(p);
 	}
 
-	return newFuncDecl(0, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
+	return newFuncDecl(0, false, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
 }
 
 Stmt *parse(Parser *p, const char *fname, const char *src) {
@@ -740,14 +757,15 @@ static Expr *anonymousFunc(Parser *p) {
 		int line = p->peek.line;
 		require(p, TOK_FUN);
 
+		bool vararg = false;
 		LinkedList *args = NULL, *defArgs = NULL;
-		formalArgs(p, &args, &defArgs);
+		formalArgs(p, &args, &defArgs, &vararg);
 
 		Stmt *body = blockStmt(p);
 
 		require(p, TOK_END);
 
-		return newAnonymousFunc(line, args, defArgs, body);
+		return newAnonymousFunc(line, vararg, args, defArgs, body);
 	}
 	return postfixExpr(p);
 }

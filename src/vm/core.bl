@@ -17,8 +17,7 @@ end
 class Module
 	native __string__()
 end
-class StackTrace
-end
+class StackTrace end
 
 class String
 	native __eq__(o)
@@ -220,15 +219,17 @@ fun assert(cond, msg="assertion failed")
 	end
 end
 
-fun print(o="", file=null)
-	write(o, file)
-	__printstr("\n", file)
+fun print(s, ...)
+	write(s)
+	for var s in args do
+		__printstr(" ")
+		write(s)
+	end
+	__printstr("\n")
 end
 
 fun write(o, file=null)
-	var s = str(o)
-	assert(s is String, "__string__() didn't return a string, got " + s.__class__().getName())
-	__printstr(s, file)
+	__printstr(str(o), file)
 end
 
 fun str(e)
