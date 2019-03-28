@@ -121,7 +121,7 @@ static ObjClass *getClass(BlangVM *vm, Value v) {
 static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->numClass  || 
 	       cls == vm->strClass  ||
-		   cls == vm->boolClass ||
+	       cls == vm->boolClass ||
 		   cls == vm->nullClass ||
 		   cls == vm->funClass  ||
 		   cls == vm->modClass  ||
@@ -130,7 +130,7 @@ static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 }
 
 static bool isInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
-	return cls == vm->lstClass;
+	return cls == vm->lstClass || cls == vm->rangeClass;
 }
 
 static bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {

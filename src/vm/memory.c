@@ -83,6 +83,14 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
 	return f;
 }
 
+ObjRange *newRange(BlangVM *vm, double start, double stop, double step) {
+	ObjRange *range = (ObjRange*) newObj(vm, sizeof(*range), vm->rangeClass, OBJ_RANGE);
+	range->start = start;
+	range->stop = stop;
+	range->step = step;
+	return range;
+}
+
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc) {
 	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
 	memset(defArr, 0, defaultc * sizeof(Value));
@@ -382,6 +390,10 @@ static void freeObject(BlangVM *vm, Obj *o) {
 		GC_FREE(vm, ObjUpvalue, upvalue);
 		break;
 	}
+	case OBJ_RANGE: {
+		GC_FREE(vm, ObjRange, o);
+		break;
+	}
 	}
 }
 
@@ -534,6 +546,7 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 	}
 	case OBJ_STRING: break;
 	case OBJ_STACK_TRACE: break;
+	case OBJ_RANGE: break;
 	}
 }
 

@@ -70,4 +70,10 @@ NATIVE(bl_printstr);
 	NATIVE(bl_String_next);
 // } String
 
+// class range {
+	NATIVE(bl_range_new);
+	NATIVE(bl_range_iter);
+	NATIVE(bl_range_next);
+//}
+
 #endif

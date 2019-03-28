@@ -129,20 +129,22 @@ void initCoreLibrary(BlangVM *vm) {
 
 	blEvaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
 
-	vm->strClass  = AS_CLASS(getDefinedName(vm, core, "String"));
-	vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-	vm->lstClass  = AS_CLASS(getDefinedName(vm, core, "List"));
-	vm->numClass  = AS_CLASS(getDefinedName(vm, core, "Number"));
-	vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
-	vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
-	vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-	vm->stClass   = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-	vm->tupClass  = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+	vm->strClass   = AS_CLASS(getDefinedName(vm, core, "String"));
+	vm->boolClass  = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+	vm->lstClass   = AS_CLASS(getDefinedName(vm, core, "List"));
+	vm->numClass   = AS_CLASS(getDefinedName(vm, core, "Number"));
+	vm->funClass   = AS_CLASS(getDefinedName(vm, core, "Function"));
+	vm->modClass   = AS_CLASS(getDefinedName(vm, core, "Module"));
+	vm->nullClass  = AS_CLASS(getDefinedName(vm, core, "Null"));
+	vm->stClass    = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+	vm->tupClass   = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+	vm->rangeClass = AS_CLASS(getDefinedName(vm, core, "range"));
 
 	core->base.cls = vm->modClass;
 
 	// Set constructor for instatiable primitive classes
 	defMethodDefaults(vm, core, vm->lstClass, &bl_List_new, "new", 2, 2, NUM_VAL(0), NULL_VAL);
+	defMethodDefaults(vm, core, vm->rangeClass, &bl_range_new, "new", 3, 2, NULL_VAL, NUM_VAL(1));
 
 	// Patch up the class field of any string or function that was allocated
 	// before the creation of their corresponding class object
@@ -461,10 +463,8 @@ NATIVE(bl_printstr) {
 			BL_RETURN_NUM(1);
 		}
 
-		if(IS_INT(args[1])) {
-			double idx = AS_NUM(args[1]);
-			if(idx >= 1 && idx < lst->count) BL_RETURN_NUM(idx + 1);
-		}
+		double idx = AS_NUM(args[1]);
+		if(idx >= 1 && idx < lst->count) BL_RETURN_NUM(idx + 1);
 
 		BL_RETURN_FALSE;
 	}
@@ -472,10 +472,8 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_List_next) {
 		ObjList *lst = AS_LIST(args[0]);
 
-		if(IS_INT(args[1])) {
-			double idx = AS_NUM(args[1]) - 1;
-			if(idx >= 0 && idx < lst->count) BL_RETURN(lst->arr[(size_t)idx]);
-		}
+		double idx = AS_NUM(args[1]) - 1;
+		if(idx >= 0 && idx < lst->count) BL_RETURN(lst->arr[(size_t)idx]);
 
 		BL_RETURN_NULL;
 	}
@@ -493,10 +491,8 @@ NATIVE(bl_printstr) {
 			BL_RETURN_NUM(1);
 		}
 
-		if(IS_INT(args[1])) {
-			double idx = AS_NUM(args[1]);
-			if(idx >= 1 && idx < tup->size) BL_RETURN_NUM(idx + 1);
-		}
+		double idx = AS_NUM(args[1]);
+		if(idx >= 1 && idx < tup->size) BL_RETURN_NUM(idx + 1);
 
 		BL_RETURN_FALSE;
 	}
@@ -504,10 +500,8 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_Tuple_next) {
 		ObjTuple *tup = AS_TUPLE(args[0]);
 
-		if(IS_INT(args[1])) {
-			double idx = AS_NUM(args[1]) - 1;
-			if(idx >= 0 && idx < tup->size) BL_RETURN(tup->arr[(size_t)idx]);
-		}
+		double idx = AS_NUM(args[1]) - 1;
+		if(idx >= 0 && idx < tup->size) BL_RETURN(tup->arr[(size_t)idx]);
 
 		BL_RETURN_NULL;
 	}
@@ -602,10 +596,8 @@ NATIVE(bl_printstr) {
 			BL_RETURN_NUM(1);
 		}
 
-		if(IS_INT(args[1])) {
-			double idx = AS_NUM(args[1]);
-			if(idx >= 1 && idx < s->length) BL_RETURN_NUM(idx + 1);
-		}
+		double idx = AS_NUM(args[1]);
+		if(idx >= 1 && idx < s->length) BL_RETURN_NUM(idx + 1);
 
 		BL_RETURN_FALSE;
 	}
@@ -613,13 +605,57 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_String_next) {
 		ObjString *s = AS_STRING(args[0]);
 
-		if(IS_INT(args[1])) {
-			double idx = AS_NUM(args[1]) - 1;
-			if(idx >= 0 && idx < s->length) {
-				BL_RETURN_OBJ(copyString(vm, s->data + (size_t)idx, 1, true));
-			}
+		double idx = AS_NUM(args[1]) - 1;
+		if(idx >= 0 && idx < s->length) {
+			BL_RETURN_OBJ(copyString(vm, s->data + (size_t)idx, 1, true));
 		}
 
 		BL_RETURN_NULL;
 	}
 // } String
+
+// class range {
+	NATIVE(bl_range_new) {
+		Value from, to, step;
+		if(IS_NULL(args[2])) {
+			from = NUM_VAL(0);
+			to = args[1];
+		} else {
+			from = args[1];
+			to = args[2];
+		}
+		step = args[3];
+
+		if(!checkInt(vm, from, "from") || !checkInt(vm, to, "to") || !checkInt(vm, step, "step")) {
+			return true;
+		}
+
+		BL_RETURN_OBJ(newRange(vm, AS_NUM(from), AS_NUM(to), AS_NUM(step)));
+	}
+
+	NATIVE(bl_range_iter) {
+		ObjRange *r = AS_RANGE(args[0]);
+
+		bool incr = r->step > 0;
+
+		if(IS_NULL(args[1]) && (incr ? r->start < r->stop : r->start > r->stop)) {
+			BL_RETURN_NUM(r->step);
+		}
+
+		double i = AS_NUM(args[1]);
+		
+		if(incr) {
+			if(r->start + i < r->stop) BL_RETURN_NUM(i + r->step);
+		} else {
+			if(r->start + i > r->stop) BL_RETURN_NUM(i + r->step);
+		}
+
+		BL_RETURN_FALSE;
+	}
+
+	NATIVE(bl_range_next) {
+		ObjRange *r = AS_RANGE(args[0]);
+		double idx = AS_NUM(args[1]) - r->step;
+		BL_RETURN_NUM(r->start + idx);
+	}
+// }

@@ -193,6 +193,11 @@ class Tuple
 
 end
 
+class range 
+	native __iter__(iter)
+	native __next__(next)
+end
+
 // Exceptions builtin classes
 
 class Exception
@@ -234,34 +239,6 @@ end
 
 fun str(e)
 	return e.__string__()
-end
-
-class range
-	fun new(from, to=null, step=1)
-		if to == null then 
-			this.from, this.to = 0, from 
-		else
-			this.from, this.to = from, to
-		end
-		this.step = step
-	end
-
-	fun __iter__(iter)
-		if !iter then
-			return this.from + 1
-		end
-
-		return iter + this.step if iter < this.to else false
-	end
-
-	fun __next__(idx)
-		return idx - 1
-	end
-
-	fun __string__()
-		return "range(" + str(this.from) + ", " + str(this.to) + ")"
-	end
-
 end
 
 native int(n)

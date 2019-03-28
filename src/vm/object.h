@@ -40,6 +40,7 @@ DECLARE_TO_STRING(ObjType);
 #define IS_MODULE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_MODULE)
 #define IS_CLOSURE(o)      (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLOSURE)
 #define IS_TUPLE(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TUPLE)
+#define IS_RANGE(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_RANGE)
 #define IS_STACK_TRACE(o)  (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STACK_TRACE)
 
 #define AS_BOUND_METHOD(o) ((ObjBoundMethod*) AS_OBJ(o))
@@ -52,6 +53,7 @@ DECLARE_TO_STRING(ObjType);
 #define AS_MODULE(o)       ((ObjModule*)      AS_OBJ(o))
 #define AS_CLOSURE(o)      ((ObjClosure*)     AS_OBJ(o))
 #define AS_TUPLE(o)        ((ObjTuple*)       AS_OBJ(o))
+#define AS_RANGE(o)        ((ObjRange*)       AS_OBJ(o))
 #define AS_STACK_TRACE(o)  ((ObjStackTrace*)  AS_OBJ(o))
 
 // Type of objects. These types are used internally by the object system and are
@@ -59,7 +61,7 @@ DECLARE_TO_STRING(ObjType);
 #define OBJTYPE(X) \
 	X(OBJ_STRING) X(OBJ_NATIVE) X(OBJ_FUNCTION) X(OBJ_CLASS) X(OBJ_INST) \
 	X(OBJ_MODULE) X(OBJ_LIST) X(OBJ_BOUND_METHOD) X(OBJ_STACK_TRACE) \
-	X(OBJ_CLOSURE) X(OBJ_UPVALUE) X(OBJ_TUPLE)
+	X(OBJ_CLOSURE) X(OBJ_UPVALUE) X(OBJ_TUPLE) X(OBJ_RANGE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
@@ -169,6 +171,11 @@ typedef struct ObjClosure {
 	uint8_t upvalueCount;
 	ObjUpvalue *upvalues[];
 } ObjClosure;
+
+typedef struct ObjRange {
+	Obj base;
+	double start, stop, step;
+} ObjRange;
 
 typedef struct ObjStackTrace {
 	Obj base;

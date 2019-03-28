@@ -17,8 +17,9 @@ void garbageCollect(BlangVM *vm);
 // nformation needed by the garbage collector (see struct Obj)
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc);
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
-ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
+ObjRange *newRange(BlangVM *vm, double start, double stop, double step);
 ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
+ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
 ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);
 ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn);
 ObjModule *newModule(BlangVM *vm, ObjString *name);
