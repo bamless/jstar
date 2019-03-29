@@ -101,16 +101,21 @@ typedef struct ObjModule {
 	HashTable globals; // HashTable containing the global variables of the module
 } ObjModule;
 
+// Shared fields by all callable objects (functions and natives)
+typedef struct Callable {
+	bool vararg;
+	uint8_t argsCount;
+	uint8_t defaultc;
+	Value *defaults;
+	ObjModule *module;
+	ObjString *name;
+} Callable;
+
 typedef struct ObjFunction {
 	Obj base;
+	Callable c;
 	Chunk chunk;       // The actual code chunk containing bytecodes
 	uint8_t upvaluec;  // The upvalues of the functions
-	uint8_t argsCount; // The arity of the function
-	uint8_t defaultc;  // number of default arguments
-	bool vararg;
-	Value *defaults;   // default arguments
-	ObjString *name;   // The name of the function
-	ObjModule *module; // The module to which the function belongs
 } ObjFunction;
 
 // Native function signature
@@ -118,13 +123,8 @@ typedef bool (*Native)(BlangVM *vm, Value *argv, Value *ret);
 
 typedef struct ObjNative {
 	Obj base;
-	uint8_t argsCount; // The arity of the native
-	uint8_t defaultc;  // Number of default arguments
-	bool vararg;
+	Callable c;
 	Native fn;         // The c native function that gets called
-	Value *defaults;   // Default arguments
-	ObjString *name;   // The name of the native
-	ObjModule *module; // The module to which the native belongs
 } ObjNative;
 
 typedef struct ObjClass {

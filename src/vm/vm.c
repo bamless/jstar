@@ -198,42 +198,55 @@ static void packVarargs(BlangVM *vm, uint8_t count) {
 	push(vm, OBJ_VAL(args));
 }
 
-static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
-	ObjFunction *func = closure->fn;
-	bool isVararg = func->vararg;
+static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
+	if(c->defaultc != 0) {
+		uint8_t most  = c->argsCount;
+		uint8_t least = most - c->defaultc;
 
-	if(func->defaultc != 0) 
-	{
-		uint8_t most  = func->argsCount;
-		uint8_t least = most - func->defaultc;
+		if((!c->vararg && argc > most) || argc < least) {
+			const char *mname = c->module->name->data;
+			const char *name = c->name->data;
 
-		if((!isVararg && argc > most) || argc < least) {
-			blRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, "
-						 "%d supplied.", func->module->name->data, func->name->data, 
-						 argc > most ? "most" : "least", argc > most ? most : least, argc);
+			blRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, %d supplied.", 
+				mname, name, argc > most ? "most" : "least", argc > most ? most : least, argc);
+			
 			return false;
 		}
 	
 		// push remaining args taking the default value
-		for(uint8_t i = argc - least; i < func->defaultc; i++) {
-			push(vm, func->defaults[i]);
+		for(uint8_t i = argc - least; i < c->defaultc; i++) {
+			push(vm, c->defaults[i]);
 		}
 		
-		if(isVararg) packVarargs(vm, argc > most ? argc - most : 0);
-	} 
-	else if(isVararg)
-	{
-		if(argc < func->argsCount) {
-			blRaise(vm, "TypeException", "Function `%s.%s` takes at least %d args, %d supplied.", 
-			            func->module->name->data, func->name->data, func->argsCount, argc);
+		if(c->vararg) packVarargs(vm, argc > most ? argc - most : 0);
+	} else if(c->vararg) {
+		if(argc < c->argsCount) {
+			const char *mname = c->module->name->data;
+			const char *name = c->name->data;
+
+			blRaise(vm, "TypeException", "Function `%s.%s` takes at least %d "
+						"args, %d supplied.", mname, name, c->argsCount, argc);
+
 			return false;
 		}
-		packVarargs(vm, argc - func->argsCount);
-	} 
-	else if(func->argsCount != argc) 
-	{
-		blRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, %d supplied.", 
-		            func->module->name->data, func->name->data, func->argsCount, argc);
+		packVarargs(vm, argc - c->argsCount);
+	} else if(c->argsCount != argc) {
+		const char *mname = c->module->name->data;
+		const char *name = c->name->data;
+
+		blRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d "
+					"args, %d supplied.", mname, name, c->argsCount, argc);
+
+		return false;
+	}
+
+	return true;
+}
+
+static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
+	ObjFunction *func = closure->fn;
+
+	if(!adjustArguments(vm, &func->c, argc)) {
 		return false;
 	}
 
@@ -245,59 +258,26 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 	Frame *callFrame = &vm->frames[vm->frameCount++];
 	callFrame->closure = closure;
 	callFrame->ip = func->chunk.code;
-	callFrame->stack = vm->sp - (func->argsCount + 1);
+	callFrame->stack = vm->sp - (func->c.argsCount + 1);
 	callFrame->handlerc = 0;
-	if(isVararg) callFrame->stack--;
+	if(func->c.vararg) callFrame->stack--;
 
-	vm->module = func->module;
+	vm->module = func->c.module;
 
 	return true;
 }
 
 static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
-	bool isVararg = native->vararg;
-
-	if(native->defaultc != 0) 
-	{
-		uint8_t most  = native->argsCount;
-		uint8_t least = most - native->defaultc;
-
-		if((!isVararg && argc > most) || argc < least) {
-			blRaise(vm, "TypeException", "Native `%s.%s` takes at %s %d args, "
-						 "%d supplied.", native->module->name->data, native->name->data, 
-						 argc > most ? "most" : "least", argc > most ? most : least, argc);
-			return false;
-		}
-	
-		// push remaining args taking the default value
-		for(uint8_t i = argc - least; i < native->defaultc; i++) {
-			push(vm, native->defaults[i]);
-		}
-		
-		if(isVararg) packVarargs(vm, argc > most ? argc - most : 0);
-	} 
-	else if(isVararg) 
-	{
-		if(argc < native->argsCount) {
-			blRaise(vm, "TypeException", "Native `%s.%s` takes at least %d args, %d supplied.", 
-			            native->module->name->data, native->name->data, native->argsCount, argc);
-			return false;
-		}
-		packVarargs(vm, argc - native->argsCount);
-	} 
-	else if(native->argsCount != argc) 
-	{
-		blRaise(vm, "TypeException", "Native `%s.%s` takes exactly %d args, %d supplied.", 
-		            native->module->name->data, native->name->data, native->argsCount, argc);
+	if(!adjustArguments(vm, &native->c, argc)) {
 		return false;
 	}
 
-	Value *args = vm->sp - (native->argsCount + 1);
-	if(isVararg) args--;
+	Value *args = vm->sp - (native->c.argsCount + 1);
+	if(native->c.vararg) args--;
 
 	Value ret;
 	if(!native->fn(vm, args, &ret)) {
-		blRaise(vm, "Exception", "Failed to call native %s().", native->name->data);
+		blRaise(vm, "Exception", "Failed to call native %s().", native->c.name->data);
 		return false;
 	}
 
@@ -487,10 +467,8 @@ bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
 }
 
 static bool isValTrue(Value val) {
-	return ((IS_BOOL(val) && AS_BOOL(val))
-	      ||(IS_NUM(val) && AS_NUM(val) != 0)
-	      ||(IS_STRING(val) && AS_STRING(val)->length != 0)
-	      ||(IS_OBJ(val) && !IS_STRING(val)));
+	if(IS_BOOL(val)) return AS_BOOL(val);
+	return !IS_NULL(val);
 }
 
 static ObjString* stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
@@ -567,7 +545,7 @@ static bool runEval(BlangVM *vm) {
 		frame->ip = h->handler; \
 		vm->sp = h->savesp; \
 		closeUpvalues(vm, vm->sp - 1); \
-		vm->module = frame->closure->fn->module; \
+		vm->module = frame->closure->fn->c.module; \
 		push(vm, cause); \
 		push(vm, ret); \
 	} while(0)
@@ -1010,7 +988,7 @@ sup_invoke:;
 			push(vm, ret);
 
 			LOAD_FRAME();
-			vm->module = fn->module;
+			vm->module = fn->c.module;
 		}
 		DISPATCH();
 	}
@@ -1151,7 +1129,7 @@ sup_invoke:;
 
 		native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
 		if(native->fn == NULL) {
-			blRaise(vm, "Exception", "Cannot resolve native method %s().", native->name->data);
+			blRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
 			UNWIND_STACK(vm);
 		}
 
@@ -1164,7 +1142,7 @@ sup_invoke:;
 
 		nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
 		if(nat->fn == NULL) {
-			blRaise(vm, "Exception", "Cannot resolve native %s.", nat->name->data);
+			blRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
 			UNWIND_STACK(vm);
 		}
 

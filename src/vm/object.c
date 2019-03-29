@@ -13,19 +13,19 @@ void printObj(Obj *o) {
 		break;
 	case OBJ_FUNCTION: {
 		ObjFunction *f = (ObjFunction*) o;
-		if(f->name != NULL) {
-			printf("<func %s:%d>", f->name->data, f->argsCount);
+		if(f->c.name != NULL) {
+			printf("<func %s:%d>", f->c.name->data, f->c.argsCount);
 		} else {
-			printf("<func %d>", f->argsCount);
+			printf("<func %d>", f->c.argsCount);
 		}
 		break;
 	}
 	case OBJ_NATIVE: {
 		ObjNative *n = (ObjNative*) o;
-		if(n->name != NULL) {
-			printf("<native %s:%d>", n->name->data, n->argsCount);
+		if(n->c.name != NULL) {
+			printf("<native %s:%d>", n->c.name->data, n->c.argsCount);
 		} else {
-			printf("<native %d>", n->argsCount);
+			printf("<native %d>", n->c.argsCount);
 		}
 		break;
 	}
@@ -68,8 +68,8 @@ void printObj(Obj *o) {
 	case OBJ_BOUND_METHOD: {
 		ObjBoundMethod *b = (ObjBoundMethod*) o;
 		char *name = b->method->type == OBJ_FUNCTION ?
-		                ((ObjFunction*)b->method)->name->data :
-		                ((ObjNative*)b->method)->name->data;
+		                ((ObjFunction*)b->method)->c.name->data :
+		                ((ObjNative*)b->method)->c.name->data;
 		printf("<bound method ");
 		printValue(b->bound);
 		printf(":%s>", name);

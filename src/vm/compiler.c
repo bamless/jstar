@@ -146,7 +146,7 @@ static void endLoop(Compiler *c) {
 static uint16_t createConst(Compiler *c, Value constant, int line) {
 	int index = addConstant(&c->func->chunk, constant);
 	if(index == -1) {
-		const char *name = c->func->name == NULL ? "<main>" : c->func->name->data;
+		const char *name = c->func->c.name == NULL ? "<main>" : c->func->c.name->data;
 		error(c, line, "too many constants in function %s", name);
 		return 0;
 	}
@@ -161,7 +161,7 @@ static uint16_t identifierConst(Compiler *c, Identifier *id, int line) {
 static void addLocal(Compiler *c, Identifier *id, int line) {
 	if(c->localsCount == MAX_LOCALS) {
 		error(c, line, "Too many local variables"
-				" in function %s.", c->func->name->data);
+				" in function %s.", c->func->c.name->data);
 		return;
 	}
 
@@ -196,7 +196,7 @@ static int addUpvalue(Compiler *c, uint8_t index, bool local, int line) {
 	}
 
 	if(c->func->upvaluec == MAX_LOCALS) {
-		error(c, line, "Too many upvalues in function %s.", c->func->name->data);
+		error(c, line, "Too many upvalues in function %s.", c->func->c.name->data);
 		return -1;
 	}
 
@@ -522,7 +522,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	foreach(n, e->callExpr.args->exprList.lst) {
 		if(argsc == UINT8_MAX) {
 			error(c, e->line,
-				"Too many arguments for function %s.", c->func->name->data);
+				"Too many arguments for function %s.", c->func->c.name->data);
 			return;
 		}
 
@@ -946,7 +946,7 @@ static void compileFunction(Compiler *c, Stmt *s) {
 	Compiler compiler;
 	initCompiler(&compiler, c, TYPE_FUNC, c->depth + 1, c->vm);
 
-	ObjFunction *func = function(&compiler, c->func->module, s);
+	ObjFunction *func = function(&compiler, c->func->c.module, s);
 
 	emitBytecode(c, OP_NEW_CLOSURE, s->line);
 	emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
@@ -963,13 +963,13 @@ static void compileNative(Compiler *c, Stmt *s) {
 	size_t defaults = listLength(s->nativeDecl.defArgs);
 	size_t arity    = listLength(s->nativeDecl.formalArgs);
 
-	ObjNative *native = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
-	native->vararg = s->nativeDecl.isVararg;
-	addDefaultConsts(c, native->defaults, s->nativeDecl.defArgs);
+	ObjNative *native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
+	native->c.vararg = s->nativeDecl.isVararg;
+	addDefaultConsts(c, native->c.defaults, s->nativeDecl.defArgs);
 
 	uint16_t n = createConst(c, OBJ_VAL(native), s->line);
 	uint16_t i = identifierConst(c, &s->nativeDecl.id, s->line);
-	native->name = AS_STRING(c->func->chunk.consts.arr[i]);
+	native->c.name = AS_STRING(c->func->chunk.consts.arr[i]);
 
 	emitBytecode(c, OP_GET_CONST, s->line);
 	emitShort(c, n, s->line);
@@ -989,7 +989,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 		case FUNCDECL: {
 			initCompiler(&methodc, c, TYPE_METHOD, c->depth + 1, c->vm);
 
-			ObjFunction *met = method(&methodc, c->func->module, &cls->classDecl.id, m);
+			ObjFunction *met = method(&methodc, c->func->c.module, &cls->classDecl.id, m);
 
 			emitBytecode(c, OP_NEW_CLOSURE, m->line);
 			emitShort(c, createConst(c, OBJ_VAL(met), m->line), m->line);
@@ -1014,8 +1014,8 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			size_t defaults = listLength(m->nativeDecl.defArgs);
 			size_t arity = listLength(m->nativeDecl.formalArgs);
 
-			ObjNative *n = newNative(c->vm, c->func->module, NULL, arity, NULL, defaults);
-			addDefaultConsts(c, n->defaults, m->nativeDecl.defArgs);
+			ObjNative *n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
+			addDefaultConsts(c, n->c.defaults, m->nativeDecl.defArgs);
 
 			uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
 			uint16_t id = identifierConst(c, &m->nativeDecl.id, m->line);
@@ -1028,7 +1028,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			name->data[classId->length] = '.';
 			memcpy(name->data + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
 
-			n->name = name;
+			n->c.name = name;
 
 			emitBytecode(c, OP_NAT_METHOD, cls->line);
 			emitShort(c, id, cls->line);
@@ -1346,11 +1346,11 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 	size_t arity    = listLength(s->funcDecl.formalArgs);
 
 	c->func = newFunction(c->vm, module, NULL, arity, defaults);
-	c->func->vararg = s->funcDecl.isVararg;
-	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
+	c->func->c.vararg = s->funcDecl.isVararg;
+	addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
 	if(s->funcDecl.id.length != 0) {
-		c->func->name = copyString(c->vm,
+		c->func->c.name = copyString(c->vm,
 			s->funcDecl.id.name, s->funcDecl.id.length, true);
 	}
 
@@ -1389,7 +1389,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	size_t arity    = listLength(s->funcDecl.formalArgs);
 
 	c->func = newFunction(c->vm, module, NULL, arity, defaults);
-	addDefaultConsts(c, c->func->defaults, s->funcDecl.defArgs);
+	addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
 	//create new method name by concatenating the class name to it
 	size_t length = classId->length + s->funcDecl.id.length + 1;
@@ -1399,7 +1399,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	name->data[classId->length] = '.';
 	memcpy(name->data + classId->length + 1, s->funcDecl.id.name, s->funcDecl.id.length);
 
-	c->func->name = name;
+	c->func->c.name = name;
 
 	//if in costructor change the type
 	Identifier ctor = {strlen(CTOR_STR), CTOR_STR};

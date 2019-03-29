@@ -50,7 +50,7 @@ static void defMethodDefaults(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n
 	va_list args;
 	va_start(args, defc);
 	for(size_t i = 0; i < defc; i++) {
-		native->defaults[i] = va_arg(args, Value);
+		native->c.defaults[i] = va_arg(args, Value);
 	}
 	va_end(args);
 
@@ -343,23 +343,23 @@ NATIVE(bl_printstr) {
 		switch(OBJ_TYPE(args[0])) {
 		case OBJ_CLOSURE:
 			funType = "function";
-			funName = AS_CLOSURE(args[0])->fn->name->data;
-			modName = AS_CLOSURE(args[0])->fn->module->name->data;
+			funName = AS_CLOSURE(args[0])->fn->c.name->data;
+			modName = AS_CLOSURE(args[0])->fn->c.module->name->data;
 			break;
 		case OBJ_NATIVE:
 			funType = "native";
-			funName = AS_NATIVE(args[0])->name->data;
-			modName = AS_NATIVE(args[0])->module->name->data;
+			funName = AS_NATIVE(args[0])->c.name->data;
+			modName = AS_NATIVE(args[0])->c.module->name->data;
 			break;
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(args[0]);
 			funType = "bound method";
 			funName = m->method->type == OBJ_CLOSURE ?
-			          ((ObjClosure*) m->method)->fn->name->data :
-			          ((ObjNative*) m->method)->name->data;
+			          ((ObjClosure*) m->method)->fn->c.name->data :
+			          ((ObjNative*) m->method)->c.name->data;
 			modName = m->method->type == OBJ_CLOSURE ?
-			          ((ObjClosure*) m->method)->fn->module->name->data :
-			          ((ObjNative*) m->method)->module->name->data;
+			          ((ObjClosure*) m->method)->fn->c.module->name->data :
+			          ((ObjNative*) m->method)->c.module->name->data;
 			break;
 		}
 		default: break;
@@ -459,12 +459,15 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_List_iter) {
 		ObjList *lst = AS_LIST(args[0]);
 
-		if(IS_NULL(args[1]) && lst->count > 0) {
-			BL_RETURN_NUM(1);
+		if(IS_NULL(args[1])) {
+			if(lst->count == 0) BL_RETURN_FALSE;
+			BL_RETURN_NUM(0);
 		}
 
-		double idx = AS_NUM(args[1]);
-		if(idx >= 1 && idx < lst->count) BL_RETURN_NUM(idx + 1);
+		if(IS_NUM(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 0 && idx < lst->count - 1) BL_RETURN_NUM(idx + 1);
+		}
 
 		BL_RETURN_FALSE;
 	}
@@ -472,8 +475,10 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_List_next) {
 		ObjList *lst = AS_LIST(args[0]);
 
-		double idx = AS_NUM(args[1]) - 1;
-		if(idx >= 0 && idx < lst->count) BL_RETURN(lst->arr[(size_t)idx]);
+		if(IS_NUM(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 0 && idx < lst->count) BL_RETURN(lst->arr[(size_t)idx]);
+		}
 
 		BL_RETURN_NULL;
 	}
@@ -487,12 +492,15 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_Tuple_iter) {
 		ObjTuple *tup = AS_TUPLE(args[0]);
 
-		if(IS_NULL(args[1]) && tup->size > 0) {
-			BL_RETURN_NUM(1);
+		if(IS_NULL(args[1])) {
+			if(tup->size == 0) BL_RETURN_FALSE;
+			BL_RETURN_NUM(0);
 		}
 
-		double idx = AS_NUM(args[1]);
-		if(idx >= 1 && idx < tup->size) BL_RETURN_NUM(idx + 1);
+		if(IS_NUM(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 0 && idx < tup->size - 1) BL_RETURN_NUM(idx + 1);
+		}
 
 		BL_RETURN_FALSE;
 	}
@@ -500,8 +508,10 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_Tuple_next) {
 		ObjTuple *tup = AS_TUPLE(args[0]);
 
-		double idx = AS_NUM(args[1]) - 1;
-		if(idx >= 0 && idx < tup->size) BL_RETURN(tup->arr[(size_t)idx]);
+		if(IS_NUM(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 0 && idx < tup->size) BL_RETURN(tup->arr[(size_t)idx]);
+		}
 
 		BL_RETURN_NULL;
 	}
@@ -592,12 +602,15 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_String_iter) {
 		ObjString *s = AS_STRING(args[0]);
 
-		if(IS_NULL(args[1]) && s->length > 0) {
-			BL_RETURN_NUM(1);
+		if(IS_NULL(args[1])) {
+			if(s->length == 0) BL_RETURN_FALSE;
+			BL_RETURN_NUM(0);
 		}
 
-		double idx = AS_NUM(args[1]);
-		if(idx >= 1 && idx < s->length) BL_RETURN_NUM(idx + 1);
+		if(IS_NUM(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 0 && idx < s->length - 1) BL_RETURN_NUM(idx + 1);
+		}
 
 		BL_RETURN_FALSE;
 	}
@@ -605,9 +618,11 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_String_next) {
 		ObjString *s = AS_STRING(args[0]);
 
-		double idx = AS_NUM(args[1]) - 1;
-		if(idx >= 0 && idx < s->length) {
-			BL_RETURN_OBJ(copyString(vm, s->data + (size_t)idx, 1, true));
+		if(IS_NUM(args[1])) {
+			double idx = AS_NUM(args[1]);
+			if(idx >= 0 && idx < s->length) {
+				BL_RETURN_OBJ(copyString(vm, s->data + (size_t)idx, 1, true));
+			}
 		}
 
 		BL_RETURN_NULL;
@@ -617,6 +632,7 @@ NATIVE(bl_printstr) {
 // class range {
 	NATIVE(bl_range_new) {
 		Value from, to, step;
+
 		if(IS_NULL(args[2])) {
 			from = NUM_VAL(0);
 			to = args[1];
@@ -624,6 +640,7 @@ NATIVE(bl_printstr) {
 			from = args[1];
 			to = args[2];
 		}
+		
 		step = args[3];
 
 		if(!checkInt(vm, from, "from") || !checkInt(vm, to, "to") || !checkInt(vm, step, "step")) {
@@ -638,24 +655,30 @@ NATIVE(bl_printstr) {
 
 		bool incr = r->step > 0;
 
-		if(IS_NULL(args[1]) && (incr ? r->start < r->stop : r->start > r->stop)) {
-			BL_RETURN_NUM(r->step);
+		if(IS_NULL(args[1])) {
+			if(incr ? r->start < r->stop : r->start > r->stop)
+				BL_RETURN_NUM(r->start);
+			else
+				BL_RETURN_FALSE;
 		}
 
-		double i = AS_NUM(args[1]);
-		
-		if(incr) {
-			if(r->start + i < r->stop) BL_RETURN_NUM(i + r->step);
-		} else {
-			if(r->start + i > r->stop) BL_RETURN_NUM(i + r->step);
+		if(IS_NUM(args[1])) {
+			double i = AS_NUM(args[1]) + r->step;
+			
+			if(incr) {
+				if(i < r->stop) BL_RETURN_NUM(i);
+			} else {
+				if(i > r->stop) BL_RETURN_NUM(i);
+			}
 		}
 
 		BL_RETURN_FALSE;
 	}
 
 	NATIVE(bl_range_next) {
-		ObjRange *r = AS_RANGE(args[0]);
-		double idx = AS_NUM(args[1]) - r->step;
-		BL_RETURN_NUM(r->start + idx);
+		if(IS_NUM(args[1])) {
+			BL_RETURN(args[1]);
+		}
+		BL_RETURN_NULL;
 	}
 // }

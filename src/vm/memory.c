@@ -70,15 +70,14 @@ static Obj *newVarObj(BlangVM *vm, size_t size, size_t varSize, size_t count, Ob
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc) {
 	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
 	memset(defArr, 0, defaultc * sizeof(Value));
-
 	ObjFunction *f = (ObjFunction*) newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
-	f->argsCount = argc;
-	f->defaultc = defaultc;
-	f->vararg = false;
-	f->defaults = defArr;
-	f->module = module;
+	f->c.argsCount = argc;
+	f->c.defaultc = defaultc;
+	f->c.vararg = false;
+	f->c.defaults = defArr;
+	f->c.module = module;
+	f->c.name = name;
 	f->upvaluec = 0;
-	f->name = name;
 	initChunk(&f->chunk);
 	return f;
 }
@@ -94,15 +93,14 @@ ObjRange *newRange(BlangVM *vm, double start, double stop, double step) {
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc) {
 	Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
 	memset(defArr, 0, defaultc * sizeof(Value));
-
 	ObjNative *n = (ObjNative*) newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
-	n->argsCount = argc;
-	n->vararg = false;
-	n->module = module;
-	n->name = name;
+	n->c.argsCount = argc;
+	n->c.vararg = false;
+	n->c.module = module;
+	n->c.name = name;
+	n->c.defaults = defArr;
+	n->c.defaultc = defaultc;
 	n->fn = fn;
-	n->defaults = defArr;
-	n->defaultc = defaultc;
 	return n;
 }
 
@@ -210,11 +208,11 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 	stAppenString(vm, st, "] ");
 
 	stAppenString(vm, st, "module ");
-	stAppenString(vm, st, fn->module->name->data);
+	stAppenString(vm, st, fn->c.module->name->data);
 	stAppenString(vm, st, " in ");
 
-	if(fn->name != NULL) {
-		stAppenString(vm, st, fn->name->data);
+	if(fn->c.name != NULL) {
+		stAppenString(vm, st, fn->c.name->data);
 		stAppenString(vm, st, "()\n");
 	} else {
 		stAppenString(vm, st, "<main>\n");
@@ -329,14 +327,14 @@ static void freeObject(BlangVM *vm, Obj *o) {
 	}
 	case OBJ_NATIVE: {
 		ObjNative *n = (ObjNative*) o;
-		GC_FREEARRAY(vm, Value, n->defaults, n->defaultc);
+		GC_FREEARRAY(vm, Value, n->c.defaults, n->c.defaultc);
 		GC_FREE(vm, ObjNative, n);
 		break;
 	}
 	case OBJ_FUNCTION: {
 		ObjFunction *f = (ObjFunction*) o;
 		freeChunk(&f->chunk);
-		GC_FREEARRAY(vm, Value, f->defaults, f->defaultc);
+		GC_FREEARRAY(vm, Value, f->c.defaults, f->c.defaultc);
 		GC_FREE(vm, ObjFunction, f);
 		break;
 	}
@@ -476,20 +474,20 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
 	switch(o->type) {
 	case OBJ_NATIVE: {
 		ObjNative *n = (ObjNative*) o;
-		reachObject(vm, (Obj*) n->name);
-		reachObject(vm, (Obj*) n->module);
-		for(uint8_t i = 0; i < n->defaultc; i++) {
-			reachValue(vm, n->defaults[i]);
+		reachObject(vm, (Obj*) n->c.name);
+		reachObject(vm, (Obj*) n->c.module);
+		for(uint8_t i = 0; i < n->c.defaultc; i++) {
+			reachValue(vm, n->c.defaults[i]);
 		}
 		break;
 	}
 	case OBJ_FUNCTION: {
 		ObjFunction *func = (ObjFunction*) o;
-		reachObject(vm, (Obj*) func->name);
-		reachObject(vm, (Obj*) func->module);
+		reachObject(vm, (Obj*) func->c.name);
+		reachObject(vm, (Obj*) func->c.module);
 		reachValueArray(vm, &func->chunk.consts);
-		for(uint8_t i = 0; i < func->defaultc; i++) {
-			reachValue(vm, func->defaults[i]);
+		for(uint8_t i = 0; i < func->c.defaultc; i++) {
+			reachValue(vm, func->c.defaults[i]);
 		}
 		break;
 	}
