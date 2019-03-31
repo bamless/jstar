@@ -780,7 +780,7 @@ static bool runEval(BlangVM *vm) {
 			double index = AS_NUM(pop(vm));
 			ObjTuple *tuple = AS_TUPLE(pop(vm));
 
-			if(index >= tuple->size) {
+			if(index < 0 || index >= tuple->size) {
 				blRaise(vm, "IndexOutOfBoundException",
 					"Tuple index out of bound: %g.", index);
 				UNWIND_STACK(vm);
@@ -980,12 +980,12 @@ sup_invoke:;
 		} else {
 			closeUpvalues(vm, frameStack);
 
+			vm->sp = frameStack;
+			push(vm, ret);
+
 			if(--vm->frameCount == 0) {
 				return true;
 			}
-
-			vm->sp = frameStack;
-			push(vm, ret);
 
 			LOAD_FRAME();
 			vm->module = fn->c.module;
@@ -1201,8 +1201,7 @@ sup_invoke:;
 				GOTO(OP_RETURN);
 			}
 
-			Value ret = pop(vm);
-			Value cause = pop(vm);
+			Value ret = pop(vm), cause = pop(vm);
 
 			while(frame->handlerc > 0) {
 				Handler *h = &frame->handlers[--frame->handlerc];
@@ -1304,11 +1303,15 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 
 	pop(vm);
 
+	push(vm, OBJ_VAL(closure));
+	
 	callFunction(vm, closure, 0);
 
 	if(!runEval(vm)) {
 		return VM_RUNTIME_ERR;
 	}
+
+	pop(vm);
 
 	return VM_EVAL_SUCCSESS;
 }

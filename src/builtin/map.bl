@@ -17,16 +17,9 @@ class __Entry
 end
 
 class HashMap
-	fun new(init=null)
+	fun new()
 		this._count, this._size = 0, 16
-		this._entries = list(16)
-
-		if init != null then
-			var iter = init.__iterator__()
-			while iter.hasNext() do
-				this[iter.next()] = iter.next()
-			end
-		end
+		this._entries = List(16)
 	end
 
 	fun __getEntry(key)
@@ -152,8 +145,7 @@ class HashMap
 		var count = 0
 		var iterator = __EntryIterator(this)
 
-		while iterator.hasNext() do
-			var e = iterator.next()
+		for var e in iterator do
 			count += 1
 			s = s + e.__string__()
 			if count < this._count then s += ", " end
@@ -200,6 +192,7 @@ class __EntryIterator
 		this.map = map
 		this.index = 0
 		this.next = null
+		this.e = null
 		this.__nextBucket()
 	end
 
@@ -215,11 +208,11 @@ class __EntryIterator
 		this.next = this.map._entries[this.index]
 	end
 
-	fun hasNext()
+	fun __iter__(_)
 		return this.next != null
 	end
 
-	fun next()
+	fun __next__(_)
 		var e = this.next
 		this.next = e.next
 
@@ -230,20 +223,16 @@ class __EntryIterator
 
 		return e
 	end
-
-	fun __iterator__()
-		return this
-	end
 end
 
 class __KeyIterator : __EntryIterator
-	fun next()
-		return super.next().key
+	fun __next__(_)
+		return super.__next__(_).key
 	end
 end
 
 class __ValueIterator : __EntryIterator
-	fun next()
-		return super.next().value
+	fun __next__(_)
+		return super.__next__(_).value
 	end
 end

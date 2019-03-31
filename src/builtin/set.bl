@@ -67,9 +67,16 @@ class HashSet
 		end
 	end
 
-	fun __iterator__()
-		import map
-		return map.__KeyIterator(this._map)
+	fun __iter__(i)
+		if i == null then
+			i = this._map.keyIterator()
+		end
+		
+		return i if i.__iter__(i) else null
+	end
+
+	fun __next__(i)
+		return i.__next__(i)
 	end
 
 	fun __string__()

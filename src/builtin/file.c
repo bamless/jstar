@@ -43,7 +43,7 @@ static ObjString *readline(BlangVM *vm, FILE *file) {
 	while((newLine = strchr(line->data, '\n')) == NULL) {
 		char buf[256];
 
-		ret = fgets(buf, 256, file);
+		ret = fgets(buf, sizeof(buf), file);
 		if(ret == NULL) {
 			if(feof(file)) {
 				break;

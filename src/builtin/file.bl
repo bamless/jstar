@@ -27,8 +27,9 @@ class File
 	native readLine()
 	native close()
 
-	fun __iter__(iter)
-		return this.readLine()
+	fun __iter__(_)
+		var l = this.readLine()
+		return l if l != "" else null
 	end
 
 	fun __next__(line)
@@ -37,21 +38,6 @@ class File
 
 	fun __string__()
 		return "<" + ("closed " if this._closed else "open ") + super.__string__() + ">"
-	end
-end
-
-class __FileIterator
-	fun new(file)
-		this.file = file
-	end
-
-	fun hasNext()
-		this.line = this.file.readLine()
-		return this.line != "" and this.line != null
-	end
-
-	fun next()
-		return this.line
 	end
 end
 
