@@ -212,21 +212,6 @@ NATIVE(bl_num) {
 	BL_RAISE_EXCEPTION(vm, "InvalidArgException", "Argument must be a number or a string.");
 }
 
-NATIVE(bl_list) {
-	if(!checkInt(vm, args[1], "n")) {
-		return true;
-	}
-
-	double size = AS_NUM(args[1]);
-
-	ObjList *l = newList(vm, size);
-	for(; l->count < size; l->count++) {
-		l->arr[l->count] = args[2];
-	}
-
-	BL_RETURN_OBJ(l);
-}
-
 NATIVE(bl_isInt) {
 	if(!checkInt(vm, args[1], "n")) {
 		return true;

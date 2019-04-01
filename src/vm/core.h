@@ -10,7 +10,6 @@ void initCoreLibrary(BlangVM *vm);
 
 NATIVE(bl_int);
 NATIVE(bl_num);
-NATIVE(bl_list);
 NATIVE(bl_isInt);
 
 NATIVE(bl_char);

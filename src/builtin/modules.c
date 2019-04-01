@@ -69,7 +69,6 @@ Module builtInModules[] = {
 	COREMODULE
 		FUNCTION(int, &bl_int)
 		FUNCTION(num, &bl_num)
-		FUNCTION(list, &bl_list)
 		FUNCTION(isInt, &bl_isInt)
 		FUNCTION(char, &bl_char)
 		FUNCTION(ascii, &bl_ascii)
