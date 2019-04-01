@@ -24,11 +24,6 @@ typedef enum {
 	VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } EvalResult;
 
-typedef enum UnwindCause {
-	CAUSE_EXCEPT,
-	CAUSE_RETURN
-} UnwindCause;
-
 typedef enum HandlerType {
 	HANDLER_ENSURE,
 	HANDLER_EXCEPT

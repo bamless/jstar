@@ -21,6 +21,11 @@
 #include <limits.h>
 #include <string.h>
 
+typedef enum UnwindCause {
+	CAUSE_EXCEPT,
+	CAUSE_RETURN
+} UnwindCause;
+
 static bool unwindStack(BlangVM *vm);
 
 static void reset(BlangVM *vm) {
@@ -968,28 +973,27 @@ sup_invoke:;
 	TARGET(OP_RETURN): {
 		Value ret = pop(vm);
 
-		if(frame->handlerc > 0) {
-			while(frame->handlerc > 0) {
-				Handler *h = &frame->handlers[--frame->handlerc];
-				if(h->type == HANDLER_EXCEPT)
-					continue;
+		while(frame->handlerc > 0) {
+			Handler *h = &frame->handlers[--frame->handlerc];
+			if(h->type == HANDLER_ENSURE) {
 				UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_RETURN), ret);
-				break;
+				LOAD_FRAME();
+				DISPATCH();
 			}
-			LOAD_FRAME();
-		} else {
-			closeUpvalues(vm, frameStack);
-
-			vm->sp = frameStack;
-			push(vm, ret);
-
-			if(--vm->frameCount == 0) {
-				return true;
-			}
-
-			LOAD_FRAME();
-			vm->module = fn->c.module;
 		}
+
+		closeUpvalues(vm, frameStack);
+
+		vm->sp = frameStack;
+		push(vm, ret);
+
+		if(--vm->frameCount == 0) {
+			return true;
+		}
+
+		LOAD_FRAME();
+		vm->module = fn->c.module;
+
 		DISPATCH();
 	}
 	TARGET(OP_IMPORT):
@@ -1047,9 +1051,7 @@ sup_invoke:;
 		uint8_t size = NEXT_CODE();
 		ObjTuple *t = newTuple(vm, size);
 
-		for(int i = size - 1; i >= 0; i--) {
-			t->arr[i] = pop(vm);
-		}
+		for(int i = size - 1; i >= 0; i--) t->arr[i] = pop(vm);
 
 		push(vm, OBJ_VAL(t));
 		DISPATCH();
@@ -1087,7 +1089,6 @@ sup_invoke:;
 		}
 
 		uint8_t num = NEXT_CODE();
-
 		Obj *seq = AS_OBJ(pop(vm));
 		
 		Value *arr = NULL;
@@ -1112,9 +1113,8 @@ sup_invoke:;
 			UNWIND_STACK(vm);
 		}
 
-		for(int i = 0; i < num; i++) {
-			push(vm, arr[i]);
-		}
+		for(int i = 0; i < num; i++) push(vm, arr[i]);
+
 		DISPATCH();
 	TARGET(OP_DEF_METHOD): {
 		ObjClass *cls = AS_CLASS(peek2(vm));
