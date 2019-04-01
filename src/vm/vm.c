@@ -301,7 +301,7 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 		case OBJ_BOUND_METHOD: {
 			ObjBoundMethod *m = AS_BOUND_METHOD(callee);
 			vm->sp[-argc - 1] = m->bound;
-			return m->method->type == OBJ_FUNCTION ?
+			return m->method->type == OBJ_CLOSURE ?
 			        callFunction(vm, (ObjClosure*)m->method, argc) :
 			        callNative(vm, (ObjNative*)m->method, argc);
 		}
