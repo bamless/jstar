@@ -1,7 +1,7 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include "blang.h"
+#include "native.h"
 
 typedef struct BlangVM BlangVM;
 

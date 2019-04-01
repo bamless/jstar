@@ -1,7 +1,7 @@
 #ifndef RAND_H
 #define RAND_H
 
-#include "blang.h"
+#include "native.h"
 
 NATIVE(bl_random);
 NATIVE(bl_initseed);

@@ -1,7 +1,7 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include "blang.h"
+#include "native.h"
 
 // interface File {
 

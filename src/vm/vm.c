@@ -4,9 +4,9 @@
 #include "modules.h"
 #include "core.h"
 #include "util.h"
-#include "sys.h"
-#include "blang.h"
 #include "options.h"
+#include "sys.h"
+#include "native.h"
 
 #include "debug/disassemble.h"
 

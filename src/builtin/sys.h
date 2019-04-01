@@ -1,7 +1,7 @@
 #ifndef OS_H
 #define OS_H
 
-#include "blang.h"
+#include "native.h"
 
 void sysInitArgs(int argc, const char **argv);
 

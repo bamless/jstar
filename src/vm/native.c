@@ -1,4 +1,4 @@
-#include "blang.h"
+#include "native.h"
 #include "vm.h"
 
 #include <stdarg.h>
