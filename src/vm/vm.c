@@ -1197,20 +1197,17 @@ sup_invoke:;
 			}
 			break;
 		case CAUSE_RETURN:
-			if(frame->handlerc == 0) {
-				GOTO(OP_RETURN);
-			}
-
-			Value ret = pop(vm), cause = pop(vm);
-
 			while(frame->handlerc > 0) {
 				Handler *h = &frame->handlers[--frame->handlerc];
-				if(h->type == HANDLER_EXCEPT)
-					continue;
-				UNWIND_HANDLER(h, cause, ret);
-				break;
+				if(h->type == HANDLER_ENSURE) {
+					Value ret = pop(vm), cause = pop(vm);
+					UNWIND_HANDLER(h, cause, ret);
+					LOAD_FRAME();
+					DISPATCH();
+				}
 			}
-			LOAD_FRAME();
+			
+			GOTO(OP_RETURN);
 			break;
 		default: break;
 		}
