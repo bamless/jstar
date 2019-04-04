@@ -197,22 +197,28 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 
 	st->lastTracedFrame = depth;
 
-	ObjFunction *fn = f->closure->fn;
-	size_t op = f->ip - fn->chunk.code - 1;
+	Callable *c = f->fn.type == OBJ_CLOSURE ? &f->fn.closure->fn->c : &f->fn.native->c;
 
 	char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
-	sprintf(line, "%d", getBytecodeSrcLine(&fn->chunk, op));
+
+	if(f->fn.type == OBJ_CLOSURE) {
+		Chunk *chunk = &f->fn.closure->fn->chunk;
+		size_t op = f->ip - chunk->code - 1;
+		sprintf(line, "%d", getBytecodeSrcLine(chunk, op));
+	} else {
+		line[0] = '?';
+	}
 
 	stAppenString(vm, st, "[line ");
 	stAppenString(vm, st, line);
 	stAppenString(vm, st, "] ");
 
 	stAppenString(vm, st, "module ");
-	stAppenString(vm, st, fn->c.module->name->data);
+	stAppenString(vm, st, c->module->name->data);
 	stAppenString(vm, st, " in ");
 
-	if(fn->c.name != NULL) {
-		stAppenString(vm, st, fn->c.name->data);
+	if(c->name != NULL) {
+		stAppenString(vm, st, c->name->data);
 		stAppenString(vm, st, "()\n");
 	} else {
 		stAppenString(vm, st, "<main>\n");
@@ -607,7 +613,10 @@ void garbageCollect(BlangVM *vm) {
 	}
 	//reach elements on the frame stack
 	for(int i = 0; i < vm->frameCount; i++) {
-		reachObject(vm, (Obj*) vm->frames[i].closure);
+		if(vm->frames[i].fn.type == OBJ_CLOSURE)
+			reachObject(vm, (Obj*) vm->frames[i].fn.closure);
+		else
+			reachObject(vm, (Obj*) vm->frames[i].fn.native);
 	}
 	//reach open upvalues
 	for(ObjUpvalue *upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {

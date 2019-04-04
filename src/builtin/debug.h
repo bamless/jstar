@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "native.h"
+#include "blang.h"
 
 NATIVE(bl_printStack);
 NATIVE(bl_dis);

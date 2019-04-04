@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "blang.h"
 #include "vm.h"
 #include "options.h"
 

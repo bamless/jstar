@@ -21,9 +21,16 @@
 		abort(); \
 	} while(0) \
 
+	#define assert(cond, msg) do { \
+		if(!(cond)) { \
+			fprintf(stderr, "Assertion failed: %s\n", msg); \
+		} \
+	} while(0)
+
 #else
 
 	#define UNREACHABLE()
+	#define assert(cond, msg)
 
 #endif
 

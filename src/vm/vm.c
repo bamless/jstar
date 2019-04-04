@@ -7,6 +7,7 @@
 #include "options.h"
 #include "sys.h"
 #include "native.h"
+#include "blang.h"
 
 #include "debug/disassemble.h"
 
@@ -30,6 +31,7 @@ static bool unwindStack(BlangVM *vm);
 
 static void reset(BlangVM *vm) {
 	vm->sp = vm->stack;
+	vm->apiStack = vm->stack;
 	vm->frameCount = 0;
 	vm->exception = NULL;
 }
@@ -261,7 +263,7 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 	}
 
 	Frame *callFrame = &vm->frames[vm->frameCount++];
-	callFrame->closure = closure;
+	callFrame->fn = (Function) {OBJ_CLOSURE, closure};
 	callFrame->ip = func->chunk.code;
 	callFrame->stack = vm->sp - (func->c.argsCount + 1);
 	callFrame->handlerc = 0;
@@ -277,18 +279,27 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 		return false;
 	}
 
-	Value *args = vm->sp - (native->c.argsCount + 1);
-	if(native->c.vararg) args--;
+	Frame *callFrame = &vm->frames[vm->frameCount++];
+	callFrame->fn = (Function) {OBJ_NATIVE, native};
+	callFrame->ip = NULL;
+	callFrame->stack = vm->sp - (native->c.argsCount + 1);
+	callFrame->handlerc = 0;
+	if(native->c.vararg) callFrame->stack--;
 
-	Value ret;
-	if(!native->fn(vm, args, &ret)) {
-		blRaise(vm, "Exception", "Failed to call native %s().", native->c.name->data);
+	vm->module = native->c.module;
+
+	if(!native->fn(vm)) {
 		return false;
 	}
 
-	vm->sp = args;
+
+	Value ret = pop(vm);
+	vm->frameCount--;
+
+	vm->sp = callFrame->stack;
 	push(vm, ret);
-	return vm->exception == NULL;
+
+	return true;
 }
 
 static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
@@ -516,7 +527,7 @@ static bool runEval(BlangVM *vm) {
 	#define LOAD_FRAME() \
 		frame = &vm->frames[vm->frameCount - 1]; \
 		frameStack = frame->stack; \
-		closure = frame->closure; \
+		closure = frame->fn.closure; \
 		fn = closure->fn; \
 		ip = frame->ip; \
 
@@ -550,7 +561,7 @@ static bool runEval(BlangVM *vm) {
 		frame->ip = h->handler; \
 		vm->sp = h->savesp; \
 		closeUpvalues(vm, vm->sp - 1); \
-		vm->module = frame->closure->fn->c.module; \
+		vm->module = frame->fn.closure->fn->c.module; \
 		push(vm, cause); \
 		push(vm, ret); \
 	} while(0)
@@ -1066,7 +1077,7 @@ sup_invoke:;
 			if(isLocal) {
 				closure->upvalues[i] = captureUpvalue(vm, frame->stack + index);
 			} else {
-				closure->upvalues[i] = frame->closure->upvalues[i];
+				closure->upvalues[i] = frame->fn.closure->upvalues[i];
 			}
 		}
 		DISPATCH();

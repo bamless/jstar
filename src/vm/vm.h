@@ -6,8 +6,6 @@
 #include "compiler.h"
 #include "hashtable.h"
 
-#include "util/stringbuf.h"
-
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -16,13 +14,6 @@
 #define INIT_GC  1024 * 1024 * 20                 // 20MiB
 
 #define HANDLER_MAX 10 // Max number of nested TryExcepts
-
-typedef enum {
-	VM_EVAL_SUCCSESS, // The VM successfully executed the code
-	VM_SYNTAX_ERR,    // A syntax error has been encountered in parsing
-	VM_COMPILE_ERR,   // An error has been encountered during compilation
-	VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
-} EvalResult;
 
 typedef enum HandlerType {
 	HANDLER_ENSURE,
@@ -36,10 +27,18 @@ typedef struct Handler {
 	Value *savesp;    // Stack pointer to restore when handling exceptions
 } Handler;
 
+typedef struct {
+	ObjType type;
+	union {
+		ObjClosure *closure;
+		ObjNative *native;
+	};
+} Function;
+
 typedef struct Frame {
 	uint8_t *ip;                   // Instruction pointer
 	Value *stack;                  // Base of stack for current frame
-	ObjClosure *closure;           // The function associated with the frame
+	Function fn;                   // The function associated with the frame
 	Handler handlers[HANDLER_MAX]; // Exception handlers
 	uint8_t handlerc;              // Exception handlers count
 } Frame;
@@ -93,6 +92,8 @@ typedef struct BlangVM {
 	Frame frames[FRAME_SZ];
 	int frameCount;
 
+	Value *apiStack;
+
 	// Constant strings pool, all strings are interned
 	HashTable strings;
 
@@ -110,17 +111,8 @@ typedef struct BlangVM {
 	size_t reachedCapacity, reachedCount;
 } BlangVM;
 
-BlangVM *blNewVM();
-void blFreeVM(BlangVM *vm);
-
-EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src);
-EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *name, const char *src);
-
 void  push(BlangVM *vm, Value v);
 Value pop(BlangVM *vm);
-
-void blInitCommandLineArgs(int argc, const char **argv);
-void blAddImportPath(BlangVM *vm, const char *path);
 
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])

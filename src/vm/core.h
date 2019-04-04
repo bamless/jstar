@@ -1,9 +1,7 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include "native.h"
-
-typedef struct BlangVM BlangVM;
+#include "blang.h"
 
 // Blang core libray bootstrap
 void initCoreLibrary(BlangVM *vm);

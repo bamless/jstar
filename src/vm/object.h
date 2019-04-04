@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "blang.h"
 #include "hashtable.h"
 #include "chunk.h"
 #include "value.h"
@@ -117,9 +118,6 @@ typedef struct ObjFunction {
 	Chunk chunk;       // The actual code chunk containing bytecodes
 	uint8_t upvaluec;  // The upvalues of the functions
 } ObjFunction;
-
-// Native function signature
-typedef bool (*Native)(BlangVM *vm, Value *argv, Value *ret);
 
 typedef struct ObjNative {
 	Obj base;
