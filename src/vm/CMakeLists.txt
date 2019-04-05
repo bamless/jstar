@@ -1,5 +1,5 @@
-FILE(GLOB_RECURSE SOURCES *.c "${PROJECT_SOURCE_DIR}/builtin/*.c")
-FILE(GLOB_RECURSE BLANG_SOURCES *bl "${PROJECT_SOURCE_DIR}/builtin/*.bl")
+FILE(GLOB_RECURSE SOURCES *.c "${PROJECT_SOURCE_DIR}/builtin/module.c")
+#FILE(GLOB_RECURSE BLANG_SOURCES *bl "${PROJECT_SOURCE_DIR}/builtin/*.bl")
 
 # create blang source headers names
 set(BLANG_HEADERS)

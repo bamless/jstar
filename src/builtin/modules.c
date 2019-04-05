@@ -4,21 +4,21 @@
 #include "core.h"
 #include "core.bl.h"
 
-#include "sys.h"
-#include "sys.bl.h"
+// #include "sys.h"
+// #include "sys.bl.h"
 
-#include "file.h"
-#include "file.bl.h"
+// #include "file.h"
+// #include "file.bl.h"
 
-#include "map.bl.h"
+// #include "map.bl.h"
 
-#include "set.bl.h"
+// #include "set.bl.h"
 
-#include "debug.h"
-#include "debug.bl.h"
+// #include "debug.h"
+// #include "debug.bl.h"
 
-#include "rand.h"
-#include "rand.bl.h"
+// #include "rand.h"
+// #include "rand.bl.h"
 
 #include <string.h>
 
@@ -121,38 +121,38 @@ Module builtInModules[] = {
 			METHOD(__next__, bl_range_next)
 		ENDCLASS
 	ENDMODULE
-	MODULE(sys)
-		FUNCTION(exit, &bl_exit)
-		FUNCTION(getImportPaths, &bl_getImportPaths)
-		FUNCTION(platform, &bl_platform)
-		FUNCTION(clock, &bl_clock)
-		FUNCTION(gc, &bl_gc)
-		FUNCTION(gets, &bl_gets)
-		FUNCTION(__init, &bl_init)
-	ENDMODULE
-	MODULE(file)
-		CLASS(File)
-			METHOD(size, &bl_File_size)
-			METHOD(readAll, &bl_File_readAll)
-			METHOD(readLine, &bl_File_readLine)
-			METHOD(close, &bl_File_close)
-			METHOD(seek, &bl_File_seek)
-			METHOD(tell, &bl_File_tell)
-			METHOD(rewind, &bl_File_rewind)
-		ENDCLASS
-		FUNCTION(__open, &bl_open)
-	ENDMODULE
-	MODULE(map) ENDMODULE
-	MODULE(set) ENDMODULE
-	MODULE(debug)
-		FUNCTION(printStack, &bl_printStack)
-		FUNCTION(dis, &bl_dis)
-	ENDMODULE
-	MODULE(rand)
-		FUNCTION(__initseed, &bl_initseed)
-		FUNCTION(random, &bl_random)
-	ENDMODULE
-	MODULES_END
+	// MODULE(sys)
+	// 	FUNCTION(exit, &bl_exit)
+	// 	FUNCTION(getImportPaths, &bl_getImportPaths)
+	// 	FUNCTION(platform, &bl_platform)
+	// 	FUNCTION(clock, &bl_clock)
+	// 	FUNCTION(gc, &bl_gc)
+	// 	FUNCTION(gets, &bl_gets)
+	// 	FUNCTION(__init, &bl_init)
+	// ENDMODULE
+	// MODULE(file)
+	// 	CLASS(File)
+	// 		METHOD(size, &bl_File_size)
+	// 		METHOD(readAll, &bl_File_readAll)
+	// 		METHOD(readLine, &bl_File_readLine)
+	// 		METHOD(close, &bl_File_close)
+	// 		METHOD(seek, &bl_File_seek)
+	// 		METHOD(tell, &bl_File_tell)
+	// 		METHOD(rewind, &bl_File_rewind)
+	// 	ENDCLASS
+	// 	FUNCTION(__open, &bl_open)
+	// ENDMODULE
+	// MODULE(map) ENDMODULE
+	// MODULE(set) ENDMODULE
+	// MODULE(debug)
+	// 	FUNCTION(printStack, &bl_printStack)
+	// 	FUNCTION(dis, &bl_dis)
+	// ENDMODULE
+	// MODULE(rand)
+	// 	FUNCTION(__initseed, &bl_initseed)
+	// 	FUNCTION(random, &bl_random)
+	// ENDMODULE
+	// MODULES_END
 };
 
 static Module* getModule(const char *name) {

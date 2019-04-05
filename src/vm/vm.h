@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 #define FRAME_SZ 1000                             // Max stack depth
-#define STACK_SZ (FRAME_SZ + 1) * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
+#define STACK_SZ FRAME_SZ * (UINT8_MAX + 1)       // We have at most UINT8_MAX+1 local var per frame
 #define INIT_GC  1024 * 1024 * 20                 // 20MiB
 
 #define HANDLER_MAX 10 // Max number of nested TryExcepts
@@ -87,9 +87,11 @@ typedef struct BlangVM {
 	ObjModule *core;
 
 	// VM program stack
-	Value stack[STACK_SZ], *sp;
+	size_t stackSz;
+	Value *stack, *sp;
 
-	Frame frames[FRAME_SZ];
+	int frameSz;
+	Frame *frames;
 	int frameCount;
 
 	Value *apiStack;

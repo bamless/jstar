@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdio.h>
 #include <limits.h>
 
 #define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \

@@ -6,7 +6,7 @@
 #include "util.h"
 #include "options.h"
 #include "sys.h"
-#include "native.h"
+#include "util.h"
 #include "blang.h"
 
 #include "debug/disassemble.h"
@@ -27,7 +27,7 @@ typedef enum UnwindCause {
 	CAUSE_RETURN
 } UnwindCause;
 
-static bool unwindStack(BlangVM *vm);
+static bool unwindStack(BlangVM *vm, int depth);
 
 static void reset(BlangVM *vm) {
 	vm->sp = vm->stack;
@@ -38,6 +38,11 @@ static void reset(BlangVM *vm) {
 
 BlangVM *blNewVM() {
 	BlangVM *vm = calloc(1, sizeof(*vm));
+
+	vm->stack = malloc(sizeof(Value) * STACK_SZ);
+	vm->stackSz = STACK_SZ;
+	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
+	vm->frameSz = FRAME_SZ;
 
 	reset(vm);
 
@@ -94,6 +99,9 @@ BlangVM *blNewVM() {
 void blFreeVM(BlangVM *vm) {
 	reset(vm);
 
+	free(vm->stack);
+	free(vm->frames);
+
 	freeHashTable(&vm->strings);
 	freeHashTable(&vm->modules);
 	freeObjects(vm);
@@ -111,6 +119,62 @@ void push(BlangVM *vm, Value v) {
 
 Value pop(BlangVM *vm) {
 	return *--vm->sp;
+}
+
+static Frame *getFrame(BlangVM *vm, Callable *c) {
+	if(vm->frameCount + 1 == vm->frameSz) {
+		vm->frameSz *= 2;
+		vm->frames = realloc(vm->frames, vm->frameSz);
+	}
+
+	Frame *callFrame = &vm->frames[vm->frameCount++];
+	callFrame->stack = vm->sp - (c->argsCount + 1);
+	callFrame->handlerc = 0;
+	if(c->vararg) callFrame->stack--;
+
+	return callFrame;
+}
+
+static void appendCallFrame(BlangVM *vm, ObjClosure *closure) {
+	Frame *callFrame = getFrame(vm, &closure->fn->c);
+	callFrame->fn.type = OBJ_CLOSURE;
+	callFrame->fn.closure = closure;
+	callFrame->ip = closure->fn->chunk.code;
+}
+
+static void appendNativeFrame(BlangVM *vm, ObjNative *native) {
+	Frame *callFrame = getFrame(vm, &native->c);
+	callFrame->fn.type = OBJ_NATIVE;
+	callFrame->fn.native = native;
+	callFrame->ip = NULL;
+}
+
+static void ensureStack(BlangVM *vm, size_t needed) {
+	if(vm->stack + needed < vm->stack + vm->stackSz) return;
+
+	Value *oldStack = vm->stack;
+
+	size_t newSz = vm->stackSz * 2; // TODO: replace with 2^oldSize
+	vm->stack = realloc(vm->stack, newSz);
+
+	if(vm->stack != oldStack) {
+		if(vm->apiStack >= vm->sp && vm->apiStack <= vm->sp) {
+			vm->apiStack = vm->stack + (vm->apiStack - oldStack);
+		}
+
+		for(int i = 0; i < vm->frameCount; i++) {
+			Frame *frame = &vm->frames[i];
+			frame->stack = vm->stack + (frame->stack - oldStack);
+		}
+
+		ObjUpvalue *upvalue = vm->upvalues;
+		while(upvalue) {
+			upvalue->addr = vm->stack + (upvalue->addr - oldStack);
+			upvalue = upvalue->next;
+		}
+
+		vm->sp = vm->stack - (vm->sp - oldStack);
+	}
 }
 
 static ObjClass *getClass(BlangVM *vm, Value v) {
@@ -138,6 +202,11 @@ static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 
 static bool isInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->lstClass || cls == vm->rangeClass;
+}
+
+static bool isCallable(BlangVM *vm, Value c) {
+	return IS_CLASS(c) || IS_CLOSURE(c) || IS_NATIVE(c) ||
+	       isInstatiablePrimitive(vm, getClass(vm, c));
 }
 
 static bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
@@ -251,25 +320,17 @@ static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
 }
 
 static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
-	ObjFunction *func = closure->fn;
-
-	if(!adjustArguments(vm, &func->c, argc)) {
+	if(!adjustArguments(vm, &closure->fn->c, argc)) {
 		return false;
 	}
 
-	if(vm->frameCount == FRAME_SZ) {
-		blRaise(vm, "StackOverflowException", NULL);
-		return false;
-	}
-
-	Frame *callFrame = &vm->frames[vm->frameCount++];
-	callFrame->fn = (Function) {OBJ_CLOSURE, closure};
-	callFrame->ip = func->chunk.code;
-	callFrame->stack = vm->sp - (func->c.argsCount + 1);
-	callFrame->handlerc = 0;
-	if(func->c.vararg) callFrame->stack--;
-
-	vm->module = func->c.module;
+	// TODO: modify compiler to track actual usage of stack so
+	// we can allocate the right amount of memory rather than a
+	// worst case bound
+	ensureStack(vm, UINT8_MAX);
+	appendCallFrame(vm, closure);
+	
+	vm->module = closure->fn->c.module;
 
 	return true;
 }
@@ -279,24 +340,20 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 		return false;
 	}
 
-	Frame *callFrame = &vm->frames[vm->frameCount++];
-	callFrame->fn = (Function) {OBJ_NATIVE, native};
-	callFrame->ip = NULL;
-	callFrame->stack = vm->sp - (native->c.argsCount + 1);
-	callFrame->handlerc = 0;
-	if(native->c.vararg) callFrame->stack--;
+	ensureStack(vm, MIN_NATIVE_STACK_SZ);
+	appendNativeFrame(vm, native);
 
 	vm->module = native->c.module;
+	vm->apiStack = vm->frames[vm->frameCount].stack;
 
 	if(!native->fn(vm)) {
 		return false;
 	}
 
-
 	Value ret = pop(vm);
 	vm->frameCount--;
 
-	vm->sp = callFrame->stack;
+	vm->sp = vm->frames[vm->frameCount--].stack;
 	push(vm, ret);
 
 	return true;
@@ -517,7 +574,7 @@ static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse)
 	return false;
 }
 
-static bool runEval(BlangVM *vm) {
+static bool runEval(BlangVM *vm, int depth) {
 	register Frame *frame;
 	register Value *frameStack;
 	register ObjClosure *closure;
@@ -568,7 +625,7 @@ static bool runEval(BlangVM *vm) {
 
 	#define UNWIND_STACK(vm) do { \
 		SAVE_FRAME() \
-		if(!unwindStack(vm)) { \
+		if(!unwindStack(vm, depth)) { \
 			return false; \
 		} \
 		LOAD_FRAME(); \
@@ -998,7 +1055,7 @@ sup_invoke:;
 		vm->sp = frameStack;
 		push(vm, ret);
 
-		if(--vm->frameCount == 0) {
+		if(--vm->frameCount == depth) {
 			return true;
 		}
 
@@ -1284,6 +1341,63 @@ sup_invoke:;
 	return false;
 }
 
+static void printStackTrace(BlangVM *vm, ObjStackTrace *st) {
+	fprintf(stderr, "Traceback (most recent call last):\n");
+
+	// Print stacktrace in reverse order of recording (most recent call last)
+	char *stacktrace = st->trace;
+	int lastnl = st->length;
+	for(int i = lastnl - 1; i > 0; i--) {
+		if(stacktrace[i - 1] == '\n') {
+			fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
+			lastnl = i;
+		}
+	}
+	fprintf(stderr, "    %.*s", lastnl, stacktrace);
+
+	// print the exception instance information
+	Value v;
+	ObjInstance *exc = (ObjInstance*) vm->exception;
+	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3, true), &v);
+
+	if(found && IS_STRING(v)) {
+		fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
+	} else {
+		fprintf(stderr, "%s\n", exc->base.cls->name->data);
+	}
+}
+
+static bool unwindStack(BlangVM *vm, int depth) {
+	Value stVal;
+	hashTableGet(&vm->exception->fields, vm->stField, &stVal);
+	ObjStackTrace *st = AS_STACK_TRACE(stVal);
+
+	for(;vm->frameCount > depth; vm->frameCount--) {
+		Frame *frame = &vm->frames[vm->frameCount - 1];
+
+		stRecordFrame(vm, st, frame, vm->frameCount);
+
+		// if current frame has except or ensure handlers
+		if(frame->handlerc > 0) {
+			Handler *h = &frame->handlers[--frame->handlerc];
+			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), OBJ_VAL(vm->exception));
+			vm->exception = NULL;
+			return true;
+		}
+
+	}
+
+	// We have reached the bottom of the stack, print the stacktrace and exit
+	if(vm->frameCount == 0) {
+		printStackTrace(vm, st);
+		reset(vm);
+	}
+
+	return false;
+}
+
+// API
+
 EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src) {
 	return blEvaluateModule(vm, fpath, "__main__", src);
 }
@@ -1313,68 +1427,146 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 
 	push(vm, OBJ_VAL(closure));
 	
-	callFunction(vm, closure, 0);
+	EvalResult res = blCall(vm, 0);
 
-	if(!runEval(vm)) {
+	if(res == VM_EVAL_SUCCSESS) pop(vm);
+
+	return res;
+}
+
+EvalResult blCall(BlangVM *vm, uint8_t argc) {
+	assert(isCallable(vm, peekn(vm, argc)), "Called a non-callable object");
+
+	int depth = vm->frameCount;
+
+	if(!callValue(vm, peekn(vm, argc), argc)) {
+		if(depth == 0 && vm->frameCount > 0) {
+			unwindStack(vm, 0);
+		}
 		return VM_RUNTIME_ERR;
 	}
 
-	pop(vm);
+	if(vm->frameCount > depth) {
+		if(!runEval(vm, depth)) return VM_RUNTIME_ERR;
+	}
+
+	// reset API stack if we are on a native frame
+	Frame *f = &vm->frames[vm->frameCount - 1];
+	if(f->fn.type == OBJ_NATIVE) {
+		vm->apiStack = f->stack;
+	} else {
+		vm->apiStack = vm->sp;
+	}
 
 	return VM_EVAL_SUCCSESS;
 }
 
-static void printStackTrace(BlangVM *vm, ObjStackTrace *st) {
-	fprintf(stderr, "Traceback (most recent call last):\n");
-
-	// Print stacktrace in reverse order of recording (most recent call last)
-	char *stacktrace = st->trace;
-	int lastnl = st->length;
-	for(int i = lastnl - 1; i > 0; i--) {
-		if(stacktrace[i - 1] == '\n') {
-			fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
-			lastnl = i;
-		}
+// TODO: modify
+void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
+	Value excVal;
+	if(!(blGetGlobal(vm, cls, &excVal) && IS_CLASS(excVal))) {
+		return false;
 	}
-	fprintf(stderr, "    %.*s", lastnl, stacktrace);
 
-	// print the exception instance information
-	Value v;
-	ObjInstance *exc = (ObjInstance*) vm->exception;
-	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3, true), &v);
+	ObjInstance *excInst = newInstance(vm, AS_CLASS(excVal));
+	push(vm, OBJ_VAL(excInst));
 
-	if(found && IS_STRING(v)) {
-		fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
-	} else {
-		fprintf(stderr, "%s\n", exc->base.cls->name->data);
+	ObjStackTrace *st = newStackTrace(vm);
+	hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
+
+	if(err != NULL) {
+		char errStr[1024] = {0};
+		va_list args;
+		va_start(args, err);
+		vsnprintf(errStr, sizeof(errStr) - 1, err, args);
+		va_end(args);
+		
+		blPushString(vm, "errStr");
+		blSetField(vm, -1, "err");
+		blPop(vm);
 	}
+
+	pop(vm);
+	vm->exception = excInst;
+
+	return true;
 }
 
-static bool unwindStack(BlangVM *vm) {
-	Value stVal;
-	hashTableGet(&vm->exception->fields, vm->stField, &stVal);
-	ObjStackTrace *st = AS_STACK_TRACE(stVal);
-
-	for(;vm->frameCount > 0; vm->frameCount--) {
-		Frame *frame = &vm->frames[vm->frameCount - 1];
-
-		stRecordFrame(vm, st, frame, vm->frameCount);
-
-		// if current frame has except or ensure handlers
-		if(frame->handlerc > 0) {
-			Handler *h = &frame->handlers[--frame->handlerc];
-			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), OBJ_VAL(vm->exception));
-			vm->exception = NULL;
-			return true;
-		}
-
-	}
-
-	// We have reached the bottom of the stack, print the stacktrace and exit
-	printStackTrace(vm, st);
-	reset(vm);
-	return false;
+static int apiStackSlot(BlangVM *vm, int slot) {
+    if(slot < 0) slot = (vm->sp - vm->apiStack) + slot;
+    assert(slot >= 0, "API stack slot would be negative");
+    assert(vm->apiStack + slot < vm->sp, "API stack overflow");
+    return slot;
 }
+
+static void validateStack(BlangVM *vm) {
+	assert(vm->sp - vm->stack != vm->stackSz, "Stack overflow");
+}
+
+void blPushNumber(BlangVM *vm, double number) {
+	validateStack(vm);
+	push(vm, NUM_VAL(number));
+}
+
+void blPushBoolean(BlangVM *vm, bool boolean) {
+	validateStack(vm);
+	push(vm, BOOL_VAL(boolean));
+}
+
+void blPushStringSz(BlangVM *vm, const char *string, size_t length) {
+	validateStack(vm);
+	push(vm, OBJ_VAL(copyString(vm, string, length, false)));
+}
+void blPushString(BlangVM *vm, const char *string) {
+	blPushStringSz(vm, string, strlen(string));
+}
+
+void blPop(BlangVM *vm) {
+	assert(vm->sp > vm->apiStack, "Popping past frame boundary");
+	pop(vm);
+}
+
+void blSetField(BlangVM *vm, int slot, const char *name) {
+    slot = apiStackSlot(vm, slot);
+    ObjInstance *i = AS_INSTANCE(vm->apiStack[slot]);
+	setFieldOfValue(vm, vm->apiStack[slot], name, peek(vm));
+}
+
+bool blGetField(BlangVM *vm, int slot, const char *name) {
+    slot = apiStackSlot(vm, slot);
+	return setFieldOfValue(vm, vm->apiStack[slot], copystring(vm, name, strlen(name), false), peek(vm));
+}
+
+void blSetGlobal(BlangVM *vm, const char *module, const char *name) {
+	ObjModule *mod = vm->module;
+	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
+	hashTablePut(&mod->globals, copyString(vm, name, strlen(name), false), peek(vm));
+}
+
+bool blGetGlobal(BlangVM *vm, const char *module, const char *name) {
+	ObjModule *mod = vm->module;
+	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
+	Value res;
+	if(!hashTableGet(&mod->globals, copyString(vm, name, strlen(name), false), &res)) {
+		blRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
+		return false;
+	}
+	push(vm, res);
+	return true;
+}
+
+bool blIsNumber(BlangVM *vm, int slot) {
+	slot = apiStackSlot(vm, slot);
+	return IS_NUM(vm->apiStack[slot]);
+}
+
+bool blIsInteger(BlangVM *vm, int slot) {
+	
+	return IS_NUM(vm->apiStack[slot]);
+}
+bool blIsString(BlangVM *vm, int slot);
+bool blIsList(BlangVM *vm, int slot);
+size_t checkIndex(BlangVM *vm, int slot, size_t max, const char *name);
 
 void blInitCommandLineArgs(int argc, const char **argv) {
 	sysInitArgs(argc, argv);
