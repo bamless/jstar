@@ -245,6 +245,8 @@ NATIVE(bl_ascii) {
 NATIVE(bl_printstr) {
 	FILE *stream = stdout;
 
+	if(!checkStr(vm, args[1], "str")) return true;
+
 	if(!IS_NULL(args[2])) {
 		if(!IS_INSTANCE(args[2])) {
 			BL_RAISE_EXCEPTION(vm, "TypeException", "stream is not a file");
