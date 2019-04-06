@@ -25,6 +25,7 @@
 	#define assert(cond, msg) do { \
 		if(!(cond)) { \
 			fprintf(stderr, "Assertion failed: %s\n", msg); \
+			abort(); \
 		} \
 	} while(0)
 

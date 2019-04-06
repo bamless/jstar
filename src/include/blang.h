@@ -30,6 +30,11 @@ void blAddImportPath(BlangVM *vm, const char *path);
 
 #define NATIVE(name) bool name(BlangVM *vm)
 
+#define BL_RAISE(vm, cls, err, ...) do { \
+	blRaise(vm, cls, err, #__VA_ARGS__); \
+	return false; \
+} while(0)
+
 typedef bool (*Native)(BlangVM *vm);
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...);
@@ -38,6 +43,9 @@ void blPushNumber(BlangVM *vm, double number);
 void blPushBoolean(BlangVM *vm, bool boolean);
 void blPushStringSz(BlangVM *vm, const char *string, size_t size);
 void blPushString(BlangVM *vm, const char *string);
+void pushBoolean(BlangVM *vm, bool b);
+void blPushNull(BlangVM *vm);
+void blPushValue(BlangVM *vm, int slot);
 
 void blSetField(BlangVM *vm, int slot, const char *name);
 bool blGetField(BlangVM *vm, int slot, const char *name);
@@ -45,11 +53,30 @@ bool blGetField(BlangVM *vm, int slot, const char *name);
 void blSetGlobal(BlangVM *vm, const char *module, const char *name);
 bool blGetGlobal(BlangVM *vm, const char *module, const char *name);
 
+double blGetNumber(BlangVM *vm, int slot);
+const char *blGetString(BlangVM *vm, int slot);
+size_t blGetStringSz(BlangVM *vm, int slot);
+bool blGetBoolean(BlangVM *vm, int slot);
+void *blGetHandle(BlangVM *vm, int slot);
+
 bool blIsNumber(BlangVM *vm, int slot);
 bool blIsInteger(BlangVM *vm, int slot);
 bool blIsString(BlangVM *vm, int slot);
 bool blIsList(BlangVM *vm, int slot);
-size_t checkIndex(BlangVM *vm, int slot, size_t max, const char *name);
+bool blIsBoolean(BlangVM *vm ,int slot);
+bool blIsNull(BlangVM *vm, int slot);
+bool blIsInstance(BlangVM *vm, int slot);
+bool blIsHandle(BlangVM *vm, int slot);
+
+bool blCheckNum(BlangVM *vm, int slot, const char *name);
+bool blCheckInt(BlangVM *vm, int slot, const char *name);
+bool blCheckStr(BlangVM *vm, int slot, const char *name);
+bool blCheckList(BlangVM *vm, int slot, const char *name);
+bool blCheckBool(BlangVM *vm, int slot, const char *name);
+bool blCheckInstance(BlangVM *vm, int slot, const char *name);
+bool blCheckHandle(BlangVM *vm, int slot, const char *name);
+
+size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name);
 
 void blPop(BlangVM *vm);
 

@@ -1,12 +1,11 @@
 #include "vm.h"
 #include "opcode.h"
 #include "import.h"
+#include "memory.h"
 #include "modules.h"
 #include "core.h"
-#include "util.h"
 #include "options.h"
 #include "sys.h"
-#include "util.h"
 #include "blang.h"
 
 #include "debug/disassemble.h"
@@ -113,18 +112,10 @@ void blFreeVM(BlangVM *vm) {
 	free(vm);
 }
 
-void push(BlangVM *vm, Value v) {
-	*vm->sp++ = v;
-}
-
-Value pop(BlangVM *vm) {
-	return *--vm->sp;
-}
-
 static Frame *getFrame(BlangVM *vm, Callable *c) {
 	if(vm->frameCount + 1 == vm->frameSz) {
 		vm->frameSz *= 2;
-		vm->frames = realloc(vm->frames, vm->frameSz);
+		vm->frames = realloc(vm->frames, sizeof(Frame) * vm->frameSz);
 	}
 
 	Frame *callFrame = &vm->frames[vm->frameCount++];
@@ -150,15 +141,15 @@ static void appendNativeFrame(BlangVM *vm, ObjNative *native) {
 }
 
 static void ensureStack(BlangVM *vm, size_t needed) {
-	if(vm->stack + needed < vm->stack + vm->stackSz) return;
+	if(vm->sp + needed < vm->stack + vm->stackSz) return;
 
 	Value *oldStack = vm->stack;
 
-	size_t newSz = vm->stackSz * 2; // TODO: replace with 2^oldSize
-	vm->stack = realloc(vm->stack, newSz);
+	vm->stackSz *= 2; // TODO: replace with 2^oldSize
+	vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
 
 	if(vm->stack != oldStack) {
-		if(vm->apiStack >= vm->sp && vm->apiStack <= vm->sp) {
+		if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
 			vm->apiStack = vm->stack + (vm->apiStack - oldStack);
 		}
 
@@ -173,7 +164,7 @@ static void ensureStack(BlangVM *vm, size_t needed) {
 			upvalue = upvalue->next;
 		}
 
-		vm->sp = vm->stack - (vm->sp - oldStack);
+		vm->sp = vm->stack + (vm->sp - oldStack);
 	}
 }
 
@@ -202,11 +193,6 @@ static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 
 static bool isInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->lstClass || cls == vm->rangeClass;
-}
-
-static bool isCallable(BlangVM *vm, Value c) {
-	return IS_CLASS(c) || IS_CLOSURE(c) || IS_NATIVE(c) ||
-	       isInstatiablePrimitive(vm, getClass(vm, c));
 }
 
 static bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
@@ -320,6 +306,11 @@ static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
 }
 
 static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
+	if(vm->frameCount + 1 == RECURSION_LIMIT) {
+		blRaise(vm, "StackOverflowException", NULL);
+		return false;
+	}
+
 	if(!adjustArguments(vm, &closure->fn->c, argc)) {
 		return false;
 	}
@@ -336,6 +327,11 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
 }
 
 static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
+	if(vm->frameCount + 1 == RECURSION_LIMIT) {
+		blRaise(vm, "StackOverflowException", NULL);
+		return false;
+	}
+
 	if(!adjustArguments(vm, &native->c, argc)) {
 		return false;
 	}
@@ -344,16 +340,14 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	appendNativeFrame(vm, native);
 
 	vm->module = native->c.module;
-	vm->apiStack = vm->frames[vm->frameCount].stack;
+	vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
 	if(!native->fn(vm)) {
 		return false;
 	}
 
 	Value ret = pop(vm);
-	vm->frameCount--;
-
-	vm->sp = vm->frames[vm->frameCount--].stack;
+	vm->sp = vm->frames[--vm->frameCount].stack;
 	push(vm, ret);
 
 	return true;
@@ -604,6 +598,7 @@ static bool runEval(BlangVM *vm, int depth) {
 		} else { \
 			SAVE_FRAME(); \
 			if(!callBinaryOverload(vm, overload, reverse)) {   \
+				LOAD_FRAME(); \
 				ObjString *t1 = getClass(vm, peek(vm))->name;  \
 				ObjString *t2 = getClass(vm, peek2(vm))->name; \
 				blRaise(vm, "TypeException", "Operator %s not defined "  \
@@ -696,6 +691,7 @@ static bool runEval(BlangVM *vm, int depth) {
 		} else {
 			SAVE_FRAME();
 			if(!callBinaryOverload(vm, vm->add, vm->radd)) {
+				LOAD_FRAME();
 				ObjString *t1 = getClass(vm, peek(vm))->name;
 				ObjString *t2 = getClass(vm, peek2(vm))->name;
 
@@ -721,6 +717,7 @@ static bool runEval(BlangVM *vm, int depth) {
 		} else {
 			SAVE_FRAME();
 			if(!callBinaryOverload(vm, vm->div, vm->rdiv)) {
+				LOAD_FRAME();
 				ObjString *t1 = getClass(vm, peek(vm))->name;
 				ObjString *t2 = getClass(vm, peek2(vm))->name;
 
@@ -775,6 +772,7 @@ static bool runEval(BlangVM *vm, int depth) {
 			if(hashTableGet(&cls->methods, vm->eq, &eq)) {
 				SAVE_FRAME();
 				if(!callValue(vm, eq, 1)) {
+					LOAD_FRAME();
 					UNWIND_STACK(vm);
 				}
 				LOAD_FRAME()
@@ -979,6 +977,7 @@ static bool runEval(BlangVM *vm, int depth) {
 call:
 		SAVE_FRAME();
 		if(!callValue(vm, peekn(vm, argc), argc)) {
+			LOAD_FRAME();
 			UNWIND_STACK(vm);
 		}
 		LOAD_FRAME();
@@ -1072,6 +1071,7 @@ sup_invoke:;
 			blRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
 			UNWIND_STACK(vm);
 		}
+
 
 		if(op == OP_IMPORT || op == OP_IMPORT_AS) {
 			//define name for the module in the importing module
@@ -1435,13 +1435,12 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 }
 
 EvalResult blCall(BlangVM *vm, uint8_t argc) {
-	assert(isCallable(vm, peekn(vm, argc)), "Called a non-callable object");
-
 	int depth = vm->frameCount;
 
 	if(!callValue(vm, peekn(vm, argc), argc)) {
-		if(depth == 0 && vm->frameCount > 0) {
-			unwindStack(vm, 0);
+		if(depth == 0) {
+			if(vm->frameCount > 0) unwindStack(vm, 0);
+			reset(vm);
 		}
 		return VM_RUNTIME_ERR;
 	}
@@ -1451,24 +1450,20 @@ EvalResult blCall(BlangVM *vm, uint8_t argc) {
 	}
 
 	// reset API stack if we are on a native frame
-	Frame *f = &vm->frames[vm->frameCount - 1];
-	if(f->fn.type == OBJ_NATIVE) {
-		vm->apiStack = f->stack;
+	if(vm->frameCount != 0 && vm->frames[vm->frameCount - 1].fn.type == OBJ_NATIVE) {
+		vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 	} else {
-		vm->apiStack = vm->sp;
+		vm->apiStack = vm->stack;
 	}
 
 	return VM_EVAL_SUCCSESS;
 }
 
-// TODO: modify
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
-	Value excVal;
-	if(!(blGetGlobal(vm, cls, &excVal) && IS_CLASS(excVal))) {
-		return false;
-	}
+	if(!blGetGlobal(vm, NULL, cls)) return;
+	assert(IS_CLASS(peek(vm)), "Trying to instatiate a non class object");
 
-	ObjInstance *excInst = newInstance(vm, AS_CLASS(excVal));
+	ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
 	push(vm, OBJ_VAL(excInst));
 
 	ObjStackTrace *st = newStackTrace(vm);
@@ -1481,95 +1476,27 @@ void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 		vsnprintf(errStr, sizeof(errStr) - 1, err, args);
 		va_end(args);
 		
-		blPushString(vm, "errStr");
+		blPushString(vm, errStr);
 		blSetField(vm, -1, "err");
 		blPop(vm);
 	}
 
 	pop(vm);
 	vm->exception = excInst;
-
-	return true;
-}
-
-static int apiStackSlot(BlangVM *vm, int slot) {
-    if(slot < 0) slot = (vm->sp - vm->apiStack) + slot;
-    assert(slot >= 0, "API stack slot would be negative");
-    assert(vm->apiStack + slot < vm->sp, "API stack overflow");
-    return slot;
-}
-
-static void validateStack(BlangVM *vm) {
-	assert(vm->sp - vm->stack != vm->stackSz, "Stack overflow");
-}
-
-void blPushNumber(BlangVM *vm, double number) {
-	validateStack(vm);
-	push(vm, NUM_VAL(number));
-}
-
-void blPushBoolean(BlangVM *vm, bool boolean) {
-	validateStack(vm);
-	push(vm, BOOL_VAL(boolean));
-}
-
-void blPushStringSz(BlangVM *vm, const char *string, size_t length) {
-	validateStack(vm);
-	push(vm, OBJ_VAL(copyString(vm, string, length, false)));
-}
-void blPushString(BlangVM *vm, const char *string) {
-	blPushStringSz(vm, string, strlen(string));
-}
-
-void blPop(BlangVM *vm) {
-	assert(vm->sp > vm->apiStack, "Popping past frame boundary");
-	pop(vm);
 }
 
 void blSetField(BlangVM *vm, int slot, const char *name) {
-    slot = apiStackSlot(vm, slot);
-    ObjInstance *i = AS_INSTANCE(vm->apiStack[slot]);
-	setFieldOfValue(vm, vm->apiStack[slot], name, peek(vm));
+	Value val = apiStackSlot(vm, slot);
+	setFieldOfValue(vm, val, copyString(vm, name, strlen(name), false), peek(vm));
 }
 
 bool blGetField(BlangVM *vm, int slot, const char *name) {
-    slot = apiStackSlot(vm, slot);
-	return setFieldOfValue(vm, vm->apiStack[slot], copystring(vm, name, strlen(name), false), peek(vm));
+    Value val = apiStackSlot(vm, slot);
+	return setFieldOfValue(vm, val, copyString(vm, name, strlen(name), false), peek(vm));
 }
-
-void blSetGlobal(BlangVM *vm, const char *module, const char *name) {
-	ObjModule *mod = vm->module;
-	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
-	hashTablePut(&mod->globals, copyString(vm, name, strlen(name), false), peek(vm));
-}
-
-bool blGetGlobal(BlangVM *vm, const char *module, const char *name) {
-	ObjModule *mod = vm->module;
-	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
-	Value res;
-	if(!hashTableGet(&mod->globals, copyString(vm, name, strlen(name), false), &res)) {
-		blRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
-		return false;
-	}
-	push(vm, res);
-	return true;
-}
-
-bool blIsNumber(BlangVM *vm, int slot) {
-	slot = apiStackSlot(vm, slot);
-	return IS_NUM(vm->apiStack[slot]);
-}
-
-bool blIsInteger(BlangVM *vm, int slot) {
-	
-	return IS_NUM(vm->apiStack[slot]);
-}
-bool blIsString(BlangVM *vm, int slot);
-bool blIsList(BlangVM *vm, int slot);
-size_t checkIndex(BlangVM *vm, int slot, size_t max, const char *name);
 
 void blInitCommandLineArgs(int argc, const char **argv) {
-	sysInitArgs(argc, argv);
+	//sysInitArgs(argc, argv);
 }
 
 void blAddImportPath(BlangVM *vm, const char *path) {

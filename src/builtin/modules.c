@@ -117,8 +117,8 @@ Module builtInModules[] = {
 			METHOD(__next__, &bl_String_next)
 		ENDCLASS
 		CLASS(range)
-			METHOD(__iter__, bl_range_iter)
-			METHOD(__next__, bl_range_next)
+			//METHOD(__iter__, bl_range_iter)
+			//METHOD(__next__, bl_range_next)
 		ENDCLASS
 	ENDMODULE
 	// MODULE(sys)
@@ -152,7 +152,7 @@ Module builtInModules[] = {
 	// 	FUNCTION(__initseed, &bl_initseed)
 	// 	FUNCTION(random, &bl_random)
 	// ENDMODULE
-	// MODULES_END
+	MODULES_END
 };
 
 static Module* getModule(const char *name) {

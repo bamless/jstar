@@ -5,9 +5,12 @@
 #include "object.h"
 #include "compiler.h"
 #include "hashtable.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <stdint.h>
+
+#define RECURSION_LIMIT 10000                     // After RECURSION_LIMIT calls, StackOverflowException will be thrown
 
 #define FRAME_SZ 1000                             // Max stack depth
 #define STACK_SZ FRAME_SZ * (UINT8_MAX + 1)       // We have at most UINT8_MAX+1 local var per frame
@@ -113,8 +116,20 @@ typedef struct BlangVM {
 	size_t reachedCapacity, reachedCount;
 } BlangVM;
 
-void  push(BlangVM *vm, Value v);
-Value pop(BlangVM *vm);
+static inline void push(BlangVM *vm, Value v) {
+	*vm->sp++ = v;
+}
+
+static inline Value pop(BlangVM *vm) {
+	return *--vm->sp;
+}
+
+static inline Value apiStackSlot(BlangVM *vm, int slot) {
+    if(slot < 0) slot = (vm->sp - vm->apiStack - 1) + slot;
+    assert(slot >= 0, "API stack slot would be negative");
+    assert(vm->apiStack + slot < vm->sp, "API stack overflow");
+    return *(vm->apiStack + slot);
+}
 
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])
