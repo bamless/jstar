@@ -408,7 +408,7 @@ NATIVE(bl_printstr) {
 
 	NATIVE(bl_List_removeAt) {
 		ObjList *l = AS_LIST(vm->apiStack[0]);
-		size_t index = blCheckIndex(vm, vm->apiStack[1], l->count, "i");
+		size_t index = blCheckIndex(vm, 1, l->count, "i");
 		if(index == SIZE_MAX) return false;
 
 		Value r = l->arr[index];
@@ -421,10 +421,10 @@ NATIVE(bl_printstr) {
 	NATIVE(bl_List_subList) {
 		ObjList *list = AS_LIST(vm->apiStack[0]);
 
-		size_t from = blCheckIndex(vm, vm->apiStack[1], list->count, "from");
-		if(from == SIZE_MAX) return true;
-		size_t to = blCheckIndex(vm, vm->apiStack[2], list->count + 1, "to");
-		if(to == SIZE_MAX) return true;
+		size_t from = blCheckIndex(vm, 1, list->count, "from");
+		if(from == SIZE_MAX) return false;
+		size_t to = blCheckIndex(vm, 2, list->count + 1, "to");
+		if(to == SIZE_MAX) return false;
 
 		if(from >= to) BL_RAISE(vm, "InvalidArgException", "from must be < to.");
 
@@ -535,9 +535,9 @@ NATIVE(bl_printstr) {
 		ObjString *str = AS_STRING(vm->apiStack[0]);
 
 		size_t from = blCheckIndex(vm, 1, str->length, "from");
-		if(from == SIZE_MAX) return true;
+		if(from == SIZE_MAX) return false;
 		size_t to = blCheckIndex(vm, 2, str->length + 1, "to");
-		if(to == SIZE_MAX) return true;
+		if(to == SIZE_MAX) return false;
 
 		if(from >= to) BL_RAISE(vm, "InvalidArgException", "argument to must be >= from.");
 
