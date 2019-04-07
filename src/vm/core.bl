@@ -248,3 +248,4 @@ native ascii(char)
 native isInt(n)
 
 native __printstr(str, file=null)
+native eval(source)

@@ -20,7 +20,6 @@ static ObjClass* createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const cha
 	pop(vm);
 
 	hashTablePut(&m->globals, n, OBJ_VAL(c));
-
 	return c;
 }
 
@@ -711,3 +710,18 @@ NATIVE(bl_printstr) {
 		return true;
 	}
 // }
+
+NATIVE(bl_eval) {
+	if(!blCheckStr(vm, 1, "source")) return false;
+	if(vm->frameCount < 1) BL_RAISE(vm, "Exception", "eval() can only be called by another function");
+
+	Frame *prevFrame = &vm->frames[vm->frameCount - 2];
+	ObjModule *mod = prevFrame->fn.type == OBJ_CLOSURE ? 
+	                 prevFrame->fn.closure->fn->c.module : 
+					 prevFrame->fn.native->c.module;
+
+	EvalResult res = blEvaluateModule(vm, "<string>", mod->name->data, blGetString(vm, 1));
+	if(res == VM_RUNTIME_ERR) return false;
+	blPushBoolean(vm, res == VM_EVAL_SUCCSESS);
+	return true;
+}

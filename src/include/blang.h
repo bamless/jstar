@@ -48,7 +48,6 @@ void pushBoolean(BlangVM *vm, bool b);
 void blPushHandle(BlangVM *vm, void *handle);
 void blPushNull(BlangVM *vm);
 void blPushValue(BlangVM *vm, int slot);
-
 #define blDup() blPushValue(vm, -1)
 
 void blSetField(BlangVM *vm, int slot, const char *name);

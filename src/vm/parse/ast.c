@@ -206,6 +206,10 @@ void freeExpr(Expr *e) {
 	case ANON_FUNC:
 		freeStmt(e->anonFunc.func);
 		break;
+	case EXP_EXPR:
+		freeExpr(e->expExpr.base);
+		freeExpr(e->expExpr.exp);
+		break;
 	default: break;
 	}
 
