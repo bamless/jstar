@@ -117,9 +117,10 @@ Module builtInModules[] = {
 			METHOD(__next__, &bl_String_next)
 		ENDCLASS
 		CLASS(range)
-			METHOD(__iter__, bl_range_iter)
-			METHOD(__next__, bl_range_next)
+			METHOD(__iter__, &bl_range_iter)
+			METHOD(__next__, &bl_range_next)
 		ENDCLASS
+		FUNCTION(testread, &testread)
 	ENDMODULE
 	MODULE(sys)
 		FUNCTION(exit, &bl_exit)

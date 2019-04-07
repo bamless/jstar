@@ -21,6 +21,9 @@
 #include <limits.h>
 #include <string.h>
 
+// Enumeration encoding the cause of the stack
+// unwinding, used during unwinding to correctly
+// handle the execution of except/ensure handlers
 typedef enum UnwindCause {
 	CAUSE_EXCEPT,
 	CAUSE_RETURN
@@ -1445,17 +1448,7 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 	return res;
 }
 
-EvalResult blCall(BlangVM *vm, uint8_t argc) {
-	int depth = vm->frameCount;
-
-	if(!callValue(vm, peekn(vm, argc), argc)) {
-		if(depth == 0) {
-			if(vm->frameCount > 0) unwindStack(vm, 0);
-			reset(vm);
-		}
-		return VM_RUNTIME_ERR;
-	}
-
+static EvalResult blFinishCall(BlangVM *vm, int depth) {
 	if(vm->frameCount > depth) {
 		if(!runEval(vm, depth)) return VM_RUNTIME_ERR;
 	}
@@ -1468,6 +1461,36 @@ EvalResult blCall(BlangVM *vm, uint8_t argc) {
 	}
 
 	return VM_EVAL_SUCCSESS;
+}
+
+static void blErrorCall(BlangVM *vm, int depth) {
+	if(depth == 0) {
+		if(vm->frameCount > 0) unwindStack(vm, 0);
+		reset(vm);
+	}
+}
+
+EvalResult blCall(BlangVM *vm, uint8_t argc) {
+	int depth = vm->frameCount;
+
+	if(!callValue(vm, peekn(vm, argc), argc)) {
+		blErrorCall(vm, depth);
+		return VM_RUNTIME_ERR;
+	}
+
+	return blFinishCall(vm, depth);
+}
+
+EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
+	int depth = vm->frameCount;
+	ObjString *meth = copyString(vm, name, strlen(name), false);
+
+	if(!invokeFromValue(vm, meth, argc)) {
+		blErrorCall(vm, depth);
+		return VM_RUNTIME_ERR;
+	}
+
+	return blFinishCall(vm, depth);
 }
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {

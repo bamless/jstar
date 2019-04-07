@@ -16,14 +16,16 @@
 #define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
 #define INIT_GC  1024 * 1024 * 20           // 20MiB
 
-#define HANDLER_MAX 10 // Max number of nested TryExcepts
+#define HANDLER_MAX 10                      // Max number of nested try/except/ensure
 
 typedef enum HandlerType {
 	HANDLER_ENSURE,
 	HANDLER_EXCEPT
 } HandlerType;
 
-// TryExcept Handler
+// This stores the info needed to jump
+// to handler code and to restore the
+// VM state when handlung exceptions
 typedef struct Handler {
 	HandlerType type; // The type of the handler block
 	uint8_t *handler; // The start of except (or ensure) handler
@@ -46,6 +48,8 @@ typedef struct Frame {
 	uint8_t handlerc;              // Exception handlers count
 } Frame;
 
+// The Blang VM. This struct stores all the 
+// state needed to execute Blang code.
 typedef struct BlangVM {
 	// Paths searched for import
 	ObjList *importpaths;
@@ -97,6 +101,7 @@ typedef struct BlangVM {
 	Frame *frames;
 	int frameCount;
 
+	// Stack used during Native function calls
 	Value *apiStack;
 
 	// Constant string pool, for interned strings
@@ -106,12 +111,16 @@ typedef struct BlangVM {
 	ObjUpvalue *upvalues;
 
 	// Memory management
+
+	// Linked list of all allocated objects (used in 
+	// the sweep phase of GC to free unreached objects)
 	Obj *objects;
 
 	bool disableGC;
-	size_t allocated;
-	size_t nextGC;
+	size_t allocated; // Bytes currently allocated
+	size_t nextGC;    // Bytes to which the next GC will be triggered
 
+	// Stack used to recursevely reach all the fields of reached objects
 	Obj **reachedStack;
 	size_t reachedCapacity, reachedCount;
 } BlangVM;
@@ -124,6 +133,7 @@ static inline Value pop(BlangVM *vm) {
 	return *--vm->sp;
 }
 
+// Get the value at API stack slot "slot"
 static inline Value apiStackSlot(BlangVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");

@@ -7,9 +7,55 @@
 
 #include "options.h"
 
+/**
+ * Here we define the Value type. This is a C type that can store any type
+ * used by the Blang VM. This closes the gap between the dinamically typed
+ * world of Blang and the static one of the C language. Every storage location
+ * used in the VM is of type Value (for example the vm stack) as to permit
+ * the storage of any Blang variable.
+ * 
+ * Note that even tough in Blang all values are objects, primitive values
+ * such as numbers, booleans and the null singleton are unboxed: they are stored
+ * directly in the Value, instead of an Object on the heap. this saves allocations 
+ * and pointer dereferencing when working with such values.
+ * 
+ * Two implementations of Value are supported:
+ * 	- NaN tagging technique (explained below). More memory efficient.
+ * 	- Tagged Union. The classic way to implement such a type. it requires more
+ * 	  than a word of memory to store a single value (tipically 2 words due to padding)
+ */
+
 typedef struct Obj Obj;
 
 #ifdef NAN_TAGGING
+
+/**
+ * NaN Tagging technique. Instead of using a Tagged union (see below) for
+ * implementing a type that can hold multiple C types, we use a single 64
+ * bit integer and exploit the fact that a NaN IEEE double has 52 + 1
+ * unused bits we can utilize.
+ * 
+ * If Value doesn't have the NaN bits set, then it's a valid double. This is
+ * convinient because we don't need extra manipulation to extract the double
+ * from the value, we only reinterpret the bits.
+ * 
+ * If the NaN bits and the sign bit are set, then the Value is an Object* 
+ * pointer. We stuff the 64 bit pointer into the 52 bit unused mantissa.
+ * This is usally enough since operating systems allocate memory starting at
+ * low adresses, thus leaving the most significant bits of an address at zero.
+ * 
+ * If the NaN bits are set and the sign bit isn't, it's either a singleton Value
+ * or an handle value.
+ * If the two least significant bit of the mantissa aren't both 0, then it is a 
+ * singleton value. Here we use these two bits to differentiate between null (01), 
+ * false (10) and true (11).
+ * Otherwise it's an Handle (a raw void* C pointer). Similar to the Object* case,
+ * we stuff the void* pointer in the remaining bits (this time 50).
+ * 
+ * Using this technique we can store all the needed values used by the Blang VM into one
+ * 64-bit integer, thus saving the extra space needed by the tag in the union (plus padding
+ * bits).
+ */
 
 typedef uint64_t Value;
 
@@ -118,8 +164,6 @@ static inline bool valueEquals(Value v1, Value v2) {
 }
 
 #endif
-
-//-- Value array --
 
 #define VAL_ARR_DEF_SZ   8
 #define VAL_ARR_GROW_FAC 2

@@ -6,15 +6,25 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+/**
+ * Functions for allocating/freeing garbage collectable objects.
+ */
+
 typedef struct Frame Frame;
 typedef struct BlangVM BlangVM;
 
+// Launch a garbage collection. It scans all roots (VM stack, global Strings, etc...)
+// marking all the reachable objects (recursively, if needed) and then calls freeObjects
+// to free all unreached ones.
 void garbageCollect(BlangVM *vm);
 
-// Function for allocating objects.
-// These functions use GCallocate to acquire memory and then init the objects
-// with the supplied arguments, as well as initializing all the bookkeping
-// nformation needed by the garbage collector (see struct Obj)
+/** 
+ * Functions for allocating objects.
+ * These functions use GCallocate to acquire memory and then initialize
+ * the object with the supplied arguments, as well as setting all the 
+ * bookkeping information needed by the garbage collector (see struct Obj)
+ */
+
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc);
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
 ObjRange *newRange(BlangVM *vm, double start, double stop, double step);
@@ -32,8 +42,10 @@ ObjString *allocateString(BlangVM *vm, size_t length);
 void reallocateString(BlangVM *vm, ObjString *str, size_t newLen);
 ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
 
+// Dumps a frame in a ObjStackTrace
 void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
 
+// List manipulation functions
 void listAppend(BlangVM *vm, ObjList *lst, Value v);
 void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val);
 void listRemove(BlangVM *vm, ObjList *lst, size_t index);
@@ -56,10 +68,13 @@ static inline uint32_t stringGetHash(ObjString *str) {
 	return str->hash;
 }
 
-void disableGC(BlangVM *vm, bool disable);
-void freeObjects(BlangVM *vm);
-
+// Mark an Object/Value as reached
 void reachObject(BlangVM *vm, Obj *o);
 void reachValue(BlangVM *vm, Value v);
+
+// Free all unmarked objects
+void freeObjects(BlangVM *vm);
+// Disable the GC
+void disableGC(BlangVM *vm, bool disable);
 
 #endif

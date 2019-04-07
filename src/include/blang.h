@@ -21,6 +21,7 @@ EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src);
 EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *name, const char *src);
 
 EvalResult blCall(BlangVM *vm, uint8_t argc);
+EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc);
 
 void blInitCommandLineArgs(int argc, const char **argv);
 void blAddImportPath(BlangVM *vm, const char *path);
@@ -47,6 +48,8 @@ void pushBoolean(BlangVM *vm, bool b);
 void blPushHandle(BlangVM *vm, void *handle);
 void blPushNull(BlangVM *vm);
 void blPushValue(BlangVM *vm, int slot);
+
+#define blDup() blPushValue(vm, -1)
 
 void blSetField(BlangVM *vm, int slot, const char *name);
 bool blGetField(BlangVM *vm, int slot, const char *name);
