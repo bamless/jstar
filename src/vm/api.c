@@ -53,13 +53,25 @@ void blPop(BlangVM *vm) {
 
 void blSetGlobal(BlangVM *vm, const char *module, const char *name) {
 	ObjModule *mod = vm->module;
-	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
+	if(module != NULL) {
+		mod = getModule(vm, copyString(vm, module, strlen(module), false));
+		if(mod == NULL) BL_RAISE(vm, "Exception", "module %s not imported yet.", module);
+	}
+
+	assert(mod != NULL, "Calling blgetGlobal outside of Native function requires specifying a module");
+
 	hashTablePut(&mod->globals, copyString(vm, name, strlen(name), false), peek(vm));
 }
 
 bool blGetGlobal(BlangVM *vm, const char *module, const char *name) {
 	ObjModule *mod = vm->module;
-	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
+	
+	if(module != NULL) {
+		mod = getModule(vm, copyString(vm, module, strlen(module), false));
+		if(mod == NULL) BL_RAISE(vm, "Exception", "module %s not imported yet.", module);
+	}
+
+	assert(mod != NULL, "Calling blgetGlobal outside of Native function requires specifying a module");
 
 	if(mod == NULL) {
 		blRaise(vm, "Exception", "module %s not imported yet.", module);

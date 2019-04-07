@@ -36,6 +36,7 @@ static void reset(BlangVM *vm) {
 	vm->apiStack = vm->stack;
 	vm->frameCount = 0;
 	vm->exception = NULL;
+	vm->module = NULL;
 }
 
 BlangVM *blNewVM() {
@@ -354,6 +355,7 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 
 	if(!native->fn(vm)) {
 		assert(vm->exception != NULL, "Native failed without setting exception");
+		vm->module = oldModule;
 		return false;
 	}
 
@@ -1388,6 +1390,9 @@ static bool unwindStack(BlangVM *vm, int depth) {
 
 	for(;vm->frameCount > depth; vm->frameCount--) {
 		Frame *frame = &vm->frames[vm->frameCount - 1];
+		vm->module = frame->fn.type == OBJ_CLOSURE ? 
+		             frame->fn.closure->fn->c.module :
+					 frame->fn.native->c.module;
 
 		stRecordFrame(vm, st, frame, vm->frameCount);
 
@@ -1466,7 +1471,7 @@ static EvalResult blFinishCall(BlangVM *vm, int depth) {
 static void blErrorCall(BlangVM *vm, int depth) {
 	if(depth == 0) {
 		if(vm->frameCount > 0) unwindStack(vm, 0);
-		reset(vm);
+		else reset(vm);
 	}
 }
 

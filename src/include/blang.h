@@ -36,6 +36,9 @@ void blAddImportPath(BlangVM *vm, const char *path);
 	return false; \
 } while(0)
 
+#define MAIN_MODULE "__main__"
+#define CORE_MODULE "__core__"
+
 typedef bool (*Native)(BlangVM *vm);
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...);
