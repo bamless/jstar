@@ -1,7 +1,6 @@
 #include "sys.h"
-#include "vm.h"
-
 #include "memory.h"
+#include "vm.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -16,33 +15,35 @@ void sysInitArgs(int argc, const char **argv) {
 }
 
 NATIVE(bl_exit) {
-	if(!checkInt(vm, args[1], "n")) {
-		return true;
-	}
-	exit((int)AS_NUM(args[1]));
+	if(!blCheckInt(vm, 1, "n")) return false;
+	exit(blGetNumber(vm, 1));
 }
 
 NATIVE(bl_getImportPaths) {
-	BL_RETURN_OBJ(vm->importpaths);
+	push(vm, OBJ_VAL(vm->importpaths));
+	return true;
 }
 
 NATIVE(bl_platform) {
 #ifdef __linux
-	BL_RETURN_OBJ(copyString(vm, "Linux", 5, true));
+	blPushString(vm, "Linux");
 #elif _WIN32
-	BL_RETURN_OBJ(copyString(vm, "Win32", 5, true));
+	blPushString(vm, "Win32");
 #elif __APPLE__
-	BL_RETURN_OBJ(copyString(vm, "OSX", 3, true));
+	blPushString(vm, "OSX");
 #endif
+	return true;
 }
 
 NATIVE(bl_clock) {
-	BL_RETURN_NUM((double) clock() / CLOCKS_PER_SEC);
+	blPushNumber(vm, (double) clock() / CLOCKS_PER_SEC);
+	return true;
 }
 
 NATIVE(bl_gc) {
 	garbageCollect(vm);
-	BL_RETURN_NULL;
+	blPushNull(vm);
+	return true;
 }
 
 NATIVE(bl_gets) {
@@ -60,45 +61,68 @@ NATIVE(bl_gets) {
 	if(str->length != i)
 		reallocateString(vm, str, i);
 
-	BL_RETURN_OBJ(str);
+	push(vm, OBJ_VAL(str));
+	return true;
 }
 
 NATIVE(bl_init) {
 	// Set up the standard I/O streams (this is a little bit of an hack)
-	Value file;
-	blGetGlobal(vm, "file", &file);
+	if(!blGetGlobal(vm, NULL, "file")) return false;
 
-	Value fileCls;
-	hashTableGet(&AS_MODULE(file)->globals, copyString(vm, "File", 4, true), &fileCls);
+	if(!blGetField(vm, -1, "File")) return false;
 
-	ObjInstance *fileout = newInstance(vm, AS_CLASS(fileCls));
-	blSetField(vm, fileout, "_handle", HANDLE_VAL(stdout));
-	blSetField(vm, fileout, "_closed", BOOL_VAL(false));
-	blSetGlobal(vm, "stdout", OBJ_VAL(fileout));
+	ObjInstance *fileout = newInstance(vm, AS_CLASS(vm->sp[-1]));
+	push(vm, OBJ_VAL(fileout));
 
-	ObjInstance *filein = newInstance(vm, AS_CLASS(fileCls));
-	blSetField(vm, filein, "_handle", HANDLE_VAL(stdin));
-	blSetField(vm, filein, "_closed", BOOL_VAL(false));
-	blSetGlobal(vm, "stdin", OBJ_VAL(filein));
+	blPushHandle(vm, (void*)stdout);
+	blSetField(vm, -2, "_handle");
+	blPop(vm);
 
-	ObjInstance *fileerr = newInstance(vm, AS_CLASS(fileCls));
-	blSetField(vm, fileerr, "_handle", HANDLE_VAL(stderr));
-	blSetField(vm, fileerr, "_closed", BOOL_VAL(false));
-	blSetGlobal(vm, "stderr", OBJ_VAL(fileerr));
+	blPushBoolean(vm, false);
+	blSetField(vm, -2, "_closed");
+	blPop(vm);
+
+	blSetGlobal(vm, NULL, "stdout");
+	blPop(vm);
+
+	ObjInstance *filein = newInstance(vm, AS_CLASS(vm->sp[-1]));
+	push(vm, OBJ_VAL(filein));
+
+	blPushHandle(vm, (void*)stdin);
+	blSetField(vm, -2, "_handle");
+	blPop(vm);
+
+	blPushBoolean(vm, false);
+	blSetField(vm, -2, "_closed");
+	blPop(vm);
+
+	blSetGlobal(vm, NULL, "stdin");
+	blPop(vm);
+
+	ObjInstance *fileerr = newInstance(vm, AS_CLASS(vm->sp[-1]));
+	push(vm, OBJ_VAL(fileerr));
+
+	blPushHandle(vm, (void*)stderr);
+	blSetField(vm, -2, "_handle");
+	blPop(vm);
+
+	blPushBoolean(vm, false);
+	blSetField(vm, -2, "_closed");
+	blPop(vm);
+
+	blSetGlobal(vm, NULL, "stderr");
+	blPop(vm);
 
 	// Set up command line arguments
-	if(argCount == 0) BL_RETURN(NULL_VAL);
+	if(argCount != 0) {
+		blGetGlobal(vm, NULL, "args");
+		ObjList *lst = AS_LIST(vm->sp[-1]);
 
-	Value a;
-	if(!blGetGlobal(vm, "args", &a)) {
-		BL_RAISE_EXCEPTION(vm, "Exception", "This shouldn't happend: sys.args not found.");
+		for(int i = 0; i < argCount; i++) {
+			listAppend(vm, lst, OBJ_VAL(copyString(vm, argVector[i], strlen(argVector[i]), false)));
+		}
 	}
 
-	ObjList *lst = AS_LIST(a);
-
-	for(int i = 0; i < argCount; i++) {
-		listAppend(vm, lst, OBJ_VAL(copyString(vm, argVector[i], strlen(argVector[i]), false)));
-	}
-
-	BL_RETURN_NULL;
+	blPushNull(vm);
+	return true;
 }

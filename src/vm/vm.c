@@ -145,7 +145,7 @@ static void ensureStack(BlangVM *vm, size_t needed) {
 
 	Value *oldStack = vm->stack;
 
-	vm->stackSz *= 2; // TODO: replace with 2^oldSize
+	vm->stackSz = powerOf2Ceil(vm->stackSz);
 	vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
 
 	if(vm->stack != oldStack) {
@@ -339,6 +339,8 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	ensureStack(vm, MIN_NATIVE_STACK_SZ);
 	appendNativeFrame(vm, native);
 
+	ObjModule *oldModule = vm->module;
+
 	vm->module = native->c.module;
 	vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
@@ -347,7 +349,11 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	}
 
 	Value ret = pop(vm);
-	vm->sp = vm->frames[--vm->frameCount].stack;
+
+	vm->frameCount--;
+	vm->sp = vm->apiStack;
+	vm->module = oldModule;
+
 	push(vm, ret);
 
 	return true;
@@ -1477,7 +1483,7 @@ void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 		va_end(args);
 		
 		blPushString(vm, errStr);
-		blSetField(vm, -1, "err");
+		blSetField(vm, -2, "err");
 		blPop(vm);
 	}
 
@@ -1492,7 +1498,7 @@ void blSetField(BlangVM *vm, int slot, const char *name) {
 
 bool blGetField(BlangVM *vm, int slot, const char *name) {
     Value val = apiStackSlot(vm, slot);
-	return setFieldOfValue(vm, val, copyString(vm, name, strlen(name), false), peek(vm));
+	return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), false));
 }
 
 void blInitCommandLineArgs(int argc, const char **argv) {

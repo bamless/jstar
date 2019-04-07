@@ -194,8 +194,8 @@ class Tuple
 end
 
 class range 
-	//native __iter__(iter)
-	//native __next__(next)
+	native __iter__(iter)
+	native __next__(next)
 end
 
 // Exceptions builtin classes

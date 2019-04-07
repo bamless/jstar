@@ -125,10 +125,10 @@ static inline Value pop(BlangVM *vm) {
 }
 
 static inline Value apiStackSlot(BlangVM *vm, int slot) {
-    if(slot < 0) slot = (vm->sp - vm->apiStack - 1) + slot;
-    assert(slot >= 0, "API stack slot would be negative");
+    assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
-    return *(vm->apiStack + slot);
+    if(slot < 0) return vm->sp[slot];
+    else return vm->apiStack[slot];
 }
 
 #define peek(vm)     ((vm)->sp[-1])

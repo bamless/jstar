@@ -31,7 +31,7 @@ void blAddImportPath(BlangVM *vm, const char *path);
 #define NATIVE(name) bool name(BlangVM *vm)
 
 #define BL_RAISE(vm, cls, err, ...) do { \
-	blRaise(vm, cls, err, #__VA_ARGS__); \
+	blRaise(vm, cls, err, ##__VA_ARGS__); \
 	return false; \
 } while(0)
 
@@ -44,6 +44,7 @@ void blPushBoolean(BlangVM *vm, bool boolean);
 void blPushStringSz(BlangVM *vm, const char *string, size_t size);
 void blPushString(BlangVM *vm, const char *string);
 void pushBoolean(BlangVM *vm, bool b);
+void blPushHandle(BlangVM *vm, void *handle);
 void blPushNull(BlangVM *vm);
 void blPushValue(BlangVM *vm, int slot);
 
@@ -64,9 +65,9 @@ bool blIsInteger(BlangVM *vm, int slot);
 bool blIsString(BlangVM *vm, int slot);
 bool blIsList(BlangVM *vm, int slot);
 bool blIsBoolean(BlangVM *vm ,int slot);
+bool blIsHandle(BlangVM *vm, int slot);
 bool blIsNull(BlangVM *vm, int slot);
 bool blIsInstance(BlangVM *vm, int slot);
-bool blIsHandle(BlangVM *vm, int slot);
 
 bool blCheckNum(BlangVM *vm, int slot, const char *name);
 bool blCheckInt(BlangVM *vm, int slot, const char *name);

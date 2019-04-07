@@ -6,7 +6,7 @@
 #include <string.h>
 
 static void validateStack(BlangVM *vm) {
-	assert(vm->sp - vm->stack != vm->stackSz, "Stack overflow");
+	assert((size_t)(vm->sp - vm->stack) != vm->stackSz, "Stack overflow");
 }
 
 void blPushNumber(BlangVM *vm, double number) {
@@ -32,6 +32,11 @@ void pushBoolean(BlangVM *vm, bool b) {
 	push(vm, b ? TRUE_VAL : FALSE_VAL);
 }
 
+void blPushHandle(BlangVM *vm, void *handle) {
+	validateStack(vm);
+	push(vm, HANDLE_VAL(handle));
+}
+
 void blPushNull(BlangVM *vm) {
 	validateStack(vm);
 	push(vm, NULL_VAL);
@@ -55,6 +60,11 @@ void blSetGlobal(BlangVM *vm, const char *module, const char *name) {
 bool blGetGlobal(BlangVM *vm, const char *module, const char *name) {
 	ObjModule *mod = vm->module;
 	if(module != NULL) mod = getModule(vm, copyString(vm, module, strlen(module), false));
+
+	if(mod == NULL) {
+		blRaise(vm, "Exception", "module %s not imported yet.", module);
+		return false;
+	}
 	
 	ObjString *namestr = copyString(vm, name, strlen(name), false);
 
@@ -149,12 +159,12 @@ bool blCheckBool(BlangVM *vm, int slot, const char *name) {
 
 bool blCheckInstance(BlangVM *vm, int slot, const char *name) {
 	if(!blIsInstance(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be an Instance.", name);
-	return false;
+	return true;
 }
 
 bool blCheckHandle(BlangVM *vm, int slot, const char *name) {
-	if(!blIsHandle(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be an Instance.", name);
-	return false;
+	if(!blIsHandle(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be an Handle.", name);
+	return true;
 }
 
 size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name) {

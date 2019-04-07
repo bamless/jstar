@@ -677,35 +677,37 @@ NATIVE(bl_printstr) {
 		return true;
 	}
 
-	// NATIVE(bl_range_iter) {
-	// 	ObjRange *r = AS_RANGE(args[0]);
+	NATIVE(bl_range_iter) {
+		ObjRange *r = AS_RANGE(vm->apiStack[0]);
 
-	// 	bool incr = r->step > 0;
+		bool incr = r->step > 0;
 
-	// 	if(IS_NULL(args[1])) {
-	// 		if(incr ? r->start < r->stop : r->start > r->stop)
-	// 			BL_RETURN_NUM(r->start);
-	// 		else
-	// 			BL_RETURN_FALSE;
-	// 	}
+		if(blIsNull(vm, 1)) {
+			if(incr ? r->start < r->stop : r->start > r->stop) {
+				blPushNumber(vm, r->start);
+				return true;
+			} else {
+				blPushBoolean(vm, false);
+				return true;
+			}
+		}
 
-	// 	if(IS_NUM(args[1])) {
-	// 		double i = AS_NUM(args[1]) + r->step;
+		if(blIsNumber(vm, 1)) {
+			double i = blGetNumber(vm, 1) + r->step;
 			
-	// 		if(incr) {
-	// 			if(i < r->stop) BL_RETURN_NUM(i);
-	// 		} else {
-	// 			if(i > r->stop) BL_RETURN_NUM(i);
-	// 		}
-	// 	}
+			if(incr ? i < r->stop : i > r->stop) {
+				blPushNumber(vm, i);
+				return true;
+			}
+		}
 
-	// 	BL_RETURN_FALSE;
-	// }
+		blPushBoolean(vm, false);
+		return true;
+	}
 
-	// NATIVE(bl_range_next) {
-	// 	if(IS_NUM(args[1])) {
-	// 		BL_RETURN(args[1]);
-	// 	}
-	// 	BL_RETURN_NULL;
-	// }
+	NATIVE(bl_range_next) {
+		if(blIsNumber(vm, 1)) return true;
+		blPushNull(vm);
+		return true;
+	}
 // }

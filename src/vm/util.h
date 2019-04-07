@@ -36,4 +36,6 @@
 
 #endif
 
+int powerOf2Ceil(int n);
+
 #endif

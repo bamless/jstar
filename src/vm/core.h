@@ -73,6 +73,4 @@ NATIVE(bl_printstr);
 	NATIVE(bl_range_next);
 //}
 
-NATIVE(teststr);
-
 #endif
