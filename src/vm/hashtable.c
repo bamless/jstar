@@ -55,7 +55,6 @@ static Entry *getEntry(HashTable *t, ObjString *key) {
 		}
 		buckHead = buckHead->next;
 	}
-
 	return NULL;
 }
 

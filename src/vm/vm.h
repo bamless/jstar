@@ -5,24 +5,18 @@
 #include "object.h"
 #include "compiler.h"
 #include "hashtable.h"
-
-#include "util/stringbuf.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <stdint.h>
 
+#define RECURSION_LIMIT 10000                     // After RECURSION_LIMIT calls, StackOverflowException will be thrown
+
 #define FRAME_SZ 1000                             // Max stack depth
-#define STACK_SZ (FRAME_SZ + 1) * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
+#define STACK_SZ FRAME_SZ * (UINT8_MAX + 1)       // We have at most UINT8_MAX+1 local var per frame
 #define INIT_GC  1024 * 1024 * 20                 // 20MiB
 
 #define HANDLER_MAX 10 // Max number of nested TryExcepts
-
-typedef enum {
-	VM_EVAL_SUCCSESS, // The VM successfully executed the code
-	VM_SYNTAX_ERR,    // A syntax error has been encountered in parsing
-	VM_COMPILE_ERR,   // An error has been encountered during compilation
-	VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
-} EvalResult;
 
 typedef enum HandlerType {
 	HANDLER_ENSURE,
@@ -36,10 +30,18 @@ typedef struct Handler {
 	Value *savesp;    // Stack pointer to restore when handling exceptions
 } Handler;
 
+typedef struct {
+	ObjType type;
+	union {
+		ObjClosure *closure;
+		ObjNative *native;
+	};
+} Function;
+
 typedef struct Frame {
 	uint8_t *ip;                   // Instruction pointer
 	Value *stack;                  // Base of stack for current frame
-	ObjClosure *closure;           // The function associated with the frame
+	Function fn;                   // The function associated with the frame
 	Handler handlers[HANDLER_MAX]; // Exception handlers
 	uint8_t handlerc;              // Exception handlers count
 } Frame;
@@ -88,10 +90,14 @@ typedef struct BlangVM {
 	ObjModule *core;
 
 	// VM program stack
-	Value stack[STACK_SZ], *sp;
+	size_t stackSz;
+	Value *stack, *sp;
 
-	Frame frames[FRAME_SZ];
+	int frameSz;
+	Frame *frames;
 	int frameCount;
+
+	Value *apiStack;
 
 	// Constant strings pool, all strings are interned
 	HashTable strings;
@@ -110,17 +116,20 @@ typedef struct BlangVM {
 	size_t reachedCapacity, reachedCount;
 } BlangVM;
 
-BlangVM *blNewVM();
-void blFreeVM(BlangVM *vm);
+static inline void push(BlangVM *vm, Value v) {
+	*vm->sp++ = v;
+}
 
-EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src);
-EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *name, const char *src);
+static inline Value pop(BlangVM *vm) {
+	return *--vm->sp;
+}
 
-void  push(BlangVM *vm, Value v);
-Value pop(BlangVM *vm);
-
-void blInitCommandLineArgs(int argc, const char **argv);
-void blAddImportPath(BlangVM *vm, const char *path);
+static inline Value apiStackSlot(BlangVM *vm, int slot) {
+    assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    assert(vm->apiStack + slot < vm->sp, "API stack overflow");
+    if(slot < 0) return vm->sp[slot];
+    else return vm->apiStack[slot];
+}
 
 #define peek(vm)     ((vm)->sp[-1])
 #define peek2(vm)    ((vm)->sp[-2])

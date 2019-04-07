@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdio.h>
 #include <limits.h>
 
 #define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) \
@@ -21,10 +22,20 @@
 		abort(); \
 	} while(0) \
 
+	#define assert(cond, msg) do { \
+		if(!(cond)) { \
+			fprintf(stderr, "Assertion failed: %s\n", msg); \
+			abort(); \
+		} \
+	} while(0)
+
 #else
 
 	#define UNREACHABLE()
+	#define assert(cond, msg)
 
 #endif
+
+int powerOf2Ceil(int n);
 
 #endif

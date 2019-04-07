@@ -1,4 +1,7 @@
 #include "file.h"
+#include "memory.h"
+#include "object.h"
+#include "vm.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -122,170 +125,148 @@ static int blSeek(FILE *file, long offset, int blWhence) {
 
 // class File {
 
-static bool isClosed(BlangVM *vm, ObjInstance *file) {
-	Value closed;
-	blGetField(vm, file, FIELD_FILE_CLOSED, &closed);
-	return AS_BOOL(closed);
+static bool checkClosed(BlangVM *vm) {
+	if(!blGetField(vm, 0, FIELD_FILE_CLOSED)) return false;
+	bool closed = blGetBoolean(vm, -1);
+	if(closed) BL_RAISE(vm, "IOException", "closed file");
+	return true;
 }
 
 NATIVE(bl_File_seek) {
-	if(isClosed(vm, BL_THIS)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
-	}
+	if(!checkClosed(vm)) return false;
 
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NULL;
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
+	if(!blCheckInt(vm, 1, "off") || blCheckInt(vm, 2, "whence")) return false;
 
-	if(!checkInt(vm, args[1], "off") || !checkInt(vm, args[2], "whence")) {
-		return true;
-	}
+	FILE *f = (FILE*) blGetHandle(vm, -1);
 
-	FILE *f = (FILE*) AS_HANDLE(h);
-
-	double offset = AS_NUM(args[1]);
-	double whence = AS_NUM(args[2]);
+	double offset = blGetNumber(vm, 1);
+	double whence = blGetNumber(vm, 2);
 
 	if(whence != BL_SEEK_SET && whence != BL_SEEK_CURR && whence != BL_SEEK_END) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException",
-			"whence must be SEEK_SET, SEEK_CUR or SEEK_END");
+		BL_RAISE(vm, "InvalidArgException", "whence must be SEEK_SET, SEEK_CUR or SEEK_END");
 	}
 
 	if(blSeek(f, offset, whence)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN_NULL;
+	blPushNull(vm);
+	return true;
 }
 
 NATIVE(bl_File_tell) {
-	if(isClosed(vm, BL_THIS)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
-	}
+	if(!checkClosed(vm)) return false;
 
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NULL;
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
 
-	FILE *f = (FILE*) AS_HANDLE(h);
+	FILE *f = (FILE*) blGetHandle(vm, -1);
 
 	long off = ftell(f);
 	if(off == -1) {
-		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN_NUM(off);
+	blPushNumber(vm, off);
+	return true;
 }
 
 NATIVE(bl_File_rewind) {
-	if(isClosed(vm, BL_THIS)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
-	}
+	if(!checkClosed(vm)) return false;
 
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NULL;
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
 
-	FILE *f = (FILE*) AS_HANDLE(h);
+	FILE *f = (FILE*) blGetHandle(vm, -1);
 	rewind(f);
-	BL_RETURN_NULL;
+
+	blPushNull(vm);
+	return true;
 }
 
 NATIVE(bl_File_readAll) {
-	if(isClosed(vm, BL_THIS)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
-	}
+	if(!checkClosed(vm)) return false;
 
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NULL;
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
 
-	FILE *f = (FILE*) AS_HANDLE(h);
+	FILE *f = (FILE*) blGetHandle(vm, -1);
 
 	long off = ftell(f);
 	if(off == -1) {
-		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
 	int64_t size = getFileSize(f) - off;
 	if(size < 0) {
-		BL_RETURN_NULL;
+		blPushNull(vm);
+		return true;
 	}
 
 	ObjString *data = allocateString(vm, size);
 
 	if(fread(data->data, sizeof(char), size, f) < (size_t) size) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "Couldn't read the whole file.");
+		BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
 	}
 
-	BL_RETURN_OBJ(data);
+	push(vm, OBJ_VAL(data));
+	return true;
 }
 
 NATIVE(bl_File_readLine) {
-	if(isClosed(vm, BL_THIS)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
-	}
+	if(!checkClosed(vm)) return false;
 
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NULL;
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
 
-	FILE *f = (FILE*) AS_HANDLE(h);
+	FILE *f = (FILE*) blGetHandle(vm, -1);
 
 	ObjString *line = readline(vm, f);
 	if(line == NULL) {
-		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN_OBJ(line);
+	push(vm, OBJ_VAL(line));
+	return true;
 }
 
 NATIVE(bl_File_close) {
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NULL;
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
 
-	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
+	FILE *f = (FILE*) blGetHandle(vm, -1);
+	
+	blPushBoolean(vm, true);
+	blSetField(vm, 0, FIELD_FILE_CLOSED);
 
-	FILE *f = (void*) AS_HANDLE(h);
 	if(fclose(f)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
-	blSetField(vm, BL_THIS, FIELD_FILE_HANDLE, NULL_VAL);
-	blSetField(vm, BL_THIS, FIELD_FILE_CLOSED, BOOL_VAL(true));
-
-	BL_RETURN_NULL;
+	blPushNull(vm);
+	blSetField(vm, 0, FIELD_FILE_HANDLE);
+	return true;
 }
 
 NATIVE(bl_File_size) {
-	if(isClosed(vm, BL_THIS)) {
-		BL_RAISE_EXCEPTION(vm, "IOException", "closed file");
-	}
+	if(!checkClosed(vm)) return false;
 
-	Value h;
-	if(!blGetField(vm, BL_THIS, FIELD_FILE_HANDLE, &h) || !IS_HANDLE(h)) {
-		BL_RETURN_NUM(-1);
-	}
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
+	FILE *f = (FILE*) blGetHandle(vm, -1);
 
-	FILE *stream = (FILE*) AS_HANDLE(h);
-
-	BL_RETURN_NUM(getFileSize(stream));
+	blPushNumber(vm, getFileSize(f));
+	return true;
 }
-
 // } class File
 
 // functions
 
 NATIVE(bl_open) {
-	char *fname = AS_STRING(args[1])->data;
-	char *m = AS_STRING(args[2])->data;
+	const char *fname = blGetString(vm, 1);
+	const char *m = blGetString(vm, 2);
 
 	size_t mlen = strlen(m);
 	if(mlen > 3 ||
@@ -293,16 +274,17 @@ NATIVE(bl_open) {
 	  (mlen > 1 && (m[1] != 'b' && m[1] != '+')) ||
 	  (mlen > 2 && m[2] != 'b'))
 	{
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+		BL_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
 	}
 
-	FILE *f = fopen(AS_STRING(args[1])->data, m);
+	FILE *f = fopen(fname, m);
 	if(f == NULL) {
 		if(errno == ENOENT) {
-			BL_RAISE_EXCEPTION(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
+			BL_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
 		}
-		BL_RAISE_EXCEPTION(vm, "IOException", strerror(errno));
+		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
-	BL_RETURN(HANDLE_VAL(f));
+	blPushHandle(vm, (void*) f);
+	return true;
 }

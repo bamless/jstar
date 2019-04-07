@@ -16,7 +16,7 @@ foreach(bl ${BLANG_SOURCES})
 	)
 endforeach()
 
-include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/builtin")
+include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/builtin" "${PROJECT_SOURCE_DIR}/include")
 
 # create library
 add_library(libblang ${SOURCES} ${BLANG_HEADERS})

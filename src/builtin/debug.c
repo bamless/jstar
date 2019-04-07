@@ -14,17 +14,17 @@ NATIVE(bl_printStack) {
 	}
 	printf("$\n");
 
-	BL_RETURN(NULL_VAL);
+	blPushNull(vm);
+	return true;
 }
 
 NATIVE(bl_dis) {
-	if(!IS_OBJ(args[1]) || !(IS_CLOSURE(args[1]) ||
-			IS_NATIVE(args[1]) || IS_BOUND_METHOD(args[1]))) {
-		BL_RAISE_EXCEPTION(vm, "InvalidArgException",
-		 	"Argument to dis must be a function object.");
+	if(!IS_OBJ(vm->apiStack[1]) || !(IS_CLOSURE(vm->apiStack[1]) ||
+			IS_NATIVE(vm->apiStack[1]) || IS_BOUND_METHOD(vm->apiStack[1]))) {
+		BL_RAISE(vm, "InvalidArgException", "Argument to dis must be a function object.");
 	}
 
-	Value func = args[1];
+	Value func = vm->apiStack[1];
 	if(IS_BOUND_METHOD(func)) {
 		func = OBJ_VAL(AS_BOUND_METHOD(func)->method);
 	}
@@ -36,5 +36,6 @@ NATIVE(bl_dis) {
 		printf("Native implementation\n");
 	}
 
-	BL_RETURN(NULL_VAL);
+	blPushNull(vm);
+	return true;
 }
