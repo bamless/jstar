@@ -183,8 +183,8 @@ static ObjClass *getClass(BlangVM *vm, Value v) {
 static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->numClass  || 
 	       cls == vm->strClass  ||
-	       cls == vm->boolClass ||
-		   cls == vm->nullClass ||
+           cls == vm->boolClass ||
+	       cls == vm->nullClass ||
 		   cls == vm->funClass  ||
 		   cls == vm->modClass  ||
 		   cls == vm->stClass   ||
@@ -344,10 +344,7 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	vm->module = native->c.module;
 	vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
-	if(!native->fn(vm)) {
-		return false;
-	}
-
+	if(!native->fn(vm)) return false;
 	Value ret = pop(vm);
 
 	vm->frameCount--;
@@ -1502,7 +1499,7 @@ bool blGetField(BlangVM *vm, int slot, const char *name) {
 }
 
 void blInitCommandLineArgs(int argc, const char **argv) {
-	//sysInitArgs(argc, argv);
+	sysInitArgs(argc, argv);
 }
 
 void blAddImportPath(BlangVM *vm, const char *path) {
