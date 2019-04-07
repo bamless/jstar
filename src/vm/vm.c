@@ -157,6 +157,10 @@ static void ensureStack(BlangVM *vm, size_t needed) {
 		for(int i = 0; i < vm->frameCount; i++) {
 			Frame *frame = &vm->frames[i];
 			frame->stack = vm->stack + (frame->stack - oldStack);
+			for(int i = 0; i < frame->handlerc; i++) {
+				Handler *h = &frame->handlers[i];
+				h->savesp = vm->stack + (h->savesp - oldStack);
+			}
 		}
 
 		ObjUpvalue *upvalue = vm->upvalues;
