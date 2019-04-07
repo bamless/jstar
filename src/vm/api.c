@@ -158,7 +158,7 @@ bool blCheckBool(BlangVM *vm, int slot, const char *name) {
 }
 
 bool blCheckInstance(BlangVM *vm, int slot, const char *name) {
-	if(!blIsInstance(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be an Instance.", name);
+	if(!blIsInstance(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be an instance.", name);
 	return true;
 }
 

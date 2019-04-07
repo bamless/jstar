@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define RECURSION_LIMIT 10000                     // After RECURSION_LIMIT calls, StackOverflowException will be thrown
+#define RECURSION_LIMIT 10000               // After RECURSION_LIMIT calls, StackOverflowException will be thrown
 
-#define FRAME_SZ 1000                             // Max stack depth
-#define STACK_SZ FRAME_SZ * (UINT8_MAX + 1)       // We have at most UINT8_MAX+1 local var per frame
-#define INIT_GC  1024 * 1024 * 20                 // 20MiB
+#define FRAME_SZ 1000                       // Starting frame size
+#define STACK_SZ FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
+#define INIT_GC  1024 * 1024 * 20           // 20MiB
 
 #define HANDLER_MAX 10 // Max number of nested TryExcepts
 
@@ -26,7 +26,7 @@ typedef enum HandlerType {
 // TryExcept Handler
 typedef struct Handler {
 	HandlerType type; // The type of the handler block
-	uint8_t *handler; // The start of except handler
+	uint8_t *handler; // The start of except (or ensure) handler
 	Value *savesp;    // Stack pointer to restore when handling exceptions
 } Handler;
 
@@ -41,7 +41,7 @@ typedef struct {
 typedef struct Frame {
 	uint8_t *ip;                   // Instruction pointer
 	Value *stack;                  // Base of stack for current frame
-	Function fn;                   // The function associated with the frame
+	Function fn;                   // The function associated with the frame (a Native or a Closure)
 	Handler handlers[HANDLER_MAX]; // Exception handlers
 	uint8_t handlerc;              // Exception handlers count
 } Frame;
@@ -99,7 +99,7 @@ typedef struct BlangVM {
 
 	Value *apiStack;
 
-	// Constant strings pool, all strings are interned
+	// Constant string pool, for interned strings
 	HashTable strings;
 
 	// Linked list of all open upvalues

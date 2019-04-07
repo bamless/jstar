@@ -38,10 +38,11 @@ static void reset(BlangVM *vm) {
 BlangVM *blNewVM() {
 	BlangVM *vm = calloc(1, sizeof(*vm));
 
-	vm->stack = malloc(sizeof(Value) * STACK_SZ);
 	vm->stackSz = STACK_SZ;
-	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
+	vm->stack = malloc(sizeof(Value) * STACK_SZ);
+	
 	vm->frameSz = FRAME_SZ;
+	vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
 
 	reset(vm);
 
@@ -180,7 +181,7 @@ static ObjClass *getClass(BlangVM *vm, Value v) {
 	}
 }
 
-static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
+static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->numClass  || 
 	       cls == vm->strClass  ||
            cls == vm->boolClass ||
@@ -191,7 +192,7 @@ static bool isNonInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
 		   cls == vm->tupClass;
 }
 
-static bool isInstatiablePrimitive(BlangVM *vm, ObjClass *cls) {
+static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->lstClass || cls == vm->rangeClass;
 }
 
@@ -344,7 +345,11 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	vm->module = native->c.module;
 	vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
-	if(!native->fn(vm)) return false;
+	if(!native->fn(vm)) {
+		assert(vm->exception != NULL, "Native failed without setting exception");
+		return false;
+	}
+
 	Value ret = pop(vm);
 
 	vm->frameCount--;
@@ -373,12 +378,12 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
 		case OBJ_CLASS: {
 			ObjClass *cls = AS_CLASS(callee);
 
-			if(isNonInstatiablePrimitive(vm, cls)) {
+			if(isNonInstantiableBuiltin(vm, cls)) {
 				blRaise(vm, "Exception", "class %s can't be directly instatiated", cls->name->data);
 				return false;
 			}
 
-			vm->sp[-argc - 1] = isInstatiablePrimitive(vm, cls) ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
+			vm->sp[-argc - 1] = isInstatiableBuiltin(vm, cls) ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
 
 			Value ctor;
 			if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
@@ -616,7 +621,6 @@ static bool runEval(BlangVM *vm, int depth) {
 		frame->ip = h->handler; \
 		vm->sp = h->savesp; \
 		closeUpvalues(vm, vm->sp - 1); \
-		vm->module = frame->fn.closure->fn->c.module; \
 		push(vm, cause); \
 		push(vm, ret); \
 	} while(0)

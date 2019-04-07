@@ -137,7 +137,7 @@ NATIVE(bl_File_seek) {
 
 	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
 	if(!blCheckHandle(vm, -1, "_handle")) return false;
-	if(!blCheckInt(vm, 1, "off") || blCheckInt(vm, 2, "whence")) return false;
+	if(!blCheckInt(vm, 1, "off") || !blCheckInt(vm, 2, "whence")) return false;
 
 	FILE *f = (FILE*) blGetHandle(vm, -1);
 
