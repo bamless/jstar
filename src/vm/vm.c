@@ -1273,34 +1273,45 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_ENSURE_END): {
-		Value exc = pop(vm), cause = pop(vm);
+		if(!IS_NULL(peek2(vm))) {
+			UnwindCause cause = AS_NUM(peek2(vm));
 
-		switch((UnwindCause) AS_NUM(cause)) {
-		case CAUSE_EXCEPT:
-			push(vm, exc);
-			// if we still have the exception
-			if(!IS_NULL(exc)) {
-				// continue unwinding
-				UNWIND_STACK(vm);
-			}
-			break;
-		case CAUSE_RETURN:
-			// If there are other ensure handlers jump to them
-			while(frame->handlerc > 0) {
-				Handler *h = &frame->handlers[--frame->handlerc];
-				if(h->type == HANDLER_ENSURE) {
-					UNWIND_HANDLER(h, cause, exc);
-					LOAD_FRAME();
-					DISPATCH();
+			switch(cause) {
+			case CAUSE_EXCEPT: {
+				Value exc = pop(vm);
+
+				pop(vm);       // Pop away the cause
+				push(vm, exc); // Push the exception on top of stack
+
+				// if we still have the exception on the top of the stack
+				if(!IS_NULL(exc)) {
+					// continue unwinding
+					UNWIND_STACK(vm);
 				}
+				break;
 			}
+			case CAUSE_RETURN: {
+				Value ret = pop(vm), cause = pop(vm);
 
-			push(vm, exc); // The return value
-			GOTO(OP_RETURN);
-			break;
-		default: break;
+				// If there are other ensure handlers jump to them
+				while(frame->handlerc > 0) {
+					Handler *h = &frame->handlers[--frame->handlerc];
+					if(h->type == HANDLER_ENSURE) {
+						UNWIND_HANDLER(h, cause, ret);
+						LOAD_FRAME();
+						DISPATCH();
+					}
+				}
+
+				push(vm, ret); // The return value
+				GOTO(OP_RETURN);
+				break;
+			}
+			default:
+				UNREACHABLE();
+				break;
+			}
 		}
-
 		DISPATCH();
 	}
 	TARGET(OP_POP_HANDLER): {
