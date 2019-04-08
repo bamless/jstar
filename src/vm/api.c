@@ -51,39 +51,42 @@ void blPop(BlangVM *vm) {
 	pop(vm);
 }
 
-void blSetGlobal(BlangVM *vm, const char *module, const char *name) {
-	ObjModule *mod = vm->module;
-	if(module != NULL) {
-		mod = getModule(vm, copyString(vm, module, strlen(module), false));
-		if(mod == NULL) BL_RAISE(vm, "Exception", "module %s not imported yet.", module);
+bool blSetGlobal(BlangVM *vm, const char *mname, const char *name) {
+	ObjModule *module = vm->module;
+	assert(module != NULL || mname != NULL, "Calling blSetGlobal outside of Native function requires specifying a module");
+	
+	if(mname != NULL) {
+		module = getModule(vm, copyString(vm, mname, strlen(mname), false));
 	}
 
-	assert(mod != NULL, "Calling blgetGlobal outside of Native function requires specifying a module");
+	if(module == NULL) {
+		blRaise(vm, "Exception", "module %s not imported yet.", mname);
+		return false;
+	}
 
-	hashTablePut(&mod->globals, copyString(vm, name, strlen(name), false), peek(vm));
+	hashTablePut(&module->globals, copyString(vm, name, strlen(name), false), peek(vm));
+	return true;
 }
 
-bool blGetGlobal(BlangVM *vm, const char *module, const char *name) {
-	ObjModule *mod = vm->module;
+bool blGetGlobal(BlangVM *vm, const char *mname, const char *name) {
+	ObjModule *module = vm->module;
+	assert(module != NULL || mname != NULL, "Calling blGetGlobal outside of Native function requires specifying a module");
 	
-	if(module != NULL) {
-		mod = getModule(vm, copyString(vm, module, strlen(module), false));
-		if(mod == NULL) BL_RAISE(vm, "Exception", "module %s not imported yet.", module);
+	if(mname != NULL) {
+		module = getModule(vm, copyString(vm, mname, strlen(mname), false));
 	}
 
-	assert(mod != NULL, "Calling blgetGlobal outside of Native function requires specifying a module");
-
-	if(mod == NULL) {
-		blRaise(vm, "Exception", "module %s not imported yet.", module);
+	if(module == NULL) {
+		blRaise(vm, "Exception", "module %s not imported yet.", mname);
 		return false;
 	}
 	
 	ObjString *namestr = copyString(vm, name, strlen(name), false);
 
 	Value res;
-	if(!hashTableGet(&mod->globals, namestr, &res)) {
+	if(!hashTableGet(&module->globals, namestr, &res)) {
 		if(!hashTableGet(&vm->core->globals, namestr, &res)) {
-			blRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
+			blRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
 			return false;
 		}
 	}
@@ -187,4 +190,43 @@ size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name) {
 
 	blRaise(vm, "IndexOutOfBoundException", "%g.", i);
 	return SIZE_MAX;
+}
+
+void blPrintStackTrace(BlangVM *vm) {
+	assert(IS_INSTANCE(peek(vm)), "Top of stack isnt't a throwable");
+
+	ObjInstance *exc = AS_INSTANCE(peek(vm));
+
+	Value stval;
+
+	assert(hashTableGet(&exc->fields, vm->stField, &stval), "Top of stack isn't an exception");
+	hashTableGet(&exc->fields, vm->stField, &stval);
+	
+	ObjStackTrace *st = AS_STACK_TRACE(stval);
+
+
+	// Print stacktrace in reverse order of recording (most recent call last)
+	if(st->length > 0) {
+		fprintf(stderr, "Traceback (most recent call last):\n");
+
+		char *stacktrace = st->trace;
+		int lastnl = st->length;
+		for(int i = lastnl - 1; i > 0; i--) {
+			if(stacktrace[i - 1] == '\n') {
+				fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
+				lastnl = i;
+			}
+		}
+		fprintf(stderr, "    %.*s", lastnl, stacktrace);
+	}
+
+	// print the exception instance information
+	Value v;
+	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3, true), &v);
+
+	if(found && IS_STRING(v)) {
+		fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
+	} else {
+		fprintf(stderr, "%s\n", exc->base.cls->name->data);
+	}
 }

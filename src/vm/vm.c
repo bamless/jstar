@@ -35,7 +35,6 @@ static void reset(BlangVM *vm) {
 	vm->sp = vm->stack;
 	vm->apiStack = vm->stack;
 	vm->frameCount = 0;
-	vm->exception = NULL;
 	vm->module = NULL;
 }
 
@@ -91,6 +90,12 @@ BlangVM *blNewVM() {
 
 	// Bootstrap the core module
 	initCoreLibrary(vm);
+
+	// Init the __main__ module
+	ObjString *mainMod = copyString(vm, MAIN_MODULE, strlen(MAIN_MODULE), true);
+	push(vm, OBJ_VAL(mainMod));
+	setModule(vm, mainMod, newModule(vm, mainMod));
+	pop(vm);
 
 	// This is called after initCoreLibrary in order to correctly assign the
 	// List class to the object since classes are created during initialization
@@ -354,7 +359,6 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
 	vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
 	if(!native->fn(vm)) {
-		assert(vm->exception != NULL, "Native failed without setting exception");
 		vm->module = oldModule;
 		return false;
 	}
@@ -1276,7 +1280,6 @@ sup_invoke:;
 			// if we still have the exception on top of the stack
 			if(!IS_NULL(peek(vm))) {
 				// continue unwinding
-				vm->exception = AS_INSTANCE(peek(vm));
 				UNWIND_STACK(vm);
 			}
 			break;
@@ -1317,10 +1320,7 @@ sup_invoke:;
 		hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
 
 		pop(vm);
-		pop(vm);
 
-		vm->exception = AS_INSTANCE(exc);
-		
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
@@ -1357,35 +1357,12 @@ sup_invoke:;
 	return false;
 }
 
-static void printStackTrace(BlangVM *vm, ObjStackTrace *st) {
-	fprintf(stderr, "Traceback (most recent call last):\n");
-
-	// Print stacktrace in reverse order of recording (most recent call last)
-	char *stacktrace = st->trace;
-	int lastnl = st->length;
-	for(int i = lastnl - 1; i > 0; i--) {
-		if(stacktrace[i - 1] == '\n') {
-			fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
-			lastnl = i;
-		}
-	}
-	fprintf(stderr, "    %.*s", lastnl, stacktrace);
-
-	// print the exception instance information
-	Value v;
-	ObjInstance *exc = (ObjInstance*) vm->exception;
-	bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3, true), &v);
-
-	if(found && IS_STRING(v)) {
-		fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
-	} else {
-		fprintf(stderr, "%s\n", exc->base.cls->name->data);
-	}
-}
-
 static bool unwindStack(BlangVM *vm, int depth) {
+	assert(IS_INSTANCE(peek(vm)), "Exception must be an object instance");
+	ObjInstance *exc = AS_INSTANCE(peek(vm));
+
 	Value stVal;
-	hashTableGet(&vm->exception->fields, vm->stField, &stVal);
+	hashTableGet(&exc->fields, vm->stField, &stVal);
 	ObjStackTrace *st = AS_STACK_TRACE(stVal);
 
 	for(;vm->frameCount > depth; vm->frameCount--) {
@@ -1398,20 +1375,15 @@ static bool unwindStack(BlangVM *vm, int depth) {
 
 		// if current frame has except or ensure handlers
 		if(frame->handlerc > 0) {
+			// restore state and jump to handler code
 			Handler *h = &frame->handlers[--frame->handlerc];
-			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), OBJ_VAL(vm->exception));
-			vm->exception = NULL;
+			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), pop(vm));
 			return true;
 		}
-
 	}
 
-	// We have reached the bottom of the stack, print the stacktrace and exit
-	if(vm->frameCount == 0) {
-		printStackTrace(vm, st);
-		reset(vm);
-	}
-
+	// we reached the end of the stack or a native/function boundary,
+	// return from evaluation leaving the exception on top of the stack
 	return false;
 }
 
@@ -1445,17 +1417,22 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 	pop(vm);
 
 	push(vm, OBJ_VAL(closure));
+
+	EvalResult res;
+
+	if((res =blCall(vm, 0)) != VM_EVAL_SUCCSESS) {
+		blPrintStackTrace(vm);
+	}
 	
-	EvalResult res = blCall(vm, 0);
-
-	if(res == VM_EVAL_SUCCSESS) pop(vm);
-
+	pop(vm);
 	return res;
 }
 
-static EvalResult blFinishCall(BlangVM *vm, int depth) {
+static EvalResult blFinishCall(BlangVM *vm, int depth, int off) {
+	EvalResult res = VM_EVAL_SUCCSESS;
+
 	if(vm->frameCount > depth) {
-		if(!runEval(vm, depth)) return VM_RUNTIME_ERR;
+		if(!runEval(vm, depth)) res = VM_RUNTIME_ERR;
 	}
 
 	// reset API stack if we are on a native frame
@@ -1465,37 +1442,48 @@ static EvalResult blFinishCall(BlangVM *vm, int depth) {
 		vm->apiStack = vm->stack;
 	}
 
-	return VM_EVAL_SUCCSESS;
+	// If exception was thrown, push it as result
+	if(res == VM_RUNTIME_ERR) {
+		Value exc = pop(vm);
+		vm->sp = vm->stack + off; // restore stack pointer to point of call
+		push(vm, exc);
+	}
+
+	return res;
 }
 
-static void blErrorCall(BlangVM *vm, int depth) {
-	if(depth == 0) {
-		if(vm->frameCount > 0) unwindStack(vm, 0);
-		else reset(vm);
+static void blErrorCall(BlangVM *vm, int depth, int offsp) {
+	// Finish to unwind the stack
+	if(vm->frameCount > depth) {
+		vm->sp = vm->stack + offsp;
+		unwindStack(vm, depth);
 	}
 }
 
 EvalResult blCall(BlangVM *vm, uint8_t argc) {
+	int offsp = vm->sp - vm->stack - argc + 1;
 	int depth = vm->frameCount;
 
 	if(!callValue(vm, peekn(vm, argc), argc)) {
-		blErrorCall(vm, depth);
+		blErrorCall(vm, depth, offsp);
 		return VM_RUNTIME_ERR;
 	}
 
-	return blFinishCall(vm, depth);
+	return blFinishCall(vm, depth, offsp);
 }
 
 EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
+	int offsp = vm->sp - vm->stack - argc + 1;
 	int depth = vm->frameCount;
+
 	ObjString *meth = copyString(vm, name, strlen(name), false);
 
 	if(!invokeFromValue(vm, meth, argc)) {
-		blErrorCall(vm, depth);
+		blErrorCall(vm, depth, offsp);
 		return VM_RUNTIME_ERR;
 	}
 
-	return blFinishCall(vm, depth);
+	return blFinishCall(vm, depth, offsp);
 }
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
@@ -1519,9 +1507,6 @@ void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 		blSetField(vm, -2, "err");
 		blPop(vm);
 	}
-
-	pop(vm);
-	vm->exception = excInst;
 }
 
 void blSetField(BlangVM *vm, int slot, const char *name) {

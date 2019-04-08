@@ -598,9 +598,6 @@ void garbageCollect(BlangVM *vm) {
 
 	reachObject(vm, (Obj*) vm->neg);
 
-	//reach current exception if present
-	reachObject(vm, (Obj*) vm->exception);
-
 	reachObject(vm, (Obj*) vm->ctor);
 	reachObject(vm, (Obj*) vm->stField);
 	reachObject(vm, (Obj*) vm->emptyTup);

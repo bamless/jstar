@@ -106,7 +106,7 @@ static uint64_t hash64(uint64_t x) {
 // Class
 
 void initCoreLibrary(BlangVM *vm) {
-	ObjString *name = copyString(vm, "__core__", 8, true);
+	ObjString *name = copyString(vm, CORE_MODULE, strlen(CORE_MODULE), true);
 
 	push(vm, OBJ_VAL(name));
 
@@ -721,7 +721,7 @@ NATIVE(bl_eval) {
 					 prevFrame->fn.native->c.module;
 
 	EvalResult res = blEvaluateModule(vm, "<string>", mod->name->data, blGetString(vm, 1));
-	if(res == VM_RUNTIME_ERR) return false;
+
 	blPushBoolean(vm, res == VM_EVAL_SUCCSESS);
 	return true;
 }

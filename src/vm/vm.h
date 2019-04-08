@@ -68,9 +68,6 @@ typedef struct BlangVM {
 	ObjClass *tupClass;
 	ObjClass *rangeClass;
 
-	// Current exception
-	ObjInstance *exception;
-
 	// Current VM compiler
 	Compiler *currCompiler;
 

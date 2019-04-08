@@ -56,8 +56,8 @@ void blPushValue(BlangVM *vm, int slot);
 void blSetField(BlangVM *vm, int slot, const char *name);
 bool blGetField(BlangVM *vm, int slot, const char *name);
 
-void blSetGlobal(BlangVM *vm, const char *module, const char *name);
-bool blGetGlobal(BlangVM *vm, const char *module, const char *name);
+bool blSetGlobal(BlangVM *vm, const char *mname, const char *name);
+bool blGetGlobal(BlangVM *vm, const char *mname, const char *name);
 
 double blGetNumber(BlangVM *vm, int slot);
 const char *blGetString(BlangVM *vm, int slot);
@@ -85,5 +85,7 @@ bool blCheckHandle(BlangVM *vm, int slot, const char *name);
 size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name);
 
 void blPop(BlangVM *vm);
+
+void blPrintStackTrace(BlangVM *vm);
 
 #endif
