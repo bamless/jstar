@@ -1273,12 +1273,13 @@ sup_invoke:;
 		DISPATCH();
 	}
 	TARGET(OP_ENSURE_END): {
-		UnwindCause cause = AS_NUM(peek2(vm));
+		Value exc = pop(vm), cause = pop(vm);
 
-		switch(cause) {
+		switch((UnwindCause) AS_NUM(cause)) {
 		case CAUSE_EXCEPT:
-			// if we still have the exception on top of the stack
-			if(!IS_NULL(peek(vm))) {
+			push(vm, exc);
+			// if we still have the exception
+			if(!IS_NULL(exc)) {
 				// continue unwinding
 				UNWIND_STACK(vm);
 			}
@@ -1287,8 +1288,7 @@ sup_invoke:;
 			while(frame->handlerc > 0) {
 				Handler *h = &frame->handlers[--frame->handlerc];
 				if(h->type == HANDLER_ENSURE) {
-					Value ret = pop(vm), cause = pop(vm);
-					UNWIND_HANDLER(h, cause, ret);
+					UNWIND_HANDLER(h, cause, exc);
 					LOAD_FRAME();
 					DISPATCH();
 				}
@@ -1376,8 +1376,9 @@ static bool unwindStack(BlangVM *vm, int depth) {
 		// if current frame has except or ensure handlers
 		if(frame->handlerc > 0) {
 			// restore state and jump to handler code
+			Value exc = pop(vm);
 			Handler *h = &frame->handlers[--frame->handlerc];
-			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), pop(vm));
+			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), exc);
 			return true;
 		}
 	}
@@ -1420,7 +1421,7 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 
 	EvalResult res;
 
-	if((res =blCall(vm, 0)) != VM_EVAL_SUCCSESS) {
+	if((res = blCall(vm, 0)) != VM_EVAL_SUCCSESS) {
 		blPrintStackTrace(vm);
 	}
 	
@@ -1461,7 +1462,7 @@ static void blErrorCall(BlangVM *vm, int depth, int offsp) {
 }
 
 EvalResult blCall(BlangVM *vm, uint8_t argc) {
-	int offsp = vm->sp - vm->stack - argc + 1;
+	int offsp = vm->sp - vm->stack - argc - 1;
 	int depth = vm->frameCount;
 
 	if(!callValue(vm, peekn(vm, argc), argc)) {
@@ -1473,7 +1474,7 @@ EvalResult blCall(BlangVM *vm, uint8_t argc) {
 }
 
 EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
-	int offsp = vm->sp - vm->stack - argc + 1;
+	int offsp = vm->sp - vm->stack - argc - 1;
 	int depth = vm->frameCount;
 
 	ObjString *meth = copyString(vm, name, strlen(name), false);
