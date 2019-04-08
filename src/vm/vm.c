@@ -1371,7 +1371,7 @@ sup_invoke:;
 }
 
 static bool unwindStack(BlangVM *vm, int depth) {
-	assert(IS_INSTANCE(peek(vm)), "Exception must be an object instance");
+	assert(IS_INSTANCE(peek(vm)), "Exception must be an instance object");
 	ObjInstance *exc = AS_INSTANCE(peek(vm));
 
 	Value stVal;
@@ -1396,7 +1396,7 @@ static bool unwindStack(BlangVM *vm, int depth) {
 		}
 	}
 
-	// we reached the end of the stack or a native/function boundary,
+	// we have reached the end of the stack or a native/function boundary,
 	// return from evaluation leaving the exception on top of the stack
 	return false;
 }
@@ -1519,7 +1519,7 @@ void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 		
 		blPushString(vm, errStr);
 		blSetField(vm, -2, "err");
-		blPop(vm);
+		pop(vm);
 	}
 }
 
