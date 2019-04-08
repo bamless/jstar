@@ -1285,6 +1285,7 @@ sup_invoke:;
 			}
 			break;
 		case CAUSE_RETURN:
+			// If there are other ensure handlers jump to them
 			while(frame->handlerc > 0) {
 				Handler *h = &frame->handlers[--frame->handlerc];
 				if(h->type == HANDLER_ENSURE) {
@@ -1293,7 +1294,8 @@ sup_invoke:;
 					DISPATCH();
 				}
 			}
-			
+
+			push(vm, exc); // The return value
 			GOTO(OP_RETURN);
 			break;
 		default: break;
