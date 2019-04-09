@@ -56,7 +56,7 @@ void blPushValue(BlangVM *vm, int slot);
 void blSetField(BlangVM *vm, int slot, const char *name);
 bool blGetField(BlangVM *vm, int slot, const char *name);
 
-bool blSetGlobal(BlangVM *vm, const char *mname, const char *name);
+void blSetGlobal(BlangVM *vm, const char *mname, const char *name);
 bool blGetGlobal(BlangVM *vm, const char *mname, const char *name);
 
 double blGetNumber(BlangVM *vm, int slot);

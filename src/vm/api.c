@@ -51,37 +51,26 @@ void blPop(BlangVM *vm) {
 	pop(vm);
 }
 
-bool blSetGlobal(BlangVM *vm, const char *mname, const char *name) {
+void blSetGlobal(BlangVM *vm, const char *mname, const char *name) {
+	assert(vm->module != NULL || mname != NULL, "Calling blSetGlobal outside of Native function requires specifying a module");
+
 	ObjModule *module = vm->module;
-	assert(module != NULL || mname != NULL, "Calling blSetGlobal outside of Native function requires specifying a module");
-	
 	if(mname != NULL) {
-		module = getModule(vm, copyString(vm, mname, strlen(mname), false));
+		module = getModule(vm, copyString(vm, mname, strlen(mname), true));
 	}
 
-	if(module == NULL) {
-		blRaise(vm, "Exception", "module %s not imported yet.", mname);
-		return false;
-	}
-
-	hashTablePut(&module->globals, copyString(vm, name, strlen(name), false), peek(vm));
-	return true;
+	hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
 bool blGetGlobal(BlangVM *vm, const char *mname, const char *name) {
-	ObjModule *module = vm->module;
-	assert(module != NULL || mname != NULL, "Calling blGetGlobal outside of Native function requires specifying a module");
-	
-	if(mname != NULL) {
-		module = getModule(vm, copyString(vm, mname, strlen(mname), false));
-	}
+	assert(vm->module != NULL || mname != NULL, "Calling blGetGlobal outside of Native function requires specifying a module");
 
-	if(module == NULL) {
-		blRaise(vm, "Exception", "module %s not imported yet.", mname);
-		return false;
+	ObjModule *module = vm->module;
+	if(mname != NULL) {
+		module = getModule(vm, copyString(vm, mname, strlen(mname), true));
 	}
 	
-	ObjString *namestr = copyString(vm, name, strlen(name), false);
+	ObjString *namestr = copyString(vm, name, strlen(name), true);
 
 	Value res;
 	if(!hashTableGet(&module->globals, namestr, &res)) {

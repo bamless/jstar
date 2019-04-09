@@ -1394,6 +1394,8 @@ static bool unwindStack(BlangVM *vm, int depth) {
 			UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_EXCEPT), exc);
 			return true;
 		}
+
+		closeUpvalues(vm, frame->stack);
 	}
 
 	// we have reached the end of the stack or a native/function boundary,
@@ -1442,14 +1444,14 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 	return res;
 }
 
-static EvalResult blFinishCall(BlangVM *vm, int depth, int off) {
+static EvalResult finishCall(BlangVM *vm, int depth, int offSp) {
 	EvalResult res = VM_EVAL_SUCCSESS;
 
 	if(vm->frameCount > depth) {
 		if(!runEval(vm, depth)) res = VM_RUNTIME_ERR;
 	}
 
-	// reset API stack if we are on a native frame
+	// reset API stack
 	if(vm->frameCount != 0 && vm->frames[vm->frameCount - 1].fn.type == OBJ_NATIVE) {
 		vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 	} else {
@@ -1458,19 +1460,21 @@ static EvalResult blFinishCall(BlangVM *vm, int depth, int off) {
 
 	// If exception was thrown, push it as result
 	if(res == VM_RUNTIME_ERR) {
-		Value exc = pop(vm);
-		vm->sp = vm->stack + off; // restore stack pointer to point of call
-		push(vm, exc);
+		Value exc = pop(vm);        // Pop off the exception
+		vm->sp = vm->stack + offSp; // Restore stack pointer to point of call
+		push(vm, exc);              // Push it as result
 	}
 
 	return res;
 }
 
-static void blErrorCall(BlangVM *vm, int depth, int offsp) {
+static void callError(BlangVM *vm, int depth, int offsp) {
 	// Finish to unwind the stack
 	if(vm->frameCount > depth) {
-		vm->sp = vm->stack + offsp;
 		unwindStack(vm, depth);
+		Value exc = pop(vm);
+		vm->sp = vm->stack + offsp;
+		push(vm, exc);
 	}
 }
 
@@ -1479,25 +1483,25 @@ EvalResult blCall(BlangVM *vm, uint8_t argc) {
 	int depth = vm->frameCount;
 
 	if(!callValue(vm, peekn(vm, argc), argc)) {
-		blErrorCall(vm, depth, offsp);
+		callError(vm, depth, offsp);
 		return VM_RUNTIME_ERR;
 	}
 
-	return blFinishCall(vm, depth, offsp);
+	return finishCall(vm, depth, offsp);
 }
 
 EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
 	int offsp = vm->sp - vm->stack - argc - 1;
 	int depth = vm->frameCount;
 
-	ObjString *meth = copyString(vm, name, strlen(name), false);
+	ObjString *meth = copyString(vm, name, strlen(name), true);
 
 	if(!invokeFromValue(vm, meth, argc)) {
-		blErrorCall(vm, depth, offsp);
+		callError(vm, depth, offsp);
 		return VM_RUNTIME_ERR;
 	}
 
-	return blFinishCall(vm, depth, offsp);
+	return finishCall(vm, depth, offsp);
 }
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
@@ -1525,12 +1529,12 @@ void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 
 void blSetField(BlangVM *vm, int slot, const char *name) {
 	Value val = apiStackSlot(vm, slot);
-	setFieldOfValue(vm, val, copyString(vm, name, strlen(name), false), peek(vm));
+	setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
 bool blGetField(BlangVM *vm, int slot, const char *name) {
     Value val = apiStackSlot(vm, slot);
-	return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), false));
+	return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), true));
 }
 
 void blInitCommandLineArgs(int argc, const char **argv) {
