@@ -9,6 +9,12 @@ static void validateStack(BlangVM *vm) {
 	assert((size_t)(vm->sp - vm->stack) != vm->stackSz, "Stack overflow");
 }
 
+static size_t checkIndex(BlangVM *vm, double i, size_t max, const char *name) {
+	if(i >= 0 && i < max) return (size_t) i;
+	blRaise(vm, "IndexOutOfBoundException", "%g.", i);
+	return SIZE_MAX;
+}
+
 void blPushNumber(BlangVM *vm, double number) {
 	validateStack(vm);
 	push(vm, NUM_VAL(number));
@@ -60,6 +66,42 @@ void blSetGlobal(BlangVM *vm, const char *mname, const char *name) {
 	}
 
 	hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
+}
+
+void blListAppend(BlangVM *vm, int slot) {
+	Value lst = apiStackSlot(vm, slot);
+	assert(IS_LIST(lst), "Not a list");
+	listAppend(vm, AS_LIST(lst), peek(vm));
+}
+
+void blListInsert(BlangVM *vm, double i, int slot) {
+	Value lstVal = apiStackSlot(vm, slot);
+	assert(IS_LIST(lstVal), "Not a list");
+	ObjList *lst = AS_LIST(lstVal);
+	size_t idx = checkIndex(vm, i, lst->count, "i");
+	listInsert(vm, lst, idx, peek(vm));
+}
+
+void blListRemove(BlangVM *vm, double i, int slot) {
+	Value lstVal = apiStackSlot(vm, slot);
+	assert(IS_LIST(lstVal), "Not a list");
+	ObjList *lst = AS_LIST(lstVal);
+	size_t idx = checkIndex(vm, i, lst->count, "i");
+	listRemove(vm, lst, idx);
+}
+
+void blListGet(BlangVM *vm, double i, int slot) {
+	Value lstVal = apiStackSlot(vm, slot);
+	assert(IS_LIST(lstVal), "Not a list");
+	ObjList *lst = AS_LIST(lstVal);
+	size_t idx = checkIndex(vm, i, lst->count, "i");
+	push(vm, lst->arr[idx]);
+}
+
+void blListGetLength(BlangVM *vm, int slot) {
+	Value lst = apiStackSlot(vm, slot);
+	assert(IS_LIST(lst), "Not a list");
+	push(vm, NUM_VAL((double)AS_LIST(lst)->count));
 }
 
 bool blGetGlobal(BlangVM *vm, const char *mname, const char *name) {
@@ -173,12 +215,8 @@ bool blCheckHandle(BlangVM *vm, int slot, const char *name) {
 
 size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name) {
 	if(!blCheckInt(vm, slot, name)) return SIZE_MAX;
-
 	double i = blGetNumber(vm, slot);
-	if(i >= 0 && i < max) return (size_t) i;
-
-	blRaise(vm, "IndexOutOfBoundException", "%g.", i);
-	return SIZE_MAX;
+	return checkIndex(vm, i, max, name);
 }
 
 void blPrintStackTrace(BlangVM *vm) {

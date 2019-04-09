@@ -50,8 +50,15 @@ void blPushString(BlangVM *vm, const char *string);
 void pushBoolean(BlangVM *vm, bool b);
 void blPushHandle(BlangVM *vm, void *handle);
 void blPushNull(BlangVM *vm);
+void blPushList(BlangVM *vm);
 void blPushValue(BlangVM *vm, int slot);
 #define blDup() blPushValue(vm, -1)
+
+void blListAppend(BlangVM *vm, int slot);
+void blListInsert(BlangVM *vm, double i, int slot);
+void blListRemove(BlangVM *vm, double i, int slot);
+void blListGet(BlangVM *vm, double i, int slot);
+void blListGetLength(BlangVM *vm, int slot);
 
 void blSetField(BlangVM *vm, int slot, const char *name);
 bool blGetField(BlangVM *vm, int slot, const char *name);
