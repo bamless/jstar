@@ -385,8 +385,8 @@ static void compileExprList(Compiler *c, Expr *e, int num) {
 	int i = 0;
 	LinkedList *n;
 	foreach(n, e->exprList.lst) {
-		if(++i > num) break;
 		compileExpr(c, (Expr*) n->elem);
+		if(++i > num) emitBytecode(c, OP_POP, 0);
 	}
 
 	if(i < num) {
