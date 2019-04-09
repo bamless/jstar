@@ -25,7 +25,7 @@ typedef enum HandlerType {
 
 // This stores the info needed to jump
 // to handler code and to restore the
-// VM state when handlung exceptions
+// VM state when handling exceptions
 typedef struct Handler {
 	HandlerType type; // The type of the handler block
 	uint8_t *handler; // The start of except (or ensure) handler
@@ -75,20 +75,18 @@ typedef struct BlangVM {
 	ObjString *ctor;
 	ObjString *stField;
 
-	// The empty tuple (singleton)
-	ObjTuple *emptyTup;
-
 	// Names of overloadable operator's methods
 	ObjString *add, *sub, *mul, *div, *mod, *get, *set;
 	ObjString *radd, *rsub, *rmul, *rdiv, *rmod;
 	ObjString *lt, *le, *gt, *ge, *eq, *neg;
 
+	// The empty tuple (singleton)
+	ObjTuple *emptyTup;
+
 	//loaded modules
 	HashTable modules;
-	//current module
-	ObjModule *module;
-	//core module
-	ObjModule *core;
+	//current module and core module
+	ObjModule *module, *core;
 
 	// VM program stack
 	size_t stackSz;

@@ -13,14 +13,14 @@
 #include "util/enum.h"
 
 /**
- * Objects' system of the Blang language.
+ * Object system of the Blang language.
  * Every object shares the base fields of the Obj struct, including it as the
  * first field in their declaration. This permits the casting of any pointer to
  * to Obj* and back, implementing a sort of manual polymorphism.
  * 
  * In addition to objects' definitions, this files define macros for testing and 
  * casting Obj* pointers. 
- * Note that casting macros do not perform any checking, thus an Object* pointer
+ * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
 **/
 
@@ -71,7 +71,7 @@ DEFINE_ENUM(ObjType, OBJTYPE);
 
 typedef struct ObjClass ObjClass;
 
-// Base class of all the Objects' system.
+// Base class of all the Objects.
 // Defines shared properties of all objects, such as the type and the class
 // field, as well as fields used for garbage collection, such as the reached
 // flag (used to test when an object is reachable, and thus not collectable)
@@ -86,7 +86,7 @@ typedef struct Obj {
 
 // A Blang String. In Blang Strings are immutable and can contain arbitrary
 // bytes since we explicitly store the string's length instead of relying on
-// NUL termination. Nevertheless a NUL byte is appended for ease of use in 
+// NUL termination. Nevertheless, a NUL byte is appended for ease of use in 
 // the C api.
 typedef struct ObjString {
 	Obj base;
@@ -162,13 +162,13 @@ typedef struct ObjBoundMethod {
 } ObjBoundMethod;
 
 // An upvalue is a variable captured from an outer scope by a closure.
-// when a closure is created, it instantiates an ObjClosure for all
-// variables used in the closure but declared in an outer function, 
-// and stores the stack address of such variables in the addr field.
+// when a closure of a function is created, it instantiates an ObjUpvalue 
+// for all  variables used in the function but declared in an outer one, 
+// and stores the stack address of such variable in the addr field.
 // When a variable that is also an upvalue gets out of scope, its Value
 // is copied in the closed field, and the addr field is set to &closed.
-// This way the variable can continued to be used in the closure even if
-// the stack frame that originally stored it has benn popped.
+// This way the variable can continue to be used even if the stack frame 
+// that originally stored it has benn popped.
 typedef struct ObjUpvalue {
 	Obj base;
 	Value *addr;             // The address of the upvalue

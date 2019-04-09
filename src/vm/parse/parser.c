@@ -20,6 +20,9 @@
 #define IS_IMPLICIT_END(t) \
 	(t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE || t == TOK_EXCEPT)
 
+#define IS_STATEMENT_END(t) \
+	(IS_IMPLICIT_END(t) || t == TOK_NEWLINE || t == TOK_SEMICOLON)
+
 #define IS_LVALUE(type) \
 	(type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC || type == TUPLE_LIT)
 
@@ -477,7 +480,7 @@ static Stmt *returnStmt(Parser *p) {
 	require(p, TOK_RETURN);
 
 	Expr *e = NULL;
-	if(!matchSkipnl(p, TOK_NEWLINE) && !matchSkipnl(p, TOK_EOF)) {
+	if(!IS_STATEMENT_END(p->peek.type)) {
 		e = parseExpr(p, true);
 	}
 	STATEMENT_END(p);
