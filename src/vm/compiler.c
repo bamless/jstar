@@ -270,6 +270,12 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 	chunk->code[jumpAddr + 2] = (uint8_t) ((uint16_t) offset);
 }
 
+static void callMethod(Compiler *c, const char *name, int args) {
+	Identifier method = {strlen(name), name};
+	emitBytecode(c, OP_INVOKE_0 + args, 0);
+	emitShort(c, identifierConst(c, &method, 0), 0);
+}
+
 static ObjString *readString(Compiler *c, Expr *e);
 
 static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) {
@@ -340,8 +346,10 @@ static void compileLogicExpr(Compiler *c, Expr *e) {
 static void compileUnaryExpr(Compiler *c, Expr *e) {
 	compileExpr(c, e->unary.operand);
 	switch(e->unary.op) {
-	case MINUS: emitBytecode(c, OP_NEG, e->line); break;
-	case NOT:   emitBytecode(c, OP_NOT, e->line); break;
+	case MINUS:    emitBytecode(c, OP_NEG, e->line); break;
+	case NOT:      emitBytecode(c, OP_NOT, e->line); break;
+	case LENGTH:   callMethod(c, "__len__", 0); break;
+	case STRINGOP: callMethod(c, "__string__", 0); break;
 	default:
 		UNREACHABLE();
 		break;
@@ -671,7 +679,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		compileAnonymousFunc(c, e);
 		break;
 	case SUPER_LIT:
-		error(c, e->line, "Can only use `super` inside methods");
+		error(c, e->line, "Can only use `super` in method call");
 		break;
 	}
 }
@@ -826,12 +834,6 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 	patchLoopExitStmts(c, forStart, cont, c->func->chunk.count);
 
 	exitScope(c);
-}
-
-static void callMethod(Compiler *c, const char *name, int args) {
-	Identifier method = {strlen(name), name};
-	emitBytecode(c, OP_INVOKE_0 + args, 0);
-	emitShort(c, identifierConst(c, &method, 0), 0);
 }
 
 /*
@@ -1389,6 +1391,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	size_t arity    = listLength(s->funcDecl.formalArgs);
 
 	c->func = newFunction(c->vm, module, NULL, arity, defaults);
+	c->func->c.vararg = s->funcDecl.isVararg;
 	addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
 	//create new method name by concatenating the class name to it
@@ -1419,6 +1422,12 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 	foreach(n, s->funcDecl.formalArgs) {
 		declareVar(c, (Identifier*) n->elem, s->line);
 		defineVar(c, (Identifier*) n->elem, s->line);
+	}
+
+	if(s->funcDecl.isVararg) {
+		Identifier args = {4, "args"};
+		declareVar(c, &args, s->line);
+		defineVar(c, &args, s->line);
 	}
 
 	compileStatements(c, s->funcDecl.body->blockStmt.stmts);

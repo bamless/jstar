@@ -43,7 +43,7 @@ NATIVE(bl_printstr);
 	NATIVE(bl_List_new);
 	NATIVE(bl_List_add);
 	NATIVE(bl_List_insert);
-	NATIVE(bl_List_size);
+	NATIVE(bl_List_len);
 	NATIVE(bl_List_removeAt);
 	NATIVE(bl_List_clear);
 	NATIVE(bl_List_subList);
@@ -52,14 +52,15 @@ NATIVE(bl_printstr);
 // } List
 
 // class Tuple {
-	NATIVE(bl_Tuple_size);
+	NATIVE(bl_Tuple_len);
 	NATIVE(bl_Tuple_iter);
 	NATIVE(bl_Tuple_next);
 // }
 
 // class String {
 	NATIVE(bl_substr);
-	NATIVE(bl_String_length);
+	NATIVE(bl_String_len);
+	NATIVE(bl_String_string);
 	NATIVE(bl_String_join);
 	NATIVE(bl_String_hash);
 	NATIVE(bl_String_eq);
