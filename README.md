@@ -21,7 +21,7 @@ You can then read them from the script this way:
 ```lua
 import sys
 
-if sys.args.size() > 0 then
+if #sys.args > 0 then
   print(sys.args[0])
 else
   raise Exception("No args provided")
