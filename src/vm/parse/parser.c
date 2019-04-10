@@ -799,6 +799,14 @@ static Expr *unaryExpr(Parser *p) {
 		advance(p);
 		return newUnary(line, MINUS, unaryExpr(p));
 	}
+	if(match(p, TOK_HASH)) {
+		advance(p);
+		return newUnary(line, LENGTH, unaryExpr(p));
+	}
+	if(match(p, TOK_HASH_HASH)) {
+		advance(p);
+		return newUnary(line, STRINGOP, unaryExpr(p));
+	}
 
 	return powExpr(p);
 }

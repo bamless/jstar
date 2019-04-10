@@ -400,7 +400,7 @@ NATIVE(bl_printstr) {
 		return true;
 	}
 
-	NATIVE(bl_List_size) {
+	NATIVE(bl_List_len) {
 		blPushNumber(vm, AS_LIST(vm->apiStack[0])->count);
 		return true;
 	}
@@ -484,7 +484,7 @@ NATIVE(bl_printstr) {
 // } List
 
 // class Tuple {
-	NATIVE(bl_Tuple_size) {
+	NATIVE(bl_Tuple_len) {
 		blPushNumber(vm, AS_TUPLE(vm->apiStack[0])->size);
 		return true;
 	}
@@ -583,8 +583,12 @@ NATIVE(bl_printstr) {
 		return true;
 	}
 
-	NATIVE(bl_String_length) {
+	NATIVE(bl_String_len) {
 		blPushNumber(vm, blGetStringSz(vm, 0));
+		return true;
+	}
+
+	NATIVE(bl_String_string) {
 		return true;
 	}
 

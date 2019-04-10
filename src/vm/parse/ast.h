@@ -7,7 +7,8 @@
 #include "linkedlist.h"
 
 typedef enum Operator {
-	PLUS, MINUS, MULT, DIV, MOD, EQ, NEQ, AND, OR, NOT, GT, GE, LT, LE, IS
+	PLUS, MINUS, MULT, DIV, MOD, EQ, NEQ, AND, OR, NOT, GT, GE, LT, LE, IS,
+	LENGTH, STRINGOP
 } Operator;
 
 typedef enum ExprType {

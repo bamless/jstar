@@ -197,12 +197,12 @@ static ObjClass *getClass(BlangVM *vm, Value v) {
 static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->numClass  || 
 	       cls == vm->strClass  ||
-           cls == vm->boolClass ||
+	       cls == vm->boolClass ||
 	       cls == vm->nullClass ||
-		   cls == vm->funClass  ||
-		   cls == vm->modClass  ||
-		   cls == vm->stClass   ||
-		   cls == vm->tupClass;
+	       cls == vm->funClass  ||
+	       cls == vm->modClass  ||
+	       cls == vm->stClass   ||
+	       cls == vm->tupClass;
 }
 
 static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
@@ -714,7 +714,6 @@ static bool runEval(BlangVM *vm, int depth) {
 				LOAD_FRAME();
 				ObjString *t1 = getClass(vm, peek(vm))->name;
 				ObjString *t2 = getClass(vm, peek2(vm))->name;
-
 				blRaise(vm, "TypeException", "Operator + not defined"
 				            " for types %s, %s", t1->data, t2->data);
 				UNWIND_STACK(vm);
@@ -740,7 +739,6 @@ static bool runEval(BlangVM *vm, int depth) {
 				LOAD_FRAME();
 				ObjString *t1 = getClass(vm, peek(vm))->name;
 				ObjString *t2 = getClass(vm, peek2(vm))->name;
-
 				blRaise(vm, "TypeException", "Operator / not defined"
 							" for types %s, %s", t1->data, t2->data);
 				UNWIND_STACK(vm);
@@ -764,9 +762,9 @@ static bool runEval(BlangVM *vm, int depth) {
 		} else {
 			SAVE_FRAME();
 			if(!callBinaryOverload(vm, vm->mod, vm->rmod)) {
+				LOAD_FRAME();
 				ObjString *t1 = getClass(vm, peek(vm))->name;
 				ObjString *t2 = getClass(vm, peek2(vm))->name;
-
 				blRaise(vm, "TypeException", "Operator %% not defined"
 							" for types %s, %s", t1->data, t2->data);
 				UNWIND_STACK(vm);
@@ -783,7 +781,7 @@ static bool runEval(BlangVM *vm, int depth) {
 	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);       DISPATCH();
 	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);       DISPATCH();
 	TARGET(OP_EQ): {
-		if(IS_NUM(peek2(vm)) || IS_BOOL(peek2(vm)) || IS_NULL(peek2(vm))) {
+		if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
 		} else {
 			ObjClass *cls = getClass(vm, peek2(vm));
@@ -811,8 +809,7 @@ static bool runEval(BlangVM *vm, int depth) {
 
 			SAVE_FRAME();
 			if(!invokeMethod(vm, cls, vm->neg, 0)) {
-				blRaise(vm, "TypeException", "Operator unary - not "
-							"defined for type %s", cls->name->data);
+				LOAD_FRAME();
 				UNWIND_STACK(vm);
 			}
 			LOAD_FRAME();
@@ -900,8 +897,7 @@ static bool runEval(BlangVM *vm, int depth) {
 
 			SAVE_FRAME();
 			if(!invokeMethod(vm, cls, vm->get, 1)) {
-				blRaise(vm, "TypeException", "Operator get [] "
-					"not defined for type %s", cls->name->data);
+				LOAD_FRAME();
 				UNWIND_STACK(vm);
 			}
 			LOAD_FRAME();
@@ -914,7 +910,6 @@ static bool runEval(BlangVM *vm, int depth) {
 				blRaise(vm, "TypeException", "Index of list access must be an integer.");
 				UNWIND_STACK(vm);
 			}
-
 
 			double index = AS_NUM(pop(vm));
 			ObjList *list = AS_LIST(pop(vm));
@@ -939,8 +934,7 @@ static bool runEval(BlangVM *vm, int depth) {
 
 			SAVE_FRAME();
 			if(!invokeMethod(vm, cls, vm->set, 2)) {
-				blRaise(vm, "TypeException", "Operator set [] "
-					"not defined for type %s", cls->name->data);
+				LOAD_FRAME();
 				UNWIND_STACK(vm);
 			}
 			LOAD_FRAME();
@@ -1024,6 +1018,7 @@ invoke:;
 
 		SAVE_FRAME();
 		if(!invokeFromValue(vm, name, argc)) {
+			LOAD_FRAME();
 			UNWIND_STACK(vm);
 		}
 		LOAD_FRAME();
@@ -1051,6 +1046,7 @@ sup_invoke:;
 		SAVE_FRAME();
 		ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
 		if(!invokeMethod(vm, inst->base.cls->superCls, name, argc)) {
+			LOAD_FRAME();
 			UNWIND_STACK(vm);
 		}
 		LOAD_FRAME();

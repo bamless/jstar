@@ -1,7 +1,13 @@
-class HashSet
-	fun new()
+class Set
+	fun new(...)
 		import map
-		this._map = map.HashMap()
+		this._map = map.Map()
+
+		if #args != 0 then
+			for var e in args do
+				this.add(e)
+			end
+		end
 	end
 
 	fun add(e)
@@ -51,12 +57,12 @@ class HashSet
 		this._map.clear()
 	end
 
-	fun size()
-		return this._map.size()
+	fun __len__()
+		return #this._map
 	end
 
 	fun empty()
-		return this.size() == 0
+		return #this == 0
 	end
 
 	fun intersect(c)
@@ -71,7 +77,6 @@ class HashSet
 		if i == null then
 			i = this._map.keyIterator()
 		end
-		
 		return i if i.__iter__(i) else null
 	end
 
@@ -85,8 +90,8 @@ class HashSet
 
 		for var k in this do
 			count += 1
-			s += str(k)
-			if count < this._map.size() then s += ", " end
+			s += ##k
+			if count < #this._map then s += ", " end
 		end
 
 		return s + "}"

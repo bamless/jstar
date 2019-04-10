@@ -12,14 +12,20 @@ class __Entry
 	end
 
 	fun __string__()
-		return "{" + str(this.key) + ":" + str(this.value) + "}"
+		return "{" + ##this.key + ":" + ##this.value + "}"
 	end
 end
 
-class HashMap
-	fun new()
+class Map
+	fun new(...)
 		this._count, this._size = 0, 16
 		this._entries = List(16)
+
+		if #args != 0 then
+			for var k, v in args do
+				this[k] = v
+			end
+		end
 	end
 
 	fun __getEntry(key)
@@ -44,7 +50,7 @@ class HashMap
 		var oldEntries = this._entries
 
 		this._size *= 2
-		this._entries = list(this._size)
+		this._entries = List(this._size)
 
 		for var e in oldEntries do
 			var head = e
@@ -109,22 +115,22 @@ class HashMap
 	end
 
 	fun containsValue(val)
-		var iterator = this.valueIterator()
-		while iterator.hasNext() do
-			if val == iterator.next() then
+		for var e in this.valueIterator() do
+			if e == val then
 				return true
 			end
 		end
+		return false
 	end
 
 	fun clear()
-		for var i = 0; i < this._entries.size(); i += 1 do
+		for var i = 0; i < this._size; i += 1 do
 			this._entries[i] = null
 		end
 		this._count = 0
 	end
 
-	fun size()
+	fun __len__()
 		return this._count
 	end
 
@@ -147,7 +153,7 @@ class HashMap
 
 		for var e in iterator do
 			count += 1
-			s = s + e.__string__()
+			s += ##e
 			if count < this._count then s += ", " end
 		end
 
@@ -157,7 +163,7 @@ end
 
 import set
 
-class __KeySet : set.HashSet
+class __KeySet : set.Set
 	fun new(map)
 		this._map = map
 	end

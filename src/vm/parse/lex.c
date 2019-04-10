@@ -294,6 +294,10 @@ void nextToken(Lexer *lex, Token *tok) {
 		if(match(lex, '=')) makeToken(lex, tok, TOK_GE);
 		else makeToken(lex, tok, TOK_GT);
 		break;
+	case '#':
+		if(match(lex, '#')) makeToken(lex, tok, TOK_HASH_HASH);
+		else makeToken(lex, tok, TOK_HASH);
+		break;
 	case '\n':
 		makeToken(lex, tok, TOK_NEWLINE);
 		lex->curr_line++;
