@@ -95,7 +95,6 @@ static void dorepl() {
 		lexNext();
 
 		sbuf_appendstr(&src, line);
-
 		sbuf_appendchar(&src, '\n');
 
 		int depth = countBlocks();
