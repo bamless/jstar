@@ -48,6 +48,11 @@ void blPushNull(BlangVM *vm) {
 	push(vm, NULL_VAL);
 }
 
+void blPushList(BlangVM *vm) {
+	validateStack(vm);
+	push(vm, OBJ_VAL(newList(vm, 16)));
+}
+
 void blPushValue(BlangVM *vm, int slot) {
 	push(vm, apiStackSlot(vm, slot));
 }

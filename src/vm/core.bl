@@ -234,6 +234,10 @@ fun write(o, file=null)
 	__printstr(##o, file)
 end
 
+fun type(o)
+	return o.__class__()
+end
+
 native int(n)
 native num(n)
 native char(num)

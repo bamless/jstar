@@ -14,6 +14,7 @@ NATIVE(bl_char);
 NATIVE(bl_ascii);
 
 NATIVE(bl_printstr);
+NATIVE(bl_eval);
 
 // class Number {
 	NATIVE(bl_Number_string);
@@ -73,7 +74,5 @@ NATIVE(bl_printstr);
 	NATIVE(bl_range_iter);
 	NATIVE(bl_range_next);
 //}
-
-NATIVE(bl_eval);
 
 #endif

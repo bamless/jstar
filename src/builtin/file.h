@@ -12,6 +12,7 @@ NATIVE(bl_File_size);
 NATIVE(bl_File_seek);
 NATIVE(bl_File_tell);
 NATIVE(bl_File_rewind);
+NATIVE(bl_File_flush);
 
 // } class File
 

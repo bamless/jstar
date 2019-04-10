@@ -666,7 +666,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 			i++;
 		}
 
-		if(i >= UINT8_MAX) {
+		if(i > UINT8_MAX) {
 			error(c, e->line, "too many elements in tuple");
 			break;
 		}

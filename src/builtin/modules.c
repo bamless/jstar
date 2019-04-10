@@ -141,6 +141,7 @@ Module builtInModules[] = {
 			METHOD(seek, &bl_File_seek)
 			METHOD(tell, &bl_File_tell)
 			METHOD(rewind, &bl_File_rewind)
+			METHOD(flush, &bl_File_flush)
 		ENDCLASS
 		FUNCTION(__open, &bl_open)
 	ENDMODULE

@@ -264,6 +264,21 @@ NATIVE(bl_printstr) {
 	return true;
 }
 
+NATIVE(bl_eval) {
+	if(!blCheckStr(vm, 1, "source")) return false;
+	if(vm->frameCount < 1) BL_RAISE(vm, "Exception", "eval() can only be called by another function");
+
+	Frame *prevFrame = &vm->frames[vm->frameCount - 2];
+	ObjModule *mod = prevFrame->fn.type == OBJ_CLOSURE ? 
+	                 prevFrame->fn.closure->fn->c.module : 
+					 prevFrame->fn.native->c.module;
+
+	EvalResult res = blEvaluateModule(vm, "<string>", mod->name->data, blGetString(vm, 1));
+
+	blPushBoolean(vm, res == VM_EVAL_SUCCSESS);
+	return true;
+}
+
 // class Number {
 	NATIVE(bl_Number_string) {
 		char str[24]; // enough for .*g with DBL_DIG
@@ -367,19 +382,26 @@ NATIVE(bl_printstr) {
 // class List {
 	NATIVE(bl_List_new) {
 		if(!blCheckInt(vm, 1, "size")) return false;
-
 		double count = blGetNumber(vm, 1);
 
 		if(count < 0) BL_RAISE(vm, "TypeException", "size must be >= 0");
 		ObjList *lst = newList(vm, count < 16 ? 16 : count);
-
-		size_t c = count;
-		for(size_t i = 0; i < c; i++) {
-			lst->arr[i] = vm->apiStack[2];
-		}
-		lst->count = c;
-
+		lst->count = count;
 		push(vm, OBJ_VAL(lst));
+
+		if(IS_CLOSURE(vm->apiStack[2]) || IS_NATIVE(vm->apiStack[2])) {
+			for(size_t i = 0; i < lst->count; i++) {
+				blPushValue(vm, 2);
+				blPushNumber(vm, i);
+				if(blCall(vm, 1) != VM_EVAL_SUCCSESS) return false;
+				lst->arr[i] = pop(vm);
+			}
+		} else {
+			for(size_t i = 0; i < lst->count; i++) {
+				lst->arr[i] = vm->apiStack[2];
+			}
+		}
+
 		return true;
 	}
 
@@ -714,18 +736,3 @@ NATIVE(bl_printstr) {
 		return true;
 	}
 // }
-
-NATIVE(bl_eval) {
-	if(!blCheckStr(vm, 1, "source")) return false;
-	if(vm->frameCount < 1) BL_RAISE(vm, "Exception", "eval() can only be called by another function");
-
-	Frame *prevFrame = &vm->frames[vm->frameCount - 2];
-	ObjModule *mod = prevFrame->fn.type == OBJ_CLOSURE ? 
-	                 prevFrame->fn.closure->fn->c.module : 
-					 prevFrame->fn.native->c.module;
-
-	EvalResult res = blEvaluateModule(vm, "<string>", mod->name->data, blGetString(vm, 1));
-
-	blPushBoolean(vm, res == VM_EVAL_SUCCSESS);
-	return true;
-}

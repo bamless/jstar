@@ -260,6 +260,19 @@ NATIVE(bl_File_size) {
 	blPushNumber(vm, getFileSize(f));
 	return true;
 }
+
+NATIVE(bl_File_flush) {
+	if(!checkClosed(vm)) return false;
+
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
+	FILE *f = (FILE*) blGetHandle(vm, -1);
+
+	fflush(f);
+
+	blPushNull(vm);
+	return true;
+}
 // } class File
 
 // functions

@@ -26,6 +26,7 @@ class File
 	native readAll()
 	native readLine()
 	native close()
+	native flush()
 
 	fun __iter__(_)
 		var l = this.readLine()
