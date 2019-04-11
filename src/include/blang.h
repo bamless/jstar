@@ -43,6 +43,8 @@ typedef bool (*Native)(BlangVM *vm);
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...);
 
+bool blEquals(BlangVM *vm);
+
 void blPushNumber(BlangVM *vm, double number);
 void blPushBoolean(BlangVM *vm, bool boolean);
 void blPushStringSz(BlangVM *vm, const char *string, size_t size);

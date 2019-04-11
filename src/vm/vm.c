@@ -182,18 +182,6 @@ static void ensureStack(BlangVM *vm, size_t needed) {
 	}
 }
 
-static ObjClass *getClass(BlangVM *vm, Value v) {
-  	if(IS_NUM(v)) {
-		return vm->numClass;
-	} else if(IS_BOOL(v)) {
-		return vm->boolClass;
-	} else if(IS_OBJ(v)) {
-		return AS_OBJ(v)->cls;
-	} else {
-		return vm->nullClass;
-	}
-}
-
 static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
 	return cls == vm->numClass  || 
 	       cls == vm->strClass  ||

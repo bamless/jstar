@@ -4,13 +4,6 @@ class __Entry
 		this.next = null
 	end
 
-	fun __eq__(o)
-		if !(o is __Entry) or o == null then
-			return false
-		end
-		return this.key == o.key and this.value == o.value
-	end
-
 	fun __string__()
 		return "{" + ##this.key + ":" + ##this.value + "}"
 	end
@@ -28,39 +21,10 @@ class Map
 		end
 	end
 
-	fun __getEntry(key)
-		var i = key.__hash__() % this._size
+    native __getEntry(key)
+    native __addEntry(e)
 
-		var buck = this._entries[i]
-		while buck != null do
-			if key == buck.key then return buck end
-			buck = buck.next
-		end
-
-		return null
-	end
-
-	fun __addEntry(e)
-		var i = e.key.__hash__() % this._size
-		e.next = this._entries[i]
-		this._entries[i] = e
-	end
-
-	fun __grow()
-		var oldEntries = this._entries
-
-		this._size *= 2
-		this._entries = List(this._size)
-
-		for var e in oldEntries do
-			var head = e
-			while head != null do
-				var a = head
-				head = head.next
-				this.__addEntry(a)
-			end
-		end
-	end
+    native __grow()
 
 	fun __get__(key)
 		var e = this.__getEntry(key)

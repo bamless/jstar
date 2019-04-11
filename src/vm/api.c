@@ -15,6 +15,22 @@ static size_t checkIndex(BlangVM *vm, double i, size_t max, const char *name) {
 	return SIZE_MAX;
 }
 
+bool blEquals(BlangVM *vm) {
+	if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
+		push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
+		return true;
+	} else {
+		ObjClass *cls = getClass(vm, peek2(vm));
+		Value eq;
+		if(hashTableGet(&cls->methods, vm->eq, &eq)) {
+			return blCallMethod(vm, "__eq__", 1) == VM_EVAL_SUCCSESS;
+		} else {
+			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
+			return true;
+		}
+	}
+}
+
 void blPushNumber(BlangVM *vm, double number) {
 	validateStack(vm);
 	push(vm, NUM_VAL(number));

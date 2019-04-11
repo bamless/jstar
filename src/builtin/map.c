@@ -1,4 +1,4 @@
-#include "newmap.h"
+#include "map.h"
 
 #include "vm.h"
 #include "memory.h"
@@ -27,11 +27,13 @@
             blGetField(vm, -1, "key");
             blPushValue(vm, 1);
             
-            if(blCallMethod(vm, "__eq__", 1) != VM_EVAL_SUCCSESS) return false;
+            if(!blEquals(vm)) return false;
             
-            if(blIsBoolean(vm, -1) && AS_BOOL(pop(vm))) {
+            if(blIsBoolean(vm, -1) && AS_BOOL(peek(vm))) {
+                pop(vm);
                 return true;
             }
+            pop(vm);
             
             blGetField(vm, -1, "next");
             buck = pop(vm);
@@ -85,6 +87,10 @@
             entries[i] = NULL_VAL;
         }
 
+        push(vm, OBJ_VAL(lst));
+        blSetField(vm, 0, "_entries");
+        pop(vm);
+
         for(size_t i = 0; i < size; i++) {
             Value buck = oldEntries[i];
 
@@ -102,9 +108,6 @@
                 buck = next;
             }
         }
-
-        push(vm, OBJ_VAL(lst));
-        blSetField(vm, 0, "_entries");
 
         blPushNull(vm);
         return true;

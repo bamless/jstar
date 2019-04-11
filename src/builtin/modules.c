@@ -10,6 +10,7 @@
 #include "file.h"
 #include "file.bl.h"
 
+#include "map.h"
 #include "map.bl.h"
 
 #include "set.bl.h"
@@ -19,9 +20,6 @@
 
 #include "rand.h"
 #include "rand.bl.h"
-
-#include "newmap.h"
-#include "newmap.bl.h"
 
 #include <string.h>
 
@@ -148,8 +146,7 @@ Module builtInModules[] = {
 		ENDCLASS
 		FUNCTION(__open, &bl_open)
 	ENDMODULE
-	MODULE(map) ENDMODULE
-	MODULE(newmap)
+	MODULE(map)
 		CLASS(Map)
 			METHOD(__getEntry, &bl_Map_getEntry)
 			METHOD(__addEntry, &bl_Map_addEntry)
