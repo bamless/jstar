@@ -6,7 +6,7 @@
 #include <string.h>
 
 static void validateStack(BlangVM *vm) {
-	assert((size_t)(vm->sp - vm->stack) != vm->stackSz, "Stack overflow");
+	assert((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
 }
 
 static size_t checkIndex(BlangVM *vm, double i, size_t max, const char *name) {
@@ -54,6 +54,7 @@ void blPushList(BlangVM *vm) {
 }
 
 void blPushValue(BlangVM *vm, int slot) {
+	validateStack(vm);
 	push(vm, apiStackSlot(vm, slot));
 }
 

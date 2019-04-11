@@ -20,6 +20,9 @@
 #include "rand.h"
 #include "rand.bl.h"
 
+#include "newmap.h"
+#include "newmap.bl.h"
+
 #include <string.h>
 
 typedef enum {
@@ -146,6 +149,13 @@ Module builtInModules[] = {
 		FUNCTION(__open, &bl_open)
 	ENDMODULE
 	MODULE(map) ENDMODULE
+	MODULE(newmap)
+		CLASS(Map)
+			METHOD(__getEntry, &bl_Map_getEntry)
+			METHOD(__addEntry, &bl_Map_addEntry)
+			METHOD(__grow, &bl_Map_grow)
+		ENDCLASS
+	ENDMODULE
 	MODULE(set) ENDMODULE
 	MODULE(debug)
 		FUNCTION(printStack, &bl_printStack)
