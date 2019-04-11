@@ -102,5 +102,5 @@ fun buildset(iter)
 	for var e in iter do
 		s.add(e)
 	end
-	return set
+	return s
 end
