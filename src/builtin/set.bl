@@ -34,8 +34,7 @@ class Set
 	fun removeAll(iterable)
 		var changed = false
 		for var e in iterable do
-			var r = this.remove(e)
-			changed = changed or r
+			changed = changed or this.remove(e)
 		end
 		return changed
 	end
@@ -45,12 +44,12 @@ class Set
 	end
 
 	fun containsAll(iterable)
-		var ret = true
 		for var e in iterable do
-			var r = this.contains(e)
-			ret = ret and r
+			if !this.contains(e) then
+				return false
+			end
 		end
-		return ret
+		return true
 	end
 
 	fun clear()
@@ -96,4 +95,12 @@ class Set
 
 		return s + "}"
 	end
+end
+
+fun buildset(iter)
+	var s = Set()
+	for var e in iter do
+		s.add(e)
+	end
+	return set
 end
