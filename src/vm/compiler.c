@@ -409,7 +409,6 @@ static void compileLval(Compiler *c, Expr *e) {
 		break;
 	case ACCESS_EXPR: {
 		compileExpr(c, e->accessExpr.left);
-
 		emitBytecode(c, OP_SET_FIELD, e->line);
 		emitShort(c, identifierConst(c, &e->accessExpr.id, e->line), e->line);
 		break;
@@ -445,34 +444,31 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		break;
 	}
 	case TUPLE_LIT: {
-		Expr *rval = e->assign.rval;
-		size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
-
-		if(rval->type == ARR_LIT || rval->type == TUPLE_LIT) {
-			Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
-			compileExprList(c, lst, num);
-		} else {
-			compileExpr(c, e->assign.rval);
-			emitBytecode(c, OP_UNPACK, e->line);
-		}
-
-		int i = 0;
+		int assignments = 0;
 		Expr *ass[UINT8_MAX];
 		
 		LinkedList *n;
 		foreach(n, e->assign.lval->tuple.exprs->exprList.lst) {
-			if(i == UINT8_MAX) {
+			if(assignments == UINT8_MAX) {
 				error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
 				break;
 			}
-			ass[i++] = (Expr*) n->elem;
+			ass[assignments++] = (Expr*) n->elem;
 		}
 
-		if(rval->type != ARR_LIT && rval->type != TUPLE_LIT) {
-			emitBytecode(c, (uint8_t) i, e->line);
+		Expr *rval = e->assign.rval;
+
+		if(rval->type == ARR_LIT || rval->type == TUPLE_LIT) {
+			Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
+			size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
+			compileExprList(c, lst, num);
+		} else {
+			compileExpr(c, e->assign.rval);
+			emitBytecode(c, OP_UNPACK, e->line);
+			emitBytecode(c, (uint8_t) assignments, e->line);
 		}
 
-		for(int n = i - 1; n >= 0; n--) {
+		for(int n = assignments - 1; n >= 0; n--) {
 			Expr *e = ass[n];
 			compileLval(c, e);
 			if(n != 0) emitBytecode(c, OP_POP, e->line);
@@ -685,17 +681,14 @@ static void compileExpr(Compiler *c, Expr *e) {
 }
 
 static void compileVarDecl(Compiler *c, Stmt *s) {
+	int numDecls = 0;
+	Identifier *decls[UINT8_MAX + 1];
+
 	LinkedList *n;
-
-	int num = 0;
-	Identifier *ids[UINT8_MAX + 1];
-
 	foreach(n, s->varDecl.ids) {
-		ids[num++] = (Identifier*) n->elem;
-	}
-
-	for(int i = 0; i < num; i++) {
-		declareVar(c, ids[i], s->line);
+		Identifier *name = (Identifier*) n->elem;
+		decls[numDecls++] = name;
+		declareVar(c, name, s->line);
 	}
 
 	if(s->varDecl.init != NULL) {
@@ -703,26 +696,26 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 		
 		if(s->varDecl.isUnpack && (t == ARR_LIT || t == TUPLE_LIT)) {
 			Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
-			compileExprList(c, e, num);
+			compileExprList(c, e, numDecls);
 		} else {
 			compileExpr(c, s->varDecl.init);
 
 			if(s->varDecl.isUnpack) {
 				emitBytecode(c, OP_UNPACK, s->line);
-				emitBytecode(c, (uint8_t) num, s->line);
+				emitBytecode(c, (uint8_t) numDecls, s->line);
 			}
 		}
 	} else {
-		for(int i = 0; i < num; i++) {
+		for(int i = 0; i < numDecls; i++) {
 			emitBytecode(c, OP_NULL, s->line);
 		}
 	}
 
 	// define in reverse ordeer in order to define global vars
 	// in the right order
-	for(int i = num - 1; i >= 0; i--) {
+	for(int i = numDecls - 1; i >= 0; i--) {
 		if(c->depth == 0)
-			defineVar(c, ids[i], s->line);
+			defineVar(c, decls[i], s->line);
 		else
 			c->locals[c->localsCount - i - 1].depth = c->depth;
 	}
