@@ -13,11 +13,7 @@ class File
 		this._handle = __open(name, mode)
 		this._closed = false
 	end
-
-	fun __iterator__()
-		return __FileIterator(this)
-	end
-
+	
 	native tell()
 	native seek(off, whence=0)
 	native rewind()
