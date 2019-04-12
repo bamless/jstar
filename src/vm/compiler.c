@@ -1090,7 +1090,7 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 		}
 	} else if(s->importStmt.as.name != NULL) {
 		// set last import as an import as
-		c->func->chunk.code[c->func->chunk.count - 2] = OP_IMPORT_AS;
+		c->func->chunk.code[c->func->chunk.count - 3] = OP_IMPORT_AS;
 		// emit the as name
 		emitShort(c, identifierConst(c, &s->importStmt.as, s->line), s->line);
 	}
