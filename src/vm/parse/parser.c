@@ -992,31 +992,28 @@ static Expr *parseExpr(Parser *p, bool tuple) {
 
 		while(match(p, TOK_COMMA)) {
 			advance(p);
-			
-			if(!IS_EXPR_START(p->peek.type)) 
-				break;
-
+			if(!IS_EXPR_START(p->peek.type)) break;
 			exprs = addElement(exprs, ternaryExpr(p));
-		}
-
-		if(match(p, TOK_EQUAL)) {
-			LinkedList *n;
-			foreach(n, exprs) {
-				if(!IS_LVALUE(((Expr*)n->elem)->type)) {
-					error(p, "Left hand side of assignment must be an lvalue.HERE");
-				}
-			}
 		}
 
 		l = newTupleLiteral(line, newExprList(line, exprs));
 	}
 
 	if(IS_ASSIGN(p->peek.type)) {
+		TokenType t = p->peek.type;
+		
 		if(l != NULL && !IS_LVALUE(l->type)) {
 			error(p, "Left hand side of assignment must be an lvalue.");
 		}
-
-		TokenType t = p->peek.type;
+		if(l != NULL && l->type == TUPLE_LIT) {
+			LinkedList *n;
+			foreach(n, l->tuple.exprs->exprList.lst) {
+				if(!IS_LVALUE(((Expr*) n->elem)->type)) error(p, "Left hand side of assignment must be an lvalue.");
+			}
+			if(t != TOK_EQUAL) {
+				error(p, "Unpack cannot use compund assignement.");
+			}
+		}
 
 		advance(p);
 		Expr *r = parseExpr(p, true);

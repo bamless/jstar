@@ -21,10 +21,10 @@ class Map
 		end
 	end
 
-    native __getEntry(key)
-    native __addEntry(e)
+	native __getEntry(key)
+	native __addEntry(e)
 
-    native __grow()
+	native __grow()
 
 	fun __get__(key)
 		var e = this.__getEntry(key)

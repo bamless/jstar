@@ -389,7 +389,7 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
 	}
 }
 
-static void compileExprList(Compiler *c, Expr *e, int num) {
+static void compileUnpackList(Compiler *c, Expr *e, int num) {
 	int i = 0;
 	LinkedList *n;
 	foreach(n, e->exprList.lst) {
@@ -461,7 +461,7 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 		if(rval->type == ARR_LIT || rval->type == TUPLE_LIT) {
 			Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
 			size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
-			compileExprList(c, lst, num);
+			compileUnpackList(c, lst, num);
 		} else {
 			compileExpr(c, e->assign.rval);
 			emitBytecode(c, OP_UNPACK, e->line);
@@ -525,8 +525,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 	uint8_t argsc = 0;
 	foreach(n, e->callExpr.args->exprList.lst) {
 		if(argsc == UINT8_MAX) {
-			error(c, e->line,
-				"Too many arguments for function %s.", c->func->c.name->data);
+			error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
 			return;
 		}
 
@@ -682,10 +681,14 @@ static void compileExpr(Compiler *c, Expr *e) {
 
 static void compileVarDecl(Compiler *c, Stmt *s) {
 	int numDecls = 0;
-	Identifier *decls[UINT8_MAX + 1];
+	Identifier *decls[UINT8_MAX];
 
 	LinkedList *n;
 	foreach(n, s->varDecl.ids) {
+		if(numDecls == UINT8_MAX) {
+			error(c, s->line, "Too many variables in declaration: %d.", numDecls);
+			break;
+		}
 		Identifier *name = (Identifier*) n->elem;
 		decls[numDecls++] = name;
 		declareVar(c, name, s->line);
@@ -696,7 +699,7 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 		
 		if(s->varDecl.isUnpack && (t == ARR_LIT || t == TUPLE_LIT)) {
 			Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
-			compileExprList(c, e, numDecls);
+			compileUnpackList(c, e, numDecls);
 		} else {
 			compileExpr(c, s->varDecl.init);
 
@@ -1138,15 +1141,13 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
 }
 
 static void enterTryBlock(Compiler *c, Stmt *try) {
-	if(try->tryStmt.ensure != NULL && try->tryStmt.excs != NULL)
-		c->tryDepth++;
-	c->tryDepth++;
+	if(try->tryStmt.ensure != NULL) c->tryDepth++;
+	if(try->tryStmt.excs != NULL)   c->tryDepth++;
 }
 
 static void exitTryBlock(Compiler *c, Stmt *try) {
-	if(try->tryStmt.ensure != NULL && try->tryStmt.excs != NULL)
-		c->tryDepth--;
-	c->tryDepth--;
+	if(try->tryStmt.ensure != NULL) c->tryDepth--;
+	if(try->tryStmt.excs != NULL)   c->tryDepth--;
 }
 
 static void compileTryExcept(Compiler *c, Stmt *s) {
@@ -1230,6 +1231,22 @@ static void compileRaiseStmt(Compiler *c, Stmt *s) {
 	emitBytecode(c, OP_RAISE, s->line);
 }
 
+static void compileLoopExitStmt(Compiler *c, Stmt *s) {
+	bool isBreak = s->type == BREAK_STMT;
+
+	if(c->loops == NULL) {
+		error(c, s->line, "cannot use %s outside loop.", isBreak ? "break" : "continue");
+		return;
+	}
+	if(c->tryDepth != 0) {
+		error(c, s->line, "cannot use %s inside a try except.", isBreak ? "break" : "continue");
+	}
+
+	discardScope(c, c->loops->depth);
+	emitBytecode(c, isBreak ? OP_SIGN_BRK : OP_SIGN_CONT, s->line);
+	emitShort(c, 0, 0);
+}
+
 static void compileStatement(Compiler *c, Stmt *s) {
 	switch(s->type) {
 	case IF:
@@ -1282,28 +1299,8 @@ static void compileStatement(Compiler *c, Stmt *s) {
 		compileTryExcept(c, s);
 		break;
 	case CONTINUE_STMT:
-		if(c->loops == NULL) {
-			error(c, s->line, "cannot use continue outside loop.");
-			break;
-		}
-		if(c->tryDepth != 0) {
-			error(c, s->line, "cannot use continue inside a try except.");
-		}
-		discardScope(c, c->loops->depth);
-		emitBytecode(c, OP_SIGN_CONT, s->line);
-		emitShort(c, 0, 0);
-		break;
-	case BREAK_STMT:
-		if(c->loops == NULL) {
-			error(c, s->line, "cannot use break outside loop.");
-			break;
-		}
-		if(c->tryDepth != 0) {
-			error(c, s->line, "cannot use break inside a try except.");
-		}
-		discardScope(c, c->loops->depth);
-		emitBytecode(c, OP_SIGN_BRK, s->line);
-		emitShort(c, 0, 0);
+	case BREAK_STMT: 
+		compileLoopExitStmt(c, s); 
 		break;
 	case EXCEPT_STMT:
 		UNREACHABLE();
