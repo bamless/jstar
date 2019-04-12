@@ -37,7 +37,7 @@ static void header() {
 	  0
 	};
 	printf("%s", blang_ascii_art);
-	printf("Version %d.%d.%d\n", BLANG_VERSION_MAJOR, BLANG_VERSION_MINOR, BLANG_VERSION_PATCH);
+	printf("Version %s\n", BLANG_VERSION_STRING);
 }
 
 static void completion(const char *buf, linenoiseCompletions *lc) {
@@ -81,13 +81,14 @@ static int countBlocks() {
 }
 
 static void dorepl() {
-	header();
 	linenoiseSetCompletionCallback(completion);
 
 	StringBuffer src;
 	sbuf_create(&src);
 
 	char *line;
+
+	header();
 	while((line = linenoise("blang>> ")) != NULL) {
 		linenoiseHistoryAdd(line);
 

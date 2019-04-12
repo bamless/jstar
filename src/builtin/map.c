@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "object.h"
 
+// TODO: consider implementing Map as a built-in object for performance
 // class Map
     NATIVE(bl_Map_getEntry) {
         blPushValue(vm, 1);

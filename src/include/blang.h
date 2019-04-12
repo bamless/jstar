@@ -5,6 +5,16 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define BLANG_VERSION_MAJOR 0
+#define BLANG_VERSION_MINOR 1
+#define BLANG_VERSION_PATCH 0
+
+#define BLANG_VERSION_STRING "0.1.0"
+
+#define BLANG_VERSION (BLANG_VERSION_MAJOR * 100000 + \
+                       BLANG_VERSION_MINOR * 1000 + \
+					   BLANG_VERSION_PATCH)
+
 typedef enum {
 	VM_EVAL_SUCCSESS, // The VM successfully executed the code
 	VM_SYNTAX_ERR,    // A syntax error has been encountered in parsing
