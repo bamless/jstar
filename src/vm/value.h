@@ -131,6 +131,8 @@ typedef struct {
 #define IS_NUM(val)    ((val).type == VAL_NUM)
 #define IS_NULL(val)   ((val).type == VAL_NULL)
 
+#define IS_INT(val)    (IS_NUM(val) && (int64_t) AS_NUM(val) == AS_NUM(val))
+
 #define AS_HANDLE(val) ((val).handle)
 #define AS_BOOL(value) ((value).boolean)
 #define AS_NUM(value)  ((value).num)
