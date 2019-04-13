@@ -1262,13 +1262,13 @@ sup_invoke:;
 
 			switch(cause) {
 			case CAUSE_EXCEPT: {
-				Value exc = pop(vm);
-
-				pop(vm);       // Pop away the cause
-				push(vm, exc); // Push the exception on top of stack
-
 				// if we still have the exception on the top of the stack
-				if(!IS_NULL(exc)) {
+				if(!IS_NULL(peek(vm))) {
+					// remove the cause leaving the exception on top
+					// of the stack
+					vm->sp[-2] = vm->sp[-1];
+					vm->sp--;
+
 					// continue unwinding
 					UNWIND_STACK(vm);
 				}
