@@ -8,10 +8,7 @@
 
 #include <stdint.h>
 
-#define MAX_LOCALS UINT8_MAX
-
 #define CTOR_STR "new"
-#define THIS_STR "this"
 
 typedef struct BlangVM BlangVM;
 typedef struct Compiler Compiler;

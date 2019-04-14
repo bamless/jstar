@@ -14,6 +14,9 @@
 #include <stdarg.h>
 
 #define MAX_TRY_DEPTH HANDLER_MAX
+#define MAX_LOCALS UINT8_MAX
+
+#define THIS_STR "this"
 
 typedef struct Local {
 	Identifier id;
@@ -662,7 +665,7 @@ static void compileExpr(Compiler *c, Expr *e) {
 		}
 
 		if(i > UINT8_MAX) {
-			error(c, e->line, "too many elements in tuple");
+			error(c, e->line, "Too many elements in tuple literal.");
 			break;
 		}
 
@@ -681,17 +684,14 @@ static void compileExpr(Compiler *c, Expr *e) {
 
 static void compileVarDecl(Compiler *c, Stmt *s) {
 	int numDecls = 0;
-	Identifier *decls[UINT8_MAX];
+	Identifier *decls[MAX_LOCALS];
 
 	LinkedList *n;
 	foreach(n, s->varDecl.ids) {
-		if(numDecls == UINT8_MAX) {
-			error(c, s->line, "Too many variables in declaration: %d.", numDecls);
-			break;
-		}
 		Identifier *name = (Identifier*) n->elem;
-		decls[numDecls++] = name;
 		declareVar(c, name, s->line);
+		if(numDecls == MAX_LOCALS) break;
+		decls[numDecls++] = name;
 	}
 
 	if(s->varDecl.init != NULL) {
@@ -1007,6 +1007,7 @@ static void compileMethods(Compiler *c, Stmt* cls) {
 			Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
 			if(identifierEquals(&ctor, &m->nativeDecl.id)) {
 				error(c, m->line, "Cannot declare native constructor");
+				continue;
 			}
 
 			size_t defaults = listLength(m->nativeDecl.defArgs);
