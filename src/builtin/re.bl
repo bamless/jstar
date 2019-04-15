@@ -1,0 +1,5 @@
+class RegexException : Exception end
+
+native match(str, regex, off=0)
+native find(str, regex, off=0)
+native gmatch(str, regex)

@@ -18,6 +18,9 @@
 #include "debug.h"
 #include "debug.bl.h"
 
+#include "re.h"
+#include "re.bl.h"
+
 #include "rand.h"
 #include "rand.bl.h"
 
@@ -68,24 +71,24 @@ typedef struct {
 
 Module builtInModules[] = {
 	COREMODULE
-		FUNCTION(int, &bl_int)
-		FUNCTION(num, &bl_num)
-		FUNCTION(isInt, &bl_isInt)
-		FUNCTION(char, &bl_char)
-		FUNCTION(ascii, &bl_ascii)
+		FUNCTION(int,        &bl_int)
+		FUNCTION(num,        &bl_num)
+		FUNCTION(isInt,      &bl_isInt)
+		FUNCTION(char,       &bl_char)
+		FUNCTION(ascii,      &bl_ascii)
 		FUNCTION(__printstr, &bl_printstr)
 		CLASS(Number)
 			METHOD(__string__, &bl_Number_string)
-			METHOD(__class__, &bl_Number_class)
-			METHOD(__hash__, &bl_Number_hash)
+			METHOD(__class__,  &bl_Number_class)
+			METHOD(__hash__,   &bl_Number_hash)
 		ENDCLASS
 		CLASS(Boolean)
 			METHOD(__string__, &bl_Boolean_string)
-			METHOD(__class__, &bl_Boolean_class)
+			METHOD(__class__,  &bl_Boolean_class)
 		ENDCLASS
 		CLASS(Null)
 			METHOD(__string__, &bl_Null_string)
-			METHOD(__class__, &bl_Null_class)
+			METHOD(__class__,  &bl_Null_class)
 		ENDCLASS
 		CLASS(Function)
 			METHOD(__string__, &bl_Function_string)
@@ -94,28 +97,28 @@ Module builtInModules[] = {
 			METHOD(__string__, &bl_Module_string)
 		ENDCLASS
 		CLASS(List)
-			METHOD(add, &bl_List_add)
-			METHOD(insert, &bl_List_insert)
+			METHOD(add,      &bl_List_add)
+			METHOD(insert,   &bl_List_insert)
 			METHOD(removeAt, &bl_List_removeAt)
-			METHOD(clear,  &bl_List_clear)
-			METHOD(subList, &bl_List_subList)
-			METHOD(__len__, &bl_List_len)
+			METHOD(clear,    &bl_List_clear)
+			METHOD(subList,  &bl_List_subList)
+			METHOD(__len__,  &bl_List_len)
 			METHOD(__iter__, &bl_List_iter)
 			METHOD(__next__, &bl_List_next)
 		ENDCLASS
 		CLASS(Tuple)
-			METHOD(__len__, bl_Tuple_len)
+			METHOD(__len__,  &bl_Tuple_len)
 			METHOD(__iter__, &bl_Tuple_iter)
 			METHOD(__next__, &bl_Tuple_next)
 		ENDCLASS
 		CLASS(String)
-			METHOD(substr, &bl_substr)
-			METHOD(__eq__, &bl_String_eq)
-			METHOD(__len__, &bl_String_len)
-			METHOD(__join, &bl_String_join)
-			METHOD(__hash__, &bl_String_hash)
-			METHOD(__iter__, &bl_String_iter)
-			METHOD(__next__, &bl_String_next)
+			METHOD(substr,     &bl_substr)
+			METHOD(__eq__,     &bl_String_eq)
+			METHOD(__len__,    &bl_String_len)
+			METHOD(__join,     &bl_String_join)
+			METHOD(__hash__,   &bl_String_hash)
+			METHOD(__iter__,   &bl_String_iter)
+			METHOD(__next__,   &bl_String_next)
 			METHOD(__string__, &bl_String_string)
 		ENDCLASS
 		CLASS(range)
@@ -125,24 +128,24 @@ Module builtInModules[] = {
 		FUNCTION(eval, &bl_eval)
 	ENDMODULE
 	MODULE(sys)
-		FUNCTION(exit, &bl_exit)
+		FUNCTION(exit,           &bl_exit)
 		FUNCTION(getImportPaths, &bl_getImportPaths)
-		FUNCTION(platform, &bl_platform)
-		FUNCTION(clock, &bl_clock)
-		FUNCTION(gc, &bl_gc)
-		FUNCTION(gets, &bl_gets)
-		FUNCTION(__init, &bl_init)
+		FUNCTION(platform,       &bl_platform)
+		FUNCTION(clock,          &bl_clock)
+		FUNCTION(gc,             &bl_gc)
+		FUNCTION(gets,           &bl_gets)
+		FUNCTION(__init,         &bl_init)
 	ENDMODULE
 	MODULE(file)
 		CLASS(File)
-			METHOD(size, &bl_File_size)
-			METHOD(readAll, &bl_File_readAll)
+			METHOD(size,     &bl_File_size)
+			METHOD(readAll,  &bl_File_readAll)
 			METHOD(readLine, &bl_File_readLine)
-			METHOD(close, &bl_File_close)
-			METHOD(seek, &bl_File_seek)
-			METHOD(tell, &bl_File_tell)
-			METHOD(rewind, &bl_File_rewind)
-			METHOD(flush, &bl_File_flush)
+			METHOD(close,    &bl_File_close)
+			METHOD(seek,     &bl_File_seek)
+			METHOD(tell,     &bl_File_tell)
+			METHOD(rewind,   &bl_File_rewind)
+			METHOD(flush,    &bl_File_flush)
 		ENDCLASS
 		FUNCTION(__open, &bl_open)
 	ENDMODULE
@@ -150,17 +153,22 @@ Module builtInModules[] = {
 		CLASS(Map)
 			METHOD(__getEntry, &bl_Map_getEntry)
 			METHOD(__addEntry, &bl_Map_addEntry)
-			METHOD(__grow, &bl_Map_grow)
+			METHOD(__grow,     &bl_Map_grow)
 		ENDCLASS
 	ENDMODULE
 	MODULE(set) ENDMODULE
 	MODULE(debug)
 		FUNCTION(printStack, &bl_printStack)
-		FUNCTION(dis, &bl_dis)
+		FUNCTION(dis,        &bl_dis)
+	ENDMODULE
+	MODULE(re)
+		FUNCTION(match,  &bl_re_match)
+		FUNCTION(find,   &bl_re_find)
+		FUNCTION(gmatch, &bl_re_gmatch)
 	ENDMODULE
 	MODULE(rand)
 		FUNCTION(__initseed, &bl_initseed)
-		FUNCTION(random, &bl_random)
+		FUNCTION(random,     &bl_random)
 	ENDMODULE
 	MODULES_END
 };
