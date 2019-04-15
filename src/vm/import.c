@@ -55,7 +55,6 @@ ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program) {
 	}
 
 	ObjFunction *fn = compile(vm, module, program);
-
 	return fn;
 }
 
@@ -71,30 +70,15 @@ ObjModule *getModule(BlangVM *vm, ObjString *name) {
 	return AS_MODULE(module);
 }
 
-static Stmt *parseModule(const char *path, const char *source) {
-	Parser p;
-	Stmt *program = parse(&p, path, source);
-
-	if(p.hadError) {
-		freeStmt(program);
-		return NULL;
-	}
-
-	return program;
-}
-
 static bool importWithSource(BlangVM *vm, const char* path, ObjString *name, const char *source) {
-	Stmt *program = parseModule(path, source);
-	if(program == NULL) {
-		return false;
-	}
+	Parser p;
+	Stmt *program = parse(&p, path, source, false);
+	if(p.hadError) return false;
 
 	ObjFunction *module = compileWithModule(vm, name, program);
 	freeStmt(program);
 
-	if(module == NULL) {
-		return false;
-	}
+	if(module == NULL) return false;
 	
 	push(vm, OBJ_VAL(module));
 	return true;

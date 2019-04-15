@@ -42,6 +42,8 @@ bool sbuf_endswith(StringBuffer *sbuf, const char *str);
 void sbuf_append(StringBuffer *sbuf, const char *str, size_t len);
 /*Appends a string (NUL terminated char array) to the stringbuffer*/
 void sbuf_appendstr(StringBuffer *sbuf, const char *str);
+void sbuf_prepend(StringBuffer *sbuf, const char *str, size_t len);
+void sbuf_prependstr(StringBuffer *sbuf, const char *str);
 /*Appends a char to the stringbuffer*/
 void sbuf_appendchar(StringBuffer *sbuf, char c);
 /*Replace char src with r starting from start*/

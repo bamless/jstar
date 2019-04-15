@@ -1396,24 +1396,17 @@ EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src) {
 EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, const char *src) {
 	Parser p;
 
-	Stmt *program = parse(&p, fpath, src);
-	if(p.hadError) {
-		freeStmt(program);
-		return VM_SYNTAX_ERR;
-	}
+	Stmt *program = parse(&p, fpath, src, false);
+	if(p.hadError) return VM_SYNTAX_ERR;
 
 	ObjString *name = copyString(vm, module, strlen(module), true);
 	ObjFunction *fn = compileWithModule(vm, name, program);
-
 	freeStmt(program);
-	if(fn == NULL) {
-		return VM_COMPILE_ERR;
-	}
+
+	if(fn == NULL) return VM_COMPILE_ERR;
 
 	push(vm, OBJ_VAL(fn));
-
 	ObjClosure *closure = newClosure(vm, fn);
-
 	pop(vm);
 
 	push(vm, OBJ_VAL(closure));

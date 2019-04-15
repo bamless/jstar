@@ -2,25 +2,19 @@
 #include <errno.h>
 #include <string.h>
 
-#include "options.h"
 #include "blang.h"
 
+#include "parse/parser.h"
 #include "parse/lex.h"
 
 #include "linenoise/linenoise.h"
 #include "util/stringbuf.h"
 
+static Parser p;
 static Lexer lex;
-static Token prev;
-static Token cur;
+static Token tok;
 
 static BlangVM *vm;
-
-static Token *lexNext() {
-	prev = cur;
-	nextToken(&lex, &cur);
-	return &cur;
-}
 
 static void header() {
 	const char blang_ascii_art[] = {
@@ -40,78 +34,77 @@ static void header() {
 	printf("Version %s\n", BLANG_VERSION_STRING);
 }
 
+// Little hack to enable adding a tab in linenoise
 static void completion(const char *buf, linenoiseCompletions *lc) {
-	char *ret = malloc(strlen(buf) + 5);
-	strcpy(ret, buf);
-	strcat(ret, "    ");
-	linenoiseAddCompletion(lc, ret);
-	free(ret);
+	char indented[1025];
+	snprintf(indented, sizeof(indented), "%s    ", buf);
+	linenoiseAddCompletion(lc, indented);
 }
 
-static int countBlocks() {
-	static bool inelif = false;
+static int countBlocks(const char *line) {
+	initLexer(&lex, line);
+	nextToken(&lex, &tok);
 
 	int depth = 0;
-	while(cur.type != TOK_EOF && cur.type != TOK_NEWLINE) {
-		switch(cur.type) {
+	while(tok.type != TOK_EOF && tok.type != TOK_NEWLINE) {
+		switch(tok.type) {
 		case TOK_BEGIN:
 		case TOK_DO:
 		case TOK_CLASS:
 		case TOK_FUN:
 		case TOK_TRY:
+		case TOK_THEN:
 			depth++;
 			break;
-		case TOK_THEN:
-			if(inelif)
-				inelif = false;
-			else
-				depth++;
-			break;
+		case TOK_ELIF:
 		case TOK_END:
 			depth--;
 			break;
-		case TOK_ELIF:
-			inelif = true;
-			break;
 		default: break;
 		}
-		lexNext();
+		nextToken(&lex, &tok);
 	}
 	return depth;
 }
 
+static void addPrintIfExpr(StringBuffer *sb) {
+	Expr *e;
+	char *src = sbuf_get_backing_buf(sb);
+	// If the line is a (correctly formed) expression
+	if((e = parseExpression(&p, "", src, true)) != NULL) {
+		freeExpr(e);
+		// assign the result of the expression to `_`
+		sbuf_prependstr(sb, "var _ = ");
+		// print `_` if not null
+		sbuf_appendstr(sb, "if _ != null then print(_) end");
+	}
+}
+
 static void dorepl() {
+	header();
 	linenoiseSetCompletionCallback(completion);
 
 	StringBuffer src;
 	sbuf_create(&src);
 
 	char *line;
-
-	header();
 	while((line = linenoise("blang>> ")) != NULL) {
 		linenoiseHistoryAdd(line);
-
-		initLexer(&lex, line);
-		lexNext();
-
+		
+		int depth = countBlocks(line);
 		sbuf_appendstr(&src, line);
 		sbuf_appendchar(&src, '\n');
 
-		int depth = countBlocks();
-
 		free(line);
+
+		if(depth == 0) addPrintIfExpr(&src);
 
 		while(depth > 0 && (line = linenoise("....... ")) != NULL) {
 			linenoiseHistoryAdd(line);
 
-			initLexer(&lex, line);
-			lexNext();
-
+			depth += countBlocks(line);
 			sbuf_appendstr(&src, line);
 			sbuf_appendchar(&src, '\n');
-
-			depth += countBlocks();
 
 			free(line);
 		}
@@ -121,6 +114,7 @@ static void dorepl() {
 	}
 
 	sbuf_destroy(&src);
+	linenoiseHistoryFree();
 }
 
 static char* readSrcFile(const char *path) {

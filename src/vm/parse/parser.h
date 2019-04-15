@@ -12,10 +12,12 @@ typedef struct Parser {
 	const char *fname;
 	TokenType prevType;
 	const char *lnStart;
+	bool silent;
 	bool panic;
 	bool hadError;
 } Parser;
 
-Stmt *parse(Parser *p, const char *fname, const char *src);
+Stmt *parse(Parser *p, const char *fname, const char *src, bool silent);
+Expr *parseExpression(Parser *p, const char *fname, const char *src, bool silent);
 
 #endif

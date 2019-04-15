@@ -59,6 +59,21 @@ void sbuf_append(StringBuffer *sbuf, const char *str, size_t len) {
 	sbuf->buff[sbuf->len] = '\0';
 }
 
+void sbuf_appendstr(StringBuffer *sbuf, const char *str) {
+	sbuf_append(sbuf, str, strlen(str));
+}
+
+void sbuf_prepend(StringBuffer *sbuf, const char *str, size_t len) {
+	if(sbuf->len + len >= sbuf->size) sbuf_grow(sbuf, len + 1); //the >= and the +1 are for the terminating NUL
+	memmove(sbuf->buff + len, sbuf->buff, sbuf->len);
+	memcpy(sbuf->buff, str, len);
+	sbuf->len += len;
+	sbuf->buff[sbuf->len] = '\0';
+}
+void sbuf_prependstr(StringBuffer *sbuf, const char *str) {
+	sbuf_prepend(sbuf, str, strlen(str));
+}
+
 size_t sbuf_get_backing_size(StringBuffer *sbuf) {
 	return sbuf->size;
 }
@@ -69,10 +84,6 @@ char* sbuf_detach(StringBuffer *sbuf) {
 	sbuf->size = DEFAULT_LENGTH;
 	sbuf_clear(sbuf);
 	return buf;
-}
-
-void sbuf_appendstr(StringBuffer *sbuf, const char *str) {
-	sbuf_append(sbuf, str, strlen(str));
 }
 
 void sbuf_appendchar(StringBuffer *sbuf, char c) {

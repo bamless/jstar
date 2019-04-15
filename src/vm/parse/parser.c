@@ -58,21 +58,22 @@ static char *strchrnul(const char *str, char c) {
 
 static void error(Parser *p, const char *msg) {
 	if(p->panic) return;
-	fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
+	p->panic = p->hadError = true;
 
-	int tokOff  = (int)((p->peek.lexeme) - p->lnStart);
-	int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
+	if(!p->silent) {
+		fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
 
-	fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
-	fprintf(stderr, "    ");
-	for(int i = 0; i < tokOff; i++) {
-		fprintf(stderr, " ");
+		int tokOff  = (int)((p->peek.lexeme) - p->lnStart);
+		int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
+
+		fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
+		fprintf(stderr, "    ");
+		for(int i = 0; i < tokOff; i++) {
+			fprintf(stderr, " ");
+		}
+		fprintf(stderr, "^\n");
+		fprintf(stderr, "%s\n", msg);
 	}
-	fprintf(stderr, "^\n");
-	fprintf(stderr, "%s\n", msg);
-
-	p->panic = true;
-	p->hadError = true;
 }
 
 static void advance(Parser *p) {
@@ -159,11 +160,58 @@ static void classSynchronize(Parser *p) {
 //----- Recursive descent parser implementation ------
 
 static Expr *parseExpr(Parser *p, bool tuple);
-static Expr *literal(Parser *p);
+static Stmt *parseProgram(Parser *p);
 
+static void initParser(Parser *p, const char *fname, const char *src, bool silent) {
+	p->silent = silent;
+	p->panic = false;
+	p->hadError = false;
+	p->fname = fname;
+	p->prevType = -1;
+
+	initLexer(&p->lex, src);
+	nextToken(&p->lex, &p->peek);
+
+	p->lnStart = p->peek.lexeme;
+}
+
+Stmt *parse(Parser *p, const char *fname, const char *src, bool silent) {
+	initParser(p, fname, src, silent);
+
+	Stmt *program = parseProgram(p);
+
+	if(!matchSkipnl(p, TOK_EOF))
+		error(p, "Unexpected token.");
+
+	if(p->hadError) {
+		freeStmt(program);
+		return NULL;
+	}
+	
+	return program;
+}
+
+Expr *parseExpression(Parser *p, const char *fname, const char *src, bool silent) {
+	initParser(p, fname, src, silent);
+
+	Expr *expr = parseExpr(p, true);
+
+	if(!matchSkipnl(p, TOK_EOF))
+		error(p, "Unexpected token.");
+
+	if(p->hadError) {
+		freeExpr(expr);
+		return NULL;
+	}
+
+	return expr;
+}
+
+//----- Declarations ------
+
+static Expr *literal(Parser *p);
 static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p);
-static Stmt *varDecl(Parser *p);
 
 static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, bool *vararg) {
 	require(p, TOK_LPAREN);
@@ -285,6 +333,34 @@ static Stmt *parseClassDecl(Parser *p) {
 	return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
 }
 
+static Stmt *varDecl(Parser *p) {
+	int line = p->peek.line;
+
+	bool isUnpack = false;
+	LinkedList *ids = NULL;
+
+	require(p, TOK_VAR);
+
+	do {
+		Token id = require(p, TOK_IDENTIFIER);
+		ids = addElement(ids, newIdentifier(id.length, id.lexeme));
+
+		if(match(p, TOK_COMMA)) {
+			advance(p);
+			isUnpack = true;
+			if(!match(p, TOK_IDENTIFIER)) break;
+		}
+	} while(match(p, TOK_IDENTIFIER));
+
+	Expr *init = NULL;
+	if(match(p, TOK_EQUAL)) {
+		advance(p);
+		init = parseExpr(p, true);
+	}
+
+	return newVarDecl(line, isUnpack, ids, init);
+}
+
 static Stmt *parseDeclaration(Parser *p) {
 	if(matchSkipnl(p, TOK_CLASS)) {
 		return parseClassDecl(p);
@@ -316,54 +392,7 @@ static Stmt *parseProgram(Parser *p) {
 	return newFuncDecl(0, false, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
 }
 
-Stmt *parse(Parser *p, const char *fname, const char *src) {
-	p->panic = false;
-	p->hadError = false;
-	p->fname = fname;
-	p->prevType = -1;
-
-	initLexer(&p->lex, src);
-	nextToken(&p->lex, &p->peek);
-
-	p->lnStart = p->peek.lexeme;
-
-	Stmt *program = parseProgram(p);
-
-	if(!matchSkipnl(p, TOK_EOF))
-		error(p, "Unexpected token.");
-
-	return program;
-}
-
 //----- Statements parse ------
-
-static Stmt *varDecl(Parser *p) {
-	int line = p->peek.line;
-
-	bool isUnpack = false;
-	LinkedList *ids = NULL;
-
-	require(p, TOK_VAR);
-
-	do {
-		Token id = require(p, TOK_IDENTIFIER);
-		ids = addElement(ids, newIdentifier(id.length, id.lexeme));
-
-		if(match(p, TOK_COMMA)) {
-			advance(p);
-			isUnpack = true;
-			if(!match(p, TOK_IDENTIFIER)) break;
-		}
-	} while(match(p, TOK_IDENTIFIER));
-
-	Expr *init = NULL;
-	if(match(p, TOK_EQUAL)) {
-		advance(p);
-		init = parseExpr(p, true);
-	}
-
-	return newVarDecl(line, isUnpack, ids, init);
-}
 
 static Stmt *parseElif(Parser *p);
 
@@ -763,7 +792,7 @@ static Expr *anonymousFunc(Parser *p) {
 		bool vararg = false;
 		LinkedList *args = NULL, *defArgs = NULL;
 		formalArgs(p, &args, &defArgs, &vararg);
-
+		
 		Stmt *body = blockStmt(p);
 
 		require(p, TOK_END);
