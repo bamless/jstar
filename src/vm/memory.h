@@ -12,6 +12,7 @@
 
 typedef struct Frame Frame;
 typedef struct BlangVM BlangVM;
+typedef struct BlBuffer BlBuffer;
 
 // Launch a garbage collection. It scans all roots (VM stack, global Strings, etc...)
 // marking all the reachable objects (recursively, if needed) and then calls freeObjects
@@ -39,7 +40,6 @@ ObjTuple *newTuple(BlangVM *vm, size_t size);
 ObjStackTrace *newStackTrace(BlangVM *vm);
 
 ObjString *allocateString(BlangVM *vm, size_t length);
-void reallocateString(BlangVM *vm, ObjString *str, size_t newLen);
 ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
 
 // Dumps a frame in a ObjStackTrace
@@ -49,6 +49,8 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
 void listAppend(BlangVM *vm, ObjList *lst, Value v);
 void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val);
 void listRemove(BlangVM *vm, ObjList *lst, size_t index);
+
+ObjString *blBufferToString(BlBuffer *b);
 
 static inline uint32_t hashString(const char *str, size_t length) {
 	uint32_t hash = 2166136261u;

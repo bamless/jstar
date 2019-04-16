@@ -1,7 +1,6 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "memory.h"
 #include "object.h"
 
 #include "parse/ast.h"

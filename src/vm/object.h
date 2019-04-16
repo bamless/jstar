@@ -198,9 +198,7 @@ typedef struct ObjRange {
 typedef struct ObjStackTrace {
 	Obj base;
 	int lastTracedFrame;
-	size_t size;
-	size_t length;
-	char *trace;
+	BlBuffer stacktrace;
 } ObjStackTrace;
 
 // Prints an Obj in a human readable form

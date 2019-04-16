@@ -1,7 +1,4 @@
 #include "file.h"
-#include "memory.h"
-#include "object.h"
-#include "vm.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -26,50 +23,37 @@
 
 // static helper functions
 
-static ObjString *readline(BlangVM *vm, FILE *file) {
-	size_t len = 0;
-	size_t size = 256;
-	ObjString *line = allocateString(vm, size);
+static bool readline(BlangVM *vm, BlBuffer *b, FILE *file) {
+	blBufferInitSz(vm, b, 16);
 
-	char *ret = fgets(line->data, size + 1, file);
+	char buf[512];
+	char *ret = fgets(buf, sizeof(buf), file);
 	if(ret == NULL) {
 		if(feof(file)) {
-			reallocateString(vm, line, 0);
-			return line;
+			return true;
 		} else {
-			return NULL;
+			blBufferFree(b);
+			return false;
 		}
 	}
-	len = strlen(line->data);
+	blBufferAppendstr(b, buf);
 
 	char *newLine;
-	while((newLine = strchr(line->data, '\n')) == NULL) {
-		char buf[256];
-
+	while((newLine = strchr(b->data, '\n')) == NULL) {
 		ret = fgets(buf, sizeof(buf), file);
 		if(ret == NULL) {
 			if(feof(file)) {
 				break;
 			} else {
-				return NULL;
+				blBufferFree(b);
+				return false;
 			}
 		}
 
-		size_t bufLen = strlen(buf);
-		while(len + bufLen >= size) {
-			size_t newSize = size * 2;
-			reallocateString(vm, line, newSize);
-			size = newSize;
-		}
-
-		memcpy(line->data + len, buf, bufLen);
-		len += bufLen;
+		blBufferAppendstr(b, buf);
 	}
 
-	if(line->length != len)
-		reallocateString(vm, line, len);
-	
-	return line;
+	return true;
 }
 
 static int64_t getFileSize(FILE *stream) {
@@ -205,13 +189,16 @@ NATIVE(bl_File_readAll) {
 		return true;
 	}
 
-	ObjString *data = allocateString(vm, size);
+	BlBuffer data;
+	blBufferInitSz(vm, &data, size + 1);
+	data.len = size;
 
-	if(fread(data->data, sizeof(char), size, f) < (size_t) size) {
+	if(fread(data.data, sizeof(char), size, f) < (size_t) size) {
+		blBufferFree(&data);
 		BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
 	}
 
-	push(vm, OBJ_VAL(data));
+	blBufferPush(&data);
 	return true;
 }
 
@@ -223,12 +210,12 @@ NATIVE(bl_File_readLine) {
 
 	FILE *f = (FILE*) blGetHandle(vm, -1);
 
-	ObjString *line = readline(vm, f);
-	if(line == NULL) {
+	BlBuffer line;
+	if(!readline(vm, &line, f)) {
 		BL_RAISE(vm, "IOException", strerror(errno));
 	}
 
-	push(vm, OBJ_VAL(line));
+	blBufferPush(&line);
 	return true;
 }
 

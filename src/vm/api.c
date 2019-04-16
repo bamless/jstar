@@ -1,6 +1,7 @@
 #include "blang.h"
 #include "util.h"
 #include "import.h"
+#include "memory.h"
 #include "vm.h"
 
 #include <string.h>
@@ -98,7 +99,7 @@ void blListInsert(BlangVM *vm, size_t i, int slot) {
 	Value lstVal = apiStackSlot(vm, slot);
 	assert(IS_LIST(lstVal), "Not a list");
 	ObjList *lst = AS_LIST(lstVal);
-	assert(i >= 0 && i < lst->count, "Out of bounds");
+	assert(i < lst->count, "Out of bounds");
 	listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
@@ -106,7 +107,7 @@ void blListRemove(BlangVM *vm, size_t i, int slot) {
 	Value lstVal = apiStackSlot(vm, slot);
 	assert(IS_LIST(lstVal), "Not a list");
 	ObjList *lst = AS_LIST(lstVal);
-	assert(i >= 0 && i < lst->count, "Out of bounds");
+	assert(i < lst->count, "Out of bounds");
 	listRemove(vm, lst, (size_t)i);
 }
 
@@ -114,7 +115,7 @@ void blListGet(BlangVM *vm, size_t i, int slot) {
 	Value lstVal = apiStackSlot(vm, slot);
 	assert(IS_LIST(lstVal), "Not a list");
 	ObjList *lst = AS_LIST(lstVal);
-	assert(i >= 0 && i < lst->count, "Out of bounds");
+	assert(i < lst->count, "Out of bounds");
 	push(vm, lst->arr[(size_t)i]);
 }
 
@@ -250,11 +251,11 @@ void blPrintStackTrace(BlangVM *vm) {
 	ObjStackTrace *st = AS_STACK_TRACE(stval);
 
 	// Print stacktrace in reverse order of recording (most recent call last)
-	if(st->length > 0) {
+	if(st->stacktrace.len > 0) {
 		fprintf(stderr, "Traceback (most recent call last):\n");
 
-		char *stacktrace = st->trace;
-		int lastnl = st->length;
+		char *stacktrace = st->stacktrace.data;
+		int lastnl = st->stacktrace.len;
 		for(int i = lastnl - 1; i > 0; i--) {
 			if(stacktrace[i - 1] == '\n') {
 				fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);

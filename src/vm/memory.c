@@ -162,44 +162,19 @@ ObjTuple *newTuple(BlangVM *vm, size_t size) {
 #define ST_DEF_SIZE 16
 
 ObjStackTrace *newStackTrace(BlangVM *vm) {
-	char *trace = GC_ALLOC(vm, sizeof(char) * ST_DEF_SIZE);
+	BlBuffer stacktrace;
+	blBufferInit(vm, &stacktrace);
 	ObjStackTrace *st = (ObjStackTrace*) newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
-	st->size = ST_DEF_SIZE;
-	st->length = 0;
-	st->trace = trace;
-	st->trace[0] = '\0';
+	st->stacktrace = stacktrace;
 	st->lastTracedFrame = -1;
 	return st;
 }
 
-static void growStackTrace(BlangVM *vm, ObjStackTrace *st, size_t len) {
-	size_t newSize = st->size;
-
-	while(newSize < st->length + len)
-		newSize <<= 1;
-
-	char *newBuf = GCallocate(vm, st->trace, st->size, newSize);
-	st->size = newSize;
-	st->trace = newBuf;
-}
-
-static void stAppenString(BlangVM *vm, ObjStackTrace *st, const char *str) {
-	size_t len = strlen(str);
-	if(st->length + len >= st->size) 
-		growStackTrace(vm, st, len + 1); //the >= and the +1 are for the terminating NUL
-
-	memcpy(&st->trace[st->length], str, len);
-	st->length += len;
-	st->trace[st->length] = '\0';
-}
-
 void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 	if(st->lastTracedFrame == depth) return;
-
 	st->lastTracedFrame = depth;
 
 	Callable *c = f->fn.type == OBJ_CLOSURE ? &f->fn.closure->fn->c : &f->fn.native->c;
-
 	char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = { 0 };
 
 	if(f->fn.type == OBJ_CLOSURE) {
@@ -210,19 +185,19 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 		line[0] = '?';
 	}
 
-	stAppenString(vm, st, "[line ");
-	stAppenString(vm, st, line);
-	stAppenString(vm, st, "] ");
+	blBufferAppendstr(&st->stacktrace, "[line");
+	blBufferAppendstr(&st->stacktrace, line);
+	blBufferAppendstr(&st->stacktrace, "] ");
 
-	stAppenString(vm, st, "module ");
-	stAppenString(vm, st, c->module->name->data);
-	stAppenString(vm, st, " in ");
+	blBufferAppendstr(&st->stacktrace, "module ");
+	blBufferAppendstr(&st->stacktrace, c->module->name->data);
+	blBufferAppendstr(&st->stacktrace, " in ");
 
 	if(c->name != NULL) {
-		stAppenString(vm, st, c->name->data);
-		stAppenString(vm, st, "()\n");
+		blBufferAppendstr(&st->stacktrace, c->name->data);
+		blBufferAppendstr(&st->stacktrace, "()\n");
 	} else {
-		stAppenString(vm, st, "<main>\n");
+		blBufferAppendstr(&st->stacktrace, "<main>\n");
 	}
 }
 
@@ -288,19 +263,6 @@ ObjString *allocateString(BlangVM *vm, size_t length) {
 	str->data = data;
 	str->data[str->length] = '\0';
 	return str;
-}
-
-void reallocateString(BlangVM *vm, ObjString *str, size_t newLen) {
-	if(str->hash != 0) {
-		fprintf(stderr, "Cannot use reallocateString to reallocate a string already in use by the runtime.\n");
-		abort();
-	}
-
-	push(vm, OBJ_VAL(str));
-	str->data = GCallocate(vm, str->data, str->length + 1, newLen + 1);
-	str->length = newLen;
-	str->data[str->length] = '\0';
-	pop(vm);
 }
 
 static ObjString *newString(BlangVM *vm, const char *cstring, size_t length) {
@@ -381,7 +343,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
 	}
 	case OBJ_STACK_TRACE: {
 		ObjStackTrace *st = (ObjStackTrace*) o;
-		GC_FREEARRAY(vm, char, st->trace, st->size);
+		blBufferFree(&st->stacktrace);
 		GC_FREE(vm, ObjStackTrace, st);
 		break;
 	}
@@ -654,7 +616,11 @@ void garbageCollect(BlangVM *vm) {
 #endif
 }
 
-// BlBuffer
+/**
+ * =========================================================
+ * BlBuffer functions implementation
+ * =========================================================
+ */
 
 #define BUF_DEF_SZ 16
 
@@ -715,12 +681,18 @@ void blBufferPrependstr(BlBuffer *b, const char *str) {
 	blBufferPrepend(b, str, strlen(str));
 }
 
+void blBufferAppendChar(BlBuffer *b, char c) {
+	if(b->len + 1 >= b->size) blBufGrow(b, 2);
+	b->data[b->len++] = c;
+	b->data[b->len] = '\0';
+}
+
 void blBufferClear(BlBuffer *b) {
 	b->len = 0;
 	b->data[0] = '\0';
 }
 
-void blBufferPush(BlBuffer *b) {
+ObjString *blBufferToString(BlBuffer *b) {
 	char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
 
 	ObjString *s = (ObjString*) newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
@@ -728,11 +700,16 @@ void blBufferPush(BlBuffer *b) {
 	s->length = b->len;
 	s->data = data;
 	s->hash = 0;
-	push(b->vm, OBJ_VAL(s));
 
 	b->data = NULL;
 	b->vm = NULL;
 	b->len = b->size = 0;
+
+	return s;
+}
+
+void blBufferPush(BlBuffer *b) {
+	push(b->vm, OBJ_VAL(blBufferToString(b)));
 }
 
 void blBufferFree(BlBuffer *b) {

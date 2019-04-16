@@ -2,10 +2,9 @@
 #include "memory.h"
 #include "opcode.h"
 #include "value.h"
+#include "blang.h"
 #include "util.h"
 #include "vm.h"
-
-#include "util/stringbuf.h"
 
 #include "parse/ast.h"
 
@@ -1441,33 +1440,31 @@ static ObjString *readString(Compiler *c, Expr *e) {
 	const char *str = e->str.str + 1;
 	size_t length = e->str.length - 2;
 
-	StringBuffer sb;
-	sbuf_create(&sb);
+	BlBuffer sb;
+	blBufferInit(c->vm, &sb);
+
 	for(size_t i = 0; i < length; i++) {
 		char c = str[i];
 		if (c == '\\') {
 			switch(str[i + 1]) {
-			case '0':  sbuf_appendchar(&sb, '\0'); break;
-			case 'a':  sbuf_appendchar(&sb, '\a'); break;
-			case 'b':  sbuf_appendchar(&sb, '\b'); break;
-			case 'f':  sbuf_appendchar(&sb, '\f'); break;
-			case 'n':  sbuf_appendchar(&sb, '\n'); break;
-			case 'r':  sbuf_appendchar(&sb, '\r'); break;
-			case 't':  sbuf_appendchar(&sb, '\t'); break;
-			case 'v':  sbuf_appendchar(&sb, '\v'); break;
-			case 'e':  sbuf_appendchar(&sb, '\e'); break;  
-			default:   sbuf_appendchar(&sb, str[i + 1]); break;
+			case '0':  blBufferAppendChar(&sb, '\0'); break;
+			case 'a':  blBufferAppendChar(&sb, '\a'); break;
+			case 'b':  blBufferAppendChar(&sb, '\b'); break;
+			case 'f':  blBufferAppendChar(&sb, '\f'); break;
+			case 'n':  blBufferAppendChar(&sb, '\n'); break;
+			case 'r':  blBufferAppendChar(&sb, '\r'); break;
+			case 't':  blBufferAppendChar(&sb, '\t'); break;
+			case 'v':  blBufferAppendChar(&sb, '\v'); break;
+			case 'e':  blBufferAppendChar(&sb, '\e'); break;  
+			default:   blBufferAppendChar(&sb, str[i + 1]); break;
 			}
 			i++;
 		} else {
-			sbuf_appendchar(&sb, c);
+			blBufferAppendChar(&sb, c);
 	  	}
 	}
 
-	ObjString *s = copyString(c->vm, sbuf_get_backing_buf(&sb),  sbuf_get_len(&sb), true);
-	sbuf_destroy(&sb);
-
-	return s;
+	return blBufferToString(&sb);
 }
 
 void reachCompilerRoots(BlangVM *vm, Compiler *c) {

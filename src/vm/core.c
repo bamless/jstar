@@ -1,6 +1,7 @@
 #include "core.h"
 #include "modules.h"
 #include "import.h"
+#include "memory.h"
 #include "vm.h"
 
 #include <stdio.h>

@@ -47,21 +47,15 @@ NATIVE(bl_gc) {
 }
 
 NATIVE(bl_gets) {
-	ObjString *str = allocateString(vm, 16);
-	size_t i = 0;
+	BlBuffer b;
+	blBufferInit(vm, &b);
 
 	int c;
 	while((c = getc(stdin)) != EOF && c != '\n') {
-		if(i + 1 > str->length) {
-			reallocateString(vm, str, str->length * 2);
-		}
-		str->data[i++] = c;
+		blBufferAppendChar(&b, c);
 	}
 
-	if(str->length != i)
-		reallocateString(vm, str, i);
-
-	push(vm, OBJ_VAL(str));
+	blBufferPush(&b);
 	return true;
 }
 
