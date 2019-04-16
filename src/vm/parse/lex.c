@@ -310,6 +310,7 @@ void nextToken(Lexer *lex, Token *tok) {
 
 
 void rewindTo(Lexer *lex, Token *tok) {
+	if(tok->lexeme == NULL) return;
 	lex->tokenStart = lex->current = tok->lexeme;
 	lex->curr_line = tok->line;
 }
