@@ -1355,11 +1355,12 @@ sup_invoke:;
 }
 
 static bool unwindStack(BlangVM *vm, int depth) {
-	assert(IS_INSTANCE(peek(vm)), "Exception must be an instance object");
+	assert(IS_INSTANCE(peek(vm)), "Top of stack is not an exception");
 	ObjInstance *exc = AS_INSTANCE(peek(vm));
 
-	Value stVal;
+	Value stVal = NULL_VAL;
 	hashTableGet(&exc->fields, vm->stField, &stVal);
+	assert(IS_STACK_TRACE(stVal), "Top of stack is not a raised exception");
 	ObjStackTrace *st = AS_STACK_TRACE(stVal);
 
 	for(;vm->frameCount > depth; vm->frameCount--) {
@@ -1483,7 +1484,8 @@ EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
 
 void blRaise(BlangVM *vm, const char* cls, const char *err, ...) {
 	if(!blGetGlobal(vm, NULL, cls)) return;
-	assert(IS_CLASS(peek(vm)), "Trying to instatiate a non class object");
+
+	assert(IS_CLASS(peek(vm)), "Can only raise instance objects");
 
 	ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
 	push(vm, OBJ_VAL(excInst));

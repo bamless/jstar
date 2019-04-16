@@ -81,12 +81,10 @@ void blPop(BlangVM *vm) {
 
 void blSetGlobal(BlangVM *vm, const char *mname, const char *name) {
 	assert(vm->module != NULL || mname != NULL, "Calling blSetGlobal outside of Native function requires specifying a module");
-
 	ObjModule *module = vm->module;
 	if(mname != NULL) {
 		module = getModule(vm, copyString(vm, mname, strlen(mname), true));
 	}
-
 	hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
@@ -96,28 +94,28 @@ void blListAppend(BlangVM *vm, int slot) {
 	listAppend(vm, AS_LIST(lst), peek(vm));
 }
 
-void blListInsert(BlangVM *vm, double i, int slot) {
+void blListInsert(BlangVM *vm, size_t i, int slot) {
 	Value lstVal = apiStackSlot(vm, slot);
 	assert(IS_LIST(lstVal), "Not a list");
 	ObjList *lst = AS_LIST(lstVal);
-	size_t idx = checkIndex(vm, i, lst->count, "i");
-	listInsert(vm, lst, idx, peek(vm));
+	assert(i >= 0 && i < lst->count, "Out of bounds");
+	listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
-void blListRemove(BlangVM *vm, double i, int slot) {
+void blListRemove(BlangVM *vm, size_t i, int slot) {
 	Value lstVal = apiStackSlot(vm, slot);
 	assert(IS_LIST(lstVal), "Not a list");
 	ObjList *lst = AS_LIST(lstVal);
-	size_t idx = checkIndex(vm, i, lst->count, "i");
-	listRemove(vm, lst, idx);
+	assert(i >= 0 && i < lst->count, "Out of bounds");
+	listRemove(vm, lst, (size_t)i);
 }
 
-void blListGet(BlangVM *vm, double i, int slot) {
+void blListGet(BlangVM *vm, size_t i, int slot) {
 	Value lstVal = apiStackSlot(vm, slot);
 	assert(IS_LIST(lstVal), "Not a list");
 	ObjList *lst = AS_LIST(lstVal);
-	size_t idx = checkIndex(vm, i, lst->count, "i");
-	push(vm, lst->arr[idx]);
+	assert(i >= 0 && i < lst->count, "Out of bounds");
+	push(vm, lst->arr[(size_t)i]);
 }
 
 void blListGetLength(BlangVM *vm, int slot) {
@@ -133,7 +131,6 @@ bool blGetGlobal(BlangVM *vm, const char *mname, const char *name) {
 	if(mname != NULL) {
 		module = getModule(vm, copyString(vm, mname, strlen(mname), true));
 	}
-	
 	ObjString *namestr = copyString(vm, name, strlen(name), true);
 
 	Value res;
@@ -242,17 +239,15 @@ size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name) {
 }
 
 void blPrintStackTrace(BlangVM *vm) {
-	assert(IS_INSTANCE(peek(vm)), "Top of stack isnt't a throwable");
+	assert(IS_INSTANCE(peek(vm)), "Top of stack isnt't an exception");
 
 	ObjInstance *exc = AS_INSTANCE(peek(vm));
 
-	Value stval;
-
-	assert(hashTableGet(&exc->fields, vm->stField, &stval), "Top of stack isn't an exception");
+	Value stval = NULL_VAL;
 	hashTableGet(&exc->fields, vm->stField, &stval);
+	assert(IS_STACK_TRACE(stval), "Top of stack isn't an exception");
 	
 	ObjStackTrace *st = AS_STACK_TRACE(stval);
-
 
 	// Print stacktrace in reverse order of recording (most recent call last)
 	if(st->length > 0) {
