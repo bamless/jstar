@@ -709,7 +709,8 @@ ObjString *blBufferToString(BlBuffer *b) {
 }
 
 void blBufferPush(BlBuffer *b) {
-	push(b->vm, OBJ_VAL(blBufferToString(b)));
+	BlangVM *vm = b->vm;
+	push(vm, OBJ_VAL(blBufferToString(b)));
 }
 
 void blBufferFree(BlBuffer *b) {
