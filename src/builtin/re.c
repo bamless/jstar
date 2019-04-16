@@ -297,14 +297,12 @@ NATIVE(bl_re_match) {
     if(res == FIND_ERR) return false;
     if(res == FIND_NOMATCH) return true;
 
-    size_t size = rs.capturec == 1 ? 1 : rs.capturec - 1;
-    ObjTuple *ret = newTuple(vm, size);
-    push(vm, OBJ_VAL(ret));
-
-    if(rs.capturec == 1) {
-        pushCapture(vm, &rs, 0);
-        ret->arr[0] = pop(vm);
+    if(rs.capturec <= 2) {
+        if(!pushCapture(vm, &rs, rs.capturec - 1)) return false;
     } else {
+        ObjTuple *ret = newTuple(vm, rs.capturec - 1);
+        push(vm, OBJ_VAL(ret));
+
         for(int i = 1; i < rs.capturec; i++) {
             if(!pushCapture(vm, &rs, i)) return false;
             ret->arr[i - 1] = pop(vm);
@@ -364,7 +362,7 @@ NATIVE(bl_re_gmatch) {
         }
 
         if(rs.capturec <= 2) {
-            pushCapture(vm, &rs, rs.capturec - 1);
+            if(!pushCapture(vm, &rs, rs.capturec - 1)) return false;
             blListAppend(vm, -2);
             blPop(vm);
         } else {
