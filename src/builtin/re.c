@@ -342,26 +342,29 @@ NATIVE(bl_re_gmatch) {
     if(!blCheckStr(vm, 1, "str")) return false;
     if(!blCheckStr(vm, 2, "regex")) return false;
 
-    const char *str = blGetString(vm, 1);
-    size_t len = blGetStringSz(vm, 1);
     const char *regex = blGetString(vm, 2);
+    const char *str = blGetString(vm, 1);
+    size_t len = blGetStringSz(vm, 1);     
 
     blPushList(vm);
 
     size_t off = 0;
-    const char *lend = str;
+    const char *lastmatch = NULL;
     while(off < len) {
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, off)) {
             if(rs.err) return false;
             return true;
         }
- 
-        off += rs.captures[0].len + (rs.captures[0].start - lend);
-        lend = rs.captures[0].start + rs.captures[0].len;
 
-        if(rs.capturec == 1) {
-            pushCapture(vm, &rs, 0);
+        // if 0 match increment by one and retry
+        if(rs.captures[0].start == lastmatch) {
+            off++;
+            continue;
+        }
+
+        if(rs.capturec <= 2) {
+            pushCapture(vm, &rs, rs.capturec - 1);
             blListAppend(vm, -2);
             blPop(vm);
         } else {
@@ -377,6 +380,11 @@ NATIVE(bl_re_gmatch) {
             blPop(vm);
         }
 
+        // increment by the number of chars since last match
+        if(lastmatch != NULL) off += rs.captures[0].start - lastmatch;
+        off += rs.captures[0].len;
+        // set lastmatch to one past the end of current match
+        lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
 
     return true;
