@@ -3,6 +3,7 @@
 #include "hashtable.h"
 #include "compiler.h"
 #include "options.h"
+#include "blang.h"
 #include "util.h"
 #include "vm.h"
 
@@ -651,4 +652,93 @@ void garbageCollect(BlangVM *vm) {
 		   prevAlloc, vm->allocated, curr, vm->nextGC);
 	puts("*--- End  of  GC ---*\n");
 #endif
+}
+
+// BlBuffer
+
+#define BUF_DEF_SZ 16
+
+static void blBufGrow(BlBuffer *b, size_t len) {
+	size_t newSize = b->size;
+	while(newSize < b->len + len)
+		newSize <<= 1;
+	char *newData = GCallocate(b->vm, b->data, b->size, newSize);
+	b->size = newSize;
+	b->data = newData;
+}
+
+void blBufferInit(BlangVM *vm, BlBuffer *b) {
+	blBufferInitSz(vm, b, BUF_DEF_SZ);
+}
+
+void blBufferInitSz(BlangVM *vm, BlBuffer *b, size_t size) {
+	if(size < BUF_DEF_SZ) size = BUF_DEF_SZ;
+	b->vm = vm;
+	b->size = size;
+	b->len = 0;
+	b->data = GC_ALLOC(vm, size);
+}
+
+void blBufferAppend(BlBuffer *b, const char *str, size_t len) {
+	if(b->len + len >= b->size) blBufGrow(b, len + 1); //the >= and the +1 are for the terminating NUL
+	memcpy(&b->data[b->len], str, len);
+	b->len += len;
+	b->data[b->len] = '\0';
+}
+
+void blBufferAppendstr(BlBuffer *b, const char *str) {
+	blBufferAppend(b, str, strlen(str));
+}
+
+void blBufferTrunc(BlBuffer *b, size_t len) {
+	if(len >= b->len) return;
+	b->len = len;
+	b->data[len] = '\0';
+}
+
+void blBufferCut(BlBuffer *b, size_t len) {
+	if(len == 0 || len > b->len) return;
+	memmove(b->data, b->data + len, b->len - len);
+	b->len -= len;
+	b->data[b->len] = '\0';
+}
+
+void blBufferPrepend(BlBuffer *b, const char *str, size_t len) {
+	if(b->len + len >= b->size) blBufGrow(b, len + 1); //the >= and the +1 are for the terminating NUL
+	memmove(b->data + len, b->data, b->len);
+	memcpy(b->data, str, len);
+	b->len += len;
+	b->data[b->len] = '\0';
+}
+
+void blBufferPrependstr(BlBuffer *b, const char *str) {
+	blBufferPrepend(b, str, strlen(str));
+}
+
+void blBufferClear(BlBuffer *b) {
+	b->len = 0;
+	b->data[0] = '\0';
+}
+
+void blBufferPush(BlBuffer *b) {
+	char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
+
+	ObjString *s = (ObjString*) newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
+	s->interned = false;
+	s->length = b->len;
+	s->data = data;
+	s->hash = 0;
+	push(b->vm, OBJ_VAL(s));
+
+	b->data = NULL;
+	b->vm = NULL;
+	b->len = b->size = 0;
+}
+
+void blBufferFree(BlBuffer *b) {
+	if(b->data == NULL) return;
+	GC_FREEARRAY(b->vm, char, b->data, b->size); 
+	b->data = NULL;
+	b->vm = NULL;
+	b->len = b->size = 0;
 }

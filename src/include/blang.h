@@ -199,4 +199,30 @@ void blPop(BlangVM *vm);
 // Prints the the stack trace of the exception on the top of the stack
 void blPrintStackTrace(BlangVM *vm);
 
+/**
+ * =========================================================
+ * Buffer creation and manipulation functions
+ * =========================================================
+ */
+
+typedef struct BlBuffer {
+	BlangVM *vm;
+	size_t size;
+	size_t len;
+	char *data;
+} BlBuffer;
+
+void blBufferInit(BlangVM *vm, BlBuffer *b);
+void blBufferInitSz(BlangVM *vm, BlBuffer *b, size_t size);
+void blBufferAppend(BlBuffer *b, const char *str, size_t len);
+void blBufferAppendstr(BlBuffer *b, const char *str);
+void blBufferTrunc(BlBuffer *b, size_t len);
+void blBufferCut(BlBuffer *b, size_t len);
+void blBufferPrepend(BlBuffer *b, const char *str, size_t len);
+void blBufferPrependstr(BlBuffer *b, const char *str);
+void blBufferClear(BlBuffer *b);
+
+void blBufferPush(BlBuffer *b);
+void blBufferFree(BlBuffer *b);
+
 #endif
