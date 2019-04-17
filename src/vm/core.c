@@ -561,7 +561,7 @@ NATIVE(bl_eval) {
 		size_t to = blCheckIndex(vm, 2, str->length + 1, "to");
 		if(to == SIZE_MAX) return false;
 
-		if(from >= to) BL_RAISE(vm, "InvalidArgException", "argument to must be >= from.");
+		if(from > to) BL_RAISE(vm, "InvalidArgException", "argument to must be >= from.");
 
 		size_t len = to - from;
 		ObjString *sub = allocateString(vm, len);
