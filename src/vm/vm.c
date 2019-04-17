@@ -237,7 +237,7 @@ static ObjUpvalue *captureUpvalue(BlangVM *vm, Value *addr) {
 	if(prev == NULL)
 		vm->upvalues = createdUpvalue;
 	else
-		upvalue->next = createdUpvalue;
+		prev->next = createdUpvalue;
 
 	createdUpvalue->next = upvalue;
 	return createdUpvalue;
