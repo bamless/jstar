@@ -184,7 +184,7 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 		line[0] = '?';
 	}
 
-	blBufferAppendstr(&st->stacktrace, "[line");
+	blBufferAppendstr(&st->stacktrace, "[line ");
 	blBufferAppendstr(&st->stacktrace, line);
 	blBufferAppendstr(&st->stacktrace, "] ");
 
