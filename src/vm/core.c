@@ -556,7 +556,7 @@ NATIVE(bl_eval) {
 	NATIVE(bl_substr) {
 		ObjString *str = AS_STRING(vm->apiStack[0]);
 
-		size_t from = blCheckIndex(vm, 1, str->length, "from");
+		size_t from = blCheckIndex(vm, 1, str->length + 1, "from");
 		if(from == SIZE_MAX) return false;
 		size_t to = blCheckIndex(vm, 2, str->length + 1, "to");
 		if(to == SIZE_MAX) return false;
