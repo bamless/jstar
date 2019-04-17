@@ -424,7 +424,7 @@ NATIVE(bl_eval) {
 	}
 
 	NATIVE(bl_List_len) {
-		blPushNumber(vm, AS_LIST(vm->apiStack[0])->count);
+		push(vm, NUM_VAL(AS_LIST(vm->apiStack[0])->count));
 		return true;
 	}
 
@@ -469,46 +469,46 @@ NATIVE(bl_eval) {
 	NATIVE(bl_List_iter) {
 		ObjList *lst = AS_LIST(vm->apiStack[0]);
 
-		if(blIsNull(vm, 1)) {
+		if(IS_NULL(vm->apiStack[1])) {
 			if(lst->count == 0) {
-				blPushBoolean(vm, false);
+				push(vm, BOOL_VAL(false));
 				return true;
 			}
-			blPushNumber(vm, 0);
+			push(vm, NUM_VAL(0));
 			return true;
 		}
 
-		if(blIsNumber(vm, 1)) {
-			double idx = blGetNumber(vm, 1);
+		if(IS_NUM(vm->apiStack[1])) {
+			double idx = AS_NUM(vm->apiStack[1]);
 			if(idx >= 0 && idx < lst->count - 1) {
-				blPushNumber(vm, idx + 1);
+				push(vm, NUM_VAL(idx + 1));
 				return true;
 			}
 		}
 
-		blPushBoolean(vm, false);
+		push(vm, BOOL_VAL(false));
 		return true;
 	}
 
 	NATIVE(bl_List_next) {
 		ObjList *lst = AS_LIST(vm->apiStack[0]);
 
-		if(blIsNumber(vm, 1)) {
-			double idx = blGetNumber(vm, 1);
+		if(IS_NUM(vm->apiStack[1])) {
+			double idx = AS_NUM(vm->apiStack[1]);
 			if(idx >= 0 && idx < lst->count) {
 				push(vm, lst->arr[(size_t)idx]);
 				return true;
 			}
 		}
 
-		blPushNull(vm);
+		push(vm, NULL_VAL);
 		return true;
 	}
 // } List
 
 // class Tuple {
 	NATIVE(bl_Tuple_len) {
-		blPushNumber(vm, AS_TUPLE(vm->apiStack[0])->size);
+		push(vm, NUM_VAL( AS_TUPLE(vm->apiStack[0])->size));
 		return true;
 	}
 
@@ -517,37 +517,37 @@ NATIVE(bl_eval) {
 
 		if(blIsNull(vm, 1)) {
 			if(tup->size == 0) {
-				blPushBoolean(vm, false);
+				push(vm, BOOL_VAL(false));
 				return true;
 			}
-			blPushNumber(vm, 0);
+			push(vm, NUM_VAL(0));
 			return true;
 		}
 
 		if(blIsNumber(vm, 1)) {
-			double idx = blGetNumber(vm, 1);
+			double idx = AS_NUM(vm->apiStack[1]);
 			if(idx >= 0 && idx < tup->size - 1) {
-				blPushNumber(vm, idx + 1);
+				push(vm, NUM_VAL(idx + 1));
 				return true;
 			}
 		}
 
-		blPushBoolean(vm, false);
+		push(vm, BOOL_VAL(false));
 		return true;
 	}
 
 	NATIVE(bl_Tuple_next) {
 		ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
-		if(blIsNumber(vm, 1)) {
-			double idx = blGetNumber(vm, 1);
+		if(IS_NUM(vm->apiStack[1])) {
+			double idx = AS_NUM(vm->apiStack[1]);
 			if(idx >= 0 && idx < tup->size) {
 				push(vm, tup->arr[(size_t)idx]);
 				return true;
 			}
 		}
 
-		blPushNull(vm);
+		push(vm, NULL_VAL);
 		return true;
 	}
 // }
@@ -646,39 +646,39 @@ NATIVE(bl_eval) {
 	NATIVE(bl_String_iter) {
 		ObjString *s = AS_STRING(vm->apiStack[0]);
 
-		if(blIsNull(vm, 1)) {
+		if(IS_NULL(vm->apiStack[1])) {
 			if(s->length == 0) {
-				blPushBoolean(vm, false);
+				push(vm, BOOL_VAL(false));
 				return true;
 			}
-			blPushNumber(vm, 0);
+			push(vm, NUM_VAL(0));
 			return true;
 		}
 
-		if(blIsNumber(vm, 1)) {
-			double idx = blGetNumber(vm, 1);
+		if(IS_NUM(vm->apiStack[1])) {
+			double idx = AS_NUM(vm->apiStack[1]);
 			if(idx >= 0 && idx < s->length - 1) {
-				blPushNumber(vm, idx + 1);
+				push(vm, NUM_VAL(idx + 1));
 				return true;
 			}
 		}
 
-		blPushBoolean(vm, false);
+		push(vm, BOOL_VAL(false));
 		return true;
 	}
 
 	NATIVE(bl_String_next) {
 		ObjString *str = AS_STRING(vm->apiStack[0]);
 
-		if(blIsNumber(vm, 1)) {
-			double idx = blGetNumber(vm, 1);
+		if(IS_NUM(vm->apiStack[1])) {
+			double idx = AS_NUM(vm->apiStack[1]);
 			if(idx >= 0 && idx < str->length) {
 				blPushStringSz(vm, str->data + (size_t)idx, 1);
 				return true;
 			}
 		}
 
-		blPushNull(vm);
+		push(vm, NULL_VAL);
 		return true;
 	}
 // } String
@@ -708,32 +708,31 @@ NATIVE(bl_eval) {
 
 		bool incr = r->step > 0;
 
-		if(blIsNull(vm, 1)) {
+		if(IS_NULL(vm->apiStack[1])) {
 			if(incr ? r->start < r->stop : r->start > r->stop) {
-				blPushNumber(vm, r->start);
+				push(vm, NUM_VAL(r->start));
 				return true;
 			} else {
-				blPushBoolean(vm, false);
+				push(vm, BOOL_VAL(false));
 				return true;
 			}
 		}
 
-		if(blIsNumber(vm, 1)) {
-			double i = blGetNumber(vm, 1) + r->step;
-			
+		if(IS_NUM(vm->apiStack[1])) {
+			double i = AS_NUM(vm->apiStack[1]) + r->step;
 			if(incr ? i < r->stop : i > r->stop) {
-				blPushNumber(vm, i);
+				push(vm, NUM_VAL(i));
 				return true;
 			}
 		}
-
-		blPushBoolean(vm, false);
+		
+		push(vm, BOOL_VAL(false));
 		return true;
 	}
 
 	NATIVE(bl_range_next) {
-		if(blIsNumber(vm, 1)) return true;
-		blPushNull(vm);
+		if(IS_NUM(vm->apiStack[1])) return true;
+		push(vm, NULL_VAL);
 		return true;
 	}
 // }
