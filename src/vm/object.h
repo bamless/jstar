@@ -9,6 +9,7 @@
 #include "hashtable.h"
 #include "chunk.h"
 #include "value.h"
+#include "util.h"
 
 #include "util/enum.h"
 
@@ -58,6 +59,9 @@ DECLARE_TO_STRING(ObjType);
 #define AS_TUPLE(o)        ((ObjTuple*)       AS_OBJ(o))
 #define AS_RANGE(o)        ((ObjRange*)       AS_OBJ(o))
 #define AS_STACK_TRACE(o)  ((ObjStackTrace*)  AS_OBJ(o))
+
+#define STRING_GET_HASH(s) \
+	(s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
 
 // These types are used internally by the object system and are
 // Never exposed to the user, to whom all values behave like

@@ -2,13 +2,10 @@
 #define MEMORY_H
 
 #include "object.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
-
-/**
- * Functions for allocating/freeing garbage collectable objects.
- */
 
 typedef struct Frame Frame;
 typedef struct BlangVM BlangVM;
@@ -19,13 +16,10 @@ typedef struct BlBuffer BlBuffer;
 // to free all unreached ones.
 void garbageCollect(BlangVM *vm);
 
-/** 
- * Functions for allocating objects.
- * These functions use GCallocate to acquire memory and then initialize
- * the object with the supplied arguments, as well as setting all the 
- * bookkeping information needed by the garbage collector (see struct Obj)
- */
-
+// Functions for allocating objects.
+// These functions use GCallocate to acquire memory and then initialize
+// the object with the supplied arguments, as well as setting all the 
+// bookkeping information needed by the garbage collector (see struct Obj)
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc);
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
 ObjRange *newRange(BlangVM *vm, double start, double stop, double step);
@@ -42,33 +36,20 @@ ObjStackTrace *newStackTrace(BlangVM *vm);
 ObjString *allocateString(BlangVM *vm, size_t length);
 ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
 
+// Functions for manipulating objects.
+// All these functions require allocating garbage collectable
+// memory so are defined here
+
 // Dumps a frame in a ObjStackTrace
 void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
 
-// List manipulation functions
+// ObjList manipulation functions
 void listAppend(BlangVM *vm, ObjList *lst, Value v);
 void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val);
 void listRemove(BlangVM *vm, ObjList *lst, size_t index);
 
+// Convert a BlBuffer to an ObjString
 ObjString *blBufferToString(BlBuffer *b);
-
-static inline uint32_t hashString(const char *str, size_t length) {
-	uint32_t hash = 2166136261u;
-
-	for (size_t i = 0; i < length; i++) {
-		hash ^= str[i];
-		hash *= 16777619;
-	}
-
-	return hash;
-}
-
-static inline uint32_t stringGetHash(ObjString *str) {
-	if(str->hash == 0) {
-		str->hash = hashString(str->data, str->length);
-	}
-	return str->hash;
-}
 
 // Mark an Object/Value as reached
 void reachObject(BlangVM *vm, Obj *o);

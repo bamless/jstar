@@ -97,8 +97,6 @@ static void dorepl() {
 
 		free(line);
 
-		if(depth == 0) addPrintIfExpr(&src);
-
 		while(depth > 0 && (line = linenoise("....... ")) != NULL) {
 			linenoiseHistoryAdd(line);
 
@@ -108,6 +106,8 @@ static void dorepl() {
 
 			free(line);
 		}
+
+		addPrintIfExpr(&src);
 
 		blEvaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
 		sbuf_clear(&src);

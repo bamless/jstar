@@ -4,7 +4,6 @@
 #include "compiler.h"
 #include "options.h"
 #include "blang.h"
-#include "util.h"
 #include "vm.h"
 
 #include <stdio.h>
@@ -622,6 +621,22 @@ void garbageCollect(BlangVM *vm) {
  * =========================================================
  */
 
+ObjString *blBufferToString(BlBuffer *b) {
+	char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
+
+	ObjString *s = (ObjString*) newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
+	s->interned = false;
+	s->length = b->len;
+	s->data = data;
+	s->hash = 0;
+
+	b->data = NULL;
+	b->vm = NULL;
+	b->len = b->size = 0;
+
+	return s;
+}
+
 #define BUF_DEF_SZ 16
 
 static void blBufGrow(BlBuffer *b, size_t len) {
@@ -690,22 +705,6 @@ void blBufferAppendChar(BlBuffer *b, char c) {
 void blBufferClear(BlBuffer *b) {
 	b->len = 0;
 	b->data[0] = '\0';
-}
-
-ObjString *blBufferToString(BlBuffer *b) {
-	char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
-
-	ObjString *s = (ObjString*) newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
-	s->interned = false;
-	s->length = b->len;
-	s->data = data;
-	s->hash = 0;
-
-	b->data = NULL;
-	b->vm = NULL;
-	b->len = b->size = 0;
-
-	return s;
 }
 
 void blBufferPush(BlBuffer *b) {

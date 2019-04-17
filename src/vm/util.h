@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include <limits.h>
 
 // Returns the aproximated base 10 length of an integer.
@@ -42,5 +43,17 @@
 
 // Returns the closest power of two to n, be it 2^x, where 2^x >= n
 int powerOf2Ceil(int n);
+
+// Hash a string
+static inline uint32_t hashString(const char *str, size_t length) {
+	uint32_t hash = 2166136261u;
+
+	for (size_t i = 0; i < length; i++) {
+		hash ^= str[i];
+		hash *= 16777619;
+	}
+
+	return hash;
+}
 
 #endif
