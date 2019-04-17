@@ -1248,7 +1248,6 @@ sup_invoke:;
 	}
 	TARGET(OP_SETUP_EXCEPT): 
 	TARGET(OP_SETUP_ENSURE): {
-		//setup the handler address and save stackpointer
 		uint16_t handlerOff = NEXT_SHORT();
 		Handler *handler = &frame->handlers[frame->handlerc++];
 		handler->type = op == OP_SETUP_EXCEPT ? HANDLER_EXCEPT : HANDLER_ENSURE;
@@ -1265,10 +1264,8 @@ sup_invoke:;
 				// if we still have the exception on the top of the stack
 				if(!IS_NULL(peek(vm))) {
 					// remove the cause leaving the exception on top
-					// of the stack
 					vm->sp[-2] = vm->sp[-1];
 					vm->sp--;
-
 					// continue unwinding
 					UNWIND_STACK(vm);
 				}
@@ -1287,7 +1284,8 @@ sup_invoke:;
 					}
 				}
 
-				push(vm, ret); // The return value
+				// Finally return from the function
+				push(vm, ret);
 				GOTO(OP_RETURN);
 				break;
 			}
@@ -1425,8 +1423,13 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 static EvalResult finishCall(BlangVM *vm, int depth, int offSp) {
 	EvalResult res = VM_EVAL_SUCCSESS;
 
-	if(vm->frameCount > depth) {
-		if(!runEval(vm, depth)) res = VM_RUNTIME_ERR;
+	// Evaluate frame if present
+	if(vm->frameCount > depth && !runEval(vm, depth)) {
+		// Exception was thrown, push it as result
+		res = VM_RUNTIME_ERR;
+		Value exc = pop(vm);
+		vm->sp = vm->stack + offSp;
+		push(vm, exc);
 	}
 
 	// reset API stack
@@ -1434,13 +1437,6 @@ static EvalResult finishCall(BlangVM *vm, int depth, int offSp) {
 		vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 	} else {
 		vm->apiStack = vm->stack;
-	}
-
-	// If exception was thrown, push it as result
-	if(res == VM_RUNTIME_ERR) {
-		Value exc = pop(vm);        // Pop off the exception
-		vm->sp = vm->stack + offSp; // Restore stack pointer to point of call
-		push(vm, exc);              // Push it as result
 	}
 
 	return res;

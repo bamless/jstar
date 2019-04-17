@@ -14,5 +14,4 @@ native gets()
 native gc()
 
 native __init()
-
 __init()

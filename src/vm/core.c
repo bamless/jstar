@@ -2,6 +2,7 @@
 #include "modules.h"
 #include "import.h"
 #include "memory.h"
+#include "object.h"
 #include "vm.h"
 
 #include <stdio.h>
@@ -616,7 +617,7 @@ NATIVE(bl_eval) {
 	}
 
 	NATIVE(bl_String_hash) {
-		blPushNumber(vm, stringGetHash(AS_STRING(vm->apiStack[0])));
+		blPushNumber(vm, STRING_GET_HASH(AS_STRING(vm->apiStack[0])));
 		return true;
 	}
 

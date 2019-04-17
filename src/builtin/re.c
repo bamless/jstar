@@ -380,8 +380,8 @@ NATIVE(bl_re_gmatch) {
 
         // increment by the number of chars since last match
         off += lastmatch != NULL ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
-        
         off += rs.captures[0].len;
+        
         // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
