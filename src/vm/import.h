@@ -2,9 +2,9 @@
 #define IMPORT_H
 
 #include "object.h"
+#include "ast.h"
 #include "vm.h"
 
-#include "parse/ast.h"
 
 #define MAX_IMPORT_PATH_LEN 2048
 

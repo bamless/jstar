@@ -4,14 +4,10 @@
 
 #include "blang.h"
 
-#include "parse/parser.h"
-#include "parse/lex.h"
+#include "lex.h"
+#include "parser.h"
 
 #include "linenoise/linenoise.h"
-
-static Parser p;
-static Lexer lex;
-static Token tok;
 
 static BlangVM *vm;
 
@@ -41,6 +37,9 @@ static void completion(const char *buf, linenoiseCompletions *lc) {
 }
 
 static int countBlocks(const char *line) {
+	Lexer lex;
+	Token tok;
+
 	initLexer(&lex, line);
 	nextToken(&lex, &tok);
 
@@ -67,6 +66,8 @@ static int countBlocks(const char *line) {
 }
 
 static void addPrintIfExpr(BlBuffer *sb) {
+	Parser p;
+	
 	Expr *e;
 	char *src = sb->data;
 	// If the line is a (correctly formed) expression

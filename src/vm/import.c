@@ -2,9 +2,10 @@
 #include "memory.h"
 #include "compiler.h"
 #include "hashtable.h"
-#include "modules.h"
+#include "parser.h"
 
-#include "parse/parser.h"
+#include "builtin/modules.h"
+
 
 #include <stdio.h>
 #include <string.h>

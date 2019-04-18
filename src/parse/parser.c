@@ -1,7 +1,6 @@
 #include "parser.h"
 #include "token.h"
 #include "linkedlist.h"
-#include "util.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -1007,7 +1006,6 @@ static Operator tokenToOperator(TokenType t) {
 	case TOK_MOD:
 		return MOD;
 	default:
-		UNREACHABLE();
 		return -1;
 	}
 }

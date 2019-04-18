@@ -3,9 +3,9 @@
 
 #include "object.h"
 
-#include "parse/ast.h"
-
 #include <stdint.h>
+
+#include "ast.h"
 
 #define CTOR_STR "new"
 

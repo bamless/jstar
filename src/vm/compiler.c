@@ -4,9 +4,9 @@
 #include "value.h"
 #include "blang.h"
 #include "util.h"
+#include "ast.h"
 #include "vm.h"
 
-#include "parse/ast.h"
 
 #include <stdio.h>
 #include <string.h>

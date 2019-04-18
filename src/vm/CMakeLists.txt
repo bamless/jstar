@@ -1,5 +1,5 @@
-FILE(GLOB_RECURSE SOURCES *.c "${PROJECT_SOURCE_DIR}/builtin/*.c")
-FILE(GLOB_RECURSE BLANG_SOURCES *bl "${PROJECT_SOURCE_DIR}/builtin/*.bl")
+FILE(GLOB_RECURSE SOURCES *.c)
+FILE(GLOB_RECURSE BLANG_SOURCES *bl)
 
 # create blang source headers names
 set(BLANG_HEADERS)
@@ -16,7 +16,7 @@ foreach(bl ${BLANG_SOURCES})
 	)
 endforeach()
 
-include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/builtin" "${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/parse" "${PROJECT_SOURCE_DIR}/include")
 
 # create library
 add_library(libblang ${SOURCES} ${BLANG_HEADERS})

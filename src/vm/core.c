@@ -1,9 +1,10 @@
 #include "core.h"
-#include "modules.h"
 #include "import.h"
 #include "memory.h"
 #include "object.h"
 #include "vm.h"
+
+#include "builtin/modules.h"
 
 #include <stdio.h>
 #include <stdarg.h>

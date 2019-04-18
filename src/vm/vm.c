@@ -1,17 +1,17 @@
 #include "vm.h"
+#include "options.h"
 #include "opcode.h"
 #include "import.h"
 #include "memory.h"
-#include "modules.h"
+#include "parser.h"
 #include "core.h"
-#include "options.h"
-#include "sys.h"
+#include "ast.h"
 #include "blang.h"
 
 #include "debug/disassemble.h"
 
-#include "parse/parser.h"
-#include "parse/ast.h"
+#include "builtin/modules.h"
+#include "builtin/sys.h"
 
 #include <stdio.h>
 #include <stdarg.h>
