@@ -3,3 +3,43 @@ class RegexException : Exception end
 native match(str, regex, off=0)
 native find(str, regex, off=0)
 native gmatch(str, regex)
+native gsub(str, regex, sub)
+
+fun gfind(s, r)
+    var off, endl = 0, null
+
+    class GfindIter
+        fun __iter__(_)
+            var res = find(s, r, off)
+            if !res then 
+                return null 
+            end
+            
+            var b, e = res
+
+            while e == endl do
+                if !(res = find(s, r, off += 1)) then
+                    return null
+                end
+                b, e = res
+            end
+
+            off = endl = e
+
+            var nres = #res
+            if nres == 2 then
+                return s.substr(b, e)
+            elif nres == 3 then
+                return res[2]
+            else
+                return res.sub(2, nres)
+            end
+        end
+
+        fun __next__(match)
+            return match
+        end
+    end
+
+    return GfindIter()
+end

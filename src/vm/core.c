@@ -551,6 +551,25 @@ NATIVE(bl_eval) {
 		push(vm, NULL_VAL);
 		return true;
 	}
+
+	NATIVE(bl_Tuple_sub) {
+		ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
+
+		size_t from = blCheckIndex(vm, 1, tup->size, "from");
+		if(from == SIZE_MAX) return false;
+		size_t to = blCheckIndex(vm, 2, tup->size + 1, "to");
+		if(to == SIZE_MAX) return false;
+
+		if(from >= to) BL_RAISE(vm, "InvalidArgException", "from must be < to.");
+
+		size_t numElems = to - from;
+		ObjTuple *sub = newTuple(vm, numElems);
+
+		memcpy(sub->arr, tup->arr + from, numElems * sizeof(Value));
+
+		push(vm, OBJ_VAL(sub));
+		return true;
+	}
 // }
 
 // class String {

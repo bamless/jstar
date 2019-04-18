@@ -56,6 +56,7 @@ NATIVE(bl_eval);
 	NATIVE(bl_Tuple_len);
 	NATIVE(bl_Tuple_iter);
 	NATIVE(bl_Tuple_next);
+	NATIVE(bl_Tuple_sub);
 // }
 
 // class String {

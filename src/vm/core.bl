@@ -157,6 +157,7 @@ class List
 end
 
 class Tuple
+	native sub(from, to)
 	native __len__()
 	native __iter__(iter)
 	native __next__(idx)

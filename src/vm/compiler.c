@@ -840,7 +840,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
  *     var _expr = iterable
  *     var _iter
  *     while _iter = _expr.__iter__(_iter) do
- *         var i = _iter.__next__(_iter)
+ *         var i = _expr.__next__(_iter)
  *         ...
  *     end
  * end

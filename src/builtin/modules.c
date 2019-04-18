@@ -107,6 +107,7 @@ Module builtInModules[] = {
 			METHOD(__next__, &bl_List_next)
 		ENDCLASS
 		CLASS(Tuple)
+			METHOD(sub,      &bl_Tuple_sub)
 			METHOD(__len__,  &bl_Tuple_len)
 			METHOD(__iter__, &bl_Tuple_iter)
 			METHOD(__next__, &bl_Tuple_next)
