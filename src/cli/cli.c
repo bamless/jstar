@@ -8,7 +8,6 @@
 #include "parse/lex.h"
 
 #include "linenoise/linenoise.h"
-#include "util/stringbuf.h"
 
 static Parser p;
 static Lexer lex;
@@ -67,16 +66,16 @@ static int countBlocks(const char *line) {
 	return depth;
 }
 
-static void addPrintIfExpr(StringBuffer *sb) {
+static void addPrintIfExpr(BlBuffer *sb) {
 	Expr *e;
-	char *src = sbuf_get_backing_buf(sb);
+	char *src = sb->data;
 	// If the line is a (correctly formed) expression
 	if((e = parseExpression(&p, "", src, true)) != NULL) {
 		freeExpr(e);
 		// assign the result of the expression to `_`
-		sbuf_prependstr(sb, "var _ = ");
+		blBufferPrependstr(sb, "var _ = ");
 		// print `_` if not null
-		sbuf_appendstr(sb, "if _ != null then print(_) end");
+		blBufferAppendstr(sb, "if _ != null then print(_) end");
 	}
 }
 
@@ -84,16 +83,16 @@ static void dorepl() {
 	header();
 	linenoiseSetCompletionCallback(completion);
 
-	StringBuffer src;
-	sbuf_create(&src);
+	BlBuffer src;
+	blBufferInit(vm, &src);
 
 	char *line;
 	while((line = linenoise("blang>> ")) != NULL) {
 		linenoiseHistoryAdd(line);
 		
 		int depth = countBlocks(line);
-		sbuf_appendstr(&src, line);
-		sbuf_appendchar(&src, '\n');
+		blBufferAppendstr(&src, line);
+		blBufferAppendChar(&src, '\n');
 
 		free(line);
 
@@ -101,19 +100,19 @@ static void dorepl() {
 			linenoiseHistoryAdd(line);
 
 			depth += countBlocks(line);
-			sbuf_appendstr(&src, line);
-			sbuf_appendchar(&src, '\n');
+			blBufferAppendstr(&src, line);
+			blBufferAppendChar(&src, '\n');
 
 			free(line);
 		}
 
 		addPrintIfExpr(&src);
 
-		blEvaluate(vm, "<stdin>", sbuf_get_backing_buf(&src));
-		sbuf_clear(&src);
+		blEvaluate(vm, "<stdin>", src.data);
+		blBufferClear(&src);
 	}
 
-	sbuf_destroy(&src);
+	blBufferFree(&src);
 	linenoiseHistoryFree();
 }
 

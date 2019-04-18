@@ -11,8 +11,6 @@
 #include "value.h"
 #include "util.h"
 
-#include "util/enum.h"
-
 /**
  * Object system of the Blang language.
  * Every object shares the base fields of the Obj struct, including it as the

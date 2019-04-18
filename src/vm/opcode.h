@@ -1,7 +1,7 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
-#include "util/enum.h"
+#include "util.h"
 
 #define OPCODE(X) \
 	X(OP_ADD) \

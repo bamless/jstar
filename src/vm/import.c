@@ -5,7 +5,6 @@
 #include "modules.h"
 
 #include "parse/parser.h"
-#include "util/stringbuf.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -84,12 +83,12 @@ static bool importWithSource(BlangVM *vm, const char* path, ObjString *name, con
 	return true;
 }
 
-static bool importModuleOrPackage(BlangVM *vm, StringBuffer *importPath, ObjString *name, char **src) {
+static bool importModuleOrPackage(BlangVM *vm, BlBuffer *importPath, ObjString *name, char **src) {
 	// try to see if it is a package
 	size_t packStart = importPath->len;
-	sbuf_appendstr(importPath, "/__package__.bl");
+	blBufferAppendstr(importPath, "/__package__.bl");
 
-	char *path = sbuf_get_backing_buf(importPath);
+	char *path = importPath->data;
 	if((*src = loadSource(path)) != NULL) {
 		if(!importWithSource(vm, path, name, *src)) {
 			free(*src);
@@ -99,10 +98,9 @@ static bool importModuleOrPackage(BlangVM *vm, StringBuffer *importPath, ObjStri
 	}
 
 	// try to see if it's a normal module
-	sbuf_truncate(importPath, packStart);
-	sbuf_appendstr(importPath, ".bl");
+	blBufferTrunc(importPath, packStart);
+	blBufferAppendstr(importPath, ".bl");
 	
-	path = sbuf_get_backing_buf(importPath); 
 	if((*src = loadSource(path)) != NULL) {
 		if(!importWithSource(vm, path, name, *src)) {
 			free(*src);
@@ -127,8 +125,8 @@ bool importModule(BlangVM *vm, ObjString *name) {
 	}
 
 	// try to read module or package
-	StringBuffer sb;
-	sbuf_create(&sb);
+	BlBuffer sb;
+	blBufferInit(vm, &sb);
 
 	char *src = NULL;
 
@@ -138,15 +136,15 @@ bool importModule(BlangVM *vm, ObjString *name) {
 			continue;
 		}
 
-		sbuf_appendstr(&sb, AS_STRING(paths->arr[i])->data);
-		sbuf_appendchar(&sb, '/');
+		blBufferAppendstr(&sb, AS_STRING(paths->arr[i])->data);
+		blBufferAppendChar(&sb, '/');
 
 		size_t s = sb.len - 1;
-		sbuf_appendstr(&sb, name->data);
-		sbuf_replacechar(&sb, s, '.', '/');
+		blBufferAppendstr(&sb, name->data);
+		blBufferReplaceChar(&sb, s, '.', '/');
 
 		if(!importModuleOrPackage(vm, &sb, name, &src)) {
-			sbuf_destroy(&sb);
+			blBufferFree(&sb);
 			return false;
 		}
 
@@ -155,31 +153,31 @@ bool importModule(BlangVM *vm, ObjString *name) {
 		}
 
 		// not found, try the next path
-		sbuf_clear(&sb);
+		blBufferClear(&sb);
 	}
 
 
 	// no module found
 	if(src == NULL) {
 		// try current cwd
-		sbuf_appendstr(&sb, "./");
+		blBufferAppendstr(&sb, "./");
 
 		size_t s = sb.len - 1;
-		sbuf_appendstr(&sb, name->data);
-		sbuf_replacechar(&sb, s, '.', '/');
+		blBufferAppendstr(&sb, name->data);
+		blBufferReplaceChar(&sb, s, '.', '/');
 
 		if(!importModuleOrPackage(vm, &sb, name, &src)) {
-			sbuf_destroy(&sb); 
+			blBufferFree(&sb); 
 			return false;
 		}
 
 		if(src == NULL) {
-			sbuf_destroy(&sb); 
+			blBufferFree(&sb); 
 			return false;
 		}
 	}
 
-	sbuf_destroy(&sb); 
+	blBufferFree(&sb); 
 	free(src);
 
 	// we loaded the module (or package), set simple name in parent package if any

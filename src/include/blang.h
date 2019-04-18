@@ -218,6 +218,7 @@ void blBufferAppend(BlBuffer *b, const char *str, size_t len);
 void blBufferAppendstr(BlBuffer *b, const char *str);
 void blBufferTrunc(BlBuffer *b, size_t len);
 void blBufferCut(BlBuffer *b, size_t len);
+void blBufferReplaceChar(BlBuffer *b, size_t start, char c, char r);
 void blBufferPrepend(BlBuffer *b, const char *str, size_t len);
 void blBufferPrependstr(BlBuffer *b, const char *str);
 void blBufferAppendChar(BlBuffer *b, char c);

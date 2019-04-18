@@ -684,6 +684,14 @@ void blBufferCut(BlBuffer *b, size_t len) {
 	b->data[b->len] = '\0';
 }
 
+void blBufferReplaceChar(BlBuffer *b, size_t start, char c, char r) {
+	for(size_t i = start; i < b->len; i++) {
+		if(b->data[i] == c) {
+			b->data[i] = r;
+		}
+	}
+}
+
 void blBufferPrepend(BlBuffer *b, const char *str, size_t len) {
 	if(b->len + len >= b->size) blBufGrow(b, len + 1); //the >= and the +1 are for the terminating NUL
 	memmove(b->data + len, b->data, b->len);
