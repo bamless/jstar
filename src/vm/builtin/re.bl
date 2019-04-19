@@ -3,6 +3,7 @@ class RegexException : Exception end
 native match(str, regex, off=0)
 native find(str, regex, off=0)
 native gmatch(str, regex)
+native gsub(str, regex, sub, num=0)
 
 fun gfind(s, r)
     var off, endl = 0, null

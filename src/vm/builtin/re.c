@@ -388,3 +388,94 @@ NATIVE(bl_re_gmatch) {
 
     return true;
 }
+
+static bool substitute(BlangVM *vm, RegexState *rs, BlBuffer *b, const char *s, const char *sub) {
+    for(; *sub != '\0'; sub++) {
+        switch(*sub) {
+        case ESCAPE:
+            sub++;
+
+            if(*sub == '\0') {
+                BL_RAISE(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
+            }
+
+            int len = 0;
+            while(isdigit(sub[len]))
+                len++;
+
+            if(len == 0) goto def;
+
+            int capture = strtol(sub, NULL, 10);
+            if(!pushCapture(vm, rs, capture)) return false;
+            blBufferAppend(b, blGetString(vm, -1), blGetStringSz(vm, -1));
+            blPop(vm);
+            break;
+        default: def:
+            blBufferAppendChar(b, *sub);
+            break;
+        }
+    }
+    return true;
+} 
+
+NATIVE(bl_re_gsub) {
+    if(!blCheckStr(vm, 1, "str")) return false;
+    if(!blCheckStr(vm, 2, "regex")) return false;
+    if(!blCheckStr(vm, 3, "sub")) return false;
+    if(!blCheckInt(vm, 4, "num")) return false;
+
+    const char *str = blGetString(vm, 1);
+    size_t len = blGetStringSz(vm, 1);   
+    const char *regex = blGetString(vm, 2);
+    const char *sub = blGetString(vm, 3);
+    int num = blGetNumber(vm, 4);
+
+    BlBuffer b;
+    blBufferInit(vm, &b);
+
+    int numsub = 0;
+    size_t off = 0;
+    const char *lastmatch = NULL;
+    while(off < len) {
+        if(num > 0 && numsub > num - 1) {
+            blBufferAppendstr(&b, lastmatch);
+            break;
+        }
+
+        RegexState rs;
+        if(!matchRegex(vm, &rs, str, len, regex, off)) {
+            if(rs.err) {
+                blBufferFree(&b);
+                return false;
+            }
+            blBufferPush(&b);
+            return true;
+        }
+
+        // if 0 match increment by one and retry
+        if(rs.captures[0].start == lastmatch && rs.captures[0].len == 0) {
+            off++;
+            continue;
+        }
+
+        int offSinceLast = lastmatch ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
+        blBufferAppend(&b, lastmatch ? lastmatch : str, offSinceLast);
+
+        if(!substitute(vm, &rs, &b, str, sub)) {
+            blBufferFree(&b);
+            return false;
+        }
+
+        numsub++;
+
+        // increment by the number of chars since last match
+        off += offSinceLast;
+        off += rs.captures[0].len;
+        
+        // set lastmatch to one past the end of current match
+        lastmatch = rs.captures[0].start + rs.captures[0].len;
+    }
+
+    blBufferPush(&b);
+    return true;
+}

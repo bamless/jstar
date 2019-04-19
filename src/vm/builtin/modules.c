@@ -166,6 +166,7 @@ Module builtInModules[] = {
 		FUNCTION(match,  &bl_re_match)
 		FUNCTION(find,   &bl_re_find)
 		FUNCTION(gmatch, &bl_re_gmatch)
+		FUNCTION(gsub,   &bl_re_gsub)
 	ENDMODULE
 	MODULE(rand)
 		FUNCTION(__initseed, &bl_initseed)

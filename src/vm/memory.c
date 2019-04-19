@@ -623,6 +623,7 @@ void garbageCollect(BlangVM *vm) {
 
 ObjString *blBufferToString(BlBuffer *b) {
 	char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
+	data[b->len] = '\0';
 
 	ObjString *s = (ObjString*) newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
 	s->interned = false;
