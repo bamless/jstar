@@ -356,7 +356,7 @@ NATIVE(bl_re_gmatch) {
         }
 
         // if 0 match increment by one and retry
-        if(rs.captures[0].start == lastmatch) {
+        if(rs.captures[0].start == lastmatch && rs.captures[0].len == 0) {
             off++;
             continue;
         }
