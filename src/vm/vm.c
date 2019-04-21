@@ -792,7 +792,7 @@ static bool runEval(BlangVM *vm, int depth) {
 		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
 		DISPATCH();
 	TARGET(OP_IS): {
-		if(!IS_CLASS(peek2(vm))) {
+		if(!IS_CLASS(peek(vm))) {
 			blRaise(vm, "TypeException", "Right operand of `is` must be a class.");
 			UNWIND_STACK(vm);
 		}
