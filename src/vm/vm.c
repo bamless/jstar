@@ -54,17 +54,10 @@ BlangVM *blNewVM() {
 
 	// init GC
 	vm->nextGC = INIT_GC;
-	vm->objects = NULL;
-	vm->disableGC = false;
-
-	vm->allocated = 0;
-	vm->reachedStack = NULL;
-	vm->reachedCapacity = 0;
-	vm->reachedCount = 0;
 
 	// Create constants strings
-	vm->ctor     = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
-	vm->stField  = copyString(vm, "stacktrace", 10, true);
+	vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
+	vm->stField = copyString(vm, "stacktrace", 10, true);
 
 	vm->add = copyString(vm, "__add__", 7, true);
 	vm->sub = copyString(vm, "__sub__", 7, true);
@@ -80,11 +73,11 @@ BlangVM *blNewVM() {
 	vm->rdiv = copyString(vm, "__rdiv__", 8, true);
 	vm->rmod = copyString(vm, "__rmod__", 8, true);
 
-	vm->lt  = copyString(vm, "__lt__", 6, true);
-	vm->le  = copyString(vm, "__le__", 6, true);
-	vm->gt  = copyString(vm, "__gt__", 6, true);
-	vm->ge  = copyString(vm, "__ge__", 6, true);
-	vm->eq  = copyString(vm, "__eq__", 6, true);
+	vm->lt = copyString(vm, "__lt__", 6, true);
+	vm->le = copyString(vm, "__le__", 6, true);
+	vm->gt = copyString(vm, "__gt__", 6, true);
+	vm->ge = copyString(vm, "__ge__", 6, true);
+	vm->eq = copyString(vm, "__eq__", 6, true);
 
 	vm->neg = copyString(vm, "__neg__", 7, true);
 
@@ -97,8 +90,8 @@ BlangVM *blNewVM() {
 	setModule(vm, mainMod, newModule(vm, mainMod));
 	pop(vm);
 
-	// This is called after initCoreLibrary in order to correctly assign the
-	// List class to the object since classes are created during initialization
+	// This is called after initCoreLibrary in order to correctly assign
+	// classes to objects, since classes are created in intCoreLibrary
 	vm->importpaths = newList(vm, 8);
 	vm->emptyTup = newTuple(vm, 0);
 
@@ -605,17 +598,35 @@ static bool runEval(BlangVM *vm, int depth) {
 			double a = AS_NUM(pop(vm)); \
 			push(vm, type(a op b)); \
 		} else { \
-			SAVE_FRAME(); \
-			if(!callBinaryOverload(vm, overload, reverse)) {   \
-				LOAD_FRAME(); \
-				ObjString *t1 = getClass(vm, peek(vm))->name;  \
-				ObjString *t2 = getClass(vm, peek2(vm))->name; \
-				blRaise(vm, "TypeException", "Operator %s not defined "  \
-				            "for types %s, %s", #op, t1->data, t2->data); \
+			BINARY_OVERLOAD(op, overload, reverse); \
+		} \
+	} while(0)
+
+	#define BINARYDIV(type, op, overload, reverse) do { \
+		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) { \
+			double b = AS_NUM(pop(vm)); \
+			double a = AS_NUM(pop(vm)); \
+			if(b == 0) { \
+				blRaise(vm, "DivisionByZeroException", #op" by zero."); \
 				UNWIND_STACK(vm); \
 			} \
-			LOAD_FRAME(); \
+			push(vm, NUM_VAL(a op b)); \
+		} else { \
+			BINARY_OVERLOAD(op, overload, reverse); \
 		} \
+	} while(0)
+
+	#define BINARY_OVERLOAD(op, overload, reverse) do { \
+		SAVE_FRAME(); \
+		if(!callBinaryOverload(vm, overload, reverse)) {   \
+			LOAD_FRAME(); \
+			ObjString *t1 = getClass(vm, peek(vm))->name;  \
+			ObjString *t2 = getClass(vm, peek2(vm))->name; \
+			blRaise(vm, "TypeException", "Operator %s not defined "  \
+						"for types %s, %s", #op, t1->data, t2->data); \
+			UNWIND_STACK(vm); \
+		} \
+		LOAD_FRAME(); \
 	} while(0)
 
 	#define UNWIND_HANDLER(h, cause, ret) do { \
@@ -710,71 +721,46 @@ static bool runEval(BlangVM *vm, int depth) {
 		}
 		DISPATCH();
 	}
+	TARGET(OP_SUB): BINARY(NUM_VAL,   -,  vm->sub, vm->rsub);  DISPATCH();
+	TARGET(OP_MUL): BINARY(NUM_VAL,   *,  vm->mul, vm->rmul);  DISPATCH();
+	TARGET(OP_LT):  BINARY(BOOL_VAL,  <,  vm->lt, NULL);       DISPATCH();
+	TARGET(OP_LE):  BINARY(BOOL_VAL,  <=, vm->le, NULL);       DISPATCH();
+	TARGET(OP_GT):  BINARY(BOOL_VAL,  >,  vm->gt, NULL);       DISPATCH();
+	TARGET(OP_GE):  BINARY(BOOL_VAL,  >=, vm->ge, NULL);       DISPATCH();
 	TARGET(OP_DIV): {
 		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
 			double b = AS_NUM(pop(vm));
 			double a = AS_NUM(pop(vm));
-
 			if(b == 0) {
-				blRaise(vm, "DivisionByZeroException", "Division by zero.");
+				blRaise(vm, "DivisionByZeroException", "/ by zero.");
 				UNWIND_STACK(vm);
 			}
-
 			push(vm, NUM_VAL(a / b));
 		} else {
-			SAVE_FRAME();
-			if(!callBinaryOverload(vm, vm->div, vm->rdiv)) {
-				LOAD_FRAME();
-				ObjString *t1 = getClass(vm, peek(vm))->name;
-				ObjString *t2 = getClass(vm, peek2(vm))->name;
-				blRaise(vm, "TypeException", "Operator / not defined"
-							" for types %s, %s", t1->data, t2->data);
-				UNWIND_STACK(vm);
-			}
-			LOAD_FRAME();
+			BINARY_OVERLOAD(/, vm->div, vm->rdiv);
 		}
-
 		DISPATCH();
 	}
 	TARGET(OP_MOD): {
 		if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
 			double b = AS_NUM(pop(vm));
 			double a = AS_NUM(pop(vm));
-
 			if(b == 0) {
-				blRaise(vm, "DivisionByZeroException", "Modulo by zero.");
+				blRaise(vm, "DivisionByZeroException", "%% by zero.");
 				UNWIND_STACK(vm);
 			}
-
 			push(vm, NUM_VAL(fmod(a, b)));
 		} else {
-			SAVE_FRAME();
-			if(!callBinaryOverload(vm, vm->mod, vm->rmod)) {
-				LOAD_FRAME();
-				ObjString *t1 = getClass(vm, peek(vm))->name;
-				ObjString *t2 = getClass(vm, peek2(vm))->name;
-				blRaise(vm, "TypeException", "Operator %% not defined"
-							" for types %s, %s", t1->data, t2->data);
-				UNWIND_STACK(vm);
-			}
-			LOAD_FRAME();
+			BINARY_OVERLOAD(%, vm->mod, vm->rmod);
 		}
-
 		DISPATCH();
 	}
-	TARGET(OP_SUB): BINARY(NUM_VAL,  -,  vm->sub, vm->rsub);  DISPATCH();
-	TARGET(OP_MUL): BINARY(NUM_VAL,  *,  vm->mul, vm->rmul);  DISPATCH();
-	TARGET(OP_LT):  BINARY(BOOL_VAL, <,  vm->lt, NULL);       DISPATCH();
-	TARGET(OP_LE):  BINARY(BOOL_VAL, <=, vm->le, NULL);       DISPATCH();
-	TARGET(OP_GT):  BINARY(BOOL_VAL, >,  vm->gt, NULL);       DISPATCH();
-	TARGET(OP_GE):  BINARY(BOOL_VAL, >=, vm->ge, NULL);       DISPATCH();
 	TARGET(OP_EQ): {
 		if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
 			push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
 		} else {
-			ObjClass *cls = getClass(vm, peek2(vm));
-
 			Value eq;
+			ObjClass *cls = getClass(vm, peek2(vm));
 			if(hashTableGet(&cls->methods, vm->eq, &eq)) {
 				SAVE_FRAME();
 				if(!callValue(vm, eq, 1)) {
@@ -786,7 +772,6 @@ static bool runEval(BlangVM *vm, int depth) {
 				push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
 			}
 		}
-
 		DISPATCH();
 	}
 	TARGET(OP_NEG): {
@@ -794,7 +779,6 @@ static bool runEval(BlangVM *vm, int depth) {
 			push(vm, NUM_VAL(-AS_NUM(pop(vm))));
 		} else {
 			ObjClass *cls = getClass(vm, peek(vm));
-
 			SAVE_FRAME();
 			if(!invokeMethod(vm, cls, vm->neg, 0)) {
 				LOAD_FRAME();
@@ -804,15 +788,16 @@ static bool runEval(BlangVM *vm, int depth) {
 		}
 		DISPATCH();
 	}
+	TARGET(OP_NOT):
+		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
+		DISPATCH();
 	TARGET(OP_IS): {
-		Value b = pop(vm);
-		Value a = pop(vm);
-
-		if(!IS_CLASS(b)) {
+		if(!IS_CLASS(peek2(vm))) {
 			blRaise(vm, "TypeException", "Right operand of `is` must be a class.");
 			UNWIND_STACK(vm);
 		}
-
+		Value b = pop(vm);
+		Value a = pop(vm);
 		push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
 		DISPATCH();
 	}
@@ -821,15 +806,11 @@ static bool runEval(BlangVM *vm, int depth) {
 			blRaise(vm, "TypeException", "Operands of `^` must be numbers");
 			UNWIND_STACK(vm);
 		}
-
 		double y = AS_NUM(pop(vm));
 		double x = AS_NUM(pop(vm));
 		push(vm, NUM_VAL(pow(x, y)));
 		DISPATCH();
 	}
-	TARGET(OP_NOT):
-		push(vm, BOOL_VAL(!isValTrue(pop(vm))));
-		DISPATCH();
 	TARGET(OP_ARR_GET): {
 		if(IS_LIST(peek2(vm))) {
 			if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
@@ -882,7 +863,6 @@ static bool runEval(BlangVM *vm, int depth) {
 			push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
 		} else {
 			ObjClass *cls = getClass(vm, peek2(vm));
-
 			SAVE_FRAME();
 			if(!invokeMethod(vm, cls, vm->get, 1)) {
 				LOAD_FRAME();
@@ -1038,7 +1018,6 @@ sup_invoke:;
 			UNWIND_STACK(vm);
 		}
 		LOAD_FRAME();
-
 		DISPATCH();
 	}
 	TARGET(OP_RETURN): {
@@ -1064,7 +1043,6 @@ sup_invoke:;
 
 		LOAD_FRAME();
 		vm->module = fn->c.module;
-
 		DISPATCH();
 	}
 	TARGET(OP_IMPORT):
@@ -1075,7 +1053,6 @@ sup_invoke:;
 			blRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
 			UNWIND_STACK(vm);
 		}
-
 
 		if(op == OP_IMPORT || op == OP_IMPORT_AS) {
 			//define name for the module in the importing module
@@ -1091,7 +1068,6 @@ sup_invoke:;
 			callFunction(vm, closure, 0);
 			LOAD_FRAME();
 		}
-
 		DISPATCH();
 	}
 	TARGET(OP_IMPORT_NAME): {
@@ -1122,16 +1098,15 @@ sup_invoke:;
 	TARGET(OP_NEW_TUPLE): {
 		uint8_t size = NEXT_CODE();
 		ObjTuple *t = newTuple(vm, size);
-
-		for(int i = size - 1; i >= 0; i--) t->arr[i] = pop(vm);
-
+		for(int i = size - 1; i >= 0; i--) {
+			t->arr[i] = pop(vm);
+		}
 		push(vm, OBJ_VAL(t));
 		DISPATCH();
 	}
 	TARGET(OP_NEW_CLOSURE): {
 		ObjClosure *closure = newClosure(vm, AS_FUNC(GET_CONST()));
 		push(vm, OBJ_VAL(closure));
-
 		for(uint8_t i = 0; i < closure->fn->upvaluec; i++) {
 			uint8_t isLocal = NEXT_CODE();
 			uint8_t index = NEXT_CODE();
@@ -1160,11 +1135,11 @@ sup_invoke:;
 			UNWIND_STACK(vm);
 		}
 
-		uint8_t num = NEXT_CODE();
 		Obj *seq = AS_OBJ(pop(vm));
+		uint8_t num = NEXT_CODE();
 		
-		Value *arr = NULL;
 		size_t size = 0;
+		Value *arr = NULL;
 
 		switch(seq->type) {
 		case OBJ_TUPLE:
@@ -1185,8 +1160,9 @@ sup_invoke:;
 			UNWIND_STACK(vm);
 		}
 
-		for(int i = 0; i < num; i++) push(vm, arr[i]);
-
+		for(int i = 0; i < num; i++) {
+			push(vm, arr[i]);
+		}
 		DISPATCH();
 	TARGET(OP_DEF_METHOD): {
 		ObjClass *cls = AS_CLASS(peek2(vm));
@@ -1315,7 +1291,6 @@ sup_invoke:;
 		hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
 
 		pop(vm);
-
 		UNWIND_STACK(vm);
 	}
 	TARGET(OP_GET_LOCAL):
