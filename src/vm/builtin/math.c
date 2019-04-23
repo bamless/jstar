@@ -4,7 +4,7 @@
 #include <math.h>
 
 NATIVE(bl_random) {
-    blPushNumber(vm, (double) rand() / (RAND_MAX + 1));
+    blPushNumber(vm, (double) rand() / ((unsigned) RAND_MAX + 1));
     return true;
 }
 
@@ -20,4 +20,6 @@ NATIVE(bl_math_init) {
     blSetGlobal(vm, NULL, "huge");
     blPushNumber(vm, NAN);
     blSetGlobal(vm, NULL, "nan");
+    blPushNull(vm);
+    return true;
 }
