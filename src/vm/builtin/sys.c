@@ -1,5 +1,6 @@
 #include "sys.h"
 #include "memory.h"
+#include "io.h"
 #include "vm.h"
 
 #include <string.h>
@@ -61,33 +62,31 @@ NATIVE(bl_gets) {
 
 NATIVE(bl_init) {
 	// Set up the standard I/O streams (this is a little bit of an hack)
-	if(!blGetGlobal(vm, NULL, "file")) return false;
-
-	if(!blGetField(vm, -1, "File")) return false;
+	if(!blGetGlobal(vm, "io", "File")) return false;
 
 	ObjInstance *fileout = newInstance(vm, AS_CLASS(vm->sp[-1]));
 	push(vm, OBJ_VAL(fileout));
 
 	blPushHandle(vm, (void*)stdout);
-	blSetField(vm, -2, "_handle");
+	blSetField(vm, -2, FIELD_FILE_HANDLE);
 	blPop(vm);
 
 	blPushBoolean(vm, false);
-	blSetField(vm, -2, "_closed");
+	blSetField(vm, -2, FIELD_FILE_CLOSED);
 	blPop(vm);
 
-	blSetGlobal(vm, NULL, "stdout");
+	blSetGlobal(vm, NULL, "out");
 	blPop(vm);
 
 	ObjInstance *filein = newInstance(vm, AS_CLASS(vm->sp[-1]));
 	push(vm, OBJ_VAL(filein));
 
 	blPushHandle(vm, (void*)stdin);
-	blSetField(vm, -2, "_handle");
+	blSetField(vm, -2, FIELD_FILE_HANDLE);
 	blPop(vm);
 
 	blPushBoolean(vm, false);
-	blSetField(vm, -2, "_closed");
+	blSetField(vm, -2, FIELD_FILE_CLOSED);
 	blPop(vm);
 
 	blSetGlobal(vm, NULL, "stdin");
@@ -97,23 +96,23 @@ NATIVE(bl_init) {
 	push(vm, OBJ_VAL(fileerr));
 
 	blPushHandle(vm, (void*)stderr);
-	blSetField(vm, -2, "_handle");
+	blSetField(vm, -2, FIELD_FILE_HANDLE);
 	blPop(vm);
 
 	blPushBoolean(vm, false);
-	blSetField(vm, -2, "_closed");
+	blSetField(vm, -2, FIELD_FILE_CLOSED);
 	blPop(vm);
 
-	blSetGlobal(vm, NULL, "stderr");
+	blSetGlobal(vm, NULL, "err");
 	blPop(vm);
 
 	// Set up command line arguments
 	if(argCount != 0) {
 		blGetGlobal(vm, NULL, "args");
-		ObjList *lst = AS_LIST(vm->sp[-1]);
-
 		for(int i = 0; i < argCount; i++) {
-			listAppend(vm, lst, OBJ_VAL(copyString(vm, argVector[i], strlen(argVector[i]), false)));
+			blPushString(vm, argVector[i]);
+			blListAppend(vm, -2);
+			blPop(vm);
 		}
 	}
 

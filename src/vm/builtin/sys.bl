@@ -1,4 +1,4 @@
-import file
+import io
 
 var OS_LINUX = "Linux"
 var OS_WIN32 = "Windows"

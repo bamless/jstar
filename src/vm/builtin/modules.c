@@ -7,8 +7,8 @@
 #include "sys.h"
 #include "sys.bl.h"
 
-#include "file.h"
-#include "file.bl.h"
+#include "io.h"
+#include "io.bl.h"
 
 #include "map.h"
 #include "map.bl.h"
@@ -137,7 +137,7 @@ Module builtInModules[] = {
 		FUNCTION(gets,           &bl_gets)
 		FUNCTION(__init,         &bl_init)
 	ENDMODULE
-	MODULE(file)
+	MODULE(io)
 		CLASS(File)
 			METHOD(size,     &bl_File_size)
 			METHOD(readAll,  &bl_File_readAll)

@@ -1,4 +1,4 @@
-#include "file.h"
+#include "io.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -13,9 +13,6 @@
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
 #include <sys/stat.h>
 #endif
-
-#define FIELD_FILE_HANDLE "_handle"
-#define FIELD_FILE_CLOSED "_closed"
 
 #define BL_SEEK_SET  0
 #define BL_SEEK_CURR 1

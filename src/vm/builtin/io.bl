@@ -1,8 +1,6 @@
 class FileNotFoundException : Exception end
 
-var SEEK_SET = 0
-var SEEK_CUR = 1
-var SEEK_END = 2
+var SEEK_SET, SEEK_CUR, SEEK_END = 0, 1, 2
 
 class File
 	fun new(name, mode)
