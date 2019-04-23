@@ -10,8 +10,11 @@ native getImportPaths()
 native platform()
 native exit(n=0)
 native clock()
+native time()
 native gets()
 native gc()
 
-native __init()
-__init()
+begin
+    native __init()
+    __init()
+end

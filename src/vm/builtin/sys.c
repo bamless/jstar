@@ -36,6 +36,11 @@ NATIVE(bl_platform) {
 	return true;
 }
 
+NATIVE(bl_time) {
+	blPushNumber(vm, time(NULL));
+	return true;
+}
+
 NATIVE(bl_clock) {
 	blPushNumber(vm, (double) clock() / CLOCKS_PER_SEC);
 	return true;

@@ -5,15 +5,6 @@
 #include <string.h>
 #include <errno.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <io.h>
-#endif
-
-#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
-#include <sys/stat.h>
-#endif
-
 #define BL_SEEK_SET  0
 #define BL_SEEK_CURR 1
 #define BL_SEEK_END  2
@@ -51,41 +42,6 @@ static bool readline(BlangVM *vm, BlBuffer *b, FILE *file) {
 	}
 
 	return true;
-}
-
-static int64_t getFileSize(FILE *stream) {
-	int64_t fsize = -1;
-
-#ifdef _WIN32
-	int fd = _fileno(stream);
-	if(fd < 0) {
-		return -1;
-	}
-
-	HANDLE f = (HANDLE)_get_osfhandle(fd);
-	if(f == INVALID_HANDLE_VALUE) {
-		return -1;
-	}
-
-	DWORD lo = 0;
-	DWORD hi = 0;
-	lo = GetFileSize(f, &hi);
-	fsize = (int64_t) (((uint64_t) hi) << 32) | lo;
-#else
-	int fd = fileno(stream);
-	if(fd < 0) {
-		return -1;
-	}
-
-	struct stat stat;
-	if(fstat(fd, &stat)) {
-		return -1;
-	}
-
-	fsize = (int64_t) stat.st_size;
-#endif
-
-	return fsize;
 }
 
 static int blSeek(FILE *file, long offset, int blWhence) {
@@ -167,6 +123,31 @@ NATIVE(bl_File_rewind) {
 	return true;
 }
 
+NATIVE(bl_File_read) {
+	if(!checkClosed(vm)) return false;
+
+	if(!blCheckInt(vm, 1, "bytes")) return false;
+	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+	if(!blCheckHandle(vm, -1, "_handle")) return false;
+
+	double bytes = blGetNumber(vm, 1);
+	if(bytes < 0) BL_RAISE(vm, "InvalidArgException", "bytes must be >= 0");
+	FILE *f = (FILE*) blGetHandle(vm, -1);
+
+	BlBuffer data;
+	blBufferInitSz(vm, &data, bytes);
+
+	size_t read;
+	if((read = fread(data.data, 1, bytes, f)) < (size_t) bytes && ferror(f)) {
+		blBufferFree(&data);
+		BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
+	}
+
+	data.len = read;
+	blBufferPush(&data);
+	return true;
+}
+
 NATIVE(bl_File_readAll) {
 	if(!checkClosed(vm)) return false;
 
@@ -176,25 +157,24 @@ NATIVE(bl_File_readAll) {
 	FILE *f = (FILE*) blGetHandle(vm, -1);
 
 	long off = ftell(f);
-	if(off == -1) {
-		BL_RAISE(vm, "IOException", strerror(errno));
-	}
+	if(off == -1) BL_RAISE(vm, "IOException", strerror(errno));
+	if(fseek(f, 0, SEEK_END)) BL_RAISE(vm, "IOException", strerror(errno));
 
-	int64_t size = getFileSize(f) - off;
-	if(size < 0) {
-		blPushNull(vm);
-		return true;
-	}
+	long size = ftell(f) - off;
+	if(size < 0) BL_RAISE(vm, "IOException", strerror(errno));
+
+	if(fseek(f, off, SEEK_SET)) BL_RAISE(vm, "IOException", strerror(errno));
 
 	BlBuffer data;
 	blBufferInitSz(vm, &data, size + 1);
-	data.len = size;
-
-	if(fread(data.data, sizeof(char), size, f) < (size_t) size) {
+	
+	size_t read;
+	if((read = fread(data.data, 1, size, f)) < (size_t) size && ferror(f)) {
 		blBufferFree(&data);
 		BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
 	}
 
+	data.len = read;
 	blBufferPush(&data);
 	return true;
 }
@@ -231,17 +211,6 @@ NATIVE(bl_File_close) {
 
 	blPushNull(vm);
 	blSetField(vm, 0, FIELD_FILE_HANDLE);
-	return true;
-}
-
-NATIVE(bl_File_size) {
-	if(!checkClosed(vm)) return false;
-
-	if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-	if(!blCheckHandle(vm, -1, "_handle")) return false;
-	FILE *f = (FILE*) blGetHandle(vm, -1);
-
-	blPushNumber(vm, getFileSize(f));
 	return true;
 }
 

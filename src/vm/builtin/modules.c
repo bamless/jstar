@@ -10,6 +10,9 @@
 #include "io.h"
 #include "io.bl.h"
 
+#include "math.h"
+#include "math.bl.h"
+
 #include "map.h"
 #include "map.bl.h"
 
@@ -20,9 +23,6 @@
 
 #include "re.h"
 #include "re.bl.h"
-
-#include "rand.h"
-#include "rand.bl.h"
 
 #include <string.h>
 
@@ -129,6 +129,7 @@ Module builtInModules[] = {
 		FUNCTION(eval, &bl_eval)
 	ENDMODULE
 	MODULE(sys)
+		FUNCTION(time,           &bl_time)
 		FUNCTION(exit,           &bl_exit)
 		FUNCTION(getImportPaths, &bl_getImportPaths)
 		FUNCTION(platform,       &bl_platform)
@@ -139,7 +140,7 @@ Module builtInModules[] = {
 	ENDMODULE
 	MODULE(io)
 		CLASS(File)
-			METHOD(size,     &bl_File_size)
+			METHOD(read,     &bl_File_read)
 			METHOD(readAll,  &bl_File_readAll)
 			METHOD(readLine, &bl_File_readLine)
 			METHOD(close,    &bl_File_close)
@@ -149,6 +150,10 @@ Module builtInModules[] = {
 			METHOD(flush,    &bl_File_flush)
 		ENDCLASS
 		FUNCTION(__open, &bl_open)
+	ENDMODULE
+	MODULE(math)
+		FUNCTION(random, &bl_random)
+		FUNCTION(seed,   &bl_seed)
 	ENDMODULE
 	MODULE(map)
 		CLASS(Map)
@@ -167,10 +172,6 @@ Module builtInModules[] = {
 		FUNCTION(find,   &bl_re_find)
 		FUNCTION(gmatch, &bl_re_gmatch)
 		FUNCTION(gsub,   &bl_re_gsub)
-	ENDMODULE
-	MODULE(rand)
-		FUNCTION(__initseed, &bl_initseed)
-		FUNCTION(random,     &bl_random)
 	ENDMODULE
 	MODULES_END
 };

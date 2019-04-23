@@ -16,11 +16,19 @@ class File
 	native seek(off, whence=0)
 	native rewind()
 
-	native size()
+	native read(bytes)
 	native readAll()
 	native readLine()
 	native close()
 	native flush()
+
+	fun size()
+		var oldpos = this.tell()
+		this.seek(0, SEEK_END)
+		var size = this.tell()
+		this.seek(oldpos)
+		return size
+	end
 
 	fun __iter__(_)
 		var l = this.readLine()

@@ -1,0 +1,20 @@
+native random()
+native seed(s)
+
+fun randint(a, b=null)
+    return int(randrange(a, b))
+end
+
+fun randrange(a, b=null)
+    if !(a is Number or (b and !(b is Number))) then
+        raise InvalidArgException("a and b must be numbers")
+    end
+    if b == null then 
+        a, b = 0, a 
+    end
+    if a >= b then 
+        raise InvalidArgException("a must be < b") 
+    end
+
+    return a + random() * (b - a)
+end
