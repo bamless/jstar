@@ -65,7 +65,7 @@ NATIVE(bl_gets) {
 	return true;
 }
 
-NATIVE(bl_init) {
+NATIVE(bl_sys_init) {
 	// Set up the standard I/O streams (this is a little bit of an hack)
 	if(!blGetGlobal(vm, "io", "File")) return false;
 

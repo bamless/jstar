@@ -6,4 +6,6 @@
 NATIVE(bl_random);
 NATIVE(bl_seed);
 
+NATIVE(bl_math_init);
+
 #endif

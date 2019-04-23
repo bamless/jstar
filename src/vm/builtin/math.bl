@@ -1,20 +1,23 @@
+var e  = 2.71828182845904523536
+var pi = 3.14159265358979323846
+
 native random()
 native seed(s)
 
 fun randint(a, b=null)
-    return int(randrange(a, b))
-end
-
-fun randrange(a, b=null)
-    if !(a is Number or (b and !(b is Number))) then
-        raise InvalidArgException("a and b must be numbers")
+    if !isInt(a) or (b and !isInt(b)) then
+        raise InvalidArgException("a and b must be integers")
     end
-    if b == null then 
-        a, b = 0, a 
+    if b == null then
+        a, b = 0, a
     end
     if a >= b then 
         raise InvalidArgException("a must be < b") 
     end
+    return int(a + random() * (b - a + 1))
+end
 
-    return a + random() * (b - a)
+begin
+    native init()
+    init()
 end

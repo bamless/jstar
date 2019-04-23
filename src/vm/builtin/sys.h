@@ -12,6 +12,7 @@ NATIVE(bl_platform);
 NATIVE(bl_gc);
 NATIVE(bl_clock);
 NATIVE(bl_gets);
-NATIVE(bl_init);
+
+NATIVE(bl_sys_init);
 
 #endif

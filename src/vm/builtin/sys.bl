@@ -15,6 +15,6 @@ native gets()
 native gc()
 
 begin
-    native __init()
-    __init()
+    native init()
+    init()
 end

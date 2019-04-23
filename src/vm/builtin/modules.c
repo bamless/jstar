@@ -136,7 +136,7 @@ Module builtInModules[] = {
 		FUNCTION(clock,          &bl_clock)
 		FUNCTION(gc,             &bl_gc)
 		FUNCTION(gets,           &bl_gets)
-		FUNCTION(__init,         &bl_init)
+		FUNCTION(init,           &bl_sys_init)
 	ENDMODULE
 	MODULE(io)
 		CLASS(File)
@@ -154,6 +154,7 @@ Module builtInModules[] = {
 	MODULE(math)
 		FUNCTION(random, &bl_random)
 		FUNCTION(seed,   &bl_seed)
+		FUNCTION(init,   &bl_math_init)
 	ENDMODULE
 	MODULE(map)
 		CLASS(Map)

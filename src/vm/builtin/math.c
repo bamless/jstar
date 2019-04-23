@@ -1,9 +1,10 @@
 #include "math.h"
 
 #include <stdlib.h>
+#include <math.h>
 
 NATIVE(bl_random) {
-    blPushNumber(vm, (double) rand() / RAND_MAX);
+    blPushNumber(vm, (double) rand() / (RAND_MAX + 1));
     return true;
 }
 
@@ -12,4 +13,11 @@ NATIVE(bl_seed) {
     srand(blGetNumber(vm, 1));
     blPushNull(vm);
     return true;
+}
+
+NATIVE(bl_math_init) {
+    blPushNumber(vm, HUGE_VAL);
+    blSetGlobal(vm, NULL, "huge");
+    blPushNumber(vm, NAN);
+    blSetGlobal(vm, NULL, "nan");
 }
