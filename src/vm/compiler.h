@@ -1,11 +1,10 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#include "ast.h"
 #include "object.h"
 
 #include <stdint.h>
-
-#include "ast.h"
 
 #define CTOR_STR "new"
 

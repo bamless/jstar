@@ -1,106 +1,106 @@
 class Set
-	fun new(...)
-		import map
-		this._map = map.Map()
+    fun new(...)
+        import map
+        this._map = map.Map()
 
-		if #args != 0 then
-			for var e in args do
-				this.add(e)
-			end
-		end
-	end
+        if #args != 0 then
+            for var e in args do
+                this.add(e)
+            end
+        end
+    end
 
-	fun add(e)
-		if !this.contains(e) then
-			this._map[e] = 0
-			return true
-		end
-		return false
-	end
+    fun add(e)
+        if !this.contains(e) then
+            this._map[e] = 0
+            return true
+        end
+        return false
+    end
 
-	fun addAll(iterable)
-		var changed = false
-		for var e in iterable do
-			var r = this.add(e)
-			changed = changed or r
-		end
-		return changed
-	end
+    fun addAll(iterable)
+        var changed = false
+        for var e in iterable do
+            var r = this.add(e)
+            changed = changed or r
+        end
+        return changed
+    end
 
-	fun remove(e)
-		return this._map.remove(e) != null
-	end
+    fun remove(e)
+        return this._map.remove(e) != null
+    end
 
-	fun removeAll(iterable)
-		var changed = false
-		for var e in iterable do
-			changed = changed or this.remove(e)
-		end
-		return changed
-	end
+    fun removeAll(iterable)
+        var changed = false
+        for var e in iterable do
+            changed = changed or this.remove(e)
+        end
+        return changed
+    end
 
-	fun contains(e)
-		return this._map[e] != null
-	end
+    fun contains(e)
+        return this._map[e] != null
+    end
 
-	fun containsAll(iterable)
-		for var e in iterable do
-			if !this.contains(e) then
-				return false
-			end
-		end
-		return true
-	end
+    fun containsAll(iterable)
+        for var e in iterable do
+            if !this.contains(e) then
+                return false
+            end
+        end
+        return true
+    end
 
-	fun clear()
-		this._map.clear()
-	end
+    fun clear()
+        this._map.clear()
+    end
 
-	fun __len__()
-		return #this._map
-	end
+    fun __len__()
+        return #this._map
+    end
 
-	fun empty()
-		return #this == 0
-	end
+    fun empty()
+        return #this == 0
+    end
 
-	fun intersect(c)
-		for var e in this do
-			if !c.contains(e) then
-				this.remove(e)
-			end
-		end
-	end
+    fun intersect(c)
+        for var e in this do
+            if !c.contains(e) then
+                this.remove(e)
+            end
+        end
+    end
 
-	fun __iter__(i)
-		if i == null then
-			i = this._map.keyIterator()
-		end
-		return i if i.__iter__(i) else null
-	end
+    fun __iter__(i)
+        if i == null then
+            i = this._map.keyIterator()
+        end
+        return i if i.__iter__(i) else null
+    end
 
-	fun __next__(i)
-		return i.__next__(i)
-	end
+    fun __next__(i)
+        return i.__next__(i)
+    end
 
-	fun __string__()
-		var s = "{"
-		var count = 0
+    fun __string__()
+        var s = "{"
+        var count = 0
 
-		for var k in this do
-			count += 1
-			s += ##k
-			if count < #this._map then s += ", " end
-		end
+        for var k in this do
+            count += 1
+            s += ##k
+            if count < #this._map then s += ", " end
+        end
 
-		return s + "}"
-	end
+        return s + "}"
+    end
 end
 
 fun buildset(iter)
-	var s = Set()
-	for var e in iter do
-		s.add(e)
-	end
-	return s
+    var s = Set()
+    for var e in iter do
+        s.add(e)
+    end
+    return s
 end

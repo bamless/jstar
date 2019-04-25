@@ -4,10 +4,10 @@
 #include "token.h"
 
 typedef struct Lexer {
-	const char *source;
-	const char *tokenStart;
-	const char *current;
-	int curr_line;
+    const char *source;
+    const char *tokenStart;
+    const char *current;
+    int curr_line;
 } Lexer;
 
 void initLexer(Lexer *lex, const char *src);

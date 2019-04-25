@@ -12,16 +12,16 @@ typedef struct ObjString ObjString;
 #define INITIAL_CAPACITY 16
 
 typedef struct Entry {
-	struct Entry *next;
-	ObjString *key;
-	Value value;
+    struct Entry *next;
+    ObjString *key;
+    Value value;
 } Entry;
 
 typedef struct HashTable {
-	size_t size;
-	size_t mask;
-	size_t numEntries;
-	Entry **entries;
+    size_t size;
+    size_t mask;
+    size_t numEntries;
+    Entry **entries;
 } HashTable;
 
 // Initialize the hashtable

@@ -1,14 +1,14 @@
 #include "re.h"
-#include "vm.h"
 #include "memory.h"
+#include "vm.h"
 
-#include <string.h>
-#include <stddef.h>
 #include <ctype.h>
+#include <stddef.h>
+#include <string.h>
 
-#define MAX_CAPTURES       31
+#define MAX_CAPTURES 31
 #define CAPTURE_UNFINISHED -1
-#define CAPTURE_POSITION   -2
+#define CAPTURE_POSITION -2
 
 #define ESCAPE '%'
 
@@ -26,16 +26,35 @@ typedef struct {
 static bool matchClass(char c, char cls) {
     bool res;
     switch(tolower(cls)) {
-    case 'a': res = isalpha(c); break;
-    case 'c': res = iscntrl(c); break;
-    case 'd': res = isdigit(c); break;
-    case 'l': res = islower(c); break;
-    case 'p': res = ispunct(c); break;
-    case 's': res = isspace(c); break;
-    case 'u': res = isupper(c); break;
-    case 'w': res = isalnum(c); break;
-    case 'x': res = isxdigit(c); break;
-    default: return c == cls;
+    case 'a':
+        res = isalpha(c);
+        break;
+    case 'c':
+        res = iscntrl(c);
+        break;
+    case 'd':
+        res = isdigit(c);
+        break;
+    case 'l':
+        res = islower(c);
+        break;
+    case 'p':
+        res = ispunct(c);
+        break;
+    case 's':
+        res = isspace(c);
+        break;
+    case 'u':
+        res = isupper(c);
+        break;
+    case 'w':
+        res = isalnum(c);
+        break;
+    case 'x':
+        res = isxdigit(c);
+        break;
+    default:
+        return c == cls;
     }
     return isupper(cls) ? !res : res;
 }
@@ -50,13 +69,11 @@ static bool matchCustomClass(char c, const char *r, const char *er) {
     while(++r < er) {
         if(*r == ESCAPE) {
             r++;
-            if(matchClass(c, *r))
-                return ret;
+            if(matchClass(c, *r)) return ret;
         } else if(r[1] == '-' && r + 2 < er) {
             r += 2;
-            if(*(r - 2) <= c && c <= *r)
-                return ret;
-        } else if (*r == c) {
+            if(*(r - 2) <= c && c <= *r) return ret;
+        } else if(*r == c) {
             return ret;
         }
     }
@@ -116,8 +133,7 @@ static const char *endCapture(RegexState *rs, const char *s, const char *r) {
     if(i == -1) return NULL;
     rs->captures[i].len = s - rs->captures[i].start;
     const char *res;
-    if((res = match(rs, s, r + 1)) == NULL)
-        rs->captures[i].len = CAPTURE_UNFINISHED;
+    if((res = match(rs, s, r + 1)) == NULL) rs->captures[i].len = CAPTURE_UNFINISHED;
     return res;
 }
 
@@ -128,8 +144,7 @@ static const char *greedyMatch(RegexState *rs, const char *s, const char *r, con
 
     while(i >= 0) {
         const char *res;
-        if((res = match(rs, s + i, er + 1)) != NULL)
-            return res;
+        if((res = match(rs, s + i, er + 1)) != NULL) return res;
         if(rs->err) return NULL;
         i--;
     }
@@ -140,8 +155,7 @@ static const char *greedyMatch(RegexState *rs, const char *s, const char *r, con
 static const char *lazyMatch(RegexState *rs, const char *s, const char *r, const char *er) {
     do {
         const char *res;
-        if((res = match(rs, s, er + 1)) != NULL)
-            return res;
+        if((res = match(rs, s, er + 1)) != NULL) return res;
         if(rs->err) return NULL;
     } while(*s != '\0' && matchClassOrChar(*s++, r, er));
     return NULL;
@@ -178,21 +192,20 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
     case ')':
         return endCapture(rs, s, r);
     case '$':
-        if(r[1] == '\0')
-            return *s == '\0' ? s : NULL;
+        if(r[1] == '\0') return *s == '\0' ? s : NULL;
         goto def;
     case '\0':
         return s;
-    default: def: {
+    default:
+    def : {
         const char *er = endClass(rs, r);
         if(er == NULL) return NULL;
         bool isMatch = *s != '\0' && matchClassOrChar(*s, r, er);
-        
+
         switch(*er) {
         case '?': {
             const char *res;
-            if(isMatch && (res = match(rs, s + 1, er + 1)) != NULL)
-                return res;
+            if(isMatch && (res = match(rs, s + 1, er + 1)) != NULL) return res;
             return match(rs, s, er + 1);
         }
         case '+': {
@@ -205,26 +218,29 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
             return lazyMatch(rs, s, r, er);
         }
         default: {
-            if(!isMatch) return NULL;
-            else return match(rs, s + 1, er);
+            if(!isMatch)
+                return NULL;
+            else
+                return match(rs, s + 1, er);
         }
         }
     }
     }
-   
+
     return NULL;
 }
 
-static bool matchRegex(BlangVM *vm, RegexState *rs, const char *s, size_t len, const char *r, int off) {
+static bool matchRegex(BlangVM *vm, RegexState *rs, const char *s, size_t len, const char *r,
+                       int off) {
     rs->vm = vm;
     rs->str = s;
     rs->err = false;
     rs->capturec = 1;
     rs->captures[0].start = s;
-    rs->captures[0].len =  CAPTURE_UNFINISHED;
+    rs->captures[0].len = CAPTURE_UNFINISHED;
 
     if(off < 0) off += len;
-    if(off < 0 || (size_t) off > len) return false;
+    if(off < 0 || (size_t)off > len) return false;
 
     s += off;
 
@@ -250,15 +266,12 @@ static bool matchRegex(BlangVM *vm, RegexState *rs, const char *s, size_t len, c
     return false;
 }
 
-#define FIND_ERR     0
-#define FIND_MATCH   1
+#define FIND_ERR 0
+#define FIND_MATCH 1
 #define FIND_NOMATCH 2
 
 static int find_aux(BlangVM *vm, RegexState *rs) {
-    if(!blCheckStr(vm, 1, "str")   || 
-       !blCheckStr(vm, 2, "regex") || 
-       !blCheckInt(vm, 3, "off")) 
-    {
+    if(!blCheckStr(vm, 1, "str") || !blCheckStr(vm, 2, "regex") || !blCheckInt(vm, 3, "off")) {
         return FIND_ERR;
     }
 
@@ -277,8 +290,7 @@ static int find_aux(BlangVM *vm, RegexState *rs) {
 }
 
 static bool pushCapture(BlangVM *vm, RegexState *rs, int n) {
-    if(n < 0 || n >= rs->capturec)
-        BL_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
+    if(n < 0 || n >= rs->capturec) BL_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
     if(rs->captures[n].len == CAPTURE_UNFINISHED)
         BL_RAISE(vm, "RegexException", "Unfinished capture.");
 
@@ -318,7 +330,7 @@ NATIVE(bl_re_find) {
 
     if(res == FIND_ERR) return false;
     if(res == FIND_NOMATCH) return true;
-    
+
     ObjTuple *ret = newTuple(vm, rs.capturec + 1);
     push(vm, OBJ_VAL(ret));
 
@@ -342,7 +354,7 @@ NATIVE(bl_re_gmatch) {
 
     const char *regex = blGetString(vm, 2);
     const char *str = blGetString(vm, 1);
-    size_t len = blGetStringSz(vm, 1);     
+    size_t len = blGetStringSz(vm, 1);
 
     blPushList(vm);
 
@@ -381,7 +393,7 @@ NATIVE(bl_re_gmatch) {
         // increment by the number of chars since last match
         off += lastmatch != NULL ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
         off += rs.captures[0].len;
-        
+
         // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
@@ -410,13 +422,14 @@ static bool substitute(BlangVM *vm, RegexState *rs, BlBuffer *b, const char *s, 
             blBufferAppend(b, blGetString(vm, -1), blGetStringSz(vm, -1));
             blPop(vm);
             break;
-        default: def:
+        default:
+        def:
             blBufferAppendChar(b, *sub);
             break;
         }
     }
     return true;
-} 
+}
 
 NATIVE(bl_re_gsub) {
     if(!blCheckStr(vm, 1, "str")) return false;
@@ -425,7 +438,7 @@ NATIVE(bl_re_gsub) {
     if(!blCheckInt(vm, 4, "num")) return false;
 
     const char *str = blGetString(vm, 1);
-    size_t len = blGetStringSz(vm, 1);   
+    size_t len = blGetStringSz(vm, 1);
     const char *regex = blGetString(vm, 2);
     const char *sub = blGetString(vm, 3);
     int num = blGetNumber(vm, 4);
@@ -458,7 +471,8 @@ NATIVE(bl_re_gsub) {
             continue;
         }
 
-        int offSinceLast = lastmatch ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
+        int offSinceLast =
+            lastmatch ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
         blBufferAppend(&b, lastmatch ? lastmatch : str, offSinceLast);
 
         if(!substitute(vm, &rs, &b, str, sub)) {
@@ -471,7 +485,7 @@ NATIVE(bl_re_gsub) {
         // increment by the number of chars since last match
         off += offSinceLast;
         off += rs.captures[0].len;
-        
+
         // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }

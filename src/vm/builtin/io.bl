@@ -3,45 +3,45 @@ class FileNotFoundException : Exception end
 var SEEK_SET, SEEK_CUR, SEEK_END = 0, 1, 2
 
 class File
-	fun new(name, mode)
-		if !(name is String and mode is String) then
-			raise InvalidArgException("Arguments of File.new() must be 2 strings.")
-		end
+    fun new(name, mode)
+        if !(name is String and mode is String) then
+            raise InvalidArgException("Arguments of File.new() must be 2 strings.")
+        end
 
-		this._handle = __open(name, mode)
-		this._closed = false
-	end
-	
-	native tell()
-	native seek(off, whence=0)
-	native rewind()
+        this._handle = __open(name, mode)
+        this._closed = false
+    end
+    
+    native tell()
+    native seek(off, whence=0)
+    native rewind()
 
-	native read(bytes)
-	native readAll()
-	native readLine()
-	native close()
-	native flush()
+    native read(bytes)
+    native readAll()
+    native readLine()
+    native close()
+    native flush()
 
-	fun size()
-		var oldpos = this.tell()
-		this.seek(0, SEEK_END)
-		var size = this.tell()
-		this.seek(oldpos)
-		return size
-	end
+    fun size()
+        var oldpos = this.tell()
+        this.seek(0, SEEK_END)
+        var size = this.tell()
+        this.seek(oldpos)
+        return size
+    end
 
-	fun __iter__(_)
-		var l = this.readLine()
-		return l if l != "" else null
-	end
+    fun __iter__(_)
+        var l = this.readLine()
+        return l if l != "" else null
+    end
 
-	fun __next__(line)
-		return line
-	end
+    fun __next__(line)
+        return line
+    end
 
-	fun __string__()
-		return "<" + ("closed " if this._closed else "open ") + super.__string__() + ">"
-	end
+    fun __string__()
+        return "<" + ("closed " if this._closed else "open ") + super.__string__() + ">"
+    end
 end
 
 native __open(name, mode)

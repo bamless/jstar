@@ -4,8 +4,8 @@
 #include "object.h"
 #include "util.h"
 
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef struct Frame Frame;
 typedef struct BlangVM BlangVM;
@@ -18,10 +18,12 @@ void garbageCollect(BlangVM *vm);
 
 // Functions for allocating objects.
 // These functions use GCallocate to acquire memory and then initialize
-// the object with the supplied arguments, as well as setting all the 
+// the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
-ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, uint8_t defaultc);
-ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
+ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn,
+                     uint8_t defaultc);
+ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
+                         uint8_t defaultc);
 ObjRange *newRange(BlangVM *vm, double start, double stop, double step);
 ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
 ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);

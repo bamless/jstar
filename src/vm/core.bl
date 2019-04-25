@@ -1,207 +1,207 @@
 class Number
-	native __string__()
-	native __class__()
-	native __hash__()
+    native __string__()
+    native __class__()
+    native __hash__()
 end
 class Boolean
-	native __string__()
-	native __class__()
+    native __string__()
+    native __class__()
 end
 class Null
-	native __string__()
-	native __class__()
+    native __string__()
+    native __class__()
 end
 class Function
-	native __string__()
+    native __string__()
 end
 class Module
-	native __string__()
+    native __string__()
 end
 class StackTrace end
 
 class String
-	fun join(iterable)
-		var lst = iterable
-		if !(lst is List) then
-			lst = []
-			for var e in iterable do
-				lst.add(e)
-			end
-		end
-		return this.__join(lst)
-	end
+    fun join(iterable)
+        var lst = iterable
+        if !(lst is List) then
+            lst = []
+            for var e in iterable do
+                lst.add(e)
+            end
+        end
+        return this.__join(lst)
+    end
 
-	native substr(from, to)
-	native __join(lst)
+    native substr(from, to)
+    native __join(lst)
 
-	native __eq__(o)
-	native __len__()
-	native __iter__(iter)
-	native __next__(idx)
-	native __string__()
-	native __hash__()
+    native __eq__(o)
+    native __len__()
+    native __iter__(iter)
+    native __next__(idx)
+    native __string__()
+    native __hash__()
 end
 
 class List
-	native add(e)
-	native insert(i, e)
-	native removeAt(i)
-	native subList(from, to)
-	native clear()
-	native __len__()
-	native __iter__(iter)
-	native __next__(idx)
+    native add(e)
+    native insert(i, e)
+    native removeAt(i)
+    native subList(from, to)
+    native clear()
+    native __len__()
+    native __iter__(iter)
+    native __next__(idx)
 
-	fun addAll(iterable)
-		var changed = false
-		for var e in iterable do
-			this.add(e)
-			changed = true
-		end
-		return changed
-	end
+    fun addAll(iterable)
+        var changed = false
+        for var e in iterable do
+            this.add(e)
+            changed = true
+        end
+        return changed
+    end
 
-	fun insertAll(iterable, i=0)
-		if i < 0 or i >= #this then
-			raise IndexOutOfBoundException(str(i))
-		end
+    fun insertAll(iterable, i=0)
+        if i < 0 or i >= #this then
+            raise IndexOutOfBoundException(str(i))
+        end
 
-		var changed = false
-		for var e in iterable do
-			this.insert(i, e)
-			changed = true
-		end
-		return changed
-	end
+        var changed = false
+        for var e in iterable do
+            this.insert(i, e)
+            changed = true
+        end
+        return changed
+    end
 
-	fun remove(e)
-		for var i = 0; i < #this; i += 1 do
-			if e == this[i] then
-				this.removeAt(i)
-				return true
-			end
-		end
-		return false
-	end
+    fun remove(e)
+        for var i = 0; i < #this; i += 1 do
+            if e == this[i] then
+                this.removeAt(i)
+                return true
+            end
+        end
+        return false
+    end
 
-	fun removeAll(iterable)
-		var changed = false
-		for var e in iterable do
-			var r = this.remove(e)
-			changed = changed or r
-		end
-		return changed
-	end
+    fun removeAll(iterable)
+        var changed = false
+        for var e in iterable do
+            var r = this.remove(e)
+            changed = changed or r
+        end
+        return changed
+    end
 
-	fun contains(e)
-		return this.indexOf(e) != -1
-	end
+    fun contains(e)
+        return this.indexOf(e) != -1
+    end
 
-	fun indexOf(e)
-		for var i = 0; i < #this; i += 1 do
-			if this[i] == e then
-				return i
-			end
-		end
-		return -1
-	end
+    fun indexOf(e)
+        for var i = 0; i < #this; i += 1 do
+            if this[i] == e then
+                return i
+            end
+        end
+        return -1
+    end
 
-	fun indexOfLast(e)
-		for var i = #this - 1; i >= 0; i -= 1 do
-			if this[i] == e then
-				return i
-			end
-		end
-		return -1
-	end
+    fun indexOfLast(e)
+        for var i = #this - 1; i >= 0; i -= 1 do
+            if this[i] == e then
+                return i
+            end
+        end
+        return -1
+    end
 
-	fun empty()
-		return #this == 0
-	end
+    fun empty()
+        return #this == 0
+    end
 
-	fun swap(a, b)
-		this[a], this[b] = this[b], this[a]
-	end
+    fun swap(a, b)
+        this[a], this[b] = this[b], this[a]
+    end
 
-	fun foreach(pred)
-		for var e in this do pred(e) end
-	end
+    fun foreach(pred)
+        for var e in this do pred(e) end
+    end
 
-	fun __string__()
-		var s = "["
-		var length = #this
+    fun __string__()
+        var s = "["
+        var length = #this
 
-		for var i = 0; i < length; i += 1 do
-			s += ##this[i]
-			if i < length - 1 then s += ", " end
-		end
+        for var i = 0; i < length; i += 1 do
+            s += ##this[i]
+            if i < length - 1 then s += ", " end
+        end
 
-		return s + "]"
-	end
+        return s + "]"
+    end
 
-	fun __eq__(lst)
-		if !(lst is List) then return false end
+    fun __eq__(lst)
+        if !(lst is List) then return false end
 
-		var length = #this
-		if length != #lst then
-			return false
-		end
+        var length = #this
+        if length != #lst then
+            return false
+        end
 
-		for var i = 0; i < length; i += 1 do
-			if this[i] != lst[i] then
-				return false
-			end
-		end
-		return true
-	end
+        for var i = 0; i < length; i += 1 do
+            if this[i] != lst[i] then
+                return false
+            end
+        end
+        return true
+    end
 end
 
 class Tuple
-	native sub(from, to)
-	native __len__()
-	native __iter__(iter)
-	native __next__(idx)
+    native sub(from, to)
+    native __len__()
+    native __iter__(iter)
+    native __next__(idx)
 
-	fun __string__()
-		var s = "("
-		var size = #this
+    fun __string__()
+        var s = "("
+        var size = #this
 
-		for var i = 0; i < size; i += 1 do
-			s += ##this[i]
-			if(i != size - 1) then s += ", " end
-		end
+        for var i = 0; i < size; i += 1 do
+            s += ##this[i]
+            if(i != size - 1) then s += ", " end
+        end
 
-		return s + ")"
-	end
+        return s + ")"
+    end
 
-	fun __eq__(tup)
-		if !(tup is Tuple) then return false end
+    fun __eq__(tup)
+        if !(tup is Tuple) then return false end
 
-		var length = #this
-		if length != #tup then
-			return false
-		end
-		for var i = 0; i < length; i += 1 do
-			if this[i] != tup[i] then
-				return false
-			end
-		end
-		return true
-	end
+        var length = #this
+        if length != #tup then
+            return false
+        end
+        for var i = 0; i < length; i += 1 do
+            if this[i] != tup[i] then
+                return false
+            end
+        end
+        return true
+    end
 
 end
 
 class range 
-	native __iter__(iter)
-	native __next__(next)
+    native __iter__(iter)
+    native __next__(next)
 end
 
 // Exceptions builtin classes
 
 class Exception
-	fun new(err=null)
-		this.err = err
-	end
+    fun new(err=null)
+        this.err = err
+    end
 end
 
 class TypeException : Exception end
@@ -217,26 +217,26 @@ class AssertException : Exception end
 class IOException : Exception end
 
 fun assert(cond, msg="assertion failed")
-	if !cond then 
-		raise AssertException(msg) 
-	end
+    if !cond then 
+        raise AssertException(msg) 
+    end
 end
 
 fun print(s, ...)
-	write(s)
-	for var s in args do
-		__printstr(" ")
-		write(s)
-	end
-	__printstr("\n")
+    write(s)
+    for var s in args do
+        __printstr(" ")
+        write(s)
+    end
+    __printstr("\n")
 end
 
 fun write(o, file=null)
-	__printstr(##o, file)
+    __printstr(##o, file)
 end
 
 fun type(o)
-	return o.__class__()
+    return o.__class__()
 end
 
 native int(n)

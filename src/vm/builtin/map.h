@@ -4,9 +4,9 @@
 #include "blang.h"
 
 // class Map
-    NATIVE(bl_Map_getEntry);
-    NATIVE(bl_Map_addEntry);
-    NATIVE(bl_Map_grow);
+NATIVE(bl_Map_getEntry);
+NATIVE(bl_Map_addEntry);
+NATIVE(bl_Map_grow);
 // end
 
 #endif

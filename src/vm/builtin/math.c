@@ -1,10 +1,10 @@
 #include "math.h"
 
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 
 NATIVE(bl_random) {
-    blPushNumber(vm, (double) rand() / ((unsigned) RAND_MAX + 1));
+    blPushNumber(vm, (double)rand() / ((unsigned)RAND_MAX + 1));
     return true;
 }
 

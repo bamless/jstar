@@ -1,208 +1,208 @@
 class __Entry
-	fun new(k, v)
-		this.key, this.value = k, v
-		this.next = null
-	end
+    fun new(k, v)
+        this.key, this.value = k, v
+        this.next = null
+    end
 
-	fun __string__()
-		return "{" + ##this.key + ":" + ##this.value + "}"
-	end
+    fun __string__()
+        return "{" + ##this.key + ":" + ##this.value + "}"
+    end
 end
 
 class Map
-	fun new(...)
-		this._count, this._size = 0, 16
-		this._entries = List(16)
+    fun new(...)
+        this._count, this._size = 0, 16
+        this._entries = List(16)
 
-		if #args != 0 then
-			for var k, v in args do
-				this[k] = v
-			end
-		end
-	end
+        if #args != 0 then
+            for var k, v in args do
+                this[k] = v
+            end
+        end
+    end
 
-	native __getEntry(key)
-	native __addEntry(e)
+    native __getEntry(key)
+    native __addEntry(e)
 
-	native __grow()
+    native __grow()
 
-	fun __get__(key)
-		var e = this.__getEntry(key)
-		return e.value if e != null else null
-	end
+    fun __get__(key)
+        var e = this.__getEntry(key)
+        return e.value if e != null else null
+    end
 
-	fun __set__(key, val)
-		var e = this.__getEntry(key)
-		if e != null then
-			var old = e.value
-			e.value = val
-			return old
-		end
+    fun __set__(key, val)
+        var e = this.__getEntry(key)
+        if e != null then
+            var old = e.value
+            e.value = val
+            return old
+        end
 
-		// The max load factor is 0.75
-		if this._count + 1 > this._size * 0.75 then
-			this.__grow()
-		end
+        // The max load factor is 0.75
+        if this._count + 1 > this._size * 0.75 then
+            this.__grow()
+        end
 
-		this.__addEntry(__Entry(key, val))
-		this._count += 1
-		return null
-	end
+        this.__addEntry(__Entry(key, val))
+        this._count += 1
+        return null
+    end
 
-	fun remove(key)
-		var i = key.__hash__() % this._size
+    fun remove(key)
+        var i = key.__hash__() % this._size
 
-		var prev
-		var head = this._entries[i]
+        var prev
+        var head = this._entries[i]
 
-		while head != null do
-			if key == head.key then
-				if prev == null then
-					this._entries[i] = head.next
-				else
-					prev.next = head.next
-				end
+        while head != null do
+            if key == head.key then
+                if prev == null then
+                    this._entries[i] = head.next
+                else
+                    prev.next = head.next
+                end
 
-				this._count -= 1
-				return head.value
-			end
+                this._count -= 1
+                return head.value
+            end
 
-			prev = head
-			head = head.next
-		end
+            prev = head
+            head = head.next
+        end
 
-		return null
-	end
+        return null
+    end
 
-	fun containsKey(key)
-		return this.__getEntry(key) != null
-	end
+    fun containsKey(key)
+        return this.__getEntry(key) != null
+    end
 
-	fun containsValue(val)
-		for var e in this.valueIterator() do
-			if e == val then
-				return true
-			end
-		end
-		return false
-	end
+    fun containsValue(val)
+        for var e in this.valueIterator() do
+            if e == val then
+                return true
+            end
+        end
+        return false
+    end
 
-	fun clear()
-		for var i = 0; i < this._size; i += 1 do
-			this._entries[i] = null
-		end
-		this._count = 0
-	end
+    fun clear()
+        for var i = 0; i < this._size; i += 1 do
+            this._entries[i] = null
+        end
+        this._count = 0
+    end
 
-	fun __len__()
-		return this._count
-	end
+    fun __len__()
+        return this._count
+    end
 
-	fun keySet()
-		return __KeySet(this)
-	end
+    fun keySet()
+        return __KeySet(this)
+    end
 
-	fun keyIterator()
-		return __KeyIterator(this)
-	end
+    fun keyIterator()
+        return __KeyIterator(this)
+    end
 
-	fun valueIterator()
-		return __ValueIterator(this)
-	end
+    fun valueIterator()
+        return __ValueIterator(this)
+    end
 
-	fun __string__()
-		var s = "["
-		var count = 0
-		var iterator = __EntryIterator(this)
+    fun __string__()
+        var s = "["
+        var count = 0
+        var iterator = __EntryIterator(this)
 
-		for var e in iterator do
-			count += 1
-			s += ##e
-			if count < this._count then s += ", " end
-		end
+        for var e in iterator do
+            count += 1
+            s += ##e
+            if count < this._count then s += ", " end
+        end
 
-		return s + "]"
-	end
+        return s + "]"
+    end
 end
 
 import set
 
 class __KeySet : set.Set
-	fun new(map)
-		this._map = map
-	end
+    fun new(map)
+        this._map = map
+    end
 
-	fun contains(e)
-		return this._map.__getEntry(e) != null
-	end
+    fun contains(e)
+        return this._map.__getEntry(e) != null
+    end
 
-	fun addAll(iterable)
-		raise Exception("addAll not supported in KeySet")
-	end
+    fun addAll(iterable)
+        raise Exception("addAll not supported in KeySet")
+    end
 
-	fun add(e)
-		raise Exception("add not supported in KeySet.")
-	end
+    fun add(e)
+        raise Exception("add not supported in KeySet.")
+    end
 
-	fun remove(e)
-		raise Exception("remove not supported in KeySet.")
-	end
+    fun remove(e)
+        raise Exception("remove not supported in KeySet.")
+    end
 
-	fun removeAll(iterable)
-		raise Exception("removeAll not supported in KeySet")
-	end
+    fun removeAll(iterable)
+        raise Exception("removeAll not supported in KeySet")
+    end
 
-	fun clear()
-		raise Exception("clear not supported in KeySet")
-	end
+    fun clear()
+        raise Exception("clear not supported in KeySet")
+    end
 end
 
 class __EntryIterator
-	fun new(map)
-		this.map = map
-		this.index = 0
-		this.next = null
-		this.e = null
-		this.__nextBucket()
-	end
+    fun new(map)
+        this.map = map
+        this.index = 0
+        this.next = null
+        this.e = null
+        this.__nextBucket()
+    end
 
-	fun __nextBucket()
-		if this.index >= this.map._size then
-			return
-		end
+    fun __nextBucket()
+        if this.index >= this.map._size then
+            return
+        end
 
-		while this.index < this.map._size - 1 and this.map._entries[this.index] == null do
-			this.index += 1
-		end
+        while this.index < this.map._size - 1 and this.map._entries[this.index] == null do
+            this.index += 1
+        end
 
-		this.next = this.map._entries[this.index]
-	end
+        this.next = this.map._entries[this.index]
+    end
 
-	fun __iter__(_)
-		return this.next != null
-	end
+    fun __iter__(_)
+        return this.next != null
+    end
 
-	fun __next__(_)
-		var e = this.next
-		this.next = e.next
+    fun __next__(_)
+        var e = this.next
+        this.next = e.next
 
-		if this.next == null then
-			this.index += 1
-			this.__nextBucket()
-		end
+        if this.next == null then
+            this.index += 1
+            this.__nextBucket()
+        end
 
-		return e
-	end
+        return e
+    end
 end
 
 class __KeyIterator : __EntryIterator
-	fun __next__(_)
-		return super.__next__(_).key
-	end
+    fun __next__(_)
+        return super.__next__(_).key
+    end
 end
 
 class __ValueIterator : __EntryIterator
-	fun __next__(_)
-		return super.__next__(_).value
-	end
+    fun __next__(_)
+        return super.__next__(_).value
+    end
 end

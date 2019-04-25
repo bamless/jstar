@@ -3,18 +3,18 @@
 
 #include "value.h"
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define CHUNK_DEFAULT_SIZE 8
 #define CHUNK_GROW_FACT 2
 
 typedef struct Chunk {
-	size_t size, count;
-	uint8_t *code;
-	size_t linesSize, linesCount;
-	int *lines;
-	ValueArray consts;
+    size_t size, count;
+    uint8_t *code;
+    size_t linesSize, linesCount;
+    int *lines;
+    ValueArray consts;
 } Chunk;
 
 void initChunk(Chunk *c);

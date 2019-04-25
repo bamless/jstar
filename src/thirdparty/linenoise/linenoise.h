@@ -46,24 +46,24 @@ extern "C" {
 
 typedef struct linenoiseCompletions linenoiseCompletions;
 
-typedef void(linenoiseCompletionCallback)(const char*, linenoiseCompletions*);
-void linenoiseSetCompletionCallback(linenoiseCompletionCallback* fn);
-void linenoiseAddCompletion(linenoiseCompletions* lc, const char* str);
+typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
+void linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn);
+void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str);
 
-char* linenoise(const char* prompt);
-void linenoisePreloadBuffer(const char* preloadText);
-int linenoiseHistoryAdd(const char* line);
+char *linenoise(const char *prompt);
+void linenoisePreloadBuffer(const char *preloadText);
+int linenoiseHistoryAdd(const char *line);
 int linenoiseHistorySetMaxLen(int len);
-char* linenoiseHistoryLine(int index);
-int linenoiseHistorySave(const char* filename);
-int linenoiseHistoryLoad(const char* filename);
+char *linenoiseHistoryLine(int index);
+int linenoiseHistorySave(const char *filename);
+int linenoiseHistoryLoad(const char *filename);
 void linenoiseHistoryFree(void);
 void linenoiseClearScreen(void);
 void linenoiseSetMultiLine(int ml);
 void linenoisePrintKeyCodes(void);
 /* the following are extensions to the original linenoise API */
 int linenoiseInstallWindowChangeHandler(void);
-/* returns type of key pressed: 1 = CTRL-C, 2 = CTRL-D, 0 = other */ 
+/* returns type of key pressed: 1 = CTRL-C, 2 = CTRL-D, 0 = other */
 int linenoiseKeyType(void);
 
 #ifdef __cplusplus
