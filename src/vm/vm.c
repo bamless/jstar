@@ -1003,10 +1003,11 @@ invoke:;
         argc = op - OP_SUPER_0;
 sup_invoke:;
         ObjString *name = GET_STRING();
+        // The superclass is stored as a const in the function itself
+        ObjClass *sup = AS_CLASS(closure->fn->chunk.consts.arr[0]);
 
         SAVE_FRAME();
-        ObjInstance *inst = AS_INSTANCE(peekn(vm, argc));
-        if(!invokeMethod(vm, inst->base.cls->superCls, name, argc)) {
+        if(!invokeMethod(vm, sup, name, argc)) {
             LOAD_FRAME();
             UNWIND_STACK(vm);
         }
@@ -1163,7 +1164,9 @@ sup_invoke:;
     TARGET(OP_DEF_METHOD): {
         ObjClass *cls = AS_CLASS(peek2(vm));
         ObjString *methodName = GET_STRING();
-        hashTablePut(&cls->methods, methodName, pop(vm));
+        ObjClosure *closure = AS_CLOSURE(pop(vm));
+        closure->fn->chunk.consts.arr[0] = OBJ_VAL(cls->superCls);
+        hashTablePut(&cls->methods, methodName, OBJ_VAL(closure));
         DISPATCH();
     }
     TARGET(OP_NAT_METHOD): {
@@ -1173,6 +1176,7 @@ sup_invoke:;
 
         native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
         if(native->fn == NULL) {
+            printf("%s\n", methodName->data);
             blRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
             UNWIND_STACK(vm);
         }

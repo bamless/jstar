@@ -1361,6 +1361,8 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
     c->func->c.vararg = s->funcDecl.isVararg;
+
+    // Add default parameters
     addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
     if(s->funcDecl.id.length != 0) {
@@ -1403,6 +1405,11 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
     c->func->c.vararg = s->funcDecl.isVararg;
+
+    // Phony const that will be set to the superclass of the method's class at runtime
+    addConstant(&c->func->chunk, HANDLE_VAL(NULL));
+
+    // Add default parameters
     addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
     // create new method name by concatenating the class name to it
