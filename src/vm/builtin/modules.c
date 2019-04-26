@@ -130,6 +130,7 @@ Module builtInModules[] = {
     ENDMODULE
     MODULE(sys)
         FUNCTION(time,           &bl_time)
+        FUNCTION(exec,           &bl_exec)
         FUNCTION(exit,           &bl_exit)
         FUNCTION(getImportPaths, &bl_getImportPaths)
         FUNCTION(platform,       &bl_platform)
@@ -149,6 +150,10 @@ Module builtInModules[] = {
             METHOD(rewind,   &bl_File_rewind)
             METHOD(flush,    &bl_File_flush)
         ENDCLASS
+        CLASS(__PFile)
+            METHOD(close,    &bl_PFile_close)
+        ENDCLASS
+        FUNCTION(popen,  &bl_popen)
         FUNCTION(__open, &bl_open)
     ENDMODULE
     MODULE(math)

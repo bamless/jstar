@@ -27,6 +27,16 @@ void sysInitArgs(int argc, const char **argv) {
     argVector = argv;
 }
 
+NATIVE(bl_exec) {
+    const char *cmd = NULL;
+    if(!blIsNull(vm, 1)) {
+        if(!blCheckStr(vm, 1, "cmd")) return false;
+        cmd = blGetString(vm, 1);
+    }
+    blPushNumber(vm, system(cmd));
+    return true;
+}
+
 NATIVE(bl_exit) {
     if(!blCheckInt(vm, 1, "n")) return false;
     exit(blGetNumber(vm, 1));

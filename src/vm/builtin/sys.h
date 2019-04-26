@@ -6,6 +6,7 @@
 void sysInitArgs(int argc, const char **argv);
 
 NATIVE(bl_time);
+NATIVE(bl_exec);
 NATIVE(bl_exit);
 NATIVE(bl_getImportPaths);
 NATIVE(bl_platform);

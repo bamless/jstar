@@ -1,3 +1,26 @@
+// Check for popen, pclose
+#ifdef __linux__
+
+#define USE_POPEN
+#define _GNU_SOURCE
+#include <stdio.h>
+#undef _GNU_SOURCE
+
+#elif defined(_WIN32)
+
+#define USE_POPEN
+#define popen _popen
+#define pclose _pclose
+
+#elif defined(__unix__) || defined(__APPLE__)
+
+#define USE_POPEN
+#define _POSIX_SOURCE
+#include <stdio.h>
+#undef _POSIX_SOURCE
+
+#endif
+
 #include "io.h"
 
 #include <errno.h>
@@ -11,36 +34,37 @@
 
 // static helper functions
 
-static bool readline(BlangVM *vm, BlBuffer *b, FILE *file) {
-    blBufferInitSz(vm, b, 16);
-
+static bool readline(BlangVM *vm, FILE *file) {
     char buf[512];
     char *ret = fgets(buf, sizeof(buf), file);
     if(ret == NULL) {
         if(feof(file)) {
+            blPushNull(vm);
             return true;
         } else {
-            blBufferFree(b);
             return false;
         }
     }
-    blBufferAppendstr(b, buf);
+
+    BlBuffer b;
+    blBufferInitSz(vm, &b, 16);
+    blBufferAppendstr(&b, buf);
 
     char *newLine;
-    while((newLine = strchr(b->data, '\n')) == NULL) {
+    while((newLine = strchr(b.data, '\n')) == NULL) {
         ret = fgets(buf, sizeof(buf), file);
         if(ret == NULL) {
             if(feof(file)) {
                 break;
             } else {
-                blBufferFree(b);
+                blBufferFree(&b);
                 return false;
             }
         }
 
-        blBufferAppendstr(b, buf);
+        blBufferAppendstr(&b, buf);
     }
-
+    blBufferPush(&b);
     return true;
 }
 
@@ -71,9 +95,8 @@ static bool checkClosed(BlangVM *vm) {
 
 NATIVE(bl_File_seek) {
     if(!checkClosed(vm)) return false;
-
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
     if(!blCheckInt(vm, 1, "off") || !blCheckInt(vm, 2, "whence")) return false;
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
@@ -95,9 +118,8 @@ NATIVE(bl_File_seek) {
 
 NATIVE(bl_File_tell) {
     if(!checkClosed(vm)) return false;
-
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
 
@@ -112,9 +134,8 @@ NATIVE(bl_File_tell) {
 
 NATIVE(bl_File_rewind) {
     if(!checkClosed(vm)) return false;
-
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
     rewind(f);
@@ -125,10 +146,9 @@ NATIVE(bl_File_rewind) {
 
 NATIVE(bl_File_read) {
     if(!checkClosed(vm)) return false;
-
     if(!blCheckInt(vm, 1, "bytes")) return false;
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
     double bytes = blGetNumber(vm, 1);
     if(bytes < 0) BL_RAISE(vm, "InvalidArgException", "bytes must be >= 0");
@@ -143,6 +163,12 @@ NATIVE(bl_File_read) {
         BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
     }
 
+    if(read == 0) {
+        blBufferFree(&data);
+        blPushNull(vm);
+        return true;
+    }
+
     data.len = read;
     blBufferPush(&data);
     return true;
@@ -150,9 +176,8 @@ NATIVE(bl_File_read) {
 
 NATIVE(bl_File_readAll) {
     if(!checkClosed(vm)) return false;
-
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
 
@@ -161,7 +186,10 @@ NATIVE(bl_File_readAll) {
     if(fseek(f, 0, SEEK_END)) BL_RAISE(vm, "IOException", strerror(errno));
 
     long size = ftell(f) - off;
-    if(size < 0) BL_RAISE(vm, "IOException", strerror(errno));
+    if(size < 0) {
+        blPushNull(vm);
+        return true;
+    }
 
     if(fseek(f, off, SEEK_SET)) BL_RAISE(vm, "IOException", strerror(errno));
 
@@ -174,6 +202,12 @@ NATIVE(bl_File_readAll) {
         BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
     }
 
+    if(read == 0) {
+        blBufferFree(&data);
+        blPushNull(vm);
+        return true;
+    }
+
     data.len = read;
     blBufferPush(&data);
     return true;
@@ -181,24 +215,21 @@ NATIVE(bl_File_readAll) {
 
 NATIVE(bl_File_readLine) {
     if(!checkClosed(vm)) return false;
-
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
 
-    BlBuffer line;
-    if(!readline(vm, &line, f)) {
+    if(!readline(vm, f)) {
         BL_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blBufferPush(&line);
     return true;
 }
 
 NATIVE(bl_File_close) {
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
 
@@ -216,9 +247,9 @@ NATIVE(bl_File_close) {
 
 NATIVE(bl_File_flush) {
     if(!checkClosed(vm)) return false;
-
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, "_handle")) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+
     FILE *f = (FILE *)blGetHandle(vm, -1);
 
     fflush(f);
@@ -227,6 +258,33 @@ NATIVE(bl_File_flush) {
     return true;
 }
 // } class File
+
+// class __PFile {
+#ifdef USE_POPEN
+
+NATIVE(bl_PFile_close) {
+    if(!checkClosed(vm)) return false;
+    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+
+    FILE *f = (FILE *)blGetHandle(vm, -1);
+
+    if(pclose(f)) {
+        BL_RAISE(vm, "IOException", strerror(errno));
+    }
+
+    blPushNull(vm);
+    return true;
+}
+
+#else 
+
+NATIVE(bl_PFile_close) {
+    BL_RAISE(vm, "Exception", "pclose not available on current system.");
+}
+
+#endif
+// }
 
 // functions
 
@@ -251,3 +309,32 @@ NATIVE(bl_open) {
     blPushHandle(vm, (void *)f);
     return true;
 }
+
+#ifdef USE_POPEN
+
+NATIVE(bl_popen) {
+    const char *pname = blGetString(vm, 1);
+    const char *m = blGetString(vm, 2);
+
+    if(strlen(m) != 1 || (m[0] != 'r' && m[1] != 'w')) {
+        BL_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+    }
+
+    FILE *f;
+    if((f = popen(pname, m)) == NULL) {
+        BL_RAISE(vm, "IOException", strerror(errno));
+    }
+
+    blGetGlobal(vm, NULL, "__PFile");
+    blPushHandle(vm, f);
+    if(blCall(vm, 1) != VM_EVAL_SUCCSESS) return false;
+    return true;
+}
+
+#else
+
+NATIVE(bl_popen) {
+    BL_RAISE(vm, "Exception", "popen not available on current system.");
+}
+
+#endif

@@ -3,6 +3,7 @@ import io
 var args = []
 
 native clock()
+native exec(cmd)
 native exit(n=0)
 native gc()
 native getImportPaths()

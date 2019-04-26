@@ -44,4 +44,15 @@ class File
     end
 end
 
+class __PFile : File
+    fun new(handle)
+        this._handle = handle
+        this._closed = false
+    end
+
+    native close()
+end
+
+native popen(name, mode="r")
+
 native __open(name, mode)

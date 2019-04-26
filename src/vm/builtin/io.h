@@ -17,8 +17,13 @@ NATIVE(bl_File_rewind);
 NATIVE(bl_File_flush);
 // } class File
 
+// class __PFile {
+NATIVE(bl_PFile_close);
+// }
+
 // prototypes
 
 NATIVE(bl_open);
+NATIVE(bl_popen);
 
 #endif
