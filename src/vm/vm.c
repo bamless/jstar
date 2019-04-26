@@ -1164,9 +1164,9 @@ sup_invoke:;
     TARGET(OP_DEF_METHOD): {
         ObjClass *cls = AS_CLASS(peek2(vm));
         ObjString *methodName = GET_STRING();
-        ObjClosure *closure = AS_CLOSURE(pop(vm));
-        closure->fn->chunk.consts.arr[0] = OBJ_VAL(cls->superCls);
-        hashTablePut(&cls->methods, methodName, OBJ_VAL(closure));
+        // Set the superclass as a const in the function
+        AS_CLOSURE(peek(vm))->fn->chunk.consts.arr[0] = OBJ_VAL(cls->superCls);
+        hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }
     TARGET(OP_NAT_METHOD): {
