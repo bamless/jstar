@@ -8,15 +8,15 @@
 #include <time.h>
 
 #ifdef _WIN32
-    #define PLATFORM "win32"
+#define PLATFORM "win32"
 #elif defined(__linux__)
-    #define PLATFORM "linux"
+#define PLATFORM "linux"
 #elif defined(__APPLE__)
-    #define PLATFORM "darwin"
+#define PLATFORM "darwin"
 #elif defined(__FreeBSD__)
-    #define PLATFORM "freebsd"
+#define PLATFORM "freebsd"
 #else
-    #define PLATFORM "unknown"
+#define PLATFORM "unknown"
 #endif
 
 static int argCount = 0;

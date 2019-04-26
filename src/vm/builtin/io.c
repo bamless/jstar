@@ -277,7 +277,7 @@ NATIVE(bl_PFile_close) {
     return true;
 }
 
-#else 
+#else
 
 NATIVE(bl_PFile_close) {
     BL_RAISE(vm, "Exception", "pclose not available on current system.");

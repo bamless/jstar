@@ -642,9 +642,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         break;
     case EXPR_LST: {
         LinkedList *n;
-        foreach(n, e->exprList.lst) { 
-            compileExpr(c, (Expr *)n->elem); 
-        }
+        foreach(n, e->exprList.lst) { compileExpr(c, (Expr *)n->elem); }
         break;
     }
     case NUM_LIT:
