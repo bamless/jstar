@@ -7,6 +7,18 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef _WIN32
+    #define PLATFORM "win32"
+#elif defined(__linux__)
+    #define PLATFORM "linux"
+#elif defined(__APPLE__)
+    #define PLATFORM "darwin"
+#elif defined(__FreeBSD__)
+    #define PLATFORM "freebsd"
+#else
+    #define PLATFORM "unknown"
+#endif
+
 static int argCount = 0;
 static const char **argVector = NULL;
 
@@ -26,13 +38,7 @@ NATIVE(bl_getImportPaths) {
 }
 
 NATIVE(bl_platform) {
-#ifdef __linux
-    blPushString(vm, "Linux");
-#elif _WIN32
-    blPushString(vm, "Win32");
-#elif __APPLE__
-    blPushString(vm, "OSX");
-#endif
+    blPushString(vm, PLATFORM);
     return true;
 }
 

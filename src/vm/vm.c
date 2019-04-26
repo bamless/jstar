@@ -181,15 +181,6 @@ static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
     return cls == vm->lstClass || cls == vm->rangeClass;
 }
 
-static bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
-    for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
-        if(c == cls) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static bool isInt(double n) {
     return (int64_t)n == n;
 }

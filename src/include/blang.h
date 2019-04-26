@@ -105,6 +105,9 @@ void blRaise(BlangVM *vm, const char *cls, const char *err, ...);
 // the exception on top of the stack repectively.
 bool blEquals(BlangVM *vm);
 
+// Check if a value is of a certain class.
+bool blIs(BlangVM *vm, int slot, int classSlot);
+
 // Function for converting C values to Blang values.
 // They leave the converted value on top of the stack
 

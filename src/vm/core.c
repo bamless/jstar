@@ -224,8 +224,12 @@ NATIVE(bl_num) {
 }
 
 NATIVE(bl_isInt) {
-    if(!blCheckInt(vm, 1, "n")) return false;
-    blPushBoolean(vm, blIsInteger(vm, 1));
+    if(blIsNumber(vm, 1)) {
+        double n = blGetNumber(vm, 1);
+        blPushBoolean(vm, trunc(n) == n);
+        return true;
+    }
+    blPushBoolean(vm, false);
     return true;
 }
 

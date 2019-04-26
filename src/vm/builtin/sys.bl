@@ -1,18 +1,14 @@
 import io
 
-var OS_LINUX = "Linux"
-var OS_WIN32 = "Windows"
-var OS_OSX   = "Darwin"
-
 var args = []
 
-native getImportPaths()
-native platform()
-native exit(n=0)
 native clock()
-native time()
-native gets()
+native exit(n=0)
 native gc()
+native getImportPaths()
+native gets()
+native platform()
+native time(tm=null)
 
 begin
     native init()

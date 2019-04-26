@@ -137,6 +137,15 @@ static inline ObjClass *getClass(BlangVM *vm, Value v) {
     }
 }
 
+static inline bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
+    for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
+        if(c == cls) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Get the value at API stack slot "slot"
 static inline Value apiStackSlot(BlangVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");

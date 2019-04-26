@@ -32,6 +32,13 @@ bool blEquals(BlangVM *vm) {
     }
 }
 
+bool blIs(BlangVM *vm, int slot, int classSlot) {
+    Value v = apiStackSlot(vm, slot);
+    Value cls = apiStackSlot(vm, classSlot);
+    if(!IS_CLASS(cls)) return false;
+    return isInstance(vm, v, AS_CLASS(cls));
+}
+
 void blPushNumber(BlangVM *vm, double number) {
     validateStack(vm);
     push(vm, NUM_VAL(number));
