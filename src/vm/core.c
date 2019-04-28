@@ -252,23 +252,8 @@ NATIVE(bl_ascii) {
 }
 
 NATIVE(bl_printstr) {
-    FILE *stream = stdout;
-
-    if(!blIsNull(vm, 2)) {
-        if(!blCheckInstance(vm, 2, "stream")) return false;
-
-        if(!blGetField(vm, 2, "_closed")) return false;
-        if(!blGetField(vm, 2, "_handle")) return false;
-
-        if(blGetBoolean(vm, -2)) BL_RAISE(vm, "IOException", "closed file");
-
-        if(!blCheckHandle(vm, -1, "_handle")) return false;
-        stream = blGetHandle(vm, -1);
-    }
-
-    const char *s = blGetString(vm, 1);
-    fwrite(s, 1, blGetStringSz(vm, 1), stream);
-
+    if(!blCheckStr(vm, 1, "str")) return false;
+    fwrite(blGetString(vm, 1), 1, blGetStringSz(vm, 1), stdout);
     blPushNull(vm);
     return true;
 }

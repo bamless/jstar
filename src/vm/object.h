@@ -65,9 +65,18 @@ DECLARE_TO_STRING(ObjType);
 // class instances
 #define OBJTYPE(X)                                                                                 \
     X(OBJ_STRING)                                                                                  \
-    X(OBJ_NATIVE) X(OBJ_FUNCTION) X(OBJ_CLASS) X(OBJ_INST) X(OBJ_MODULE) X(OBJ_LIST)               \
-        X(OBJ_BOUND_METHOD) X(OBJ_STACK_TRACE) X(OBJ_CLOSURE) X(OBJ_UPVALUE) X(OBJ_TUPLE)          \
-            X(OBJ_RANGE)
+    X(OBJ_NATIVE)                                                                                  \
+    X(OBJ_FUNCTION)                                                                                \
+    X(OBJ_CLASS)                                                                                   \
+    X(OBJ_INST)                                                                                    \
+    X(OBJ_MODULE)                                                                                  \
+    X(OBJ_LIST)                                                                                    \
+    X(OBJ_BOUND_METHOD)                                                                            \
+    X(OBJ_STACK_TRACE)                                                                             \
+    X(OBJ_CLOSURE)                                                                                 \
+    X(OBJ_UPVALUE)                                                                                 \
+    X(OBJ_TUPLE)                                                                                   \
+    X(OBJ_RANGE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 

@@ -7,9 +7,9 @@
 
 #define BLANG_VERSION_MAJOR 0
 #define BLANG_VERSION_MINOR 2
-#define BLANG_VERSION_PATCH 2
+#define BLANG_VERSION_PATCH 3
 
-#define BLANG_VERSION_STRING "0.2.2"
+#define BLANG_VERSION_STRING "0.2.3"
 
 #define BLANG_VERSION                                                                              \
     (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)

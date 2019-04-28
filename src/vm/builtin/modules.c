@@ -144,6 +144,7 @@ Module builtInModules[] = {
             METHOD(read,     &bl_File_read)
             METHOD(readAll,  &bl_File_readAll)
             METHOD(readLine, &bl_File_readLine)
+            METHOD(write,    &bl_File_write)
             METHOD(close,    &bl_File_close)
             METHOD(seek,     &bl_File_seek)
             METHOD(tell,     &bl_File_tell)
@@ -154,6 +155,8 @@ Module builtInModules[] = {
             METHOD(close,    &bl_PFile_close)
         ENDCLASS
         FUNCTION(popen,  &bl_popen)
+        FUNCTION(remove, &bl_remove)
+        FUNCTION(rename, &bl_rename)
         FUNCTION(__open, &bl_open)
     ENDMODULE
     MODULE(math)

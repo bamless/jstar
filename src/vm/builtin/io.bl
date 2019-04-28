@@ -19,6 +19,7 @@ class File
     native read(bytes)
     native readAll()
     native readLine()
+    native write(data)
     native close()
     native flush()
 
@@ -54,5 +55,7 @@ class __PFile : File
 end
 
 native popen(name, mode="r")
+native remove(path)
+native rename(oldpath, newpath)
 
 native __open(name, mode)

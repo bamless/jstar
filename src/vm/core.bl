@@ -223,27 +223,23 @@ fun assert(cond, msg="assertion failed")
 end
 
 fun print(s, ...)
-    write(s)
+    __printstr(##s)
     for var s in args do
         __printstr(" ")
-        write(s)
+        __printstr(##s)
     end
     __printstr("\n")
-end
-
-fun write(o, file=null)
-    __printstr(##o, file)
 end
 
 fun type(o)
     return o.__class__()
 end
 
-native int(n)
-native num(n)
-native char(num)
 native ascii(char)
-native isInt(n)
-
-native __printstr(str, file=null)
+native char(num)
 native eval(source)
+native int(n)
+native isInt(n)
+native num(n)
+
+native __printstr(str)

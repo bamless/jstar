@@ -64,6 +64,7 @@ static bool readline(BlangVM *vm, FILE *file) {
 
         blBufferAppendstr(&b, buf);
     }
+    if(b.data[b.len - 1] == '\n') b.len--;
     blBufferPush(&b);
     return true;
 }
@@ -227,6 +228,25 @@ NATIVE(bl_File_readLine) {
     return true;
 }
 
+NATIVE(bl_File_write) {
+    if(!checkClosed(vm)) return false;
+    if(!blCheckStr(vm, 1, "data")) return false;
+    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+
+    FILE *f = (FILE *)blGetHandle(vm, -1);
+
+    size_t datalen = blGetStringSz(vm, 1);
+    const char *data = blGetString(vm, 1);
+
+    if(fwrite(data, 1, datalen, f) < datalen) {
+        BL_RAISE(vm, "IOException", strerror(errno));
+    }
+
+    blPushNull(vm);
+    return true;
+}
+
 NATIVE(bl_File_close) {
     if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
@@ -269,6 +289,9 @@ NATIVE(bl_PFile_close) {
 
     FILE *f = (FILE *)blGetHandle(vm, -1);
 
+    blPushBoolean(vm, true);
+    blSetField(vm, 0, FIELD_FILE_CLOSED);
+
     if(pclose(f)) {
         BL_RAISE(vm, "IOException", strerror(errno));
     }
@@ -307,6 +330,26 @@ NATIVE(bl_open) {
     }
 
     blPushHandle(vm, (void *)f);
+    return true;
+}
+
+NATIVE(bl_remove) {
+    if(!blCheckStr(vm, 1, "path")) return false;
+    if(remove(blGetString(vm, 1)) == -1) {
+        BL_RAISE(vm, "IOException", strerror(errno));
+    }
+    blPushNull(vm);
+    return true;
+}
+
+NATIVE(bl_rename) {
+    if(!blCheckStr(vm, 1, "oldpath") || !blCheckStr(vm, 2, "newpath")) {
+        return false;
+    }
+    if(rename(blGetString(vm, 1), blGetString(vm, 2)) == -1) {
+        BL_RAISE(vm, "IOException", strerror(errno));
+    }
+    blPushNull(vm);
     return true;
 }
 

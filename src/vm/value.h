@@ -4,8 +4,8 @@
 #include "options.h"
 
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /**
  * Here we define the Value type. This is a C type that can store any type
