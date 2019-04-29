@@ -9,7 +9,7 @@ native gc()
 native getImportPaths()
 native gets()
 native platform()
-native time(tm=null)
+native time()
 
 begin
     native init()
