@@ -164,12 +164,6 @@ NATIVE(bl_File_read) {
         BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
     }
 
-    if(read == 0) {
-        blBufferFree(&data);
-        blPushNull(vm);
-        return true;
-    }
-
     data.len = read;
     blBufferPush(&data);
     return true;
@@ -201,12 +195,6 @@ NATIVE(bl_File_readAll) {
     if((read = fread(data.data, 1, size, f)) < (size_t)size && ferror(f)) {
         blBufferFree(&data);
         BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
-    }
-
-    if(read == 0) {
-        blBufferFree(&data);
-        blPushNull(vm);
-        return true;
     }
 
     data.len = read;
@@ -356,6 +344,10 @@ NATIVE(bl_rename) {
 #ifdef USE_POPEN
 
 NATIVE(bl_popen) {
+    if(!blCheckStr(vm, 1, "name") || !blCheckStr(vm, 2, "mode")) {
+        return false;
+    }
+
     const char *pname = blGetString(vm, 1);
     const char *m = blGetString(vm, 2);
 

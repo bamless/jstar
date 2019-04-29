@@ -208,7 +208,7 @@ bool blIsHandle(BlangVM *vm, int slot) {
 }
 
 bool blCheckNum(BlangVM *vm, int slot, const char *name) {
-    if(!blIsInteger(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a number.", name);
+    if(!blIsNumber(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a number.", name);
     return true;
 }
 

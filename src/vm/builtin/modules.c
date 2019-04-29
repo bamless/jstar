@@ -49,7 +49,7 @@ typedef struct {
 typedef struct {
     const char *name;
     const char **src;
-    ModuleElem elems[21];
+    ModuleElem elems[31];
 } Module;
 
 // clang-format off
@@ -160,9 +160,39 @@ Module builtInModules[] = {
         FUNCTION(__open, &bl_open)
     ENDMODULE
     MODULE(math)
+        FUNCTION(abs,    &bl_abs)
+        FUNCTION(acos,   &bl_acos)
+        FUNCTION(asin,   &bl_asin)
+        FUNCTION(atan,   &bl_atan)
+        FUNCTION(atan2,  &bl_atan2)
+        FUNCTION(ceil,   &bl_ceil)
+        FUNCTION(cos,    &bl_cos)
+        FUNCTION(cosh,   &bl_cosh)
+        FUNCTION(deg,    &bl_deg)
+        FUNCTION(exp,    &bl_exp)
+        FUNCTION(floor,  &bl_floor)
+        FUNCTION(frexp,  &bl_frexp)
+        FUNCTION(ldexp,  &bl_ldexp)
+        FUNCTION(log,    &bl_log)
+        FUNCTION(log10,  &bl_log10)
+        FUNCTION(max,    &bl_max)
+        FUNCTION(min,    &bl_min)
+        FUNCTION(rad,    &bl_rad)
+        FUNCTION(sin,    &bl_sin)
+        FUNCTION(sinh,   &bl_sinh)
+        FUNCTION(sqrt,   &bl_sqrt)
+        FUNCTION(tan,    &bl_tan)
+        FUNCTION(tanh,   &bl_tanh)
+        FUNCTION(modf,   &bl_modf)
         FUNCTION(random, &bl_random)
         FUNCTION(seed,   &bl_seed)
         FUNCTION(init,   &bl_math_init)
+    ENDMODULE
+    MODULE(re)
+        FUNCTION(match,  &bl_re_match)
+        FUNCTION(find,   &bl_re_find)
+        FUNCTION(gmatch, &bl_re_gmatch)
+        FUNCTION(gsub,   &bl_re_gsub)
     ENDMODULE
     MODULE(map)
         CLASS(Map)
@@ -175,12 +205,6 @@ Module builtInModules[] = {
     MODULE(debug)
         FUNCTION(printStack, &bl_printStack)
         FUNCTION(dis,        &bl_dis)
-    ENDMODULE
-    MODULE(re)
-        FUNCTION(match,  &bl_re_match)
-        FUNCTION(find,   &bl_re_find)
-        FUNCTION(gmatch, &bl_re_gmatch)
-        FUNCTION(gsub,   &bl_re_gsub)
     ENDMODULE
     MODULES_END
 };

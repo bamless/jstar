@@ -32,8 +32,7 @@ class File
     end
 
     fun __iter__(_)
-        var l = this.readLine()
-        return l if l != "" else null
+        return this.readLine()
     end
 
     fun __next__(line)
