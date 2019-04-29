@@ -72,6 +72,7 @@ static void addPrintIfExpr(BlBuffer *sb) {
         freeExpr(e);
         // assign the result of the expression to `_`
         blBufferPrependstr(sb, "var _ = ");
+        blBufferAppendChar(sb, '\n');
         // print `_` if not null
         blBufferAppendstr(sb, "if _ != null then print(_) end");
     }
@@ -90,16 +91,16 @@ static void dorepl() {
 
         int depth = countBlocks(line);
         blBufferAppendstr(&src, line);
-        blBufferAppendChar(&src, '\n');
 
         free(line);
 
         while(depth > 0 && (line = linenoise("....... ")) != NULL) {
             linenoiseHistoryAdd(line);
 
+            blBufferAppendChar(&src, '\n');
+
             depth += countBlocks(line);
             blBufferAppendstr(&src, line);
-            blBufferAppendChar(&src, '\n');
 
             free(line);
         }

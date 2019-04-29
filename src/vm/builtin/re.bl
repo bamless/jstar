@@ -17,7 +17,7 @@ fun gfind(s, r)
             
             var b, e = res
 
-            while e == endl do
+            while e == endl and e - b == 0 do
                 if !(res = find(s, r, off += 1)) then
                     return null
                 end

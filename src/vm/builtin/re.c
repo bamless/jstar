@@ -360,7 +360,7 @@ NATIVE(bl_re_gmatch) {
 
     size_t off = 0;
     const char *lastmatch = NULL;
-    while(off < len) {
+    while(off <= len) {
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, off)) {
             if(rs.err) return false;
@@ -449,7 +449,7 @@ NATIVE(bl_re_gsub) {
     int numsub = 0;
     size_t off = 0;
     const char *lastmatch = NULL;
-    while(off < len) {
+    while(off <= len) {
         if(num > 0 && numsub > num - 1) {
             blBufferAppendstr(&b, lastmatch);
             break;
