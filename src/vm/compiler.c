@@ -271,9 +271,9 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 }
 
 static void callMethod(Compiler *c, const char *name, int args) {
-    Identifier method = {strlen(name), name};
+    Identifier meth = {strlen(name), name};
     emitBytecode(c, OP_INVOKE_0 + args, 0);
-    emitShort(c, identifierConst(c, &method, 0), 0);
+    emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
 static ObjString *readString(Compiler *c, Expr *e);
@@ -1210,8 +1210,6 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
         emitBytecode(c, OP_NULL, s->line);
     }
 
-    size_t excJmp = 0;
-
     enterScope(c);
 
     Identifier cause = {6, ".cause"};
@@ -1223,7 +1221,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
     defineVar(c, &exc, 0);
 
     if(hasExcept) {
-        excJmp = emitBytecode(c, OP_JUMP, 0);
+        size_t excJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
         setJumpTo(c, excSetup, c->func->chunk.count, s->line);

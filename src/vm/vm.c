@@ -155,8 +155,8 @@ static void ensureStack(BlangVM *vm, size_t needed) {
         for(int i = 0; i < vm->frameCount; i++) {
             Frame *frame = &vm->frames[i];
             frame->stack = vm->stack + (frame->stack - oldStack);
-            for(int i = 0; i < frame->handlerc; i++) {
-                Handler *h = &frame->handlers[i];
+            for(int j = 0; j < frame->handlerc; j++) {
+                Handler *h = &frame->handlers[j];
                 h->savesp = vm->stack + (h->savesp - oldStack);
             }
         }
@@ -1041,9 +1041,9 @@ sup_invoke:;
         //call the module's main if first time import
         if(!valueEquals(peek(vm), NULL_VAL)) {
             SAVE_FRAME();
-            ObjClosure *closure = newClosure(vm, AS_FUNC(peek(vm)));
-            *(vm->sp - 1) = OBJ_VAL(closure); 
-            callFunction(vm, closure, 0);
+            ObjClosure *c = newClosure(vm, AS_FUNC(peek(vm)));
+            *(vm->sp - 1) = OBJ_VAL(c); 
+            callFunction(vm, c, 0);
             LOAD_FRAME();
         }
         DISPATCH();
@@ -1085,15 +1085,15 @@ sup_invoke:;
         DISPATCH();
     }
     TARGET(OP_CLOSURE): {
-        ObjClosure *closure = newClosure(vm, AS_FUNC(GET_CONST()));
-        push(vm, OBJ_VAL(closure));
-        for(uint8_t i = 0; i < closure->fn->upvaluec; i++) {
+        ObjClosure *c = newClosure(vm, AS_FUNC(GET_CONST()));
+        push(vm, OBJ_VAL(c));
+        for(uint8_t i = 0; i < c->fn->upvaluec; i++) {
             uint8_t isLocal = NEXT_CODE();
             uint8_t index = NEXT_CODE();
             if(isLocal) {
-                closure->upvalues[i] = captureUpvalue(vm, frame->stack + index);
+                c->upvalues[i] = captureUpvalue(vm, frame->stack + index);
             } else {
-                closure->upvalues[i] = frame->fn.closure->upvalues[i];
+                c->upvalues[i] = frame->fn.closure->upvalues[i];
             }
         }
         DISPATCH();
@@ -1245,7 +1245,6 @@ sup_invoke:;
                 // Finally return from the function
                 push(vm, ret);
                 GOTO(OP_RETURN);
-                break;
             }
             default:
                 UNREACHABLE();
@@ -1313,10 +1312,10 @@ sup_invoke:;
 
 static bool unwindStack(BlangVM *vm, int depth) {
     assert(IS_INSTANCE(peek(vm)), "Top of stack is not an exception");
-    ObjInstance *exc = AS_INSTANCE(peek(vm));
+    ObjInstance *exception = AS_INSTANCE(peek(vm));
 
     Value stVal = NULL_VAL;
-    hashTableGet(&exc->fields, vm->stField, &stVal);
+    hashTableGet(&exception->fields, vm->stField, &stVal);
     assert(IS_STACK_TRACE(stVal), "Top of stack is not a raised exception");
     ObjStackTrace *st = AS_STACK_TRACE(stVal);
 
