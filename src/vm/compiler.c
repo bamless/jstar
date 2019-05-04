@@ -474,7 +474,7 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
     case TUPLE_LIT: {
         int assignments = 0;
         Expr *ass[UINT8_MAX];
-        
+
         foreach(n, e->assign.lval->tuple.exprs->exprList.lst) {
             if(assignments == UINT8_MAX) {
                 error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
@@ -484,7 +484,7 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         }
 
         Expr *rval = e->assign.rval;
-        
+
         if(IS_CONST_UNPACK(rval->type)) {
             Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
             size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
@@ -664,7 +664,7 @@ static void compileExpr(Compiler *c, Expr *e) {
     case ARR_LIT: {
         emitBytecode(c, OP_NEW_LIST, e->line);
         LinkedList *exprs = e->arr.exprs->exprList.lst;
-        
+
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             emitBytecode(c, OP_APPEND_LIST, e->line);
@@ -675,7 +675,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         LinkedList *exprs = e->tuple.exprs->exprList.lst;
 
         int i = 0;
-        
+
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             i++;
@@ -730,7 +730,7 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
         }
     }
 
-    // define in reverse order in order to assign correct values to variables in case of a 
+    // define in reverse order in order to assign correct values to variables in case of a
     // const unpack
     for(int i = numDecls - 1; i >= 0; i--) {
         if(c->depth == 0)
@@ -911,7 +911,7 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
     // declare the variables used for iteration
     int num = 0;
-    
+
     foreach(n, varDecl->varDecl.ids) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);
@@ -1001,7 +1001,6 @@ static void compileNative(Compiler *c, Stmt *s) {
 
 static void compileMethods(Compiler *c, Stmt *cls) {
     LinkedList *methods = cls->classDecl.methods;
-    
 
     Compiler methodc;
     foreach(n, methods) {
@@ -1083,7 +1082,7 @@ static void compileClass(Compiler *c, Stmt *s) {
 
 static void compileImportStatement(Compiler *c, Stmt *s) {
     const char *base = ((Identifier *)s->importStmt.modules->elem)->name;
-    
+
     // import module (if nested module, import all from outer to inner)
     uint16_t nameConst;
     size_t length = -1;
@@ -1330,7 +1329,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
-    
+
     foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
 }
 
@@ -1432,7 +1431,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     c->locals[c->localsCount - 1].depth = c->depth;
 
     // define and declare arguments
-    
+
     foreach(n, s->funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);

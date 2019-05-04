@@ -12,7 +12,7 @@
 #define popen _popen
 #define pclose _pclose
 
-#elif defined(__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#elif defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 
 #define USE_POPEN
 #define _POSIX_SOURCE

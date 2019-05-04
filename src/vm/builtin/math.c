@@ -7,22 +7,21 @@
 #include <stdlib.h>
 
 #define BL_PI 3.14159265358979323846
-#define BL_E  2.71828182845904523536
+#define BL_E 2.71828182845904523536
 
-#define STDLIB_MATH_FUN_X(fun) \
-    NATIVE(bl_##fun) { \
-        if(!blCheckNum(vm, 1, "x")) return false; \
-        blPushNumber(vm, fun(blGetNumber(vm, 1))); \
-        return true; \
-    } \
+#define STDLIB_MATH_FUN_X(fun)                                                                     \
+    NATIVE(bl_##fun) {                                                                             \
+        if(!blCheckNum(vm, 1, "x")) return false;                                                  \
+        blPushNumber(vm, fun(blGetNumber(vm, 1)));                                                 \
+        return true;                                                                               \
+    }
 
-#define STDLIB_MATH_FUN_XY(fun) \
-    NATIVE(bl_##fun) { \
-        if(!blCheckNum(vm, 1, "x") || !blCheckNum(vm, 2, "y")) \
-            return false; \
-        blPushNumber(vm, fun(blGetNumber(vm, 1), blGetNumber(vm, 2))); \
-        return true; \
-    } \
+#define STDLIB_MATH_FUN_XY(fun)                                                                    \
+    NATIVE(bl_##fun) {                                                                             \
+        if(!blCheckNum(vm, 1, "x") || !blCheckNum(vm, 2, "y")) return false;                       \
+        blPushNumber(vm, fun(blGetNumber(vm, 1), blGetNumber(vm, 2)));                             \
+        return true;                                                                               \
+    }
 
 static double deg(double x) {
     return x * (180. / BL_PI);
@@ -46,7 +45,7 @@ STDLIB_MATH_FUN_X(asin)
 STDLIB_MATH_FUN_X(atan)
 
 NATIVE(bl_atan2) {
-    if(!blCheckNum(vm, 1, "y") || !blCheckNum(vm, 2, "x")) { 
+    if(!blCheckNum(vm, 1, "y") || !blCheckNum(vm, 2, "x")) {
         return false;
     }
     blPushNumber(vm, atan2(blGetNumber(vm, 1), blGetNumber(vm, 2)));
@@ -74,7 +73,7 @@ NATIVE(bl_frexp) {
 
 NATIVE(bl_ldexp) {
     if(!blCheckNum(vm, 1, "x") || !blCheckInt(vm, 2, "exp")) {
-            return false;
+        return false;
     }
     blPushNumber(vm, ldexp(blGetNumber(vm, 1), blGetNumber(vm, 2)));
     return true;

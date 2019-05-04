@@ -68,7 +68,7 @@
     X(OP_NEW_LIST)                                                                                 \
     X(OP_APPEND_LIST)                                                                              \
     X(OP_NEW_TUPLE)                                                                                \
-    X(OP_CLOSURE)                                                                              \
+    X(OP_CLOSURE)                                                                                  \
     X(OP_NEW_CLASS)                                                                                \
     X(OP_NEW_SUBCLASS)                                                                             \
     X(OP_DEF_METHOD)                                                                               \
@@ -81,7 +81,7 @@
     X(OP_SET_UPVALUE)                                                                              \
     X(OP_SET_GLOBAL)                                                                               \
     X(OP_DEFINE_GLOBAL)                                                                            \
-    X(OP_NATIVE)                                                                            \
+    X(OP_NATIVE)                                                                                   \
     X(OP_RETURN)                                                                                   \
     X(OP_NULL)                                                                                     \
     X(OP_SETUP_EXCEPT)                                                                             \
