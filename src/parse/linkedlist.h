@@ -8,7 +8,7 @@ typedef struct LinkedList {
     struct LinkedList *next;
 } LinkedList;
 
-#define foreach(node, list) for(node = list; node != NULL; node = node->next)
+#define foreach(node, list) for(LinkedList *node = list; node != NULL; node = node->next)
 
 LinkedList *addElement(LinkedList *lst, void *elem);
 size_t listLength(LinkedList *lst);

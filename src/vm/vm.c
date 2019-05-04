@@ -585,21 +585,6 @@ static bool runEval(BlangVM *vm, int depth) {
         }                                                                                          \
     } while(0)
 
-#define BINARYDIV(type, op, overload, reverse)                                                     \
-    do {                                                                                           \
-        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {                                                \
-            double b = AS_NUM(pop(vm));                                                            \
-            double a = AS_NUM(pop(vm));                                                            \
-            if(b == 0) {                                                                           \
-                blRaise(vm, "DivisionByZeroException", #op " by zero.");                           \
-                UNWIND_STACK(vm);                                                                  \
-            }                                                                                      \
-            push(vm, NUM_VAL(a op b));                                                             \
-        } else {                                                                                   \
-            BINARY_OVERLOAD(op, overload, reverse);                                                \
-        }                                                                                          \
-    } while(0)
-
 #define BINARY_OVERLOAD(op, overload, reverse)                                                     \
     do {                                                                                           \
         SAVE_FRAME();                                                                              \
@@ -693,8 +678,7 @@ static bool runEval(BlangVM *vm, int depth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(a + b));
         } else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
-            ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)),
-                                                    AS_STRING(peek(vm)));
+            ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
 
             pop(vm);
             pop(vm);
@@ -1100,7 +1084,7 @@ sup_invoke:;
         push(vm, OBJ_VAL(t));
         DISPATCH();
     }
-    TARGET(OP_NEW_CLOSURE): {
+    TARGET(OP_CLOSURE): {
         ObjClosure *closure = newClosure(vm, AS_FUNC(GET_CONST()));
         push(vm, OBJ_VAL(closure));
         for(uint8_t i = 0; i < closure->fn->upvaluec; i++) {
@@ -1176,7 +1160,6 @@ sup_invoke:;
 
         native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
         if(native->fn == NULL) {
-            printf("%s\n", methodName->data);
             blRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
             UNWIND_STACK(vm);
         }
@@ -1184,9 +1167,9 @@ sup_invoke:;
         hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
         DISPATCH();
     }
-    TARGET(OP_DEFINE_NATIVE): {
+    TARGET(OP_NATIVE): {
         ObjString *name = GET_STRING();
-        ObjNative *nat  = AS_NATIVE(pop(vm));
+        ObjNative *nat  = AS_NATIVE(peek(vm));
 
         nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
         if(nat->fn == NULL) {
@@ -1194,7 +1177,6 @@ sup_invoke:;
             UNWIND_STACK(vm);
         }
 
-        hashTablePut(&vm->module->globals, name, OBJ_VAL(nat));
         DISPATCH();
     }
     TARGET(OP_GET_CONST):

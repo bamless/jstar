@@ -208,15 +208,12 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
             if(isMatch && (res = match(rs, s + 1, er + 1)) != NULL) return res;
             return match(rs, s, er + 1);
         }
-        case '+': {
+        case '+':
             return isMatch ? greedyMatch(rs, s + 1, r, er) : NULL;
-        }
-        case '*': {
+        case '*':
             return greedyMatch(rs, s, r, er);
-        }
-        case '-': {
+        case '-':
             return lazyMatch(rs, s, r, er);
-        }
         default: {
             if(!isMatch)
                 return NULL;

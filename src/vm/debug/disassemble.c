@@ -7,7 +7,7 @@
 void disassembleChunk(Chunk *c) {
     for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {
         int extraArgs = 0;
-        if(c->code[i] == OP_NEW_CLOSURE) {
+        if(c->code[i] == OP_CLOSURE) {
             Value v = c->consts.arr[((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]];
             extraArgs = (AS_FUNC(v)->upvaluec + 1) * 2;
         }
@@ -60,6 +60,7 @@ void disassembleIstr(Chunk *c, size_t i) {
     }
 
     // instructions with 1 argument representing constant value
+    case OP_NATIVE:
     case OP_IMPORT:
     case OP_IMPORT_FROM:
     case OP_GET_FIELD:
@@ -92,7 +93,6 @@ void disassembleIstr(Chunk *c, size_t i) {
     case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
-    case OP_DEFINE_NATIVE:
     case OP_DEFINE_GLOBAL: {
         int op = ((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
         printf("%d (", op);
@@ -112,7 +112,7 @@ void disassembleIstr(Chunk *c, size_t i) {
         printf("%d", c->code[i + 1]);
         break;
 
-    case OP_NEW_CLOSURE: {
+    case OP_CLOSURE: {
         int op = ((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
 
         printf("%d (", op);

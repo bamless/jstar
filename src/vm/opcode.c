@@ -27,7 +27,8 @@ int opcodeArgsNumber(Opcode op) {
     case OP_SET_FIELD:
     case OP_NEW_CLASS:
     case OP_NEW_SUBCLASS:
-    case OP_NEW_CLOSURE:
+    case OP_NATIVE:
+    case OP_CLOSURE:
     case OP_INVOKE_0:
     case OP_INVOKE_1:
     case OP_INVOKE_2:
@@ -53,7 +54,6 @@ int opcodeArgsNumber(Opcode op) {
     case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
-    case OP_DEFINE_NATIVE:
     case OP_DEFINE_GLOBAL:
         return 2;
 

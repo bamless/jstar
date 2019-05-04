@@ -16,6 +16,13 @@
 
 #define THIS_STR "this"
 
+// In case of a direct assignement of the form:
+//  var a, b, ..., c = x, y, ..., z
+// Where the right hand side is an unpackable object (i.e. a tuple or a list)
+// We can omit the creation of the tuple/list, assigning directly the elements to the variables.
+// We call this type of unpack assignement a 'const unpack'
+#define IS_CONST_UNPACK(type) (type == ARR_LIT || type == TUPLE_LIT)
+
 typedef struct Local {
     Identifier id;
     bool isUpvalue;
@@ -273,8 +280,6 @@ static ObjString *readString(Compiler *c, Expr *e);
 
 static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) {
     int i = 0;
-
-    LinkedList *n;
     foreach(n, defArgs) {
         Expr *e = (Expr *)n->elem;
         switch(e->type) {
@@ -419,16 +424,15 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
     }
 }
 
-static void compileUnpackList(Compiler *c, Expr *e, int num) {
+static void compileConstUnpackLst(Compiler *c, Expr *exprs, int num) {
     int i = 0;
-    LinkedList *n;
-    foreach(n, e->exprList.lst) {
+    foreach(n, exprs->exprList.lst) {
         compileExpr(c, (Expr *)n->elem);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
 
     if(i < num) {
-        error(c, e->line, "Too little values to unpack.");
+        error(c, exprs->line, "Too little values to unpack.");
     }
 }
 
@@ -457,26 +461,20 @@ static void compileLval(Compiler *c, Expr *e) {
 
 static void compileAssignExpr(Compiler *c, Expr *e) {
     switch(e->assign.lval->type) {
-    case VAR_LIT: {
+    case VAR_LIT:
+    case ACCESS_EXPR:
+    case ARR_ACC:
         compileExpr(c, e->assign.rval);
         compileLval(c, e->assign.lval);
         break;
-    }
-    case ACCESS_EXPR: {
-        compileExpr(c, e->assign.rval);
-        compileLval(c, e->assign.lval);
-        break;
-    }
-    case ARR_ACC: {
-        compileExpr(c, e->assign.rval);
-        compileLval(c, e->assign.lval);
-        break;
-    }
+
+    // If the left hand side has been parsed as a tuple it means that the assignement is of the form
+    //     a, b, ..., c = ...
+    // i.e. an unpack assignement
     case TUPLE_LIT: {
         int assignments = 0;
         Expr *ass[UINT8_MAX];
-
-        LinkedList *n;
+        
         foreach(n, e->assign.lval->tuple.exprs->exprList.lst) {
             if(assignments == UINT8_MAX) {
                 error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
@@ -486,20 +484,21 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         }
 
         Expr *rval = e->assign.rval;
-
-        if(rval->type == ARR_LIT || rval->type == TUPLE_LIT) {
+        
+        if(IS_CONST_UNPACK(rval->type)) {
             Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
             size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
-            compileUnpackList(c, lst, num);
+            compileConstUnpackLst(c, lst, num);
         } else {
             compileExpr(c, e->assign.rval);
             emitBytecode(c, OP_UNPACK, e->line);
             emitBytecode(c, (uint8_t)assignments, e->line);
         }
 
+        // compile lvals in reverse order in order to assign correct values to variables in case
+        // of a const unpack
         for(int n = assignments - 1; n >= 0; n--) {
-            Expr *e = ass[n];
-            compileLval(c, e);
+            compileLval(c, ass[n]);
             if(n != 0) emitBytecode(c, OP_POP, e->line);
         }
         break;
@@ -515,7 +514,7 @@ static void compileCompundAssign(Compiler *c, Expr *e) {
     Expr *l = e->compundAssign.lval;
     Expr *r = e->compundAssign.rval;
 
-    // expand compound assignement (e.g. a += b -> a = a + b)
+    // expand compound assignement (e.g. a op= b -> a = a op b)
     Expr binary = {e->line, BINARY, .bin = {op, l, r}};
     Expr assignment = {e->line, ASSIGN, .assign = {l, &binary}};
 
@@ -550,7 +549,6 @@ static void compileCallExpr(Compiler *c, Expr *e) {
         compileExpr(c, callee);
     }
 
-    LinkedList *n;
     uint8_t argsc = 0;
     foreach(n, e->callExpr.args->exprList.lst) {
         if(argsc == UINT8_MAX) {
@@ -602,7 +600,6 @@ static void compileAnonymousFunc(Compiler *c, Expr *e) {
 
     f->funcDecl.id.length = strlen(name);
     f->funcDecl.id.name = name;
-
     compileFunction(c, f);
 }
 
@@ -641,7 +638,6 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST: {
-        LinkedList *n;
         foreach(n, e->exprList.lst) { compileExpr(c, (Expr *)n->elem); }
         break;
     }
@@ -668,8 +664,7 @@ static void compileExpr(Compiler *c, Expr *e) {
     case ARR_LIT: {
         emitBytecode(c, OP_NEW_LIST, e->line);
         LinkedList *exprs = e->arr.exprs->exprList.lst;
-
-        LinkedList *n;
+        
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             emitBytecode(c, OP_APPEND_LIST, e->line);
@@ -680,7 +675,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         LinkedList *exprs = e->tuple.exprs->exprList.lst;
 
         int i = 0;
-        LinkedList *n;
+        
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             i++;
@@ -708,7 +703,6 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     int numDecls = 0;
     Identifier *decls[MAX_LOCALS];
 
-    LinkedList *n;
     foreach(n, s->varDecl.ids) {
         Identifier *name = (Identifier *)n->elem;
         declareVar(c, name, s->line);
@@ -719,9 +713,9 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     if(s->varDecl.init != NULL) {
         ExprType t = s->varDecl.init->type;
 
-        if(s->varDecl.isUnpack && (t == ARR_LIT || t == TUPLE_LIT)) {
+        if(s->varDecl.isUnpack && IS_CONST_UNPACK(t)) {
             Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
-            compileUnpackList(c, e, numDecls);
+            compileConstUnpackLst(c, e, numDecls);
         } else {
             compileExpr(c, s->varDecl.init);
 
@@ -736,8 +730,8 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
         }
     }
 
-    // define in reverse ordeer in order to define global vars
-    // in the right order
+    // define in reverse order in order to assign correct values to variables in case of a 
+    // const unpack
     for(int i = numDecls - 1; i >= 0; i--) {
         if(c->depth == 0)
             defineVar(c, decls[i], s->line);
@@ -917,7 +911,7 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
     // declare the variables used for iteration
     int num = 0;
-    LinkedList *n;
+    
     foreach(n, varDecl->varDecl.ids) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);
@@ -962,12 +956,14 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
+    declareVar(c, &s->funcDecl.id, s->line);
+
     Compiler compiler;
     initCompiler(&compiler, c, TYPE_FUNC, c->depth + 1, c->vm);
 
     ObjFunction *func = function(&compiler, c->func->c.module, s);
 
-    emitBytecode(c, OP_NEW_CLOSURE, s->line);
+    emitBytecode(c, OP_CLOSURE, s->line);
     emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
 
     for(uint8_t i = 0; i < func->upvaluec; i++) {
@@ -976,9 +972,13 @@ static void compileFunction(Compiler *c, Stmt *s) {
     }
 
     endCompiler(&compiler);
+
+    defineVar(c, &s->funcDecl.id, s->line);
 }
 
 static void compileNative(Compiler *c, Stmt *s) {
+    declareVar(c, &s->funcDecl.id, s->line);
+
     size_t defaults = listLength(s->nativeDecl.defArgs);
     size_t arity = listLength(s->nativeDecl.formalArgs);
 
@@ -986,20 +986,22 @@ static void compileNative(Compiler *c, Stmt *s) {
     native->c.vararg = s->nativeDecl.isVararg;
     addDefaultConsts(c, native->c.defaults, s->nativeDecl.defArgs);
 
-    uint16_t n = createConst(c, OBJ_VAL(native), s->line);
-    uint16_t i = identifierConst(c, &s->nativeDecl.id, s->line);
-    native->c.name = AS_STRING(c->func->chunk.consts.arr[i]);
+    uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
+    uint16_t nameConst = identifierConst(c, &s->nativeDecl.id, s->line);
+    native->c.name = AS_STRING(c->func->chunk.consts.arr[nameConst]);
 
     emitBytecode(c, OP_GET_CONST, s->line);
-    emitShort(c, n, s->line);
+    emitShort(c, nativeConst, s->line);
 
-    emitBytecode(c, OP_DEFINE_NATIVE, s->line);
-    emitShort(c, i, s->line);
+    emitBytecode(c, OP_NATIVE, s->line);
+    emitShort(c, nameConst, s->line);
+
+    defineVar(c, &s->funcDecl.id, s->line);
 }
 
 static void compileMethods(Compiler *c, Stmt *cls) {
     LinkedList *methods = cls->classDecl.methods;
-    LinkedList *n;
+    
 
     Compiler methodc;
     foreach(n, methods) {
@@ -1010,7 +1012,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
 
             ObjFunction *met = method(&methodc, c->func->c.module, &cls->classDecl.id, m);
 
-            emitBytecode(c, OP_NEW_CLOSURE, m->line);
+            emitBytecode(c, OP_CLOSURE, m->line);
             emitShort(c, createConst(c, OBJ_VAL(met), m->line), m->line);
 
             for(uint8_t i = 0; i < met->upvaluec; i++) {
@@ -1063,6 +1065,8 @@ static void compileMethods(Compiler *c, Stmt *cls) {
 }
 
 static void compileClass(Compiler *c, Stmt *s) {
+    declareVar(c, &s->classDecl.id, s->line);
+
     bool isSubClass = s->classDecl.sup != NULL;
     if(isSubClass) {
         compileExpr(c, s->classDecl.sup);
@@ -1072,17 +1076,16 @@ static void compileClass(Compiler *c, Stmt *s) {
     }
 
     emitShort(c, identifierConst(c, &s->classDecl.id, s->line), s->line);
-
     compileMethods(c, s);
+
+    defineVar(c, &s->classDecl.id, s->line);
 }
 
 static void compileImportStatement(Compiler *c, Stmt *s) {
     const char *base = ((Identifier *)s->importStmt.modules->elem)->name;
-    LinkedList *n;
-
-    uint16_t nameConst;
-
+    
     // import module (if nested module, import all from outer to inner)
+    uint16_t nameConst;
     size_t length = -1;
     foreach(n, s->importStmt.modules) {
         Identifier *name = (Identifier *)n->elem;
@@ -1299,17 +1302,13 @@ static void compileStatement(Compiler *c, Stmt *s) {
         compileVarDecl(c, s);
         break;
     case FUNCDECL:
-        declareVar(c, &s->funcDecl.id, s->line);
         compileFunction(c, s);
-        defineVar(c, &s->funcDecl.id, s->line);
         break;
     case NATIVEDECL:
         compileNative(c, s);
         break;
     case CLASSDECL:
-        declareVar(c, &s->classDecl.id, s->line);
         compileClass(c, s);
-        defineVar(c, &s->classDecl.id, s->line);
         break;
     case IMPORT:
         compileImportStatement(c, s);
@@ -1331,7 +1330,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
-    LinkedList *n;
+    
     foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
 }
 
@@ -1375,7 +1374,6 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     addLocal(c, &id, 0);
     c->locals[c->localsCount - 1].depth = c->depth;
 
-    LinkedList *n;
     foreach(n, s->funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);
@@ -1434,7 +1432,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     c->locals[c->localsCount - 1].depth = c->depth;
 
     // define and declare arguments
-    LinkedList *n;
+    
     foreach(n, s->funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);

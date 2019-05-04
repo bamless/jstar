@@ -1021,7 +1021,6 @@ static Expr *parseExpr(Parser *p, bool tuple) {
             error(p, "Left hand side of assignment must be an lvalue.");
         }
         if(l != NULL && l->type == TUPLE_LIT) {
-            LinkedList *n;
             foreach(n, l->tuple.exprs->exprList.lst) {
                 if(!IS_LVALUE(((Expr *)n->elem)->type))
                     error(p, "Left hand side of assignment must be an lvalue.");
