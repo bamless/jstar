@@ -447,10 +447,8 @@ NATIVE(bl_re_gsub) {
     size_t off = 0;
     const char *lastmatch = NULL;
     while(off <= len) {
-        if(num > 0 && numsub > num - 1) {
-            blBufferAppendstr(&b, lastmatch);
+        if(num > 0 && numsub > num - 1)
             break;
-        }
 
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, off)) {
@@ -458,8 +456,7 @@ NATIVE(bl_re_gsub) {
                 blBufferFree(&b);
                 return false;
             }
-            blBufferPush(&b);
-            return true;
+            break;
         }
 
         // if 0 match increment by one and retry
@@ -468,8 +465,12 @@ NATIVE(bl_re_gsub) {
             continue;
         }
 
-        int offSinceLast =
-            lastmatch ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
+        int offSinceLast;
+        if(lastmatch != NULL)
+            offSinceLast = rs.captures[0].start - lastmatch;
+        else
+            offSinceLast = rs.captures[0].start - str;
+
         blBufferAppend(&b, lastmatch ? lastmatch : str, offSinceLast);
 
         if(!substitute(vm, &rs, &b, str, sub)) {
@@ -487,6 +488,12 @@ NATIVE(bl_re_gsub) {
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
 
-    blBufferPush(&b);
+    if(lastmatch != NULL) {
+        blBufferAppend(&b, lastmatch, str + len - lastmatch);
+        blBufferPush(&b);
+    } else {
+        blBufferFree(&b);
+        blPushValue(vm, 1);
+    }
     return true;
 }
