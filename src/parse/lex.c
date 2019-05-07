@@ -161,7 +161,8 @@ static void integer(Lexer *lex) {
 static void number(Lexer *lex, Token *tok) {
     integer(lex);
 
-    if(match(lex, '.')) {
+    if(peekChar(lex) == '.' && isNum(peekChar2(lex))) {
+        advance(lex);
         integer(lex);
     }
 
@@ -239,7 +240,7 @@ void nextToken(Lexer *lex, Token *tok) {
         return;
     }
 
-    if(isNum(c)) {
+    if(isNum(c) || (c == '.' && isNum(peekChar(lex)))) {
         number(lex, tok);
         return;
     }

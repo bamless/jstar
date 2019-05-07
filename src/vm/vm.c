@@ -181,8 +181,12 @@ static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
     return cls == vm->lstClass || cls == vm->rangeClass;
 }
 
+static bool isBuiltinClass(BlangVM *vm, ObjClass *cls) {
+    return isNonInstantiableBuiltin(vm, cls) || isInstatiableBuiltin(vm, cls);
+}
+
 static bool isInt(double n) {
-    return (int64_t)n == n;
+    return trunc(n) == n;
 }
 
 static void createClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
@@ -1106,7 +1110,14 @@ sup_invoke:;
             blRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
             UNWIND_STACK(vm);
         }
-        createClass(vm, GET_STRING(), AS_CLASS(pop(vm)));
+
+        ObjClass *cls = AS_CLASS(pop(vm));
+        if(isBuiltinClass(vm, cls)) {
+            blRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
+            UNWIND_STACK(vm);
+        }
+
+        createClass(vm, GET_STRING(), cls);
         DISPATCH();
     TARGET(OP_UNPACK):
         if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
