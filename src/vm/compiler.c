@@ -424,15 +424,23 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
     }
 }
 
-static void compileConstUnpackLst(Compiler *c, Expr *exprs, int num) {
-    int i = 0;
-    foreach(n, exprs->exprList.lst) {
-        compileExpr(c, (Expr *)n->elem);
-        if(++i > num) emitBytecode(c, OP_POP, 0);
-    }
+static void compileFunction(Compiler *c, Stmt *s);
 
-    if(i < num) {
-        error(c, exprs->line, "Too little values to unpack.");
+static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
+    Stmt *f = e->anonFunc.func;
+
+    if(name) {
+        f->funcDecl.id.length = name->length;
+        f->funcDecl.id.name = name->name;
+        compileFunction(c, f);
+    } else {
+        char funcName[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
+        sprintf(funcName, "anon:%d", f->line);
+
+        f->funcDecl.id.length = strlen(funcName);
+        f->funcDecl.id.name = funcName;
+
+        compileFunction(c, f);
     }
 }
 
@@ -459,14 +467,44 @@ static void compileLval(Compiler *c, Expr *e) {
     }
 }
 
+static void compileRval(Compiler *c, Identifier *name, Expr *e) {
+    if(e->type != ANON_FUNC)
+        compileExpr(c, e);
+    else
+        compileAnonymousFunc(c, name, e);
+}
+
+static void compileConstUnpackLst(Compiler *c, Identifier **names, Expr *exprs, int num) {
+    int i = 0;
+    foreach(n, exprs->exprList.lst) {
+        compileRval(c, names ? names[i] : NULL, (Expr *)n->elem);
+        if(++i > num) emitBytecode(c, OP_POP, 0);
+    }
+
+    if(i < num) {
+        error(c, exprs->line, "Too little values to unpack.");
+    }
+}
+
 static void compileAssignExpr(Compiler *c, Expr *e) {
     switch(e->assign.lval->type) {
-    case VAR_LIT:
-    case ACCESS_EXPR:
-    case ARR_ACC:
-        compileExpr(c, e->assign.rval);
+    case VAR_LIT: {
+        Identifier *name = &e->assign.lval->var.id;
+        compileRval(c, name, e->assign.rval);
         compileLval(c, e->assign.lval);
         break;
+    }
+    case ACCESS_EXPR: {
+        Identifier *name = &e->assign.lval->accessExpr.id;
+        compileRval(c, name, e->assign.rval);
+        compileLval(c, e->assign.lval);
+        break;
+    }
+    case ARR_ACC: {
+        compileRval(c, NULL, e->assign.rval);
+        compileLval(c, e->assign.lval);
+        break;
+    }
 
     // If the left hand side has been parsed as a tuple it means that the assignement is of the form
     //     a, b, ..., c = ...
@@ -488,9 +526,9 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         if(IS_CONST_UNPACK(rval->type)) {
             Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
             size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
-            compileConstUnpackLst(c, lst, num);
+            compileConstUnpackLst(c, NULL, lst, num);
         } else {
-            compileExpr(c, e->assign.rval);
+            compileRval(c, NULL, e->assign.rval);
             emitBytecode(c, OP_UNPACK, e->line);
             emitBytecode(c, (uint8_t)assignments, e->line);
         }
@@ -590,19 +628,6 @@ static void compileExpExpr(Compiler *c, Expr *e) {
     emitBytecode(c, OP_POW, e->line);
 }
 
-static void compileFunction(Compiler *c, Stmt *s);
-
-static void compileAnonymousFunc(Compiler *c, Expr *e) {
-    Stmt *f = e->anonFunc.func;
-
-    char name[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
-    sprintf(name, "anon:%d", f->line);
-
-    f->funcDecl.id.length = strlen(name);
-    f->funcDecl.id.name = name;
-    compileFunction(c, f);
-}
-
 static ObjString *readString(Compiler *c, Expr *e);
 
 static void compileExpr(Compiler *c, Expr *e) {
@@ -691,7 +716,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         break;
     }
     case ANON_FUNC:
-        compileAnonymousFunc(c, e);
+        compileAnonymousFunc(c, NULL, e);
         break;
     case SUPER_LIT:
         error(c, e->line, "Can only use `super` in method call");
@@ -715,9 +740,11 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
 
         if(s->varDecl.isUnpack && IS_CONST_UNPACK(t)) {
             Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
-            compileConstUnpackLst(c, e, numDecls);
+            compileConstUnpackLst(c, decls, e, numDecls);
         } else {
-            compileExpr(c, s->varDecl.init);
+            Identifier *name = NULL;
+            if(numDecls == 1) name = decls[0];
+            compileRval(c, name, s->varDecl.init);
 
             if(s->varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
@@ -956,8 +983,6 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
-    declareVar(c, &s->funcDecl.id, s->line);
-
     Compiler compiler;
     initCompiler(&compiler, c, TYPE_FUNC, c->depth + 1, c->vm);
 
@@ -972,13 +997,9 @@ static void compileFunction(Compiler *c, Stmt *s) {
     }
 
     endCompiler(&compiler);
-
-    defineVar(c, &s->funcDecl.id, s->line);
 }
 
 static void compileNative(Compiler *c, Stmt *s) {
-    declareVar(c, &s->funcDecl.id, s->line);
-
     size_t defaults = listLength(s->nativeDecl.defArgs);
     size_t arity = listLength(s->nativeDecl.formalArgs);
 
@@ -995,8 +1016,6 @@ static void compileNative(Compiler *c, Stmt *s) {
 
     emitBytecode(c, OP_NATIVE, s->line);
     emitShort(c, nameConst, s->line);
-
-    defineVar(c, &s->funcDecl.id, s->line);
 }
 
 static void compileMethods(Compiler *c, Stmt *cls) {
@@ -1299,10 +1318,14 @@ static void compileStatement(Compiler *c, Stmt *s) {
         compileVarDecl(c, s);
         break;
     case FUNCDECL:
+        declareVar(c, &s->funcDecl.id, s->line);
         compileFunction(c, s);
+        defineVar(c, &s->funcDecl.id, s->line);
         break;
     case NATIVEDECL:
+        declareVar(c, &s->funcDecl.id, s->line);
         compileNative(c, s);
+        defineVar(c, &s->funcDecl.id, s->line);
         break;
     case CLASSDECL:
         compileClass(c, s);
