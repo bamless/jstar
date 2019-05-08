@@ -865,8 +865,7 @@ static bool runEval(BlangVM *vm, int depth) {
             Value val = pop(vm);
 
             if(index < 0 || index >= list->count) {
-                blRaise(vm, "IndexOutOfBoundException",
-                    "List index out of bound: %g.", index);
+                blRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
                 UNWIND_STACK(vm);
             }
 

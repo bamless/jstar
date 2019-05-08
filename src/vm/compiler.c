@@ -156,6 +156,10 @@ static uint16_t createConst(Compiler *c, Value constant, int line) {
     return (uint16_t)index;
 }
 
+static Identifier syntheticIdentifier(const char *name) {
+    return (Identifier) {strlen(name), name};
+}
+
 static uint16_t identifierConst(Compiler *c, Identifier *id, int line) {
     ObjString *idStr = copyString(c->vm, id->name, id->length, true);
     return createConst(c, OBJ_VAL(idStr), line);
@@ -166,7 +170,6 @@ static void addLocal(Compiler *c, Identifier *id, int line) {
         error(c, line, "Too many local variables in function %s.", c->func->c.name->data);
         return;
     }
-
     Local *local = &c->locals[c->localsCount];
     local->isUpvalue = false;
     local->depth = -1;
@@ -238,12 +241,17 @@ static void declareVar(Compiler *c, Identifier *id, int line) {
     addLocal(c, id, line);
 }
 
+static void markInitialized(Compiler *c, int id) {
+    assert(id >= 0 && id < c->localsCount, "Invalid local variable");
+    c->locals[id].depth = c->depth;
+}
+
 static void defineVar(Compiler *c, Identifier *id, int line) {
     if(c->depth == 0) {
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, id, line), line);
     } else {
-        c->locals[c->localsCount - 1].depth = c->depth;
+        markInitialized(c, c->localsCount - 1);
     }
 }
 
@@ -271,7 +279,7 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
 }
 
 static void callMethod(Compiler *c, const char *name, int args) {
-    Identifier meth = {strlen(name), name};
+    Identifier meth = syntheticIdentifier(name);
     emitBytecode(c, OP_INVOKE_0 + args, 0);
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
@@ -480,7 +488,6 @@ static void compileConstUnpackLst(Compiler *c, Identifier **names, Expr *exprs, 
         compileRval(c, names ? names[i] : NULL, (Expr *)n->elem);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
-
     if(i < num) {
         error(c, exprs->line, "Too little values to unpack.");
     }
@@ -506,9 +513,8 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         break;
     }
 
-    // If the left hand side has been parsed as a tuple it means that the assignement is of the form
-    //     a, b, ..., c = ...
-    // i.e. an unpack assignement
+    // If the left hand side has been parsed as a tuple it means that the assignement is 
+    //of the form: a, b, ..., c = ... i.e. an unpack assignement
     case TUPLE_LIT: {
         int assignments = 0;
         Expr *ass[UINT8_MAX];
@@ -763,7 +769,7 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
         if(c->depth == 0)
             defineVar(c, decls[i], s->line);
         else
-            c->locals[c->localsCount - i - 1].depth = c->depth;
+            markInitialized(c, c->localsCount - i - 1);
     }
 }
 
@@ -892,7 +898,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
 static void compileForEach(Compiler *c, Stmt *s) {
     enterScope(c);
 
-    Identifier expr = {5, ".expr"};
+    Identifier expr = syntheticIdentifier(".expr");
     declareVar(c, &expr, s->forEach.iterable->line);
     defineVar(c, &expr, s->forEach.iterable->line);
     int exprID = c->localsCount - 1;
@@ -901,7 +907,7 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
     // set the iterator variable with a name that it's not an identifier.
     // this will avoid the user shadowing the iterator with a declared variable.
-    Identifier iterator = {5, ".iter"};
+    Identifier iterator = syntheticIdentifier(".iter");
     declareVar(c, &iterator, s->line);
     defineVar(c, &iterator, s->line);
 
@@ -1045,7 +1051,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
             break;
         }
         case NATIVEDECL: {
-            Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
+            Identifier ctor = syntheticIdentifier(CTOR_STR);
             if(identifierEquals(&ctor, &m->nativeDecl.id)) {
                 error(c, m->line, "Cannot declare native constructor");
                 continue;
@@ -1164,7 +1170,7 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     emitBytecode(c, OP_NULL, exc->line);
     emitBytecode(c, OP_SET_LOCAL, exc->line);
 
-    Identifier excId = {10, ".exception"};
+    Identifier excId = syntheticIdentifier(".exception");
     emitBytecode(c, resolveVariable(c, &excId, true, exc->line), exc->line);
     emitBytecode(c, OP_POP, exc->line);
 
@@ -1231,11 +1237,11 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
     enterScope(c);
 
-    Identifier cause = {6, ".cause"};
+    Identifier cause = syntheticIdentifier(".cause");
     declareVar(c, &cause, 0);
     defineVar(c, &cause, 0);
 
-    Identifier exc = {10, ".exception"};
+    Identifier exc = syntheticIdentifier(".exception");
     declareVar(c, &exc, 0);
     defineVar(c, &exc, 0);
 
@@ -1350,13 +1356,13 @@ static void compileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
-
-    foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
+    foreach(n, stmts) { 
+        compileStatement(c, (Stmt *)n->elem); 
+    }
 }
 
 ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
     Compiler c;
-
     initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
     ObjFunction *func = function(&c, module, s);
     endCompiler(&c);
@@ -1390,9 +1396,9 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
     // add phony variable for function receiver (in the case of functions the
     // receiver is the function itself but it ins't accessible)
-    Identifier id = {0, ""};
-    addLocal(c, &id, 0);
-    c->locals[c->localsCount - 1].depth = c->depth;
+    Identifier id = syntheticIdentifier("");
+    declareVar(c, &id, s->line);
+    defineVar(c, &id, s->line);
 
     foreach(n, s->funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);
@@ -1400,7 +1406,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     }
 
     if(s->funcDecl.isVararg) {
-        Identifier args = {4, "args"};
+        Identifier args = syntheticIdentifier("args");
         declareVar(c, &args, s->line);
         defineVar(c, &args, s->line);
     }
@@ -1439,7 +1445,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     c->func->c.name = name;
 
     // if in costructor change the type
-    Identifier ctor = {strlen(CTOR_STR), CTOR_STR};
+    Identifier ctor = syntheticIdentifier(CTOR_STR);
     if(identifierEquals(&s->funcDecl.id, &ctor)) {
         c->type = TYPE_CTOR;
     }
@@ -1447,9 +1453,9 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     enterFunctionScope(c);
 
     // add `this` for method receiver (the object from which was called)
-    Identifier thisId = {strlen(THIS_STR), THIS_STR};
-    addLocal(c, &thisId, s->line);
-    c->locals[c->localsCount - 1].depth = c->depth;
+    Identifier thisId = syntheticIdentifier(THIS_STR);
+    declareVar(c, &thisId, s->line);
+    defineVar(c, &thisId, s->line);
 
     // define and declare arguments
 
@@ -1459,7 +1465,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     }
 
     if(s->funcDecl.isVararg) {
-        Identifier args = {4, "args"};
+        Identifier args = syntheticIdentifier("args");
         declareVar(c, &args, s->line);
         defineVar(c, &args, s->line);
     }
