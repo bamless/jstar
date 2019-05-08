@@ -715,8 +715,12 @@ static Expr *literal(Parser *p) {
         require(p, TOK_RSQUARE);
         return newArrLiteral(line, newExprList(line, exprs));
     }
+    case TOK_UNTERMINATED_STR:
+        error(p, "Unterminated String.");
+        advance(p);
+        break;
     case TOK_ERR:
-        error(p, "Unexpected token");
+        error(p, "Invalid token.");
         advance(p);
         break;
     default:

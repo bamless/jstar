@@ -188,8 +188,8 @@ static void hexNumber(Lexer *lex, Token *tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static void string(Lexer *lex, Token *tok) {
-    while(peekChar(lex) != '"' && !isAtEnd(lex)) {
+static void string(Lexer *lex, char end, Token *tok) {
+    while(peekChar(lex) != end && !isAtEnd(lex)) {
         if(peekChar(lex) == '\n') lex->curr_line++;
         if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
         advance(lex);
@@ -274,8 +274,9 @@ void nextToken(Lexer *lex, Token *tok) {
     case '^':
         makeToken(lex, tok, TOK_POW);
         break;
+    case '\'':
     case '"':
-        string(lex, tok);
+        string(lex, c, tok);
         break;
     case '.':
         if(peekChar(lex) == '.' && peekChar2(lex) == '.') {

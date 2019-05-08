@@ -36,6 +36,7 @@ typedef struct Upvalue {
 
 typedef struct Loop {
     int depth;
+    size_t start;
     struct Loop *next;
 } Loop;
 
@@ -134,16 +135,6 @@ static void discardScope(Compiler *c, int depth) {
     while(localsCount > 0 && c->locals[localsCount - 1].depth > depth) {
         discardLocal(c, &c->locals[--localsCount]);
     }
-}
-
-static void startLoop(Compiler *c, Loop *loop) {
-    loop->depth = c->depth;
-    loop->next = c->loops;
-    c->loops = loop;
-}
-
-static void endLoop(Compiler *c) {
-    c->loops = c->loops->next;
 }
 
 static uint16_t createConst(Compiler *c, Value constant, int line) {
@@ -276,6 +267,30 @@ static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
     Chunk *chunk = &c->func->chunk;
     chunk->code[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
     chunk->code[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
+}
+
+static void startLoop(Compiler *c, Loop *loop) {
+    loop->depth = c->depth;
+    loop->start = c->func->chunk.count;
+    loop->next = c->loops;
+    c->loops = loop;
+}
+
+static void patchLoopExitStmts(Compiler *c, size_t start, size_t cont, size_t brk) {
+    for(size_t i = start; i < c->func->chunk.count; i++) {
+        Opcode code = c->func->chunk.code[i];
+        if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
+            c->func->chunk.code[i] = OP_JUMP;
+            setJumpTo(c, i, code == OP_SIGN_CONT ? cont : brk, 0);
+            code = OP_JUMP;
+        }
+        i += opcodeArgsNumber(code);
+    }
+}
+
+static void endLoop(Compiler *c) {
+    patchLoopExitStmts(c, c->loops->start, c->loops->start, c->func->chunk.count);
+    c->loops = c->loops->next;
 }
 
 static void callMethod(Compiler *c, const char *name, int args) {
@@ -821,20 +836,6 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
     }
 }
 
-static void patchLoopExitStmts(Compiler *c, size_t start, size_t cont, size_t brk) {
-    for(size_t i = start; i < c->func->chunk.count; i++) {
-        Opcode code = c->func->chunk.code[i];
-
-        if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
-            c->func->chunk.code[i] = OP_JUMP;
-            setJumpTo(c, i, code == OP_SIGN_CONT ? cont : brk, 0);
-            code = OP_JUMP;
-        }
-
-        i += opcodeArgsNumber(code);
-    }
-}
-
 static void compileForStatement(Compiler *c, Stmt *s) {
     enterScope(c);
 
@@ -843,13 +844,23 @@ static void compileForStatement(Compiler *c, Stmt *s) {
         compileStatement(c, s->forStmt.init);
     }
 
+    size_t firstJmp = 0;
+    if(s->forStmt.act != NULL) {
+        firstJmp = emitBytecode(c, OP_JUMP, s->line);
+        emitShort(c, 0, 0);
+    }
+
     Loop l;
     startLoop(c, &l);
 
-    // condition
-    size_t forStart = c->func->chunk.count;
-    size_t cont = forStart;
+    // act
+    if(s->forStmt.act != NULL) {
+        compileExpr(c, s->forStmt.act);
+        emitBytecode(c, OP_POP, 0);
+        setJumpTo(c, firstJmp, c->func->chunk.count, s->line);
+    }
 
+    // condition
     size_t exitJmp = 0;
     if(s->forStmt.cond != NULL) {
         compileExpr(c, s->forStmt.cond);
@@ -860,24 +871,15 @@ static void compileForStatement(Compiler *c, Stmt *s) {
     // body
     compileStatement(c, s->forStmt.body);
 
-    // act
-    if(s->forStmt.act != NULL) {
-        cont = c->func->chunk.count;
-        compileExpr(c, s->forStmt.act);
-        emitBytecode(c, OP_POP, 0);
-    }
-
     // jump back to for start
-    emitJumpTo(c, OP_JUMP, forStart, 0);
-    endLoop(c);
+    emitJumpTo(c, OP_JUMP, l.start, 0);
 
     // set the exit jump
     if(s->forStmt.cond != NULL) {
         setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
     }
 
-    patchLoopExitStmts(c, forStart, cont, c->func->chunk.count);
-
+    endLoop(c);
     exitScope(c);
 }
 
@@ -917,8 +919,6 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
     Loop l;
     startLoop(c, &l);
-
-    size_t start = c->func->chunk.count;
 
     emitBytecode(c, OP_GET_LOCAL, 0);
     emitBytecode(c, exprID, 0);
@@ -960,12 +960,10 @@ static void compileForEach(Compiler *c, Stmt *s) {
 
     exitScope(c);
 
-    emitJumpTo(c, OP_JUMP, start, 0);
-    endLoop(c);
-
+    emitJumpTo(c, OP_JUMP, l.start, 0);
     setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
-    patchLoopExitStmts(c, start, start, c->func->chunk.count);
 
+    endLoop(c);
     exitScope(c);
 }
 
@@ -973,19 +971,16 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
     Loop l;
     startLoop(c, &l);
 
-    size_t start = c->func->chunk.count;
-
     compileExpr(c, s->whileStmt.cond);
     size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
     compileStatement(c, s->whileStmt.body);
 
-    emitJumpTo(c, OP_JUMP, start, 0);
-    endLoop(c);
-
+    emitJumpTo(c, OP_JUMP, l.start, 0);
     setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
-    patchLoopExitStmts(c, start, start, c->func->chunk.count);
+
+    endLoop(c);
 }
 
 static void compileFunction(Compiler *c, Stmt *s) {
