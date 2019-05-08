@@ -991,7 +991,7 @@ invoke:;
 sup_invoke:;
         ObjString *name = GET_STRING();
         // The superclass is stored as a const in the function itself
-        ObjClass *sup = AS_CLASS(closure->fn->chunk.consts.arr[0]);
+        ObjClass *sup = AS_CLASS(fn->chunk.consts.arr[0]);
 
         SAVE_FRAME();
         if(!invokeMethod(vm, sup, name, argc)) {
