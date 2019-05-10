@@ -138,6 +138,7 @@ static void classSynchronize(Parser *p) {
 
         switch(p->peek.type) {
         case TOK_FUN:
+        case TOK_END:
             return;
         default:
             break;
@@ -310,7 +311,13 @@ static Stmt *parseClassDecl(Parser *p) {
         if(matchSkipnl(p, TOK_NAT)) {
             methods = addElement(methods, parseNativeDecl(p));
         } else {
-            methods = addElement(methods, parseFuncDecl(p));
+            Stmt *fun = parseFuncDecl(p);
+            if(fun == NULL) {
+                error(p, "Expected function or native delcaration.");
+                advance(p);
+            } else {
+                methods = addElement(methods, fun);
+            }
         }
 
         if(p->panic) classSynchronize(p);
