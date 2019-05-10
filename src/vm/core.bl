@@ -119,8 +119,51 @@ class List
         return #this == 0
     end
 
-    fun swap(a, b)
-        this[a], this[b] = this[b], this[a]
+    fun sort(comp=null)
+        var size = #this - 1
+        var temp = List(#this, fun(i) return this[i] end)
+        for var m = 1; m <= size; m *= 2 do
+            for var i = 0; i < size; i += 2 * m do
+                var from, mid, to = i, i + m - 1, i + 2 * m - 1
+                if to > size then to = size end
+                this.__merge(temp, from, mid, to, comp)
+            end
+        end
+    end
+
+    fun __merge(temp, l, m, r, comp)
+        var k, i, j = l, l, m + 1
+
+        while i <= m and j <= r do
+            if comp then
+                if comp(this[i], this[j]) < 0 then
+                    temp[k] = this[i]
+                    i += 1
+                else
+                    temp[k] = this[j]
+                    j += 1
+                end
+            else 
+                if this[i] < this[j] then
+                    temp[k] = this[i]
+                    i += 1
+                else
+                    temp[k] = this[j]
+                    j += 1
+                end
+            end
+            k += 1
+        end
+        
+        var size = #this
+        while i < size and i <= m do
+            temp[k] = this[i]
+            i += 1; k += 1
+        end
+
+        for var i = l; i <= r; i += 1 do
+            this[i] = temp[i]
+        end
     end
 
     fun foreach(pred)
