@@ -28,7 +28,7 @@ else
 end
 ```
 
-For other examples of the language you can look at the **.bl** files in *src/builtin*.
+For other examples of the language you can look at the **.bl** files in *src/vm/builtin*.
 
 # How to build
 The project uses **CMake** for building. Tested compilers include:
