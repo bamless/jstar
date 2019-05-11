@@ -139,7 +139,7 @@ static void appendNativeFrame(BlangVM *vm, ObjNative *native) {
     callFrame->ip = NULL;
 }
 
-static void ensureStack(BlangVM *vm, size_t needed) {
+void ensureStack(BlangVM *vm, size_t needed) {
     if(vm->sp + needed < vm->stack + vm->stackSz) return;
 
     Value *oldStack = vm->stack;

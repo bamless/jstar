@@ -87,6 +87,9 @@ void blAddImportPath(BlangVM *vm, const char *path);
 #define MAIN_MODULE "__main__"
 #define CORE_MODULE "__core__"
 
+// Ensure `needed` slots are available in the stack
+void ensureStack(BlangVM *vm, size_t needed);
+
 // A C function callable from blang
 typedef bool (*Native)(BlangVM *vm);
 
@@ -107,6 +110,13 @@ bool blEquals(BlangVM *vm);
 
 // Check if a value is of a certain class.
 bool blIs(BlangVM *vm, int slot, int classSlot);
+
+// Functions used for iterating over a generic iterable.
+// `iterable` is the slot in which the iterable object is sitting and `res` is slot of the 
+// result of the last blIter call or, if first time calling blIter, a slot in containing null.
+// blNext is called to obtain the next result in the iteration.
+bool blIter(BlangVM *vm, int iterable, int res, bool *err);
+bool blNext(BlangVM *vm, int iterable, int res);
 
 // Function for converting C values to Blang values.
 // They leave the converted value on top of the stack

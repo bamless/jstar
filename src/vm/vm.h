@@ -146,6 +146,13 @@ static inline bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
     return false;
 }
 
+static inline int apiStackIndex(BlangVM*vm, int slot) {
+    assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    assert(vm->apiStack + slot < vm->sp, "API stack overflow");
+    if(slot < 0) return vm->sp + slot - vm->apiStack;
+    return slot;
+}
+
 // Get the value at API stack slot "slot"
 static inline Value apiStackSlot(BlangVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");

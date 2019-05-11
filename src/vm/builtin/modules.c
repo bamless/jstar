@@ -114,9 +114,9 @@ Module builtInModules[] = {
         ENDCLASS
         CLASS(String)
             METHOD(substr,     &bl_substr)
+            METHOD(join,     &bl_String_join)
             METHOD(__eq__,     &bl_String_eq)
             METHOD(__len__,    &bl_String_len)
-            METHOD(__join,     &bl_String_join)
             METHOD(__hash__,   &bl_String_hash)
             METHOD(__iter__,   &bl_String_iter)
             METHOD(__next__,   &bl_String_next)

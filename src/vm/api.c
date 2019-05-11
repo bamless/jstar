@@ -39,6 +39,31 @@ bool blIs(BlangVM *vm, int slot, int classSlot) {
     return isInstance(vm, v, AS_CLASS(cls));
 }
 
+bool blIter(BlangVM *vm, int iterable, int res, bool *err) {
+    ensureStack(vm, 2);
+    blPushValue(vm, iterable);
+    blPushValue(vm, res < 0 ? res - 1 : res);
+    
+    if(blCallMethod(vm, "__iter__", 1) != VM_EVAL_SUCCSESS) {
+        return *err = true;
+    }
+    if(blIsNull(vm, -1) || (blIsBoolean(vm, -1) && !blGetBoolean(vm, -1))) {
+        blPop(vm);
+        return false;
+    }
+
+    Value resVal = pop(vm);
+    vm->apiStack[apiStackIndex(vm, res)] = resVal;
+    return true;
+}
+
+bool blNext(BlangVM *vm, int iterable, int res) {
+    blPushValue(vm, iterable);
+    blPushValue(vm, res < 0 ? res - 1 : res);
+    if(blCallMethod(vm, "__next__", 1) != VM_EVAL_SUCCSESS) return false;
+    return true;
+}
+
 void blPushNumber(BlangVM *vm, double number) {
     validateStack(vm);
     push(vm, NUM_VAL(number));

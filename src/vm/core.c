@@ -154,7 +154,6 @@ void initCoreLibrary(BlangVM *vm) {
 
     // Set constructor for instatiable primitive classes
     defMethodDefaults(vm, core, vm->lstClass, &bl_List_new, "new", 2, 2, NUM_VAL(0), NULL_VAL);
-    defMethodDefaults(vm, core, vm->rangeClass, &bl_range_new, "new", 3, 2, NULL_VAL, NUM_VAL(1));
 
     // Patch up the class field of any string or function that was allocated
     // before the creation of their corresponding class object
@@ -464,7 +463,7 @@ NATIVE(bl_List_clear) {
 
 NATIVE(bl_List_iter) {
     ObjList *lst = AS_LIST(vm->apiStack[0]);
-
+    
     if(IS_NULL(vm->apiStack[1])) {
         if(lst->count == 0) {
             push(vm, BOOL_VAL(false));
@@ -587,44 +586,49 @@ NATIVE(bl_substr) {
 }
 
 NATIVE(bl_String_join) {
-    if(!blIsList(vm, 1) && !blIsTuple(vm, 1)) {
-        BL_RAISE(vm, "TypeException", "seq must be a List or a Tuple.");
-    }
-
     ObjString *sep = AS_STRING(vm->apiStack[0]);
-    Obj *strings = AS_OBJ(vm->apiStack[1]);
 
-    size_t stringsLen;
-    Value *stringsArr;
-    if(strings->type == OBJ_LIST) {
-        stringsLen = ((ObjList*) strings)->count;
-        stringsArr = ((ObjList*) strings)->arr;
-    } else {
-        stringsLen = ((ObjTuple*) strings)->size;
-        stringsArr = ((ObjTuple*) strings)->arr;
-    }
+    bool err = false;
 
+    int num = 0;
     size_t length = 0;
-    for(size_t i = 0; i < stringsLen; i++) {
-        if(!IS_STRING(stringsArr[i])) {
+
+    blPushNull(vm);
+    while(blIter(vm, 1, -1, &err)) {
+        if(err || !blNext(vm, 1, -1)) return false;
+        
+        if(!blIsString(vm, -1)) {
             BL_RAISE(vm, "TypeException", "All elements in iterable must be strings.");
         }
-        length += AS_STRING(stringsArr[i])->length;
-        if(stringsLen > 1 && i != stringsLen - 1) length += sep->length;
+
+        num++;
+        length += blGetStringSz(vm, -1) + sep->length;
+        blPop(vm);
     }
 
+    // remove last separator from the length
+    if(length > 0) length -= sep->length;
     ObjString *joined = allocateString(vm, length);
 
+    int i = 0;
     length = 0;
-    for(size_t i = 0; i < stringsLen; i++) {
-        ObjString *str = AS_STRING(stringsArr[i]);
+
+    blPop(vm);
+    blPushNull(vm);
+    while(blIter(vm, 1, -1, &err)) {
+        if(err || !blNext(vm, 1, -1)) return false;
+
+        ObjString *str = AS_STRING(peek(vm));
         memcpy(joined->data + length, str->data, str->length);
         length += str->length;
 
-        if(stringsLen > 1 && i != stringsLen - 1) {
+        if(num > 1 && i != num - 1) {
             memcpy(joined->data + length, sep->data, sep->length);
             length += sep->length;
         }
+
+        i++;
+        blPop(vm);
     }
 
     push(vm, OBJ_VAL(joined));
