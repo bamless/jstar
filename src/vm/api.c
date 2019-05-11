@@ -191,6 +191,11 @@ bool blIsList(BlangVM *vm, int slot) {
     return IS_LIST(apiStackSlot(vm, slot));
 }
 
+bool blIsTuple(BlangVM *vm, int slot) {
+    return IS_TUPLE(apiStackSlot(vm, slot));
+}
+
+
 bool blIsBoolean(BlangVM *vm, int slot) {
     return IS_BOOL(apiStackSlot(vm, slot));
 }
@@ -226,6 +231,12 @@ bool blCheckList(BlangVM *vm, int slot, const char *name) {
     if(!blIsList(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a List.", name);
     return true;
 }
+
+bool blCheckTuple(BlangVM *vm, int slot, const char *name) {
+    if(!blIsTuple(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a Tuple.", name);
+    return true;
+}
+
 
 bool blCheckBool(BlangVM *vm, int slot, const char *name) {
     if(!blIsBoolean(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a String.", name);

@@ -21,18 +21,18 @@ class StackTrace end
 
 class String
     fun join(iterable)
-        var lst = iterable
-        if !(lst is List) then
-            lst = []
+        var seq = iterable
+        if !(seq is List or seq is Tuple) then
+            seq = []
             for var e in iterable do
-                lst.add(e)
+                lseq.add(e)
             end
         end
-        return this.__join(lst)
+        return this.__join(seq)
     end
 
     native substr(from, to)
-    native __join(lst)
+    native __join(seq)
 
     native __eq__(o)
     native __len__()
@@ -222,11 +222,6 @@ class Tuple
         return true
     end
 
-end
-
-class range 
-    native __iter__(iter)
-    native __next__(next)
 end
 
 // Exceptions builtin classes

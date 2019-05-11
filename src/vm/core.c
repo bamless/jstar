@@ -587,30 +587,41 @@ NATIVE(bl_substr) {
 }
 
 NATIVE(bl_String_join) {
-    if(!blCheckList(vm, 1, "lst")) return false;
+    if(!blIsList(vm, 1) && !blIsTuple(vm, 1)) {
+        BL_RAISE(vm, "TypeException", "seq must be a List or a Tuple.");
+    }
 
     ObjString *sep = AS_STRING(vm->apiStack[0]);
-    ObjList *strings = AS_LIST(vm->apiStack[1]);
+    Obj *strings = AS_OBJ(vm->apiStack[1]);
+
+    size_t stringsLen;
+    Value *stringsArr;
+    if(strings->type == OBJ_LIST) {
+        stringsLen = ((ObjList*) strings)->count;
+        stringsArr = ((ObjList*) strings)->arr;
+    } else {
+        stringsLen = ((ObjTuple*) strings)->size;
+        stringsArr = ((ObjTuple*) strings)->arr;
+    }
 
     size_t length = 0;
-    for(size_t i = 0; i < strings->count; i++) {
-        if(!IS_STRING(strings->arr[i]))
+    for(size_t i = 0; i < stringsLen; i++) {
+        if(!IS_STRING(stringsArr[i])) {
             BL_RAISE(vm, "TypeException", "All elements in iterable must be strings.");
-
-        length += AS_STRING(strings->arr[i])->length;
-        if(strings->count > 1 && i != strings->count - 1) length += sep->length;
+        }
+        length += AS_STRING(stringsArr[i])->length;
+        if(stringsLen > 1 && i != stringsLen - 1) length += sep->length;
     }
 
     ObjString *joined = allocateString(vm, length);
 
     length = 0;
-    for(size_t i = 0; i < strings->count; i++) {
-        ObjString *str = AS_STRING(strings->arr[i]);
-
+    for(size_t i = 0; i < stringsLen; i++) {
+        ObjString *str = AS_STRING(stringsArr[i]);
         memcpy(joined->data + length, str->data, str->length);
         length += str->length;
 
-        if(strings->count > 1 && i != strings->count - 1) {
+        if(stringsLen > 1 && i != stringsLen - 1) {
             memcpy(joined->data + length, sep->data, sep->length);
             length += sep->length;
         }
@@ -696,57 +707,3 @@ NATIVE(bl_String_next) {
     return true;
 }
 // } String
-
-// class range {
-NATIVE(bl_range_new) {
-    if(blIsNull(vm, 2)) {
-        blPushNumber(vm, 0);
-        push(vm, vm->apiStack[1]);
-    } else {
-        push(vm, vm->apiStack[1]);
-        push(vm, vm->apiStack[2]);
-    }
-
-    push(vm, vm->apiStack[3]);
-
-    if(!blCheckInt(vm, -3, "from")) return false;
-    if(!blCheckInt(vm, -2, "to")) return false;
-    if(!blCheckInt(vm, -1, "step")) return false;
-
-    push(vm, OBJ_VAL(newRange(vm, blGetNumber(vm, -3), blGetNumber(vm, -2), blGetNumber(vm, -1))));
-    return true;
-}
-
-NATIVE(bl_range_iter) {
-    ObjRange *r = AS_RANGE(vm->apiStack[0]);
-
-    bool incr = r->step > 0;
-
-    if(IS_NULL(vm->apiStack[1])) {
-        if(incr ? r->start < r->stop : r->start > r->stop) {
-            push(vm, NUM_VAL(r->start));
-            return true;
-        } else {
-            push(vm, BOOL_VAL(false));
-            return true;
-        }
-    }
-
-    if(IS_NUM(vm->apiStack[1])) {
-        double i = AS_NUM(vm->apiStack[1]) + r->step;
-        if(incr ? i < r->stop : i > r->stop) {
-            push(vm, NUM_VAL(i));
-            return true;
-        }
-    }
-
-    push(vm, BOOL_VAL(false));
-    return true;
-}
-
-NATIVE(bl_range_next) {
-    if(IS_NUM(vm->apiStack[1])) return true;
-    push(vm, NULL_VAL);
-    return true;
-}
-// }
