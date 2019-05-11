@@ -24,7 +24,6 @@ ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t ar
                      uint8_t defaultc);
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
                          uint8_t defaultc);
-ObjRange *newRange(BlangVM *vm, double start, double stop, double step);
 ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
 ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
 ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);

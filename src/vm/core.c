@@ -148,7 +148,6 @@ void initCoreLibrary(BlangVM *vm) {
     vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
     vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
     vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
-    vm->rangeClass = AS_CLASS(getDefinedName(vm, core, "range"));
 
     core->base.cls = vm->modClass;
 

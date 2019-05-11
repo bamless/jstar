@@ -178,7 +178,7 @@ static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
 }
 
 static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
-    return cls == vm->lstClass || cls == vm->rangeClass;
+    return cls == vm->lstClass;
 }
 
 static bool isBuiltinClass(BlangVM *vm, ObjClass *cls) {

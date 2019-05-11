@@ -83,8 +83,5 @@ void printObj(Obj *o) {
     case OBJ_UPVALUE:
         printf("<upvalue %p>", (void *)o);
         break;
-    case OBJ_RANGE:
-        printf("<range %p>", (void *)o);
-        break;
     }
 }

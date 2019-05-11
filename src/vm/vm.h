@@ -63,7 +63,6 @@ typedef struct BlangVM {
     ObjClass *nullClass;
     ObjClass *stClass;
     ObjClass *tupClass;
-    ObjClass *rangeClass;
 
     // Current VM compiler
     Compiler *currCompiler;

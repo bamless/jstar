@@ -76,7 +76,6 @@ DECLARE_TO_STRING(ObjType);
     X(OBJ_CLOSURE)                                                                                 \
     X(OBJ_UPVALUE)                                                                                 \
     X(OBJ_TUPLE)                                                                                   \
-    X(OBJ_RANGE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
@@ -195,14 +194,6 @@ typedef struct ObjClosure {
     uint8_t upvalueCount;   // The number of Upvalues the function closes over
     ObjUpvalue *upvalues[]; // the actual Upvalues
 } ObjClosure;
-
-// Object for implementing the for var i in range(...) pattern.
-// It is implemented as a builtin Object instead of a user defined class for
-// performance.
-typedef struct ObjRange {
-    Obj base;
-    double start, stop, step;
-} ObjRange;
 
 // Object that contains the dump of the stack's frames.
 // Used for storing the trace of an unhandled exception
