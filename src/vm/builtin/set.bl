@@ -84,16 +84,11 @@ class Set
     end
 
     fun __string__()
-        var s = "{"
-        var count = 0
-
-        for var k in this do
-            count += 1
-            s += ##k
-            if count < #this._map then s += ", " end
+        var elems = []
+        for var e in this do
+            elems.add(##e)
         end
-
-        return s + "}"
+        return "{" + ", ".join(elems) + "}"
     end
 end
 

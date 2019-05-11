@@ -586,52 +586,34 @@ NATIVE(bl_substr) {
 }
 
 NATIVE(bl_String_join) {
-    ObjString *sep = AS_STRING(vm->apiStack[0]);
+    BlBuffer joined;
+    blBufferInit(vm, &joined);
 
     bool err = false;
-
-    int num = 0;
-    size_t length = 0;
-
     blPushNull(vm);
     while(blIter(vm, 1, -1, &err)) {
-        if(err || !blNext(vm, 1, -1)) return false;
-        
+        if(err || !blNext(vm, 1, -1)) {
+            blBufferFree(&joined);
+            return false;
+        }
+
         if(!blIsString(vm, -1)) {
-            BL_RAISE(vm, "TypeException", "All elements in iterable must be strings.");
+            if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) {
+                blBufferFree(&joined);
+                return false;
+            }
         }
 
-        num++;
-        length += blGetStringSz(vm, -1) + sep->length;
+        blBufferAppend(&joined, blGetString(vm, -1), blGetStringSz(vm, -1));
+        blBufferAppend(&joined, blGetString(vm, 0), blGetStringSz(vm, 0));
         blPop(vm);
     }
 
-    // remove last separator from the length
-    if(length > 0) length -= sep->length;
-    ObjString *joined = allocateString(vm, length);
-
-    int i = 0;
-    length = 0;
-
-    blPop(vm);
-    blPushNull(vm);
-    while(blIter(vm, 1, -1, &err)) {
-        if(err || !blNext(vm, 1, -1)) return false;
-
-        ObjString *str = AS_STRING(peek(vm));
-        memcpy(joined->data + length, str->data, str->length);
-        length += str->length;
-
-        if(num > 1 && i != num - 1) {
-            memcpy(joined->data + length, sep->data, sep->length);
-            length += sep->length;
-        }
-
-        i++;
-        blPop(vm);
+    if(joined.len > 0) {
+        blBufferTrunc(&joined, joined.len - blGetStringSz(vm, 0));
     }
 
-    push(vm, OBJ_VAL(joined));
+    blBufferPush(&joined);
     return true;
 }
 

@@ -111,17 +111,11 @@ class Map
     end
 
     fun __string__()
-        var s = "["
-        var count = 0
-        var iterator = __EntryIterator(this)
-
-        for var e in iterator do
-            count += 1
-            s += ##e
-            if count < this._count then s += ", " end
+        var entries = []
+        for var e in __EntryIterator(this) do
+            entries.add(##e)
         end
-
-        return s + "]"
+        return "[" + ", ".join(entries) + "]"
     end
 end
 

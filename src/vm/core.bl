@@ -150,15 +150,7 @@ class List
     end
 
     fun __string__()
-        var s = "["
-        var length = #this
-
-        for var i = 0; i < length; i += 1 do
-            s += ##this[i]
-            if i < length - 1 then s += ", " end
-        end
-
-        return s + "]"
+        return "[" + ", ".join(this) + "]"
     end
 
     fun __eq__(lst)
@@ -185,15 +177,7 @@ class Tuple
     native __next__(idx)
 
     fun __string__()
-        var s = "("
-        var size = #this
-
-        for var i = 0; i < size; i += 1 do
-            s += ##this[i]
-            if(i != size - 1) then s += ", " end
-        end
-
-        return s + ")"
+        return "(" + ", ".join(this) + ")"
     end
 
     fun __eq__(tup)
