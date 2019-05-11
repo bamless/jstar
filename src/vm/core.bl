@@ -135,22 +135,12 @@ class List
         var k, i, j = l, l, m + 1
 
         while i <= m and j <= r do
-            if comp then
-                if comp(this[i], this[j]) < 0 then
-                    temp[k] = this[i]
-                    i += 1
-                else
-                    temp[k] = this[j]
-                    j += 1
-                end
-            else 
-                if this[i] < this[j] then
-                    temp[k] = this[i]
-                    i += 1
-                else
-                    temp[k] = this[j]
-                    j += 1
-                end
+            if comp(this[i], this[j]) <= 0 if comp else this[i] <= this[j] then
+                temp[k] = this[i]
+                i += 1
+            else
+                temp[k] = this[j]
+                j += 1
             end
             k += 1
         end
