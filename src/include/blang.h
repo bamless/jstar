@@ -7,9 +7,9 @@
 
 #define BLANG_VERSION_MAJOR 0
 #define BLANG_VERSION_MINOR 3
-#define BLANG_VERSION_PATCH 3
+#define BLANG_VERSION_PATCH 4
 
-#define BLANG_VERSION_STRING "0.3.3"
+#define BLANG_VERSION_STRING "0.3.4"
 
 #define BLANG_VERSION                                                                              \
     (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)
@@ -87,7 +87,7 @@ void blAddImportPath(BlangVM *vm, const char *path);
 #define MAIN_MODULE "__main__"
 #define CORE_MODULE "__core__"
 
-// Ensure `needed` slots are available in the stack
+// Ensure `needed` slots are available on the stack
 void ensureStack(BlangVM *vm, size_t needed);
 
 // A C function callable from blang
@@ -113,8 +113,9 @@ bool blIs(BlangVM *vm, int slot, int classSlot);
 
 // Functions used for iterating over a generic iterable.
 // `iterable` is the slot in which the iterable object is sitting and `res` is slot of the 
-// result of the last blIter call or, if first time calling blIter, a slot in containing null.
-// blNext is called to obtain the next result in the iteration.
+// result of the last blIter call or, if first time calling blIter, a slot containing null.
+// blNext is called to obtain the next element in the iteration. The element will be placed
+// on the stack.
 bool blIter(BlangVM *vm, int iterable, int res, bool *err);
 bool blNext(BlangVM *vm, int iterable, int res);
 
