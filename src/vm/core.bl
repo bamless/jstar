@@ -197,6 +197,80 @@ class Tuple
 
 end
 
+// Standard iterators
+
+class Iterator
+    fun new(indexable)
+        this.indexable = indexable
+    end
+
+    fun __iter__(i)
+        if i == null then
+            return 0
+        end
+        if i < #this.indexable - 1 then
+            return i + 1
+        else 
+            return false
+        end
+    end
+
+    fun __next__(i)
+        return this.indexable[i]
+    end
+end
+
+fun iter(indexable)
+    return Iterator(indexable)
+end
+
+class ReverseIterator
+    fun new(indexable)
+        this.indexable = indexable
+    end
+
+    fun __iter__(i)
+        if i == null then
+            var idx = #this.indexable - 1
+            return idx if idx >= 0 else false
+        end
+        if i > 0 then
+            return i - 1
+        else
+            return false
+        end
+    end
+
+    fun __next__(i)
+        return this.indexable[i]
+    end
+end
+
+fun reversed(indexable)
+    return ReverseIterator(indexable)
+end
+
+class PairsIterator
+    fun new(iter)
+        this.iter = iter
+        this.idx = 0
+    end
+
+    fun __iter__(i)
+        return this.iter.__iter__(i)
+    end
+
+    fun __next__(i)
+        var ret = this.idx, this.iter.__next__(i)
+        this.idx += 1
+        return ret
+    end
+end
+
+fun ipairs(iter)
+    return PairsIterator(iter)
+end
+
 // Exceptions builtin classes
 
 class Exception

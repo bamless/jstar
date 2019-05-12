@@ -110,6 +110,10 @@ class Map
         return __ValueIterator(this)
     end
 
+    fun keyValIterator()
+        return __KeyValueIterator(this)
+    end
+
     fun __string__()
         var entries = []
         for var e in __EntryIterator(this) do
@@ -198,5 +202,12 @@ end
 class __ValueIterator : __EntryIterator
     fun __next__(_)
         return super.__next__(_).value
+    end
+end
+
+class __KeyValueIterator : __EntryIterator
+    fun __next__(_)
+        var e = super.__next__(_)
+        return e.key, e.value
     end
 end

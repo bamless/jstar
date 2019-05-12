@@ -5,7 +5,7 @@ A dynamic lightweight scripting language
 ## Repl
 If the blang binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and blang will execute it. You can also write multiline code, it will look like this:
 ```lua
-blang>> for var i in range(3) do
+blang>> for var i = 0; i < 3; i += 1 do
 .......   print("Hello World!")
 ....... end
 Hello World!
