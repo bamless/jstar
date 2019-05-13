@@ -7,9 +7,9 @@
 
 #define BLANG_VERSION_MAJOR 0
 #define BLANG_VERSION_MINOR 3
-#define BLANG_VERSION_PATCH 4
+#define BLANG_VERSION_PATCH 5
 
-#define BLANG_VERSION_STRING "0.3.4"
+#define BLANG_VERSION_STRING "0.3.5"
 
 #define BLANG_VERSION                                                                              \
     (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)
@@ -124,7 +124,7 @@ bool blNext(BlangVM *vm, int iterable, int res);
 // `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
 // Beware that the macro pushes a new value on top of the stack to store the result of blIter, so
 // negative slot indeces to access previously pushed elements should be offset by one
-#define blForEach(iter, code, cleanup) {                                                                    \
+#define blForEach(iter, code, cleanup) {                                                           \
     bool _err = false;                                                                             \
     blPushNull(vm);                                                                                \
     while(blIter(vm, iter, -1, &_err)) {                                                           \
