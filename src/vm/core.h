@@ -53,6 +53,7 @@ NATIVE(bl_List_next);
 // } List
 
 // class Tuple {
+NATIVE(bl_Tuple_new);
 NATIVE(bl_Tuple_len);
 NATIVE(bl_Tuple_iter);
 NATIVE(bl_Tuple_next);

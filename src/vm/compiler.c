@@ -1392,8 +1392,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     // add phony variable for function receiver (in the case of functions the
     // receiver is the function itself but it ins't accessible)
     Identifier id = syntheticIdentifier("");
-    declareVar(c, &id, s->line);
-    defineVar(c, &id, s->line);
+    addLocal(c, &id, s->line);
 
     foreach(n, s->funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);

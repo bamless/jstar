@@ -174,11 +174,11 @@ void ensureStack(BlangVM *vm, size_t needed) {
 static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
     return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
            cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass ||
-           cls == vm->stClass || cls == vm->tupClass;
+           cls == vm->stClass;
 }
 
 static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
-    return cls == vm->lstClass;
+    return cls == vm->lstClass || cls == vm->tupClass;
 }
 
 static bool isBuiltinClass(BlangVM *vm, ObjClass *cls) {
@@ -333,7 +333,6 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
     vm->module = oldModule;
 
     push(vm, ret);
-
     return true;
 }
 
@@ -1382,7 +1381,7 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
     if((res = blCall(vm, 0)) != VM_EVAL_SUCCSESS) {
         blPrintStackTrace(vm);
     }
-
+   
     pop(vm);
     return res;
 }
@@ -1464,8 +1463,7 @@ void blRaise(BlangVM *vm, const char *cls, const char *err, ...) {
         va_end(args);
 
         blPushString(vm, errStr);
-        blSetField(vm, -2, "err");
-        pop(vm);
+        hashTablePut(&excInst->fields, copyString(vm, "err", 3, true), pop(vm));
     }
 }
 

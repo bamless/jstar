@@ -123,6 +123,14 @@ class Map
     end
 end
 
+fun tomap(iterable)
+    var m = Map()
+    for var k, v in iterable do
+        m[k] = v
+    end
+    return m
+end
+
 import set
 
 class __KeySet : set.Set

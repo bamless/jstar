@@ -199,7 +199,7 @@ end
 
 // Standard iterators
 
-class Iterator
+class iter
     fun new(indexable)
         this.indexable = indexable
     end
@@ -220,11 +220,7 @@ class Iterator
     end
 end
 
-fun iter(indexable)
-    return Iterator(indexable)
-end
-
-class ReverseIterator
+class reversed
     fun new(indexable)
         this.indexable = indexable
     end
@@ -246,14 +242,10 @@ class ReverseIterator
     end
 end
 
-fun reversed(indexable)
-    return ReverseIterator(indexable)
-end
-
-class PairsIterator
-    fun new(iter)
+class ipairs
+    fun new(iter, start=0)
         this.iter = iter
-        this.idx = 0
+        this.idx = start
     end
 
     fun __iter__(i)
@@ -267,9 +259,87 @@ class PairsIterator
     end
 end
 
-fun ipairs(iter)
-    return PairsIterator(iter)
+class izip
+    fun new(...)
+        if #args == 0 then 
+            raise TypeException("Must provide at least one iterator.") 
+        end
+        this.iters = args
+    end
+
+    fun __iter__(tup)
+        var itres = []
+
+        if tup == null then
+            for var iterator in this.iters do
+                itres.add(iterator.__iter__(null))
+            end
+            return Tuple(itres)
+        end
+
+        var i = 0
+        for var iterator in this.iters do
+            var res = iterator.__iter__(tup[i])
+            if !res then return false end
+            itres.add(res)
+            i += 1
+        end
+
+        return Tuple(itres)
+    end
+
+    fun __next__(tup)
+        var i, res = 0, []
+        for var iterator in this.iters do
+            res.add(iterator.__next__(tup[i]))
+        end
+        return Tuple(res)
+    end
 end
+
+// Core functions
+
+fun assert(cond, msg="assertion failed")
+    if !cond then 
+        raise AssertException(msg) 
+    end
+end
+
+fun print(s, ...)
+    __printstr(##s)
+    for var s in args do
+        __printstr(" ")
+        __printstr(##s)
+    end
+    __printstr("\n")
+end
+
+fun sorted(iterable, comp=null)
+    var lst = tolist(iterable)
+    lst.sort(comp)
+    return lst
+end
+
+fun tolist(iterable)
+    var lst = []
+    for var e in iterable do
+        lst.add(e)
+    end
+    return lst
+end
+
+fun type(o)
+    return o.__class__()
+end
+
+native ascii(char)
+native char(num)
+native eval(source)
+native int(n)
+native isInt(n)
+native num(n)
+
+native __printstr(str)
 
 // Exceptions builtin classes
 
@@ -289,32 +359,3 @@ class DivisionByZeroException : Exception end
 class InvalidArgException : Exception end
 class IndexOutOfBoundException : Exception end
 class AssertException : Exception end
-class IOException : Exception end
-
-fun assert(cond, msg="assertion failed")
-    if !cond then 
-        raise AssertException(msg) 
-    end
-end
-
-fun print(s, ...)
-    __printstr(##s)
-    for var s in args do
-        __printstr(" ")
-        __printstr(##s)
-    end
-    __printstr("\n")
-end
-
-fun type(o)
-    return o.__class__()
-end
-
-native ascii(char)
-native char(num)
-native eval(source)
-native int(n)
-native isInt(n)
-native num(n)
-
-native __printstr(str)

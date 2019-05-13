@@ -7,8 +7,10 @@ def error(msg):
 	sys.exit(1)
 
 def stringify(line):
-	line = line[:len(line) - 1]
-	if not line: return line
+	if line.endswith("\n"):
+		line = line[:len(line) - 1]
+	if not line: 
+		return line
 	line = line.replace("\\", "\\\\")
 	line = line.replace('"', '\\"')
 	return '"' + line + '\\n"'

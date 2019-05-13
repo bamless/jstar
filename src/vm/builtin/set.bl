@@ -92,9 +92,9 @@ class Set
     end
 end
 
-fun buildset(iter)
+fun toset(iterable)
     var s = Set()
-    for var e in iter do
+    for var e in iterable do
         s.add(e)
     end
     return s

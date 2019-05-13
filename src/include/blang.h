@@ -119,6 +119,24 @@ bool blIs(BlangVM *vm, int slot, int classSlot);
 bool blIter(BlangVM *vm, int iterable, int res, bool *err);
 bool blNext(BlangVM *vm, int iterable, int res);
 
+// Macro that automatically configures the loop to iterate over a blang iterable using blIter and
+// blNext.
+// `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
+// Beware that the macro pushes a new value on top of the stack to store the result of blIter, so
+// negative slot indeces to access previously pushed elements should be offset by one
+#define blForEach(iter, code, cleanup) {                                                                    \
+    bool _err = false;                                                                             \
+    blPushNull(vm);                                                                                \
+    while(blIter(vm, iter, -1, &_err)) {                                                           \
+        if(_err || !blNext(vm, iter, -1)) {                                                        \
+            cleanup;                                                                               \
+            return false;                                                                          \
+        }                                                                                          \
+        code                                                                                       \
+    }                                                                                              \
+    blPop(vm);                                                                                     \
+}                                                                                                  \
+
 // Function for converting C values to Blang values.
 // They leave the converted value on top of the stack
 
