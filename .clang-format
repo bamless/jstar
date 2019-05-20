@@ -6,5 +6,6 @@ IndentWidth: '4'
 MaxEmptyLinesToKeep: '1'
 PointerAlignment: Right
 SpaceBeforeParens: Never
+AlignEscapedNewlinesLeft: 'true'
 
 ...

@@ -63,19 +63,19 @@ DECLARE_TO_STRING(ObjType);
 // These types are used internally by the object system and are
 // Never exposed to the user, to whom all values behave like
 // class instances
-#define OBJTYPE(X)                                                                                 \
-    X(OBJ_STRING)                                                                                  \
-    X(OBJ_NATIVE)                                                                                  \
-    X(OBJ_FUNCTION)                                                                                \
-    X(OBJ_CLASS)                                                                                   \
-    X(OBJ_INST)                                                                                    \
-    X(OBJ_MODULE)                                                                                  \
-    X(OBJ_LIST)                                                                                    \
-    X(OBJ_BOUND_METHOD)                                                                            \
-    X(OBJ_STACK_TRACE)                                                                             \
-    X(OBJ_CLOSURE)                                                                                 \
-    X(OBJ_UPVALUE)                                                                                 \
-    X(OBJ_TUPLE)                                                                                   \
+#define OBJTYPE(X)      \
+    X(OBJ_STRING)       \
+    X(OBJ_NATIVE)       \
+    X(OBJ_FUNCTION)     \
+    X(OBJ_CLASS)        \
+    X(OBJ_INST)         \
+    X(OBJ_MODULE)       \
+    X(OBJ_LIST)         \
+    X(OBJ_BOUND_METHOD) \
+    X(OBJ_STACK_TRACE)  \
+    X(OBJ_CLOSURE)      \
+    X(OBJ_UPVALUE)      \
+    X(OBJ_TUPLE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 

@@ -43,7 +43,7 @@ bool blIter(BlangVM *vm, int iterable, int res, bool *err) {
     ensureStack(vm, 2);
     blPushValue(vm, iterable);
     blPushValue(vm, res < 0 ? res - 1 : res);
-    
+
     if(blCallMethod(vm, "__iter__", 1) != VM_EVAL_SUCCSESS) {
         return *err = true;
     }
@@ -220,7 +220,6 @@ bool blIsTuple(BlangVM *vm, int slot) {
     return IS_TUPLE(apiStackSlot(vm, slot));
 }
 
-
 bool blIsBoolean(BlangVM *vm, int slot) {
     return IS_BOOL(apiStackSlot(vm, slot));
 }
@@ -261,7 +260,6 @@ bool blCheckTuple(BlangVM *vm, int slot, const char *name) {
     if(!blIsTuple(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a Tuple.", name);
     return true;
 }
-
 
 bool blCheckBool(BlangVM *vm, int slot, const char *name) {
     if(!blIsBoolean(vm, slot)) BL_RAISE(vm, "TypeException", "%s must be a String.", name);

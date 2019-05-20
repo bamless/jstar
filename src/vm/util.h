@@ -11,7 +11,7 @@
 
 #define DECLARE_TO_STRING(ENUM_NAME) extern const char *CONCAT(ENUM_NAME, Name)[]
 
-#define DEFINE_TO_STRING(ENUM_NAME, ENUMX)                                                         \
+#define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
     const char *CONCAT(ENUM_NAME, Name)[] = {ENUMX(STRINGIFY)}
 
 #define CONCAT(X, Y) X##Y
@@ -21,7 +21,7 @@
 // This macro returns a constant upper bound of the length,
 // as to permit static buffer allocation without worry of
 // overflow.
-#define MAX_STRLEN_FOR_INT_TYPE(t)                                                                 \
+#define MAX_STRLEN_FOR_INT_TYPE(t) \
     (((t)-1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
 
 #define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
@@ -36,12 +36,12 @@
         abort();                                                                                   \
     } while(0)
 
-#define assert(cond, msg)                                                                          \
-    do {                                                                                           \
-        if(!(cond)) {                                                                              \
-            fprintf(stderr, "Assertion failed: %s\n", msg);                                        \
-            abort();                                                                               \
-        }                                                                                          \
+#define assert(cond, msg)                                   \
+    do {                                                    \
+        if(!(cond)) {                                       \
+            fprintf(stderr, "Assertion failed: %s\n", msg); \
+            abort();                                        \
+        }                                                   \
     } while(0)
 
 #else

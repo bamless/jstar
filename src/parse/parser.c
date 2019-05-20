@@ -6,32 +6,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STATEMENT_END(p)                                                                           \
-    do {                                                                                           \
-        if(!IS_IMPLICIT_END(p->peek.type)) {                                                       \
-            if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON))                                   \
-                advance(p);                                                                        \
-            else                                                                                   \
-                error(p, "Expected token `newline` or `;`.");                                      \
-        }                                                                                          \
+#define STATEMENT_END(p)                                         \
+    do {                                                         \
+        if(!IS_IMPLICIT_END(p->peek.type)) {                     \
+            if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) \
+                advance(p);                                      \
+            else                                                 \
+                error(p, "Expected token `newline` or `;`.");    \
+        }                                                        \
     } while(0)
 
 // tokens that implicitly signal the end of a statement (without requiring a ';' or '\n')
-#define IS_IMPLICIT_END(t)                                                                         \
-    (t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE ||          \
+#define IS_IMPLICIT_END(t)                                                                \
+    (t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE || \
      t == TOK_EXCEPT)
 
 #define IS_STATEMENT_END(t) (IS_IMPLICIT_END(t) || t == TOK_NEWLINE || t == TOK_SEMICOLON)
 
-#define IS_LVALUE(type)                                                                            \
+#define IS_LVALUE(type) \
     (type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC || type == TUPLE_LIT)
 
-#define IS_CONSTANT_LITERAL(type)                                                                  \
+#define IS_CONSTANT_LITERAL(type) \
     (type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT)
 
-#define IS_EXPR_START(t)                                                                           \
-    (t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||                  \
-     t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN || t == TOK_LSQUARE ||  \
+#define IS_EXPR_START(t)                                                                          \
+    (t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||                 \
+     t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN || t == TOK_LSQUARE || \
      t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN)
 
 //----- Utility functions ------

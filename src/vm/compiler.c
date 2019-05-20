@@ -148,7 +148,7 @@ static uint16_t createConst(Compiler *c, Value constant, int line) {
 }
 
 static Identifier syntheticIdentifier(const char *name) {
-    return (Identifier) {strlen(name), name};
+    return (Identifier){strlen(name), name};
 }
 
 static uint16_t identifierConst(Compiler *c, Identifier *id, int line) {
@@ -528,8 +528,8 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         break;
     }
 
-    // If the left hand side has been parsed as a tuple it means that the assignement is 
-    //of the form: a, b, ..., c = ... i.e. an unpack assignement
+    // If the left hand side has been parsed as a tuple it means that the assignement is
+    // of the form: a, b, ..., c = ... i.e. an unpack assignement
     case TUPLE_LIT: {
         int assignments = 0;
         Expr *ass[UINT8_MAX];
@@ -1351,9 +1351,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
-    foreach(n, stmts) { 
-        compileStatement(c, (Stmt *)n->elem); 
-    }
+    foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
 }
 
 ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {

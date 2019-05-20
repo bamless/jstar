@@ -19,7 +19,7 @@
 #define GC_FREE(vm, type, obj) GCallocate(vm, obj, sizeof(type), 0)
 #define GC_FREEARRAY(vm, type, obj, count) GCallocate(vm, obj, sizeof(type) * count, 0)
 
-#define GC_FREE_VAR(vm, type, vartype, count, obj)                                                 \
+#define GC_FREE_VAR(vm, type, vartype, count, obj) \
     GCallocate(vm, obj, sizeof(type) + sizeof(vartype) * count, 0)
 
 static void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {

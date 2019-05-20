@@ -447,8 +447,7 @@ NATIVE(bl_re_gsub) {
     size_t off = 0;
     const char *lastmatch = NULL;
     while(off <= len) {
-        if(num > 0 && numsub > num - 1)
-            break;
+        if(num > 0 && numsub > num - 1) break;
 
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, off)) {

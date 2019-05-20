@@ -11,7 +11,7 @@
 
 #define BLANG_VERSION_STRING "0.3.5"
 
-#define BLANG_VERSION                                                                              \
+#define BLANG_VERSION \
     (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)
 
 /**
@@ -77,10 +77,10 @@ void blAddImportPath(BlangVM *vm, const char *path);
 
 // Utility macro for raising an exception from a native function.
 // It raises the exception and exits signaling the error.
-#define BL_RAISE(vm, cls, err, ...)                                                                \
-    do {                                                                                           \
-        blRaise(vm, cls, err, ##__VA_ARGS__);                                                      \
-        return false;                                                                              \
+#define BL_RAISE(vm, cls, err, ...)           \
+    do {                                      \
+        blRaise(vm, cls, err, ##__VA_ARGS__); \
+        return false;                         \
     } while(0)
 
 // Main module and core module names
@@ -112,7 +112,7 @@ bool blEquals(BlangVM *vm);
 bool blIs(BlangVM *vm, int slot, int classSlot);
 
 // Functions used for iterating over a generic iterable.
-// `iterable` is the slot in which the iterable object is sitting and `res` is slot of the 
+// `iterable` is the slot in which the iterable object is sitting and `res` is slot of the
 // result of the last blIter call or, if first time calling blIter, a slot containing null.
 // blNext is called to obtain the next element in the iteration. The element will be placed
 // on the stack.
@@ -124,18 +124,19 @@ bool blNext(BlangVM *vm, int iterable, int res);
 // `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
 // Beware that the macro pushes a new value on top of the stack to store the result of blIter, so
 // negative slot indeces to access previously pushed elements should be offset by one
-#define blForEach(iter, code, cleanup) {                                                           \
-    bool _err = false;                                                                             \
-    blPushNull(vm);                                                                                \
-    while(blIter(vm, iter, -1, &_err)) {                                                           \
-        if(_err || !blNext(vm, iter, -1)) {                                                        \
-            cleanup;                                                                               \
-            return false;                                                                          \
-        }                                                                                          \
-        code                                                                                       \
-    }                                                                                              \
-    blPop(vm);                                                                                     \
-}                                                                                                  \
+#define blForEach(iter, code, cleanup)          \
+    {                                           \
+        bool _err = false;                      \
+        blPushNull(vm);                         \
+        while(blIter(vm, iter, -1, &_err)) {    \
+            if(_err || !blNext(vm, iter, -1)) { \
+                cleanup;                        \
+                return false;                   \
+            }                                   \
+            code                                \
+        }                                       \
+        blPop(vm);                              \
+    }
 
 // Function for converting C values to Blang values.
 // They leave the converted value on top of the stack

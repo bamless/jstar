@@ -9,18 +9,18 @@
 #define BL_PI 3.14159265358979323846
 #define BL_E 2.71828182845904523536
 
-#define STDLIB_MATH_FUN_X(fun)                                                                     \
-    NATIVE(bl_##fun) {                                                                             \
-        if(!blCheckNum(vm, 1, "x")) return false;                                                  \
-        blPushNumber(vm, fun(blGetNumber(vm, 1)));                                                 \
-        return true;                                                                               \
+#define STDLIB_MATH_FUN_X(fun)                     \
+    NATIVE(bl_##fun) {                             \
+        if(!blCheckNum(vm, 1, "x")) return false;  \
+        blPushNumber(vm, fun(blGetNumber(vm, 1))); \
+        return true;                               \
     }
 
-#define STDLIB_MATH_FUN_XY(fun)                                                                    \
-    NATIVE(bl_##fun) {                                                                             \
-        if(!blCheckNum(vm, 1, "x") || !blCheckNum(vm, 2, "y")) return false;                       \
-        blPushNumber(vm, fun(blGetNumber(vm, 1), blGetNumber(vm, 2)));                             \
-        return true;                                                                               \
+#define STDLIB_MATH_FUN_XY(fun)                                              \
+    NATIVE(bl_##fun) {                                                       \
+        if(!blCheckNum(vm, 1, "x") || !blCheckNum(vm, 2, "y")) return false; \
+        blPushNumber(vm, fun(blGetNumber(vm, 1), blGetNumber(vm, 2)));       \
+        return true;                                                         \
     }
 
 static double deg(double x) {

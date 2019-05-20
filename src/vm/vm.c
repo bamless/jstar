@@ -173,8 +173,7 @@ void ensureStack(BlangVM *vm, size_t needed) {
 
 static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
     return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
-           cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass ||
-           cls == vm->stClass;
+           cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || cls == vm->stClass;
 }
 
 static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
@@ -562,11 +561,11 @@ static bool runEval(BlangVM *vm, int depth) {
     register ObjFunction *fn;
     register uint8_t *ip;
 
-#define LOAD_FRAME()                                                                               \
-    frame = &vm->frames[vm->frameCount - 1];                                                       \
-    frameStack = frame->stack;                                                                     \
-    closure = frame->fn.closure;                                                                   \
-    fn = closure->fn;                                                                              \
+#define LOAD_FRAME()                         \
+    frame = &vm->frames[vm->frameCount - 1]; \
+    frameStack = frame->stack;               \
+    closure = frame->fn.closure;             \
+    fn = closure->fn;                        \
     ip = frame->ip;
 
 #define SAVE_FRAME() frame->ip = ip;
@@ -577,61 +576,61 @@ static bool runEval(BlangVM *vm, int depth) {
 #define GET_CONST() (fn->chunk.consts.arr[NEXT_SHORT()])
 #define GET_STRING() (AS_STRING(GET_CONST()))
 
-#define BINARY(type, op, overload, reverse)                                                        \
-    do {                                                                                           \
-        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {                                                \
-            double b = AS_NUM(pop(vm));                                                            \
-            double a = AS_NUM(pop(vm));                                                            \
-            push(vm, type(a op b));                                                                \
-        } else {                                                                                   \
-            BINARY_OVERLOAD(op, overload, reverse);                                                \
-        }                                                                                          \
+#define BINARY(type, op, overload, reverse)         \
+    do {                                            \
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) { \
+            double b = AS_NUM(pop(vm));             \
+            double a = AS_NUM(pop(vm));             \
+            push(vm, type(a op b));                 \
+        } else {                                    \
+            BINARY_OVERLOAD(op, overload, reverse); \
+        }                                           \
     } while(0)
 
-#define BINARY_OVERLOAD(op, overload, reverse)                                                     \
-    do {                                                                                           \
-        SAVE_FRAME();                                                                              \
-        if(!callBinaryOverload(vm, overload, reverse)) {                                           \
-            LOAD_FRAME();                                                                          \
-            ObjString *t1 = getClass(vm, peek(vm))->name;                                          \
-            ObjString *t2 = getClass(vm, peek2(vm))->name;                                         \
-            blRaise(vm, "TypeException",                                                           \
-                    "Operator %s not defined "                                                     \
-                    "for types %s, %s",                                                            \
-                    #op, t1->data, t2->data);                                                      \
-            UNWIND_STACK(vm);                                                                      \
-        }                                                                                          \
-        LOAD_FRAME();                                                                              \
+#define BINARY_OVERLOAD(op, overload, reverse)             \
+    do {                                                   \
+        SAVE_FRAME();                                      \
+        if(!callBinaryOverload(vm, overload, reverse)) {   \
+            LOAD_FRAME();                                  \
+            ObjString *t1 = getClass(vm, peek(vm))->name;  \
+            ObjString *t2 = getClass(vm, peek2(vm))->name; \
+            blRaise(vm, "TypeException",                   \
+                    "Operator %s not defined "             \
+                    "for types %s, %s",                    \
+                    #op, t1->data, t2->data);              \
+            UNWIND_STACK(vm);                              \
+        }                                                  \
+        LOAD_FRAME();                                      \
     } while(0)
 
-#define UNWIND_HANDLER(h, cause, ret)                                                              \
-    do {                                                                                           \
-        frame->ip = h->handler;                                                                    \
-        vm->sp = h->savesp;                                                                        \
-        closeUpvalues(vm, vm->sp - 1);                                                             \
-        push(vm, cause);                                                                           \
-        push(vm, ret);                                                                             \
+#define UNWIND_HANDLER(h, cause, ret)  \
+    do {                               \
+        frame->ip = h->handler;        \
+        vm->sp = h->savesp;            \
+        closeUpvalues(vm, vm->sp - 1); \
+        push(vm, cause);               \
+        push(vm, ret);                 \
     } while(0)
 
-#define UNWIND_STACK(vm)                                                                           \
-    do {                                                                                           \
-        SAVE_FRAME()                                                                               \
-        if(!unwindStack(vm, depth)) {                                                              \
-            return false;                                                                          \
-        }                                                                                          \
-        LOAD_FRAME();                                                                              \
-        DISPATCH();                                                                                \
+#define UNWIND_STACK(vm)              \
+    do {                              \
+        SAVE_FRAME()                  \
+        if(!unwindStack(vm, depth)) { \
+            return false;             \
+        }                             \
+        LOAD_FRAME();                 \
+        DISPATCH();                   \
     } while(0)
 
 #ifdef DBG_PRINT_EXEC
-#define PRINT_DBG_STACK()                                                                          \
-    printf("     ");                                                                               \
-    for(Value *v = vm->stack; v < vm->sp; v++) {                                                   \
-        printf("[");                                                                               \
-        printValue(*v);                                                                            \
-        printf("]");                                                                               \
-    }                                                                                              \
-    printf("$\n");                                                                                 \
+#define PRINT_DBG_STACK()                        \
+    printf("     ");                             \
+    for(Value *v = vm->stack; v < vm->sp; v++) { \
+        printf("[");                             \
+        printValue(*v);                          \
+        printf("]");                             \
+    }                                            \
+    printf("$\n");                               \
     disassembleIstr(&fn->chunk, (size_t)(ip - fn->chunk.code));
 #else
 #define PRINT_DBG_STACK()
@@ -643,10 +642,10 @@ static bool runEval(BlangVM *vm, int depth) {
 
 #define TARGET(op) TARGET_##op
 
-#define DISPATCH()                                                                                 \
-    do {                                                                                           \
-        PRINT_DBG_STACK()                                                                          \
-        goto *opJmpTable[(op = NEXT_CODE())];                                                      \
+#define DISPATCH()                            \
+    do {                                      \
+        PRINT_DBG_STACK()                     \
+        goto *opJmpTable[(op = NEXT_CODE())]; \
     } while(0)
 
 #define DECODE(op) DISPATCH();
@@ -655,13 +654,13 @@ static bool runEval(BlangVM *vm, int depth) {
 
 #else
 
-#define TARGET(op)                                                                                 \
-    op:                                                                                            \
+#define TARGET(op) \
+    op:            \
     case op
 #define DISPATCH() goto decode
-#define DECODE(op)                                                                                 \
-    decode:                                                                                        \
-    PRINT_DBG_STACK();                                                                             \
+#define DECODE(op)     \
+    decode:            \
+    PRINT_DBG_STACK(); \
     switch((op = NEXT_CODE()))
 
 #define GOTO(op) goto op
@@ -1381,7 +1380,7 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
     if((res = blCall(vm, 0)) != VM_EVAL_SUCCSESS) {
         blPrintStackTrace(vm);
     }
-   
+
     pop(vm);
     return res;
 }
