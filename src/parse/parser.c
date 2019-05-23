@@ -32,7 +32,7 @@
 #define IS_EXPR_START(t)                                                                          \
     (t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||                 \
      t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN || t == TOK_LSQUARE || \
-     t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN)
+     t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN || t == TOK_HASH || t == TOK_HASH_HASH )
 
 //----- Utility functions ------
 
