@@ -746,7 +746,7 @@ static bool runEval(BlangVM *vm, int depth) {
                     LOAD_FRAME();
                     UNWIND_STACK(vm);
                 }
-                LOAD_FRAME()
+                LOAD_FRAME();
             } else {
                 push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
             }
