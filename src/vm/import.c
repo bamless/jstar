@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define PACKAGE_FILE "/__package__.bl"
+
 static char *loadSource(const char *path) {
     FILE *srcFile = fopen(path, "rb+");
     if(srcFile == NULL || errno == EISDIR) {
@@ -86,7 +88,7 @@ static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, con
 static bool importModuleOrPackage(BlangVM *vm, BlBuffer *importPath, ObjString *name, char **src) {
     // try to see if it is a package
     size_t packStart = importPath->len;
-    blBufferAppendstr(importPath, "/__package__.bl");
+    blBufferAppendstr(importPath, PACKAGE_FILE);
 
     char *path = importPath->data;
     if((*src = loadSource(path)) != NULL) {
