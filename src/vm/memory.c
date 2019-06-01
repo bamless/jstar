@@ -63,33 +63,36 @@ static Obj *newVarObj(BlangVM *vm, size_t size, size_t varSize, size_t count, Ob
     return newObj(vm, size + varSize * count, cls, type);
 }
 
+static void initCallable(Callable *c, ObjModule *module, ObjString *name, uint8_t argc, 
+                         Value *defArr, uint8_t defc) {
+
+    c->argsCount = argc;
+    c->defaultc = defc;
+    c->vararg = false;
+    c->defaults = defArr;
+    c->module = module;
+    c->name = name;
+}
+
 ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
-                         uint8_t defaultc) {
-    Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
-    memset(defArr, 0, defaultc * sizeof(Value));
+                         uint8_t defc) {
+
+    Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
+    memset(defArr, 0, defc * sizeof(Value));
     ObjFunction *f = (ObjFunction *)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
-    f->c.argsCount = argc;
-    f->c.defaultc = defaultc;
-    f->c.vararg = false;
-    f->c.defaults = defArr;
-    f->c.module = module;
-    f->c.name = name;
+    initCallable(&f->c, module, name, argc, defArr, defc);
     f->upvaluec = 0;
     initChunk(&f->chunk);
     return f;
 }
 
 ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn,
-                     uint8_t defaultc) {
-    Value *defArr = defaultc > 0 ? GC_ALLOC(vm, sizeof(Value) * defaultc) : NULL;
-    memset(defArr, 0, defaultc * sizeof(Value));
+                     uint8_t defc) {
+
+    Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
+    memset(defArr, 0, defc * sizeof(Value));
     ObjNative *n = (ObjNative *)newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
-    n->c.argsCount = argc;
-    n->c.vararg = false;
-    n->c.module = module;
-    n->c.name = name;
-    n->c.defaults = defArr;
-    n->c.defaultc = defaultc;
+    initCallable(&n->c, module, name, argc, defArr, defc);
     n->fn = fn;
     return n;
 }
