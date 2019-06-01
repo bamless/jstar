@@ -505,11 +505,10 @@ NATIVE(bl_List_next) {
 NATIVE(bl_Tuple_new) {
     if(!blIsList(vm, 1)) {
         blPushList(vm);
-        blForEach(
-            1, {
+        blForEach(1, {
                 blListAppend(vm, 2);
                 blPop(vm);
-            }, )
+        },)
     }
 
     ObjList *lst = AS_LIST(vm->sp[-1]);
@@ -606,9 +605,7 @@ NATIVE(bl_String_join) {
     BlBuffer joined;
     blBufferInit(vm, &joined);
 
-    blForEach(
-        1,
-        {
+    blForEach(1, {
             if(!blIsString(vm, -1)) {
                 if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) {
                     blBufferFree(&joined);
@@ -618,10 +615,9 @@ NATIVE(bl_String_join) {
             blBufferAppend(&joined, blGetString(vm, -1), blGetStringSz(vm, -1));
             blBufferAppend(&joined, blGetString(vm, 0), blGetStringSz(vm, 0));
             blPop(vm);
-        },
-        blBufferFree(&joined))
+    }, blBufferFree(&joined))
 
-        if(joined.len > 0) {
+    if(joined.len > 0) {
         blBufferTrunc(&joined, joined.len - blGetStringSz(vm, 0));
     }
 
