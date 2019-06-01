@@ -17,9 +17,7 @@
 static ObjClass *createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
     ObjString *n = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(n));
-
     ObjClass *c = newClass(vm, n, sup);
-
     pop(vm);
 
     hashTablePut(&m->globals, n, OBJ_VAL(c));
@@ -36,9 +34,7 @@ static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const 
                       uint8_t argc) {
     ObjString *strName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(strName));
-
     ObjNative *native = newNative(vm, m, strName, argc, n, 0);
-
     pop(vm);
 
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
@@ -57,7 +53,6 @@ static void defMethodDefaults(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n
         native->c.defaults[i] = va_arg(args, Value);
     }
     va_end(args);
-
     pop(vm);
 
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
@@ -73,10 +68,8 @@ static uint64_t hash64(uint64_t x) {
 // class Object
 static NATIVE(bl_Object_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
-
     char str[256];
     snprintf(str, 255, "<%s@%p>", o->cls->name->data, (void *)o);
-
     blPushString(vm, str);
     return true;
 }
@@ -101,10 +94,8 @@ static NATIVE(bl_Class_getName) {
 
 static NATIVE(bl_Class_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
-
     char str[256];
     snprintf(str, 255, "<Class %s@%p>", ((ObjClass *)o)->name->data, (void *)o);
-
     blPushString(vm, str);
     return true;
 }
@@ -114,11 +105,9 @@ void initCoreLibrary(BlangVM *vm) {
     ObjString *name = copyString(vm, CORE_MODULE, strlen(CORE_MODULE), true);
 
     push(vm, OBJ_VAL(name));
-
     ObjModule *core = newModule(vm, name);
     setModule(vm, core->name, core);
     vm->core = core;
-
     pop(vm);
 
     // Setup the class object. It will be the class of every other class
@@ -259,15 +248,14 @@ NATIVE(bl_printstr) {
 
 NATIVE(bl_eval) {
     if(!blCheckStr(vm, 1, "source")) return false;
-    if(vm->frameCount < 1)
+    if(vm->frameCount < 1) {
         BL_RAISE(vm, "Exception", "eval() can only be called by another function");
-
+    }
     Frame *prevFrame = &vm->frames[vm->frameCount - 2];
     ObjModule *mod = prevFrame->fn.type == OBJ_CLOSURE ? prevFrame->fn.closure->fn->c.module
                                                        : prevFrame->fn.native->c.module;
 
     EvalResult res = blEvaluateModule(vm, "<string>", mod->name->data, blGetString(vm, 1));
-
     blPushBoolean(vm, res == VM_EVAL_SUCCSESS);
     return true;
 }
@@ -427,10 +415,9 @@ NATIVE(bl_List_removeAt) {
     ObjList *l = AS_LIST(vm->apiStack[0]);
     size_t index = blCheckIndex(vm, 1, l->count, "i");
     if(index == SIZE_MAX) return false;
-
+    
     Value r = l->arr[index];
     listRemove(vm, l, index);
-
     push(vm, r);
     return true;
 }
