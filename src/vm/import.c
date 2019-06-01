@@ -74,6 +74,7 @@ ObjModule *getModule(BlangVM *vm, ObjString *name) {
 static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, const char *source) {
     Parser p;
     Stmt *program = parse(&p, path, source, false);
+
     if(p.hadError) return false;
 
     ObjFunction *module = compileWithModule(vm, name, program);
@@ -85,30 +86,51 @@ static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, con
     return true;
 }
 
-static bool importModuleOrPackage(BlangVM *vm, BlBuffer *importPath, ObjString *name, char **src) {
-    // try to see if it is a package
-    size_t packStart = importPath->len;
-    blBufferAppendstr(importPath, PACKAGE_FILE);
+static bool importFromPath(BlangVM *vm, const char *path, ObjString *name) {
+    char *source = loadSource(path);
+    if(source == NULL) return false;
+    bool res = importWithSource(vm, path, name, source);
+    free(source);
+    return res;
+}
 
-    char *path = importPath->data;
-    if((*src = loadSource(path)) != NULL) {
-        if(!importWithSource(vm, path, name, *src)) {
-            free(*src);
-            return false;
+static bool importModuleOrPackage(BlangVM *vm, ObjString *name) {
+    ObjList *paths = vm->importpaths;
+
+    BlBuffer fullPath;
+    blBufferInit(vm, &fullPath);
+
+    for(size_t i = 0; i < paths->count + 1; i++) {
+        if(i == paths->count) {
+            // We have run through all import paths, try CWD
+            blBufferAppendstr(&fullPath, "./");
+        } else {
+            if(!IS_STRING(paths->arr[i])) continue;
+            blBufferAppendstr(&fullPath, AS_STRING(paths->arr[i])->data);
+            blBufferAppendChar(&fullPath, '/');
         }
-        return true;
-    }
 
-    // try to see if it's a normal module
-    blBufferTrunc(importPath, packStart);
-    blBufferAppendstr(importPath, ".bl");
+        size_t moduleStart = fullPath.len - 1;
+        blBufferAppendstr(&fullPath, name->data);
+        blBufferReplaceChar(&fullPath, moduleStart, '.', '/');
 
-    if((*src = loadSource(path)) != NULL) {
-        if(!importWithSource(vm, path, name, *src)) {
-            free(*src);
-            return false;
+        // try to load a package
+        size_t moduleEnd = fullPath.len;
+        blBufferAppendstr(&fullPath, PACKAGE_FILE);
+
+        if(importFromPath(vm, fullPath.data, name)) {
+            blBufferFree(&fullPath);
+            return true;
         }
-        return true;
+
+        // if there is no package try to load module (i.e. normal .bl file)
+        blBufferTrunc(&fullPath, moduleEnd);
+        blBufferAppendstr(&fullPath, ".bl");
+
+        if(importFromPath(vm, fullPath.data, name)) {
+            blBufferFree(&fullPath);
+            return true;
+        }
     }
 
     return false;
@@ -121,65 +143,14 @@ bool importModule(BlangVM *vm, ObjString *name) {
     }
 
     // check if builtin
-    const char *builtinSrc = NULL;
-    if((builtinSrc = readBuiltInModule(name->data)) != NULL) {
+    const char *builtinSrc = readBuiltInModule(name->data);
+    if(builtinSrc != NULL) {
         return importWithSource(vm, name->data, name, builtinSrc);
     }
 
-    // try to read module or package
-    BlBuffer sb;
-    blBufferInit(vm, &sb);
-
-    char *src = NULL;
-
-    ObjList *paths = vm->importpaths;
-    for(size_t i = 0; i < paths->count; i++) {
-        if(!IS_STRING(paths->arr[i])) {
-            continue;
-        }
-
-        blBufferAppendstr(&sb, AS_STRING(paths->arr[i])->data);
-        blBufferAppendChar(&sb, '/');
-
-        size_t s = sb.len - 1;
-        blBufferAppendstr(&sb, name->data);
-        blBufferReplaceChar(&sb, s, '.', '/');
-
-        if(!importModuleOrPackage(vm, &sb, name, &src)) {
-            blBufferFree(&sb);
-            return false;
-        }
-
-        if(src != NULL) {
-            break;
-        }
-
-        // not found, try the next path
-        blBufferClear(&sb);
+    if(!importModuleOrPackage(vm, name)) {
+        return false;
     }
-
-    // no module found
-    if(src == NULL) {
-        // try current cwd
-        blBufferAppendstr(&sb, "./");
-
-        size_t s = sb.len - 1;
-        blBufferAppendstr(&sb, name->data);
-        blBufferReplaceChar(&sb, s, '.', '/');
-
-        if(!importModuleOrPackage(vm, &sb, name, &src)) {
-            blBufferFree(&sb);
-            return false;
-        }
-
-        if(src == NULL) {
-            blBufferFree(&sb);
-            return false;
-        }
-    }
-
-    blBufferFree(&sb);
-    free(src);
 
     // we loaded the module (or package), set simple name in parent package if any
     char *nameStart = strrchr(name->data, '.');
@@ -192,13 +163,11 @@ bool importModule(BlangVM *vm, ObjString *name) {
 
     ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     push(vm, OBJ_VAL(parentName));
-
     ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart), true);
-
     ObjModule *module = getModule(vm, name);
     ObjModule *parent = getModule(vm, parentName);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
-
     pop(vm);
+
     return true;
 }
