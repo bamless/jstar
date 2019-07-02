@@ -16,20 +16,19 @@ NATIVE(bl_ascii);
 NATIVE(bl_printstr);
 NATIVE(bl_eval);
 
+NATIVE(bl_type);
+
 // class Number {
 NATIVE(bl_Number_string);
-NATIVE(bl_Number_class);
 NATIVE(bl_Number_hash);
 // } Number
 
 // class Boolean {
 NATIVE(bl_Boolean_string);
-NATIVE(bl_Boolean_class);
 // } Boolean
 
 // class Null {
 NATIVE(bl_Null_string);
-NATIVE(bl_Null_class);
 // } Null
 
 // class Function {

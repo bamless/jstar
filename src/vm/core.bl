@@ -1,15 +1,12 @@
 class Number
     native __string__()
-    native __class__()
     native __hash__()
 end
 class Boolean
     native __string__()
-    native __class__()
 end
 class Null
     native __string__()
-    native __class__()
 end
 class Function
     native __string__()
@@ -328,9 +325,7 @@ fun tolist(iterable)
     return lst
 end
 
-fun type(o)
-    return o.__class__()
-end
+native type(o)
 
 native ascii(char)
 native char(num)

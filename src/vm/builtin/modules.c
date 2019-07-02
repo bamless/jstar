@@ -76,19 +76,17 @@ Module builtInModules[] = {
         FUNCTION(isInt,      &bl_isInt)
         FUNCTION(char,       &bl_char)
         FUNCTION(ascii,      &bl_ascii)
+        FUNCTION(type,       &bl_type)
         FUNCTION(__printstr, &bl_printstr)
         CLASS(Number)
             METHOD(__string__, &bl_Number_string)
-            METHOD(__class__,  &bl_Number_class)
             METHOD(__hash__,   &bl_Number_hash)
         ENDCLASS
         CLASS(Boolean)
             METHOD(__string__, &bl_Boolean_string)
-            METHOD(__class__,  &bl_Boolean_class)
         ENDCLASS
         CLASS(Null)
             METHOD(__string__, &bl_Null_string)
-            METHOD(__class__,  &bl_Null_class)
         ENDCLASS
         CLASS(Function)
             METHOD(__string__, &bl_Function_string)

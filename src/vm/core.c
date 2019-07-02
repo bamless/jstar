@@ -74,11 +74,6 @@ static NATIVE(bl_Object_string) {
     return true;
 }
 
-static NATIVE(bl_Object_class) {
-    push(vm, OBJ_VAL(AS_OBJ(vm->apiStack[0])->cls));
-    return true;
-}
-
 static NATIVE(bl_Object_hash) {
     uint64_t x = hash64((uint64_t)AS_OBJ(vm->apiStack[0]));
     blPushNumber(vm, (uint32_t)x);
@@ -117,7 +112,6 @@ void initCoreLibrary(BlangVM *vm) {
     // Setup the base class of the object hierarchy
     vm->objClass = createClass(vm, core, NULL, "Object"); // Object has no superclass
     defMethod(vm, core, vm->objClass, &bl_Object_string, "__string__", 0);
-    defMethod(vm, core, vm->objClass, &bl_Object_class, "__class__", 0);
     defMethod(vm, core, vm->objClass, &bl_Object_hash, "__hash__", 0);
 
     // Patch up Class object information
@@ -260,16 +254,16 @@ NATIVE(bl_eval) {
     return true;
 }
 
+NATIVE(bl_type) {
+    push(vm, OBJ_VAL(getClass(vm, peek(vm))));
+    return true;
+}
+
 // class Number {
 NATIVE(bl_Number_string) {
     char str[24]; // enough for .*g with DBL_DIG
     snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, blGetNumber(vm, 0));
     blPushString(vm, str);
-    return true;
-}
-
-NATIVE(bl_Number_class) {
-    push(vm, OBJ_VAL(vm->numClass));
     return true;
 }
 
@@ -294,21 +288,11 @@ NATIVE(bl_Boolean_string) {
         blPushString(vm, "false");
     return true;
 }
-
-NATIVE(bl_Boolean_class) {
-    push(vm, OBJ_VAL(vm->boolClass));
-    return true;
-}
 // } Boolean
 
 // class Null {
 NATIVE(bl_Null_string) {
     blPushString(vm, "null");
-    return true;
-}
-
-NATIVE(bl_Null_class) {
-    push(vm, OBJ_VAL(vm->nullClass));
     return true;
 }
 // } Null
