@@ -77,7 +77,7 @@ Module builtInModules[] = {
         FUNCTION(char,       &bl_char)
         FUNCTION(ascii,      &bl_ascii)
         FUNCTION(type,       &bl_type)
-        FUNCTION(__printstr, &bl_printstr)
+        FUNCTION(print,      &bl_print)
         CLASS(Number)
             METHOD(__string__, &bl_Number_string)
             METHOD(__hash__,   &bl_Number_hash)

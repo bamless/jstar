@@ -13,7 +13,7 @@ NATIVE(bl_isInt);
 NATIVE(bl_char);
 NATIVE(bl_ascii);
 
-NATIVE(bl_printstr);
+NATIVE(bl_print);
 NATIVE(bl_eval);
 
 NATIVE(bl_type);

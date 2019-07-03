@@ -302,15 +302,6 @@ fun assert(cond, msg="assertion failed")
     end
 end
 
-fun print(s, ...)
-    __printstr(##s)
-    for var s in args do
-        __printstr(" ")
-        __printstr(##s)
-    end
-    __printstr("\n")
-end
-
 fun sorted(iterable, comp=null)
     var lst = tolist(iterable)
     lst.sort(comp)
@@ -334,7 +325,7 @@ native int(n)
 native isInt(n)
 native num(n)
 
-native __printstr(str)
+native print(s, ...)
 
 // Exceptions builtin classes
 

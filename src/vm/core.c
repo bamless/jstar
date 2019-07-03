@@ -233,9 +233,25 @@ NATIVE(bl_ascii) {
     return true;
 }
 
-NATIVE(bl_printstr) {
-    if(!blCheckStr(vm, 1, "str")) return false;
-    fwrite(blGetString(vm, 1), 1, blGetStringSz(vm, 1), stdout);
+NATIVE(bl_print) {
+    blPushValue(vm, 1);
+    if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) return false;
+    if(!blIsString(vm, -1)) BL_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+
+    printf("%s", blGetString(vm, -1));
+    blPop(vm);
+
+    blForEach(2, {
+        if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) return false;
+        if(!blIsString(vm, -1)) {
+            BL_RAISE(vm, "TypeException", "__string__() didn't return a String");
+        }
+        printf(" %s", blGetString(vm, -1));
+        blPop(vm);
+    }, );
+
+    printf("\n");
+
     blPushNull(vm);
     return true;
 }
