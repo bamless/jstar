@@ -11,15 +11,17 @@
 
 #define BLANG_VERSION_STRING "0.3.5"
 
+// Increasing version number, used for range checking
 #define BLANG_VERSION \
     (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)
 
 /**
  * =========================================================
- * Interpreter entry points
+ *  Blang VM entry points
  * =========================================================
  */
 
+// The Blang virtual machine
 typedef struct BlangVM BlangVM;
 
 typedef enum {
@@ -35,7 +37,7 @@ BlangVM *blNewVM();
 void blFreeVM(BlangVM *vm);
 
 // Evaluate blang code in the context of module (or __main__ in blEvaluate)
-// as a top level function (<main> function).
+// as top level <main> function.
 // VM_EVAL_SUCCSESS will be returned if the execution completed normally
 // In case of errors, either VM_SYNTAX_ERR, VM_COMPILE_ERR or VM_RUNTIME_ERR
 // will be returned, and all the errors will be printed to stderr.
@@ -58,6 +60,8 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *name, co
 EvalResult blCall(BlangVM *vm, uint8_t argc);
 EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc);
 
+// Prints the the stack trace of the exception on the top of the stack
+void blPrintStackTrace(BlangVM *vm);
 // Init the sys.args list with a list of arguments (usually main arguments)
 void blInitCommandLineArgs(int argc, const char **argv);
 // Add a path to be searched during module imports
@@ -65,9 +69,11 @@ void blAddImportPath(BlangVM *vm, const char *path);
 
 /**
  * =========================================================
- * Native function API
+ *  Native function API
  * =========================================================
  */
+
+// ---- Utility functions and definitions ----
 
 // The minimum reserved space for the stack when calling a native function
 #define MIN_NATIVE_STACK_SZ 20
@@ -93,6 +99,8 @@ void ensureStack(BlangVM *vm, size_t needed);
 // A C function callable from blang
 typedef bool (*Native)(BlangVM *vm);
 
+// ---- Overloadable operator functions ----
+
 // Instantiate an exception from "cls" with "err" as an error string and raises
 // it, leaving it on top of the stack.
 // If "cls" cannot be found in current module a NameException is raised instead.
@@ -111,11 +119,12 @@ bool blEquals(BlangVM *vm);
 // Check if a value is of a certain class.
 bool blIs(BlangVM *vm, int slot, int classSlot);
 
-// Functions used for iterating over a generic iterable.
-// `iterable` is the slot in which the iterable object is sitting and `res` is slot of the
+// ---- Iterable protocol functions ----
+
+// `iterable` is the slot in which the iterable object is sitting and `res` is the slot of the
 // result of the last blIter call or, if first time calling blIter, a slot containing null.
 // blNext is called to obtain the next element in the iteration. The element will be placed
-// on the stack.
+// on the top of the stack.
 bool blIter(BlangVM *vm, int iterable, int res, bool *err);
 bool blNext(BlangVM *vm, int iterable, int res);
 
@@ -138,8 +147,9 @@ bool blNext(BlangVM *vm, int iterable, int res);
         blPop(vm);                              \
     }
 
-// Function for converting C values to Blang values.
-// They leave the converted value on top of the stack
+// ---- C to Blang values converting functions ----
+
+// The converted value is left on the top of the stack
 
 void blPushNumber(BlangVM *vm, double number);
 void blPushBoolean(BlangVM *vm, bool boolean);
@@ -152,22 +162,24 @@ void blPushList(BlangVM *vm);
 void blPushValue(BlangVM *vm, int slot);
 #define blDup() blPushValue(vm, -1)
 
-// Functions from converting from Blang values to C values
+// ---- Blang to C values converter functions ----
 
 double blGetNumber(BlangVM *vm, int slot);
 bool blGetBoolean(BlangVM *vm, int slot);
 void *blGetHandle(BlangVM *vm, int slot);
 size_t blGetStringSz(BlangVM *vm, int slot);
-// WARNING: The returned string is owned by Blang
+
+// BEWARE: The returned string is owned by Blang
 // and thus is garbage collected. Never use this
 // buffer outside the native where it was retrieved.
-// Also be careful when popping the string from the stack
-// while retaining this buffer, because if a GC occurs
-// and the string is not found to be reachable it'll be
-// collected.
+// Also be careful when popping the original ObjString
+// from the stack  while retaining this buffer, because 
+// if a GC occurs and the string is not found to be 
+// reachable it'll be collected.
 const char *blGetString(BlangVM *vm, int slot);
 
-// Function for working with lists
+// ---- List manipulation functions ----
+
 // These functions do not perfrom bounds checking,
 // use blCeckIndex first if needed.
 
@@ -177,20 +189,26 @@ void blListRemove(BlangVM *vm, size_t i, int slot);
 void blListGetLength(BlangVM *vm, int slot);
 void blListGet(BlangVM *vm, size_t i, int slot);
 
+// ---- Object instances manipulation functions ----
+
 // Set the field "name" of the value at "slot" with the value
 // on top of the stack. the value is not popped.
 void blSetField(BlangVM *vm, int slot, const char *name);
+
 // Get the field "name" of the value at "slot".
 // Returns true in case of success leaving the result on
 // top of the stack, false otherwise leaving an exception
 // on top of the stack.
 bool blGetField(BlangVM *vm, int slot, const char *name);
 
+// ---- Modules manipulation functions ----
+
 // Set the global "name" of the module "mname" with the value
 // on top of the stack. the value is not popped.
 // If calling from inside a native mname can be NULL, and the
 // used module will be the current one.
 void blSetGlobal(BlangVM *vm, const char *mname, const char *name);
+
 // Get the global "name" of the module "mname".
 // Returns true in case of success leaving the result on the
 // top of the stack, false otherwise leaving an exception on
@@ -199,11 +217,9 @@ void blSetGlobal(BlangVM *vm, const char *mname, const char *name);
 // used module will be the current one.
 bool blGetGlobal(BlangVM *vm, const char *mname, const char *name);
 
-// Function for checking the type of a slot.
-// These functions return true if the value at slot
-// is of the given type, otherwise they return false
-// and leave an exception on top of the stack
+// ---- Blang type checking functions ----
 
+// These functions return true if the slot is of the given type, false otherwise
 bool blIsNumber(BlangVM *vm, int slot);
 bool blIsInteger(BlangVM *vm, int slot);
 bool blIsString(BlangVM *vm, int slot);
@@ -214,6 +230,8 @@ bool blIsHandle(BlangVM *vm, int slot);
 bool blIsNull(BlangVM *vm, int slot);
 bool blIsInstance(BlangVM *vm, int slot);
 
+// These functions return true if the slot is of the given type, false otherwise leaving a
+// TypeException on top of the stack with a message customized with 'name'
 bool blCheckNum(BlangVM *vm, int slot, const char *name);
 bool blCheckInt(BlangVM *vm, int slot, const char *name);
 bool blCheckStr(BlangVM *vm, int slot, const char *name);
@@ -231,15 +249,16 @@ size_t blCheckIndex(BlangVM *vm, int slot, size_t max, const char *name);
 // Pop a value from the top of the stack
 void blPop(BlangVM *vm);
 
-// Prints the the stack trace of the exception on the top of the stack
-void blPrintStackTrace(BlangVM *vm);
-
 /**
  * =========================================================
- * Buffer creation and manipulation functions
+ *  Buffer creation and manipulation functions
  * =========================================================
  */
 
+// Dynamic Buffer that holds memory allocated by the Blang garbage collector.
+// This memory is owned by Blang, but cannot be collected until the buffer 
+// is pushed on the stack using the blBufferPush method.
+// Used for efficient creation of Strings in the native API.
 typedef struct BlBuffer {
     BlangVM *vm;
     size_t size;
@@ -259,6 +278,8 @@ void blBufferPrependstr(BlBuffer *b, const char *str);
 void blBufferAppendChar(BlBuffer *b, char c);
 void blBufferClear(BlBuffer *b);
 
+// Once the buffer is pushed on the Blang stack it becomes a String and can't be modified further
+// One can reuse the BlBuffer struct by re-initializing it using the blBufferInit method.
 void blBufferPush(BlBuffer *b);
 void blBufferFree(BlBuffer *b);
 

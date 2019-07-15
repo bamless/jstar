@@ -6,6 +6,16 @@
 
 #include <string.h>
 
+/**
+ * The bulk of the API (blang.h) implementation.
+ * 
+ * The VM entry point functions and others that need to manipulate the VM internals are implemented 
+ * in vm.c
+ * 
+ * The blBuffer functions are implemented in memory.c since they require garbage collectable 
+ * memory allocation
+ */
+
 static void validateStack(BlangVM *vm) {
     assert((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
 }

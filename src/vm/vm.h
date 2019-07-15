@@ -10,15 +10,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define RECURSION_LIMIT 10000 // After this many calls, StackOverflow will be raised
+#define RECURSION_LIMIT 10000                      // After this many calls, StackOverflow will be raised
+#define FRAME_SZ        1000                       // Starting frame size
+#define STACK_SZ        FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
+#define INIT_GC         (1024 * 1024 * 10)         // 10MiB
 
-#define FRAME_SZ 1000                      // Starting frame size
-#define STACK_SZ FRAME_SZ *(UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
-#define INIT_GC 1024 * 1024 * 10           // 10MiB
+#define HANDLER_MAX     10                         // Max number of nested try/except/ensure
 
-#define HANDLER_MAX 10 // Max number of nested try/except/ensure
-
-typedef enum HandlerType { HANDLER_ENSURE, HANDLER_EXCEPT } HandlerType;
+typedef enum HandlerType {
+    HANDLER_ENSURE, 
+    HANDLER_EXCEPT 
+} HandlerType;
 
 // This stores the info needed to jump
 // to handler code and to restore the
@@ -29,6 +31,7 @@ typedef struct Handler {
     Value *savesp;    // Stack pointer to restore when handling exceptions
 } Handler;
 
+// Tagged union used to store either a native or a function
 typedef struct {
     ObjType type;
     union {
@@ -84,15 +87,16 @@ typedef struct BlangVM {
     // current module and core module
     ObjModule *module, *core;
 
-    // VM program stack
+    // VM program stack and stack pointer
     size_t stackSz;
     Value *stack, *sp;
 
+    // Frames stack
     int frameSz;
     Frame *frames;
     int frameCount;
 
-    // Stack used during Native function calls
+    // Stack used during native function calls
     Value *apiStack;
 
     // Constant string pool, for interned strings
@@ -101,13 +105,13 @@ typedef struct BlangVM {
     // Linked list of all open upvalues
     ObjUpvalue *upvalues;
 
-    // Memory management
+    // ---- Memory management ----
 
     // Linked list of all allocated objects (used in
     // the sweep phase of GC to free unreached objects)
     Obj *objects;
 
-    bool disableGC;
+    bool disableGC;   // Whether the garbage collector is enabled or disabled
     size_t allocated; // Bytes currently allocated
     size_t nextGC;    // Bytes to which the next GC will be triggered
 

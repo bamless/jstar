@@ -59,33 +59,33 @@ typedef struct Obj Obj;
 
 typedef uint64_t Value;
 
-#define SIGN_BIT ((uint64_t)1 << 63)
-#define QNAN ((uint64_t)0x7FFC000000000000)
+#define SIGN_BIT        ((uint64_t)1 << 63)
+#define QNAN            ((uint64_t)0x7FFC000000000000)
 
-#define NULL_TAG 1
-#define FALSE_TAG 2
-#define TRUE_TAG 3
+#define NULL_TAG        1
+#define FALSE_TAG       2
+#define TRUE_TAG        3
 
-#define IS_HANDLE(val) (((val) & (QNAN | TRUE_TAG)) == QNAN)
-#define IS_OBJ(val) (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
-#define IS_BOOL(val) (((val) & (QNAN | FALSE_TAG)) == (QNAN | FALSE_TAG))
-#define IS_NUM(val) (((val)&QNAN) != QNAN)
-#define IS_NULL(val) ((val) == NULL_VAL)
+#define IS_HANDLE(val)  (((val) & (QNAN | TRUE_TAG)) == QNAN)
+#define IS_OBJ(val)     (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+#define IS_BOOL(val)    (((val) & (QNAN | FALSE_TAG)) == (QNAN | FALSE_TAG))
+#define IS_NUM(val)     (((val)&QNAN) != QNAN)
+#define IS_NULL(val)    ((val) == NULL_VAL)
 
-#define IS_INT(val) (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
+#define IS_INT(val)     (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
 
-#define AS_HANDLE(val) ((void *)(uintptr_t)(((val) & ~QNAN) >> 2))
-#define AS_BOOL(value) ((value) == TRUE_VAL)
-#define AS_NUM(value) valueToNum(value)
-#define AS_OBJ(value) ((Obj *)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
+#define AS_HANDLE(val)  ((void *)(uintptr_t)(((val) & ~QNAN) >> 2))
+#define AS_BOOL(value)  ((value) == TRUE_VAL)
+#define AS_NUM(value)   valueToNum(value)
+#define AS_OBJ(value)   ((Obj *)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
-#define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
-#define NUM_VAL(num) numToValue(num)
-#define BOOL_VAL(b) ((b) ? TRUE_VAL : FALSE_VAL)
-#define OBJ_VAL(obj) ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))
-#define TRUE_VAL ((Value)(uint64_t)(QNAN | TRUE_TAG))
-#define FALSE_VAL ((Value)(uint64_t)(QNAN | FALSE_TAG))
-#define NULL_VAL ((Value)(uint64_t)(QNAN | NULL_TAG))
+#define HANDLE_VAL(h)   ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
+#define NUM_VAL(num)    numToValue(num)
+#define BOOL_VAL(b)     ((b) ? TRUE_VAL : FALSE_VAL)
+#define OBJ_VAL(obj)    ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))
+#define TRUE_VAL        ((Value)(uint64_t)(QNAN | TRUE_TAG))
+#define FALSE_VAL       ((Value)(uint64_t)(QNAN | FALSE_TAG))
+#define NULL_VAL        ((Value)(uint64_t)(QNAN | NULL_TAG))
 
 static inline Value numToValue(double num) {
     union {
@@ -123,26 +123,26 @@ typedef struct {
     };
 } Value;
 
-#define IS_HANDLE(val) ((val).type == VAL_HANDLE)
-#define IS_OBJ(val) ((val).type == VAL_OBJ)
-#define IS_BOOL(val) ((val).type == VAL_BOOL)
-#define IS_NUM(val) ((val).type == VAL_NUM)
-#define IS_NULL(val) ((val).type == VAL_NULL)
+#define IS_HANDLE(val)  ((val).type == VAL_HANDLE)
+#define IS_OBJ(val)     ((val).type == VAL_OBJ)
+#define IS_BOOL(val)    ((val).type == VAL_BOOL)
+#define IS_NUM(val)     ((val).type == VAL_NUM)
+#define IS_NULL(val)    ((val).type == VAL_NULL)
 
-#define IS_INT(val) (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
+#define IS_INT(val)     (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
 
-#define AS_HANDLE(val) ((val).handle)
-#define AS_BOOL(value) ((value).boolean)
-#define AS_NUM(value) ((value).num)
-#define AS_OBJ(value) ((value).obj)
+#define AS_HANDLE(val)  ((val).handle)
+#define AS_BOOL(value)  ((value).boolean)
+#define AS_NUM(value)   ((value).num)
+#define AS_OBJ(value)   ((value).obj)
 
-#define HANDLE_VAL(h) ((Value){VAL_HANDLE, {.handle = h}})
-#define NUM_VAL(n) ((Value){VAL_NUM, {.num = n}})
-#define BOOL_VAL(b) ((Value){VAL_BOOL, {.boolean = b}})
-#define OBJ_VAL(val) ((Value){VAL_OBJ, {.obj = (Obj *)val}})
-#define TRUE_VAL ((Value){VAL_BOOL, {.boolean = true}})
-#define FALSE_VAL ((Value){VAL_BOOL, {.boolean = false}})
-#define NULL_VAL ((Value){VAL_NULL, {.num = 0}})
+#define HANDLE_VAL(h)   ((Value){VAL_HANDLE, {.handle = h}})
+#define NUM_VAL(n)      ((Value){VAL_NUM, {.num = n}})
+#define BOOL_VAL(b)     ((Value){VAL_BOOL, {.boolean = b}})
+#define OBJ_VAL(val)    ((Value){VAL_OBJ, {.obj = (Obj *)val}})
+#define TRUE_VAL        ((Value){VAL_BOOL, {.boolean = true}})
+#define FALSE_VAL       ((Value){VAL_BOOL, {.boolean = false}})
+#define NULL_VAL        ((Value){VAL_NULL, {.num = 0}})
 
 static inline bool valueEquals(Value v1, Value v2) {
     if(v1.type != v2.type) return false;
@@ -165,8 +165,8 @@ static inline bool valueEquals(Value v1, Value v2) {
 
 #endif
 
-#define VAL_ARR_DEF_SZ 8
-#define VAL_ARR_GROW_FAC 2
+#define VAL_ARR_DEF_SZ      8
+#define VAL_ARR_GROW_FAC    2
 
 typedef struct ValueArray {
     int size, count;

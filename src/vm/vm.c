@@ -2,13 +2,12 @@
 #include "ast.h"
 #include "blang.h"
 #include "core.h"
+#include "disassemble.h"
 #include "import.h"
 #include "memory.h"
 #include "opcode.h"
 #include "options.h"
 #include "parser.h"
-
-#include "debug/disassemble.h"
 
 #include "builtin/modules.h"
 #include "builtin/sys.h"
@@ -173,7 +172,8 @@ void ensureStack(BlangVM *vm, size_t needed) {
 
 static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
     return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
-           cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || cls == vm->stClass;
+           cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
+           cls == vm->stClass;
 }
 
 static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
@@ -1351,7 +1351,12 @@ static bool unwindStack(BlangVM *vm, int depth) {
     return false;
 }
 
-// API
+/**
+ * =========================================================
+ *  API - Blang VM entry points, Object manipulation 
+ *  and utility functions implementation
+ * =========================================================
+ */
 
 EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src) {
     return blEvaluateModule(vm, fpath, "__main__", src);

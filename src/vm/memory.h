@@ -20,22 +20,22 @@ void garbageCollect(BlangVM *vm);
 // These functions use GCallocate to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
-ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn,
-                     uint8_t defaultc);
-ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
-                         uint8_t defaultc);
-ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
-ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method);
-ObjInstance *newInstance(BlangVM *vm, ObjClass *cls);
-ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn);
-ObjModule *newModule(BlangVM *vm, ObjString *name);
-ObjUpvalue *newUpvalue(BlangVM *vm, Value *addr);
-ObjList *newList(BlangVM *vm, size_t startSize);
-ObjTuple *newTuple(BlangVM *vm, size_t size);
-ObjStackTrace *newStackTrace(BlangVM *vm);
+ObjNative       *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, 
+                           uint8_t defaultc);
+ObjFunction     *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, 
+                             uint8_t defaultc);
+ObjClass        *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
+ObjBoundMethod  *newBoundMethod(BlangVM *vm, Value b, Obj *method);
+ObjInstance     *newInstance(BlangVM *vm, ObjClass *cls);
+ObjClosure      *newClosure(BlangVM *vm, ObjFunction *fn);
+ObjModule       *newModule(BlangVM *vm, ObjString *name);
+ObjUpvalue      *newUpvalue(BlangVM *vm, Value *addr);
+ObjList         *newList(BlangVM *vm, size_t startSize);
+ObjTuple        *newTuple(BlangVM *vm, size_t size);
+ObjStackTrace   *newStackTrace(BlangVM *vm);
 
-ObjString *allocateString(BlangVM *vm, size_t length);
-ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
+ObjString       *allocateString(BlangVM *vm, size_t length);
+ObjString       *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
 
 // Functions for manipulating objects.
 // All these functions require allocating garbage collectable

@@ -608,7 +608,7 @@ void garbageCollect(BlangVM *vm) {
 
 /**
  * =========================================================
- * BlBuffer functions implementation
+ *  API - BlBuffer function implementation
  * =========================================================
  */
 

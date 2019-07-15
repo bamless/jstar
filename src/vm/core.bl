@@ -262,27 +262,27 @@ class izip
             raise TypeException("Must provide at least one iterator.") 
         end
         this.iters = args
+        this.result = []
     end
 
     fun __iter__(tup)
-        var itres = []
-
         if tup == null then
             for var iterator in this.iters do
-                itres.add(iterator.__iter__(null))
+                this.result.add(iterator.__iter__(null))
             end
-            return Tuple(itres)
+        else
+            var i = 0
+            for var iterator in this.iters do
+                var res = iterator.__iter__(tup[i])
+                if !res then return false end
+                this.result.add(res)
+                i += 1
+            end
         end
 
-        var i = 0
-        for var iterator in this.iters do
-            var res = iterator.__iter__(tup[i])
-            if !res then return false end
-            itres.add(res)
-            i += 1
-        end
-
-        return Tuple(itres)
+        var res = Tuple(this.result)
+        this.result.clear()
+        return res
     end
 
     fun __next__(tup)

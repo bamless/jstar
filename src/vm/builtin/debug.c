@@ -2,7 +2,7 @@
 #include "chunk.h"
 #include "vm.h"
 
-#include "debug/disassemble.h"
+#include "disassemble.h"
 
 #include <stdio.h>
 

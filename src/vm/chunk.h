@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define CHUNK_DEFAULT_SIZE 8
-#define CHUNK_GROW_FACT 2
+#define CHUNK_DEFAULT_SIZE  8
+#define CHUNK_GROW_FACT     2
 
 typedef struct Chunk {
     size_t size, count;
