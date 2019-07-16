@@ -44,8 +44,30 @@ endif()
 # required programs
 find_package(PythonInterp 2.7 REQUIRED)
 
-# build
+# Subprojects
+
+# setup thirdparty projects as external
+include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
+
+# Linenoise
+ExternalProject_Add(thirdparty_linenoise
+	SOURCE_DIR 	     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise-ng"
+	BINARY_DIR 	     "${CMAKE_BINARY_DIR}/thirdparty"
+	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --target linenoise
+	BUILD_ALWAYS     1
+	DOWNLOAD_COMMAND ""
+	UPDATE_COMMAND   ""
+	INSTALL_COMMAND  ""
+)
+
+add_library(linenoise STATIC IMPORTED)
+set_target_properties(linenoise PROPERTIES 
+	IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/thirdparty/${CMAKE_STATIC_LIBRARY_PREFIX}linenoise${CMAKE_STATIC_LIBRARY_SUFFIX}"
+	IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+)
+add_dependencies(linenoise thirdparty_linenoise)
+
+# Subprojects
 include_directories(${PROJECT_BINARY_DIR})
-add_subdirectory("${PROJECT_SOURCE_DIR}/thirdparty/linenoise")
 add_subdirectory("${PROJECT_SOURCE_DIR}/cli")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vm")

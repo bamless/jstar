@@ -3,7 +3,7 @@
 #include "blparse/lex.h"
 #include "blparse/parser.h"
 
-#include "linenoise/linenoise.h"
+#include "linenoise.h"
 
 #include <errno.h>
 #include <stdio.h>
