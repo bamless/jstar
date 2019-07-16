@@ -6,7 +6,7 @@ endif()
 include_directories(
 	"${PROJECT_SOURCE_DIR}/vm"
 	"${PROJECT_SOURCE_DIR}/include"
-	"${PROJECT_SOURCE_DIR}/thirdparty/linenoise-ng/include"
+	"${PROJECT_SOURCE_DIR}/thirdparty/linenoise/include"
 )
 
 # add executable and libblang dependency

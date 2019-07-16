@@ -51,7 +51,7 @@ include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 # Linenoise
 ExternalProject_Add(thirdparty_linenoise
-	SOURCE_DIR 	     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise-ng"
+	SOURCE_DIR 	     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise"
 	BINARY_DIR 	     "${CMAKE_BINARY_DIR}/thirdparty"
 	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --target linenoise
 	BUILD_ALWAYS     1
