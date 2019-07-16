@@ -1,6 +1,7 @@
 #include "blang.h"
-#include "lex.h"
-#include "parser.h"
+
+#include "blparse/lex.h"
+#include "blparse/parser.h"
 
 #include "linenoise/linenoise.h"
 

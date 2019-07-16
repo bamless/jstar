@@ -1,5 +1,4 @@
 #include "compiler.h"
-#include "ast.h"
 #include "blang.h"
 #include "memory.h"
 #include "opcode.h"

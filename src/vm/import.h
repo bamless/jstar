@@ -1,9 +1,10 @@
 #ifndef IMPORT_H
 #define IMPORT_H
 
-#include "ast.h"
 #include "object.h"
 #include "vm.h"
+
+#include "blparse/ast.h"
 
 #define MAX_IMPORT_PATH_LEN 2048
 

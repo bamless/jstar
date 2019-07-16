@@ -16,8 +16,34 @@ foreach(bl ${BLANG_SOURCES})
 	)
 endforeach()
 
-include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/parse" "${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/include")
 
-# create library
-add_library(libblang ${SOURCES} ${BLANG_HEADERS})
-set_target_properties(libblang PROPERTIES OUTPUT_NAME "blang")
+# ---- Install Target ----
+
+# static library
+add_library(libblang_static STATIC ${SOURCES} ${BLANG_HEADERS})
+set_target_properties(libblang_static
+	PROPERTIES 
+	OUTPUT_NAME "blang" 
+	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
+)
+
+# shared library
+add_library(libblang  SHARED ${SOURCES} ${BLANG_HEADERS})
+set_target_properties(libblang 
+	PROPERTIES 
+	OUTPUT_NAME "blang" 
+	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
+)
+
+#install libblang along with blang headers
+install(TARGETS libblang 
+	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+)
+
+#install blparse headers to provide parsing faciliuties to the user
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/vm/blparse"
+		DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+	    FILES_MATCHING PATTERN "*.h"
+)

@@ -2,7 +2,8 @@
 #include "compiler.h"
 #include "hashtable.h"
 #include "memory.h"
-#include "parser.h"
+
+#include "blparse/parser.h"
 
 #include "builtin/modules.h"
 

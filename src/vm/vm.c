@@ -1,5 +1,4 @@
 #include "vm.h"
-#include "ast.h"
 #include "blang.h"
 #include "core.h"
 #include "disassemble.h"
@@ -7,7 +6,9 @@
 #include "memory.h"
 #include "opcode.h"
 #include "options.h"
-#include "parser.h"
+
+#include "blparse/ast.h"
+#include "blparse/parser.h"
 
 #include "builtin/modules.h"
 #include "builtin/sys.h"

@@ -1,8 +1,9 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-#include "ast.h"
 #include "object.h"
+
+#include "blparse/ast.h"
 
 #include <stdint.h>
 
