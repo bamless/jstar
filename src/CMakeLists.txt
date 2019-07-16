@@ -54,6 +54,7 @@ ExternalProject_Add(thirdparty_linenoise
 	SOURCE_DIR 	     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise"
 	BINARY_DIR 	     "${CMAKE_BINARY_DIR}/thirdparty"
 	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --target linenoise
+	CMAKE_ARGS       -DCMAKE_BUILD_TYPE=Release
 	BUILD_ALWAYS     1
 	DOWNLOAD_COMMAND ""
 	UPDATE_COMMAND   ""
