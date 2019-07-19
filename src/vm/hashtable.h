@@ -5,23 +5,17 @@
 
 #include <stdlib.h>
 
+typedef struct BlangVM BlangVM;
 typedef struct ObjString ObjString;
 
-#define MAX_LOAD_FACTOR  0.75
-#define GROW_FACTOR      2
-#define INITIAL_CAPACITY 16
-
 typedef struct Entry {
-    struct Entry *next;
     ObjString *key;
     Value value;
 } Entry;
 
 typedef struct HashTable {
-    size_t size;
-    size_t mask;
-    size_t numEntries;
-    Entry **entries;
+    size_t sizeMask, numEntries;
+    Entry *entries;
 } HashTable;
 
 // Initialize the hashtable
@@ -43,6 +37,8 @@ void hashTableImportNames(HashTable *t, HashTable *o);
 
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
+
+void reachHashTable(BlangVM *vm, HashTable *t);
 
 // Removes all unreached strings in the hashtable
 void removeUnreachedStrings(HashTable *t);

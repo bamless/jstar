@@ -413,17 +413,6 @@ static void reachValueArray(BlangVM *vm, ValueArray *a) {
     }
 }
 
-static void reachHashTable(BlangVM *vm, HashTable *t) {
-    for(size_t i = 0; i < t->size; i++) {
-        Entry *buckHead = t->entries[i];
-        while(buckHead != NULL) {
-            reachObject(vm, (Obj *)buckHead->key);
-            reachValue(vm, buckHead->value);
-            buckHead = buckHead->next;
-        }
-    }
-}
-
 static void recursevelyReach(BlangVM *vm, Obj *o) {
 #ifdef DBG_PRINT_GC
     printf("Recursevely exploring object %p...\n", (void *)o);

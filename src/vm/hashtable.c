@@ -5,176 +5,150 @@
 #include <stdbool.h>
 #include <string.h>
 
-static Entry *newEntry(ObjString *key, Value val) {
-    Entry *e = malloc(sizeof(*e));
-    e->next = NULL;
-    e->key = key;
-    e->value = val;
-    return e;
-}
+#define MAX_LOAD_FACTOR  0.75
+#define GROW_FACTOR      2
+#define INITIAL_CAPACITY 8
 
 void initHashTable(HashTable *t) {
+    t->sizeMask = 0;
     t->numEntries = 0;
-    t->size = 0;
-    t->mask = 0;
     t->entries = NULL;
 }
 
 void freeHashTable(HashTable *t) {
-    for(size_t i = 0; i < t->size; i++) {
-        Entry *buckHead = t->entries[i];
-        while(buckHead != NULL) {
-            Entry *f = buckHead;
-            buckHead = buckHead->next;
-            free(f);
+    free(t->entries);
+}
+
+static Entry *findEntry(Entry *entries, size_t sizeMask, ObjString *key) {
+    size_t i = STRING_GET_HASH(key) & sizeMask;
+    Entry *tomb = NULL;
+
+    for(;;) {
+        Entry *e = &entries[i];
+        if(e->key == NULL) {
+            if(IS_NULL(e->value)) {
+                return tomb ? tomb : e;
+            } else if(!tomb) {
+                tomb = e;
+            }
+        } else if(STRING_EQUALS(e->key, key)) {
+            return e;
+        }
+        i = (i + 1) & sizeMask;
+    }
+}
+
+static void growEntries(HashTable *t) {
+    size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
+    Entry *newEntries = malloc(sizeof(Entry) * newSize);
+    for(size_t i = 0; i < newSize; i++) {
+        newEntries[i].key = NULL;
+        newEntries[i].value = NULL_VAL;
+    }
+
+    t->numEntries = 0;
+    if(t->sizeMask != 0) {
+        for(size_t i = 0; i <= t->sizeMask; i++) {
+            Entry *e = &t->entries[i];
+            if(e->key == NULL) continue;
+
+            Entry *dest = findEntry(newEntries, newSize - 1, e->key);
+            dest->key = e->key;
+            dest->value = e->value;
+            t->numEntries++;
         }
     }
 
     free(t->entries);
-}
-
-static bool keyEquals(ObjString *k1, ObjString *k2) {
-    return strcmp(k1->data, k2->data) == 0;
-}
-
-static void addEntry(HashTable *t, Entry *e) {
-    size_t index = STRING_GET_HASH(e->key) & t->mask;
-    e->next = t->entries[index];
-    t->entries[index] = e;
-}
-
-static Entry *getEntry(HashTable *t, ObjString *key) {
-    if(t->entries == NULL) return NULL;
-
-    size_t index = STRING_GET_HASH(key) & t->mask;
-
-    Entry *buckHead = t->entries[index];
-    while(buckHead != NULL) {
-        if(keyEquals(key, buckHead->key)) {
-            return buckHead;
-        }
-        buckHead = buckHead->next;
-    }
-    return NULL;
-}
-
-static void grow(HashTable *t) {
-    size_t oldSize = t->size;
-    Entry **oldEntries = t->entries;
-
-    t->size = t->size == 0 ? INITIAL_CAPACITY : t->size * GROW_FACTOR;
-    t->entries = calloc(sizeof(Entry *), t->size);
-    t->mask = t->size - 1;
-
-    for(size_t i = 0; i < oldSize; i++) {
-        Entry *buckHead = oldEntries[i];
-        while(buckHead != NULL) {
-            Entry *e = buckHead;
-            buckHead = buckHead->next;
-
-            addEntry(t, e);
-        }
-    }
-
-    free(oldEntries);
+    t->entries = newEntries;
+    t->sizeMask = newSize - 1;
 }
 
 bool hashTablePut(HashTable *t, ObjString *key, Value val) {
-    Entry *e = getEntry(t, key);
-    if(e == NULL) {
-        if(t->numEntries + 1 > t->size * MAX_LOAD_FACTOR) grow(t);
-
-        e = newEntry(key, val);
-        addEntry(t, e);
-        t->numEntries++;
-
-        return true;
+    if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
+        growEntries(t);
     }
-
+    Entry *e = findEntry(t->entries, t->sizeMask, key);
+    if(e->key == NULL && IS_NULL(e->value)) t->numEntries++;
+    e->key = key;
     e->value = val;
-    return false;
+    return e->key == NULL;
 }
 
 bool hashTableGet(HashTable *t, ObjString *key, Value *res) {
-    Entry *e = getEntry(t, key);
-    if(e != NULL) {
-        *res = e->value;
-        return true;
-    }
-    return false;
+    if(t->entries == NULL) return false;
+    Entry *e = findEntry(t->entries, t->sizeMask, key);
+    if(e->key == NULL) return false;
+    *res = e->value;
+    return true;
 }
 
 bool hashTableContainsKey(HashTable *t, ObjString *key) {
-    return getEntry(t, key) != NULL;
+    if(t->entries == NULL) return false;
+    return findEntry(t->entries, t->sizeMask, key)->key != NULL;
 }
 
 bool hashTableDel(HashTable *t, ObjString *key) {
-    size_t index = STRING_GET_HASH(key) & t->mask;
-
-    Entry **buckHead = &t->entries[index];
-    while(*buckHead != NULL) {
-        if(keyEquals(key, (*buckHead)->key)) {
-            Entry *f = *buckHead;
-            *buckHead = f->next;
-
-            free(f);
-            t->numEntries--;
-            return true;
-        } else {
-            buckHead = &(*buckHead)->next;
-        }
-    }
-
-    return false;
+    if(t->numEntries == 0) return false;
+    Entry *e = findEntry(t->entries, t->sizeMask, key);
+    if(e->key == NULL) return false;
+    e->key = NULL;
+    e->value = TRUE_VAL;
+    return true;
 }
 
 void hashTableMerge(HashTable *t, HashTable *o) {
-    for(size_t i = 0; i < o->size; i++) {
-        Entry *head = o->entries[i];
-        while(head != NULL) {
-            hashTablePut(t, head->key, head->value);
-            head = head->next;
+    if(o->entries == NULL) return;
+    for(size_t i = 0; i <= o->sizeMask; i++) {
+        Entry *e = &o->entries[i];
+        if(e->key != NULL) {
+            hashTablePut(t, e->key, e->value);
         }
     }
 }
 
 void hashTableImportNames(HashTable *t, HashTable *o) {
-    for(size_t i = 0; i < o->size; i++) {
-        Entry *head = o->entries[i];
-        while(head != NULL) {
-            if(head->key->data[0] != '_') {
-                hashTablePut(t, head->key, head->value);
-            }
-            head = head->next;
+    if(o->entries == NULL) return;
+    for(size_t i = 0; i <= o->sizeMask; i++) {
+        Entry *e = &o->entries[i]; 
+        if(e->key != NULL && e->key->data[0] != '_') {
+            hashTablePut(t, e->key, e->value);
         }
     }
 }
 
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash) {
     if(t->entries == NULL) return NULL;
-
-    size_t index = hash & t->mask;
-
-    Entry *buckHead = t->entries[index];
-    while(buckHead != NULL) {
-        if(length == buckHead->key->length && memcmp(str, buckHead->key->data, length) == 0) {
-            return buckHead->key;
+    size_t i = hash & t->sizeMask;
+    for(;;) {
+        Entry *e = &t->entries[i];
+        if(e->key == NULL) {
+            if(IS_NULL(e->value)) return NULL;
+        } else if(STRING_GET_HASH(e->key) == hash && 
+            e->key->length == length && 
+            memcmp(e->key->data, str, length) == 0)
+        {
+            return e->key;
         }
-        buckHead = buckHead->next;
+        i = (i + 1) & t->sizeMask;
     }
+}
 
-    return NULL;
+void reachHashTable(BlangVM *vm, HashTable *t) {
+    if(t->entries == NULL) return;
+    for(size_t i = 0; i <= t->sizeMask; i++) {
+        Entry* e = &t->entries[i];
+        reachObject(vm, (Obj*) e->key);
+        reachValue(vm, e->value);
+    }
 }
 
 void removeUnreachedStrings(HashTable *t) {
-    for(size_t i = 0; i < t->size; i++) {
-        Entry *buckHead = t->entries[i];
-        while(buckHead != NULL) {
-            Entry *f = buckHead;
-            buckHead = buckHead->next;
-            if(!f->key->base.reached) {
-                hashTableDel(t, f->key);
-            }
+    if(t->entries == NULL) return;
+    for(size_t i = 0; i <= t->sizeMask; i++) {
+        Entry* e = &t->entries[i];
+        if(e->key != NULL && !e->key->base.reached) {
+            hashTableDel(t, e->key);
         }
     }
 }
