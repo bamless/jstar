@@ -29,9 +29,9 @@
 
 #define BLANG_VERSION_MAJOR 0
 #define BLANG_VERSION_MINOR 3
-#define BLANG_VERSION_PATCH 5
+#define BLANG_VERSION_PATCH 6
 
-#define BLANG_VERSION_STRING "0.3.5"
+#define BLANG_VERSION_STRING "0.3.6"
 
 // Increasing version number, used for range checking
 #define BLANG_VERSION \
