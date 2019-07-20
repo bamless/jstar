@@ -13,6 +13,3 @@ include_directories(
 SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 add_executable(blang cli.c)
 target_link_libraries(blang libblang linenoise ${EXTRA_LIBS})
-
-# install
-install(TARGETS blang DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")

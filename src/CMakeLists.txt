@@ -76,3 +76,12 @@ add_dependencies(linenoise thirdparty_linenoise)
 include_directories(${PROJECT_BINARY_DIR})
 add_subdirectory("${PROJECT_SOURCE_DIR}/cli")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vm")
+
+# ---- install target ----
+
+#install libblang along with blang headers
+install(TARGETS blang libblang libblang_static
+	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+	RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+)
