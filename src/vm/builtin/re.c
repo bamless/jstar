@@ -287,7 +287,8 @@ static int find_aux(BlangVM *vm, RegexState *rs) {
 }
 
 static bool pushCapture(BlangVM *vm, RegexState *rs, int n) {
-    if(n < 0 || n >= rs->capturec) BL_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
+    if(n < 0 || n >= rs->capturec) 
+        BL_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
     if(rs->captures[n].len == CAPTURE_UNFINISHED)
         BL_RAISE(vm, "RegexException", "Unfinished capture.");
 
@@ -346,8 +347,8 @@ NATIVE(bl_re_find) {
 }
 
 NATIVE(bl_re_gmatch) {
-    if(!blCheckStr(vm, 1, "str")) return false;
-    if(!blCheckStr(vm, 2, "regex")) return false;
+    if(!blCheckStr(vm, 1, "str") || !blCheckStr(vm, 2, "regex"))
+        return false;
 
     const char *regex = blGetString(vm, 2);
     const char *str = blGetString(vm, 1);
@@ -388,7 +389,11 @@ NATIVE(bl_re_gmatch) {
         }
 
         // increment by the number of chars since last match
-        off += lastmatch != NULL ? rs.captures[0].start - lastmatch : rs.captures[0].start - str;
+        if(lastmatch != NULL)
+            off += rs.captures[0].start - lastmatch;
+        else
+            off += rs.captures[0].start - str;
+
         off += rs.captures[0].len;
 
         // set lastmatch to one past the end of current match
@@ -429,10 +434,11 @@ static bool substitute(BlangVM *vm, RegexState *rs, BlBuffer *b, const char *s, 
 }
 
 NATIVE(bl_re_gsub) {
-    if(!blCheckStr(vm, 1, "str")) return false;
-    if(!blCheckStr(vm, 2, "regex")) return false;
-    if(!blCheckStr(vm, 3, "sub")) return false;
-    if(!blCheckInt(vm, 4, "num")) return false;
+    if(!blCheckStr(vm, 1, "str") || !blCheckStr(vm, 2, "regex") || 
+       !blCheckStr(vm, 3, "sub") || !blCheckInt(vm, 4, "num"))
+    {
+        return false;
+    }
 
     const char *str = blGetString(vm, 1);
     size_t len = blGetStringSz(vm, 1);
@@ -446,6 +452,7 @@ NATIVE(bl_re_gsub) {
     int numsub = 0;
     size_t off = 0;
     const char *lastmatch = NULL;
+
     while(off <= len) {
         if(num > 0 && numsub > num - 1) break;
 
@@ -465,12 +472,13 @@ NATIVE(bl_re_gsub) {
         }
 
         int offSinceLast;
-        if(lastmatch != NULL)
+        if(lastmatch != NULL) {
             offSinceLast = rs.captures[0].start - lastmatch;
-        else
+            blBufferAppend(&b, lastmatch, offSinceLast);
+        } else {
             offSinceLast = rs.captures[0].start - str;
-
-        blBufferAppend(&b, lastmatch ? lastmatch : str, offSinceLast);
+            blBufferAppend(&b, str, offSinceLast);
+        }
 
         if(!substitute(vm, &rs, &b, str, sub)) {
             blBufferFree(&b);
@@ -480,9 +488,7 @@ NATIVE(bl_re_gsub) {
         numsub++;
 
         // increment by the number of chars since last match
-        off += offSinceLast;
-        off += rs.captures[0].len;
-
+        off += offSinceLast + rs.captures[0].len;
         // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
