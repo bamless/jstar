@@ -49,10 +49,14 @@ find_package(PythonInterp 2.7 REQUIRED)
 # setup thirdparty projects as external
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
+set(LIB ${CMAKE_STATIC_LIBRARY_PREFIX})
+set(A   ${CMAKE_STATIC_LIBRARY_SUFFIX})
+
 # Linenoise
 ExternalProject_Add(thirdparty_linenoise
 	SOURCE_DIR 	     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise"
 	BINARY_DIR 	     "${CMAKE_BINARY_DIR}/thirdparty"
+	BUILD_BYPRODUCTS "${CMAKE_BINARY_DIR}/thirdparty/${LIB}linenoise${A}"
 	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --target linenoise
 	CMAKE_ARGS       -DCMAKE_BUILD_TYPE=Release
 	BUILD_ALWAYS     1
@@ -63,7 +67,7 @@ ExternalProject_Add(thirdparty_linenoise
 
 add_library(linenoise STATIC IMPORTED)
 set_target_properties(linenoise PROPERTIES 
-	IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/thirdparty/${CMAKE_STATIC_LIBRARY_PREFIX}linenoise${CMAKE_STATIC_LIBRARY_SUFFIX}"
+	IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/thirdparty/${LIB}linenoise${A}"
 	IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
 )
 add_dependencies(linenoise thirdparty_linenoise)
@@ -72,3 +76,12 @@ add_dependencies(linenoise thirdparty_linenoise)
 include_directories(${PROJECT_BINARY_DIR})
 add_subdirectory("${PROJECT_SOURCE_DIR}/cli")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vm")
+
+# ---- install target ----
+
+#install libblang along with blang headers
+install(TARGETS blang libblang libblang_static
+	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+	RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+)

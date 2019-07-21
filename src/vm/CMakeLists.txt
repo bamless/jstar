@@ -1,6 +1,12 @@
 FILE(GLOB_RECURSE SOURCES *.c)
 FILE(GLOB_RECURSE BLANG_SOURCES *bl)
 
+# libblang version
+set(LIBBLANG_VERSION_MAJOR 1)
+set(LIBBLANG_VERSION_MINOR 0)
+set(LIBBLANG_VERSION_PATCH 0)
+set(LIBBLANG_VERSION_STRING ${LIBBLANG_VERSION_MAJOR}.${LIBBLANG_VERSION_MINOR}.${LIBBLANG_VERSION_PATCH})
+
 # create blang source headers names
 set(BLANG_HEADERS)
 foreach(bl ${BLANG_SOURCES})
@@ -18,13 +24,11 @@ endforeach()
 
 include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/include")
 
-# ---- Install Target ----
-
 # static library
 add_library(libblang_static STATIC ${SOURCES} ${BLANG_HEADERS})
 set_target_properties(libblang_static
 	PROPERTIES 
-	OUTPUT_NAME "blang" 
+	OUTPUT_NAME   "blang" 
 	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
 )
 
@@ -32,18 +36,8 @@ set_target_properties(libblang_static
 add_library(libblang  SHARED ${SOURCES} ${BLANG_HEADERS})
 set_target_properties(libblang 
 	PROPERTIES 
-	OUTPUT_NAME "blang" 
+	OUTPUT_NAME   "blang"
+	VERSION       "${LIBBLANG_VERSION_STRING}"
+	SOVERSION     "${LIBBLANG_VERSION_MAJOR}" 
 	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
-)
-
-#install libblang along with blang headers
-install(TARGETS libblang 
-	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
-	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
-)
-
-#install blparse headers to provide parsing faciliuties to the user
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/vm/blparse"
-		DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
-	    FILES_MATCHING PATTERN "*.h"
 )
