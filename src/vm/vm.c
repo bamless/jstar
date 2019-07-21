@@ -174,7 +174,7 @@ void ensureStack(BlangVM *vm, size_t needed) {
 static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
     return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
            cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
-           cls == vm->stClass;
+           cls == vm->stClass || cls == vm->clsClass;
 }
 
 static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
