@@ -437,7 +437,7 @@ static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
     return invokeMethod(vm, cls, name, argc);
 }
 
-bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
+static bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
@@ -496,7 +496,7 @@ bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
     return true;
 }
 
-bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
+static bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
@@ -518,6 +518,101 @@ bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
     blRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
             name->data);
     return false;
+}
+
+static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
+    if(IS_OBJ(operand)) {
+        switch(OBJ_TYPE(operand)) {
+        case OBJ_LIST: {
+            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
+                blRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
+                return false;
+            }
+
+            ObjList *list = AS_LIST(operand);
+            double index = AS_NUM(arg);
+
+            if(index < 0 || index >= list->count) {
+                blRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
+                return false;
+            }
+            push(vm, list->arr[(size_t)index]);
+            return true;
+        }
+        case OBJ_TUPLE: {
+           if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
+                blRaise(vm, "TypeException", "Index of Tuple subscript access must be an integer.");
+                return false;
+            }
+
+            ObjTuple *tuple = AS_TUPLE(operand);
+            double index = AS_NUM(arg);
+
+            if(index < 0 || index >= tuple->size) {
+                blRaise(vm, "IndexOutOfBoundException", "Tuple index out of bound: %g.", index);
+                return false;
+            }
+            push(vm, tuple->arr[(size_t)index]);
+            return true;
+        }
+        case OBJ_STRING: {
+            if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
+                blRaise(vm, "TypeException", "Index of String subscript access must be an integer.");
+                return false;
+            }
+
+            ObjString *str = AS_STRING(operand);
+            double index = AS_NUM(arg);
+
+            if(index < 0 || index >= str->length) {
+                blRaise(vm, "IndexOutOfBoundException", "String index out of bound: %lu.", index);
+                return false;
+            }
+            char character = str->data[(size_t)index];
+            push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
+            return true;
+        default:
+            break;
+        }
+        }
+    }
+    
+    push(vm, operand);
+    push(vm, arg);
+    if(!invokeMethod(vm, getClass(vm, operand), vm->get, 1)) {
+        return false;
+    }
+    return true;
+}
+
+static bool setSubscriptOfValue(BlangVM *vm, Value operand, Value arg, Value s) {
+    if(IS_LIST(operand)) {
+        if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
+            blRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
+            return false;
+        }
+
+        ObjList *list = AS_LIST(operand);
+        double index = AS_NUM(arg);
+
+        if(index < 0 || index >= list->count) {
+            blRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
+            return false;
+        }
+
+        list->arr[(size_t)index] = s;
+        push(vm, s);
+        return true;
+    }
+
+    push(vm, operand);
+    push(vm, arg);
+    push(vm, s);
+
+    if(!invokeMethod(vm, getClass(vm, operand), vm->set, 2)) {
+        return false;
+    }
+    return true;
 }
 
 static bool isValTrue(Value val) {
@@ -682,10 +777,8 @@ static bool runEval(BlangVM *vm, int depth) {
             push(vm, NUM_VAL(a + b));
         } else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
             ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
-
             pop(vm);
             pop(vm);
-
             push(vm, OBJ_VAL(conc));
         } else {
             SAVE_FRAME();
@@ -694,7 +787,7 @@ static bool runEval(BlangVM *vm, int depth) {
                 ObjString *t1 = getClass(vm, peek(vm))->name;
                 ObjString *t2 = getClass(vm, peek2(vm))->name;
                 blRaise(vm, "TypeException", "Operator + not defined"
-                            " for types %s, %s", t1->data, t2->data);
+                        " for types %s, %s", t1->data, t2->data);
                 UNWIND_STACK(vm);
             }
             LOAD_FRAME();
@@ -791,101 +884,24 @@ static bool runEval(BlangVM *vm, int depth) {
         push(vm, NUM_VAL(pow(x, y)));
         DISPATCH();
     }
-    TARGET(OP_ARR_GET): {
-        if(IS_LIST(peek2(vm))) {
-            if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
-                blRaise(vm, "TypeException", "Index of list access must be an integer.");
-                UNWIND_STACK(vm);
-            }
-
-            double index = AS_NUM(pop(vm));
-            ObjList *list = AS_LIST(pop(vm));
-
-            if(index < 0 || index >= list->count) {
-                blRaise(vm, "IndexOutOfBoundException",
-                    "List index out of bound: %g.", index);
-                UNWIND_STACK(vm);
-            }
-
-            push(vm, list->arr[(size_t)index]);
-        } else if(IS_TUPLE(peek2(vm))) {
-            if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
-                blRaise(vm, "TypeException", "Index of list access must be an integer.");
-                UNWIND_STACK(vm);
-            }
-
-            double index = AS_NUM(pop(vm));
-            ObjTuple *tuple = AS_TUPLE(pop(vm));
-
-            if(index < 0 || index >= tuple->size) {
-                blRaise(vm, "IndexOutOfBoundException",
-                    "Tuple index out of bound: %g.", index);
-                UNWIND_STACK(vm);
-            }
-
-            push(vm, tuple->arr[(size_t)index]);
-        } else if(IS_STRING(peek2(vm))) {
-            if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
-                blRaise(vm, "TypeException", "Index of string access must be an integer.");
-                UNWIND_STACK(vm);
-            }
-
-            double index = AS_NUM(pop(vm));
-            ObjString *str = AS_STRING(pop(vm));
-
-            if(index < 0 || index >= str->length) {
-                blRaise(vm, "IndexOutOfBoundException",
-                    "String index out of bound: %lu.", index);
-                UNWIND_STACK(vm);
-            }
-
-            char character = str->data[(size_t)index];
-            push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
-        } else {
-            ObjClass *cls = getClass(vm, peek2(vm));
-            SAVE_FRAME();
-            if(!invokeMethod(vm, cls, vm->get, 1)) {
-                LOAD_FRAME();
-                UNWIND_STACK(vm);
-            }
+    TARGET(OP_SUBSCR_GET): {
+        Value arg = pop(vm), operand = pop(vm);
+        SAVE_FRAME();
+        if(!getSubscriptOfValue(vm, operand, arg)) {
             LOAD_FRAME();
+            UNWIND_STACK(vm);
         }
+        LOAD_FRAME();
         DISPATCH();
     }
-    TARGET(OP_ARR_SET): {
-        if(IS_LIST(peek2(vm))) {
-            if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
-                blRaise(vm, "TypeException", "Index of list access must be an integer.");
-                UNWIND_STACK(vm);
-            }
-
-            double index = AS_NUM(pop(vm));
-            ObjList *list = AS_LIST(pop(vm));
-            Value val = pop(vm);
-
-            if(index < 0 || index >= list->count) {
-                blRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
-                UNWIND_STACK(vm);
-            }
-
-            list->arr[(size_t)index] = val;
-            push(vm, val);
-        } else {
-            // Invert arguments so that the object is the first argument for the call
-            Value index = pop(vm), obj = pop(vm), val = pop(vm);
-            push(vm, obj);
-            push(vm, index);
-            push(vm, val);
-
-            ObjClass *cls = getClass(vm, peekn(vm, 2));
-
-            SAVE_FRAME();
-            if(!invokeMethod(vm, cls, vm->set, 2)) {
-                LOAD_FRAME();
-                UNWIND_STACK(vm);
-            }
+    TARGET(OP_SUBSCR_SET): {
+        Value arg = pop(vm), operand = pop(vm), s = pop(vm);
+        SAVE_FRAME();
+        if(!setSubscriptOfValue(vm, operand, arg, s)) {
             LOAD_FRAME();
+            UNWIND_STACK(vm);
         }
+        LOAD_FRAME();
         DISPATCH();
     }
     TARGET(OP_GET_FIELD): {
@@ -1059,9 +1075,8 @@ sup_invoke:;
         } else {
             Value val;
             if(!hashTableGet(&m->globals, n, &val)) {
-                blRaise(vm, "NameException", "Name `%s` "
-                            "not defined in module `%s`.", 
-                            n->data, m->name->data);
+                blRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
+                        n->data, m->name->data);
                 UNWIND_STACK(vm);
             } 
 
@@ -1119,9 +1134,8 @@ sup_invoke:;
         DISPATCH();
     TARGET(OP_UNPACK):
         if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-            blRaise(vm, "TypeException", 
-                        "Can unpack only Tuple or List, got %s.",
-                        getClass(vm, peek(vm))->name->data);
+            blRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+                    getClass(vm, peek(vm))->name->data);
             UNWIND_STACK(vm);
         }
 
