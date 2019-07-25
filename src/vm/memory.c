@@ -3,7 +3,6 @@
 #include "chunk.h"
 #include "compiler.h"
 #include "hashtable.h"
-#include "options.h"
 #include "vm.h"
 
 #include <stdint.h>

@@ -1,11 +1,9 @@
-#include "vm.h"
 #include "blang.h"
 #include "core.h"
 #include "disassemble.h"
 #include "import.h"
 #include "memory.h"
 #include "opcode.h"
-#include "options.h"
 
 #include "blparse/ast.h"
 #include "blparse/parser.h"

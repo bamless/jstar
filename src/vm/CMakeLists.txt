@@ -17,7 +17,7 @@ endforeach()
 foreach(bl ${BLANG_SOURCES})
 	add_custom_command(
 		OUTPUT  "${bl}.h"
-		COMMAND python2 "${PROJECT_SOURCE_DIR}/../util/txt2incl.py" ${bl} "${bl}.h"
+		COMMAND python "${PROJECT_SOURCE_DIR}/../util/txt2incl.py" ${bl} "${bl}.h"
 		DEPENDS ${bl}
 	)
 endforeach()
@@ -26,18 +26,17 @@ include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/include")
 
 # static library
 add_library(libblang_static STATIC ${SOURCES} ${BLANG_HEADERS})
-set_target_properties(libblang_static
-	PROPERTIES 
-	OUTPUT_NAME   "blang" 
+target_compile_definitions(libblang_static PRIVATE BLANG_STATIC)
+set_target_properties(libblang_static PROPERTIES 
+	OUTPUT_NAME   "blangs" 
 	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
 )
 
 # shared library
 add_library(libblang  SHARED ${SOURCES} ${BLANG_HEADERS})
-set_target_properties(libblang 
-	PROPERTIES 
+set_target_properties(libblang PROPERTIES 
 	OUTPUT_NAME   "blang"
 	VERSION       "${LIBBLANG_VERSION_STRING}"
 	SOVERSION     "${LIBBLANG_VERSION_MAJOR}" 
-	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
+	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/blconf.h;${PROJECT_SOURCE_DIR}/include/blang.h;${PROJECT_SOURCE_DIR}/include/blang.hpp;"
 )

@@ -1,0 +1,28 @@
+#ifndef BLCONF_H
+#define BLCONF_H
+
+#define BLANG_VERSION_MAJOR @BLANG_VERSION_MAJOR@
+#define BLANG_VERSION_MINOR @BLANG_VERSION_MINOR@
+#define BLANG_VERSION_PATCH @BLANG_VERSION_PATCH@
+
+#cmakedefine USE_COMPUTED_GOTOS
+#cmakedefine NAN_TAGGING
+#cmakedefine DBG_PRINT_EXEC
+#cmakedefine DBG_PRINT_GC
+#cmakedefine DBG_STRESS_GC
+
+#ifndef BLANG_STATIC
+#  if defined(_WIN32) && defined(_MSC_VER)
+#    ifdef libblang_EXPORTS
+#      define BLANG_API  __declspec(dllexport)
+#    else
+#      define BLANG_API  __declspec(dllimport)
+#    endif
+#  else
+#    define BLANG_API
+#  endif
+#else
+#  define BLANG_API
+#endif
+
+#endif

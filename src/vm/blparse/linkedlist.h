@@ -1,6 +1,8 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
+#include "blconf.h"
+
 #include <stdlib.h>
 
 typedef struct LinkedList {
@@ -10,8 +12,8 @@ typedef struct LinkedList {
 
 #define foreach(node, list) for(LinkedList *node = list; node != NULL; node = node->next)
 
-LinkedList *addElement(LinkedList *lst, void *elem);
-size_t listLength(LinkedList *lst);
-void freeLinkedList(LinkedList *lst);
+BLANG_API LinkedList *addElement(LinkedList *lst, void *elem);
+BLANG_API size_t listLength(LinkedList *lst);
+BLANG_API void freeLinkedList(LinkedList *lst);
 
 #endif

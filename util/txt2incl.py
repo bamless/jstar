@@ -3,7 +3,7 @@
 import sys
 
 def error(msg):
-	print msg
+	print(msg)
 	sys.exit(1)
 
 def stringify(line):

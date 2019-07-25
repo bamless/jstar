@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.6)
 project(Blang)
 
+# version
+set(BLANG_VERSION_MAJOR 3)
+set(BLANG_VERSION_MINOR 6)
+set(BLANG_VERSION_PATCH 0)
+
 # options
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
 option(NAN_TAGGING "Use NaN tagging technique to store the VM internal type" ON)
@@ -10,8 +15,8 @@ option(DBG_STRESS_GC "Stress the garbage collector by calling it on every alloca
 
 # setup option.h
 configure_file (
-	"${PROJECT_SOURCE_DIR}/vm/options.h.in"
-	"${PROJECT_BINARY_DIR}/options.h"
+	"${PROJECT_SOURCE_DIR}/vm/blconf.h.in"
+	"${PROJECT_SOURCE_DIR}/include/blconf.h"
 )
 
 # set output directories
@@ -42,7 +47,7 @@ elseif(MSVC)
 endif()
 
 # required programs
-find_package(PythonInterp 2.7 REQUIRED)
+find_package(PythonInterp 3 REQUIRED)
 
 # Subprojects
 
@@ -57,8 +62,8 @@ ExternalProject_Add(thirdparty_linenoise
 	SOURCE_DIR 	     "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise"
 	BINARY_DIR 	     "${CMAKE_BINARY_DIR}/thirdparty"
 	BUILD_BYPRODUCTS "${CMAKE_BINARY_DIR}/thirdparty/${LIB}linenoise${A}"
-	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --target linenoise
-	CMAKE_ARGS       -DCMAKE_BUILD_TYPE=Release
+	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --config $<CONFIG> --target linenoise
+	CMAKE_ARGS       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
 	BUILD_ALWAYS     1
 	DOWNLOAD_COMMAND ""
 	UPDATE_COMMAND   ""
@@ -66,10 +71,17 @@ ExternalProject_Add(thirdparty_linenoise
 )
 
 add_library(linenoise STATIC IMPORTED)
-set_target_properties(linenoise PROPERTIES 
-	IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/thirdparty/${LIB}linenoise${A}"
-	IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-)
+if(MSVC)
+	set_target_properties(linenoise PROPERTIES
+		IMPORTED_LOCATION_DEBUG "${CMAKE_BINARY_DIR}/thirdparty/Debug/${LIB}linenoise${A}"
+		IMPORTED_LOCATION_RELEASE "${CMAKE_BINARY_DIR}/thirdparty/Release/${LIB}linenoise${A}"
+	)
+else()
+	set_target_properties(linenoise PROPERTIES 
+		IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/thirdparty/${LIB}linenoise${A}"
+		IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+	)
+endif()
 add_dependencies(linenoise thirdparty_linenoise)
 
 # Subprojects
@@ -84,4 +96,7 @@ install(TARGETS blang libblang libblang_static
 	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
 	RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
 	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+)
+install(DIRECTORY 
+	"${CMAKE_SOURCE_DIR}/vm/blparse" DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
 )

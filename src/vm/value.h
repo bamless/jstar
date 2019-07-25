@@ -1,7 +1,7 @@
 #ifndef VALUE_H
 #define VALUE_H
 
-#include "options.h"
+#include "blconf.h"
 
 #include <stdbool.h>
 #include <stdint.h>
