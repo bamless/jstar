@@ -20,8 +20,8 @@
     X(OP_POW)           \
     X(OP_GET_FIELD)     \
     X(OP_SET_FIELD)     \
-    X(OP_ARR_SET)       \
-    X(OP_ARR_GET)       \
+    X(OP_SUBSCR_SET)    \
+    X(OP_SUBSCR_GET)    \
     X(OP_CALL)          \
     X(OP_CALL_0)        \
     X(OP_CALL_1)        \

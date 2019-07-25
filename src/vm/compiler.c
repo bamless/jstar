@@ -480,7 +480,7 @@ static void compileLval(Compiler *c, Expr *e) {
     case ARR_ACC: {
         compileExpr(c, e->arrAccExpr.left);
         compileExpr(c, e->arrAccExpr.index);
-        emitBytecode(c, OP_ARR_SET, e->line);
+        emitBytecode(c, OP_SUBSCR_SET, e->line);
         break;
     }
     default:
@@ -639,7 +639,7 @@ static void compileAccessExpression(Compiler *c, Expr *e) {
 static void compileArraryAccExpression(Compiler *c, Expr *e) {
     compileExpr(c, e->arrAccExpr.left);
     compileExpr(c, e->arrAccExpr.index);
-    emitBytecode(c, OP_ARR_GET, e->line);
+    emitBytecode(c, OP_SUBSCR_GET, e->line);
 }
 
 static void compileExpExpr(Compiler *c, Expr *e) {
