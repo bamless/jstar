@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 2.6)
 project(Blang)
 
 # version
-set(BLANG_VERSION_MAJOR 3)
-set(BLANG_VERSION_MINOR 6)
-set(BLANG_VERSION_PATCH 0)
+set(BLANG_VERSION_MAJOR 0)
+set(BLANG_VERSION_MINOR 3)
+set(BLANG_VERSION_PATCH 7)
 
 # options
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
