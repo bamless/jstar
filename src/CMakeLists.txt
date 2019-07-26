@@ -39,7 +39,7 @@ if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
 elseif(${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
 	set(CMAKE_C_FLAGS "-Wall -Wextra -std=gnu11 -Wno-unused-parameter")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
-	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Ofast -flto -fomit-frame-pointer -s -Qunused-arguments -Wno-unused-label -Wno-unused-command-line-argument")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Ofast -fomit-frame-pointer -s -Qunused-arguments -Wno-unused-label -Wno-unused-command-line-argument")
 elseif(MSVC)
 	set(CMAKE_C_FLAGS "/wd4244")
 	add_definitions("-D_CRT_SECURE_NO_WARNINGS=1")
@@ -63,7 +63,7 @@ ExternalProject_Add(thirdparty_linenoise
 	BINARY_DIR 	     "${CMAKE_BINARY_DIR}/thirdparty"
 	BUILD_BYPRODUCTS "${CMAKE_BINARY_DIR}/thirdparty/${LIB}linenoise${A}"
 	BUILD_COMMAND    "${CMAKE_COMMAND}" --build . --config $<CONFIG> --target linenoise
-	CMAKE_ARGS       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+	CMAKE_ARGS       -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
 	BUILD_ALWAYS     1
 	DOWNLOAD_COMMAND ""
 	UPDATE_COMMAND   ""
