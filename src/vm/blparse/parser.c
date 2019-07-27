@@ -532,9 +532,8 @@ static Stmt *parseImport(Parser *p) {
         Token name = require(p, TOK_IDENTIFIER);
         modules = addElement(modules, newIdentifier(name.length, name.lexeme));
 
-        if(match(p, TOK_DOT)) {
-            advance(p);
-        }
+        if(!match(p, TOK_DOT)) break;
+        advance(p);
     } while(match(p, TOK_IDENTIFIER));
 
     Token as = {0};
