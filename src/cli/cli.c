@@ -89,25 +89,19 @@ static void dorepl() {
     char *line;
     while((line = linenoise("blang>> ")) != NULL) {
         linenoiseHistoryAdd(line);
-
         int depth = countBlocks(line);
         blBufferAppendstr(&src, line);
-
         free(line);
 
         while(depth > 0 && (line = linenoise("....... ")) != NULL) {
             linenoiseHistoryAdd(line);
-
             blBufferAppendChar(&src, '\n');
-
             depth += countBlocks(line);
             blBufferAppendstr(&src, line);
-
             free(line);
         }
 
         addPrintIfExpr(&src);
-
         blEvaluate(vm, "<stdin>", src.data);
         blBufferClear(&src);
     }
@@ -144,7 +138,6 @@ static char *readSrcFile(const char *path) {
     }
 
     fclose(srcFile);
-
     src[read] = '\0';
     return src;
 }
@@ -165,9 +158,7 @@ int main(int argc, const char **argv) {
             size_t length = directory - argv[1] + 1;
             char *path = calloc(length + 1, 1);
             memcpy(path, argv[1], length);
-
             blAddImportPath(vm, path);
-
             free(path);
         }
 
