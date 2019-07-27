@@ -4,15 +4,8 @@ class FileNotFoundException : IOException end
 var SEEK_SET, SEEK_CUR, SEEK_END = 0, 1, 2
 
 class File
-    fun new(name, mode)
-        if !(name is String and mode is String) then
-            raise InvalidArgException("Arguments of File.new() must be 2 strings.")
-        end
+    native new(path, mode)
 
-        this._handle = __open(name, mode)
-        this._closed = false
-    end
-    
     native tell()
     native seek(off, whence=0)
     native rewind()
@@ -57,5 +50,3 @@ end
 native popen(name, mode="r")
 native remove(path)
 native rename(oldpath, newpath)
-
-native __open(name, mode)

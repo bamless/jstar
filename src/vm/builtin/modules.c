@@ -95,6 +95,7 @@ Module builtInModules[] = {
             METHOD(__string__, &bl_Module_string)
         ENDCLASS
         CLASS(List)
+            METHOD(new,      &bl_List_new)
             METHOD(add,      &bl_List_add)
             METHOD(insert,   &bl_List_insert)
             METHOD(removeAt, &bl_List_removeAt)
@@ -105,6 +106,7 @@ Module builtInModules[] = {
             METHOD(__next__, &bl_List_next)
         ENDCLASS
         CLASS(Tuple)
+            METHOD(new,      &bl_Tuple_new)
             METHOD(sub,      &bl_Tuple_sub)
             METHOD(__len__,  &bl_Tuple_len)
             METHOD(__iter__, &bl_Tuple_iter)
@@ -135,6 +137,7 @@ Module builtInModules[] = {
     ENDMODULE
     MODULE(io)
         CLASS(File)
+            METHOD(new,      &bl_File_new)
             METHOD(read,     &bl_File_read)
             METHOD(readAll,  &bl_File_readAll)
             METHOD(readLine, &bl_File_readLine)
@@ -151,7 +154,6 @@ Module builtInModules[] = {
         FUNCTION(popen,  &bl_popen)
         FUNCTION(remove, &bl_remove)
         FUNCTION(rename, &bl_rename)
-        FUNCTION(__open, &bl_open)
     ENDMODULE
     MODULE(math)
         FUNCTION(abs,    &bl_abs)

@@ -29,6 +29,7 @@ class String
 end
 
 class List
+    native new(n=0, init=null)
     native add(e)
     native insert(i, e)
     native removeAt(i)
@@ -168,6 +169,7 @@ class List
 end
 
 class Tuple
+    native new(seq)
     native sub(from, to)
     native __len__()
     native __iter__(iter)

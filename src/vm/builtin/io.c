@@ -87,6 +87,41 @@ static int blSeek(FILE *file, long offset, int blWhence) {
 
 // class File {
 
+NATIVE(bl_File_new) {
+    if(!blCheckStr(vm, 1, "path") || !blCheckStr(vm, 2, "mode")) {
+        return false;
+    }
+
+    const char *path = blGetString(vm, 1);
+    const char *m = blGetString(vm, 2);
+
+    size_t mlen = strlen(m);
+    if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
+       (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
+        BL_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+    }
+
+    FILE *f = fopen(path, m);
+    if(f == NULL) {
+        if(errno == ENOENT) {
+            BL_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
+        }
+        BL_RAISE(vm, "IOException", strerror(errno));
+    }
+
+    // this._handle = f
+    blPushHandle(vm, (void *)f);
+    blSetField(vm, 0, FIELD_FILE_HANDLE);
+
+    //this._closed = false
+    blPushBoolean(vm, false);
+    blSetField(vm, 0, FIELD_FILE_CLOSED);
+
+    // return `this`. required in native constructors
+    blPushValue(vm, 0);
+    return true;
+}
+
 static bool checkClosed(BlangVM *vm) {
     if(!blGetField(vm, 0, FIELD_FILE_CLOSED)) return false;
     bool closed = blGetBoolean(vm, -1);
@@ -298,28 +333,6 @@ NATIVE(bl_PFile_close) {
 // }
 
 // functions
-
-NATIVE(bl_open) {
-    const char *fname = blGetString(vm, 1);
-    const char *m = blGetString(vm, 2);
-
-    size_t mlen = strlen(m);
-    if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
-       (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
-        BL_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
-    }
-
-    FILE *f = fopen(fname, m);
-    if(f == NULL) {
-        if(errno == ENOENT) {
-            BL_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", fname);
-        }
-        BL_RAISE(vm, "IOException", strerror(errno));
-    }
-
-    blPushHandle(vm, (void *)f);
-    return true;
-}
 
 NATIVE(bl_remove) {
     if(!blCheckStr(vm, 1, "path")) return false;

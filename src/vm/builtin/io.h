@@ -7,6 +7,7 @@
 #define FIELD_FILE_HANDLE "_handle"
 #define FIELD_FILE_CLOSED "_closed"
 
+NATIVE(bl_File_new);
 NATIVE(bl_File_read);
 NATIVE(bl_File_readAll);
 NATIVE(bl_File_readLine);
@@ -27,6 +28,5 @@ NATIVE(bl_PFile_close);
 NATIVE(bl_popen);
 NATIVE(bl_remove);
 NATIVE(bl_rename);
-NATIVE(bl_open);
 
 #endif

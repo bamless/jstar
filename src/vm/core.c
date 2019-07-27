@@ -40,24 +40,6 @@ static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const 
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
 }
 
-static void defMethodDefaults(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const char *name,
-                              uint8_t argc, uint8_t defc, ...) {
-    ObjString *strName = copyString(vm, name, strlen(name), true);
-    push(vm, OBJ_VAL(strName));
-
-    ObjNative *native = newNative(vm, m, strName, argc, n, defc);
-
-    va_list args;
-    va_start(args, defc);
-    for(size_t i = 0; i < defc; i++) {
-        native->c.defaults[i] = va_arg(args, Value);
-    }
-    va_end(args);
-    pop(vm);
-
-    hashTablePut(&cls->methods, strName, OBJ_VAL(native));
-}
-
 static uint64_t hash64(uint64_t x) {
     x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
     x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
@@ -133,10 +115,6 @@ void initCoreLibrary(BlangVM *vm) {
     vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
 
     core->base.cls = vm->modClass;
-
-    // Set constructor for instatiable primitive classes
-    defMethodDefaults(vm, core, vm->lstClass, &bl_List_new, "new", 2, 2, NUM_VAL(0), NULL_VAL);
-    defMethod(vm, core, vm->tupClass, &bl_Tuple_new, "new", 1);
 
     // Patch up the class field of any string or function that was allocated
     // before the creation of their corresponding class object

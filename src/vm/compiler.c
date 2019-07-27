@@ -1045,12 +1045,6 @@ static void compileMethods(Compiler *c, Stmt *cls) {
             break;
         }
         case NATIVEDECL: {
-            Identifier ctor = syntheticIdentifier(CTOR_STR);
-            if(identifierEquals(&ctor, &m->nativeDecl.id)) {
-                error(c, m->line, "Cannot declare native constructor");
-                continue;
-            }
-
             size_t defaults = listLength(m->nativeDecl.defArgs);
             size_t arity = listLength(m->nativeDecl.formalArgs);
 
