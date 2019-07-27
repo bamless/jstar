@@ -29,10 +29,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-// Increasing version number, used for range checking
-#define BLANG_VERSION \
-    (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)
-
 /**
  * =========================================================
  *  Blang VM entry points

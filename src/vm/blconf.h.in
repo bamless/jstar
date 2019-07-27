@@ -1,10 +1,16 @@
 #ifndef BLCONF_H
 #define BLCONF_H
 
+// Version
 #define BLANG_VERSION_MAJOR @BLANG_VERSION_MAJOR@
 #define BLANG_VERSION_MINOR @BLANG_VERSION_MINOR@
 #define BLANG_VERSION_PATCH @BLANG_VERSION_PATCH@
 
+// Increasing version number, used for range checking
+#define BLANG_VERSION \
+    (BLANG_VERSION_MAJOR * 100000 + BLANG_VERSION_MINOR * 1000 + BLANG_VERSION_PATCH)
+
+// Options
 #cmakedefine USE_COMPUTED_GOTOS
 #cmakedefine NAN_TAGGING
 #cmakedefine DBG_PRINT_EXEC
