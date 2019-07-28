@@ -115,7 +115,7 @@ void blPushList(BlangVM *vm) {
 BLANG_API void blPushTuple(BlangVM *vm, size_t size) {
     validateStack(vm);
     ObjTuple *tup = newTuple(vm, size);
-    for(size_t i = size; i > 0; i--) {
+    for(size_t i = 1; i <= size; i++) {
         tup->arr[size - i] = pop(vm);
     }
     push(vm, OBJ_VAL(tup));
