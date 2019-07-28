@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define BLANGPATH "BLANGPATH"
+
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly
 // handle the execution of except/ensure handlers
@@ -30,6 +32,30 @@ static void reset(BlangVM *vm) {
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
     vm->module = NULL;
+}
+
+static void initImportPaths(BlangVM *vm) {
+    const char *blangPath = getenv(BLANGPATH);
+    if(blangPath == NULL) return;
+
+    size_t last = 0;
+    size_t pathLen = strlen(blangPath);
+    ObjList *importPaths = vm->importpaths;
+    for(size_t i = 0; i < pathLen; i++) {
+        if(blangPath[i] == ':') {
+            ObjString *p = copyString(vm, blangPath + last, i - last, true);
+            push(vm, OBJ_VAL(p));
+            listAppend(vm, importPaths, OBJ_VAL(p));
+            pop(vm);
+
+            last = i + 1;
+        }
+    }
+
+    ObjString *p = copyString(vm, blangPath + last, pathLen - last, true);
+    push(vm, OBJ_VAL(p));
+    listAppend(vm, importPaths, OBJ_VAL(p));
+    pop(vm);
 }
 
 BlangVM *blNewVM() {
@@ -88,6 +114,7 @@ BlangVM *blNewVM() {
     // classes to objects, since classes are created in intCoreLibrary
     vm->importpaths = newList(vm, 8);
     vm->emptyTup = newTuple(vm, 0);
+    initImportPaths(vm);
 
     return vm;
 }
