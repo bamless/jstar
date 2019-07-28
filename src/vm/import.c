@@ -94,7 +94,9 @@ static void loadNativeDynlib(BlangVM *vm, BlBuffer *modulePath, ObjString *modul
         blBufferAppendstr(modulePath, "bl_open_");
         blBufferAppendstr(modulePath, simpleName);
 
-        BlNativeReg* (*open_lib)() = dynsim(dynlib, modulePath->data);
+        typedef BlNativeReg* (*RegFunc)();
+        RegFunc open_lib = (RegFunc) dynsim(dynlib, modulePath->data);
+        
         if(open_lib == NULL) {
             dynfree(dynlib);
             return;
