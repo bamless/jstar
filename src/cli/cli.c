@@ -111,7 +111,7 @@ static void dorepl() {
 }
 
 static char *readSrcFile(const char *path) {
-    FILE *srcFile = fopen(path, "rb+");
+    FILE *srcFile = fopen(path, "rb");
     if(srcFile == NULL || errno == EISDIR) {
         if(srcFile) fclose(srcFile);
         perror("Error while reading input file");

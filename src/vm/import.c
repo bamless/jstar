@@ -30,7 +30,7 @@
 #endif
 
 static char *loadSource(const char *path) {
-    FILE *srcFile = fopen(path, "rb+");
+    FILE *srcFile = fopen(path, "rb");
     if(srcFile == NULL || errno == EISDIR) {
         if(srcFile) fclose(srcFile);
         return NULL;
