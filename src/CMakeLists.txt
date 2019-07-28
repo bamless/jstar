@@ -4,7 +4,7 @@ project(Blang)
 # version
 set(BLANG_VERSION_MAJOR 0)
 set(BLANG_VERSION_MINOR 3)
-set(BLANG_VERSION_PATCH 7)
+set(BLANG_VERSION_PATCH 8)
 
 # options
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
