@@ -188,6 +188,7 @@ BLANG_API void pushBoolean(BlangVM *vm, bool b);
 BLANG_API void blPushHandle(BlangVM *vm, void *handle);
 BLANG_API void blPushNull(BlangVM *vm);
 BLANG_API void blPushList(BlangVM *vm);
+BLANG_API void blPushTuple(BlangVM *vm, size_t size);
 BLANG_API void blPushValue(BlangVM *vm, int slot);
 #define blDup() blPushValue(vm, -1)
 
