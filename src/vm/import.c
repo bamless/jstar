@@ -15,6 +15,20 @@
 
 #define PACKAGE_FILE "/__package__.bl"
 
+#ifdef __unix__
+    #define DL_PREFIX "lib"
+    #define DL_SUFFIX ".so"
+#elif defined (__APPLE__) && defined (__MACH__)
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ".dylib"
+#elif define(_WIN32)
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ".dll"
+#else
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ""
+#endif
+
 static char *loadSource(const char *path) {
     FILE *srcFile = fopen(path, "rb+");
     if(srcFile == NULL || errno == EISDIR) {
@@ -84,9 +98,10 @@ static void loadNativeDynlib(BlangVM *vm, BlBuffer *modulePath, ObjString *modul
         simpleName++;
  
     blBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
-    blBufferAppendstr(modulePath, "/lib");
+    blBufferAppendstr(modulePath, "/");
+    blBufferAppendstr(modulePath, DL_PREFIX);
     blBufferAppendstr(modulePath, simpleName);
-    blBufferAppendstr(modulePath, ".so");
+    blBufferAppendstr(modulePath, DL_SUFFIX);
 
     void *dynlib = dynload(modulePath->data);
     if(dynlib != NULL) {
@@ -171,6 +186,8 @@ static bool importModuleOrPackage(BlangVM *vm, ObjString *name) {
             blBufferFree(&fullPath);
             return true;
         }
+
+        blBufferClear(&fullPath);
     }
 
     return false;
