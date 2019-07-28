@@ -79,7 +79,7 @@ static NATIVE(bl_Class_string) {
 // Class
 
 void initCoreLibrary(BlangVM *vm) {
-    ObjString *name = copyString(vm, CORE_MODULE, strlen(CORE_MODULE), true);
+    ObjString *name = copyString(vm, BL_CORE_MODULE, strlen(BL_CORE_MODULE), true);
 
     push(vm, OBJ_VAL(name));
     ObjModule *core = newModule(vm, name);

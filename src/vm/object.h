@@ -78,6 +78,7 @@ DECLARE_TO_STRING(ObjType);
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
+typedef struct BlNativeReg BlNativeReg;
 typedef struct ObjClass ObjClass;
 
 // Base class of all the Objects.
@@ -105,10 +106,18 @@ typedef struct ObjString {
     char *data;    // The actual data of the string (NUL terminated)
 } ObjString;
 
+// Native C extension. It contains the handle to the dynamic library and resolved 
+// symbol to a native registry.
+typedef struct NativeExt {
+    void *dynlib;
+    BlNativeReg *registry;
+} NativeExt;
+
 typedef struct ObjModule {
     Obj base;
     ObjString *name;   // Name of the module
     HashTable globals; // HashTable containing the global variables of the module
+    NativeExt natives; // Natives registered in this module
 } ObjModule;
 
 // Fields shared by all callable objects (functions and natives)

@@ -104,14 +104,29 @@ BLANG_API void blAddImportPath(BlangVM *vm, const char *path);
     } while(0)
 
 // Main module and core module names
-#define MAIN_MODULE "__main__"
-#define CORE_MODULE "__core__"
+#define BL_MAIN_MODULE "__main__"
+#define BL_CORE_MODULE "__core__"
 
 // Ensure `needed` slots are available on the stack
 BLANG_API void ensureStack(BlangVM *vm, size_t needed);
 
 // A C function callable from blang
 typedef bool (*Native)(BlangVM *vm);
+
+// ---- Registry to register native functions ----
+
+// Blang native registry, used to associate names to native pointers in native c extension modules.
+typedef struct BlNativeReg {
+    enum {REG_METHOD, REG_FUNCTION, REG_SENTINEL} type;
+    union {
+        struct { const char *cls; const char *name; Native meth; } method;
+        struct { const char *name; Native fun; } function;
+    } as;
+} BlNativeReg;
+
+#define BL_REGFUNC(name, func)      { REG_FUNCTION, { .function = { #name, func } } },
+#define BL_REGMETH(cls, name, meth) { REG_METHOD, { .method = { #cls, #name, meth } } },
+#define BL_REGEND                   { REG_SENTINEL, { .function = { NULL, NULL } } }
 
 // ---- Overloadable operator functions ----
 

@@ -33,7 +33,12 @@ set_target_properties(libblang_static PROPERTIES
 )
 
 # shared library
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+	set(EXTRA_LIBS ${EXTRA_LIBS} m dl)
+endif()
+
 add_library(libblang  SHARED ${SOURCES} ${BLANG_HEADERS})
+target_link_libraries(libblang ${EXTRA_LIBS})
 set_target_properties(libblang PROPERTIES 
 	OUTPUT_NAME   "blang"
 	VERSION       "${LIBBLANG_VERSION_STRING}"

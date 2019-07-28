@@ -1,5 +1,7 @@
 #include "import.h"
+#include "blang.h"
 #include "compiler.h"
+#include "dynload.h"
 #include "hashtable.h"
 #include "memory.h"
 
@@ -72,6 +74,38 @@ ObjModule *getModule(BlangVM *vm, ObjString *name) {
     return AS_MODULE(module);
 }
 
+static void loadNativeDynlib(BlangVM *vm, BlBuffer *modulePath, ObjString *moduleName) {
+    const char *rootPath = strrchr(modulePath->data, '/');
+    const char *simpleName = strrchr(moduleName->data, '.');
+
+    if(simpleName == NULL)
+        simpleName = moduleName->data;
+    else
+        simpleName++;
+ 
+    blBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
+    blBufferAppendstr(modulePath, "/lib");
+    blBufferAppendstr(modulePath, simpleName);
+    blBufferAppendstr(modulePath, ".so");
+
+    void *dynlib = dynload(modulePath->data);
+    if(dynlib != NULL) {
+        blBufferClear(modulePath);
+        blBufferAppendstr(modulePath, "bl_open_");
+        blBufferAppendstr(modulePath, simpleName);
+
+        BlNativeReg* (*open_lib)() = dynsim(dynlib, modulePath->data);
+        if(open_lib == NULL) {
+            dynfree(dynlib);
+            return;
+        }
+
+        ObjModule *m = getModule(vm, moduleName);
+        m->natives.dynlib = dynlib;
+        m->natives.registry = (*open_lib)();
+    }
+}
+
 static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, const char *source) {
     Parser p;
     Stmt *program = parse(&p, path, source, false);
@@ -87,12 +121,15 @@ static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, con
     return true;
 }
 
-static bool importFromPath(BlangVM *vm, const char *path, ObjString *name) {
-    char *source = loadSource(path);
+static bool importFromPath(BlangVM *vm, BlBuffer *path, ObjString *name) {
+    char *source = loadSource(path->data);
     if(source == NULL) return false;
-    bool res = importWithSource(vm, path, name, source);
+    bool imported;
+    if((imported = importWithSource(vm, path->data, name, source))) {
+        loadNativeDynlib(vm, path, name);
+    }
     free(source);
-    return res;
+    return imported;
 }
 
 static bool importModuleOrPackage(BlangVM *vm, ObjString *name) {
@@ -119,7 +156,7 @@ static bool importModuleOrPackage(BlangVM *vm, ObjString *name) {
         size_t moduleEnd = fullPath.len;
         blBufferAppendstr(&fullPath, PACKAGE_FILE);
 
-        if(importFromPath(vm, fullPath.data, name)) {
+        if(importFromPath(vm, &fullPath, name)) {
             blBufferFree(&fullPath);
             return true;
         }
@@ -128,7 +165,7 @@ static bool importModuleOrPackage(BlangVM *vm, ObjString *name) {
         blBufferTrunc(&fullPath, moduleEnd);
         blBufferAppendstr(&fullPath, ".bl");
 
-        if(importFromPath(vm, fullPath.data, name)) {
+        if(importFromPath(vm, &fullPath, name)) {
             blBufferFree(&fullPath);
             return true;
         }
@@ -157,11 +194,9 @@ bool importModule(BlangVM *vm, ObjString *name) {
     char *nameStart = strrchr(name->data, '.');
 
     // not a nested module, nothing to do
-    if(nameStart == NULL) {
-        return true;
-    }
-    nameStart++;
+    if(nameStart == NULL) return true;
 
+    nameStart++;
     ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     push(vm, OBJ_VAL(parentName));
     ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart), true);

@@ -2,6 +2,7 @@
 #include "blang.h"
 #include "chunk.h"
 #include "compiler.h"
+#include "dynload.h"
 #include "hashtable.h"
 #include "vm.h"
 
@@ -122,6 +123,8 @@ ObjModule *newModule(BlangVM *vm, ObjString *name) {
     ObjModule *module = (ObjModule *)newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
     module->name = name;
     initHashTable(&module->globals);
+    module->natives.dynlib = NULL;
+    module->natives.registry = NULL;
     return module;
 }
 
@@ -316,6 +319,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
     case OBJ_MODULE: {
         ObjModule *m = (ObjModule *)o;
         freeHashTable(&m->globals);
+        if(m->natives.dynlib) dynfree(m->natives.dynlib);
         GC_FREE(vm, ObjModule, m);
         break;
     }

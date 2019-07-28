@@ -79,7 +79,7 @@ BlangVM *blNewVM() {
     initCoreLibrary(vm);
 
     // Init the __main__ module
-    ObjString *mainMod = copyString(vm, MAIN_MODULE, strlen(MAIN_MODULE), true);
+    ObjString *mainMod = copyString(vm, BL_MAIN_MODULE, strlen(BL_MAIN_MODULE), true);
     push(vm, OBJ_VAL(mainMod));
     setModule(vm, mainMod, newModule(vm, mainMod));
     pop(vm);
@@ -648,6 +648,25 @@ static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse)
     return false;
 }
 
+static Native resolveNative(ObjModule *m, const char *cls, const char *name) {
+    BlNativeReg *reg = m->natives.registry;
+    for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
+        if(reg[i].type == REG_METHOD && cls != NULL) {
+            const char *clsName = reg[i].as.method.cls;
+            const char *methName = reg[i].as.method.name;
+            if(strcmp(cls, clsName) == 0 && strcmp(name, methName) == 0) {
+                return reg[i].as.method.meth;
+            }
+        } else if(reg[i].type == REG_FUNCTION && cls == NULL) {
+            const char *funName = reg[i].as.function.name;
+            if(strcmp(name, funName) == 0) {
+                return reg[i].as.function.fun;
+            }
+        }
+    }
+    return NULL;
+}
+
 static bool runEval(BlangVM *vm, int depth) {
     register Frame *frame;
     register Value *frameStack;
@@ -1180,6 +1199,8 @@ sup_invoke:;
         ObjNative *native = AS_NATIVE(GET_CONST());
 
         native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
+        if(!native->fn) native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
+
         if(native->fn == NULL) {
             blRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
             UNWIND_STACK(vm);
@@ -1193,6 +1214,8 @@ sup_invoke:;
         ObjNative *nat  = AS_NATIVE(peek(vm));
 
         nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
+        if(!nat->fn) nat->fn = resolveNative(vm->module, NULL, name->data);
+
         if(nat->fn == NULL) {
             blRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
             UNWIND_STACK(vm);
