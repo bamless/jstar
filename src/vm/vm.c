@@ -1096,8 +1096,8 @@ sup_invoke:;
 
         if(op == OP_IMPORT || op == OP_IMPORT_AS) {
             //define name for the module in the importing module
-            hashTablePut(&vm->module->globals, op == OP_IMPORT ?
-                        name : GET_STRING(), OBJ_VAL(getModule(vm, name)));
+            ObjString *mname = op == OP_IMPORT ? name : GET_STRING();
+            hashTablePut(&vm->module->globals, mname, OBJ_VAL(getModule(vm, name)));
         }
 
         //call the module's main if first time import

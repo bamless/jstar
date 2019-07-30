@@ -39,6 +39,11 @@ typedef struct Loop {
     struct Loop *next;
 } Loop;
 
+typedef struct TryExcept {
+    int depth;
+    struct TryExcept *next;
+} TryExcept;
+
 typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
 
 typedef struct Compiler {
@@ -61,6 +66,7 @@ typedef struct Compiler {
     int depth;
 
     int tryDepth;
+    TryExcept *tryBlocks;
 } Compiler;
 
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
@@ -77,6 +83,7 @@ static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, Bla
     c->localsCount = 0;
     c->hasSuper = false;
     c->hadError = false;
+    c->tryBlocks = NULL;
     vm->currCompiler = c;
 }
 
@@ -250,7 +257,6 @@ static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
-
     emitBytecode(c, jmpOpcode, 0);
     emitShort(c, (uint16_t)offset, 0);
     return c->func->chunk.count - 2;
@@ -258,11 +264,9 @@ static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
 
 static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
     int32_t offset = target - (jumpAddr + 3);
-
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
-
     Chunk *chunk = &c->func->chunk;
     chunk->code[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
     chunk->code[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
@@ -450,8 +454,7 @@ static void compileFunction(Compiler *c, Stmt *s);
 
 static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
     Stmt *f = e->anonFunc.func;
-
-    if(name) {
+    if(name != NULL) {
         f->funcDecl.id.length = name->length;
         f->funcDecl.id.name = name->name;
         compileFunction(c, f);
@@ -609,12 +612,10 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 
     uint8_t argsc = 0;
     foreach(n, e->callExpr.args->exprList.lst) {
-        if(argsc == UINT8_MAX) {
+        if(argsc++ == UINT8_MAX) {
             error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
             return;
         }
-
-        argsc++;
         compileExpr(c, (Expr *)n->elem);
     }
 
@@ -683,7 +684,9 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST: {
-        foreach(n, e->exprList.lst) { compileExpr(c, (Expr *)n->elem); }
+        foreach(n, e->exprList.lst) { 
+            compileExpr(c, (Expr *)n->elem); 
+        }
         break;
     }
     case NUM_LIT:
@@ -709,7 +712,6 @@ static void compileExpr(Compiler *c, Expr *e) {
     case ARR_LIT: {
         emitBytecode(c, OP_NEW_LIST, e->line);
         LinkedList *exprs = e->arr.exprs->exprList.lst;
-
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             emitBytecode(c, OP_APPEND_LIST, e->line);
@@ -720,17 +722,14 @@ static void compileExpr(Compiler *c, Expr *e) {
         LinkedList *exprs = e->tuple.exprs->exprList.lst;
 
         int i = 0;
-
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             i++;
         }
-
         if(i > UINT8_MAX) {
             error(c, e->line, "Too many elements in tuple literal.");
             break;
         }
-
         emitBytecode(c, OP_NEW_TUPLE, e->line);
         emitBytecode(c, i, e->line);
         break;
@@ -749,9 +748,11 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     Identifier *decls[MAX_LOCALS];
 
     foreach(n, s->varDecl.ids) {
+        if(numDecls == MAX_LOCALS) {
+            break;
+        }
         Identifier *name = (Identifier *)n->elem;
         declareVar(c, name, s->line);
-        if(numDecls == MAX_LOCALS) break;
         decls[numDecls++] = name;
     }
 
@@ -762,10 +763,8 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
             Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
             compileConstUnpackLst(c, decls, e, numDecls);
         } else {
-            Identifier *name = NULL;
-            if(numDecls == 1) name = decls[0];
+            Identifier *name = numDecls == 1 ? decls[0] : NULL;
             compileRval(c, name, s->varDecl.init);
-
             if(s->varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)numDecls, s->line);
@@ -1060,8 +1059,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
 
             memcpy(name->data, classId->name, classId->length);
             name->data[classId->length] = '.';
-            memcpy(name->data + classId->length + 1, m->nativeDecl.id.name,
-                   m->nativeDecl.id.length);
+            memcpy(name->data + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
 
             n->c.name = name;
 
@@ -1098,7 +1096,7 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 
     // import module (if nested module, import all from outer to inner)
     uint16_t nameConst;
-    size_t length = -1;
+    int length = -1;
     foreach(n, s->importStmt.modules) {
         Identifier *name = (Identifier *)n->elem;
 
@@ -1178,18 +1176,24 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     }
 }
 
-static void enterTryBlock(Compiler *c, Stmt *try) {
+static void enterTryBlock(Compiler *c, TryExcept *tryExc, Stmt *try) {
+    tryExc->depth = c->depth;
+    //tryExc->closestLoop = c->loops;
+    tryExc->next = c->tryBlocks;
+    c->tryBlocks = tryExc;
     if(try->tryStmt.ensure != NULL) c->tryDepth++;
     if(try->tryStmt.excs != NULL) c->tryDepth++;
 }
 
 static void exitTryBlock(Compiler *c, Stmt *try) {
+    c->tryBlocks = c->tryBlocks->next;
     if(try->tryStmt.ensure != NULL) c->tryDepth--;
     if(try->tryStmt.excs != NULL) c->tryDepth--;
 }
 
 static void compileTryExcept(Compiler *c, Stmt *s) {
-    enterTryBlock(c, s);
+    TryExcept tryBlock;
+    enterTryBlock(c, &tryBlock, s);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
         error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
@@ -1273,8 +1277,8 @@ static void compileLoopExitStmt(Compiler *c, Stmt *s) {
         error(c, s->line, "cannot use %s outside loop.", isBreak ? "break" : "continue");
         return;
     }
-    if(c->tryDepth != 0) {
-        error(c, s->line, "cannot use %s inside a try except.", isBreak ? "break" : "continue");
+    if(c->tryDepth != 0 && c->tryBlocks->depth >= c->loops->depth) {
+        error(c, s->line, "cannot use %s across a try except.", isBreak ? "break" : "continue");
     }
 
     discardScope(c, c->loops->depth);
@@ -1344,7 +1348,9 @@ static void compileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
-    foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
+    foreach(n, stmts) { 
+        compileStatement(c, (Stmt *)n->elem); 
+    }
 }
 
 ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
@@ -1352,7 +1358,6 @@ ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
     initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
     ObjFunction *func = function(&c, module, s);
     endCompiler(&c);
-
     return c.hadError ? NULL : func;
 }
 
