@@ -1048,6 +1048,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
             size_t arity = listLength(m->nativeDecl.formalArgs);
 
             ObjNative *n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
+            n->c.vararg = m->nativeDecl.isVararg;
             addDefaultConsts(c, n->c.defaults, m->nativeDecl.defArgs);
 
             uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
