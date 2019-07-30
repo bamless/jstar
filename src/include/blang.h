@@ -162,7 +162,7 @@ BLANG_API bool blNext(BlangVM *vm, int iterable, int res);
 // `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
 // Beware that the macro pushes a new value on top of the stack to store the result of blIter, so
 // negative slot indeces to access previously pushed elements should be offset by one
-#define blForEach(iter, code, cleanup)          \
+#define BL_FOREACH(iter, code, cleanup)          \
     {                                           \
         bool _err = false;                      \
         blPushNull(vm);                         \
@@ -218,6 +218,14 @@ BLANG_API void blListInsert(BlangVM *vm, size_t i, int slot);
 BLANG_API void blListRemove(BlangVM *vm, size_t i, int slot);
 BLANG_API void blListGetLength(BlangVM *vm, int slot);
 BLANG_API void blListGet(BlangVM *vm, size_t i, int slot);
+
+// ---- Tuple manipulation functions ----
+
+// These functions do not perfrom bounds checking,
+// use blCeckIndex first if needed.
+
+BLANG_API void blTupleGetLength(BlangVM *vm, int slot);
+BLANG_API void blTupleGet(BlangVM *vm, size_t i, int slot);
 
 // ---- Object instances manipulation functions ----
 

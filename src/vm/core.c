@@ -219,7 +219,7 @@ NATIVE(bl_print) {
     printf("%s", blGetString(vm, -1));
     blPop(vm);
 
-    blForEach(2, {
+    BL_FOREACH(2, {
         if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) return false;
         if(!blIsString(vm, -1)) {
             BL_RAISE(vm, "TypeException", "__string__() didn't return a String");
@@ -470,7 +470,7 @@ NATIVE(bl_List_next) {
 NATIVE(bl_Tuple_new) {
     if(!blIsList(vm, 1)) {
         blPushList(vm);
-        blForEach(1, {
+        BL_FOREACH(1, {
                 blListAppend(vm, 2);
                 blPop(vm);
         },)
@@ -570,7 +570,7 @@ NATIVE(bl_String_join) {
     BlBuffer joined;
     blBufferInit(vm, &joined);
 
-    blForEach(1, {
+    BL_FOREACH(1, {
             if(!blIsString(vm, -1)) {
                 if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) {
                     blBufferFree(&joined);

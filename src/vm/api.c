@@ -168,13 +168,27 @@ void blListGet(BlangVM *vm, size_t i, int slot) {
     assert(IS_LIST(lstVal), "Not a list");
     ObjList *lst = AS_LIST(lstVal);
     assert(i < lst->count, "Out of bounds");
-    push(vm, lst->arr[(size_t)i]);
+    push(vm, lst->arr[i]);
 }
 
 void blListGetLength(BlangVM *vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     assert(IS_LIST(lst), "Not a list");
     push(vm, NUM_VAL((double)AS_LIST(lst)->count));
+}
+
+void blTupleGetLength(BlangVM *vm, int slot) {
+    Value tup = apiStackSlot(vm, slot);
+    assert(IS_TUPLE(tup), "Not a tuple");
+    push(vm, NUM_VAL((double)AS_TUPLE(tup)->size));
+}
+
+void blTupleGet(BlangVM *vm, size_t i, int slot) {
+    Value tupVal = apiStackSlot(vm, slot);
+    assert(IS_Tuple(tupVal), "Not a tuple");
+    ObjTuple *tuple = AS_TUPLE(tupVal);
+    assert(i < tuple->size, "Out of bounds");
+    push(vm, tuple->arr[i]);
 }
 
 bool blGetGlobal(BlangVM *vm, const char *mname, const char *name) {
