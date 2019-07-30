@@ -4,7 +4,7 @@
 // Version
 #define BLANG_VERSION_MAJOR 0
 #define BLANG_VERSION_MINOR 3
-#define BLANG_VERSION_PATCH 9
+#define BLANG_VERSION_PATCH 10
 
 // Increasing version number, used for range checking
 #define BLANG_VERSION \
@@ -19,7 +19,7 @@
 
 #ifndef BLANG_STATIC
 #  if defined(_WIN32) && defined(_MSC_VER)
-#    ifdef libblang_EXPORTS
+#    if defined(ibblang_EXPORTS) || defined(NATIVE_EXPORTS)
 #      define BLANG_API  __declspec(dllexport)
 #    else
 #      define BLANG_API  __declspec(dllimport)
