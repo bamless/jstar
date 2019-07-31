@@ -654,24 +654,23 @@ static ObjString *stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
 }
 
 static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse) {
-    ObjClass *cls = getClass(vm, peek2(vm));
-
     Value op;
+    ObjClass *cls = getClass(vm, peek2(vm));
     if(hashTableGet(&cls->methods, name, &op)) {
         return callValue(vm, op, 1);
     }
 
-    // swap callee and arg
-    Value b = peek(vm);
-    vm->sp[-1] = vm->sp[-2];
-    vm->sp[-2] = b;
+    if(reverse) {
+        // swap callee and arg
+        Value b = peek(vm);
+        vm->sp[-1] = vm->sp[-2];
+        vm->sp[-2] = b;
 
-    ObjClass *cls2 = getClass(vm, peek2(vm));
-
-    if(hashTableGet(&cls2->methods, name, &op)) {
-        return callValue(vm, op, 1);
+        ObjClass *cls2 = getClass(vm, peek2(vm));
+        if(hashTableGet(&cls2->methods, reverse, &op)) {
+            return callValue(vm, op, 1);
+        }
     }
-
     return false;
 }
 
@@ -825,25 +824,28 @@ static bool runEval(BlangVM *vm, int depth) {
             pop(vm);
             push(vm, OBJ_VAL(conc));
         } else {
-            SAVE_FRAME();
-            if(!callBinaryOverload(vm, vm->add, vm->radd)) {
-                LOAD_FRAME();
-                ObjString *t1 = getClass(vm, peek(vm))->name;
-                ObjString *t2 = getClass(vm, peek2(vm))->name;
-                blRaise(vm, "TypeException", "Operator + not defined"
-                        " for types %s, %s", t1->data, t2->data);
-                UNWIND_STACK(vm);
-            }
-            LOAD_FRAME();
+            BINARY_OVERLOAD(+, vm->add, vm->radd);
         }
         DISPATCH();
     }
-    TARGET(OP_SUB): BINARY(NUM_VAL,   -,  vm->sub, vm->rsub);  DISPATCH();
-    TARGET(OP_MUL): BINARY(NUM_VAL,   *,  vm->mul, vm->rmul);  DISPATCH();
-    TARGET(OP_LT):  BINARY(BOOL_VAL,  <,  vm->lt, NULL);       DISPATCH();
-    TARGET(OP_LE):  BINARY(BOOL_VAL,  <=, vm->le, NULL);       DISPATCH();
-    TARGET(OP_GT):  BINARY(BOOL_VAL,  >,  vm->gt, NULL);       DISPATCH();
-    TARGET(OP_GE):  BINARY(BOOL_VAL,  >=, vm->ge, NULL);       DISPATCH();
+    TARGET(OP_SUB): 
+        BINARY(NUM_VAL, -, vm->sub, vm->rsub);
+        DISPATCH();
+    TARGET(OP_MUL): 
+        BINARY(NUM_VAL, *, vm->mul, vm->rmul);
+        DISPATCH();
+    TARGET(OP_LT):
+        BINARY(BOOL_VAL, <,  vm->lt, NULL);
+        DISPATCH();
+    TARGET(OP_LE):
+        BINARY(BOOL_VAL, <=, vm->le, NULL);
+        DISPATCH();
+    TARGET(OP_GT):
+        BINARY(BOOL_VAL, >, vm->gt, NULL);
+        DISPATCH();
+    TARGET(OP_GE):
+        BINARY(BOOL_VAL, >=, vm->ge, NULL);
+        DISPATCH();
     TARGET(OP_DIV): {
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
             double b = AS_NUM(pop(vm));
@@ -1029,7 +1031,6 @@ invoke:;
             UNWIND_STACK(vm);
         }
         LOAD_FRAME();
-
         DISPATCH();
     }
     TARGET(OP_SUPER): {
@@ -1073,7 +1074,6 @@ sup_invoke:;
         }
 
         closeUpvalues(vm, frameStack);
-
         vm->sp = frameStack;
         push(vm, ret);
 
@@ -1173,7 +1173,6 @@ sup_invoke:;
             blRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
             UNWIND_STACK(vm);
         }
-
         createClass(vm, GET_STRING(), cls);
         DISPATCH();
     TARGET(OP_UNPACK):
@@ -1185,7 +1184,6 @@ sup_invoke:;
 
         Obj *seq = AS_OBJ(pop(vm));
         uint8_t num = NEXT_CODE();
-        
         size_t size = 0;
         Value *arr = NULL;
 
@@ -1207,7 +1205,6 @@ sup_invoke:;
             blRaise(vm, "TypeException", "Too little values to unpack.");
             UNWIND_STACK(vm);
         }
-
         for(int i = 0; i < num; i++) {
             push(vm, arr[i]);
         }
@@ -1247,7 +1244,6 @@ sup_invoke:;
             blRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
             UNWIND_STACK(vm);
         }
-
         DISPATCH();
     }
     TARGET(OP_GET_CONST):
