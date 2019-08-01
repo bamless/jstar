@@ -1,6 +1,7 @@
 ---
 title: Blang
-permalink: /docs/index
+permalink: /docs/blang/
+redirect_from: /index.html
 ---
 
 # blang
