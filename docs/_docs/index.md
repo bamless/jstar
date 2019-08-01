@@ -1,7 +1,7 @@
 ---
 title: Blang
 permalink: /docs/blang/
-redirect_from: /index.html
+redirect_from: /blang/index.html
 ---
 
 # blang
