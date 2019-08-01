@@ -5,8 +5,8 @@ description: >
   A lightweight scripting language
 lang: en-US
 
-baseurl: "/" # the subpath of your site, e.g. /blog/
-url: https://bamless.github.io/ # the base hostname & protocol for your site
+baseurl: "/blang/docs/" # the subpath of your site, e.g. /blog/
+url: https://bamless.github.io/blang # the base hostname & protocol for your site
 git_address: https://github.com/bamless/blang
 git_edit_address: https://github.com/bamless/blang/blob/master
 
