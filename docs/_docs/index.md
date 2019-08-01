@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Blang
-permalink: /blang
+permalink: /docs/blang
 redirect_from: /index.html
 ---
 
