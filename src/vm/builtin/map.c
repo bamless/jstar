@@ -5,13 +5,13 @@
 
 // TODO: consider implementing Map as a built-in object for performance
 // class Map
-NATIVE(bl_Map_getEntry) {
-    blPushValue(vm, 1);
-    if(blCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCSESS) return false;
+JSR_NATIVE(jsr_Map_getEntry) {
+    jsrPushValue(vm, 1);
+    if(jsrCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCESS) return false;
 
     size_t i = AS_NUM(pop(vm));
 
-    if(!blGetField(vm, 0, "_entries")) return false;
+    if(!jsrGetField(vm, 0, "_entries")) return false;
 
     ObjList *lst = AS_LIST(pop(vm));
     size_t count = lst->count;
@@ -24,34 +24,34 @@ NATIVE(bl_Map_getEntry) {
     while(!IS_NULL(buck)) {
         push(vm, buck);
 
-        blGetField(vm, -1, "key");
-        blPushValue(vm, 1);
+        jsrGetField(vm, -1, "key");
+        jsrPushValue(vm, 1);
 
-        if(!blEquals(vm)) return false;
+        if(!jsrEquals(vm)) return false;
 
-        if(blIsBoolean(vm, -1) && AS_BOOL(peek(vm))) {
+        if(jsrIsBoolean(vm, -1) && AS_BOOL(peek(vm))) {
             pop(vm);
             return true;
         }
         pop(vm);
 
-        blGetField(vm, -1, "next");
+        jsrGetField(vm, -1, "next");
         buck = pop(vm);
 
         pop(vm);
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_Map_addEntry) {
-    if(!blGetField(vm, -1, "key")) return false;
-    if(blCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCSESS) return false;
+JSR_NATIVE(jsr_Map_addEntry) {
+    if(!jsrGetField(vm, -1, "key")) return false;
+    if(jsrCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCESS) return false;
 
     size_t i = AS_NUM(pop(vm));
 
-    if(!blGetField(vm, 0, "_entries")) return false;
+    if(!jsrGetField(vm, 0, "_entries")) return false;
 
     ObjList *lst = AS_LIST(pop(vm));
     size_t count = lst->count;
@@ -60,14 +60,14 @@ NATIVE(bl_Map_addEntry) {
     size_t hash = i & (count - 1);
 
     push(vm, entries[hash]);
-    blSetField(vm, -2, "next");
+    jsrSetField(vm, -2, "next");
 
     entries[hash] = vm->apiStack[1];
     return true;
 }
 
-NATIVE(bl_Map_grow) {
-    if(!blGetField(vm, 0, "_entries")) return false;
+JSR_NATIVE(jsr_Map_grow) {
+    if(!jsrGetField(vm, 0, "_entries")) return false;
 
     ObjList *lst = AS_LIST(pop(vm));
     Value *oldEntries = lst->arr;
@@ -75,8 +75,8 @@ NATIVE(bl_Map_grow) {
 
     size_t newSize = size * 2;
 
-    blPushNumber(vm, newSize);
-    blSetField(vm, 0, "_size");
+    jsrPushNumber(vm, newSize);
+    jsrSetField(vm, 0, "_size");
     pop(vm);
 
     lst = newList(vm, newSize);
@@ -88,7 +88,7 @@ NATIVE(bl_Map_grow) {
     }
 
     push(vm, OBJ_VAL(lst));
-    blSetField(vm, 0, "_entries");
+    jsrSetField(vm, 0, "_entries");
     pop(vm);
 
     for(size_t i = 0; i < size; i++) {
@@ -96,20 +96,20 @@ NATIVE(bl_Map_grow) {
 
         while(!IS_NULL(buck)) {
             push(vm, buck);
-            blGetField(vm, -1, "next");
+            jsrGetField(vm, -1, "next");
             Value next = pop(vm);
             pop(vm);
 
-            blPushValue(vm, 0);
+            jsrPushValue(vm, 0);
             push(vm, buck);
-            if(blCallMethod(vm, "__addEntry", 1) != VM_EVAL_SUCCSESS) return false;
+            if(jsrCallMethod(vm, "__addEntry", 1) != VM_EVAL_SUCCESS) return false;
             pop(vm);
 
             buck = next;
         }
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 // end

@@ -34,21 +34,21 @@
 
 // static helper functions
 
-static bool readline(BlangVM *vm, FILE *file) {
+static bool readline(JStarVM *vm, FILE *file) {
     char buf[512];
     char *ret = fgets(buf, sizeof(buf), file);
     if(ret == NULL) {
         if(feof(file)) {
-            blPushNull(vm);
+            jsrPushNull(vm);
             return true;
         } else {
             return false;
         }
     }
 
-    BlBuffer b;
-    blBufferInitSz(vm, &b, 16);
-    blBufferAppendstr(&b, buf);
+    JStarBuffer b;
+    jsrBufferInitSz(vm, &b, 16);
+    jsrBufferAppendstr(&b, buf);
 
     char *newLine;
     while((newLine = strchr(b.data, '\n')) == NULL) {
@@ -57,19 +57,19 @@ static bool readline(BlangVM *vm, FILE *file) {
             if(feof(file)) {
                 break;
             } else {
-                blBufferFree(&b);
+                jsrBufferFree(&b);
                 return false;
             }
         }
 
-        blBufferAppendstr(&b, buf);
+        jsrBufferAppendstr(&b, buf);
     }
     if(b.data[b.len - 1] == '\n') b.len--;
-    blBufferPush(&b);
+    jsrBufferPush(&b);
     return true;
 }
 
-static int blSeek(FILE *file, long offset, int blWhence) {
+static int jsrSeek(FILE *file, long offset, int blWhence) {
     int whence = 0;
     switch(blWhence) {
     case BL_SEEK_SET:
@@ -87,217 +87,217 @@ static int blSeek(FILE *file, long offset, int blWhence) {
 
 // class File {
 
-NATIVE(bl_File_new) {
-    if(!blCheckStr(vm, 1, "path") || !blCheckStr(vm, 2, "mode")) {
+JSR_NATIVE(jsr_File_new) {
+    if(!jsrCheckStr(vm, 1, "path") || !jsrCheckStr(vm, 2, "mode")) {
         return false;
     }
 
-    const char *path = blGetString(vm, 1);
-    const char *m = blGetString(vm, 2);
+    const char *path = jsrGetString(vm, 1);
+    const char *m = jsrGetString(vm, 2);
 
     size_t mlen = strlen(m);
     if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
        (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
-        BL_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+        JSR_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
     }
 
     FILE *f = fopen(path, m);
     if(f == NULL) {
         if(errno == ENOENT) {
-            BL_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
+            JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
         }
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
     // this._handle = f
-    blPushHandle(vm, (void *)f);
-    blSetField(vm, 0, FIELD_FILE_HANDLE);
+    jsrPushHandle(vm, (void *)f);
+    jsrSetField(vm, 0, FIELD_FILE_HANDLE);
 
     //this._closed = false
-    blPushBoolean(vm, false);
-    blSetField(vm, 0, FIELD_FILE_CLOSED);
+    jsrPushBoolean(vm, false);
+    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
 
     // return `this`. required in native constructors
-    blPushValue(vm, 0);
+    jsrPushValue(vm, 0);
     return true;
 }
 
-static bool checkClosed(BlangVM *vm) {
-    if(!blGetField(vm, 0, FIELD_FILE_CLOSED)) return false;
-    bool closed = blGetBoolean(vm, -1);
-    if(closed) BL_RAISE(vm, "IOException", "closed file");
+static bool checkClosed(JStarVM *vm) {
+    if(!jsrGetField(vm, 0, FIELD_FILE_CLOSED)) return false;
+    bool closed = jsrGetBoolean(vm, -1);
+    if(closed) JSR_RAISE(vm, "IOException", "closed file");
     return true;
 }
 
-NATIVE(bl_File_seek) {
+JSR_NATIVE(jsr_File_seek) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckInt(vm, 1, "off") || !blCheckInt(vm, 2, "whence")) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckInt(vm, 1, "off") || !jsrCheckInt(vm, 2, "whence")) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
-    double offset = blGetNumber(vm, 1);
-    double whence = blGetNumber(vm, 2);
+    double offset = jsrGetNumber(vm, 1);
+    double whence = jsrGetNumber(vm, 2);
 
     if(whence != BL_SEEK_SET && whence != BL_SEEK_CURR && whence != BL_SEEK_END) {
-        BL_RAISE(vm, "InvalidArgException", "whence must be SEEK_SET, SEEK_CUR or SEEK_END");
+        JSR_RAISE(vm, "InvalidArgException", "whence must be SEEK_SET, SEEK_CUR or SEEK_END");
     }
 
-    if(blSeek(f, offset, whence)) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+    if(jsrSeek(f, offset, whence)) {
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_File_tell) {
+JSR_NATIVE(jsr_File_tell) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
     long off = ftell(f);
     if(off == -1) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blPushNumber(vm, off);
+    jsrPushNumber(vm, off);
     return true;
 }
 
-NATIVE(bl_File_rewind) {
+JSR_NATIVE(jsr_File_rewind) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
     rewind(f);
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_File_read) {
+JSR_NATIVE(jsr_File_read) {
     if(!checkClosed(vm)) return false;
-    if(!blCheckInt(vm, 1, "bytes")) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckInt(vm, 1, "bytes")) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    double bytes = blGetNumber(vm, 1);
-    if(bytes < 0) BL_RAISE(vm, "InvalidArgException", "bytes must be >= 0");
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    double bytes = jsrGetNumber(vm, 1);
+    if(bytes < 0) JSR_RAISE(vm, "InvalidArgException", "bytes must be >= 0");
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
-    BlBuffer data;
-    blBufferInitSz(vm, &data, bytes);
+    JStarBuffer data;
+    jsrBufferInitSz(vm, &data, bytes);
 
     size_t read;
     if((read = fread(data.data, 1, bytes, f)) < (size_t)bytes && ferror(f)) {
-        blBufferFree(&data);
-        BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
+        jsrBufferFree(&data);
+        JSR_RAISE(vm, "IOException", "Couldn't read the whole file.");
     }
 
     data.len = read;
-    blBufferPush(&data);
+    jsrBufferPush(&data);
     return true;
 }
 
-NATIVE(bl_File_readAll) {
+JSR_NATIVE(jsr_File_readAll) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
     long off = ftell(f);
-    if(off == -1) BL_RAISE(vm, "IOException", strerror(errno));
-    if(fseek(f, 0, SEEK_END)) BL_RAISE(vm, "IOException", strerror(errno));
+    if(off == -1) JSR_RAISE(vm, "IOException", strerror(errno));
+    if(fseek(f, 0, SEEK_END)) JSR_RAISE(vm, "IOException", strerror(errno));
 
     long size = ftell(f) - off;
     if(size < 0) {
-        blPushNull(vm);
+        jsrPushNull(vm);
         return true;
     }
 
-    if(fseek(f, off, SEEK_SET)) BL_RAISE(vm, "IOException", strerror(errno));
+    if(fseek(f, off, SEEK_SET)) JSR_RAISE(vm, "IOException", strerror(errno));
 
-    BlBuffer data;
-    blBufferInitSz(vm, &data, size + 1);
+    JStarBuffer data;
+    jsrBufferInitSz(vm, &data, size + 1);
 
     size_t read;
     if((read = fread(data.data, 1, size, f)) < (size_t)size && ferror(f)) {
-        blBufferFree(&data);
-        BL_RAISE(vm, "IOException", "Couldn't read the whole file.");
+        jsrBufferFree(&data);
+        JSR_RAISE(vm, "IOException", "Couldn't read the whole file.");
     }
 
     data.len = read;
-    blBufferPush(&data);
+    jsrBufferPush(&data);
     return true;
 }
 
-NATIVE(bl_File_readLine) {
+JSR_NATIVE(jsr_File_readLine) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
     if(!readline(vm, f)) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
     return true;
 }
 
-NATIVE(bl_File_write) {
+JSR_NATIVE(jsr_File_write) {
     if(!checkClosed(vm)) return false;
-    if(!blCheckStr(vm, 1, "data")) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckStr(vm, 1, "data")) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
-    size_t datalen = blGetStringSz(vm, 1);
-    const char *data = blGetString(vm, 1);
+    size_t datalen = jsrGetStringSz(vm, 1);
+    const char *data = jsrGetString(vm, 1);
 
     if(fwrite(data, 1, datalen, f) < datalen) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_File_close) {
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+JSR_NATIVE(jsr_File_close) {
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
-    blPushBoolean(vm, true);
-    blSetField(vm, 0, FIELD_FILE_CLOSED);
+    jsrPushBoolean(vm, true);
+    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
 
     if(fclose(f)) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blPushNull(vm);
-    blSetField(vm, 0, FIELD_FILE_HANDLE);
+    jsrPushNull(vm);
+    jsrSetField(vm, 0, FIELD_FILE_HANDLE);
     return true;
 }
 
-NATIVE(bl_File_flush) {
+JSR_NATIVE(jsr_File_flush) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
     fflush(f);
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 // } class File
@@ -305,28 +305,28 @@ NATIVE(bl_File_flush) {
 // class __PFile {
 #ifdef USE_POPEN
 
-NATIVE(bl_PFile_close) {
+JSR_NATIVE(jsr_PFile_close) {
     if(!checkClosed(vm)) return false;
-    if(!blGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!blCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
+    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
-    FILE *f = (FILE *)blGetHandle(vm, -1);
+    FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
-    blPushBoolean(vm, true);
-    blSetField(vm, 0, FIELD_FILE_CLOSED);
+    jsrPushBoolean(vm, true);
+    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
 
     if(pclose(f)) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
 #else
 
-NATIVE(bl_PFile_close) {
-    BL_RAISE(vm, "Exception", "pclose not available on current system.");
+JSR_NATIVE(jsr_PFile_close) {
+    JSR_RAISE(vm, "Exception", "pclose not available on current system.");
 }
 
 #endif
@@ -334,55 +334,55 @@ NATIVE(bl_PFile_close) {
 
 // functions
 
-NATIVE(bl_remove) {
-    if(!blCheckStr(vm, 1, "path")) return false;
-    if(remove(blGetString(vm, 1)) == -1) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+JSR_NATIVE(jsr_remove) {
+    if(!jsrCheckStr(vm, 1, "path")) return false;
+    if(remove(jsrGetString(vm, 1)) == -1) {
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_rename) {
-    if(!blCheckStr(vm, 1, "oldpath") || !blCheckStr(vm, 2, "newpath")) {
+JSR_NATIVE(jsr_rename) {
+    if(!jsrCheckStr(vm, 1, "oldpath") || !jsrCheckStr(vm, 2, "newpath")) {
         return false;
     }
-    if(rename(blGetString(vm, 1), blGetString(vm, 2)) == -1) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+    if(rename(jsrGetString(vm, 1), jsrGetString(vm, 2)) == -1) {
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
 #ifdef USE_POPEN
 
-NATIVE(bl_popen) {
-    if(!blCheckStr(vm, 1, "name") || !blCheckStr(vm, 2, "mode")) {
+JSR_NATIVE(jsr_popen) {
+    if(!jsrCheckStr(vm, 1, "name") || !jsrCheckStr(vm, 2, "mode")) {
         return false;
     }
 
-    const char *pname = blGetString(vm, 1);
-    const char *m = blGetString(vm, 2);
+    const char *pname = jsrGetString(vm, 1);
+    const char *m = jsrGetString(vm, 2);
 
     if(strlen(m) != 1 || (m[0] != 'r' && m[1] != 'w')) {
-        BL_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+        JSR_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
     }
 
     FILE *f;
     if((f = popen(pname, m)) == NULL) {
-        BL_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    blGetGlobal(vm, NULL, "__PFile");
-    blPushHandle(vm, f);
-    if(blCall(vm, 1) != VM_EVAL_SUCCSESS) return false;
+    jsrGetGlobal(vm, NULL, "__PFile");
+    jsrPushHandle(vm, f);
+    if(jsrCall(vm, 1) != VM_EVAL_SUCCESS) return false;
     return true;
 }
 
 #else
 
-NATIVE(bl_popen) {
-    BL_RAISE(vm, "Exception", "popen not available on current system.");
+JSR_NATIVE(jsr_popen) {
+    JSR_RAISE(vm, "Exception", "popen not available on current system.");
 }
 
 #endif

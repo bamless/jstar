@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 
-typedef struct BlangVM BlangVM;
+typedef struct JStarVM JStarVM;
 typedef struct ObjString ObjString;
 
 typedef struct Entry {
@@ -38,7 +38,7 @@ void hashTableImportNames(HashTable *t, HashTable *o);
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
 ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
 
-void reachHashTable(BlangVM *vm, HashTable *t);
+void reachHashTable(JStarVM *vm, HashTable *t);
 
 // Removes all unreached strings in the hashtable
 void removeUnreachedStrings(HashTable *t);

@@ -1,7 +1,7 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
-#include "blconf.h"
+#include "jstarconf.h"
 
 #include <stdlib.h>
 
@@ -12,8 +12,8 @@ typedef struct LinkedList {
 
 #define foreach(node, list) for(LinkedList *node = list; node != NULL; node = node->next)
 
-BLANG_API LinkedList *addElement(LinkedList *lst, void *elem);
-BLANG_API size_t listLength(LinkedList *lst);
-BLANG_API void freeLinkedList(LinkedList *lst);
+JSTAR_API LinkedList *addElement(LinkedList *lst, void *elem);
+JSTAR_API size_t listLength(LinkedList *lst);
+JSTAR_API void freeLinkedList(LinkedList *lst);
 
 #endif

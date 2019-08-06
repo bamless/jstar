@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 
-NATIVE(bl_printStack) {
+JSR_NATIVE(jsr_printStack) {
     for(Value *v = vm->stack; v < vm->sp; v++) {
         printf("[");
         printValue(*v);
@@ -14,14 +14,14 @@ NATIVE(bl_printStack) {
     }
     printf("$\n");
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_dis) {
+JSR_NATIVE(jsr_dis) {
     if(!IS_OBJ(vm->apiStack[1]) || !(IS_CLOSURE(vm->apiStack[1]) || IS_NATIVE(vm->apiStack[1]) ||
                                      IS_BOUND_METHOD(vm->apiStack[1]))) {
-        BL_RAISE(vm, "InvalidArgException", "Argument to dis must be a function object.");
+        JSR_RAISE(vm, "InvalidArgException", "Argument to dis must be a function object.");
     }
 
     Value func = vm->apiStack[1];
@@ -36,6 +36,6 @@ NATIVE(bl_dis) {
         printf("Native implementation\n");
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }

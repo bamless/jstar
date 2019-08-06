@@ -1,27 +1,27 @@
 #include "modules.h"
 #include "object.h"
 
-#include "core.bl.h"
+#include "core.jsr.h"
 #include "core.h"
 
-#include "sys.bl.h"
+#include "sys.jsr.h"
 #include "sys.h"
 
-#include "io.bl.h"
+#include "io.jsr.h"
 #include "io.h"
 
-#include "math.bl.h"
+#include "math.jsr.h"
 #include "math.h"
 
-#include "map.bl.h"
+#include "map.jsr.h"
 #include "map.h"
 
-#include "set.bl.h"
+#include "set.jsr.h"
 
-#include "debug.bl.h"
+#include "debug.jsr.h"
 #include "debug.h"
 
-#include "re.bl.h"
+#include "re.jsr.h"
 #include "re.h"
 
 #include <string.h>
@@ -30,7 +30,7 @@ typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
 typedef struct {
     const char *name;
-    Native func;
+    JStarNative func;
 } Func;
 
 typedef struct {
@@ -58,10 +58,10 @@ typedef struct {
 #define MODULES_END      {NULL, NULL, { ELEMS_END }}
 #define METHODS_END      {NULL, NULL}
 
-#define MODULE(name)     { #name, &name##_bl, {
+#define MODULE(name)     { #name, &name##_jsr, {
 #define ENDMODULE        ELEMS_END } },
 
-#define COREMODULE       {"__core__", &core_bl, {
+#define COREMODULE       {"__core__", &core_jsr, {
 
 #define CLASS(name)      { TYPE_CLASS, .class = { #name, {
 #define METHOD(name, fn) { #name, fn },
@@ -71,136 +71,136 @@ typedef struct {
 
 Module builtInModules[] = {
     COREMODULE
-        FUNCTION(int,        &bl_int)
-        FUNCTION(num,        &bl_num)
-        FUNCTION(isInt,      &bl_isInt)
-        FUNCTION(char,       &bl_char)
-        FUNCTION(ascii,      &bl_ascii)
-        FUNCTION(type,       &bl_type)
-        FUNCTION(print,      &bl_print)
+        FUNCTION(int,        &jsr_int)
+        FUNCTION(num,        &jsr_num)
+        FUNCTION(isInt,      &jsr_isInt)
+        FUNCTION(char,       &jsr_char)
+        FUNCTION(ascii,      &jsr_ascii)
+        FUNCTION(type,       &jsr_type)
+        FUNCTION(print,      &jsr_print)
         CLASS(Number)
-            METHOD(__string__, &bl_Number_string)
-            METHOD(__hash__,   &bl_Number_hash)
+            METHOD(__string__, &jsr_Number_string)
+            METHOD(__hash__,   &jsr_Number_hash)
         ENDCLASS
         CLASS(Boolean)
-            METHOD(__string__, &bl_Boolean_string)
+            METHOD(__string__, &jsr_Boolean_string)
         ENDCLASS
         CLASS(Null)
-            METHOD(__string__, &bl_Null_string)
+            METHOD(__string__, &jsr_Null_string)
         ENDCLASS
         CLASS(Function)
-            METHOD(__string__, &bl_Function_string)
+            METHOD(__string__, &jsr_Function_string)
         ENDCLASS
         CLASS(Module)
-            METHOD(__string__, &bl_Module_string)
+            METHOD(__string__, &jsr_Module_string)
         ENDCLASS
         CLASS(List)
-            METHOD(new,      &bl_List_new)
-            METHOD(add,      &bl_List_add)
-            METHOD(insert,   &bl_List_insert)
-            METHOD(removeAt, &bl_List_removeAt)
-            METHOD(clear,    &bl_List_clear)
-            METHOD(subList,  &bl_List_subList)
-            METHOD(__len__,  &bl_List_len)
-            METHOD(__iter__, &bl_List_iter)
-            METHOD(__next__, &bl_List_next)
+            METHOD(new,      &jsr_List_new)
+            METHOD(add,      &jsr_List_add)
+            METHOD(insert,   &jsr_List_insert)
+            METHOD(removeAt, &jsr_List_removeAt)
+            METHOD(clear,    &jsr_List_clear)
+            METHOD(subList,  &jsr_List_subList)
+            METHOD(__len__,  &jsr_List_len)
+            METHOD(__iter__, &jsr_List_iter)
+            METHOD(__next__, &jsr_List_next)
         ENDCLASS
         CLASS(Tuple)
-            METHOD(new,      &bl_Tuple_new)
-            METHOD(sub,      &bl_Tuple_sub)
-            METHOD(__len__,  &bl_Tuple_len)
-            METHOD(__iter__, &bl_Tuple_iter)
-            METHOD(__next__, &bl_Tuple_next)
+            METHOD(new,      &jsr_Tuple_new)
+            METHOD(sub,      &jsr_Tuple_sub)
+            METHOD(__len__,  &jsr_Tuple_len)
+            METHOD(__iter__, &jsr_Tuple_iter)
+            METHOD(__next__, &jsr_Tuple_next)
         ENDCLASS
         CLASS(String)
-            METHOD(substr,     &bl_substr)
-            METHOD(join,     &bl_String_join)
-            METHOD(__eq__,     &bl_String_eq)
-            METHOD(__len__,    &bl_String_len)
-            METHOD(__hash__,   &bl_String_hash)
-            METHOD(__iter__,   &bl_String_iter)
-            METHOD(__next__,   &bl_String_next)
-            METHOD(__string__, &bl_String_string)
+            METHOD(substr,     &jsr_substr)
+            METHOD(join,     &jsr_String_join)
+            METHOD(__eq__,     &jsr_String_eq)
+            METHOD(__len__,    &jsr_String_len)
+            METHOD(__hash__,   &jsr_String_hash)
+            METHOD(__iter__,   &jsr_String_iter)
+            METHOD(__next__,   &jsr_String_next)
+            METHOD(__string__, &jsr_String_string)
         ENDCLASS
-        FUNCTION(eval, &bl_eval)
+        FUNCTION(eval, &jsr_eval)
     ENDMODULE
     MODULE(sys)
-        FUNCTION(time,           &bl_time)
-        FUNCTION(exec,           &bl_exec)
-        FUNCTION(exit,           &bl_exit)
-        FUNCTION(getImportPaths, &bl_getImportPaths)
-        FUNCTION(platform,       &bl_platform)
-        FUNCTION(clock,          &bl_clock)
-        FUNCTION(gc,             &bl_gc)
-        FUNCTION(gets,           &bl_gets)
-        FUNCTION(init,           &bl_sys_init)
+        FUNCTION(time,           &jsr_time)
+        FUNCTION(exec,           &jsr_exec)
+        FUNCTION(exit,           &jsr_exit)
+        FUNCTION(getImportPaths, &jsr_getImportPaths)
+        FUNCTION(platform,       &jsr_platform)
+        FUNCTION(clock,          &jsr_clock)
+        FUNCTION(gc,             &jsr_gc)
+        FUNCTION(gets,           &jsr_gets)
+        FUNCTION(init,           &jsr_sys_init)
     ENDMODULE
     MODULE(io)
         CLASS(File)
-            METHOD(new,      &bl_File_new)
-            METHOD(read,     &bl_File_read)
-            METHOD(readAll,  &bl_File_readAll)
-            METHOD(readLine, &bl_File_readLine)
-            METHOD(write,    &bl_File_write)
-            METHOD(close,    &bl_File_close)
-            METHOD(seek,     &bl_File_seek)
-            METHOD(tell,     &bl_File_tell)
-            METHOD(rewind,   &bl_File_rewind)
-            METHOD(flush,    &bl_File_flush)
+            METHOD(new,      &jsr_File_new)
+            METHOD(read,     &jsr_File_read)
+            METHOD(readAll,  &jsr_File_readAll)
+            METHOD(readLine, &jsr_File_readLine)
+            METHOD(write,    &jsr_File_write)
+            METHOD(close,    &jsr_File_close)
+            METHOD(seek,     &jsr_File_seek)
+            METHOD(tell,     &jsr_File_tell)
+            METHOD(rewind,   &jsr_File_rewind)
+            METHOD(flush,    &jsr_File_flush)
         ENDCLASS
         CLASS(__PFile)
-            METHOD(close,    &bl_PFile_close)
+            METHOD(close,    &jsr_PFile_close)
         ENDCLASS
-        FUNCTION(popen,  &bl_popen)
-        FUNCTION(remove, &bl_remove)
-        FUNCTION(rename, &bl_rename)
+        FUNCTION(popen,  &jsr_popen)
+        FUNCTION(remove, &jsr_remove)
+        FUNCTION(rename, &jsr_rename)
     ENDMODULE
     MODULE(math)
-        FUNCTION(abs,    &bl_abs)
-        FUNCTION(acos,   &bl_acos)
-        FUNCTION(asin,   &bl_asin)
-        FUNCTION(atan,   &bl_atan)
-        FUNCTION(atan2,  &bl_atan2)
-        FUNCTION(ceil,   &bl_ceil)
-        FUNCTION(cos,    &bl_cos)
-        FUNCTION(cosh,   &bl_cosh)
-        FUNCTION(deg,    &bl_deg)
-        FUNCTION(exp,    &bl_exp)
-        FUNCTION(floor,  &bl_floor)
-        FUNCTION(frexp,  &bl_frexp)
-        FUNCTION(ldexp,  &bl_ldexp)
-        FUNCTION(log,    &bl_log)
-        FUNCTION(log10,  &bl_log10)
-        FUNCTION(max,    &bl_max)
-        FUNCTION(min,    &bl_min)
-        FUNCTION(rad,    &bl_rad)
-        FUNCTION(sin,    &bl_sin)
-        FUNCTION(sinh,   &bl_sinh)
-        FUNCTION(sqrt,   &bl_sqrt)
-        FUNCTION(tan,    &bl_tan)
-        FUNCTION(tanh,   &bl_tanh)
-        FUNCTION(modf,   &bl_modf)
-        FUNCTION(random, &bl_random)
-        FUNCTION(seed,   &bl_seed)
-        FUNCTION(init,   &bl_math_init)
+        FUNCTION(abs,    &jsr_abs)
+        FUNCTION(acos,   &jsr_acos)
+        FUNCTION(asin,   &jsr_asin)
+        FUNCTION(atan,   &jsr_atan)
+        FUNCTION(atan2,  &jsr_atan2)
+        FUNCTION(ceil,   &jsr_ceil)
+        FUNCTION(cos,    &jsr_cos)
+        FUNCTION(cosh,   &jsr_cosh)
+        FUNCTION(deg,    &jsr_deg)
+        FUNCTION(exp,    &jsr_exp)
+        FUNCTION(floor,  &jsr_floor)
+        FUNCTION(frexp,  &jsr_frexp)
+        FUNCTION(ldexp,  &jsr_ldexp)
+        FUNCTION(log,    &jsr_log)
+        FUNCTION(log10,  &jsr_log10)
+        FUNCTION(max,    &jsr_max)
+        FUNCTION(min,    &jsr_min)
+        FUNCTION(rad,    &jsr_rad)
+        FUNCTION(sin,    &jsr_sin)
+        FUNCTION(sinh,   &jsr_sinh)
+        FUNCTION(sqrt,   &jsr_sqrt)
+        FUNCTION(tan,    &jsr_tan)
+        FUNCTION(tanh,   &jsr_tanh)
+        FUNCTION(modf,   &jsr_modf)
+        FUNCTION(random, &jsr_random)
+        FUNCTION(seed,   &jsr_seed)
+        FUNCTION(init,   &jsr_math_init)
     ENDMODULE
     MODULE(re)
-        FUNCTION(match,  &bl_re_match)
-        FUNCTION(find,   &bl_re_find)
-        FUNCTION(gmatch, &bl_re_gmatch)
-        FUNCTION(gsub,   &bl_re_gsub)
+        FUNCTION(match,  &jsr_re_match)
+        FUNCTION(find,   &jsr_re_find)
+        FUNCTION(gmatch, &jsr_re_gmatch)
+        FUNCTION(gsub,   &jsr_re_gsub)
     ENDMODULE
     MODULE(map)
         CLASS(Map)
-            METHOD(__getEntry, &bl_Map_getEntry)
-            METHOD(__addEntry, &bl_Map_addEntry)
-            METHOD(__grow,     &bl_Map_grow)
+            METHOD(__getEntry, &jsr_Map_getEntry)
+            METHOD(__addEntry, &jsr_Map_addEntry)
+            METHOD(__grow,     &jsr_Map_grow)
         ENDCLASS
     ENDMODULE
     MODULE(set) ENDMODULE
     MODULE(debug)
-        FUNCTION(printStack, &bl_printStack)
-        FUNCTION(dis,        &bl_dis)
+        FUNCTION(printStack, &jsr_printStack)
+        FUNCTION(dis,        &jsr_dis)
     ENDMODULE
     MODULES_END
 };
@@ -229,7 +229,7 @@ static Class *getClass(Module *module, const char *name) {
     }
 }
 
-static Native getNativeMethod(Class *cls, const char *name) {
+static JStarNative getNativeMethod(Class *cls, const char *name) {
     for(int i = 0; cls->methods[i].name != NULL; i++) {
         if(strcmp(cls->methods[i].name, name) == 0) {
             return cls->methods[i].func;
@@ -238,7 +238,7 @@ static Native getNativeMethod(Class *cls, const char *name) {
     return NULL;
 }
 
-static Native getNativeFunc(Module *module, const char *name) {
+static JStarNative getNativeFunc(Module *module, const char *name) {
     for(int i = 0;; i++) {
         if(module->elems[i].type == TYPE_FUNC) {
             if(module->elems[i].function.name == NULL) return NULL;
@@ -250,7 +250,7 @@ static Native getNativeFunc(Module *module, const char *name) {
     }
 }
 
-Native resolveBuiltIn(const char *module, const char *cls, const char *name) {
+JStarNative resolveBuiltIn(const char *module, const char *cls, const char *name) {
     Module *m = getModule(module);
     if(m == NULL) return NULL;
 

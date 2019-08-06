@@ -15,7 +15,7 @@
 typedef struct {
     const char *str;
     int capturec;
-    BlangVM *vm;
+    JStarVM *vm;
     bool err;
     struct {
         const char *start;
@@ -99,7 +99,7 @@ static int captureToClose(RegexState *rs) {
         if(rs->captures[i].len == CAPTURE_UNFINISHED) return i;
     }
     rs->err = true;
-    blRaise(rs->vm, "RegexException", "Invalid regex capture.");
+    jsrRaise(rs->vm, "RegexException", "Invalid regex capture.");
     return -1;
 }
 
@@ -108,7 +108,7 @@ static const char *match(RegexState *rs, const char *s, const char *r);
 static const char *startCapture(RegexState *rs, const char *s, const char *r) {
     if(rs->capturec >= MAX_CAPTURES) {
         rs->err = true;
-        blRaise(rs->vm, "RegexException", "Max capture number exceeded (%d).", MAX_CAPTURES);
+        jsrRaise(rs->vm, "RegexException", "Max capture number exceeded (%d).", MAX_CAPTURES);
         return NULL;
     }
 
@@ -166,7 +166,7 @@ static const char *endClass(RegexState *rs, const char *r) {
     case ESCAPE:
         if(*r == '\0') {
             rs->err = true;
-            blRaise(rs->vm, "RegexException", "Malformed regex (ends with `%c`).", ESCAPE);
+            jsrRaise(rs->vm, "RegexException", "Malformed regex (ends with `%c`).", ESCAPE);
             return NULL;
         }
         return r + 1;
@@ -174,7 +174,7 @@ static const char *endClass(RegexState *rs, const char *r) {
         do {
             if(*r == '\0') {
                 rs->err = true;
-                blRaise(rs->vm, "RegexException", "Malformed regex (unmatched `[`).");
+                jsrRaise(rs->vm, "RegexException", "Malformed regex (unmatched `[`).");
                 return NULL;
             }
             if(*r++ == ESCAPE && *r != '\0') r++; // Skip escape
@@ -227,7 +227,7 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
     return NULL;
 }
 
-static bool matchRegex(BlangVM *vm, RegexState *rs, const char *s, size_t len, const char *r,
+static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, const char *r,
                        int off) {
     rs->vm = vm;
     rs->str = s;
@@ -267,40 +267,40 @@ static bool matchRegex(BlangVM *vm, RegexState *rs, const char *s, size_t len, c
 #define FIND_MATCH 1
 #define FIND_NOMATCH 2
 
-static int find_aux(BlangVM *vm, RegexState *rs) {
-    if(!blCheckStr(vm, 1, "str") || !blCheckStr(vm, 2, "regex") || !blCheckInt(vm, 3, "off")) {
+static int find_aux(JStarVM *vm, RegexState *rs) {
+    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || !jsrCheckInt(vm, 3, "off")) {
         return FIND_ERR;
     }
 
-    const char *str = blGetString(vm, 1);
-    size_t len = blGetStringSz(vm, 1);
-    const char *regex = blGetString(vm, 2);
-    double off = blGetNumber(vm, 3);
+    const char *str = jsrGetString(vm, 1);
+    size_t len = jsrGetStringSz(vm, 1);
+    const char *regex = jsrGetString(vm, 2);
+    double off = jsrGetNumber(vm, 3);
 
     if(!matchRegex(vm, rs, str, len, regex, off)) {
         if(rs->err) return FIND_ERR;
-        blPushNull(vm);
+        jsrPushNull(vm);
         return FIND_NOMATCH;
     }
 
     return FIND_MATCH;
 }
 
-static bool pushCapture(BlangVM *vm, RegexState *rs, int n) {
+static bool pushCapture(JStarVM *vm, RegexState *rs, int n) {
     if(n < 0 || n >= rs->capturec) 
-        BL_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
+        JSR_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
     if(rs->captures[n].len == CAPTURE_UNFINISHED)
-        BL_RAISE(vm, "RegexException", "Unfinished capture.");
+        JSR_RAISE(vm, "RegexException", "Unfinished capture.");
 
     if(rs->captures[n].len == CAPTURE_POSITION)
-        blPushNumber(vm, rs->captures[n].start - rs->str);
+        jsrPushNumber(vm, rs->captures[n].start - rs->str);
     else
-        blPushStringSz(vm, rs->captures[n].start, rs->captures[n].len);
+        jsrPushStringSz(vm, rs->captures[n].start, rs->captures[n].len);
 
     return true;
 }
 
-NATIVE(bl_re_match) {
+JSR_NATIVE(jsr_re_match) {
     RegexState rs;
     int res = find_aux(vm, &rs);
 
@@ -322,7 +322,7 @@ NATIVE(bl_re_match) {
     return true;
 }
 
-NATIVE(bl_re_find) {
+JSR_NATIVE(jsr_re_find) {
     RegexState rs;
     int res = find_aux(vm, &rs);
 
@@ -346,15 +346,15 @@ NATIVE(bl_re_find) {
     return true;
 }
 
-NATIVE(bl_re_gmatch) {
-    if(!blCheckStr(vm, 1, "str") || !blCheckStr(vm, 2, "regex"))
+JSR_NATIVE(jsr_re_gmatch) {
+    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex"))
         return false;
 
-    const char *regex = blGetString(vm, 2);
-    const char *str = blGetString(vm, 1);
-    size_t len = blGetStringSz(vm, 1);
+    const char *regex = jsrGetString(vm, 2);
+    const char *str = jsrGetString(vm, 1);
+    size_t len = jsrGetStringSz(vm, 1);
 
-    blPushList(vm);
+    jsrPushList(vm);
 
     size_t off = 0;
     const char *lastmatch = NULL;
@@ -373,8 +373,8 @@ NATIVE(bl_re_gmatch) {
 
         if(rs.capturec <= 2) {
             if(!pushCapture(vm, &rs, rs.capturec - 1)) return false;
-            blListAppend(vm, -2);
-            blPop(vm);
+            jsrListAppend(vm, -2);
+            jsrPop(vm);
         } else {
             ObjTuple *tup = newTuple(vm, rs.capturec - 1);
             push(vm, OBJ_VAL(tup));
@@ -384,8 +384,8 @@ NATIVE(bl_re_gmatch) {
                 tup->arr[i - 1] = pop(vm);
             }
 
-            blListAppend(vm, -2);
-            blPop(vm);
+            jsrListAppend(vm, -2);
+            jsrPop(vm);
         }
 
         // increment by the number of chars since last match
@@ -403,14 +403,14 @@ NATIVE(bl_re_gmatch) {
     return true;
 }
 
-static bool substitute(BlangVM *vm, RegexState *rs, BlBuffer *b, const char *s, const char *sub) {
+static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *s, const char *sub) {
     for(; *sub != '\0'; sub++) {
         switch(*sub) {
         case ESCAPE:
             sub++;
 
             if(*sub == '\0') {
-                BL_RAISE(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
+                JSR_RAISE(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
             }
 
             int len = 0;
@@ -421,33 +421,33 @@ static bool substitute(BlangVM *vm, RegexState *rs, BlBuffer *b, const char *s, 
 
             int capture = strtol(sub, NULL, 10);
             if(!pushCapture(vm, rs, capture)) return false;
-            blBufferAppend(b, blGetString(vm, -1), blGetStringSz(vm, -1));
-            blPop(vm);
+            jsrBufferAppend(b, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+            jsrPop(vm);
             break;
         default:
         def:
-            blBufferAppendChar(b, *sub);
+            jsrBufferAppendChar(b, *sub);
             break;
         }
     }
     return true;
 }
 
-NATIVE(bl_re_gsub) {
-    if(!blCheckStr(vm, 1, "str") || !blCheckStr(vm, 2, "regex") || 
-       !blCheckStr(vm, 3, "sub") || !blCheckInt(vm, 4, "num"))
+JSR_NATIVE(jsr_re_gsub) {
+    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || 
+       !jsrCheckStr(vm, 3, "sub") || !jsrCheckInt(vm, 4, "num"))
     {
         return false;
     }
 
-    const char *str = blGetString(vm, 1);
-    size_t len = blGetStringSz(vm, 1);
-    const char *regex = blGetString(vm, 2);
-    const char *sub = blGetString(vm, 3);
-    int num = blGetNumber(vm, 4);
+    const char *str = jsrGetString(vm, 1);
+    size_t len = jsrGetStringSz(vm, 1);
+    const char *regex = jsrGetString(vm, 2);
+    const char *sub = jsrGetString(vm, 3);
+    int num = jsrGetNumber(vm, 4);
 
-    BlBuffer b;
-    blBufferInit(vm, &b);
+    JStarBuffer b;
+    jsrBufferInit(vm, &b);
 
     int numsub = 0;
     size_t off = 0;
@@ -459,7 +459,7 @@ NATIVE(bl_re_gsub) {
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, off)) {
             if(rs.err) {
-                blBufferFree(&b);
+                jsrBufferFree(&b);
                 return false;
             }
             break;
@@ -474,14 +474,14 @@ NATIVE(bl_re_gsub) {
         int offSinceLast;
         if(lastmatch != NULL) {
             offSinceLast = rs.captures[0].start - lastmatch;
-            blBufferAppend(&b, lastmatch, offSinceLast);
+            jsrBufferAppend(&b, lastmatch, offSinceLast);
         } else {
             offSinceLast = rs.captures[0].start - str;
-            blBufferAppend(&b, str, offSinceLast);
+            jsrBufferAppend(&b, str, offSinceLast);
         }
 
         if(!substitute(vm, &rs, &b, str, sub)) {
-            blBufferFree(&b);
+            jsrBufferFree(&b);
             return false;
         }
 
@@ -494,11 +494,11 @@ NATIVE(bl_re_gsub) {
     }
 
     if(lastmatch != NULL) {
-        blBufferAppend(&b, lastmatch, str + len - lastmatch);
-        blBufferPush(&b);
+        jsrBufferAppend(&b, lastmatch, str + len - lastmatch);
+        jsrBufferPush(&b);
     } else {
-        blBufferFree(&b);
-        blPushValue(vm, 1);
+        jsrBufferFree(&b);
+        jsrPushValue(vm, 1);
     }
     return true;
 }

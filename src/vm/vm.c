@@ -1,12 +1,12 @@
-#include "blang.h"
+#include "jstar.h"
 #include "core.h"
 #include "disassemble.h"
 #include "import.h"
 #include "memory.h"
 #include "opcode.h"
 
-#include "blparse/ast.h"
-#include "blparse/parser.h"
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
 
 #include "builtin/modules.h"
 #include "builtin/sys.h"
@@ -18,32 +18,32 @@
 #include <stdio.h>
 #include <string.h>
 
-#define BLANGPATH "BLANGPATH"
+#define JSTARPATH "JSTARPATH"
 
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly
 // handle the execution of except/ensure handlers
 typedef enum UnwindCause { CAUSE_EXCEPT, CAUSE_RETURN } UnwindCause;
 
-static bool unwindStack(BlangVM *vm, int depth);
+static bool unwindStack(JStarVM *vm, int depth);
 
-static void reset(BlangVM *vm) {
+static void reset(JStarVM *vm) {
     vm->sp = vm->stack;
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
     vm->module = NULL;
 }
 
-static void initImportPaths(BlangVM *vm) {
-    const char *blangPath = getenv(BLANGPATH);
-    if(blangPath == NULL) return;
+static void initImportPaths(JStarVM *vm) {
+    const char *jstarPath = getenv(JSTARPATH);
+    if(jstarPath == NULL) return;
 
     size_t last = 0;
-    size_t pathLen = strlen(blangPath);
+    size_t pathLen = strlen(jstarPath);
     ObjList *importPaths = vm->importpaths;
     for(size_t i = 0; i < pathLen; i++) {
-        if(blangPath[i] == ':') {
-            ObjString *p = copyString(vm, blangPath + last, i - last, true);
+        if(jstarPath[i] == ':') {
+            ObjString *p = copyString(vm, jstarPath + last, i - last, true);
             push(vm, OBJ_VAL(p));
             listAppend(vm, importPaths, OBJ_VAL(p));
             pop(vm);
@@ -52,14 +52,14 @@ static void initImportPaths(BlangVM *vm) {
         }
     }
 
-    ObjString *p = copyString(vm, blangPath + last, pathLen - last, true);
+    ObjString *p = copyString(vm, jstarPath + last, pathLen - last, true);
     push(vm, OBJ_VAL(p));
     listAppend(vm, importPaths, OBJ_VAL(p));
     pop(vm);
 }
 
-BlangVM *blNewVM() {
-    BlangVM *vm = calloc(1, sizeof(*vm));
+JStarVM *jsrNewVM() {
+    JStarVM *vm = calloc(1, sizeof(*vm));
 
     vm->stackSz = STACK_SZ;
     vm->stack = malloc(sizeof(Value) * STACK_SZ);
@@ -105,7 +105,7 @@ BlangVM *blNewVM() {
     initCoreLibrary(vm);
 
     // Init the __main__ module
-    ObjString *mainMod = copyString(vm, BL_MAIN_MODULE, strlen(BL_MAIN_MODULE), true);
+    ObjString *mainMod = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
     push(vm, OBJ_VAL(mainMod));
     setModule(vm, mainMod, newModule(vm, mainMod));
     pop(vm);
@@ -119,7 +119,7 @@ BlangVM *blNewVM() {
     return vm;
 }
 
-void blFreeVM(BlangVM *vm) {
+void jsrFreeVM(JStarVM *vm) {
     reset(vm);
 
     free(vm->stack);
@@ -136,7 +136,7 @@ void blFreeVM(BlangVM *vm) {
     free(vm);
 }
 
-static Frame *getFrame(BlangVM *vm, Callable *c) {
+static Frame *getFrame(JStarVM *vm, Callable *c) {
     if(vm->frameCount + 1 == vm->frameSz) {
         vm->frameSz *= 2;
         vm->frames = realloc(vm->frames, sizeof(Frame) * vm->frameSz);
@@ -150,21 +150,21 @@ static Frame *getFrame(BlangVM *vm, Callable *c) {
     return callFrame;
 }
 
-static void appendCallFrame(BlangVM *vm, ObjClosure *closure) {
+static void appendCallFrame(JStarVM *vm, ObjClosure *closure) {
     Frame *callFrame = getFrame(vm, &closure->fn->c);
     callFrame->fn.type = OBJ_CLOSURE;
     callFrame->fn.closure = closure;
     callFrame->ip = closure->fn->chunk.code;
 }
 
-static void appendNativeFrame(BlangVM *vm, ObjNative *native) {
+static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
     Frame *callFrame = getFrame(vm, &native->c);
     callFrame->fn.type = OBJ_NATIVE;
     callFrame->fn.native = native;
     callFrame->ip = NULL;
 }
 
-void ensureStack(BlangVM *vm, size_t needed) {
+void jsrEnsureStack(JStarVM *vm, size_t needed) {
     if(vm->sp + needed < vm->stack + vm->stackSz) return;
 
     Value *oldStack = vm->stack;
@@ -196,17 +196,17 @@ void ensureStack(BlangVM *vm, size_t needed) {
     }
 }
 
-static bool isNonInstantiableBuiltin(BlangVM *vm, ObjClass *cls) {
+static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
     return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
            cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
            cls == vm->stClass || cls == vm->clsClass;
 }
 
-static bool isInstatiableBuiltin(BlangVM *vm, ObjClass *cls) {
+static bool isInstatiableBuiltin(JStarVM *vm, ObjClass *cls) {
     return cls == vm->lstClass || cls == vm->tupClass;
 }
 
-static bool isBuiltinClass(BlangVM *vm, ObjClass *cls) {
+static bool isBuiltinClass(JStarVM *vm, ObjClass *cls) {
     return isNonInstantiableBuiltin(vm, cls) || isInstatiableBuiltin(vm, cls);
 }
 
@@ -214,13 +214,13 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static void createClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
+static void createClass(JStarVM *vm, ObjString *name, ObjClass *superCls) {
     ObjClass *cls = newClass(vm, name, superCls);
     hashTableMerge(&cls->methods, &superCls->methods);
     push(vm, OBJ_VAL(cls));
 }
 
-static ObjUpvalue *captureUpvalue(BlangVM *vm, Value *addr) {
+static ObjUpvalue *captureUpvalue(JStarVM *vm, Value *addr) {
     if(vm->upvalues == NULL) {
         vm->upvalues = newUpvalue(vm, addr);
         return vm->upvalues;
@@ -246,7 +246,7 @@ static ObjUpvalue *captureUpvalue(BlangVM *vm, Value *addr) {
     return createdUpvalue;
 }
 
-static void closeUpvalues(BlangVM *vm, Value *last) {
+static void closeUpvalues(JStarVM *vm, Value *last) {
     while(vm->upvalues != NULL && vm->upvalues->addr >= last) {
         ObjUpvalue *upvalue = vm->upvalues;
 
@@ -257,7 +257,7 @@ static void closeUpvalues(BlangVM *vm, Value *last) {
     }
 }
 
-static void packVarargs(BlangVM *vm, uint8_t count) {
+static void packVarargs(JStarVM *vm, uint8_t count) {
     ObjTuple *args = newTuple(vm, count);
     for(int i = count - 1; i >= 0; i--) {
         args->arr[i] = pop(vm);
@@ -265,7 +265,7 @@ static void packVarargs(BlangVM *vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
+static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
     if(c->defaultc != 0) {
         uint8_t most = c->argsCount;
         uint8_t least = most - c->defaultc;
@@ -274,7 +274,7 @@ static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
             const char *mname = c->module->name->data;
             const char *name = c->name->data;
 
-            blRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, %d supplied.",
+            jsrRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, %d supplied.",
                     mname, name, argc > most ? "most" : "least", argc > most ? most : least, argc);
             return false;
         }
@@ -290,7 +290,7 @@ static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
             const char *mname = c->module->name->data;
             const char *name = c->name->data;
 
-            blRaise(vm, "TypeException", "Function `%s.%s` takes at least %d args, %d supplied.",
+            jsrRaise(vm, "TypeException", "Function `%s.%s` takes at least %d args, %d supplied.",
                     mname, name, c->argsCount, argc);
             return false;
         }
@@ -299,7 +299,7 @@ static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
         const char *mname = c->module->name->data;
         const char *name = c->name->data;
 
-        blRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, %d supplied.", mname,
+        jsrRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, %d supplied.", mname,
                 name, c->argsCount, argc);
         return false;
     }
@@ -307,9 +307,9 @@ static bool adjustArguments(BlangVM *vm, Callable *c, uint8_t argc) {
     return true;
 }
 
-static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
+static bool callFunction(JStarVM *vm, ObjClosure *closure, uint8_t argc) {
     if(vm->frameCount + 1 == RECURSION_LIMIT) {
-        blRaise(vm, "StackOverflowException", NULL);
+        jsrRaise(vm, "StackOverflowException", NULL);
         return false;
     }
 
@@ -320,7 +320,7 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
     // TODO: modify compiler to track actual usage of stack so
     // we can allocate the right amount of memory rather than a
     // worst case bound
-    ensureStack(vm, UINT8_MAX);
+    jsrEnsureStack(vm, UINT8_MAX);
     appendCallFrame(vm, closure);
 
     vm->module = closure->fn->c.module;
@@ -328,9 +328,9 @@ static bool callFunction(BlangVM *vm, ObjClosure *closure, uint8_t argc) {
     return true;
 }
 
-static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
+static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     if(vm->frameCount + 1 == RECURSION_LIMIT) {
-        blRaise(vm, "StackOverflowException", NULL);
+        jsrRaise(vm, "StackOverflowException", NULL);
         return false;
     }
 
@@ -338,7 +338,7 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
         return false;
     }
 
-    ensureStack(vm, MIN_NATIVE_STACK_SZ);
+    jsrEnsureStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
     appendNativeFrame(vm, native);
 
     ObjModule *oldModule = vm->module;
@@ -361,7 +361,7 @@ static bool callNative(BlangVM *vm, ObjNative *native, uint8_t argc) {
     return true;
 }
 
-static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
+static bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
         case OBJ_CLOSURE:
@@ -378,7 +378,7 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
             ObjClass *cls = AS_CLASS(callee);
 
             if(isNonInstantiableBuiltin(vm, cls)) {
-                blRaise(vm, "Exception", "class %s can't be directly instatiated", cls->name->data);
+                jsrRaise(vm, "Exception", "class %s can't be directly instatiated", cls->name->data);
                 return false;
             }
 
@@ -389,7 +389,7 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
             if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
                 return callValue(vm, ctor, argc);
             } else if(argc != 0) {
-                blRaise(vm, "TypeException",
+                jsrRaise(vm, "TypeException",
                         "Function %s.new() Expected 0 args, but instead `%d` supplied.",
                         cls->name->data, argc);
                 return false;
@@ -403,14 +403,14 @@ static bool callValue(BlangVM *vm, Value callee, uint8_t argc) {
     }
 
     ObjClass *cls = getClass(vm, callee);
-    blRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
+    jsrRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
     return false;
 }
 
-static bool invokeMethod(BlangVM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
+static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
     Value method;
     if(!hashTableGet(&cls->methods, name, &method)) {
-        blRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+        jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
                 name->data);
         return false;
     }
@@ -418,7 +418,7 @@ static bool invokeMethod(BlangVM *vm, ObjClass *cls, ObjString *name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
-static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
+static bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -443,7 +443,7 @@ static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
             }
 
             if(!hashTableGet(&mod->globals, name, &func)) {
-                blRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
+                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
                         mod->name->data);
                 return false;
             }
@@ -462,7 +462,7 @@ static bool invokeFromValue(BlangVM *vm, ObjString *name, uint8_t argc) {
     return invokeMethod(vm, cls, name, argc);
 }
 
-static bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
+static bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
@@ -472,7 +472,7 @@ static bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
             if(!hashTableGet(&inst->fields, name, &v)) {
                 // if we didnt find a field try to return bound method
                 if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
-                    blRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
+                    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
                             inst->base.cls->name->data, name->data);
                     return false;
                 }
@@ -491,7 +491,7 @@ static bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
             if(!hashTableGet(&mod->globals, name, &v)) {
                 // if we didnt find a global name try to return bound method
                 if(!hashTableGet(&mod->base.cls->methods, name, &v)) {
-                    blRaise(vm, "NameException", "Name `%s` is not defined in module %s",
+                    jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
                             name->data, mod->name->data);
                     return false;
                 }
@@ -512,7 +512,7 @@ static bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
     ObjClass *cls = getClass(vm, val);
 
     if(!hashTableGet(&cls->methods, name, &v)) {
-        blRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
+        jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
                 name->data);
         return false;
     }
@@ -521,7 +521,7 @@ static bool getFieldFromValue(BlangVM *vm, Value val, ObjString *name) {
     return true;
 }
 
-static bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
+static bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
@@ -540,17 +540,17 @@ static bool setFieldOfValue(BlangVM *vm, Value val, ObjString *name, Value s) {
     }
 
     ObjClass *cls = getClass(vm, val);
-    blRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
+    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
             name->data);
     return false;
 }
 
-static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
+static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
     if(IS_OBJ(operand)) {
         switch(OBJ_TYPE(operand)) {
         case OBJ_LIST: {
             if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-                blRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
+                jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
                 return false;
             }
 
@@ -558,7 +558,7 @@ static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
             double index = AS_NUM(arg);
 
             if(index < 0 || index >= list->count) {
-                blRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
+                jsrRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
                 return false;
             }
             push(vm, list->arr[(size_t)index]);
@@ -566,7 +566,7 @@ static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
         }
         case OBJ_TUPLE: {
            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-                blRaise(vm, "TypeException", "Index of Tuple subscript access must be an integer.");
+                jsrRaise(vm, "TypeException", "Index of Tuple subscript access must be an integer.");
                 return false;
             }
 
@@ -574,7 +574,7 @@ static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
             double index = AS_NUM(arg);
 
             if(index < 0 || index >= tuple->size) {
-                blRaise(vm, "IndexOutOfBoundException", "Tuple index out of bound: %g.", index);
+                jsrRaise(vm, "IndexOutOfBoundException", "Tuple index out of bound: %g.", index);
                 return false;
             }
             push(vm, tuple->arr[(size_t)index]);
@@ -582,7 +582,7 @@ static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
         }
         case OBJ_STRING: {
             if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
-                blRaise(vm, "TypeException", "Index of String subscript access must be an integer.");
+                jsrRaise(vm, "TypeException", "Index of String subscript access must be an integer.");
                 return false;
             }
 
@@ -590,7 +590,7 @@ static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
             double index = AS_NUM(arg);
 
             if(index < 0 || index >= str->length) {
-                blRaise(vm, "IndexOutOfBoundException", "String index out of bound: %lu.", index);
+                jsrRaise(vm, "IndexOutOfBoundException", "String index out of bound: %lu.", index);
                 return false;
             }
             char character = str->data[(size_t)index];
@@ -610,10 +610,10 @@ static bool getSubscriptOfValue(BlangVM *vm, Value operand, Value arg) {
     return true;
 }
 
-static bool setSubscriptOfValue(BlangVM *vm, Value operand, Value arg, Value s) {
+static bool setSubscriptOfValue(JStarVM *vm, Value operand, Value arg, Value s) {
     if(IS_LIST(operand)) {
         if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-            blRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
+            jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
             return false;
         }
 
@@ -621,7 +621,7 @@ static bool setSubscriptOfValue(BlangVM *vm, Value operand, Value arg, Value s) 
         double index = AS_NUM(arg);
 
         if(index < 0 || index >= list->count) {
-            blRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
+            jsrRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
             return false;
         }
 
@@ -645,7 +645,7 @@ static bool isValTrue(Value val) {
     return !IS_NULL(val);
 }
 
-static ObjString *stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
+static ObjString *stringConcatenate(JStarVM *vm, ObjString *s1, ObjString *s2) {
     size_t length = s1->length + s2->length;
     ObjString *str = allocateString(vm, length);
     memcpy(str->data, s1->data, s1->length);
@@ -653,7 +653,7 @@ static ObjString *stringConcatenate(BlangVM *vm, ObjString *s1, ObjString *s2) {
     return str;
 }
 
-static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse) {
+static bool callBinaryOverload(JStarVM *vm, ObjString *name, ObjString *reverse) {
     Value op;
     ObjClass *cls = getClass(vm, peek2(vm));
     if(hashTableGet(&cls->methods, name, &op)) {
@@ -674,8 +674,8 @@ static bool callBinaryOverload(BlangVM *vm, ObjString *name, ObjString *reverse)
     return false;
 }
 
-static Native resolveNative(ObjModule *m, const char *cls, const char *name) {
-    BlNativeReg *reg = m->natives.registry;
+static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name) {
+    JStarNativeReg *reg = m->natives.registry;
     for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
         if(reg[i].type == REG_METHOD && cls != NULL) {
             const char *clsName = reg[i].as.method.cls;
@@ -693,7 +693,7 @@ static Native resolveNative(ObjModule *m, const char *cls, const char *name) {
     return NULL;
 }
 
-static bool runEval(BlangVM *vm, int depth) {
+static bool runEval(JStarVM *vm, int depth) {
     register Frame *frame;
     register Value *frameStack;
     register ObjClosure *closure;
@@ -733,7 +733,7 @@ static bool runEval(BlangVM *vm, int depth) {
             LOAD_FRAME();                                  \
             ObjString *t1 = getClass(vm, peek(vm))->name;  \
             ObjString *t2 = getClass(vm, peek2(vm))->name; \
-            blRaise(vm, "TypeException",                   \
+            jsrRaise(vm, "TypeException",                   \
                     "Operator %s not defined "             \
                     "for types %s, %s",                    \
                     #op, t1->data, t2->data);              \
@@ -851,7 +851,7 @@ static bool runEval(BlangVM *vm, int depth) {
             double b = AS_NUM(pop(vm));
             double a = AS_NUM(pop(vm));
             if(b == 0) {
-                blRaise(vm, "DivisionByZeroException", "/ by zero.");
+                jsrRaise(vm, "DivisionByZeroException", "/ by zero.");
                 UNWIND_STACK(vm);
             }
             push(vm, NUM_VAL(a / b));
@@ -865,7 +865,7 @@ static bool runEval(BlangVM *vm, int depth) {
             double b = AS_NUM(pop(vm));
             double a = AS_NUM(pop(vm));
             if(b == 0) {
-                blRaise(vm, "DivisionByZeroException", "%% by zero.");
+                jsrRaise(vm, "DivisionByZeroException", "%% by zero.");
                 UNWIND_STACK(vm);
             }
             push(vm, NUM_VAL(fmod(a, b)));
@@ -912,7 +912,7 @@ static bool runEval(BlangVM *vm, int depth) {
         DISPATCH();
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
-            blRaise(vm, "TypeException", "Right operand of `is` must be a class.");
+            jsrRaise(vm, "TypeException", "Right operand of `is` must be a class.");
             UNWIND_STACK(vm);
         }
         Value b = pop(vm);
@@ -922,7 +922,7 @@ static bool runEval(BlangVM *vm, int depth) {
     }
     TARGET(OP_POW): {
         if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-            blRaise(vm, "TypeException", "Operands of `^` must be numbers");
+            jsrRaise(vm, "TypeException", "Operands of `^` must be numbers");
             UNWIND_STACK(vm);
         }
         double y = AS_NUM(pop(vm));
@@ -1090,7 +1090,7 @@ sup_invoke:;
     TARGET(OP_IMPORT_FROM): {
         ObjString *name = GET_STRING();
         if(!importModule(vm, name)) {
-            blRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
+            jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
             UNWIND_STACK(vm);
         }
 
@@ -1119,7 +1119,7 @@ sup_invoke:;
         } else {
             Value val;
             if(!hashTableGet(&m->globals, n, &val)) {
-                blRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
+                jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
                         n->data, m->name->data);
                 UNWIND_STACK(vm);
             } 
@@ -1164,20 +1164,20 @@ sup_invoke:;
         DISPATCH();
     TARGET(OP_NEW_SUBCLASS):
         if(!IS_CLASS(peek(vm))) {
-            blRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
+            jsrRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
             UNWIND_STACK(vm);
         }
 
         ObjClass *cls = AS_CLASS(pop(vm));
         if(isBuiltinClass(vm, cls)) {
-            blRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
+            jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
             UNWIND_STACK(vm);
         }
         createClass(vm, GET_STRING(), cls);
         DISPATCH();
     TARGET(OP_UNPACK):
         if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-            blRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+            jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
                     getClass(vm, peek(vm))->name->data);
             UNWIND_STACK(vm);
         }
@@ -1202,7 +1202,7 @@ sup_invoke:;
         }
 
         if(num > size) {
-            blRaise(vm, "TypeException", "Too little values to unpack.");
+            jsrRaise(vm, "TypeException", "Too little values to unpack.");
             UNWIND_STACK(vm);
         }
         for(int i = 0; i < num; i++) {
@@ -1226,7 +1226,7 @@ sup_invoke:;
         if(!native->fn) native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
 
         if(native->fn == NULL) {
-            blRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
+            jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
             UNWIND_STACK(vm);
         }
 
@@ -1241,7 +1241,7 @@ sup_invoke:;
         if(!nat->fn) nat->fn = resolveNative(vm->module, NULL, name->data);
 
         if(nat->fn == NULL) {
-            blRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
+            jsrRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1256,7 +1256,7 @@ sup_invoke:;
         ObjString *name = GET_STRING();
         if(!hashTableGet(&vm->module->globals, name, vm->sp)) {
             if(!hashTableGet(&vm->core->globals, name, vm->sp)) {
-                blRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
+                jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
                 UNWIND_STACK(vm);
             }
         }
@@ -1266,7 +1266,7 @@ sup_invoke:;
     TARGET(OP_SET_GLOBAL): {
         ObjString *name = GET_STRING();
         if(hashTablePut(&vm->module->globals, name, peek(vm))) {
-            blRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
+            jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1328,7 +1328,7 @@ sup_invoke:;
         Value exc = peek(vm);
 
         if(!IS_INSTANCE(exc)) {
-            blRaise(vm, "TypeException", "Can only raise Object instances.");
+            jsrRaise(vm, "TypeException", "Can only raise Object instances.");
             UNWIND_STACK(vm);
         }
 
@@ -1377,7 +1377,7 @@ sup_invoke:;
     return false;
 }
 
-static bool unwindStack(BlangVM *vm, int depth) {
+static bool unwindStack(JStarVM *vm, int depth) {
     assert(IS_INSTANCE(peek(vm)), "Top of stack is not an exception");
     ObjInstance *exception = AS_INSTANCE(peek(vm));
 
@@ -1412,16 +1412,16 @@ static bool unwindStack(BlangVM *vm, int depth) {
 
 /**
  * =========================================================
- *  API - Blang VM entry points, Object manipulation 
+ *  API - J* VM entry points, Object manipulation 
  *  and utility functions implementation
  * =========================================================
  */
 
-EvalResult blEvaluate(BlangVM *vm, const char *fpath, const char *src) {
-    return blEvaluateModule(vm, fpath, "__main__", src);
+EvalResult jsrEvaluate(JStarVM *vm, const char *fpath, const char *src) {
+    return jsrEvaluateModule(vm, fpath, "__main__", src);
 }
 
-EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, const char *src) {
+EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module, const char *src) {
     Parser p;
 
     Stmt *program = parse(&p, fpath, src, false);
@@ -1441,16 +1441,16 @@ EvalResult blEvaluateModule(BlangVM *vm, const char *fpath, const char *module, 
 
     EvalResult res;
 
-    if((res = blCall(vm, 0)) != VM_EVAL_SUCCSESS) {
-        blPrintStackTrace(vm);
+    if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) {
+        jsrPrintStackTrace(vm);
     }
 
     pop(vm);
     return res;
 }
 
-static EvalResult finishCall(BlangVM *vm, int depth, int offSp) {
-    EvalResult res = VM_EVAL_SUCCSESS;
+static EvalResult finishCall(JStarVM *vm, int depth, int offSp) {
+    EvalResult res = VM_EVAL_SUCCESS;
 
     // Evaluate frame if present
     if(vm->frameCount > depth && !runEval(vm, depth)) {
@@ -1471,7 +1471,7 @@ static EvalResult finishCall(BlangVM *vm, int depth, int offSp) {
     return res;
 }
 
-static void callError(BlangVM *vm, int depth, int offsp) {
+static void callError(JStarVM *vm, int depth, int offsp) {
     // Finish to unwind the stack
     if(vm->frameCount > depth) {
         unwindStack(vm, depth);
@@ -1481,7 +1481,7 @@ static void callError(BlangVM *vm, int depth, int offsp) {
     }
 }
 
-EvalResult blCall(BlangVM *vm, uint8_t argc) {
+EvalResult jsrCall(JStarVM *vm, uint8_t argc) {
     int offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
@@ -1493,7 +1493,7 @@ EvalResult blCall(BlangVM *vm, uint8_t argc) {
     return finishCall(vm, depth, offsp);
 }
 
-EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
+EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
     int offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
@@ -1507,8 +1507,8 @@ EvalResult blCallMethod(BlangVM *vm, const char *name, uint8_t argc) {
     return finishCall(vm, depth, offsp);
 }
 
-void blRaise(BlangVM *vm, const char *cls, const char *err, ...) {
-    if(!blGetGlobal(vm, NULL, cls)) return;
+void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
+    if(!jsrGetGlobal(vm, NULL, cls)) return;
 
     assert(IS_CLASS(peek(vm)), "Can only raise instance objects");
 
@@ -1525,25 +1525,25 @@ void blRaise(BlangVM *vm, const char *cls, const char *err, ...) {
         vsnprintf(errStr, sizeof(errStr) - 1, err, args);
         va_end(args);
 
-        blPushString(vm, errStr);
+        jsrPushString(vm, errStr);
         hashTablePut(&excInst->fields, copyString(vm, "err", 3, true), pop(vm));
     }
 }
 
-void blSetField(BlangVM *vm, int slot, const char *name) {
+void jsrSetField(JStarVM *vm, int slot, const char *name) {
     Value val = apiStackSlot(vm, slot);
     setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
-bool blGetField(BlangVM *vm, int slot, const char *name) {
+bool jsrGetField(JStarVM *vm, int slot, const char *name) {
     Value val = apiStackSlot(vm, slot);
     return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), true));
 }
 
-void blInitCommandLineArgs(int argc, const char **argv) {
+void jsrInitCommandLineArgs(int argc, const char **argv) {
     sysInitArgs(argc, argv);
 }
 
-void blAddImportPath(BlangVM *vm, const char *path) {
+void jsrAddImportPath(JStarVM *vm, const char *path) {
     listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path), false)));
 }

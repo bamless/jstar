@@ -3,17 +3,17 @@
 
 #include "object.h"
 
-#include "blparse/ast.h"
+#include "jsrparse/ast.h"
 
 #include <stdint.h>
 
 #define CTOR_STR "new"
 
-typedef struct BlangVM BlangVM;
+typedef struct JStarVM JStarVM;
 typedef struct Compiler Compiler;
 
-ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s);
+ObjFunction *compile(JStarVM *vm, ObjModule *module, Stmt *s);
 
-void reachCompilerRoots(BlangVM *vm, Compiler *c);
+void reachCompilerRoots(JStarVM *vm, Compiler *c);
 
 #endif

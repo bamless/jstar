@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.6)
-project(Blang)
+project(JStar)
 
 # version
-set(BLANG_VERSION_MAJOR 0)
-set(BLANG_VERSION_MINOR 3)
-set(BLANG_VERSION_PATCH 12)
+set(JSTAR_VERSION_MAJOR 0)
+set(JSTAR_VERSION_MINOR 4)
+set(JSTAR_VERSION_PATCH 0)
 
 # options
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
@@ -15,8 +15,8 @@ option(DBG_STRESS_GC "Stress the garbage collector by calling it on every alloca
 
 # setup option.h
 configure_file (
-	"${PROJECT_SOURCE_DIR}/vm/blconf.h.in"
-	"${PROJECT_SOURCE_DIR}/include/blconf.h"
+	"${PROJECT_SOURCE_DIR}/vm/jstarconf.h.in"
+	"${PROJECT_SOURCE_DIR}/include/jstarconf.h"
 )
 
 # set output directories
@@ -91,12 +91,12 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/vm")
 
 # ---- install target ----
 
-#install libblang along with blang headers
-install(TARGETS blang libblang libblang_static
+#install libjstar along with jstar headers
+install(TARGETS jstar libjstar libjstar_static
 	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
 	RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
 	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
 )
 install(DIRECTORY 
-	"${CMAKE_SOURCE_DIR}/vm/blparse" DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+	"${CMAKE_SOURCE_DIR}/vm/jsrparse" DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
 )

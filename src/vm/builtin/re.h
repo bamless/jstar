@@ -1,11 +1,11 @@
 #ifndef RE_H
 #define RE_H
 
-#include "blang.h"
+#include "jstar.h"
 
-NATIVE(bl_re_match);
-NATIVE(bl_re_find);
-NATIVE(bl_re_gmatch);
-NATIVE(bl_re_gsub);
+JSR_NATIVE(jsr_re_match);
+JSR_NATIVE(jsr_re_find);
+JSR_NATIVE(jsr_re_gmatch);
+JSR_NATIVE(jsr_re_gsub);
 
 #endif

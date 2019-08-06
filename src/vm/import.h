@@ -4,13 +4,13 @@
 #include "object.h"
 #include "vm.h"
 
-#include "blparse/ast.h"
+#include "jsrparse/ast.h"
 
 #define MAX_IMPORT_PATH_LEN 2048
 
-ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program);
-void setModule(BlangVM *vm, ObjString *name, ObjModule *module);
-ObjModule *getModule(BlangVM *vm, ObjString *name);
-bool importModule(BlangVM *vm, ObjString *name);
+ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program);
+void setModule(JStarVM *vm, ObjString *name, ObjModule *module);
+ObjModule *getModule(JStarVM *vm, ObjString *name);
+bool importModule(JStarVM *vm, ObjString *name);
 
 #endif

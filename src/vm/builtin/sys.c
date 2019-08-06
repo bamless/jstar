@@ -27,116 +27,116 @@ void sysInitArgs(int argc, const char **argv) {
     argVector = argv;
 }
 
-NATIVE(bl_exec) {
+JSR_NATIVE(jsr_exec) {
     const char *cmd = NULL;
-    if(!blIsNull(vm, 1)) {
-        if(!blCheckStr(vm, 1, "cmd")) return false;
-        cmd = blGetString(vm, 1);
+    if(!jsrIsNull(vm, 1)) {
+        if(!jsrCheckStr(vm, 1, "cmd")) return false;
+        cmd = jsrGetString(vm, 1);
     }
-    blPushNumber(vm, system(cmd));
+    jsrPushNumber(vm, system(cmd));
     return true;
 }
 
-NATIVE(bl_exit) {
-    if(!blCheckInt(vm, 1, "n")) return false;
-    exit(blGetNumber(vm, 1));
+JSR_NATIVE(jsr_exit) {
+    if(!jsrCheckInt(vm, 1, "n")) return false;
+    exit(jsrGetNumber(vm, 1));
 }
 
-NATIVE(bl_getImportPaths) {
+JSR_NATIVE(jsr_getImportPaths) {
     push(vm, OBJ_VAL(vm->importpaths));
     return true;
 }
 
-NATIVE(bl_platform) {
-    blPushString(vm, PLATFORM);
+JSR_NATIVE(jsr_platform) {
+    jsrPushString(vm, PLATFORM);
     return true;
 }
 
-NATIVE(bl_time) {
-    blPushNumber(vm, time(NULL));
+JSR_NATIVE(jsr_time) {
+    jsrPushNumber(vm, time(NULL));
     return true;
 }
 
-NATIVE(bl_clock) {
-    blPushNumber(vm, (double)clock() / CLOCKS_PER_SEC);
+JSR_NATIVE(jsr_clock) {
+    jsrPushNumber(vm, (double)clock() / CLOCKS_PER_SEC);
     return true;
 }
 
-NATIVE(bl_gc) {
+JSR_NATIVE(jsr_gc) {
     garbageCollect(vm);
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_gets) {
-    BlBuffer b;
-    blBufferInit(vm, &b);
+JSR_NATIVE(jsr_gets) {
+    JStarBuffer b;
+    jsrBufferInit(vm, &b);
 
     int c;
     while((c = getc(stdin)) != EOF && c != '\n') {
-        blBufferAppendChar(&b, c);
+        jsrBufferAppendChar(&b, c);
     }
 
-    blBufferPush(&b);
+    jsrBufferPush(&b);
     return true;
 }
 
-NATIVE(bl_sys_init) {
+JSR_NATIVE(jsr_sys_init) {
     // Set up the standard I/O streams (this is a little bit of an hack)
-    if(!blGetGlobal(vm, "io", "File")) return false;
+    if(!jsrGetGlobal(vm, "io", "File")) return false;
 
     ObjInstance *fileout = newInstance(vm, AS_CLASS(vm->sp[-1]));
     push(vm, OBJ_VAL(fileout));
 
-    blPushHandle(vm, (void *)stdout);
-    blSetField(vm, -2, FIELD_FILE_HANDLE);
-    blPop(vm);
+    jsrPushHandle(vm, (void *)stdout);
+    jsrSetField(vm, -2, FIELD_FILE_HANDLE);
+    jsrPop(vm);
 
-    blPushBoolean(vm, false);
-    blSetField(vm, -2, FIELD_FILE_CLOSED);
-    blPop(vm);
+    jsrPushBoolean(vm, false);
+    jsrSetField(vm, -2, FIELD_FILE_CLOSED);
+    jsrPop(vm);
 
-    blSetGlobal(vm, NULL, "out");
-    blPop(vm);
+    jsrSetGlobal(vm, NULL, "out");
+    jsrPop(vm);
 
     ObjInstance *filein = newInstance(vm, AS_CLASS(vm->sp[-1]));
     push(vm, OBJ_VAL(filein));
 
-    blPushHandle(vm, (void *)stdin);
-    blSetField(vm, -2, FIELD_FILE_HANDLE);
-    blPop(vm);
+    jsrPushHandle(vm, (void *)stdin);
+    jsrSetField(vm, -2, FIELD_FILE_HANDLE);
+    jsrPop(vm);
 
-    blPushBoolean(vm, false);
-    blSetField(vm, -2, FIELD_FILE_CLOSED);
-    blPop(vm);
+    jsrPushBoolean(vm, false);
+    jsrSetField(vm, -2, FIELD_FILE_CLOSED);
+    jsrPop(vm);
 
-    blSetGlobal(vm, NULL, "stdin");
-    blPop(vm);
+    jsrSetGlobal(vm, NULL, "stdin");
+    jsrPop(vm);
 
     ObjInstance *fileerr = newInstance(vm, AS_CLASS(vm->sp[-1]));
     push(vm, OBJ_VAL(fileerr));
 
-    blPushHandle(vm, (void *)stderr);
-    blSetField(vm, -2, FIELD_FILE_HANDLE);
-    blPop(vm);
+    jsrPushHandle(vm, (void *)stderr);
+    jsrSetField(vm, -2, FIELD_FILE_HANDLE);
+    jsrPop(vm);
 
-    blPushBoolean(vm, false);
-    blSetField(vm, -2, FIELD_FILE_CLOSED);
-    blPop(vm);
+    jsrPushBoolean(vm, false);
+    jsrSetField(vm, -2, FIELD_FILE_CLOSED);
+    jsrPop(vm);
 
-    blSetGlobal(vm, NULL, "err");
-    blPop(vm);
+    jsrSetGlobal(vm, NULL, "err");
+    jsrPop(vm);
 
     // Set up command line arguments
     if(argCount != 0) {
-        blGetGlobal(vm, NULL, "args");
+        jsrGetGlobal(vm, NULL, "args");
         for(int i = 0; i < argCount; i++) {
-            blPushString(vm, argVector[i]);
-            blListAppend(vm, -2);
-            blPop(vm);
+            jsrPushString(vm, argVector[i]);
+            jsrListAppend(vm, -2);
+            jsrPop(vm);
         }
     }
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }

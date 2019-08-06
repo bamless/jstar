@@ -1,7 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
-#include "blconf.h"
+#include "jstarconf.h"
 #include "linkedlist.h"
 
 #include <stdbool.h>
@@ -54,8 +54,8 @@ typedef struct Identifier {
     const char *name;
 } Identifier;
 
-BLANG_API Identifier *newIdentifier(size_t length, const char *name);
-BLANG_API bool identifierEquals(Identifier *id1, Identifier *id2);
+JSTAR_API Identifier *newIdentifier(size_t length, const char *name);
+JSTAR_API bool identifierEquals(Identifier *id1, Identifier *id2);
 
 typedef struct Expr Expr;
 typedef struct Stmt Stmt;
@@ -122,27 +122,27 @@ struct Expr {
     };
 };
 
-BLANG_API Expr *newBinary(int line, Operator op, Expr *l, Expr *r);
-BLANG_API Expr *newAssign(int line, Expr *lval, Expr *rval);
-BLANG_API Expr *newUnary(int line, Operator op, Expr *operand);
-BLANG_API Expr *newNullLiteral(int line);
-BLANG_API Expr *newSuperLiteral(int line);
-BLANG_API Expr *newNumLiteral(int line, double num);
-BLANG_API Expr *newBoolLiteral(int line, bool boolean);
-BLANG_API Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
-BLANG_API Expr *newStrLiteral(int line, const char *str, size_t len);
-BLANG_API Expr *newVarLiteral(int line, const char *str, size_t len);
-BLANG_API Expr *newArrLiteral(int line, Expr *exprs);
-BLANG_API Expr *newTupleLiteral(int line, Expr *exprs);
-BLANG_API Expr *newExprList(int line, LinkedList *exprs);
-BLANG_API Expr *newCallExpr(int line, Expr *callee, LinkedList *args);
-BLANG_API Expr *newExpExpr(int line, Expr *base, Expr *exp);
-BLANG_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
-BLANG_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
-BLANG_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
-BLANG_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
+JSTAR_API Expr *newBinary(int line, Operator op, Expr *l, Expr *r);
+JSTAR_API Expr *newAssign(int line, Expr *lval, Expr *rval);
+JSTAR_API Expr *newUnary(int line, Operator op, Expr *operand);
+JSTAR_API Expr *newNullLiteral(int line);
+JSTAR_API Expr *newSuperLiteral(int line);
+JSTAR_API Expr *newNumLiteral(int line, double num);
+JSTAR_API Expr *newBoolLiteral(int line, bool boolean);
+JSTAR_API Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
+JSTAR_API Expr *newStrLiteral(int line, const char *str, size_t len);
+JSTAR_API Expr *newVarLiteral(int line, const char *str, size_t len);
+JSTAR_API Expr *newArrLiteral(int line, Expr *exprs);
+JSTAR_API Expr *newTupleLiteral(int line, Expr *exprs);
+JSTAR_API Expr *newExprList(int line, LinkedList *exprs);
+JSTAR_API Expr *newCallExpr(int line, Expr *callee, LinkedList *args);
+JSTAR_API Expr *newExpExpr(int line, Expr *base, Expr *exp);
+JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
+JSTAR_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
+JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
+JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
 
-BLANG_API void freeExpr(Expr *e);
+JSTAR_API void freeExpr(Expr *e);
 
 typedef enum StmtType {
     IF,
@@ -235,24 +235,24 @@ struct Stmt {
     };
 };
 
-BLANG_API Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
-BLANG_API Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
-BLANG_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength);
-BLANG_API Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
-BLANG_API Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
-BLANG_API Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
-BLANG_API Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init);
-BLANG_API Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure);
-BLANG_API Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
-BLANG_API Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
-BLANG_API Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
-BLANG_API Stmt *newBlockStmt(int line, LinkedList *list);
-BLANG_API Stmt *newReturnStmt(int line, Expr *e);
-BLANG_API Stmt *newRaiseStmt(int line, Expr *e);
-BLANG_API Stmt *newExprStmt(int line, Expr *e);
-BLANG_API Stmt *newContinueStmt(int line);
-BLANG_API Stmt *newBreakStmt(int line);
+JSTAR_API Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
+JSTAR_API Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
+JSTAR_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength);
+JSTAR_API Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
+JSTAR_API Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
+JSTAR_API Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
+JSTAR_API Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init);
+JSTAR_API Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure);
+JSTAR_API Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt);
+JSTAR_API Stmt *newForEach(int line, Stmt *varDecl, Expr *iter, Stmt *body);
+JSTAR_API Stmt *newWhileStmt(int line, Expr *cond, Stmt *body);
+JSTAR_API Stmt *newBlockStmt(int line, LinkedList *list);
+JSTAR_API Stmt *newReturnStmt(int line, Expr *e);
+JSTAR_API Stmt *newRaiseStmt(int line, Expr *e);
+JSTAR_API Stmt *newExprStmt(int line, Expr *e);
+JSTAR_API Stmt *newContinueStmt(int line);
+JSTAR_API Stmt *newBreakStmt(int line);
 
-BLANG_API void freeStmt(Stmt *s);
+JSTAR_API void freeStmt(Stmt *s);
 
 #endif

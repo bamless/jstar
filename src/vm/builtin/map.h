@@ -1,12 +1,12 @@
 #ifndef MAP_H
 #define MAP_H
 
-#include "blang.h"
+#include "jstar.h"
 
 // class Map
-NATIVE(bl_Map_getEntry);
-NATIVE(bl_Map_addEntry);
-NATIVE(bl_Map_grow);
+JSR_NATIVE(jsr_Map_getEntry);
+JSR_NATIVE(jsr_Map_addEntry);
+JSR_NATIVE(jsr_Map_grow);
 // end
 
 #endif

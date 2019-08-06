@@ -1,32 +1,32 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include "blang.h"
+#include "jstar.h"
 
 // class File {
 #define FIELD_FILE_HANDLE "_handle"
 #define FIELD_FILE_CLOSED "_closed"
 
-NATIVE(bl_File_new);
-NATIVE(bl_File_read);
-NATIVE(bl_File_readAll);
-NATIVE(bl_File_readLine);
-NATIVE(bl_File_write);
-NATIVE(bl_File_close);
-NATIVE(bl_File_seek);
-NATIVE(bl_File_tell);
-NATIVE(bl_File_rewind);
-NATIVE(bl_File_flush);
+JSR_NATIVE(jsr_File_new);
+JSR_NATIVE(jsr_File_read);
+JSR_NATIVE(jsr_File_readAll);
+JSR_NATIVE(jsr_File_readLine);
+JSR_NATIVE(jsr_File_write);
+JSR_NATIVE(jsr_File_close);
+JSR_NATIVE(jsr_File_seek);
+JSR_NATIVE(jsr_File_tell);
+JSR_NATIVE(jsr_File_rewind);
+JSR_NATIVE(jsr_File_flush);
 // } class File
 
 // class __PFile {
-NATIVE(bl_PFile_close);
+JSR_NATIVE(jsr_PFile_close);
 // }
 
 // prototypes
 
-NATIVE(bl_popen);
-NATIVE(bl_remove);
-NATIVE(bl_rename);
+JSR_NATIVE(jsr_popen);
+JSR_NATIVE(jsr_remove);
+JSR_NATIVE(jsr_rename);
 
 #endif

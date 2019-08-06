@@ -1,14 +1,14 @@
 # Site settings
-title: Blang
+title: J*
 email: mail@fabrizio-pietrucci.it
 description: >
   A lightweight scripting language
 lang: en-US
 
-baseurl: "/blang/" # the subpath of your site, e.g. /blog/
-url: https://bamless.github.io/blang # the base hostname & protocol for your site
-git_address: https://github.com/bamless/blang
-git_edit_address: https://github.com/bamless/blang/blob/master
+baseurl: "/jstar/" # the subpath of your site, e.g. /blog/
+url: https://bamless.github.io/jstar # the base hostname & protocol for your site
+git_address: https://github.com/bamless/jstar
+git_edit_address: https://github.com/bamless/jastar/blob/master
 
 # theme options from https://bootswatch.com/
 # comment out this to use default Bootstrap

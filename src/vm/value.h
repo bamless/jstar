@@ -1,7 +1,7 @@
 #ifndef VALUE_H
 #define VALUE_H
 
-#include "blconf.h"
+#include "jstarconf.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -9,12 +9,12 @@
 
 /**
  * Here we define the Value type. This is a C type that can store any type
- * used by the Blang VM. This closes the gap between the dinamically typed
- * world of Blang and the static one of the C language. Every storage location
+ * used by the J* VM. This closes the gap between the dinamically typed
+ * world of J* and the static one of the C language. Every storage location
  * used in the VM is of type Value (for example the vm stack) as to permit
- * the storage of any Blang variable.
+ * the storage of any J* variable.
  *
- * Note that even tough in Blang all values are objects, primitive values
+ * Note that even tough in J* all values are objects, primitive values
  * such as numbers, booleans and the null singleton are unboxed: they are stored
  * directly in the Value, instead of an Object on the heap. this saves allocations
  * and pointer dereferencing when working with such values.
@@ -52,7 +52,7 @@ typedef struct Obj Obj;
  * Otherwise it's an Handle (a raw void* C pointer). Similar to the Object* case,
  * we stuff the void* pointer in the remaining bits (this time 50).
  *
- * Using this technique we can store all the needed values used by the Blang VM into one
+ * Using this technique we can store all the needed values used by the J* VM into one
  * 64-bit integer, thus saving the extra space needed by the tag in the union (plus padding
  * bits).
  */

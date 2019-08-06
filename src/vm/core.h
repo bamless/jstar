@@ -1,73 +1,73 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include "blang.h"
+#include "jstar.h"
 
-// Blang core libray bootstrap
-void initCoreLibrary(BlangVM *vm);
+// J* core libray bootstrap
+void initCoreLibrary(JStarVM *vm);
 
-NATIVE(bl_int);
-NATIVE(bl_num);
-NATIVE(bl_isInt);
+JSR_NATIVE(jsr_int);
+JSR_NATIVE(jsr_num);
+JSR_NATIVE(jsr_isInt);
 
-NATIVE(bl_char);
-NATIVE(bl_ascii);
+JSR_NATIVE(jsr_char);
+JSR_NATIVE(jsr_ascii);
 
-NATIVE(bl_print);
-NATIVE(bl_eval);
+JSR_NATIVE(jsr_print);
+JSR_NATIVE(jsr_eval);
 
-NATIVE(bl_type);
+JSR_NATIVE(jsr_type);
 
 // class Number {
-NATIVE(bl_Number_string);
-NATIVE(bl_Number_hash);
+JSR_NATIVE(jsr_Number_string);
+JSR_NATIVE(jsr_Number_hash);
 // } Number
 
 // class Boolean {
-NATIVE(bl_Boolean_string);
+JSR_NATIVE(jsr_Boolean_string);
 // } Boolean
 
 // class Null {
-NATIVE(bl_Null_string);
+JSR_NATIVE(jsr_Null_string);
 // } Null
 
 // class Function {
-NATIVE(bl_Function_string);
+JSR_NATIVE(jsr_Function_string);
 // } Function
 
 // class Module {
-NATIVE(bl_Module_string);
+JSR_NATIVE(jsr_Module_string);
 // } Module
 
 // class List {
-NATIVE(bl_List_new);
-NATIVE(bl_List_add);
-NATIVE(bl_List_insert);
-NATIVE(bl_List_len);
-NATIVE(bl_List_removeAt);
-NATIVE(bl_List_clear);
-NATIVE(bl_List_subList);
-NATIVE(bl_List_iter);
-NATIVE(bl_List_next);
+JSR_NATIVE(jsr_List_new);
+JSR_NATIVE(jsr_List_add);
+JSR_NATIVE(jsr_List_insert);
+JSR_NATIVE(jsr_List_len);
+JSR_NATIVE(jsr_List_removeAt);
+JSR_NATIVE(jsr_List_clear);
+JSR_NATIVE(jsr_List_subList);
+JSR_NATIVE(jsr_List_iter);
+JSR_NATIVE(jsr_List_next);
 // } List
 
 // class Tuple {
-NATIVE(bl_Tuple_new);
-NATIVE(bl_Tuple_len);
-NATIVE(bl_Tuple_iter);
-NATIVE(bl_Tuple_next);
-NATIVE(bl_Tuple_sub);
+JSR_NATIVE(jsr_Tuple_new);
+JSR_NATIVE(jsr_Tuple_len);
+JSR_NATIVE(jsr_Tuple_iter);
+JSR_NATIVE(jsr_Tuple_next);
+JSR_NATIVE(jsr_Tuple_sub);
 // }
 
 // class String {
-NATIVE(bl_substr);
-NATIVE(bl_String_len);
-NATIVE(bl_String_string);
-NATIVE(bl_String_join);
-NATIVE(bl_String_hash);
-NATIVE(bl_String_eq);
-NATIVE(bl_String_iter);
-NATIVE(bl_String_next);
+JSR_NATIVE(jsr_substr);
+JSR_NATIVE(jsr_String_len);
+JSR_NATIVE(jsr_String_string);
+JSR_NATIVE(jsr_String_join);
+JSR_NATIVE(jsr_String_hash);
+JSR_NATIVE(jsr_String_eq);
+JSR_NATIVE(jsr_String_iter);
+JSR_NATIVE(jsr_String_next);
 // } String
 
 #endif

@@ -1,7 +1,7 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
-#include "blang.h"
+#include "jstar.h"
 #include "chunk.h"
 #include "hashtable.h"
 #include "util.h"
@@ -12,7 +12,7 @@
 #include <stdlib.h>
 
 /**
- * Object system of the Blang language.
+ * Object system of the J* language.
  * Every object shares the base fields of the Obj struct, including it as the
  * first field in their declaration. This permits the casting of any pointer to
  * to Obj* and back, implementing a sort of manual polymorphism.
@@ -23,7 +23,7 @@
  * should be tested before casting.
  **/
 
-typedef struct BlangVM BlangVM;
+typedef struct JStarVM JStarVM;
 
 #ifdef DBG_PRINT_GC
 DECLARE_TO_STRING(ObjType);
@@ -78,7 +78,7 @@ DECLARE_TO_STRING(ObjType);
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
-typedef struct BlNativeReg BlNativeReg;
+typedef struct JStarNativeReg JStarNativeReg;
 typedef struct ObjClass ObjClass;
 
 // Base class of all the Objects.
@@ -94,7 +94,7 @@ typedef struct Obj {
     struct Obj *next;     // Next object in the linked list of all allocated objects
 } Obj;
 
-// A Blang String. In Blang Strings are immutable and can contain arbitrary
+// A J* String. In J* Strings are immutable and can contain arbitrary
 // bytes since we explicitly store the string's length instead of relying on
 // NUL termination. Nevertheless, a NUL byte is appended for ease of use in
 // the C api.
@@ -110,7 +110,7 @@ typedef struct ObjString {
 // symbol to a native registry.
 typedef struct NativeExt {
     void *dynlib;
-    BlNativeReg *registry;
+    JStarNativeReg *registry;
 } NativeExt;
 
 typedef struct ObjModule {
@@ -130,7 +130,7 @@ typedef struct Callable {
     ObjString *name;   // The name of the function
 } Callable;
 
-// A compiled Blang function
+// A compiled J* function
 typedef struct ObjFunction {
     Obj base;
     Callable c;
@@ -138,11 +138,11 @@ typedef struct ObjFunction {
     uint8_t upvaluec; // The number of upvalues the function closes over
 } ObjFunction;
 
-// A C function callable from Blang
+// A C function callable from J*
 typedef struct ObjNative {
     Obj base;
     Callable c;
-    Native fn; // The C function that gets called
+    JStarNative fn; // The C function that gets called
 } ObjNative;
 
 // A user defined class
@@ -208,7 +208,7 @@ typedef struct ObjClosure {
 typedef struct ObjStackTrace {
     Obj base;
     int lastTracedFrame;
-    BlBuffer stacktrace;
+    JStarBuffer stacktrace;
 } ObjStackTrace;
 
 // Prints an Obj in a human readable form

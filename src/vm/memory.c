@@ -1,5 +1,5 @@
 #include "memory.h"
-#include "blang.h"
+#include "jstar.h"
 #include "chunk.h"
 #include "compiler.h"
 #include "dynload.h"
@@ -22,7 +22,7 @@
 #define GC_FREE_VAR(vm, type, vartype, count, obj) \
     GCallocate(vm, obj, sizeof(type) + sizeof(vartype) * count, 0)
 
-static void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
+static void *GCallocate(JStarVM *vm, void *ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
     if(size > oldsize && !vm->disableGC) {
 #ifdef DBG_STRESS_GC
@@ -48,7 +48,7 @@ static void *GCallocate(BlangVM *vm, void *ptr, size_t oldsize, size_t size) {
     return mem;
 }
 
-static Obj *newObj(BlangVM *vm, size_t size, ObjClass *cls, ObjType type) {
+static Obj *newObj(JStarVM *vm, size_t size, ObjClass *cls, ObjType type) {
     Obj *o = GC_ALLOC(vm, size);
     o->cls = cls;
     o->type = type;
@@ -58,7 +58,7 @@ static Obj *newObj(BlangVM *vm, size_t size, ObjClass *cls, ObjType type) {
     return o;
 }
 
-static Obj *newVarObj(BlangVM *vm, size_t size, size_t varSize, size_t count, ObjClass *cls,
+static Obj *newVarObj(JStarVM *vm, size_t size, size_t varSize, size_t count, ObjClass *cls,
                       ObjType type) {
     return newObj(vm, size + varSize * count, cls, type);
 }
@@ -74,7 +74,7 @@ static void initCallable(Callable *c, ObjModule *module, ObjString *name, uint8_
     c->name = name;
 }
 
-ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
+ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
                          uint8_t defc) {
 
     Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
@@ -86,7 +86,7 @@ ObjFunction *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_
     return f;
 }
 
-ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn,
+ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn,
                      uint8_t defc) {
 
     Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
@@ -97,20 +97,20 @@ ObjNative *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t ar
     return n;
 }
 
-ObjClass *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls) {
+ObjClass *newClass(JStarVM *vm, ObjString *name, ObjClass *superCls) {
     ObjClass *cls = (ObjClass *)newObj(vm, sizeof(*cls), vm->clsClass, OBJ_CLASS);
     cls->name = name;
     cls->superCls = superCls;
     initHashTable(&cls->methods);
     return cls;
 }
-ObjInstance *newInstance(BlangVM *vm, ObjClass *cls) {
+ObjInstance *newInstance(JStarVM *vm, ObjClass *cls) {
     ObjInstance *inst = (ObjInstance *)newObj(vm, sizeof(*inst), cls, OBJ_INST);
     initHashTable(&inst->fields);
     return inst;
 }
 
-ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn) {
+ObjClosure *newClosure(JStarVM *vm, ObjFunction *fn) {
     ObjClosure *c = (ObjClosure *)newVarObj(vm, sizeof(*c), sizeof(ObjUpvalue *), fn->upvaluec,
                                             vm->funClass, OBJ_CLOSURE);
     memset(c->upvalues, 0, sizeof(ObjUpvalue *) * fn->upvaluec);
@@ -119,7 +119,7 @@ ObjClosure *newClosure(BlangVM *vm, ObjFunction *fn) {
     return c;
 }
 
-ObjModule *newModule(BlangVM *vm, ObjString *name) {
+ObjModule *newModule(JStarVM *vm, ObjString *name) {
     ObjModule *module = (ObjModule *)newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
     module->name = name;
     initHashTable(&module->globals);
@@ -128,7 +128,7 @@ ObjModule *newModule(BlangVM *vm, ObjString *name) {
     return module;
 }
 
-ObjUpvalue *newUpvalue(BlangVM *vm, Value *addr) {
+ObjUpvalue *newUpvalue(JStarVM *vm, Value *addr) {
     ObjUpvalue *upvalue = (ObjUpvalue *)newObj(vm, sizeof(*upvalue), NULL, OBJ_UPVALUE);
     upvalue->addr = addr;
     upvalue->closed = NULL_VAL;
@@ -136,7 +136,7 @@ ObjUpvalue *newUpvalue(BlangVM *vm, Value *addr) {
     return upvalue;
 }
 
-ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
+ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method) {
     ObjBoundMethod *bound =
         (ObjBoundMethod *)newObj(vm, sizeof(*bound), vm->funClass, OBJ_BOUND_METHOD);
     bound->bound = b;
@@ -144,7 +144,7 @@ ObjBoundMethod *newBoundMethod(BlangVM *vm, Value b, Obj *method) {
     return bound;
 }
 
-ObjTuple *newTuple(BlangVM *vm, size_t size) {
+ObjTuple *newTuple(JStarVM *vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
 
     ObjTuple *tuple =
@@ -158,16 +158,16 @@ ObjTuple *newTuple(BlangVM *vm, size_t size) {
 
 #define ST_DEF_SIZE 16
 
-ObjStackTrace *newStackTrace(BlangVM *vm) {
-    BlBuffer stacktrace;
-    blBufferInit(vm, &stacktrace);
+ObjStackTrace *newStackTrace(JStarVM *vm) {
+    JStarBuffer stacktrace;
+    jsrBufferInit(vm, &stacktrace);
     ObjStackTrace *st = (ObjStackTrace *)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
     st->stacktrace = stacktrace;
     st->lastTracedFrame = -1;
     return st;
 }
 
-void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
+void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 
@@ -182,26 +182,26 @@ void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth) {
         line[0] = '?';
     }
 
-    blBufferAppendstr(&st->stacktrace, "[line ");
-    blBufferAppendstr(&st->stacktrace, line);
-    blBufferAppendstr(&st->stacktrace, "] ");
+    jsrBufferAppendstr(&st->stacktrace, "[line ");
+    jsrBufferAppendstr(&st->stacktrace, line);
+    jsrBufferAppendstr(&st->stacktrace, "] ");
 
-    blBufferAppendstr(&st->stacktrace, "module ");
-    blBufferAppendstr(&st->stacktrace, c->module->name->data);
-    blBufferAppendstr(&st->stacktrace, " in ");
+    jsrBufferAppendstr(&st->stacktrace, "module ");
+    jsrBufferAppendstr(&st->stacktrace, c->module->name->data);
+    jsrBufferAppendstr(&st->stacktrace, " in ");
 
     if(c->name != NULL) {
-        blBufferAppendstr(&st->stacktrace, c->name->data);
-        blBufferAppendstr(&st->stacktrace, "()\n");
+        jsrBufferAppendstr(&st->stacktrace, c->name->data);
+        jsrBufferAppendstr(&st->stacktrace, "()\n");
     } else {
-        blBufferAppendstr(&st->stacktrace, "<main>\n");
+        jsrBufferAppendstr(&st->stacktrace, "<main>\n");
     }
 }
 
 #define LIST_DEF_SZ 8
 #define LIST_GROW_RATE 2
 
-ObjList *newList(BlangVM *vm, size_t startSize) {
+ObjList *newList(JStarVM *vm, size_t startSize) {
     size_t size = startSize == 0 ? LIST_DEF_SZ : startSize;
     Value *arr = GC_ALLOC(vm, sizeof(Value) * size);
     ObjList *l = (ObjList *)newObj(vm, sizeof(*l), vm->lstClass, OBJ_LIST);
@@ -211,13 +211,13 @@ ObjList *newList(BlangVM *vm, size_t startSize) {
     return l;
 }
 
-static void growList(BlangVM *vm, ObjList *lst) {
+static void growList(JStarVM *vm, ObjList *lst) {
     size_t newSize = lst->size * LIST_GROW_RATE;
     lst->arr = GCallocate(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
     lst->size = newSize;
 }
 
-void listAppend(BlangVM *vm, ObjList *lst, Value val) {
+void listAppend(JStarVM *vm, ObjList *lst, Value val) {
     // if the list get resized a GC may kick in, so push val as root
     push(vm, val);
     if(lst->count + 1 > lst->size) {
@@ -227,7 +227,7 @@ void listAppend(BlangVM *vm, ObjList *lst, Value val) {
     pop(vm); // pop val
 }
 
-void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val) {
+void listInsert(JStarVM *vm, ObjList *lst, size_t index, Value val) {
     // if the list get resized a GC may kick in, so push val as root
     push(vm, val);
     if(lst->count + 1 > lst->size) {
@@ -243,7 +243,7 @@ void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val) {
     pop(vm); // pop val
 }
 
-void listRemove(BlangVM *vm, ObjList *lst, size_t index) {
+void listRemove(JStarVM *vm, ObjList *lst, size_t index) {
     Value *arr = lst->arr;
     for(size_t i = index + 1; i < lst->count; i++) {
         arr[i - 1] = arr[i];
@@ -251,7 +251,7 @@ void listRemove(BlangVM *vm, ObjList *lst, size_t index) {
     lst->count--;
 }
 
-ObjString *allocateString(BlangVM *vm, size_t length) {
+ObjString *allocateString(JStarVM *vm, size_t length) {
     char *data = GC_ALLOC(vm, length + 1);
     ObjString *str = (ObjString *)newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
     str->length = length;
@@ -262,13 +262,13 @@ ObjString *allocateString(BlangVM *vm, size_t length) {
     return str;
 }
 
-static ObjString *newString(BlangVM *vm, const char *cstring, size_t length) {
+static ObjString *newString(JStarVM *vm, const char *cstring, size_t length) {
     ObjString *str = allocateString(vm, length);
     memcpy(str->data, cstring, length);
     return str;
 }
 
-ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern) {
+ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern) {
     if(intern) {
         uint32_t hash = hashString(str, length);
         ObjString *interned = HashTableGetString(&vm->strings, str, length, hash);
@@ -283,7 +283,7 @@ ObjString *copyString(BlangVM *vm, const char *str, size_t length, bool intern) 
     return newString(vm, str, length);
 }
 
-static void freeObject(BlangVM *vm, Obj *o) {
+static void freeObject(JStarVM *vm, Obj *o) {
     switch(o->type) {
     case OBJ_STRING: {
         ObjString *s = (ObjString *)o;
@@ -341,7 +341,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
     }
     case OBJ_STACK_TRACE: {
         ObjStackTrace *st = (ObjStackTrace *)o;
-        blBufferFree(&st->stacktrace);
+        jsrBufferFree(&st->stacktrace);
         GC_FREE(vm, ObjStackTrace, st);
         break;
     }
@@ -358,7 +358,7 @@ static void freeObject(BlangVM *vm, Obj *o) {
     }
 }
 
-void freeObjects(BlangVM *vm) {
+void freeObjects(JStarVM *vm) {
     Obj **head = &vm->objects;
     while(*head != NULL) {
         if(!(*head)->reached) {
@@ -377,23 +377,23 @@ void freeObjects(BlangVM *vm) {
     }
 }
 
-void disableGC(BlangVM *vm, bool disable) {
+void disableGC(JStarVM *vm, bool disable) {
     vm->disableGC = disable;
 }
 
-static void growReached(BlangVM *vm) {
+static void growReached(JStarVM *vm) {
     vm->reachedCapacity *= REACHED_GROW_RATE;
     vm->reachedStack = realloc(vm->reachedStack, sizeof(Obj *) * vm->reachedCapacity);
 }
 
-static void addReachedObject(BlangVM *vm, Obj *o) {
+static void addReachedObject(JStarVM *vm, Obj *o) {
     if(vm->reachedCount + 1 > vm->reachedCapacity) {
         growReached(vm);
     }
     vm->reachedStack[vm->reachedCount++] = o;
 }
 
-void reachObject(BlangVM *vm, Obj *o) {
+void reachObject(JStarVM *vm, Obj *o) {
     if(o == NULL || o->reached) return;
 
 #ifdef DBG_PRINT_GC
@@ -406,17 +406,17 @@ void reachObject(BlangVM *vm, Obj *o) {
     addReachedObject(vm, o);
 }
 
-void reachValue(BlangVM *vm, Value v) {
+void reachValue(JStarVM *vm, Value v) {
     if(IS_OBJ(v)) reachObject(vm, AS_OBJ(v));
 }
 
-static void reachValueArray(BlangVM *vm, ValueArray *a) {
+static void reachValueArray(JStarVM *vm, ValueArray *a) {
     for(int i = 0; i < a->count; i++) {
         reachValue(vm, a->arr[i]);
     }
 }
 
-static void recursevelyReach(BlangVM *vm, Obj *o) {
+static void recursevelyReach(JStarVM *vm, Obj *o) {
 #ifdef DBG_PRINT_GC
     printf("Recursevely exploring object %p...\n", (void *)o);
 #endif
@@ -501,7 +501,7 @@ static void recursevelyReach(BlangVM *vm, Obj *o) {
     }
 }
 
-void garbageCollect(BlangVM *vm) {
+void garbageCollect(JStarVM *vm) {
 #ifdef DBG_PRINT_GC
     size_t prevAlloc = vm->allocated;
     puts("*--- Starting GC ---*");
@@ -604,7 +604,7 @@ void garbageCollect(BlangVM *vm) {
  * =========================================================
  */
 
-ObjString *blBufferToString(BlBuffer *b) {
+ObjString *blBufferToString(JStarBuffer *b) {
     char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
     data[b->len] = '\0';
 
@@ -623,7 +623,7 @@ ObjString *blBufferToString(BlBuffer *b) {
 
 #define BUF_DEF_SZ 16
 
-static void blBufGrow(BlBuffer *b, size_t len) {
+static void jsrBufGrow(JStarBuffer *b, size_t len) {
     size_t newSize = b->size;
     while(newSize < b->len + len)
         newSize <<= 1;
@@ -632,11 +632,11 @@ static void blBufGrow(BlBuffer *b, size_t len) {
     b->data = newData;
 }
 
-void blBufferInit(BlangVM *vm, BlBuffer *b) {
-    blBufferInitSz(vm, b, BUF_DEF_SZ);
+void jsrBufferInit(JStarVM *vm, JStarBuffer *b) {
+    jsrBufferInitSz(vm, b, BUF_DEF_SZ);
 }
 
-void blBufferInitSz(BlangVM *vm, BlBuffer *b, size_t size) {
+void jsrBufferInitSz(JStarVM *vm, JStarBuffer *b, size_t size) {
     if(size < BUF_DEF_SZ) size = BUF_DEF_SZ;
     b->vm = vm;
     b->size = size;
@@ -644,32 +644,32 @@ void blBufferInitSz(BlangVM *vm, BlBuffer *b, size_t size) {
     b->data = GC_ALLOC(vm, size);
 }
 
-void blBufferAppend(BlBuffer *b, const char *str, size_t len) {
+void jsrBufferAppend(JStarBuffer *b, const char *str, size_t len) {
     if(b->len + len >= b->size)
-        blBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
+        jsrBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
     memcpy(&b->data[b->len], str, len);
     b->len += len;
     b->data[b->len] = '\0';
 }
 
-void blBufferAppendstr(BlBuffer *b, const char *str) {
-    blBufferAppend(b, str, strlen(str));
+void jsrBufferAppendstr(JStarBuffer *b, const char *str) {
+    jsrBufferAppend(b, str, strlen(str));
 }
 
-void blBufferTrunc(BlBuffer *b, size_t len) {
+void jsrBufferTrunc(JStarBuffer *b, size_t len) {
     if(len >= b->len) return;
     b->len = len;
     b->data[len] = '\0';
 }
 
-void blBufferCut(BlBuffer *b, size_t len) {
+void jsrBufferCut(JStarBuffer *b, size_t len) {
     if(len == 0 || len > b->len) return;
     memmove(b->data, b->data + len, b->len - len);
     b->len -= len;
     b->data[b->len] = '\0';
 }
 
-void blBufferReplaceChar(BlBuffer *b, size_t start, char c, char r) {
+void jsrBufferReplaceChar(JStarBuffer *b, size_t start, char c, char r) {
     for(size_t i = start; i < b->len; i++) {
         if(b->data[i] == c) {
             b->data[i] = r;
@@ -677,36 +677,36 @@ void blBufferReplaceChar(BlBuffer *b, size_t start, char c, char r) {
     }
 }
 
-void blBufferPrepend(BlBuffer *b, const char *str, size_t len) {
+void jsrBufferPrepend(JStarBuffer *b, const char *str, size_t len) {
     if(b->len + len >= b->size)
-        blBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
+        jsrBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
     memmove(b->data + len, b->data, b->len);
     memcpy(b->data, str, len);
     b->len += len;
     b->data[b->len] = '\0';
 }
 
-void blBufferPrependstr(BlBuffer *b, const char *str) {
-    blBufferPrepend(b, str, strlen(str));
+void jsrBufferPrependstr(JStarBuffer *b, const char *str) {
+    jsrBufferPrepend(b, str, strlen(str));
 }
 
-void blBufferAppendChar(BlBuffer *b, char c) {
-    if(b->len + 1 >= b->size) blBufGrow(b, 2);
+void jsrBufferAppendChar(JStarBuffer *b, char c) {
+    if(b->len + 1 >= b->size) jsrBufGrow(b, 2);
     b->data[b->len++] = c;
     b->data[b->len] = '\0';
 }
 
-void blBufferClear(BlBuffer *b) {
+void jsrBufferClear(JStarBuffer *b) {
     b->len = 0;
     b->data[0] = '\0';
 }
 
-void blBufferPush(BlBuffer *b) {
-    BlangVM *vm = b->vm;
+void jsrBufferPush(JStarBuffer *b) {
+    JStarVM *vm = b->vm;
     push(vm, OBJ_VAL(blBufferToString(b)));
 }
 
-void blBufferFree(BlBuffer *b) {
+void jsrBufferFree(JStarBuffer *b) {
     if(b->data == NULL) return;
     GC_FREEARRAY(b->vm, char, b->data, b->size);
     b->data = NULL;

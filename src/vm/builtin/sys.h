@@ -1,19 +1,19 @@
 #ifndef OS_H
 #define OS_H
 
-#include "blang.h"
+#include "jstar.h"
 
 void sysInitArgs(int argc, const char **argv);
 
-NATIVE(bl_time);
-NATIVE(bl_exec);
-NATIVE(bl_exit);
-NATIVE(bl_getImportPaths);
-NATIVE(bl_platform);
-NATIVE(bl_gc);
-NATIVE(bl_clock);
-NATIVE(bl_gets);
+JSR_NATIVE(jsr_time);
+JSR_NATIVE(jsr_exec);
+JSR_NATIVE(jsr_exit);
+JSR_NATIVE(jsr_getImportPaths);
+JSR_NATIVE(jsr_platform);
+JSR_NATIVE(jsr_gc);
+JSR_NATIVE(jsr_clock);
+JSR_NATIVE(jsr_gets);
 
-NATIVE(bl_sys_init);
+JSR_NATIVE(jsr_sys_init);
 
 #endif

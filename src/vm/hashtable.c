@@ -134,7 +134,7 @@ ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint
     }
 }
 
-void reachHashTable(BlangVM *vm, HashTable *t) {
+void reachHashTable(JStarVM *vm, HashTable *t) {
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
         Entry* e = &t->entries[i];

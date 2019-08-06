@@ -10,16 +10,16 @@
 #define BL_E 2.71828182845904523536
 
 #define STDLIB_MATH_FUN_X(fun)                     \
-    NATIVE(bl_##fun) {                             \
-        if(!blCheckNum(vm, 1, "x")) return false;  \
-        blPushNumber(vm, fun(blGetNumber(vm, 1))); \
+    JSR_NATIVE(jsr_##fun) {                             \
+        if(!jsrCheckNum(vm, 1, "x")) return false;  \
+        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1))); \
         return true;                               \
     }
 
 #define STDLIB_MATH_FUN_XY(fun)                                              \
-    NATIVE(bl_##fun) {                                                       \
-        if(!blCheckNum(vm, 1, "x") || !blCheckNum(vm, 2, "y")) return false; \
-        blPushNumber(vm, fun(blGetNumber(vm, 1), blGetNumber(vm, 2)));       \
+    JSR_NATIVE(jsr_##fun) {                                                       \
+        if(!jsrCheckNum(vm, 1, "x") || !jsrCheckNum(vm, 2, "y")) return false; \
+        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));       \
         return true;                                                         \
     }
 
@@ -34,9 +34,9 @@ static double rad(double x) {
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-NATIVE(bl_abs) {
-    if(!blCheckNum(vm, 1, "x")) return false;
-    blPushNumber(vm, fabs(blGetNumber(vm, 1)));
+JSR_NATIVE(jsr_abs) {
+    if(!jsrCheckNum(vm, 1, "x")) return false;
+    jsrPushNumber(vm, fabs(jsrGetNumber(vm, 1)));
     return true;
 }
 
@@ -44,11 +44,11 @@ STDLIB_MATH_FUN_X(acos)
 STDLIB_MATH_FUN_X(asin)
 STDLIB_MATH_FUN_X(atan)
 
-NATIVE(bl_atan2) {
-    if(!blCheckNum(vm, 1, "y") || !blCheckNum(vm, 2, "x")) {
+JSR_NATIVE(jsr_atan2) {
+    if(!jsrCheckNum(vm, 1, "y") || !jsrCheckNum(vm, 2, "x")) {
         return false;
     }
-    blPushNumber(vm, atan2(blGetNumber(vm, 1), blGetNumber(vm, 2)));
+    jsrPushNumber(vm, atan2(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));
     return true;
 }
 
@@ -59,11 +59,11 @@ STDLIB_MATH_FUN_X(deg)
 STDLIB_MATH_FUN_X(exp)
 STDLIB_MATH_FUN_X(floor)
 
-NATIVE(bl_frexp) {
-    if(!blCheckNum(vm, 1, "x")) return false;
+JSR_NATIVE(jsr_frexp) {
+    if(!jsrCheckNum(vm, 1, "x")) return false;
     double m;
     int e;
-    m = frexp(blGetNumber(vm, 1), &e);
+    m = frexp(jsrGetNumber(vm, 1), &e);
     ObjTuple *ret = newTuple(vm, 2);
     ret->arr[0] = NUM_VAL(m);
     ret->arr[1] = NUM_VAL(e);
@@ -71,11 +71,11 @@ NATIVE(bl_frexp) {
     return true;
 }
 
-NATIVE(bl_ldexp) {
-    if(!blCheckNum(vm, 1, "x") || !blCheckInt(vm, 2, "exp")) {
+JSR_NATIVE(jsr_ldexp) {
+    if(!jsrCheckNum(vm, 1, "x") || !jsrCheckInt(vm, 2, "exp")) {
         return false;
     }
-    blPushNumber(vm, ldexp(blGetNumber(vm, 1), blGetNumber(vm, 2)));
+    jsrPushNumber(vm, ldexp(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));
     return true;
 }
 
@@ -90,10 +90,10 @@ STDLIB_MATH_FUN_X(sqrt)
 STDLIB_MATH_FUN_X(tan)
 STDLIB_MATH_FUN_X(tanh)
 
-NATIVE(bl_modf) {
-    if(!blCheckNum(vm, 1, "x")) return false;
+JSR_NATIVE(jsr_modf) {
+    if(!jsrCheckNum(vm, 1, "x")) return false;
     double integer, frac;
-    integer = modf(blGetNumber(vm, 1), &frac);
+    integer = modf(jsrGetNumber(vm, 1), &frac);
     ObjTuple *ret = newTuple(vm, 2);
     ret->arr[0] = NUM_VAL(integer);
     ret->arr[1] = NUM_VAL(frac);
@@ -101,27 +101,27 @@ NATIVE(bl_modf) {
     return true;
 }
 
-NATIVE(bl_random) {
-    blPushNumber(vm, (double)rand() / ((unsigned)RAND_MAX + 1));
+JSR_NATIVE(jsr_random) {
+    jsrPushNumber(vm, (double)rand() / ((unsigned)RAND_MAX + 1));
     return true;
 }
 
-NATIVE(bl_seed) {
-    if(!blCheckInt(vm, 1, "s")) return false;
-    srand(blGetNumber(vm, 1));
-    blPushNull(vm);
+JSR_NATIVE(jsr_seed) {
+    if(!jsrCheckInt(vm, 1, "s")) return false;
+    srand(jsrGetNumber(vm, 1));
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_math_init) {
-    blPushNumber(vm, HUGE_VAL);
-    blSetGlobal(vm, NULL, "huge");
-    blPushNumber(vm, NAN);
-    blSetGlobal(vm, NULL, "nan");
-    blPushNumber(vm, BL_PI);
-    blSetGlobal(vm, NULL, "pi");
-    blPushNumber(vm, BL_E);
-    blSetGlobal(vm, NULL, "e");
-    blPushNull(vm);
+JSR_NATIVE(jsr_math_init) {
+    jsrPushNumber(vm, HUGE_VAL);
+    jsrSetGlobal(vm, NULL, "huge");
+    jsrPushNumber(vm, NAN);
+    jsrSetGlobal(vm, NULL, "nan");
+    jsrPushNumber(vm, BL_PI);
+    jsrSetGlobal(vm, NULL, "pi");
+    jsrPushNumber(vm, BL_E);
+    jsrSetGlobal(vm, NULL, "e");
+    jsrPushNull(vm);
     return true;
 }

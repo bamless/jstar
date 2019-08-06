@@ -1,9 +1,9 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "blang.h"
+#include "jstar.h"
 
-NATIVE(bl_printStack);
-NATIVE(bl_dis);
+JSR_NATIVE(jsr_printStack);
+JSR_NATIVE(jsr_dis);
 
 #endif

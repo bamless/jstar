@@ -1,11 +1,11 @@
 #include "import.h"
-#include "blang.h"
+#include "jstar.h"
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
 #include "memory.h"
 
-#include "blparse/parser.h"
+#include "jsrparse/parser.h"
 
 #include "builtin/modules.h"
 
@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PACKAGE_FILE "/__package__.bl"
+#define PACKAGE_FILE "/__package__.jsr"
 
 #ifdef __unix__
     #define DL_PREFIX "lib"
@@ -59,7 +59,7 @@ static char *loadSource(const char *path) {
     return src;
 }
 
-ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program) {
+ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
     ObjModule *module = getModule(vm, name);
 
     if(module == NULL) {
@@ -76,11 +76,11 @@ ObjFunction *compileWithModule(BlangVM *vm, ObjString *name, Stmt *program) {
     return fn;
 }
 
-void setModule(BlangVM *vm, ObjString *name, ObjModule *module) {
+void setModule(JStarVM *vm, ObjString *name, ObjModule *module) {
     hashTablePut(&vm->modules, name, OBJ_VAL(module));
 }
 
-ObjModule *getModule(BlangVM *vm, ObjString *name) {
+ObjModule *getModule(JStarVM *vm, ObjString *name) {
     Value module;
     if(!hashTableGet(&vm->modules, name, &module)) {
         return NULL;
@@ -88,7 +88,7 @@ ObjModule *getModule(BlangVM *vm, ObjString *name) {
     return AS_MODULE(module);
 }
 
-static void loadNativeDynlib(BlangVM *vm, BlBuffer *modulePath, ObjString *moduleName) {
+static void loadNativeDynlib(JStarVM *vm, JStarBuffer *modulePath, ObjString *moduleName) {
     const char *rootPath = strrchr(modulePath->data, '/');
     const char *simpleName = strrchr(moduleName->data, '.');
 
@@ -97,19 +97,19 @@ static void loadNativeDynlib(BlangVM *vm, BlBuffer *modulePath, ObjString *modul
     else
         simpleName++;
  
-    blBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
-    blBufferAppendstr(modulePath, "/");
-    blBufferAppendstr(modulePath, DL_PREFIX);
-    blBufferAppendstr(modulePath, simpleName);
-    blBufferAppendstr(modulePath, DL_SUFFIX);
+    jsrBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
+    jsrBufferAppendstr(modulePath, "/");
+    jsrBufferAppendstr(modulePath, DL_PREFIX);
+    jsrBufferAppendstr(modulePath, simpleName);
+    jsrBufferAppendstr(modulePath, DL_SUFFIX);
 
     void *dynlib = dynload(modulePath->data);
     if(dynlib != NULL) {
-        blBufferClear(modulePath);
-        blBufferAppendstr(modulePath, "bl_open_");
-        blBufferAppendstr(modulePath, simpleName);
+        jsrBufferClear(modulePath);
+        jsrBufferAppendstr(modulePath, "jsr_open_");
+        jsrBufferAppendstr(modulePath, simpleName);
 
-        typedef BlNativeReg* (*RegFunc)();
+        typedef JStarNativeReg* (*RegFunc)();
         RegFunc open_lib = (RegFunc) dynsim(dynlib, modulePath->data);
         
         if(open_lib == NULL) {
@@ -123,7 +123,7 @@ static void loadNativeDynlib(BlangVM *vm, BlBuffer *modulePath, ObjString *modul
     }
 }
 
-static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, const char *source) {
+static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, const char *source) {
     Parser p;
     Stmt *program = parse(&p, path, source, false);
 
@@ -138,7 +138,7 @@ static bool importWithSource(BlangVM *vm, const char *path, ObjString *name, con
     return true;
 }
 
-static bool importFromPath(BlangVM *vm, BlBuffer *path, ObjString *name) {
+static bool importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
     char *source = loadSource(path->data);
     if(source == NULL) return false;
     bool imported;
@@ -149,51 +149,51 @@ static bool importFromPath(BlangVM *vm, BlBuffer *path, ObjString *name) {
     return imported;
 }
 
-static bool importModuleOrPackage(BlangVM *vm, ObjString *name) {
+static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
     ObjList *paths = vm->importpaths;
 
-    BlBuffer fullPath;
-    blBufferInit(vm, &fullPath);
+    JStarBuffer fullPath;
+    jsrBufferInit(vm, &fullPath);
 
     for(size_t i = 0; i < paths->count + 1; i++) {
         if(i == paths->count) {
             // We have run through all import paths, try CWD
-            blBufferAppendstr(&fullPath, "./");
+            jsrBufferAppendstr(&fullPath, "./");
         } else {
             if(!IS_STRING(paths->arr[i])) continue;
-            blBufferAppendstr(&fullPath, AS_STRING(paths->arr[i])->data);
-            blBufferAppendChar(&fullPath, '/');
+            jsrBufferAppendstr(&fullPath, AS_STRING(paths->arr[i])->data);
+            jsrBufferAppendChar(&fullPath, '/');
         }
 
         size_t moduleStart = fullPath.len - 1;
-        blBufferAppendstr(&fullPath, name->data);
-        blBufferReplaceChar(&fullPath, moduleStart, '.', '/');
+        jsrBufferAppendstr(&fullPath, name->data);
+        jsrBufferReplaceChar(&fullPath, moduleStart, '.', '/');
 
         // try to load a package
         size_t moduleEnd = fullPath.len;
-        blBufferAppendstr(&fullPath, PACKAGE_FILE);
+        jsrBufferAppendstr(&fullPath, PACKAGE_FILE);
 
         if(importFromPath(vm, &fullPath, name)) {
-            blBufferFree(&fullPath);
+            jsrBufferFree(&fullPath);
             return true;
         }
 
         // if there is no package try to load module (i.e. normal .bl file)
-        blBufferTrunc(&fullPath, moduleEnd);
-        blBufferAppendstr(&fullPath, ".bl");
+        jsrBufferTrunc(&fullPath, moduleEnd);
+        jsrBufferAppendstr(&fullPath, ".bl");
 
         if(importFromPath(vm, &fullPath, name)) {
-            blBufferFree(&fullPath);
+            jsrBufferFree(&fullPath);
             return true;
         }
 
-        blBufferClear(&fullPath);
+        jsrBufferClear(&fullPath);
     }
 
     return false;
 }
 
-bool importModule(BlangVM *vm, ObjString *name) {
+bool importModule(JStarVM *vm, ObjString *name) {
     if(hashTableContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);
         return true;

@@ -1,7 +1,7 @@
-#include "blang.h"
+#include "jstar.h"
 
-#include "blparse/lex.h"
-#include "blparse/parser.h"
+#include "jsrparse/lex.h"
+#include "jsrparse/parser.h"
 
 #include "linenoise.h"
 
@@ -9,21 +9,10 @@
 #include <stdio.h>
 #include <string.h>
 
-static BlangVM *vm;
+static JStarVM *vm;
 
 static void header() {
-    const char blang_ascii_art[] = {
-        0x20, 0x20, 0x5f, 0x5f, 0x5f, 0x20, 0x5f, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x0a, 0x20, 0x7c, 0x20, 0x5f,
-        0x20, 0x29, 0x20, 0x7c, 0x5f, 0x5f, 0x20, 0x5f, 0x20, 0x5f, 0x20, 0x5f, 0x20, 0x20,
-        0x5f, 0x5f, 0x20, 0x5f, 0x20, 0x0a, 0x20, 0x7c, 0x20, 0x5f, 0x20, 0x5c, 0x20, 0x2f,
-        0x20, 0x5f, 0x60, 0x20, 0x7c, 0x20, 0x27, 0x20, 0x5c, 0x2f, 0x20, 0x5f, 0x60, 0x20,
-        0x7c, 0x0a, 0x20, 0x7c, 0x5f, 0x5f, 0x5f, 0x2f, 0x5f, 0x5c, 0x5f, 0x5f, 0x2c, 0x5f,
-        0x7c, 0x5f, 0x7c, 0x7c, 0x5f, 0x5c, 0x5f, 0x5f, 0x2c, 0x20, 0x7c, 0x0a, 0x20, 0x20,
-        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
-        0x20, 0x7c, 0x5f, 0x5f, 0x5f, 0x2f, 0x20, 0x0a, 0};
-    printf("%s", blang_ascii_art);
-    printf("Version %d.%d.%d\n", BLANG_VERSION_MAJOR, BLANG_VERSION_MINOR, BLANG_VERSION_PATCH);
+    printf("Version %d.%d.%d\n", JSTAR_VERSION_MAJOR, JSTAR_VERSION_MINOR, JSTAR_VERSION_PATCH);
 }
 
 // Little hack to enable adding a tab in linenoise
@@ -63,7 +52,7 @@ static int countBlocks(const char *line) {
     return depth;
 }
 
-static void addPrintIfExpr(BlBuffer *sb) {
+static void addPrintIfExpr(JStarBuffer *sb) {
     Parser p;
 
     Expr *e;
@@ -72,10 +61,10 @@ static void addPrintIfExpr(BlBuffer *sb) {
     if((e = parseExpression(&p, "", src, true)) != NULL) {
         freeExpr(e);
         // assign the result of the expression to `_`
-        blBufferPrependstr(sb, "var _ = ");
-        blBufferAppendChar(sb, '\n');
+        jsrBufferPrependstr(sb, "var _ = ");
+        jsrBufferAppendChar(sb, '\n');
         // print `_` if not null
-        blBufferAppendstr(sb, "if _ != null then print(_) end");
+        jsrBufferAppendstr(sb, "if _ != null then print(_) end");
     }
 }
 
@@ -83,30 +72,30 @@ static void dorepl() {
     header();
     linenoiseSetCompletionCallback(completion);
 
-    BlBuffer src;
-    blBufferInit(vm, &src);
+    JStarBuffer src;
+    jsrBufferInit(vm, &src);
 
     char *line;
-    while((line = linenoise("blang>> ")) != NULL) {
+    while((line = linenoise("J*>> ")) != NULL) {
         linenoiseHistoryAdd(line);
         int depth = countBlocks(line);
-        blBufferAppendstr(&src, line);
+        jsrBufferAppendstr(&src, line);
         free(line);
 
         while(depth > 0 && (line = linenoise("....... ")) != NULL) {
             linenoiseHistoryAdd(line);
-            blBufferAppendChar(&src, '\n');
+            jsrBufferAppendChar(&src, '\n');
             depth += countBlocks(line);
-            blBufferAppendstr(&src, line);
+            jsrBufferAppendstr(&src, line);
             free(line);
         }
 
         addPrintIfExpr(&src);
-        blEvaluate(vm, "<stdin>", src.data);
-        blBufferClear(&src);
+        jsrEvaluate(vm, "<stdin>", src.data);
+        jsrBufferClear(&src);
     }
 
-    blBufferFree(&src);
+    jsrBufferFree(&src);
     linenoiseHistoryFree();
 }
 
@@ -143,14 +132,14 @@ static char *readSrcFile(const char *path) {
 }
 
 int main(int argc, const char **argv) {
-    vm = blNewVM();
+    vm = jsrNewVM();
 
-    EvalResult res = VM_EVAL_SUCCSESS;
+    EvalResult res = VM_EVAL_SUCCESS;
     if(argc == 1) {
         dorepl();
     } else {
         // set command line args for use in scripts
-        blInitCommandLineArgs(argc - 2, argv + 2);
+        jsrInitCommandLineArgs(argc - 2, argv + 2);
 
         // set base import path to script's directory
         char *directory = strrchr(argv[1], '/');
@@ -158,7 +147,7 @@ int main(int argc, const char **argv) {
             size_t length = directory - argv[1] + 1;
             char *path = calloc(length + 1, 1);
             memcpy(path, argv[1], length);
-            blAddImportPath(vm, path);
+            jsrAddImportPath(vm, path);
             free(path);
         }
 
@@ -168,10 +157,10 @@ int main(int argc, const char **argv) {
             exit(EXIT_FAILURE);
         }
 
-        res = blEvaluate(vm, argv[1], src);
+        res = jsrEvaluate(vm, argv[1], src);
         free(src);
     }
 
-    blFreeVM(vm);
+    jsrFreeVM(vm);
     return res;
 }

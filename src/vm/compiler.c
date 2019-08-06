@@ -1,5 +1,5 @@
 #include "compiler.h"
-#include "blang.h"
+#include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
 #include "util.h"
@@ -47,7 +47,7 @@ typedef struct TryExcept {
 typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
 
 typedef struct Compiler {
-    BlangVM *vm;
+    JStarVM *vm;
     Compiler *prev;
 
     bool hasSuper;
@@ -72,7 +72,7 @@ typedef struct Compiler {
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s);
 
-static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, BlangVM *vm) {
+static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, JStarVM *vm) {
     c->vm = vm;
     c->type = t;
     c->func = NULL;
@@ -1354,7 +1354,7 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
     }
 }
 
-ObjFunction *compile(BlangVM *vm, ObjModule *module, Stmt *s) {
+ObjFunction *compile(JStarVM *vm, ObjModule *module, Stmt *s) {
     Compiler c;
     initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
     ObjFunction *func = function(&c, module, s);
@@ -1481,54 +1481,54 @@ static ObjString *readString(Compiler *c, Expr *e) {
     const char *str = e->str.str + 1;
     size_t length = e->str.length - 2;
 
-    BlBuffer sb;
-    blBufferInit(c->vm, &sb);
+    JStarBuffer sb;
+    jsrBufferInit(c->vm, &sb);
 
     for(size_t i = 0; i < length; i++) {
         char c = str[i];
         if(c == '\\') {
             switch(str[i + 1]) {
             case '0':
-                blBufferAppendChar(&sb, '\0');
+                jsrBufferAppendChar(&sb, '\0');
                 break;
             case 'a':
-                blBufferAppendChar(&sb, '\a');
+                jsrBufferAppendChar(&sb, '\a');
                 break;
             case 'b':
-                blBufferAppendChar(&sb, '\b');
+                jsrBufferAppendChar(&sb, '\b');
                 break;
             case 'f':
-                blBufferAppendChar(&sb, '\f');
+                jsrBufferAppendChar(&sb, '\f');
                 break;
             case 'n':
-                blBufferAppendChar(&sb, '\n');
+                jsrBufferAppendChar(&sb, '\n');
                 break;
             case 'r':
-                blBufferAppendChar(&sb, '\r');
+                jsrBufferAppendChar(&sb, '\r');
                 break;
             case 't':
-                blBufferAppendChar(&sb, '\t');
+                jsrBufferAppendChar(&sb, '\t');
                 break;
             case 'v':
-                blBufferAppendChar(&sb, '\v');
+                jsrBufferAppendChar(&sb, '\v');
                 break;
             case 'e':
-                blBufferAppendChar(&sb, '\e');
+                jsrBufferAppendChar(&sb, '\e');
                 break;
             default:
-                blBufferAppendChar(&sb, str[i + 1]);
+                jsrBufferAppendChar(&sb, str[i + 1]);
                 break;
             }
             i++;
         } else {
-            blBufferAppendChar(&sb, c);
+            jsrBufferAppendChar(&sb, c);
         }
     }
 
     return blBufferToString(&sb);
 }
 
-void reachCompilerRoots(BlangVM *vm, Compiler *c) {
+void reachCompilerRoots(JStarVM *vm, Compiler *c) {
     while(c != NULL) {
         reachObject(vm, (Obj *)c->func);
         c = c->prev;

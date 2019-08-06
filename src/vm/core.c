@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static ObjClass *createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
+static ObjClass *createClass(JStarVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
     ObjString *n = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(n));
     ObjClass *c = newClass(vm, n, sup);
@@ -24,13 +24,13 @@ static ObjClass *createClass(BlangVM *vm, ObjModule *m, ObjClass *sup, const cha
     return c;
 }
 
-static Value getDefinedName(BlangVM *vm, ObjModule *m, const char *name) {
+static Value getDefinedName(JStarVM *vm, ObjModule *m, const char *name) {
     Value v = NULL_VAL;
     hashTableGet(&m->globals, copyString(vm, name, strlen(name), true), &v);
     return v;
 }
 
-static void defMethod(BlangVM *vm, ObjModule *m, ObjClass *cls, Native n, const char *name,
+static void defMethod(JStarVM *vm, ObjModule *m, ObjClass *cls, JStarNative n, const char *name,
                       uint8_t argc) {
     ObjString *strName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(strName));
@@ -48,38 +48,38 @@ static uint64_t hash64(uint64_t x) {
 }
 
 // class Object
-static NATIVE(bl_Object_string) {
+static JSR_NATIVE(jsr_Object_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
     char str[256];
     snprintf(str, 255, "<%s@%p>", o->cls->name->data, (void *)o);
-    blPushString(vm, str);
+    jsrPushString(vm, str);
     return true;
 }
 
-static NATIVE(bl_Object_hash) {
+static JSR_NATIVE(jsr_Object_hash) {
     uint64_t x = hash64((uint64_t)AS_OBJ(vm->apiStack[0]));
-    blPushNumber(vm, (uint32_t)x);
+    jsrPushNumber(vm, (uint32_t)x);
     return true;
 }
 // Object
 
 // class Class
-static NATIVE(bl_Class_getName) {
+static JSR_NATIVE(jsr_Class_getName) {
     push(vm, OBJ_VAL(AS_CLASS(vm->apiStack[0])->name));
     return true;
 }
 
-static NATIVE(bl_Class_string) {
+static JSR_NATIVE(jsr_Class_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
     char str[256];
     snprintf(str, 255, "<Class %s@%p>", ((ObjClass *)o)->name->data, (void *)o);
-    blPushString(vm, str);
+    jsrPushString(vm, str);
     return true;
 }
 // Class
 
-void initCoreLibrary(BlangVM *vm) {
-    ObjString *name = copyString(vm, BL_CORE_MODULE, strlen(BL_CORE_MODULE), true);
+void initCoreLibrary(JStarVM *vm) {
+    ObjString *name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
 
     push(vm, OBJ_VAL(name));
     ObjModule *core = newModule(vm, name);
@@ -93,16 +93,16 @@ void initCoreLibrary(BlangVM *vm) {
 
     // Setup the base class of the object hierarchy
     vm->objClass = createClass(vm, core, NULL, "Object"); // Object has no superclass
-    defMethod(vm, core, vm->objClass, &bl_Object_string, "__string__", 0);
-    defMethod(vm, core, vm->objClass, &bl_Object_hash, "__hash__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
 
     // Patch up Class object information
     vm->clsClass->superCls = vm->objClass;
     hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
-    defMethod(vm, core, vm->clsClass, &bl_Class_getName, "getName", 0);
-    defMethod(vm, core, vm->clsClass, &bl_Class_string, "__string__", 0);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
-    blEvaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
+    jsrEvaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
 
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
     vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
@@ -127,172 +127,172 @@ void initCoreLibrary(BlangVM *vm) {
     }
 }
 
-NATIVE(bl_int) {
-    if(blIsNumber(vm, 1)) {
-        blPushNumber(vm, trunc(blGetNumber(vm, 1)));
+JSR_NATIVE(jsr_int) {
+    if(jsrIsNumber(vm, 1)) {
+        jsrPushNumber(vm, trunc(jsrGetNumber(vm, 1)));
         return true;
     }
-    if(blIsString(vm, 1)) {
+    if(jsrIsString(vm, 1)) {
         char *end = NULL;
-        const char *nstr = blGetString(vm, 1);
+        const char *nstr = jsrGetString(vm, 1);
         long long n = strtoll(nstr, &end, 10);
 
         if((n == 0 && end == nstr) || *end != '\0') {
-            BL_RAISE(vm, "InvalidArgException", "\"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "\"%s\".", nstr);
         }
         if(n == LLONG_MAX) {
-            BL_RAISE(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
         }
         if(n == LLONG_MIN) {
-            BL_RAISE(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
         }
 
-        blPushNumber(vm, n);
+        jsrPushNumber(vm, n);
         return true;
     }
 
-    BL_RAISE(vm, "InvalidArgException", "Argument must be a number or a string.");
+    JSR_RAISE(vm, "InvalidArgException", "Argument must be a number or a string.");
 }
 
-NATIVE(bl_num) {
-    if(blIsNumber(vm, 1)) {
-        blPushNumber(vm, blGetNumber(vm, 1));
+JSR_NATIVE(jsr_num) {
+    if(jsrIsNumber(vm, 1)) {
+        jsrPushNumber(vm, jsrGetNumber(vm, 1));
         return true;
     }
-    if(blIsString(vm, 1)) {
+    if(jsrIsString(vm, 1)) {
         errno = 0;
 
         char *end = NULL;
-        const char *nstr = blGetString(vm, 1);
+        const char *nstr = jsrGetString(vm, 1);
         double n = strtod(nstr, &end);
 
         if((n == 0 && end == nstr) || *end != '\0') {
-            BL_RAISE(vm, "InvalidArgException", "\"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "\"%s\".", nstr);
         }
         if(n == HUGE_VAL || n == -HUGE_VAL) {
-            BL_RAISE(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
         }
         if(n == 0 && errno == ERANGE) {
-            BL_RAISE(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
         }
 
-        blPushNumber(vm, n);
+        jsrPushNumber(vm, n);
         return true;
     }
 
-    BL_RAISE(vm, "InvalidArgException", "Argument must be a number or a string.");
+    JSR_RAISE(vm, "InvalidArgException", "Argument must be a number or a string.");
 }
 
-NATIVE(bl_isInt) {
-    if(blIsNumber(vm, 1)) {
-        double n = blGetNumber(vm, 1);
-        blPushBoolean(vm, trunc(n) == n);
+JSR_NATIVE(jsr_isInt) {
+    if(jsrIsNumber(vm, 1)) {
+        double n = jsrGetNumber(vm, 1);
+        jsrPushBoolean(vm, trunc(n) == n);
         return true;
     }
-    blPushBoolean(vm, false);
+    jsrPushBoolean(vm, false);
     return true;
 }
 
-NATIVE(bl_char) {
-    if(!blCheckInt(vm, 1, "num")) return false;
-    char c = blGetNumber(vm, 1);
-    blPushStringSz(vm, &c, 1);
+JSR_NATIVE(jsr_char) {
+    if(!jsrCheckInt(vm, 1, "num")) return false;
+    char c = jsrGetNumber(vm, 1);
+    jsrPushStringSz(vm, &c, 1);
     return true;
 }
 
-NATIVE(bl_ascii) {
-    if(!blCheckStr(vm, 1, "arg")) return false;
+JSR_NATIVE(jsr_ascii) {
+    if(!jsrCheckStr(vm, 1, "arg")) return false;
 
-    const char *str = blGetString(vm, 1);
-    if(strlen(str) != 1) BL_RAISE(vm, "InvalidArgException", "arg must be a String of length 1");
+    const char *str = jsrGetString(vm, 1);
+    if(strlen(str) != 1) JSR_RAISE(vm, "InvalidArgException", "arg must be a String of length 1");
 
     char c = str[0];
-    blPushNumber(vm, (double)c);
+    jsrPushNumber(vm, (double)c);
     return true;
 }
 
-NATIVE(bl_print) {
-    blPushValue(vm, 1);
-    if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) return false;
-    if(!blIsString(vm, -1)) BL_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+JSR_NATIVE(jsr_print) {
+    jsrPushValue(vm, 1);
+    if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) return false;
+    if(!jsrIsString(vm, -1)) JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
 
-    printf("%s", blGetString(vm, -1));
-    blPop(vm);
+    printf("%s", jsrGetString(vm, -1));
+    jsrPop(vm);
 
-    BL_FOREACH(2, {
-        if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) return false;
-        if(!blIsString(vm, -1)) {
-            BL_RAISE(vm, "TypeException", "__string__() didn't return a String");
+    JSR_FOREACH(2, {
+        if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) return false;
+        if(!jsrIsString(vm, -1)) {
+            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
         }
-        printf(" %s", blGetString(vm, -1));
-        blPop(vm);
+        printf(" %s", jsrGetString(vm, -1));
+        jsrPop(vm);
     }, );
 
     printf("\n");
 
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_eval) {
-    if(!blCheckStr(vm, 1, "source")) return false;
+JSR_NATIVE(jsr_eval) {
+    if(!jsrCheckStr(vm, 1, "source")) return false;
     if(vm->frameCount < 1) {
-        BL_RAISE(vm, "Exception", "eval() can only be called by another function");
+        JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
     Frame *prevFrame = &vm->frames[vm->frameCount - 2];
     ObjModule *mod = prevFrame->fn.type == OBJ_CLOSURE ? prevFrame->fn.closure->fn->c.module
                                                        : prevFrame->fn.native->c.module;
 
-    EvalResult res = blEvaluateModule(vm, "<string>", mod->name->data, blGetString(vm, 1));
-    blPushBoolean(vm, res == VM_EVAL_SUCCSESS);
+    EvalResult res = jsrEvaluateModule(vm, "<string>", mod->name->data, jsrGetString(vm, 1));
+    jsrPushBoolean(vm, res == VM_EVAL_SUCCESS);
     return true;
 }
 
-NATIVE(bl_type) {
+JSR_NATIVE(jsr_type) {
     push(vm, OBJ_VAL(getClass(vm, peek(vm))));
     return true;
 }
 
 // class Number {
-NATIVE(bl_Number_string) {
+JSR_NATIVE(jsr_Number_string) {
     char str[24]; // enough for .*g with DBL_DIG
-    snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, blGetNumber(vm, 0));
-    blPushString(vm, str);
+    snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
+    jsrPushString(vm, str);
     return true;
 }
 
-NATIVE(bl_Number_hash) {
-    double num = blGetNumber(vm, 0);
+JSR_NATIVE(jsr_Number_hash) {
+    double num = jsrGetNumber(vm, 0);
     if(num == 0) num = 0;
     union {
         double d;
         uint64_t r;
     } c = {.d = num};
     uint64_t n = hash64(c.r);
-    blPushNumber(vm, (uint32_t)n);
+    jsrPushNumber(vm, (uint32_t)n);
     return true;
 }
 // } Number
 
 // class Boolean {
-NATIVE(bl_Boolean_string) {
-    if(blGetBoolean(vm, 0))
-        blPushString(vm, "true");
+JSR_NATIVE(jsr_Boolean_string) {
+    if(jsrGetBoolean(vm, 0))
+        jsrPushString(vm, "true");
     else
-        blPushString(vm, "false");
+        jsrPushString(vm, "false");
     return true;
 }
 // } Boolean
 
 // class Null {
-NATIVE(bl_Null_string) {
-    blPushString(vm, "null");
+JSR_NATIVE(jsr_Null_string) {
+    jsrPushString(vm, "null");
     return true;
 }
 // } Null
 
 // class Function {
-NATIVE(bl_Function_string) {
+JSR_NATIVE(jsr_Function_string) {
     const char *funType = NULL;
     const char *funName = NULL;
     const char *modName = NULL;
@@ -326,36 +326,36 @@ NATIVE(bl_Function_string) {
     snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName,
              AS_OBJ(vm->apiStack[0]));
 
-    blPushString(vm, str);
+    jsrPushString(vm, str);
     return true;
 }
 // } Function
 
 // class Module {
-NATIVE(bl_Module_string) {
+JSR_NATIVE(jsr_Module_string) {
     char str[256];
     ObjModule *m = AS_MODULE(vm->apiStack[0]);
     snprintf(str, sizeof(str) - 1, "<module %s@%p>", m->name->data, m);
-    blPushString(vm, str);
+    jsrPushString(vm, str);
     return true;
 }
 // } Module
 
 // class List {
-NATIVE(bl_List_new) {
-    if(!blCheckInt(vm, 1, "size")) return false;
-    double count = blGetNumber(vm, 1);
+JSR_NATIVE(jsr_List_new) {
+    if(!jsrCheckInt(vm, 1, "size")) return false;
+    double count = jsrGetNumber(vm, 1);
 
-    if(count < 0) BL_RAISE(vm, "TypeException", "size must be >= 0");
+    if(count < 0) JSR_RAISE(vm, "TypeException", "size must be >= 0");
     ObjList *lst = newList(vm, count < 16 ? 16 : count);
     lst->count = count;
     push(vm, OBJ_VAL(lst));
 
     if(IS_CLOSURE(vm->apiStack[2]) || IS_NATIVE(vm->apiStack[2])) {
         for(size_t i = 0; i < lst->count; i++) {
-            blPushValue(vm, 2);
-            blPushNumber(vm, i);
-            if(blCall(vm, 1) != VM_EVAL_SUCCSESS) return false;
+            jsrPushValue(vm, 2);
+            jsrPushNumber(vm, i);
+            if(jsrCall(vm, 1) != VM_EVAL_SUCCESS) return false;
             lst->arr[i] = pop(vm);
         }
     } else {
@@ -367,31 +367,31 @@ NATIVE(bl_List_new) {
     return true;
 }
 
-NATIVE(bl_List_add) {
+JSR_NATIVE(jsr_List_add) {
     ObjList *l = AS_LIST(vm->apiStack[0]);
     listAppend(vm, l, vm->apiStack[1]);
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_List_insert) {
+JSR_NATIVE(jsr_List_insert) {
     ObjList *l = AS_LIST(vm->apiStack[0]);
-    size_t index = blCheckIndex(vm, 1, l->count, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->count, "i");
     if(index == SIZE_MAX) return false;
 
     listInsert(vm, l, index, vm->apiStack[2]);
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_List_len) {
+JSR_NATIVE(jsr_List_len) {
     push(vm, NUM_VAL(AS_LIST(vm->apiStack[0])->count));
     return true;
 }
 
-NATIVE(bl_List_removeAt) {
+JSR_NATIVE(jsr_List_removeAt) {
     ObjList *l = AS_LIST(vm->apiStack[0]);
-    size_t index = blCheckIndex(vm, 1, l->count, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->count, "i");
     if(index == SIZE_MAX) return false;
     
     Value r = l->arr[index];
@@ -400,15 +400,15 @@ NATIVE(bl_List_removeAt) {
     return true;
 }
 
-NATIVE(bl_List_subList) {
+JSR_NATIVE(jsr_List_subList) {
     ObjList *list = AS_LIST(vm->apiStack[0]);
 
-    size_t from = blCheckIndex(vm, 1, list->count, "from");
+    size_t from = jsrCheckIndex(vm, 1, list->count, "from");
     if(from == SIZE_MAX) return false;
-    size_t to = blCheckIndex(vm, 2, list->count + 1, "to");
+    size_t to = jsrCheckIndex(vm, 2, list->count + 1, "to");
     if(to == SIZE_MAX) return false;
 
-    if(from >= to) BL_RAISE(vm, "InvalidArgException", "from must be < to.");
+    if(from >= to) JSR_RAISE(vm, "InvalidArgException", "from must be < to.");
 
     size_t numElems = to - from;
     ObjList *subList = newList(vm, numElems < 16 ? 16 : numElems);
@@ -420,13 +420,13 @@ NATIVE(bl_List_subList) {
     return true;
 }
 
-NATIVE(bl_List_clear) {
+JSR_NATIVE(jsr_List_clear) {
     AS_LIST(vm->apiStack[0])->count = 0;
-    blPushNull(vm);
+    jsrPushNull(vm);
     return true;
 }
 
-NATIVE(bl_List_iter) {
+JSR_NATIVE(jsr_List_iter) {
     ObjList *lst = AS_LIST(vm->apiStack[0]);
 
     if(IS_NULL(vm->apiStack[1])) {
@@ -450,7 +450,7 @@ NATIVE(bl_List_iter) {
     return true;
 }
 
-NATIVE(bl_List_next) {
+JSR_NATIVE(jsr_List_next) {
     ObjList *lst = AS_LIST(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
@@ -467,12 +467,12 @@ NATIVE(bl_List_next) {
 // } List
 
 // class Tuple {
-NATIVE(bl_Tuple_new) {
-    if(!blIsList(vm, 1)) {
-        blPushList(vm);
-        BL_FOREACH(1, {
-                blListAppend(vm, 2);
-                blPop(vm);
+JSR_NATIVE(jsr_Tuple_new) {
+    if(!jsrIsList(vm, 1)) {
+        jsrPushList(vm);
+        JSR_FOREACH(1, {
+                jsrListAppend(vm, 2);
+                jsrPop(vm);
         },)
     }
 
@@ -483,15 +483,15 @@ NATIVE(bl_Tuple_new) {
     return true;
 }
 
-NATIVE(bl_Tuple_len) {
+JSR_NATIVE(jsr_Tuple_len) {
     push(vm, NUM_VAL(AS_TUPLE(vm->apiStack[0])->size));
     return true;
 }
 
-NATIVE(bl_Tuple_iter) {
+JSR_NATIVE(jsr_Tuple_iter) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
-    if(blIsNull(vm, 1)) {
+    if(jsrIsNull(vm, 1)) {
         if(tup->size == 0) {
             push(vm, BOOL_VAL(false));
             return true;
@@ -500,7 +500,7 @@ NATIVE(bl_Tuple_iter) {
         return true;
     }
 
-    if(blIsNumber(vm, 1)) {
+    if(jsrIsNumber(vm, 1)) {
         double idx = AS_NUM(vm->apiStack[1]);
         if(idx >= 0 && idx < tup->size - 1) {
             push(vm, NUM_VAL(idx + 1));
@@ -512,7 +512,7 @@ NATIVE(bl_Tuple_iter) {
     return true;
 }
 
-NATIVE(bl_Tuple_next) {
+JSR_NATIVE(jsr_Tuple_next) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
@@ -527,15 +527,15 @@ NATIVE(bl_Tuple_next) {
     return true;
 }
 
-NATIVE(bl_Tuple_sub) {
+JSR_NATIVE(jsr_Tuple_sub) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
-    size_t from = blCheckIndex(vm, 1, tup->size, "from");
+    size_t from = jsrCheckIndex(vm, 1, tup->size, "from");
     if(from == SIZE_MAX) return false;
-    size_t to = blCheckIndex(vm, 2, tup->size + 1, "to");
+    size_t to = jsrCheckIndex(vm, 2, tup->size + 1, "to");
     if(to == SIZE_MAX) return false;
 
-    if(from >= to) BL_RAISE(vm, "InvalidArgException", "from must be < to.");
+    if(from >= to) JSR_RAISE(vm, "InvalidArgException", "from must be < to.");
 
     size_t numElems = to - from;
     ObjTuple *sub = newTuple(vm, numElems);
@@ -548,15 +548,15 @@ NATIVE(bl_Tuple_sub) {
 // }
 
 // class String {
-NATIVE(bl_substr) {
+JSR_NATIVE(jsr_substr) {
     ObjString *str = AS_STRING(vm->apiStack[0]);
 
-    size_t from = blCheckIndex(vm, 1, str->length + 1, "from");
+    size_t from = jsrCheckIndex(vm, 1, str->length + 1, "from");
     if(from == SIZE_MAX) return false;
-    size_t to = blCheckIndex(vm, 2, str->length + 1, "to");
+    size_t to = jsrCheckIndex(vm, 2, str->length + 1, "to");
     if(to == SIZE_MAX) return false;
 
-    if(from > to) BL_RAISE(vm, "InvalidArgException", "argument to must be >= from.");
+    if(from > to) JSR_RAISE(vm, "InvalidArgException", "argument to must be >= from.");
 
     size_t len = to - from;
     ObjString *sub = allocateString(vm, len);
@@ -566,47 +566,47 @@ NATIVE(bl_substr) {
     return true;
 }
 
-NATIVE(bl_String_join) {
-    BlBuffer joined;
-    blBufferInit(vm, &joined);
+JSR_NATIVE(jsr_String_join) {
+    JStarBuffer joined;
+    jsrBufferInit(vm, &joined);
 
-    BL_FOREACH(1, {
-            if(!blIsString(vm, -1)) {
-                if(blCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCSESS) {
-                    blBufferFree(&joined);
+    JSR_FOREACH(1, {
+            if(!jsrIsString(vm, -1)) {
+                if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
+                    jsrBufferFree(&joined);
                     return false;
                 }
             }
-            blBufferAppend(&joined, blGetString(vm, -1), blGetStringSz(vm, -1));
-            blBufferAppend(&joined, blGetString(vm, 0), blGetStringSz(vm, 0));
-            blPop(vm);
-    }, blBufferFree(&joined))
+            jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+            jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+            jsrPop(vm);
+    }, jsrBufferFree(&joined))
 
     if(joined.len > 0) {
-        blBufferTrunc(&joined, joined.len - blGetStringSz(vm, 0));
+        jsrBufferTrunc(&joined, joined.len - jsrGetStringSz(vm, 0));
     }
 
-    blBufferPush(&joined);
+    jsrBufferPush(&joined);
     return true;
 }
 
-NATIVE(bl_String_len) {
-    blPushNumber(vm, blGetStringSz(vm, 0));
+JSR_NATIVE(jsr_String_len) {
+    jsrPushNumber(vm, jsrGetStringSz(vm, 0));
     return true;
 }
 
-NATIVE(bl_String_string) {
+JSR_NATIVE(jsr_String_string) {
     return true;
 }
 
-NATIVE(bl_String_hash) {
-    blPushNumber(vm, STRING_GET_HASH(AS_STRING(vm->apiStack[0])));
+JSR_NATIVE(jsr_String_hash) {
+    jsrPushNumber(vm, STRING_GET_HASH(AS_STRING(vm->apiStack[0])));
     return true;
 }
 
-NATIVE(bl_String_eq) {
-    if(!blIsString(vm, 1)) {
-        blPushBoolean(vm, false);
+JSR_NATIVE(jsr_String_eq) {
+    if(!jsrIsString(vm, 1)) {
+        jsrPushBoolean(vm, false);
         return true;
     }
 
@@ -614,20 +614,20 @@ NATIVE(bl_String_eq) {
     ObjString *s2 = AS_STRING(vm->apiStack[1]);
 
     if(s1->interned && s2->interned) {
-        blPushBoolean(vm, s1 == s2);
+        jsrPushBoolean(vm, s1 == s2);
         return true;
     }
 
     if(s1->length != s2->length) {
-        blPushBoolean(vm, false);
+        jsrPushBoolean(vm, false);
         return true;
     }
 
-    blPushBoolean(vm, memcmp(s1->data, s2->data, s1->length) == 0);
+    jsrPushBoolean(vm, memcmp(s1->data, s2->data, s1->length) == 0);
     return true;
 }
 
-NATIVE(bl_String_iter) {
+JSR_NATIVE(jsr_String_iter) {
     ObjString *s = AS_STRING(vm->apiStack[0]);
 
     if(IS_NULL(vm->apiStack[1])) {
@@ -651,13 +651,13 @@ NATIVE(bl_String_iter) {
     return true;
 }
 
-NATIVE(bl_String_next) {
+JSR_NATIVE(jsr_String_next) {
     ObjString *str = AS_STRING(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
         double idx = AS_NUM(vm->apiStack[1]);
         if(idx >= 0 && idx < str->length) {
-            blPushStringSz(vm, str->data + (size_t)idx, 1);
+            jsrPushStringSz(vm, str->data + (size_t)idx, 1);
             return true;
         }
     }

@@ -48,9 +48,9 @@ typedef struct Frame {
     uint8_t handlerc;              // Exception handlers count
 } Frame;
 
-// The Blang VM. This struct stores all the
-// state needed to execute Blang code.
-typedef struct BlangVM {
+// The J* VM. This struct stores all the
+// state needed to execute J* code.
+typedef struct JStarVM {
     // Paths searched for import
     ObjList *importpaths;
 
@@ -118,17 +118,17 @@ typedef struct BlangVM {
     // Stack used to recursevely reach all the fields of reached objects
     Obj **reachedStack;
     size_t reachedCapacity, reachedCount;
-} BlangVM;
+} JStarVM;
 
-static inline void push(BlangVM *vm, Value v) {
+static inline void push(JStarVM *vm, Value v) {
     *vm->sp++ = v;
 }
 
-static inline Value pop(BlangVM *vm) {
+static inline Value pop(JStarVM *vm) {
     return *--vm->sp;
 }
 
-static inline ObjClass *getClass(BlangVM *vm, Value v) {
+static inline ObjClass *getClass(JStarVM *vm, Value v) {
     if(IS_NUM(v)) {
         return vm->numClass;
     } else if(IS_BOOL(v)) {
@@ -140,7 +140,7 @@ static inline ObjClass *getClass(BlangVM *vm, Value v) {
     }
 }
 
-static inline bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
+static inline bool isInstance(JStarVM *vm, Value i, ObjClass *cls) {
     for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
         if(c == cls) {
             return true;
@@ -149,7 +149,7 @@ static inline bool isInstance(BlangVM *vm, Value i, ObjClass *cls) {
     return false;
 }
 
-static inline int apiStackIndex(BlangVM *vm, int slot) {
+static inline int apiStackIndex(JStarVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0) return vm->sp + slot - vm->apiStack;
@@ -157,7 +157,7 @@ static inline int apiStackIndex(BlangVM *vm, int slot) {
 }
 
 // Get the value at API stack slot "slot"
-static inline Value apiStackSlot(BlangVM *vm, int slot) {
+static inline Value apiStackSlot(JStarVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0)

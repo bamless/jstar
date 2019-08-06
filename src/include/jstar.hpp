@@ -20,11 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef BLANG_HPP
-#define BLANG_HPP
+#ifndef JSTAR_HPP
+#define JSTAR_HPP
 
 extern "C" {
-    #include "blang.h"
+    #include "jstar.h"
 }
 
 #endif

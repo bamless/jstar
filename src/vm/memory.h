@@ -8,57 +8,57 @@
 #include <stdlib.h>
 
 typedef struct Frame Frame;
-typedef struct BlangVM BlangVM;
-typedef struct BlBuffer BlBuffer;
+typedef struct JStarVM JStarVM;
+typedef struct JStarBuffer JStarBuffer;
 
 // Launch a garbage collection. It scans all roots (VM stack, global Strings, etc...)
 // marking all the reachable objects (recursively, if needed) and then calls freeObjects
 // to free all unreached ones.
-void garbageCollect(BlangVM *vm);
+void garbageCollect(JStarVM *vm);
 
 // Functions for allocating objects.
 // These functions use GCallocate to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
-ObjNative       *newNative(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, Native fn, 
+ObjNative       *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn, 
                            uint8_t defaultc);
-ObjFunction     *newFunction(BlangVM *vm, ObjModule *module, ObjString *name, uint8_t argc, 
+ObjFunction     *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, 
                              uint8_t defaultc);
-ObjClass        *newClass(BlangVM *vm, ObjString *name, ObjClass *superCls);
-ObjBoundMethod  *newBoundMethod(BlangVM *vm, Value b, Obj *method);
-ObjInstance     *newInstance(BlangVM *vm, ObjClass *cls);
-ObjClosure      *newClosure(BlangVM *vm, ObjFunction *fn);
-ObjModule       *newModule(BlangVM *vm, ObjString *name);
-ObjUpvalue      *newUpvalue(BlangVM *vm, Value *addr);
-ObjList         *newList(BlangVM *vm, size_t startSize);
-ObjTuple        *newTuple(BlangVM *vm, size_t size);
-ObjStackTrace   *newStackTrace(BlangVM *vm);
+ObjClass        *newClass(JStarVM *vm, ObjString *name, ObjClass *superCls);
+ObjBoundMethod  *newBoundMethod(JStarVM *vm, Value b, Obj *method);
+ObjInstance     *newInstance(JStarVM *vm, ObjClass *cls);
+ObjClosure      *newClosure(JStarVM *vm, ObjFunction *fn);
+ObjModule       *newModule(JStarVM *vm, ObjString *name);
+ObjUpvalue      *newUpvalue(JStarVM *vm, Value *addr);
+ObjList         *newList(JStarVM *vm, size_t startSize);
+ObjTuple        *newTuple(JStarVM *vm, size_t size);
+ObjStackTrace   *newStackTrace(JStarVM *vm);
 
-ObjString       *allocateString(BlangVM *vm, size_t length);
-ObjString       *copyString(BlangVM *vm, const char *str, size_t length, bool intern);
+ObjString       *allocateString(JStarVM *vm, size_t length);
+ObjString       *copyString(JStarVM *vm, const char *str, size_t length, bool intern);
 
 // Functions for manipulating objects.
 // All these functions require allocating garbage collectable
 // memory so are defined here
 
 // Dumps a frame in a ObjStackTrace
-void stRecordFrame(BlangVM *vm, ObjStackTrace *st, Frame *f, int depth);
+void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth);
 
 // ObjList manipulation functions
-void listAppend(BlangVM *vm, ObjList *lst, Value v);
-void listInsert(BlangVM *vm, ObjList *lst, size_t index, Value val);
-void listRemove(BlangVM *vm, ObjList *lst, size_t index);
+void listAppend(JStarVM *vm, ObjList *lst, Value v);
+void listInsert(JStarVM *vm, ObjList *lst, size_t index, Value val);
+void listRemove(JStarVM *vm, ObjList *lst, size_t index);
 
 // Convert a BlBuffer to an ObjString
-ObjString *blBufferToString(BlBuffer *b);
+ObjString *blBufferToString(JStarBuffer *b);
 
 // Mark an Object/Value as reached
-void reachObject(BlangVM *vm, Obj *o);
-void reachValue(BlangVM *vm, Value v);
+void reachObject(JStarVM *vm, Obj *o);
+void reachValue(JStarVM *vm, Value v);
 
 // Free all unmarked objects
-void freeObjects(BlangVM *vm);
+void freeObjects(JStarVM *vm);
 // Disable the GC
-void disableGC(BlangVM *vm, bool disable);
+void disableGC(JStarVM *vm, bool disable);
 
 #endif
