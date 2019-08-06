@@ -82,7 +82,7 @@ static void dorepl() {
         jsrBufferAppendstr(&src, line);
         free(line);
 
-        while(depth > 0 && (line = linenoise("....... ")) != NULL) {
+        while(depth > 0 && (line = linenoise(".... ")) != NULL) {
             linenoiseHistoryAdd(line);
             jsrBufferAppendChar(&src, '\n');
             depth += countBlocks(line);

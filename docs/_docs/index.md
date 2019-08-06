@@ -1,27 +1,22 @@
----
-title: Blang
-permalink: /docs/blang/
----
-
-# blang
+# J*
 A dynamic lightweight scripting language
 
 # How to use
 ## Repl
-If the blang binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and blang will execute it. You can also write multiline code, it will look like this:
+If the J* binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and J* will execute it. You can also write multiline code, it will look like this:
 ```lua
-blang>> for var i = 0; i < 3; i += 1 do
-.......   print("Hello World!")
-....... end
+J*>> for var i = 0; i < 3; i += 1 do
+....   print("Hello World!")
+.... end
 Hello World!
 Hello World!
 Hello World!
-blang>> _
+J*>> _
 ```
 When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpreter.
 
 ## Scripts
-If you want to run a script, just pass its path as the first argument to blang. If you pass more than one argument, all the others will be forwarded to blang as *script arguments*.
+If you want to run a script, just pass its path as the first argument to J*. If you pass more than one argument, all the others will be forwarded to J* as *script arguments*.
 You can then read them from the script this way:
 ```lua
 import sys
@@ -46,13 +41,13 @@ Install **CMake**, navigate to the root of the project and issue:
 ```
 mkdir build && cd build && cmake ../src && make -j
 ```
-The blang executable will be created in the **build/bin** folder.
+The J* executable will be created in the **build/bin** folder.
 
 ## Windows
 
 #### Using MSVC
 
-Install CMake for windows form [here](https://cmake.org/download/). Create a **build** folder in the root of the project. Open the CMake GUI and select **blang/src** as the input folder and **blang/build** as the output one. Click on **configure**. Once that is done, uncheck the **USE_COMPUTED_GOTOS** option (MSVC doesn't support computed gotos) and then click on **generate**. Project files for visual studio will be created in **build**. Then, simply import the project in visual studio and build the **blang** target.
+Install CMake for windows form [here](https://cmake.org/download/). Create a **build** folder in the root of the project. Open the CMake GUI and select **J*/src** as the input folder and **J*/build** as the output one. Click on **configure**. Once that is done, uncheck the **USE_COMPUTED_GOTOS** option (MSVC doesn't support computed gotos) and then click on **generate**. Project files for visual studio will be created in **build**. Then, simply import the project in visual studio and build the **J*** target.
 
 #### Using MinGW-w64
 
@@ -65,7 +60,7 @@ I don't own a Mac, but since the project is standard c11, building on MacOS with
 
 ## Development
 
-The project provides 2 build types: **Release** and **Debug**. The default build type is Release, it uses -O3 optimization level and strips all the debug symbols. If you want to debug/develop blang use the Debug build type (cmake -DCMAKE_BUILD_TYPE=debug) that includes debug information and doesn't apply any optimization.
+The project provides 2 build types: **Release** and **Debug**. The default build type is Release, it uses -O3 optimization level and strips all the debug symbols. If you want to debug/develop J* use the Debug build type (cmake -DCMAKE_BUILD_TYPE=debug) that includes debug information and doesn't apply any optimization.
 
 ## Compilation options
 
