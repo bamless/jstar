@@ -676,17 +676,19 @@ static bool callBinaryOverload(JStarVM *vm, ObjString *name, ObjString *reverse)
 
 static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name) {
     JStarNativeReg *reg = m->natives.registry;
-    for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
-        if(reg[i].type == REG_METHOD && cls != NULL) {
-            const char *clsName = reg[i].as.method.cls;
-            const char *methName = reg[i].as.method.name;
-            if(strcmp(cls, clsName) == 0 && strcmp(name, methName) == 0) {
-                return reg[i].as.method.meth;
-            }
-        } else if(reg[i].type == REG_FUNCTION && cls == NULL) {
-            const char *funName = reg[i].as.function.name;
-            if(strcmp(name, funName) == 0) {
-                return reg[i].as.function.fun;
+    if(reg != NULL) {
+        for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
+            if(reg[i].type == REG_METHOD && cls != NULL) {
+                const char *clsName = reg[i].as.method.cls;
+                const char *methName = reg[i].as.method.name;
+                if(strcmp(cls, clsName) == 0 && strcmp(name, methName) == 0) {
+                    return reg[i].as.method.meth;
+                }
+            } else if(reg[i].type == REG_FUNCTION && cls == NULL) {
+                const char *funName = reg[i].as.function.name;
+                if(strcmp(name, funName) == 0) {
+                    return reg[i].as.function.fun;
+                }
             }
         }
     }

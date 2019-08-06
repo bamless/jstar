@@ -178,9 +178,9 @@ static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
             return true;
         }
 
-        // if there is no package try to load module (i.e. normal .bl file)
+        // if there is no package try to load module (i.e. normal .jsr file)
         jsrBufferTrunc(&fullPath, moduleEnd);
-        jsrBufferAppendstr(&fullPath, ".bl");
+        jsrBufferAppendstr(&fullPath, ".jsr");
 
         if(importFromPath(vm, &fullPath, name)) {
             jsrBufferFree(&fullPath);
