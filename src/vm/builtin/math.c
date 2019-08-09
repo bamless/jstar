@@ -9,18 +9,18 @@
 #define BL_PI 3.14159265358979323846
 #define BL_E 2.71828182845904523536
 
-#define STDLIB_MATH_FUN_X(fun)                     \
-    JSR_NATIVE(jsr_##fun) {                             \
-        if(!jsrCheckNum(vm, 1, "x")) return false;  \
+#define STDLIB_MATH_FUN_X(fun)                       \
+    JSR_NATIVE(jsr_##fun) {                          \
+        if(!jsrCheckNum(vm, 1, "x")) return false;   \
         jsrPushNumber(vm, fun(jsrGetNumber(vm, 1))); \
-        return true;                               \
+        return true;                                 \
     }
 
-#define STDLIB_MATH_FUN_XY(fun)                                              \
-    JSR_NATIVE(jsr_##fun) {                                                       \
+#define STDLIB_MATH_FUN_XY(fun)                                                \
+    JSR_NATIVE(jsr_##fun) {                                                    \
         if(!jsrCheckNum(vm, 1, "x") || !jsrCheckNum(vm, 2, "y")) return false; \
-        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));       \
-        return true;                                                         \
+        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));      \
+        return true;                                                           \
     }
 
 static double deg(double x) {

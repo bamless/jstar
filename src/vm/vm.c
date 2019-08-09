@@ -735,7 +735,7 @@ static bool runEval(JStarVM *vm, int depth) {
             LOAD_FRAME();                                  \
             ObjString *t1 = getClass(vm, peek(vm))->name;  \
             ObjString *t2 = getClass(vm, peek2(vm))->name; \
-            jsrRaise(vm, "TypeException",                   \
+            jsrRaise(vm, "TypeException",                  \
                     "Operator %s not defined "             \
                     "for types %s, %s",                    \
                     #op, t1->data, t2->data);              \

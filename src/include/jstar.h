@@ -98,9 +98,9 @@ JSTAR_API void jsrAddImportPath(JStarVM *vm, const char *path);
 // Utility macro for raising an exception from a native function.
 // It raises the exception and exits signaling the error.
 #define JSR_RAISE(vm, cls, err, ...)           \
-    do {                                      \
+    do {                                       \
         jsrRaise(vm, cls, err, ##__VA_ARGS__); \
-        return false;                         \
+        return false;                          \
     } while(0)
 
 // Main module and core module names
