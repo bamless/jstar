@@ -102,17 +102,18 @@ void initCoreLibrary(JStarVM *vm) {
     defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
-    jsrEvaluateModule(vm, "__core__", "__core__", readBuiltInModule("__core__"));
+    jsrEvaluateModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
 
-    vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
+    vm->strClass  = AS_CLASS(getDefinedName(vm, core, "String"));
     vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-    vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
-    vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
-    vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
-    vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
+    vm->lstClass  = AS_CLASS(getDefinedName(vm, core, "List"));
+    vm->numClass  = AS_CLASS(getDefinedName(vm, core, "Number"));
+    vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
+    vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
     vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-    vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-    vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+    vm->stClass   = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+    vm->tupClass  = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+    vm->excClass  = AS_CLASS(getDefinedName(vm, core, "Exception"));
 
     core->base.cls = vm->modClass;
 

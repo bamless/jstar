@@ -1316,8 +1316,8 @@ sup_invoke:;
     }
     TARGET(OP_RAISE): {
         Value exc = peek(vm);
-        if(!IS_INSTANCE(exc)) {
-            jsrRaise(vm, "TypeException", "Can only raise Object instances.");
+        if(!isInstance(vm, exc, vm->excClass)) {
+            jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
             UNWIND_STACK(vm);
         }
 
@@ -1499,11 +1499,12 @@ EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
 void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
     if(!jsrGetGlobal(vm, NULL, cls)) return;
 
-    assert(IS_CLASS(peek(vm)), "Can only raise instance objects");
-
     ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
-    push(vm, OBJ_VAL(excInst));
+    if(!isInstance(vm, OBJ_VAL(excInst), vm->excClass)) {
+        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+    }
 
+    push(vm, OBJ_VAL(excInst));
     ObjStackTrace *st = newStackTrace(vm);
     hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
 
