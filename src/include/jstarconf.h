@@ -4,7 +4,7 @@
 // Version
 #define JSTAR_VERSION_MAJOR 0
 #define JSTAR_VERSION_MINOR 4
-#define JSTAR_VERSION_PATCH 1
+#define JSTAR_VERSION_PATCH 2
 
 // Increasing version number, used for range checking
 #define JSTAR_VERSION \
