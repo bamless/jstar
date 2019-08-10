@@ -674,7 +674,41 @@ static bool callBinaryOverload(JStarVM *vm, ObjString *name, ObjString *reverse)
     return false;
 }
 
+static bool unpackObject(JStarVM *vm, Obj *o, uint8_t n) {
+    size_t size = 0;
+    Value *arr = NULL;
+
+    switch(o->type) {
+    case OBJ_TUPLE:
+        arr = ((ObjTuple*)o)->arr;
+        size = ((ObjTuple*)o)->size;
+        break;
+    case OBJ_LIST:
+        arr = ((ObjList*)o)->arr;
+        size = ((ObjList*)o)->count;
+        break;
+    default: 
+        UNREACHABLE();
+        break;
+    }
+
+    if(n > size) {
+        jsrRaise(vm, "TypeException", "Too little values to unpack.");
+        return false;
+    }
+
+    for(int i = 0; i < n; i++) {
+        push(vm, arr[i]);
+    }
+    return true;
+}
+
 static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name) {
+    JStarNative n;
+    if((n = resolveBuiltIn(m->name->data, cls, name)) != NULL) {
+        return n;
+    }
+
     JStarNativeReg *reg = m->natives.registry;
     if(reg != NULL) {
         for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
@@ -836,6 +870,44 @@ static bool runEval(JStarVM *vm, int depth) {
     TARGET(OP_MUL): 
         BINARY(NUM_VAL, *, vm->mul, vm->rmul);
         DISPATCH();
+    TARGET(OP_DIV): {
+        BINARY(NUM_VAL, /, vm->div, vm->rdiv);
+        DISPATCH();
+    }
+    TARGET(OP_MOD): {
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
+            double b = AS_NUM(pop(vm));
+            double a = AS_NUM(pop(vm));
+            push(vm, NUM_VAL(fmod(a, b)));
+        } else {
+            BINARY_OVERLOAD(%, vm->mod, vm->rmod);
+        }
+        DISPATCH();
+    }
+    TARGET(OP_POW): {
+        if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
+            jsrRaise(vm, "TypeException", "Operands of `^` must be numbers");
+            UNWIND_STACK(vm);
+        }
+        double y = AS_NUM(pop(vm));
+        double x = AS_NUM(pop(vm));
+        push(vm, NUM_VAL(pow(x, y)));
+        DISPATCH();
+    }
+    TARGET(OP_NEG): {
+        if(IS_NUM(peek(vm))) {
+            push(vm, NUM_VAL(-AS_NUM(pop(vm))));
+        } else {
+            ObjClass *cls = getClass(vm, peek(vm));
+            SAVE_FRAME();
+            if(!invokeMethod(vm, cls, vm->neg, 0)) {
+                LOAD_FRAME();
+                UNWIND_STACK(vm);
+            }
+            LOAD_FRAME();
+        }
+        DISPATCH();
+    }
     TARGET(OP_LT):
         BINARY(BOOL_VAL, <,  vm->lt, NULL);
         DISPATCH();
@@ -848,34 +920,6 @@ static bool runEval(JStarVM *vm, int depth) {
     TARGET(OP_GE):
         BINARY(BOOL_VAL, >=, vm->ge, NULL);
         DISPATCH();
-    TARGET(OP_DIV): {
-        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
-            double b = AS_NUM(pop(vm));
-            double a = AS_NUM(pop(vm));
-            if(b == 0) {
-                jsrRaise(vm, "DivisionByZeroException", "/ by zero.");
-                UNWIND_STACK(vm);
-            }
-            push(vm, NUM_VAL(a / b));
-        } else {
-            BINARY_OVERLOAD(/, vm->div, vm->rdiv);
-        }
-        DISPATCH();
-    }
-    TARGET(OP_MOD): {
-        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
-            double b = AS_NUM(pop(vm));
-            double a = AS_NUM(pop(vm));
-            if(b == 0) {
-                jsrRaise(vm, "DivisionByZeroException", "%% by zero.");
-                UNWIND_STACK(vm);
-            }
-            push(vm, NUM_VAL(fmod(a, b)));
-        } else {
-            BINARY_OVERLOAD(%, vm->mod, vm->rmod);
-        }
-        DISPATCH();
-    }
     TARGET(OP_EQ): {
         if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
@@ -895,20 +939,6 @@ static bool runEval(JStarVM *vm, int depth) {
         }
         DISPATCH();
     }
-    TARGET(OP_NEG): {
-        if(IS_NUM(peek(vm))) {
-            push(vm, NUM_VAL(-AS_NUM(pop(vm))));
-        } else {
-            ObjClass *cls = getClass(vm, peek(vm));
-            SAVE_FRAME();
-            if(!invokeMethod(vm, cls, vm->neg, 0)) {
-                LOAD_FRAME();
-                UNWIND_STACK(vm);
-            }
-            LOAD_FRAME();
-        }
-        DISPATCH();
-    }
     TARGET(OP_NOT):
         push(vm, BOOL_VAL(!isValTrue(pop(vm))));
         DISPATCH();
@@ -920,16 +950,6 @@ static bool runEval(JStarVM *vm, int depth) {
         Value b = pop(vm);
         Value a = pop(vm);
         push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
-        DISPATCH();
-    }
-    TARGET(OP_POW): {
-        if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-            jsrRaise(vm, "TypeException", "Operands of `^` must be numbers");
-            UNWIND_STACK(vm);
-        }
-        double y = AS_NUM(pop(vm));
-        double x = AS_NUM(pop(vm));
-        push(vm, NUM_VAL(pow(x, y)));
         DISPATCH();
     }
     TARGET(OP_SUBSCR_GET): {
@@ -1125,7 +1145,6 @@ sup_invoke:;
                         n->data, m->name->data);
                 UNWIND_STACK(vm);
             } 
-
             hashTablePut(&vm->module->globals, n, val);
         }
         DISPATCH();
@@ -1183,32 +1202,8 @@ sup_invoke:;
                     getClass(vm, peek(vm))->name->data);
             UNWIND_STACK(vm);
         }
-
-        Obj *seq = AS_OBJ(pop(vm));
-        uint8_t num = NEXT_CODE();
-        size_t size = 0;
-        Value *arr = NULL;
-
-        switch(seq->type) {
-        case OBJ_TUPLE:
-            arr = ((ObjTuple*)seq)->arr;
-            size = ((ObjTuple*)seq)->size;
-            break;
-        case OBJ_LIST:
-            arr = ((ObjList*)seq)->arr;
-            size = ((ObjList*)seq)->count;
-            break;
-        default: 
-            UNREACHABLE();
-            break;
-        }
-
-        if(num > size) {
-            jsrRaise(vm, "TypeException", "Too little values to unpack.");
+        if(!unpackObject(vm, AS_OBJ(pop(vm)),  NEXT_CODE())) {
             UNWIND_STACK(vm);
-        }
-        for(int i = 0; i < num; i++) {
-            push(vm, arr[i]);
         }
         DISPATCH();
     TARGET(OP_DEF_METHOD): {
@@ -1224,14 +1219,11 @@ sup_invoke:;
         ObjString *methodName = GET_STRING();
         ObjNative *native = AS_NATIVE(GET_CONST());
 
-        native->fn = resolveBuiltIn(vm->module->name->data, cls->name->data, methodName->data);
-        if(!native->fn) native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
-
+        native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
         if(native->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
             UNWIND_STACK(vm);
         }
-
         hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
         DISPATCH();
     }
@@ -1239,9 +1231,7 @@ sup_invoke:;
         ObjString *name = GET_STRING();
         ObjNative *nat  = AS_NATIVE(peek(vm));
 
-        nat->fn = resolveBuiltIn(vm->module->name->data, NULL, name->data);
-        if(!nat->fn) nat->fn = resolveNative(vm->module, NULL, name->data);
-
+        nat->fn = resolveNative(vm->module, NULL, name->data);
         if(nat->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
             UNWIND_STACK(vm);
@@ -1300,7 +1290,6 @@ sup_invoke:;
             }
             case CAUSE_RETURN: {
                 Value ret = pop(vm), cause = pop(vm);
-
                 // If there are other ensure handlers jump to them
                 while(frame->handlerc > 0) {
                     Handler *h = &frame->handlers[--frame->handlerc];
@@ -1310,7 +1299,6 @@ sup_invoke:;
                         DISPATCH();
                     }
                 }
-
                 // Finally return from the function
                 push(vm, ret);
                 GOTO(OP_RETURN);
@@ -1328,7 +1316,6 @@ sup_invoke:;
     }
     TARGET(OP_RAISE): {
         Value exc = peek(vm);
-
         if(!IS_INSTANCE(exc)) {
             jsrRaise(vm, "TypeException", "Can only raise Object instances.");
             UNWIND_STACK(vm);
