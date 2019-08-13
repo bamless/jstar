@@ -4,7 +4,7 @@ project(JStar)
 # version
 set(JSTAR_VERSION_MAJOR 0)
 set(JSTAR_VERSION_MINOR 4)
-set(JSTAR_VERSION_PATCH 2)
+set(JSTAR_VERSION_PATCH 3)
 
 # options
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
