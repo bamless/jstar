@@ -12,7 +12,8 @@
 static JStarVM *vm;
 
 static void header() {
-    printf("Version %d.%d.%d\n", JSTAR_VERSION_MAJOR, JSTAR_VERSION_MINOR, JSTAR_VERSION_PATCH);
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
 // Little hack to enable adding a tab in linenoise

@@ -68,11 +68,16 @@ bool hashTablePut(HashTable *t, ObjString *key, Value val) {
     if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
         growEntries(t);
     }
+    
     Entry *e = findEntry(t->entries, t->sizeMask, key);
-    if(e->key == NULL && IS_NULL(e->value)) t->numEntries++;
+    bool isNew = e->key == NULL;
+    if(isNew && IS_NULL(e->value)) {
+        t->numEntries++;
+    }
+
     e->key = key;
     e->value = val;
-    return e->key == NULL;
+    return isNew;
 }
 
 bool hashTableGet(HashTable *t, ObjString *key, Value *res) {

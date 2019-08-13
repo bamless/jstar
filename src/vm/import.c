@@ -63,13 +63,8 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
     ObjModule *module = getModule(vm, name);
 
     if(module == NULL) {
-        disableGC(vm, true);
-
         module = newModule(vm, name);
-        hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
         setModule(vm, name, module);
-
-        disableGC(vm, false);
     }
 
     ObjFunction *fn = compile(vm, module, program);
@@ -77,6 +72,11 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
 }
 
 void setModule(JStarVM *vm, ObjString *name, ObjModule *module) {
+    push(vm, OBJ_VAL(module));
+    push(vm, OBJ_VAL(name));
+    hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
+    pop(vm);
+    pop(vm);
     hashTablePut(&vm->modules, name, OBJ_VAL(module));
 }
 

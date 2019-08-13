@@ -1,7 +1,7 @@
-#include "jstar.h"
 #include "core.h"
 #include "disassemble.h"
 #include "import.h"
+#include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
 
@@ -106,9 +106,7 @@ JStarVM *jsrNewVM() {
 
     // Init the __main__ module
     ObjString *mainMod = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
-    push(vm, OBJ_VAL(mainMod));
     setModule(vm, mainMod, newModule(vm, mainMod));
-    pop(vm);
 
     // This is called after initCoreLibrary in order to correctly assign
     // classes to objects, since classes are created in intCoreLibrary
@@ -153,14 +151,14 @@ static Frame *getFrame(JStarVM *vm, Callable *c) {
 static void appendCallFrame(JStarVM *vm, ObjClosure *closure) {
     Frame *callFrame = getFrame(vm, &closure->fn->c);
     callFrame->fn.type = OBJ_CLOSURE;
-    callFrame->fn.closure = closure;
+    callFrame->fn.as.closure = closure;
     callFrame->ip = closure->fn->chunk.code;
 }
 
 static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
     Frame *callFrame = getFrame(vm, &native->c);
     callFrame->fn.type = OBJ_NATIVE;
-    callFrame->fn.native = native;
+    callFrame->fn.as.native = native;
     callFrame->ip = NULL;
 }
 
@@ -739,7 +737,7 @@ static bool runEval(JStarVM *vm, int depth) {
 #define LOAD_FRAME()                         \
     frame = &vm->frames[vm->frameCount - 1]; \
     frameStack = frame->stack;               \
-    closure = frame->fn.closure;             \
+    closure = frame->fn.as.closure;          \
     fn = closure->fn;                        \
     ip = frame->ip;
 
@@ -864,17 +862,23 @@ static bool runEval(JStarVM *vm, int depth) {
         }
         DISPATCH();
     }
-    TARGET(OP_SUB): 
+
+    TARGET(OP_SUB): { 
         BINARY(NUM_VAL, -, vm->sub, vm->rsub);
         DISPATCH();
-    TARGET(OP_MUL): 
+    }
+
+    TARGET(OP_MUL): {
         BINARY(NUM_VAL, *, vm->mul, vm->rmul);
         DISPATCH();
+    }
+
     TARGET(OP_DIV): {
         BINARY(NUM_VAL, /, vm->div, vm->rdiv);
         DISPATCH();
     }
-    TARGET(OP_MOD): {
+    
+    TARGET(OP_MOD):
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
             double b = AS_NUM(pop(vm));
             double a = AS_NUM(pop(vm));
@@ -883,7 +887,7 @@ static bool runEval(JStarVM *vm, int depth) {
             BINARY_OVERLOAD(%, vm->mod, vm->rmod);
         }
         DISPATCH();
-    }
+    
     TARGET(OP_POW): {
         if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
             jsrRaise(vm, "TypeException", "Operands of `^` must be numbers");
@@ -894,6 +898,7 @@ static bool runEval(JStarVM *vm, int depth) {
         push(vm, NUM_VAL(pow(x, y)));
         DISPATCH();
     }
+
     TARGET(OP_NEG): {
         if(IS_NUM(peek(vm))) {
             push(vm, NUM_VAL(-AS_NUM(pop(vm))));
@@ -908,18 +913,27 @@ static bool runEval(JStarVM *vm, int depth) {
         }
         DISPATCH();
     }
-    TARGET(OP_LT):
+
+    TARGET(OP_LT): {
         BINARY(BOOL_VAL, <,  vm->lt, NULL);
         DISPATCH();
-    TARGET(OP_LE):
+    }
+
+    TARGET(OP_LE): {
         BINARY(BOOL_VAL, <=, vm->le, NULL);
         DISPATCH();
-    TARGET(OP_GT):
+    }
+
+    TARGET(OP_GT): {
         BINARY(BOOL_VAL, >, vm->gt, NULL);
         DISPATCH();
-    TARGET(OP_GE):
+    }
+
+    TARGET(OP_GE): {
         BINARY(BOOL_VAL, >=, vm->ge, NULL);
         DISPATCH();
+    }
+
     TARGET(OP_EQ): {
         if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
@@ -939,9 +953,12 @@ static bool runEval(JStarVM *vm, int depth) {
         }
         DISPATCH();
     }
-    TARGET(OP_NOT):
+
+    TARGET(OP_NOT): {
         push(vm, BOOL_VAL(!isValTrue(pop(vm))));
         DISPATCH();
+    }
+
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
             jsrRaise(vm, "TypeException", "Right operand of `is` must be a class.");
@@ -952,6 +969,7 @@ static bool runEval(JStarVM *vm, int depth) {
         push(vm, BOOL_VAL(isInstance(vm, a, AS_CLASS(b))));
         DISPATCH();
     }
+
     TARGET(OP_SUBSCR_GET): {
         Value arg = pop(vm), operand = pop(vm);
         SAVE_FRAME();
@@ -962,6 +980,7 @@ static bool runEval(JStarVM *vm, int depth) {
         LOAD_FRAME();
         DISPATCH();
     }
+
     TARGET(OP_SUBSCR_SET): {
         Value arg = pop(vm), operand = pop(vm), s = pop(vm);
         SAVE_FRAME();
@@ -972,6 +991,7 @@ static bool runEval(JStarVM *vm, int depth) {
         LOAD_FRAME();
         DISPATCH();
     }
+
     TARGET(OP_GET_FIELD): {
         Value v = pop(vm);
         if(!getFieldFromValue(vm, v, GET_STRING())) {
@@ -979,6 +999,7 @@ static bool runEval(JStarVM *vm, int depth) {
         }
         DISPATCH();
     }
+
     TARGET(OP_SET_FIELD): {
         Value v = pop(vm);
         if(!setFieldOfValue(vm, v, GET_STRING(), peek(vm))) {
@@ -986,27 +1007,33 @@ static bool runEval(JStarVM *vm, int depth) {
         }
         DISPATCH();
     }
+
     TARGET(OP_JUMP): {
         int16_t off = NEXT_SHORT();
         ip += off;
         DISPATCH();
     }
+
     TARGET(OP_JUMPF): {
         int16_t off = NEXT_SHORT();
         if(!isValTrue(pop(vm))) ip += off;
         DISPATCH();
     }
+
     TARGET(OP_JUMPT): {
         int16_t off = NEXT_SHORT();
         if(isValTrue(pop(vm))) ip += off;
         DISPATCH();
     }
-    TARGET(OP_NULL):
+
+    TARGET(OP_NULL): {
         push(vm, NULL_VAL);
         DISPATCH();
-    TARGET(OP_CALL): {
-        uint8_t argc = NEXT_CODE();
-        goto call;
+    }
+    
+    {
+        uint8_t argc;
+
     TARGET(OP_CALL_0):
     TARGET(OP_CALL_1):
     TARGET(OP_CALL_2):
@@ -1019,6 +1046,11 @@ static bool runEval(JStarVM *vm, int depth) {
     TARGET(OP_CALL_9):
     TARGET(OP_CALL_10):
         argc = op - OP_CALL_0;
+        goto call;
+
+    TARGET(OP_CALL):
+        argc = NEXT_CODE();
+
 call:
         SAVE_FRAME();
         if(!callValue(vm, peekn(vm, argc), argc)) {
@@ -1026,12 +1058,12 @@ call:
             UNWIND_STACK(vm);
         }
         LOAD_FRAME();
-
         DISPATCH();
     }
-    TARGET(OP_INVOKE): {
-        uint8_t argc = NEXT_CODE();
-        goto invoke;
+
+    {
+        uint8_t argc;
+
     TARGET(OP_INVOKE_0):
     TARGET(OP_INVOKE_1):
     TARGET(OP_INVOKE_2):
@@ -1044,6 +1076,11 @@ call:
     TARGET(OP_INVOKE_9):
     TARGET(OP_INVOKE_10):
         argc = op - OP_INVOKE_0;
+        goto invoke;
+    
+    TARGET(OP_INVOKE):
+        argc = NEXT_CODE();
+
 invoke:;
         ObjString *name = GET_STRING();
 
@@ -1055,9 +1092,10 @@ invoke:;
         LOAD_FRAME();
         DISPATCH();
     }
-    TARGET(OP_SUPER): {
-        uint8_t argc = NEXT_CODE();
-        goto sup_invoke;
+    
+    {
+        uint8_t argc;
+
     TARGET(OP_SUPER_0):
     TARGET(OP_SUPER_1):
     TARGET(OP_SUPER_2):
@@ -1070,6 +1108,11 @@ invoke:;
     TARGET(OP_SUPER_9):
     TARGET(OP_SUPER_10):
         argc = op - OP_SUPER_0;
+        goto sup_invoke;
+
+    TARGET(OP_SUPER):
+        argc = NEXT_CODE();
+
 sup_invoke:;
         ObjString *name = GET_STRING();
         // The superclass is stored as a const in the function itself
@@ -1083,6 +1126,7 @@ sup_invoke:;
         LOAD_FRAME();
         DISPATCH();
     }
+
     TARGET(OP_RETURN): {
         Value ret = pop(vm);
 
@@ -1107,7 +1151,8 @@ sup_invoke:;
         vm->module = fn->c.module;
         DISPATCH();
     }
-    TARGET(OP_IMPORT):
+
+    TARGET(OP_IMPORT): 
     TARGET(OP_IMPORT_AS):
     TARGET(OP_IMPORT_FROM): {
         ObjString *name = GET_STRING();
@@ -1116,22 +1161,22 @@ sup_invoke:;
             UNWIND_STACK(vm);
         }
 
-        if(op == OP_IMPORT || op == OP_IMPORT_AS) {
-            //define name for the module in the importing module
-            ObjString *mname = op == OP_IMPORT ? name : GET_STRING();
-            hashTablePut(&vm->module->globals, mname, OBJ_VAL(getModule(vm, name)));
-        }
+        if(op == OP_IMPORT)
+            hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
+        else if(op == OP_IMPORT_AS)
+            hashTablePut(&vm->module->globals, GET_STRING(), OBJ_VAL(getModule(vm, name)));
 
         //call the module's main if first time import
         if(!valueEquals(peek(vm), NULL_VAL)) {
             SAVE_FRAME();
             ObjClosure *c = newClosure(vm, AS_FUNC(peek(vm)));
-            *(vm->sp - 1) = OBJ_VAL(c); 
+            vm->sp[-1] = OBJ_VAL(c); 
             callFunction(vm, c, 0);
             LOAD_FRAME();
         }
         DISPATCH();
     }
+    
     TARGET(OP_IMPORT_NAME): {
         ObjModule *m = getModule(vm, GET_STRING());
         ObjString *n = GET_STRING();
@@ -1149,14 +1194,18 @@ sup_invoke:;
         }
         DISPATCH();
     }
+
     TARGET(OP_APPEND_LIST): {
         listAppend(vm, AS_LIST(peek2(vm)), peek(vm));
         pop(vm);
         DISPATCH();
     }
-    TARGET(OP_NEW_LIST):
+    
+    TARGET(OP_NEW_LIST): {
         push(vm, OBJ_VAL(newList(vm, 0)));
         DISPATCH();
+    }
+    
     TARGET(OP_NEW_TUPLE): {
         uint8_t size = NEXT_CODE();
         ObjTuple *t = newTuple(vm, size);
@@ -1166,6 +1215,7 @@ sup_invoke:;
         push(vm, OBJ_VAL(t));
         DISPATCH();
     }
+
     TARGET(OP_CLOSURE): {
         ObjClosure *c = newClosure(vm, AS_FUNC(GET_CONST()));
         push(vm, OBJ_VAL(c));
@@ -1175,20 +1225,22 @@ sup_invoke:;
             if(isLocal) {
                 c->upvalues[i] = captureUpvalue(vm, frame->stack + index);
             } else {
-                c->upvalues[i] = frame->fn.closure->upvalues[i];
+                c->upvalues[i] = frame->fn.as.closure->upvalues[i];
             }
         }
         DISPATCH();
     }
-    TARGET(OP_NEW_CLASS):
+
+    TARGET(OP_NEW_CLASS): {
         createClass(vm, GET_STRING(), vm->objClass);
         DISPATCH();
-    TARGET(OP_NEW_SUBCLASS):
+    }
+
+    TARGET(OP_NEW_SUBCLASS): {
         if(!IS_CLASS(peek(vm))) {
             jsrRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
             UNWIND_STACK(vm);
         }
-
         ObjClass *cls = AS_CLASS(pop(vm));
         if(isBuiltinClass(vm, cls)) {
             jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
@@ -1196,7 +1248,9 @@ sup_invoke:;
         }
         createClass(vm, GET_STRING(), cls);
         DISPATCH();
-    TARGET(OP_UNPACK):
+    }
+
+    TARGET(OP_UNPACK): {
         if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
             jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
                     getClass(vm, peek(vm))->name->data);
@@ -1206,6 +1260,8 @@ sup_invoke:;
             UNWIND_STACK(vm);
         }
         DISPATCH();
+    }
+    
     TARGET(OP_DEF_METHOD): {
         ObjClass *cls = AS_CLASS(peek2(vm));
         ObjString *methodName = GET_STRING();
@@ -1214,6 +1270,7 @@ sup_invoke:;
         hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }
+    
     TARGET(OP_NAT_METHOD): {
         ObjClass *cls = AS_CLASS(peek(vm));
         ObjString *methodName = GET_STRING();
@@ -1227,6 +1284,7 @@ sup_invoke:;
         hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
         DISPATCH();
     }
+
     TARGET(OP_NATIVE): {
         ObjString *name = GET_STRING();
         ObjNative *nat  = AS_NATIVE(peek(vm));
@@ -1238,23 +1296,28 @@ sup_invoke:;
         }
         DISPATCH();
     }
-    TARGET(OP_GET_CONST):
+    
+    TARGET(OP_GET_CONST): {
         push(vm, GET_CONST());
         DISPATCH();
-    TARGET(OP_DEFINE_GLOBAL):
+    }
+
+    TARGET(OP_DEFINE_GLOBAL): {
         hashTablePut(&vm->module->globals, GET_STRING(), pop(vm));
         DISPATCH();
+    }
+
     TARGET(OP_GET_GLOBAL): {
         ObjString *name = GET_STRING();
-        if(!hashTableGet(&vm->module->globals, name, vm->sp)) {
-            if(!hashTableGet(&vm->core->globals, name, vm->sp)) {
-                jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
-                UNWIND_STACK(vm);
-            }
+        HashTable *glob = &vm->module->globals;
+        if(!hashTableGet(glob, name, vm->sp) && !hashTableGet(&vm->core->globals, name, vm->sp)) {
+            jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
+            UNWIND_STACK(vm);
         }
         vm->sp++;
         DISPATCH();
     }
+
     TARGET(OP_SET_GLOBAL): {
         ObjString *name = GET_STRING();
         if(hashTablePut(&vm->module->globals, name, peek(vm))) {
@@ -1263,6 +1326,7 @@ sup_invoke:;
         }
         DISPATCH();
     }
+
     TARGET(OP_SETUP_EXCEPT): 
     TARGET(OP_SETUP_ENSURE): {
         uint16_t handlerOff = NEXT_SHORT();
@@ -1272,6 +1336,7 @@ sup_invoke:;
         handler->savesp = vm->sp;
         DISPATCH();
     }
+    
     TARGET(OP_ENSURE_END): {
         if(!IS_NULL(peek2(vm))) {
             UnwindCause cause = AS_NUM(peek2(vm));
@@ -1310,10 +1375,12 @@ sup_invoke:;
         }
         DISPATCH();
     }
+
     TARGET(OP_POP_HANDLER): {
         frame->handlerc--;
         DISPATCH();
     }
+    
     TARGET(OP_RAISE): {
         Value exc = peek(vm);
         if(!isInstance(vm, exc, vm->excClass)) {
@@ -1323,41 +1390,55 @@ sup_invoke:;
 
         ObjStackTrace *st = newStackTrace(vm);
         push(vm, OBJ_VAL(st));
-
         ObjInstance *excInst = AS_INSTANCE(exc);
         hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
-
         pop(vm);
+
         UNWIND_STACK(vm);
     }
-    TARGET(OP_GET_LOCAL):
+
+    TARGET(OP_GET_LOCAL): {
         push(vm, frameStack[NEXT_CODE()]);
         DISPATCH();
-    TARGET(OP_SET_LOCAL):
+    }
+
+    TARGET(OP_SET_LOCAL): {
         frameStack[NEXT_CODE()] = peek(vm);
         DISPATCH();
-    TARGET(OP_GET_UPVALUE):
+    }
+
+    TARGET(OP_GET_UPVALUE): {
         push(vm, *closure->upvalues[NEXT_CODE()]->addr);
         DISPATCH();
-    TARGET(OP_SET_UPVALUE):
+    }
+
+    TARGET(OP_SET_UPVALUE): {
         *closure->upvalues[NEXT_CODE()]->addr = peek(vm);
         DISPATCH();
-    TARGET(OP_POP):
+    }
+
+    TARGET(OP_POP): {
         pop(vm);
         DISPATCH();
-    TARGET(OP_CLOSE_UPVALUE):
+    }
+
+    TARGET(OP_CLOSE_UPVALUE): {
         closeUpvalues(vm, vm->sp - 1);
         pop(vm);
         DISPATCH();
-    TARGET(OP_DUP):
+    }
+
+    TARGET(OP_DUP): {
         *vm->sp = *(vm->sp - 1);
         vm->sp++;
         DISPATCH();
+    }
 
     TARGET(OP_SIGN_CONT):
     TARGET(OP_SIGN_BRK):
         UNREACHABLE();
         return false;
+
     }
 
     // clang-format on
@@ -1377,8 +1458,8 @@ static bool unwindStack(JStarVM *vm, int depth) {
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame *frame = &vm->frames[vm->frameCount - 1];
-        vm->module = frame->fn.type == OBJ_CLOSURE ? frame->fn.closure->fn->c.module
-                                                   : frame->fn.native->c.module;
+        vm->module = frame->fn.type == OBJ_CLOSURE ? frame->fn.as.closure->fn->c.module
+                                                   : frame->fn.as.native->c.module;
 
         stRecordFrame(vm, st, frame, vm->frameCount);
 

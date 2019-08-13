@@ -3,13 +3,10 @@
 
 #include "object.h"
 #include "util.h"
+#include "vm.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
-
-typedef struct Frame Frame;
-typedef struct JStarVM JStarVM;
-typedef struct JStarBuffer JStarBuffer;
 
 // Launch a garbage collection. It scans all roots (VM stack, global Strings, etc...)
 // marking all the reachable objects (recursively, if needed) and then calls freeObjects

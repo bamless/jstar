@@ -240,9 +240,13 @@ JSR_NATIVE(jsr_eval) {
     if(vm->frameCount < 1) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
+
+    ObjModule *mod;
     Frame *prevFrame = &vm->frames[vm->frameCount - 2];
-    ObjModule *mod = prevFrame->fn.type == OBJ_CLOSURE ? prevFrame->fn.closure->fn->c.module
-                                                       : prevFrame->fn.native->c.module;
+    if(prevFrame->fn.type == OBJ_CLOSURE)
+        mod = prevFrame->fn.as.closure->fn->c.module;
+    else
+        mod = prevFrame->fn.as.native->c.module;
 
     EvalResult res = jsrEvaluateModule(vm, "<string>", mod->name->data, jsrGetString(vm, 1));
     jsrPushBoolean(vm, res == VM_EVAL_SUCCESS);

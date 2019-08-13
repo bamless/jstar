@@ -5,10 +5,15 @@
 #define JSTAR_VERSION_MAJOR @JSTAR_VERSION_MAJOR@
 #define JSTAR_VERSION_MINOR @JSTAR_VERSION_MINOR@
 #define JSTAR_VERSION_PATCH @JSTAR_VERSION_PATCH@
+#define JSTAR_VERSION_STRING "@JSTAR_VERSION_MAJOR@.@JSTAR_VERSION_MINOR@.@JSTAR_VERSION_PATCH@"
 
 // Increasing version number, used for range checking
 #define JSTAR_VERSION \
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
+
+// compiler and platform in which this J* binary was compiled
+#define JSTAR_COMPILER "@CMAKE_C_COMPILER_ID@ @CMAKE_C_COMPILER_VERSION@"
+#define JSTAR_PLATFORM "@CMAKE_SYSTEM_NAME@"
 
 // Options
 #cmakedefine USE_COMPUTED_GOTOS
@@ -18,17 +23,17 @@
 #cmakedefine DBG_STRESS_GC
 
 #ifndef JSTAR_STATIC
-#  if defined(_WIN32) && defined(_MSC_VER)
-#    if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)
-#      define JSTAR_API  __declspec(dllexport)
-#    else
-#      define JSTAR_API  __declspec(dllimport)
-#    endif
-#  else
-#    define JSTAR_API
-#  endif
+    #if defined(_WIN32) && defined(_MSC_VER)
+        #if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)
+            #define JSTAR_API  __declspec(dllexport)
+        #else
+            #define JSTAR_API  __declspec(dllimport)
+        #endif
+    #else
+        #define JSTAR_API
+    #endif
 #else
-#  define JSTAR_API
+    #define JSTAR_API
 #endif
 
 #endif

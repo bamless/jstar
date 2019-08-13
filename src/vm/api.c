@@ -187,21 +187,20 @@ void jsrTupleGet(JStarVM *vm, size_t i, int slot) {
 }
 
 bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {
-    assert(vm->module != NULL || mname != NULL,
-           "Calling blGetGlobal outside of Native function requires specifying a module");
+    assert(vm->module != NULL || mname != NULL, "no module in top-level getGlobal");
 
-    ObjModule *module = vm->module;
-    if(mname != NULL) {
+    ObjModule *module;
+    if(mname != NULL)
         module = getModule(vm, copyString(vm, mname, strlen(mname), true));
-    }
-    ObjString *namestr = copyString(vm, name, strlen(name), true);
+    else
+        module = vm->module;
 
     Value res;
-    if(!hashTableGet(&module->globals, namestr, &res)) {
-        if(!hashTableGet(&vm->core->globals, namestr, &res)) {
-            jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
-            return false;
-        }
+    ObjString *namestr = copyString(vm, name, strlen(name), true);
+    HashTable *glob = &module->globals;
+    if(!hashTableGet(glob, namestr, &res) && !hashTableGet(&vm->core->globals, namestr, &res)) {
+        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
+        return false;
     }
 
     push(vm, res);

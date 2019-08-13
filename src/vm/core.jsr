@@ -175,6 +175,10 @@ class Tuple
     native __iter__(iter)
     native __next__(idx)
 
+    fun foreach(pred)
+        for var e in this do pred(e) end
+    end
+
     fun __string__()
         return "(" + ", ".join(this) + ")"
     end

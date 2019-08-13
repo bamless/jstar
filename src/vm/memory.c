@@ -171,11 +171,11 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 
-    Callable *c = f->fn.type == OBJ_CLOSURE ? &f->fn.closure->fn->c : &f->fn.native->c;
+    Callable *c = f->fn.type == OBJ_CLOSURE ? &f->fn.as.closure->fn->c : &f->fn.as.native->c;
     char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = {0};
 
     if(f->fn.type == OBJ_CLOSURE) {
-        Chunk *chunk = &f->fn.closure->fn->chunk;
+        Chunk *chunk = &f->fn.as.closure->fn->chunk;
         size_t op = f->ip - chunk->code - 1;
         sprintf(line, "%d", getBytecodeSrcLine(chunk, op));
     } else {
@@ -558,9 +558,9 @@ void garbageCollect(JStarVM *vm) {
     // reach elements on the frame stack
     for(int i = 0; i < vm->frameCount; i++) {
         if(vm->frames[i].fn.type == OBJ_CLOSURE)
-            reachObject(vm, (Obj *)vm->frames[i].fn.closure);
+            reachObject(vm, (Obj *)vm->frames[i].fn.as.closure);
         else
-            reachObject(vm, (Obj *)vm->frames[i].fn.native);
+            reachObject(vm, (Obj *)vm->frames[i].fn.as.native);
     }
     // reach open upvalues
     for(ObjUpvalue *upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
