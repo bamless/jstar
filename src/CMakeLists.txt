@@ -53,7 +53,7 @@ find_package(PythonInterp 3 REQUIRED)
 include_directories(${PROJECT_BINARY_DIR})
 
 # Subprojects
-include(external-linenoise.cmake)
+include("${CMAKE_SOURCE_DIR}/../cmake/Linenoise.cmake")
 add_subdirectory("${PROJECT_SOURCE_DIR}/cli")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vm")
 
