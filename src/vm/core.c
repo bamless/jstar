@@ -61,7 +61,12 @@ static JSR_NATIVE(jsr_Object_hash) {
     jsrPushNumber(vm, (uint32_t)x);
     return true;
 }
-// Object
+
+static JSR_NATIVE(jsr_Object_eq) {
+    jsrPushBoolean(vm, valueEquals(vm->apiStack[0], vm->apiStack[1]));
+    return true;
+}
+// end
 
 // class Class
 static JSR_NATIVE(jsr_Class_getName) {
@@ -76,7 +81,7 @@ static JSR_NATIVE(jsr_Class_string) {
     jsrPushString(vm, str);
     return true;
 }
-// Class
+// end
 
 void initCoreLibrary(JStarVM *vm) {
     ObjString *name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
@@ -95,6 +100,7 @@ void initCoreLibrary(JStarVM *vm) {
     vm->objClass = createClass(vm, core, NULL, "Object"); // Object has no superclass
     defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
     defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
 
     // Patch up Class object information
     vm->clsClass->superCls = vm->objClass;
@@ -104,16 +110,17 @@ void initCoreLibrary(JStarVM *vm) {
 
     jsrEvaluateModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
 
-    vm->strClass  = AS_CLASS(getDefinedName(vm, core, "String"));
-    vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-    vm->lstClass  = AS_CLASS(getDefinedName(vm, core, "List"));
-    vm->numClass  = AS_CLASS(getDefinedName(vm, core, "Number"));
-    vm->funClass  = AS_CLASS(getDefinedName(vm, core, "Function"));
-    vm->modClass  = AS_CLASS(getDefinedName(vm, core, "Module"));
-    vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-    vm->stClass   = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-    vm->tupClass  = AS_CLASS(getDefinedName(vm, core, "Tuple"));
-    vm->excClass  = AS_CLASS(getDefinedName(vm, core, "Exception"));
+    vm->strClass   = AS_CLASS(getDefinedName(vm, core, "String"));
+    vm->boolClass  = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+    vm->lstClass   = AS_CLASS(getDefinedName(vm, core, "List"));
+    vm->numClass   = AS_CLASS(getDefinedName(vm, core, "Number"));
+    vm->funClass   = AS_CLASS(getDefinedName(vm, core, "Function"));
+    vm->modClass   = AS_CLASS(getDefinedName(vm, core, "Module"));
+    vm->nullClass  = AS_CLASS(getDefinedName(vm, core, "Null"));
+    vm->stClass    = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+    vm->tupClass   = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+    vm->excClass   = AS_CLASS(getDefinedName(vm, core, "Exception"));
+    vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
 
     core->base.cls = vm->modClass;
 
@@ -258,7 +265,7 @@ JSR_NATIVE(jsr_type) {
     return true;
 }
 
-// class Number {
+// class Number
 JSR_NATIVE(jsr_Number_string) {
     char str[24]; // enough for .*g with DBL_DIG
     snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
@@ -277,9 +284,9 @@ JSR_NATIVE(jsr_Number_hash) {
     jsrPushNumber(vm, (uint32_t)n);
     return true;
 }
-// } Number
+// end
 
-// class Boolean {
+// class Boolean
 JSR_NATIVE(jsr_Boolean_string) {
     if(jsrGetBoolean(vm, 0))
         jsrPushString(vm, "true");
@@ -287,16 +294,16 @@ JSR_NATIVE(jsr_Boolean_string) {
         jsrPushString(vm, "false");
     return true;
 }
-// } Boolean
+// end
 
-// class Null {
+// class Null
 JSR_NATIVE(jsr_Null_string) {
     jsrPushString(vm, "null");
     return true;
 }
-// } Null
+//
 
-// class Function {
+// class Function
 JSR_NATIVE(jsr_Function_string) {
     const char *funType = NULL;
     const char *funName = NULL;
@@ -334,9 +341,9 @@ JSR_NATIVE(jsr_Function_string) {
     jsrPushString(vm, str);
     return true;
 }
-// } Function
+// end
 
-// class Module {
+// class Module
 JSR_NATIVE(jsr_Module_string) {
     char str[256];
     ObjModule *m = AS_MODULE(vm->apiStack[0]);
@@ -344,9 +351,9 @@ JSR_NATIVE(jsr_Module_string) {
     jsrPushString(vm, str);
     return true;
 }
-// } Module
+// end
 
-// class List {
+// class List
 JSR_NATIVE(jsr_List_new) {
     if(!jsrCheckInt(vm, 1, "size")) return false;
     double count = jsrGetNumber(vm, 1);
@@ -469,9 +476,9 @@ JSR_NATIVE(jsr_List_next) {
     push(vm, NULL_VAL);
     return true;
 }
-// } List
+// end
 
-// class Tuple {
+// class Tuple
 JSR_NATIVE(jsr_Tuple_new) {
     if(!jsrIsList(vm, 1)) {
         jsrPushList(vm);
@@ -550,9 +557,9 @@ JSR_NATIVE(jsr_Tuple_sub) {
     push(vm, OBJ_VAL(sub));
     return true;
 }
-// }
+// end
 
-// class String {
+// class String
 JSR_NATIVE(jsr_substr) {
     ObjString *str = AS_STRING(vm->apiStack[0]);
 
@@ -670,4 +677,303 @@ JSR_NATIVE(jsr_String_next) {
     push(vm, NULL_VAL);
     return true;
 }
-// } String
+// end 
+
+// class Table
+#define MAX_LOAD_FACTOR  0.75
+#define GROW_FACTOR      2
+#define INITIAL_CAPACITY 8
+
+static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key, TableEntry **out) {
+    push(vm, key);
+    if(jsrCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCESS) return false;
+    if(!jsrCheckNum(vm, -1, "__hash__ return value")) return false;
+
+    uint32_t hash = jsrGetNumber(vm, -1);
+    pop(vm);
+
+    size_t i = hash & sizeMask;
+    TableEntry *tomb = NULL;
+
+    for(;;) {
+        TableEntry *e = &entries[i];
+        if(IS_NULL(e->key)) {
+            if(IS_NULL(e->val)) {
+                if(tomb)
+                    *out = tomb;
+                else
+                    *out = e;
+                return true;
+            } else if(!tomb) {
+                tomb = e;
+            }
+        } else {
+            push(vm, key);
+            push(vm, e->key);
+            if(jsrCallMethod(vm, "__eq__", 1) != VM_EVAL_SUCCESS) return false;
+            if(!jsrCheckBool(vm, -1, "__eq__ return value")) return false;
+
+            bool equals = jsrGetBoolean(vm, -1);
+            pop(vm);
+
+            if(equals) {
+                *out = e;
+                return true;
+            }
+        }
+        i = (i + 1) & sizeMask;
+    }
+}
+
+static void growEntries(JStarVM *vm, ObjTable *t) {
+    size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
+    TableEntry *newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newSize);
+    for(size_t i = 0; i < newSize; i++) {
+        newEntries[i].key = NULL_VAL;
+        newEntries[i].val = NULL_VAL;
+    }
+
+    t->numEntries = 0, t->count = 0;
+    if(t->sizeMask != 0) {
+        for(size_t i = 0; i <= t->sizeMask; i++) {
+            TableEntry *e = &t->entries[i];
+            if(IS_NULL(e->key)) continue;
+
+            TableEntry *dest;
+            findEntry(vm, newEntries, newSize - 1, e->key, &dest);
+            dest->key = e->key;
+            dest->val = e->val;
+            t->numEntries++, t->count++;
+        }
+        GC_FREEARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
+    }
+    t->entries = newEntries;
+    t->sizeMask = newSize - 1;
+}
+
+JSR_NATIVE(jsr_Table_get) {
+    if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
+    
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    if(t->entries == NULL) {
+        jsrPushNull(vm);
+        return true;
+    }
+
+    TableEntry *e;
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
+        return false;
+    }
+
+    push(vm, e->val);
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_set) {
+    if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
+    
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
+        growEntries(vm, t);
+    }
+
+    TableEntry *e;
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
+        return false;
+    }
+    bool isNew = IS_NULL(e->key);
+    if(isNew) {
+        t->count++;
+        if(IS_NULL(e->val)) t->numEntries++;
+    }
+
+    e->key = vm->apiStack[1];
+    e->val = vm->apiStack[2];
+
+    jsrPushBoolean(vm, isNew);
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_delete) {
+    if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    
+    if(t->entries == NULL) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    TableEntry *toDelete;
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &toDelete)) {
+        return false;
+    }
+
+    if(IS_NULL(toDelete->key)) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    toDelete->key = NULL_VAL;
+    toDelete->val = TRUE_VAL;
+    t->count--;
+
+    jsrPushBoolean(vm, true);
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_clear) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    t->numEntries = t->count = 0;
+    for(size_t i = 0; i < t->sizeMask + 1; i++) {
+        t->entries[i].key = NULL_VAL;
+        t->entries[i].val = NULL_VAL;
+    }
+    jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_len) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    jsrPushNumber(vm, t->count);
+    return true;    
+}
+
+JSR_NATIVE(jsr_Table_contains) {
+    if(jsrIsNull(vm, 0)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
+    
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    if(t->entries == NULL) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    TableEntry *e;
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
+        return false;
+    }
+
+    jsrPushBoolean(vm, !IS_NULL(e->key));
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_keys) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    TableEntry *entries = t->entries;
+
+    jsrPushList(vm);
+
+    if(entries != NULL) {
+        for(size_t i = 0; i < t->sizeMask + 1; i++) {
+            if(!IS_NULL(entries[i].key)) {
+                push(vm, entries[i].key);
+                jsrListAppend(vm, -2);
+                jsrPop(vm);
+            }
+        }
+    }
+
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_values) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    TableEntry *entries = t->entries;
+
+    jsrPushList(vm);
+
+    if(entries != NULL) {
+        for(size_t i = 0; i < t->sizeMask + 1; i++) {
+            if(!IS_NULL(entries[i].key)) {
+                push(vm, entries[i].val);
+                jsrListAppend(vm, -2);
+                jsrPop(vm);
+            }
+        }
+    }
+
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_iter) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+
+    if(IS_NULL(vm->apiStack[1]) && t->entries == NULL) {
+        push(vm, BOOL_VAL(false));
+        return true;
+    }
+
+    size_t lastIdx = 0;
+
+    if(IS_NUM(vm->apiStack[1])) {
+        double idx = AS_NUM(vm->apiStack[1]);
+        if(idx < 0 && idx >= t->sizeMask) {
+            push(vm, BOOL_VAL(false));
+            return true;
+        }
+        lastIdx = (size_t)idx + 1;
+    }
+
+    for(size_t i = lastIdx; i < t->sizeMask + 1; i++) {
+        if(!IS_NULL(t->entries[i].key)) {
+            push(vm, NUM_VAL(i));
+            return true;
+        }
+    }
+
+    push(vm, BOOL_VAL(false));
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_next) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+
+    if(IS_NUM(vm->apiStack[1])) {
+        double idx = AS_NUM(vm->apiStack[1]);
+        if(idx >= 0 && idx <= t->sizeMask) {
+            size_t i = (size_t)idx;
+            push(vm, t->entries[i].key);
+            return true;
+        }
+    }
+
+    push(vm, NULL_VAL);
+    return true;
+}
+
+JSR_NATIVE(jsr_Table_string) {
+    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    
+    JStarBuffer buf;
+    jsrBufferInit(vm, &buf);
+    jsrBufferAppendChar(&buf, '{');
+
+    TableEntry *entries = t->entries;
+    if(entries != NULL) {
+        for(size_t i = 0; i < t->sizeMask + 1; i++) {
+            if(!IS_NULL(entries[i].key)) {
+                push(vm, entries[i].key);
+                if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS || !jsrIsString(vm, -1)) {
+                    jsrBufferFree(&buf);
+                    return false;
+                }
+                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendstr(&buf, " : ");
+                jsrPop(vm);
+
+                push(vm, entries[i].val);
+                if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS || !jsrIsString(vm, -1)) {
+                    jsrBufferFree(&buf);
+                    return false;
+                }
+                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendstr(&buf, ", ");
+                jsrPop(vm);
+            }
+        }
+        jsrBufferTrunc(&buf, buf.len - 2);
+    }
+    jsrBufferAppendChar(&buf, '}');
+    jsrBufferPush(&buf);
+    return true;
+}
+// end

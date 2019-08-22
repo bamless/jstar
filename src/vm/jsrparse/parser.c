@@ -29,10 +29,24 @@
 #define IS_CONSTANT_LITERAL(type) \
     (type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT)
 
-#define IS_EXPR_START(t)                                                                          \
-    (t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||                 \
-     t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN || t == TOK_LSQUARE || \
-     t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN || t == TOK_HASH || t == TOK_HASH_HASH )
+#define IS_EXPR_START(t)   \
+(                          \
+    t == TOK_NUMBER     || \
+    t == TOK_TRUE       || \
+    t == TOK_FALSE      || \
+    t == TOK_IDENTIFIER || \
+    t == TOK_STRING     || \
+    t == TOK_NULL       || \
+    t == TOK_SUPER      || \
+    t == TOK_LPAREN     || \
+    t == TOK_LSQUARE    || \
+    t == TOK_BANG       || \
+    t == TOK_MINUS      || \
+    t == TOK_FUN        || \
+    t == TOK_HASH       || \
+    t == TOK_HASH_HASH  || \
+    t == TOK_LCURLY        \
+)
 
 //----- Utility functions ------
 
@@ -99,7 +113,7 @@ static Token require(Parser *p, TokenType type) {
     }
 
     char msg[1025] = {'\0'};
-    snprintf(msg, 1024, "Expected token `%s` but instead `%s` found.", tokNames[type],
+    snprintf(msg, sizeof(msg), "Expected token `%s` but instead `%s` found.", tokNames[type],
              tokNames[p->peek.type]);
     error(p, msg);
 
@@ -242,7 +256,7 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, bool 
             arg = require(p, TOK_IDENTIFIER);
         }
 
-        require(p, TOK_EQUAL); // skip TOK_EQUAL
+        require(p, TOK_EQUAL);
 
         Expr *c = literal(p);
         if(c != NULL && !IS_CONSTANT_LITERAL(c->type)) {
@@ -720,6 +734,28 @@ static Expr *literal(Parser *p) {
         if(!matchSkipnl(p, TOK_RSQUARE)) exprs = parseExprLst(p);
         require(p, TOK_RSQUARE);
         return newArrLiteral(line, newExprList(line, exprs));
+    }
+    case TOK_LCURLY: {
+        require(p, TOK_LCURLY);
+
+        LinkedList *keyVals = NULL;
+
+        while(!matchSkipnl(p, TOK_RCURLY)) {
+            Expr *key = parseExpr(p, false);
+            require(p, TOK_COLON);
+            Expr *val = parseExpr(p, false);
+            if(p->hadError) break;
+
+            keyVals = addElement(keyVals, key);
+            keyVals = addElement(keyVals, val);
+
+            if(!matchSkipnl(p, TOK_RCURLY)) {
+                require(p, TOK_COMMA);
+            }
+        }
+
+        require(p, TOK_RCURLY);
+        return newTableLiteral(line, newExprList(line, keyVals));
     }
     case TOK_UNTERMINATED_STR:
         error(p, "Unterminated String.");

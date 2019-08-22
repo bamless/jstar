@@ -87,6 +87,12 @@ Expr *newTupleLiteral(int line, Expr *exprs) {
     return a;
 }
 
+Expr *newTableLiteral(int line, Expr *keyVals) {
+    Expr *t = newExpr(line, TABLE_LIT);
+    t->table.keyVals = keyVals;
+    return t;
+}
+
 Expr *newExprList(int line, LinkedList *exprs) {
     Expr *e = newExpr(line, EXPR_LST);
     e->exprList.lst = exprs;
@@ -170,6 +176,9 @@ void freeExpr(Expr *e) {
         break;
     case TUPLE_LIT:
         freeExpr(e->tuple.exprs);
+        break;
+    case TABLE_LIT:
+        freeExpr(e->table.keyVals);
         break;
     case EXPR_LST: {
         LinkedList *head = e->exprList.lst;

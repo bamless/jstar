@@ -13,11 +13,6 @@
 #include "math.jsr.h"
 #include "math.h"
 
-#include "map.jsr.h"
-#include "map.h"
-
-#include "set.jsr.h"
-
 #include "debug.jsr.h"
 #include "debug.h"
 
@@ -122,6 +117,19 @@ Module builtInModules[] = {
             METHOD(__next__,   &jsr_String_next)
             METHOD(__string__, &jsr_String_string)
         ENDCLASS
+        CLASS(Table)
+            METHOD(__get__, jsr_Table_get)
+            METHOD(__set__, jsr_Table_set)
+            METHOD(__len__, jsr_Table_len)
+            METHOD(delete, jsr_Table_delete)
+            METHOD(clear, jsr_Table_clear)
+            METHOD(contains, jsr_Table_contains)
+            METHOD(keys, jsr_Table_keys)
+            METHOD(values, jsr_Table_values)
+            METHOD(__iter__, jsr_Table_iter)
+            METHOD(__next__, jsr_Table_next)
+            METHOD(__string__, jsr_Table_string)
+        ENDCLASS
         FUNCTION(eval, &jsr_eval)
     ENDMODULE
     MODULE(sys)
@@ -190,14 +198,6 @@ Module builtInModules[] = {
         FUNCTION(gmatch, &jsr_re_gmatch)
         FUNCTION(gsub,   &jsr_re_gsub)
     ENDMODULE
-    MODULE(map)
-        CLASS(Map)
-            METHOD(__getEntry, &jsr_Map_getEntry)
-            METHOD(__addEntry, &jsr_Map_addEntry)
-            METHOD(__grow,     &jsr_Map_grow)
-        ENDCLASS
-    ENDMODULE
-    MODULE(set) ENDMODULE
     MODULE(debug)
         FUNCTION(printStack, &jsr_printStack)
         FUNCTION(dis,        &jsr_dis)

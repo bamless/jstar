@@ -734,6 +734,24 @@ static void compileExpr(Compiler *c, Expr *e) {
         emitBytecode(c, i, e->line);
         break;
     }
+    case TABLE_LIT: {
+        emitBytecode(c, OP_NEW_TABLE, e->line);
+
+        LinkedList *head = e->table.keyVals->exprList.lst;
+        while(head) {
+            Expr *key = (Expr *)head->elem;
+            Expr *val = (Expr *)head->next->elem;
+
+            emitBytecode(c, OP_DUP, e->line);
+            compileExpr(c, key);
+            compileExpr(c, val);
+            callMethod(c, "__set__", 2);
+            emitBytecode(c, OP_POP, e->line);
+
+            head = head->next->next;
+        }
+        break;
+    }
     case ANON_FUNC:
         compileAnonymousFunc(c, NULL, e);
         break;
@@ -1525,7 +1543,7 @@ static ObjString *readString(Compiler *c, Expr *e) {
         }
     }
 
-    return blBufferToString(&sb);
+    return jsrBufferToString(&sb);
 }
 
 void reachCompilerRoots(JStarVM *vm, Compiler *c) {

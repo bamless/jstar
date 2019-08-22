@@ -43,6 +43,7 @@ typedef enum ExprType {
     ACCESS_EXPR,
     ARR_LIT,
     TUPLE_LIT,
+    TABLE_LIT,
     ARR_ACC,
     TERNARY,
     COMP_ASSIGN,
@@ -109,6 +110,9 @@ struct Expr {
         struct {
             Expr *exprs;
         } tuple;
+        struct{
+            Expr *keyVals;
+        } table;
         struct {
             Expr *cond;
             Expr *thenExpr;
@@ -134,6 +138,7 @@ JSTAR_API Expr *newStrLiteral(int line, const char *str, size_t len);
 JSTAR_API Expr *newVarLiteral(int line, const char *str, size_t len);
 JSTAR_API Expr *newArrLiteral(int line, Expr *exprs);
 JSTAR_API Expr *newTupleLiteral(int line, Expr *exprs);
+JSTAR_API Expr *newTableLiteral(int line, Expr *keyVals);
 JSTAR_API Expr *newExprList(int line, LinkedList *exprs);
 JSTAR_API Expr *newCallExpr(int line, Expr *callee, LinkedList *args);
 JSTAR_API Expr *newExpExpr(int line, Expr *base, Expr *exp);

@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define RECURSION_LIMIT 2000                       // After this many calls, StackOverflow will be raised
+#define RECURSION_LIMIT 5000                       // After this many calls, StackOverflow will be raised
 #define FRAME_SZ        1000                       // Starting frame size
 #define STACK_SZ        FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
 #define INIT_GC         (1024 * 1024 * 10)         // 10MiB
@@ -67,6 +67,7 @@ typedef struct JStarVM {
     ObjClass *stClass;
     ObjClass *tupClass;
     ObjClass *excClass;
+    ObjClass *tableClass;
 
     // Current VM compiler
     Compiler *currCompiler;

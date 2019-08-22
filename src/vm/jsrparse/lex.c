@@ -271,6 +271,12 @@ void nextToken(Lexer *lex, Token *tok) {
     case ']':
         makeToken(lex, tok, TOK_RSQUARE);
         break;
+    case '{':
+        makeToken(lex, tok, TOK_LCURLY);
+        break;
+    case '}':
+        makeToken(lex, tok, TOK_RCURLY);
+        break;
     case '^':
         makeToken(lex, tok, TOK_POW);
         break;

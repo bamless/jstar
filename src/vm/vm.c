@@ -197,7 +197,7 @@ void jsrEnsureStack(JStarVM *vm, size_t needed) {
 static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
     return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
            cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
-           cls == vm->stClass || cls == vm->clsClass;
+           cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass;
 }
 
 static bool isInstatiableBuiltin(JStarVM *vm, ObjClass *cls) {
@@ -878,7 +878,7 @@ static bool runEval(JStarVM *vm, int depth) {
         DISPATCH();
     }
     
-    TARGET(OP_MOD):
+    TARGET(OP_MOD): {
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
             double b = AS_NUM(pop(vm));
             double a = AS_NUM(pop(vm));
@@ -887,6 +887,7 @@ static bool runEval(JStarVM *vm, int depth) {
             BINARY_OVERLOAD(%, vm->mod, vm->rmod);
         }
         DISPATCH();
+    }
     
     TARGET(OP_POW): {
         if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
@@ -947,8 +948,6 @@ static bool runEval(JStarVM *vm, int depth) {
                     UNWIND_STACK(vm);
                 }
                 LOAD_FRAME();
-            } else {
-                push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
             }
         }
         DISPATCH();
@@ -1195,14 +1194,14 @@ sup_invoke:;
         DISPATCH();
     }
 
+    TARGET(OP_NEW_LIST): {
+        push(vm, OBJ_VAL(newList(vm, 0)));
+        DISPATCH();
+    }
+
     TARGET(OP_APPEND_LIST): {
         listAppend(vm, AS_LIST(peek2(vm)), peek(vm));
         pop(vm);
-        DISPATCH();
-    }
-    
-    TARGET(OP_NEW_LIST): {
-        push(vm, OBJ_VAL(newList(vm, 0)));
         DISPATCH();
     }
     
@@ -1213,6 +1212,11 @@ sup_invoke:;
             t->arr[i] = pop(vm);
         }
         push(vm, OBJ_VAL(t));
+        DISPATCH();
+    }
+
+    TARGET(OP_NEW_TABLE): {
+        push(vm, OBJ_VAL(newTable(vm)));
         DISPATCH();
     }
 

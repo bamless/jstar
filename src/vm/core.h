@@ -18,56 +18,70 @@ JSR_NATIVE(jsr_eval);
 
 JSR_NATIVE(jsr_type);
 
-// class Number {
-JSR_NATIVE(jsr_Number_string);
-JSR_NATIVE(jsr_Number_hash);
-// } Number
+// class Number
+    JSR_NATIVE(jsr_Number_string);
+    JSR_NATIVE(jsr_Number_hash);
+// end
 
-// class Boolean {
-JSR_NATIVE(jsr_Boolean_string);
-// } Boolean
+// class Boolean
+    JSR_NATIVE(jsr_Boolean_string);
+// end
 
-// class Null {
-JSR_NATIVE(jsr_Null_string);
-// } Null
+// class Null
+    JSR_NATIVE(jsr_Null_string);
+// end
 
-// class Function {
-JSR_NATIVE(jsr_Function_string);
-// } Function
+// class Function
+    JSR_NATIVE(jsr_Function_string);
+// end
 
-// class Module {
-JSR_NATIVE(jsr_Module_string);
-// } Module
+// class Module
+    JSR_NATIVE(jsr_Module_string);
+// end
 
-// class List {
-JSR_NATIVE(jsr_List_new);
-JSR_NATIVE(jsr_List_add);
-JSR_NATIVE(jsr_List_insert);
-JSR_NATIVE(jsr_List_len);
-JSR_NATIVE(jsr_List_removeAt);
-JSR_NATIVE(jsr_List_clear);
-JSR_NATIVE(jsr_List_subList);
-JSR_NATIVE(jsr_List_iter);
-JSR_NATIVE(jsr_List_next);
-// } List
+// class List
+    JSR_NATIVE(jsr_List_new);
+    JSR_NATIVE(jsr_List_add);
+    JSR_NATIVE(jsr_List_insert);
+    JSR_NATIVE(jsr_List_len);
+    JSR_NATIVE(jsr_List_removeAt);
+    JSR_NATIVE(jsr_List_clear);
+    JSR_NATIVE(jsr_List_subList);
+    JSR_NATIVE(jsr_List_iter);
+    JSR_NATIVE(jsr_List_next);
+// end
 
-// class Tuple {
-JSR_NATIVE(jsr_Tuple_new);
-JSR_NATIVE(jsr_Tuple_len);
-JSR_NATIVE(jsr_Tuple_iter);
-JSR_NATIVE(jsr_Tuple_next);
-JSR_NATIVE(jsr_Tuple_sub);
-// }
+// class Tuple
+    JSR_NATIVE(jsr_Tuple_new);
+    JSR_NATIVE(jsr_Tuple_len);
+    JSR_NATIVE(jsr_Tuple_iter);
+    JSR_NATIVE(jsr_Tuple_next);
+    JSR_NATIVE(jsr_Tuple_sub);
+// end
 
-// class String {
-JSR_NATIVE(jsr_substr);
-JSR_NATIVE(jsr_String_len);
-JSR_NATIVE(jsr_String_string);
-JSR_NATIVE(jsr_String_join);
-JSR_NATIVE(jsr_String_hash);
-JSR_NATIVE(jsr_String_eq);
-JSR_NATIVE(jsr_String_iter);
-JSR_NATIVE(jsr_String_next);
-// } String
+// class String
+    JSR_NATIVE(jsr_substr);
+    JSR_NATIVE(jsr_String_len);
+    JSR_NATIVE(jsr_String_string);
+    JSR_NATIVE(jsr_String_join);
+    JSR_NATIVE(jsr_String_hash);
+    JSR_NATIVE(jsr_String_eq);
+    JSR_NATIVE(jsr_String_iter);
+    JSR_NATIVE(jsr_String_next);
+// end
+
+// class Table
+    JSR_NATIVE(jsr_Table_get);
+    JSR_NATIVE(jsr_Table_set);
+    JSR_NATIVE(jsr_Table_len);
+    JSR_NATIVE(jsr_Table_delete);
+    JSR_NATIVE(jsr_Table_clear);
+    JSR_NATIVE(jsr_Table_contains);
+    JSR_NATIVE(jsr_Table_keys);
+    JSR_NATIVE(jsr_Table_values);
+    JSR_NATIVE(jsr_Table_iter);
+    JSR_NATIVE(jsr_Table_next);
+    JSR_NATIVE(jsr_Table_string);
+// end
 
 #endif

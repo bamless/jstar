@@ -68,6 +68,7 @@
     X(OP_NEW_LIST)      \
     X(OP_APPEND_LIST)   \
     X(OP_NEW_TUPLE)     \
+    X(OP_NEW_TABLE)     \
     X(OP_CLOSURE)       \
     X(OP_NEW_CLASS)     \
     X(OP_NEW_SUBCLASS)  \

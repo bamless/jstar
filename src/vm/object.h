@@ -23,7 +23,7 @@
  * should be tested before casting.
  **/
 
-typedef struct JStarVM JStarVM;
+typedef struct Frame Frame;
 
 #ifdef DBG_PRINT_GC
 DECLARE_TO_STRING(ObjType);
@@ -43,6 +43,7 @@ DECLARE_TO_STRING(ObjType);
 #define IS_CLOSURE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLOSURE)
 #define IS_TUPLE(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TUPLE)
 #define IS_STACK_TRACE(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STACK_TRACE)
+#define IS_TABLE(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TABLE)
 
 #define AS_BOUND_METHOD(o)  ((ObjBoundMethod *)AS_OBJ(o))
 #define AS_LIST(o)          ((ObjList *)AS_OBJ(o))
@@ -55,6 +56,7 @@ DECLARE_TO_STRING(ObjType);
 #define AS_CLOSURE(o)       ((ObjClosure *)AS_OBJ(o))
 #define AS_TUPLE(o)         ((ObjTuple *)AS_OBJ(o))
 #define AS_STACK_TRACE(o)   ((ObjStackTrace *)AS_OBJ(o))
+#define AS_TABLE(o)         ((ObjTable *)AS_OBJ(o))
 
 #define STRING_GET_HASH(s)    (s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
 #define STRING_EQUALS(s1, s2) (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data))
@@ -74,11 +76,11 @@ DECLARE_TO_STRING(ObjType);
     X(OBJ_STACK_TRACE)  \
     X(OBJ_CLOSURE)      \
     X(OBJ_UPVALUE)      \
-    X(OBJ_TUPLE)
+    X(OBJ_TUPLE)        \
+    X(OBJ_TABLE)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
-typedef struct JStarNativeReg JStarNativeReg;
 typedef struct ObjClass ObjClass;
 
 // Base class of all the Objects.
@@ -172,6 +174,19 @@ typedef struct ObjTuple {
     Value arr[]; // Tuple elements (flexible array)
 } ObjTuple;
 
+typedef struct TableEntry {
+    Value key; // The key of the entry
+    Value val; // The actual value
+} TableEntry;
+
+typedef struct ObjTable {
+    Obj base;
+    size_t sizeMask;     // The size of the entries array
+    size_t numEntries;   // The number of entries in the Table (including tombstones)
+    size_t count;        // The number of actual entries in the Table (i.e. excluding tombstones)
+    TableEntry *entries; // The actual array of entries
+} ObjTable;
+
 // A bound method. It contains a method with an associated target.
 typedef struct ObjBoundMethod {
     Obj base;
@@ -210,6 +225,41 @@ typedef struct ObjStackTrace {
     int lastTracedFrame;
     JStarBuffer stacktrace;
 } ObjStackTrace;
+
+// ---- Functions for allocating objects ----
+// These functions use GCallocate to acquire memory and then initialize
+// the object with the supplied arguments, as well as setting all the
+// bookkeping information needed by the garbage collector (see struct Obj)
+ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn, uint8_t defaultc);
+ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
+ObjClass *newClass(JStarVM *vm, ObjString *name, ObjClass *superCls);
+ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method);
+ObjInstance *newInstance(JStarVM *vm, ObjClass *cls);
+ObjClosure *newClosure(JStarVM *vm, ObjFunction *fn);
+ObjModule *newModule(JStarVM *vm, ObjString *name);
+ObjUpvalue *newUpvalue(JStarVM *vm, Value *addr);
+ObjList *newList(JStarVM *vm, size_t startSize);
+ObjTuple *newTuple(JStarVM *vm, size_t size);
+ObjTable *newTable(JStarVM *vm);
+ObjStackTrace *newStackTrace(JStarVM *vm);
+
+ObjString *allocateString(JStarVM *vm, size_t length);
+ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern);
+
+// ---- Functions for manipulating objects ----
+
+// Dumps a frame in a ObjStackTrace
+void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth);
+
+// ObjList manipulation functions
+void listAppend(JStarVM *vm, ObjList *lst, Value v);
+void listInsert(JStarVM *vm, ObjList *lst, size_t index, Value val);
+void listRemove(JStarVM *vm, ObjList *lst, size_t index);
+
+// Convert a JStarBuffer to an ObjString
+ObjString *jsrBufferToString(JStarBuffer *b);
+
+// ---- Debug functions ----
 
 // Prints an Obj in a human readable form
 void printObj(Obj *o);

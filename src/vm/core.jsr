@@ -28,7 +28,61 @@ class String
     native __hash__()
 end
 
-class List
+class Sequence
+    fun new()
+        raise NotImplementedException('Sequence is an abstract class')
+    end
+
+    fun contains(e)
+        return this.indexOf(e) != -1
+    end
+
+    fun indexOf(e)
+        for var i = 0; i < #this; i += 1 do
+            if this[i] == e then
+                return i
+            end
+        end
+        return -1
+    end
+
+    fun indexOfLast(e)
+        for var i = #this - 1; i >= 0; i -= 1 do
+            if this[i] == e then
+                return i
+            end
+        end
+        return -1
+    end
+
+    fun empty()
+        return #this == 0
+    end
+
+    fun foreach(pred)
+        for var e in this do pred(e) end
+    end
+
+    fun __eq__(o)
+        if type(o) != type(this) then
+            return false 
+        end
+
+        var length = #this
+        if length != #o then
+            return false
+        end
+
+        for var i = 0; i < length; i += 1 do
+            if this[i] != o[i] then
+                return false
+            end
+        end
+        return true
+    end
+end
+
+class List : Sequence
     native new(n=0, init=null)
     native add(e)
     native insert(i, e)
@@ -80,32 +134,6 @@ class List
         return changed
     end
 
-    fun contains(e)
-        return this.indexOf(e) != -1
-    end
-
-    fun indexOf(e)
-        for var i = 0; i < #this; i += 1 do
-            if this[i] == e then
-                return i
-            end
-        end
-        return -1
-    end
-
-    fun indexOfLast(e)
-        for var i = #this - 1; i >= 0; i -= 1 do
-            if this[i] == e then
-                return i
-            end
-        end
-        return -1
-    end
-
-    fun empty()
-        return #this == 0
-    end
-
     fun sort(comp=null)
         var size = #this - 1
         var temp = List(#this, fun(i) return this[i] end)
@@ -143,61 +171,35 @@ class List
         end
     end
 
-    fun foreach(pred)
-        for var e in this do pred(e) end
-    end
-
     fun __string__()
         return "[" + ", ".join(this) + "]"
     end
-
-    fun __eq__(lst)
-        if !(lst is List) then return false end
-
-        var length = #this
-        if length != #lst then
-            return false
-        end
-
-        for var i = 0; i < length; i += 1 do
-            if this[i] != lst[i] then
-                return false
-            end
-        end
-        return true
-    end
 end
 
-class Tuple
+class Tuple : Sequence
     native new(seq)
     native sub(from, to)
     native __len__()
     native __iter__(iter)
     native __next__(idx)
 
-    fun foreach(pred)
-        for var e in this do pred(e) end
-    end
-
     fun __string__()
         return "(" + ", ".join(this) + ")"
     end
+end
 
-    fun __eq__(tup)
-        if !(tup is Tuple) then return false end
-
-        var length = #this
-        if length != #tup then
-            return false
-        end
-        for var i = 0; i < length; i += 1 do
-            if this[i] != tup[i] then
-                return false
-            end
-        end
-        return true
-    end
-
+class Table 
+    native __get__(key)
+    native __set__(key, val)
+    native __len__()
+    native delete(key)
+    native clear()
+    native contains(key)
+    native keys()
+    native values()
+    native __iter__(i)
+    native __next__(i)
+    native __string__()
 end
 
 // Standard iterators
@@ -314,7 +316,7 @@ fun sorted(iterable, comp=null)
     return lst
 end
 
-fun tolist(iterable)
+fun toList(iterable)
     var lst = []
     for var e in iterable do
         lst.add(e)
@@ -323,7 +325,6 @@ fun tolist(iterable)
 end
 
 native type(o)
-
 native ascii(char)
 native char(num)
 native eval(source)
@@ -351,3 +352,4 @@ class DivisionByZeroException : Exception end
 class InvalidArgException : Exception end
 class IndexOutOfBoundException : Exception end
 class AssertException : Exception end
+class NotImplementedException : Exception end
