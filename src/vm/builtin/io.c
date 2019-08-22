@@ -271,6 +271,7 @@ JSR_NATIVE(jsr_File_write) {
 }
 
 JSR_NATIVE(jsr_File_close) {
+    if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
 
