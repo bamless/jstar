@@ -10,10 +10,9 @@
  * The bulk of the API (jstar.h) implementation.
  * 
  * The VM entry point functions and others that need to manipulate the VM internals are implemented 
- * in vm.c
+ * at the end of vm.c
  * 
- * The blBuffer functions are implemented in memory.c since they require garbage collectable 
- * memory allocation
+ * The JStarBuffer functions are implemented at the end of object.c
  */
 
 static void validateStack(JStarVM *vm) {

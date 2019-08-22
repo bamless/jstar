@@ -273,7 +273,7 @@ static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
             const char *name = c->name->data;
 
             jsrRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, %d supplied.",
-                    mname, name, argc > most ? "most" : "least", argc > most ? most : least, argc);
+                     mname, name, argc > most ? "most" : "least", argc > most ? most : least, argc);
             return false;
         }
 
@@ -369,8 +369,10 @@ static bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
         case OBJ_BOUND_METHOD: {
             ObjBoundMethod *m = AS_BOUND_METHOD(callee);
             vm->sp[-argc - 1] = m->bound;
-            return m->method->type == OBJ_CLOSURE ? callFunction(vm, (ObjClosure *)m->method, argc)
-                                                  : callNative(vm, (ObjNative *)m->method, argc);
+            if(m->method->type == OBJ_CLOSURE)
+                return callFunction(vm, (ObjClosure *)m->method, argc);
+            else
+                return callNative(vm, (ObjNative *)m->method, argc);
         }
         case OBJ_CLASS: {
             ObjClass *cls = AS_CLASS(callee);
@@ -442,7 +444,7 @@ static bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc) {
 
             if(!hashTableGet(&mod->globals, name, &func)) {
                 jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
-                        mod->name->data);
+                         mod->name->data);
                 return false;
             }
 
@@ -563,8 +565,8 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             return true;
         }
         case OBJ_TUPLE: {
-           if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-                jsrRaise(vm, "TypeException", "Index of Tuple subscript access must be an integer.");
+            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
+                jsrRaise(vm, "TypeException", "Index of Tuple subscript must be an integer.");
                 return false;
             }
 
@@ -580,7 +582,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
         }
         case OBJ_STRING: {
             if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
-                jsrRaise(vm, "TypeException", "Index of String subscript access must be an integer.");
+                jsrRaise(vm, "TypeException", "Index of String subscript must be an integer.");
                 return false;
             }
 

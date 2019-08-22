@@ -704,7 +704,7 @@ static Expr *literal(Parser *p) {
         return e;
     }
     case TOK_STRING: {
-        Expr *e = newStrLiteral(line, p->peek.lexeme, p->peek.length);
+        Expr *e = newStrLiteral(line, p->peek.lexeme + 1, p->peek.length - 2);
         advance(p);
         return e;
     }
@@ -741,7 +741,15 @@ static Expr *literal(Parser *p) {
         LinkedList *keyVals = NULL;
 
         while(!matchSkipnl(p, TOK_RCURLY)) {
-            Expr *key = parseExpr(p, false);
+            Expr *key;
+            if(match(p, TOK_DOT)) {
+                advance(p);
+                Token id = require(p, TOK_IDENTIFIER);
+                key = newStrLiteral(id.line, id.lexeme, id.length);
+            } else {
+                key = parseExpr(p, false);
+            }
+
             require(p, TOK_COLON);
             Expr *val = parseExpr(p, false);
             if(p->hadError) break;
@@ -777,13 +785,20 @@ static Expr *literal(Parser *p) {
 static Expr *postfixExpr(Parser *p) {
     Expr *lit = literal(p);
 
-    while(match(p, TOK_LPAREN) || match(p, TOK_DOT) || match(p, TOK_LSQUARE)) {
+    while(match(p, TOK_LPAREN) || match(p, TOK_LCURLY) || match(p, TOK_DOT) 
+          || match(p, TOK_LSQUARE))
+    {
         int line = p->peek.line;
         switch(p->peek.type) {
         case TOK_DOT: {
             require(p, TOK_DOT);
             Token attr = require(p, TOK_IDENTIFIER);
             lit = newAccessExpr(line, lit, attr.lexeme, attr.length);
+            break;
+        }
+        case TOK_LCURLY: {
+            Expr *table = literal(p);
+            lit = newCallExpr(line, lit, addElement(NULL, table));
             break;
         }
         case TOK_LPAREN: {

@@ -25,9 +25,9 @@
 #ifndef JSTAR_STATIC
     #if defined(_WIN32) && defined(_MSC_VER)
         #if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)
-            #define JSTAR_API  __declspec(dllexport)
+            #define JSTAR_API __declspec(dllexport)
         #else
-            #define JSTAR_API  __declspec(dllimport)
+            #define JSTAR_API __declspec(dllimport)
         #endif
     #else
         #define JSTAR_API

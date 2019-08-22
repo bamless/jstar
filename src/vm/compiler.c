@@ -1496,13 +1496,11 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 }
 
 static ObjString *readString(Compiler *c, Expr *e) {
-    const char *str = e->str.str + 1;
-    size_t length = e->str.length - 2;
-
     JStarBuffer sb;
     jsrBufferInit(c->vm, &sb);
+    const char *str = e->str.str;
 
-    for(size_t i = 0; i < length; i++) {
+    for(size_t i = 0; i < e->str.length; i++) {
         char c = str[i];
         if(c == '\\') {
             switch(str[i + 1]) {
