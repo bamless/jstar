@@ -1231,7 +1231,7 @@ sup_invoke:;
             if(isLocal) {
                 c->upvalues[i] = captureUpvalue(vm, frame->stack + index);
             } else {
-                c->upvalues[i] = frame->fn.as.closure->upvalues[i];
+                c->upvalues[i] = frame->fn.as.closure->upvalues[index];
             }
         }
         DISPATCH();
