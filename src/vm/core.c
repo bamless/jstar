@@ -756,7 +756,7 @@ JSR_NATIVE(jsr_Table_get) {
     
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     if(t->entries == NULL) {
-        jsrPushNull(vm);
+        push(vm, NULL_VAL);
         return true;
     }
 
@@ -765,7 +765,11 @@ JSR_NATIVE(jsr_Table_get) {
         return false;
     }
 
-    push(vm, e->val);
+    if(!IS_NULL(e->key))
+        push(vm, e->val);
+    else
+        push(vm, NULL_VAL);
+
     return true;
 }
 
@@ -790,7 +794,7 @@ JSR_NATIVE(jsr_Table_set) {
     e->key = vm->apiStack[1];
     e->val = vm->apiStack[2];
 
-    jsrPushBoolean(vm, isNew);
+    push(vm, BOOL_VAL(isNew));
     return true;
 }
 
@@ -799,7 +803,7 @@ JSR_NATIVE(jsr_Table_delete) {
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     
     if(t->entries == NULL) {
-        jsrPushBoolean(vm, false);
+        push(vm, BOOL_VAL(false));
         return true;
     }
 
@@ -817,7 +821,7 @@ JSR_NATIVE(jsr_Table_delete) {
     toDelete->val = TRUE_VAL;
     t->count--;
 
-    jsrPushBoolean(vm, true);
+    push(vm, BOOL_VAL(true));
     return true;
 }
 
@@ -828,13 +832,13 @@ JSR_NATIVE(jsr_Table_clear) {
         t->entries[i].key = NULL_VAL;
         t->entries[i].val = NULL_VAL;
     }
-    jsrPushNull(vm);
+    push(vm, NULL_VAL);
     return true;
 }
 
 JSR_NATIVE(jsr_Table_len) {
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
-    jsrPushNumber(vm, t->count);
+    push(vm, NUM_VAL(t->count));
     return true;    
 }
 
@@ -843,7 +847,7 @@ JSR_NATIVE(jsr_Table_contains) {
     
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     if(t->entries == NULL) {
-        jsrPushBoolean(vm, false);
+        push(vm, BOOL_VAL(false));
         return true;
     }
 
@@ -852,7 +856,7 @@ JSR_NATIVE(jsr_Table_contains) {
         return false;
     }
 
-    jsrPushBoolean(vm, !IS_NULL(e->key));
+    push(vm, BOOL_VAL(!IS_NULL(e->key)));
     return true;
 }
 
