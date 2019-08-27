@@ -40,10 +40,13 @@ set_target_properties(libjstar_static PROPERTIES
 )
 
 # find the math library if needed
-find_library(MATH_LIBRARY m)
+set(EXTRA_LIBS)
+if(UNIX)
+	set(EXTRA_LIBS dl m)
+endif()
 
 add_library(libjstar  SHARED ${SOURCES} ${JSTAR_HEADERS})
-target_link_libraries(libjstar ${CMAKE_DL_LIBS} ${MATH_LIBRARY})
+target_link_libraries(libjstar ${EXTRA_LIBS})
 set_target_properties(libjstar PROPERTIES 
 	OUTPUT_NAME   "jstar"
 	VERSION       ${LIBJSTAR_VERSION_STRING}

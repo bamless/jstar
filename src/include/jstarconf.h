@@ -13,7 +13,7 @@
 
 // compiler and platform in which this J* binary was compiled
 #define JSTAR_COMPILER "GNU 9.1.0"
-#define JSTAR_PLATFORM "Linux"
+#define JSTAR_PLATFORM "Windows"
 
 // Options
 #define USE_COMPUTED_GOTOS

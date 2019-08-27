@@ -21,7 +21,7 @@
 #elif defined (__APPLE__) && defined (__MACH__)
     #define DL_PREFIX ""
     #define DL_SUFFIX ".dylib"
-#elif define(_WIN32)
+#elif defined(_WIN32)
     #define DL_PREFIX ""
     #define DL_SUFFIX ".dll"
 #else
