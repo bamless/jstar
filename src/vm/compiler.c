@@ -1156,7 +1156,11 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 static void compileExcepts(Compiler *c, LinkedList *excs) {
     Stmt *exc = (Stmt *)excs->elem;
 
-    emitBytecode(c, OP_DUP, exc->line);
+    Identifier excId = syntheticIdentifier(".exception");
+    uint8_t exception = resolveVariable(c, &excId, true, exc->line);
+
+    emitBytecode(c, OP_GET_LOCAL, exc->line);
+    emitBytecode(c, exception, exc->line);
     compileExpr(c, exc->excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
@@ -1165,8 +1169,8 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
 
     enterScope(c);
 
-    emitBytecode(c, OP_DUP, exc->line);
-
+    emitBytecode(c, OP_GET_LOCAL, exc->line);
+    emitBytecode(c, exception, exc->line);
     declareVar(c, &exc->excStmt.var, exc->line);
     defineVar(c, &exc->excStmt.var, exc->line);
 
@@ -1175,8 +1179,7 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     emitBytecode(c, OP_NULL, exc->line);
     emitBytecode(c, OP_SET_LOCAL, exc->line);
 
-    Identifier excId = syntheticIdentifier(".exception");
-    emitBytecode(c, resolveVariable(c, &excId, true, exc->line), exc->line);
+    emitBytecode(c, exception, exc->line);
     emitBytecode(c, OP_POP, exc->line);
 
     exitScope(c);
@@ -1197,7 +1200,6 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
 
 static void enterTryBlock(Compiler *c, TryExcept *tryExc, Stmt *try) {
     tryExc->depth = c->depth;
-    //tryExc->closestLoop = c->loops;
     tryExc->next = c->tryBlocks;
     c->tryBlocks = tryExc;
     if(try->tryStmt.ensure != NULL) c->tryDepth++;
@@ -1242,19 +1244,19 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
         // esnure block expects exception on top or the
         // stack or null if no exception has been raised
         emitBytecode(c, OP_NULL, s->line);
-        // the cause of the unwind null, CAUSE_RETURN or CAUSE_EXCEPT
+        // the cause of the unwind null for none, CAUSE_RETURN or CAUSE_EXCEPT
         emitBytecode(c, OP_NULL, s->line);
     }
 
     enterScope(c);
 
-    Identifier cause = syntheticIdentifier(".cause");
-    declareVar(c, &cause, 0);
-    defineVar(c, &cause, 0);
-
     Identifier exc = syntheticIdentifier(".exception");
     declareVar(c, &exc, 0);
     defineVar(c, &exc, 0);
+
+    Identifier cause = syntheticIdentifier(".cause");
+    declareVar(c, &cause, 0);
+    defineVar(c, &cause, 0);
 
     if(hasExcept) {
         size_t excJmp = emitBytecode(c, OP_JUMP, 0);

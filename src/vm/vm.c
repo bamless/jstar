@@ -778,13 +778,13 @@ static bool runEval(JStarVM *vm, int depth) {
         LOAD_FRAME();                                      \
     } while(0)
 
-#define UNWIND_HANDLER(h, cause, ret)  \
+#define UNWIND_HANDLER(h, cause, exc)  \
     do {                               \
         frame->ip = h->handler;        \
         vm->sp = h->savesp;            \
         closeUpvalues(vm, vm->sp - 1); \
+        push(vm, exc);                 \
         push(vm, cause);               \
-        push(vm, ret);                 \
     } while(0)
 
 #define UNWIND_STACK(vm)              \
@@ -1134,7 +1134,7 @@ sup_invoke:;
         while(frame->handlerc > 0) {
             Handler *h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
-                UNWIND_HANDLER(h, NUM_VAL((double) CAUSE_RETURN), ret);
+                UNWIND_HANDLER(h, NUM_VAL(CAUSE_RETURN), ret);
                 LOAD_FRAME();
                 DISPATCH();
             }
@@ -1344,34 +1344,19 @@ sup_invoke:;
     }
     
     TARGET(OP_ENSURE_END): {
-        if(!IS_NULL(peek2(vm))) {
-            UnwindCause cause = AS_NUM(peek2(vm));
+        if(!IS_NULL(peek(vm))) {
+            UnwindCause cause = AS_NUM(pop(vm));
 
             switch(cause) {
             case CAUSE_EXCEPT: {
                 // if we still have the exception on the top of the stack
                 if(!IS_NULL(peek(vm))) {
-                    // remove the cause leaving the exception on top
-                    vm->sp[-2] = vm->sp[-1];
-                    vm->sp--;
                     // continue unwinding
                     UNWIND_STACK(vm);
                 }
                 break;
             }
             case CAUSE_RETURN: {
-                Value ret = pop(vm), cause = pop(vm);
-                // If there are other ensure handlers jump to them
-                while(frame->handlerc > 0) {
-                    Handler *h = &frame->handlers[--frame->handlerc];
-                    if(h->type == HANDLER_ENSURE) {
-                        UNWIND_HANDLER(h, cause, ret);
-                        LOAD_FRAME();
-                        DISPATCH();
-                    }
-                }
-                // Finally return from the function
-                push(vm, ret);
                 GOTO(OP_RETURN);
             }
             default:
@@ -1464,17 +1449,19 @@ static bool unwindStack(JStarVM *vm, int depth) {
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame *frame = &vm->frames[vm->frameCount - 1];
-        vm->module = frame->fn.type == OBJ_CLOSURE ? frame->fn.as.closure->fn->c.module
-                                                   : frame->fn.as.native->c.module;
+        
+        if(frame->fn.type == OBJ_CLOSURE)
+            vm->module = frame->fn.as.closure->fn->c.module;
+        else
+            vm->module = frame->fn.as.native->c.module;
 
         stRecordFrame(vm, st, frame, vm->frameCount);
 
-        // if current frame has except or ensure handlers
+        // if current frame has except or ensure handlers retore handler state and exit
         if(frame->handlerc > 0) {
-            // restore state and jump to handler code
             Value exc = pop(vm);
             Handler *h = &frame->handlers[--frame->handlerc];
-            UNWIND_HANDLER(h, NUM_VAL((double)CAUSE_EXCEPT), exc);
+            UNWIND_HANDLER(h, NUM_VAL(CAUSE_EXCEPT), exc);
             return true;
         }
 
