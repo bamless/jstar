@@ -1,3 +1,7 @@
+//====================================
+//========= Built-in classes =========
+//====================================
+
 class Number
     native __string__()
     native __hash__()
@@ -202,9 +206,11 @@ class Table
     native __string__()
 end
 
-// Standard iterators
+//======================================
+//========= Standard iterators =========
+//======================================
 
-class iter
+class Iter
     fun new(indexable)
         this.indexable = indexable
     end
@@ -225,7 +231,7 @@ class iter
     end
 end
 
-class reversed
+class Reverse
     fun new(indexable)
         this.indexable = indexable
     end
@@ -247,7 +253,7 @@ class reversed
     end
 end
 
-class ipairs
+class Enumerate
     fun new(iter, start=0)
         this.iter = iter
         this.idx = start
@@ -264,7 +270,7 @@ class ipairs
     end
 end
 
-class izip
+class Zip
     fun new(...)
         if #args == 0 then 
             raise TypeException("Must provide at least one iterator.") 
@@ -302,12 +308,12 @@ class izip
     end
 end
 
-// Core functions
+//==================================
+//========= Core functions =========
+//==================================
 
 fun assert(cond, msg="assertion failed")
-    if !cond then 
-        raise AssertException(msg) 
-    end
+    if !cond then raise AssertException(msg) end
 end
 
 fun sorted(iterable, comp=null)
@@ -334,7 +340,9 @@ native num(n)
 
 native print(s, ...)
 
-// Exceptions builtin classes
+//==============================
+//========= Exceptions =========
+//==============================
 
 class Exception
     fun new(err=null)
