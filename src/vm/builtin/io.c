@@ -316,11 +316,12 @@ JSR_NATIVE(jsr_PFile_close) {
     jsrPushBoolean(vm, true);
     jsrSetField(vm, 0, FIELD_FILE_CLOSED);
 
-    if(pclose(f)) {
+    int ret;
+    if((ret = pclose(f)) < 0) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    jsrPushNull(vm);
+    jsrPushNumber(vm, ret);
     return true;
 }
 
