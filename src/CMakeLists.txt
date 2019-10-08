@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.6)
 project(JStar)
 
+# C version
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 # version
 set(JSTAR_VERSION_MAJOR 0)
 set(JSTAR_VERSION_MINOR 5)
@@ -33,17 +38,17 @@ endif()
 
 # set compiler flags
 if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter -Wno-unused-label")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-unused-label")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -fomit-frame-pointer -s")
 elseif(${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
-	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -s -Qunused-arguments -Wno-unused-label -Wno-unused-command-line-argument")
 elseif(MSVC)
 	set(CMAKE_C_FLAGS "/wd4244")
 	add_definitions("-D_CRT_SECURE_NO_WARNINGS=1")
-	set(CMAKE_C_FLAGS_RELEASE "/Ox /GL")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Ox /GL")
 endif()
 
 # required programs
