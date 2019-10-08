@@ -263,17 +263,20 @@ static void packVarargs(JStarVM *vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
+static void raiseArgsException(JStarVM *vm, Callable *function, int expected, 
+    int supplied, const char *quantity)
+{
+    jsrRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d arguments, %d supplied.", 
+       function->module->name->data, function->name->data, quantity, expected, supplied);
+}
+
 static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
     if(c->defaultc != 0) {
-        uint8_t most = c->argsCount;
-        uint8_t least = most - c->defaultc;
+        uint8_t most = c->argsCount, least = most - c->defaultc;
 
         if((!c->vararg && argc > most) || argc < least) {
-            const char *mname = c->module->name->data;
-            const char *name = c->name->data;
-
-            jsrRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d args, %d supplied.",
-                     mname, name, argc > most ? "most" : "least", argc > most ? most : least, argc);
+            bool tooMany = argc > most;
+            raiseArgsException(vm, c, tooMany ? most : least, argc, tooMany ? "most" : "least");
             return false;
         }
 
@@ -285,23 +288,14 @@ static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
         if(c->vararg) packVarargs(vm, argc > most ? argc - most : 0);
     } else if(c->vararg) {
         if(argc < c->argsCount) {
-            const char *mname = c->module->name->data;
-            const char *name = c->name->data;
-
-            jsrRaise(vm, "TypeException", "Function `%s.%s` takes at least %d args, %d supplied.",
-                    mname, name, c->argsCount, argc);
+            raiseArgsException(vm, c, c->argsCount, argc, "least");
             return false;
         }
         packVarargs(vm, argc - c->argsCount);
     } else if(c->argsCount != argc) {
-        const char *mname = c->module->name->data;
-        const char *name = c->name->data;
-
-        jsrRaise(vm, "TypeException", "Function `%s.%s` takes exactly %d args, %d supplied.", mname,
-                name, c->argsCount, argc);
+        raiseArgsException(vm, c, c->argsCount, argc, "exactly");
         return false;
     }
-
     return true;
 }
 

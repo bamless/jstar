@@ -141,11 +141,13 @@ static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, con
 static bool importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
     char *source = loadSource(path->data);
     if(source == NULL) return false;
+
     bool imported;
     if((imported = importWithSource(vm, path->data, name, source))) {
         loadNativeDynlib(vm, path, name);
     }
     free(source);
+    
     return imported;
 }
 
