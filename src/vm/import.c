@@ -64,7 +64,12 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
 
     if(module == NULL) {
         module = newModule(vm, name);
+        hashTableImportNames(&module->globals, &vm->core->globals);
         setModule(vm, name, module);
+
+        push(vm, OBJ_VAL(name));
+        hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
+        pop(vm);
     }
 
     ObjFunction *fn = compile(vm, module, program);
@@ -129,12 +134,12 @@ static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, con
 
     if(p.hadError) return false;
 
-    ObjFunction *module = compileWithModule(vm, name, program);
+    ObjFunction *moduleFun = compileWithModule(vm, name, program);
     freeStmt(program);
 
-    if(module == NULL) return false;
+    if(moduleFun == NULL) return false;
 
-    push(vm, OBJ_VAL(module));
+    push(vm, OBJ_VAL(moduleFun));
     return true;
 }
 

@@ -197,7 +197,7 @@ bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {
     Value res;
     ObjString *namestr = copyString(vm, name, strlen(name), true);
     HashTable *glob = &module->globals;
-    if(!hashTableGet(glob, namestr, &res) && !hashTableGet(&vm->core->globals, namestr, &res)) {
+    if(!hashTableGet(glob, namestr, &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
         return false;
     }

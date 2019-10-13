@@ -104,10 +104,6 @@ JStarVM *jsrNewVM() {
     // Bootstrap the core module
     initCoreLibrary(vm);
 
-    // Init the __main__ module
-    ObjString *mainMod = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
-    setModule(vm, mainMod, newModule(vm, mainMod));
-
     // This is called after initCoreLibrary in order to correctly assign
     // classes to objects, since classes are created in intCoreLibrary
     vm->importpaths = newList(vm, 8);
@@ -1309,12 +1305,10 @@ sup_invoke:;
 
     TARGET(OP_GET_GLOBAL): {
         ObjString *name = GET_STRING();
-        HashTable *glob = &vm->module->globals;
-        if(!hashTableGet(glob, name, vm->sp) && !hashTableGet(&vm->core->globals, name, vm->sp)) {
+        if(!hashTableGet(&vm->module->globals, name, vm->sp++)) {
             jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
             UNWIND_STACK(vm);
         }
-        vm->sp++;
         DISPATCH();
     }
 
