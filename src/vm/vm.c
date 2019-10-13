@@ -1497,7 +1497,6 @@ EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module,
     push(vm, OBJ_VAL(closure));
 
     EvalResult res;
-
     if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) {
         jsrPrintStackTrace(vm);
     }

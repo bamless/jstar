@@ -1059,11 +1059,22 @@ static Operator tokenToOperator(TokenType t) {
     }
 }
 
-static Expr *parseExpr(Parser *p, bool tuple) {
+static void checkUnpackAssignement(Parser *p, LinkedList *lst, TokenType assignToken) {
+    foreach(n, lst) {
+        if(!IS_LVALUE(((Expr *)n->elem)->type)) {
+            error(p, "Left hand side of assignment must be an lvalue.");
+        }
+        if(assignToken != TOK_EQUAL) {
+            error(p, "Unpack cannot use compund assignement.");
+        }
+    }
+}
+
+static Expr *parseExpr(Parser *p, bool parseTuple) {
     int line = p->peek.line;
     Expr *l = ternaryExpr(p);
 
-    if(tuple && match(p, TOK_COMMA)) {
+    if(parseTuple && match(p, TOK_COMMA)) {
         LinkedList *exprs = addElement(NULL, l);
 
         while(match(p, TOK_COMMA)) {
@@ -1076,27 +1087,22 @@ static Expr *parseExpr(Parser *p, bool tuple) {
     }
 
     if(IS_ASSIGN(p->peek.type)) {
-        TokenType t = p->peek.type;
+        TokenType assignToken = p->peek.type;
 
         if(l != NULL && !IS_LVALUE(l->type)) {
             error(p, "Left hand side of assignment must be an lvalue.");
         }
+        
         if(l != NULL && l->type == TUPLE_LIT) {
-            foreach(n, l->tuple.exprs->exprList.lst) {
-                if(!IS_LVALUE(((Expr *)n->elem)->type))
-                    error(p, "Left hand side of assignment must be an lvalue.");
-            }
-            if(t != TOK_EQUAL) {
-                error(p, "Unpack cannot use compund assignement.");
-            }
+            checkUnpackAssignement(p, l->tuple.exprs->exprList.lst, assignToken);
         }
 
         advance(p);
         Expr *r = parseExpr(p, true);
 
         // check if we're parsing a compund assginment
-        if(IS_COMPUND_ASSIGN(t)) {
-            l = newCompoundAssing(line, tokenToOperator(COMPUND_ASS_TO_OP(t)), l, r);
+        if(IS_COMPUND_ASSIGN(assignToken)) {
+            l = newCompoundAssing(line, tokenToOperator(COMPUND_ASS_TO_OP(assignToken)), l, r);
         } else {
             l = newAssign(line, l, r);
         }

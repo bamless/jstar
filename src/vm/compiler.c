@@ -492,17 +492,17 @@ static void compileLval(Compiler *c, Expr *e) {
     }
 }
 
-static void compileRval(Compiler *c, Identifier *name, Expr *e) {
+static void compileRval(Compiler *c, Identifier *boundName, Expr *e) {
     if(e->type != ANON_FUNC)
         compileExpr(c, e);
     else
-        compileAnonymousFunc(c, name, e);
+        compileAnonymousFunc(c, boundName, e);
 }
 
-static void compileConstUnpackLst(Compiler *c, Identifier **names, Expr *exprs, int num) {
+static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *exprs, int num) {
     int i = 0;
     foreach(n, exprs->exprList.lst) {
-        compileRval(c, names ? names[i] : NULL, (Expr *)n->elem);
+        compileRval(c, boundNames ? boundNames[i] : NULL, (Expr *)n->elem);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
@@ -530,26 +530,24 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         break;
     }
 
-    // If the left hand side has been parsed as a tuple it means that the assignement is
-    // of the form: a, b, ..., c = ... i.e. an unpack assignement
+    // Unpack assignement of the form: a, b, ..., c = ...
     case TUPLE_LIT: {
         int assignments = 0;
-        Expr *ass[UINT8_MAX];
+        Expr *lvals[UINT8_MAX];
 
         foreach(n, e->assign.lval->tuple.exprs->exprList.lst) {
             if(assignments == UINT8_MAX) {
                 error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
                 break;
             }
-            ass[assignments++] = (Expr *)n->elem;
+            lvals[assignments++] = (Expr *)n->elem;
         }
 
         Expr *rval = e->assign.rval;
 
         if(IS_CONST_UNPACK(rval->type)) {
             Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
-            size_t num = listLength(e->assign.lval->tuple.exprs->exprList.lst);
-            compileConstUnpackLst(c, NULL, lst, num);
+            compileConstUnpackLst(c, NULL, lst, assignments);
         } else {
             compileRval(c, NULL, e->assign.rval);
             emitBytecode(c, OP_UNPACK, e->line);
@@ -559,7 +557,7 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         // compile lvals in reverse order in order to assign correct values to variables in case
         // of a const unpack
         for(int n = assignments - 1; n >= 0; n--) {
-            compileLval(c, ass[n]);
+            compileLval(c, lvals[n]);
             if(n != 0) emitBytecode(c, OP_POP, e->line);
         }
         break;
@@ -766,23 +764,20 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     Identifier *decls[MAX_LOCALS];
 
     foreach(n, s->varDecl.ids) {
-        if(numDecls == MAX_LOCALS) {
-            break;
-        }
+        if(numDecls == MAX_LOCALS) break;
         Identifier *name = (Identifier *)n->elem;
         declareVar(c, name, s->line);
         decls[numDecls++] = name;
     }
 
     if(s->varDecl.init != NULL) {
-        ExprType t = s->varDecl.init->type;
+        ExprType initType = s->varDecl.init->type;
 
-        if(s->varDecl.isUnpack && IS_CONST_UNPACK(t)) {
-            Expr *e = t == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
+        if(s->varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
+            Expr *e = initType == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
             compileConstUnpackLst(c, decls, e, numDecls);
         } else {
-            Identifier *name = numDecls == 1 ? decls[0] : NULL;
-            compileRval(c, name, s->varDecl.init);
+            compileRval(c, decls[0], s->varDecl.init);
             if(s->varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)numDecls, s->line);
@@ -1038,27 +1033,27 @@ static void compileNative(Compiler *c, Stmt *s) {
 static void compileMethods(Compiler *c, Stmt *cls) {
     LinkedList *methods = cls->classDecl.methods;
 
-    Compiler methodc;
+    Compiler methCompiler;
     foreach(n, methods) {
         Stmt *m = (Stmt *)n->elem;
         switch(m->type) {
         case FUNCDECL: {
-            initCompiler(&methodc, c, TYPE_METHOD, c->depth + 1, c->vm);
+            initCompiler(&methCompiler, c, TYPE_METHOD, c->depth + 1, c->vm);
 
-            ObjFunction *met = method(&methodc, c->func->c.module, &cls->classDecl.id, m);
+            ObjFunction *meth = method(&methCompiler, c->func->c.module, &cls->classDecl.id, m);
 
             emitBytecode(c, OP_CLOSURE, m->line);
-            emitShort(c, createConst(c, OBJ_VAL(met), m->line), m->line);
+            emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
 
-            for(uint8_t i = 0; i < met->upvaluec; i++) {
-                emitBytecode(c, methodc.upvalues[i].isLocal ? 1 : 0, m->line);
-                emitBytecode(c, methodc.upvalues[i].index, m->line);
+            for(uint8_t i = 0; i < meth->upvaluec; i++) {
+                emitBytecode(c, methCompiler.upvalues[i].isLocal ? 1 : 0, m->line);
+                emitBytecode(c, methCompiler.upvalues[i].index, m->line);
             }
 
             emitBytecode(c, OP_DEF_METHOD, cls->line);
             emitShort(c, identifierConst(c, &m->funcDecl.id, m->line), cls->line);
 
-            endCompiler(&methodc);
+            endCompiler(&methCompiler);
             break;
         }
         case NATIVEDECL: {
