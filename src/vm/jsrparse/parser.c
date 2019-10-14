@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Consume explicit end of statement tokens
 #define STATEMENT_END(p)                                         \
     do {                                                         \
         if(!IS_IMPLICIT_END(p->peek.type)) {                     \
@@ -16,43 +17,7 @@
         }                                                        \
     } while(0)
 
-// tokens that implicitly signal the end of a statement (without requiring a ';' or '\n')
-#define IS_IMPLICIT_END(t)                                                                \
-    (t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE || \
-     t == TOK_EXCEPT)
-
-#define IS_STATEMENT_END(t) (IS_IMPLICIT_END(t) || t == TOK_NEWLINE || t == TOK_SEMICOLON)
-
-#define IS_LVALUE(type) \
-    (type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC || type == TUPLE_LIT)
-
-#define IS_CONSTANT_LITERAL(type) \
-    (type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT)
-
-#define IS_EXPR_START(t)   \
-(                          \
-    t == TOK_NUMBER     || \
-    t == TOK_TRUE       || \
-    t == TOK_FALSE      || \
-    t == TOK_IDENTIFIER || \
-    t == TOK_STRING     || \
-    t == TOK_NULL       || \
-    t == TOK_SUPER      || \
-    t == TOK_LPAREN     || \
-    t == TOK_LSQUARE    || \
-    t == TOK_BANG       || \
-    t == TOK_MINUS      || \
-    t == TOK_FUN        || \
-    t == TOK_HASH       || \
-    t == TOK_HASH_HASH  || \
-    t == TOK_LCURLY        \
-)
-
 //----- Utility functions ------
-
-static bool match(Parser *p, TokenType type) {
-    return p->peek.type == type;
-}
 
 static char *strchrnul(const char *str, char c) {
     char *ret;
@@ -63,7 +28,7 @@ static void error(Parser *p, const char *msg) {
     if(p->panic) return;
     p->panic = p->hadError = true;
 
-    if(!p->silent) {
+    if(p->fname != NULL) {
         fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
 
         int tokOff = (int)((p->peek.lexeme) - p->lnStart);
@@ -77,6 +42,10 @@ static void error(Parser *p, const char *msg) {
         fprintf(stderr, "^\n");
         fprintf(stderr, "%s\n", msg);
     }
+}
+
+static bool match(Parser *p, TokenType type) {
+    return p->peek.type == type;
 }
 
 static void advance(Parser *p) {
@@ -113,8 +82,8 @@ static Token require(Parser *p, TokenType type) {
     }
 
     char msg[1025] = {'\0'};
-    snprintf(msg, sizeof(msg), "Expected token `%s` but instead `%s` found.", tokNames[type],
-             tokNames[p->peek.type]);
+    snprintf(msg, sizeof(msg), "Expected token `%s` but instead `%s` found.", 
+             tokNames[type], tokNames[p->peek.type]);
     error(p, msg);
 
     return (Token){0, NULL, 0, 0};
@@ -164,11 +133,10 @@ static void classSynchronize(Parser *p) {
 
 //----- Recursive descent parser implementation ------
 
-static Expr *parseExpr(Parser *p, bool tuple);
+static Expr *expression(Parser *p, bool tuple);
 static Stmt *parseProgram(Parser *p);
 
-static void initParser(Parser *p, const char *fname, const char *src, bool silent) {
-    p->silent = silent;
+static void initParser(Parser *p, const char *fname, const char *src) {
     p->panic = false;
     p->hadError = false;
     p->fname = fname;
@@ -180,8 +148,8 @@ static void initParser(Parser *p, const char *fname, const char *src, bool silen
     p->lnStart = p->peek.lexeme;
 }
 
-Stmt *parse(Parser *p, const char *fname, const char *src, bool silent) {
-    initParser(p, fname, src, silent);
+Stmt *parse(Parser *p, const char *fname, const char *src) {
+    initParser(p, fname, src);
 
     Stmt *program = parseProgram(p);
 
@@ -195,10 +163,10 @@ Stmt *parse(Parser *p, const char *fname, const char *src, bool silent) {
     return program;
 }
 
-Expr *parseExpression(Parser *p, const char *fname, const char *src, bool silent) {
-    initParser(p, fname, src, silent);
+Expr *parseExpression(Parser *p, const char *fname, const char *src) {
+    initParser(p, fname, src);
 
-    Expr *expr = parseExpr(p, true);
+    Expr *expr = expression(p, true);
 
     if(!matchSkipnl(p, TOK_EOF)) error(p, "Unexpected token.");
 
@@ -317,7 +285,7 @@ static Stmt *parseClassDecl(Parser *p) {
     Expr *sup = NULL;
     if(matchSkipnl(p, TOK_COLON)) {
         advance(p);
-        sup = parseExpr(p, true);
+        sup = expression(p, true);
     }
 
     LinkedList *methods = NULL;
@@ -364,7 +332,7 @@ static Stmt *varDecl(Parser *p) {
     Expr *init = NULL;
     if(match(p, TOK_EQUAL)) {
         advance(p);
-        init = parseExpr(p, true);
+        init = expression(p, true);
     }
 
     return newVarDecl(line, isUnpack, ids, init);
@@ -406,7 +374,7 @@ static Stmt *parseProgram(Parser *p) {
 static Stmt *parseElif(Parser *p);
 
 static Stmt *parseIfBody(Parser *p, int line) {
-    Expr *cond = parseExpr(p, true);
+    Expr *cond = expression(p, true);
 
     require(p, TOK_THEN);
 
@@ -446,7 +414,7 @@ static Stmt *whileStmt(Parser *p) {
     int line = p->peek.line;
     require(p, TOK_WHILE);
 
-    Expr *cond = parseExpr(p, true);
+    Expr *cond = expression(p, true);
 
     require(p, TOK_DO);
 
@@ -474,7 +442,7 @@ static Stmt *forStmt(Parser *p) {
                 }
                 require(p, TOK_IN);
 
-                Expr *e = parseExpr(p, true);
+                Expr *e = expression(p, true);
 
                 require(p, TOK_DO);
 
@@ -485,7 +453,7 @@ static Stmt *forStmt(Parser *p) {
                 return newForEach(line, init, e, body);
             }
         } else {
-            Expr *e = parseExpr(p, true);
+            Expr *e = expression(p, true);
             if(e != NULL) {
                 init = newExprStmt(e->line, e);
             }
@@ -495,12 +463,12 @@ static Stmt *forStmt(Parser *p) {
     require(p, TOK_SEMICOLON);
 
     Expr *cond = NULL;
-    if(!matchSkipnl(p, TOK_SEMICOLON)) cond = parseExpr(p, true);
+    if(!matchSkipnl(p, TOK_SEMICOLON)) cond = expression(p, true);
 
     require(p, TOK_SEMICOLON);
 
     Expr *act = NULL;
-    if(!matchSkipnl(p, TOK_DO)) act = parseExpr(p, true);
+    if(!matchSkipnl(p, TOK_DO)) act = expression(p, true);
 
     require(p, TOK_DO);
 
@@ -517,7 +485,7 @@ static Stmt *returnStmt(Parser *p) {
 
     Expr *e = NULL;
     if(!IS_STATEMENT_END(p->peek.type)) {
-        e = parseExpr(p, true);
+        e = expression(p, true);
     }
     STATEMENT_END(p);
 
@@ -593,7 +561,7 @@ static Stmt *parseTryStmt(Parser *p) {
 
             require(p, TOK_EXCEPT);
 
-            Expr *cls = parseExpr(p, true);
+            Expr *cls = expression(p, true);
             Token exc = require(p, TOK_IDENTIFIER);
 
             Stmt *blck = blockStmt(p);
@@ -618,7 +586,7 @@ static Stmt *parseRaiseStmt(Parser *p) {
     int line = p->peek.line;
     advance(p);
 
-    Expr *exc = parseExpr(p, true);
+    Expr *exc = expression(p, true);
     STATEMENT_END(p);
 
     return newRaiseStmt(line, exc);
@@ -658,7 +626,7 @@ static Stmt *parseStmt(Parser *p) {
         STATEMENT_END(p);
         return newBreakStmt(line);
     default: {
-        Expr *e = parseExpr(p, true);
+        Expr *e = expression(p, true);
         STATEMENT_END(p);
         return newExprStmt(line, e);
     }
@@ -667,15 +635,15 @@ static Stmt *parseStmt(Parser *p) {
 
 //----- Expressions parse ------
 
-LinkedList *parseExprLst(Parser *p) {
+LinkedList *expressionLst(Parser *p) {
     LinkedList *exprs = NULL;
 
-    exprs = addElement(NULL, parseExpr(p, false));
+    exprs = addElement(NULL, expression(p, false));
     while(matchSkipnl(p, TOK_COMMA)) {
         advance(p);
         skipNewLines(p);
 
-        exprs = addElement(exprs, parseExpr(p, false));
+        exprs = addElement(exprs, expression(p, false));
     }
 
     return exprs;
@@ -724,14 +692,14 @@ static Expr *literal(Parser *p) {
             return newTupleLiteral(line, newExprList(line, NULL));
         }
 
-        Expr *e = parseExpr(p, true);
+        Expr *e = expression(p, true);
         require(p, TOK_RPAREN);
         return e;
     }
     case TOK_LSQUARE: {
         require(p, TOK_LSQUARE);
         LinkedList *exprs = NULL;
-        if(!matchSkipnl(p, TOK_RSQUARE)) exprs = parseExprLst(p);
+        if(!matchSkipnl(p, TOK_RSQUARE)) exprs = expressionLst(p);
         require(p, TOK_RSQUARE);
         return newArrLiteral(line, newExprList(line, exprs));
     }
@@ -747,11 +715,11 @@ static Expr *literal(Parser *p) {
                 Token id = require(p, TOK_IDENTIFIER);
                 key = newStrLiteral(id.line, id.lexeme, id.length);
             } else {
-                key = parseExpr(p, false);
+                key = expression(p, false);
             }
 
             require(p, TOK_COLON);
-            Expr *val = parseExpr(p, false);
+            Expr *val = expression(p, false);
             if(p->hadError) break;
 
             keyVals = addElement(keyVals, key);
@@ -785,8 +753,8 @@ static Expr *literal(Parser *p) {
 static Expr *postfixExpr(Parser *p) {
     Expr *lit = literal(p);
 
-    while(match(p, TOK_LPAREN) || match(p, TOK_LCURLY) || match(p, TOK_DOT) 
-          || match(p, TOK_LSQUARE))
+    while(match(p, TOK_LPAREN) || match(p, TOK_LCURLY) || match(p, TOK_DOT) || 
+          match(p, TOK_LSQUARE))
     {
         int line = p->peek.line;
         switch(p->peek.type) {
@@ -805,7 +773,7 @@ static Expr *postfixExpr(Parser *p) {
             require(p, TOK_LPAREN);
 
             LinkedList *args = NULL;
-            if(!matchSkipnl(p, TOK_RPAREN)) args = parseExprLst(p);
+            if(!matchSkipnl(p, TOK_RPAREN)) args = expressionLst(p);
 
             require(p, TOK_RPAREN);
             lit = newCallExpr(line, lit, args);
@@ -815,7 +783,7 @@ static Expr *postfixExpr(Parser *p) {
             require(p, TOK_LSQUARE);
             skipNewLines(p);
 
-            lit = newArrayAccExpr(line, lit, parseExpr(p, true));
+            lit = newArrayAccExpr(line, lit, expression(p, true));
 
             require(p, TOK_RSQUARE);
             break;
@@ -1070,7 +1038,7 @@ static void checkUnpackAssignement(Parser *p, LinkedList *lst, TokenType assignT
     }
 }
 
-static Expr *parseExpr(Parser *p, bool parseTuple) {
+static Expr *expression(Parser *p, bool parseTuple) {
     int line = p->peek.line;
     Expr *l = ternaryExpr(p);
 
@@ -1098,7 +1066,7 @@ static Expr *parseExpr(Parser *p, bool parseTuple) {
         }
 
         advance(p);
-        Expr *r = parseExpr(p, true);
+        Expr *r = expression(p, true);
 
         // check if we're parsing a compund assginment
         if(IS_COMPUND_ASSIGN(assignToken)) {

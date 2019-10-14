@@ -57,9 +57,8 @@ static void addPrintIfExpr(JStarBuffer *sb) {
     Parser p;
 
     Expr *e;
-    char *src = sb->data;
     // If the line is a (correctly formed) expression
-    if((e = parseExpression(&p, "", src, true)) != NULL) {
+    if((e = parseExpression(&p, NULL, sb->data)) != NULL) {
         freeExpr(e);
         // assign the result of the expression to `_`
         jsrBufferPrependstr(sb, "var _ = ");

@@ -90,6 +90,14 @@ static void endCompiler(Compiler *c) {
     c->vm->currCompiler = c->prev;
 }
 
+ObjFunction *compile(JStarVM *vm, ObjModule *module, Stmt *s) {
+    Compiler c;
+    initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
+    ObjFunction *func = function(&c, module, s);
+    endCompiler(&c);
+    return c.hadError ? NULL : func;
+}
+
 static void error(Compiler *c, int line, const char *format, ...) {
     fprintf(stderr, "[line:%d] ", line);
     va_list args;
@@ -1363,14 +1371,6 @@ static void compileStatements(Compiler *c, LinkedList *stmts) {
     foreach(n, stmts) { 
         compileStatement(c, (Stmt *)n->elem); 
     }
-}
-
-ObjFunction *compile(JStarVM *vm, ObjModule *module, Stmt *s) {
-    Compiler c;
-    initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
-    ObjFunction *func = function(&c, module, s);
-    endCompiler(&c);
-    return c.hadError ? NULL : func;
 }
 
 static void enterFunctionScope(Compiler *c) {

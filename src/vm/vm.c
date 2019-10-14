@@ -1478,7 +1478,7 @@ EvalResult jsrEvaluate(JStarVM *vm, const char *fpath, const char *src) {
 EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module, const char *src) {
     Parser p;
 
-    Stmt *program = parse(&p, fpath, src, false);
+    Stmt *program = parse(&p, fpath, src);
     if(p.hadError) return VM_SYNTAX_ERR;
 
     ObjString *name = copyString(vm, module, strlen(module), true);

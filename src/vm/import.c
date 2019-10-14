@@ -120,7 +120,7 @@ static void loadNativeDynlib(JStarVM *vm, JStarBuffer *modulePath, ObjString *mo
 
 static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, const char *source) {
     Parser p;
-    Stmt *program = parse(&p, path, source, false);
+    Stmt *program = parse(&p, path, source);
 
     if(p.hadError) return false;
 
