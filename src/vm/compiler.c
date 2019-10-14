@@ -1,4 +1,5 @@
 #include "compiler.h"
+#include "const.h"
 #include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
@@ -9,11 +10,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
-#define MAX_TRY_DEPTH HANDLER_MAX
-#define MAX_LOCALS UINT8_MAX
-
-#define THIS_STR "this"
 
 // In case of a direct assignement of the form:
 //  var a, b, ..., c = x, y, ..., z

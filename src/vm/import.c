@@ -1,8 +1,9 @@
 #include "import.h"
-#include "jstar.h"
 #include "compiler.h"
+#include "const.h"
 #include "dynload.h"
 #include "hashtable.h"
+#include "jstar.h"
 #include "memory.h"
 
 #include "jsrparse/parser.h"
@@ -12,22 +13,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-
-#define PACKAGE_FILE "/__package__.jsr"
-
-#ifdef __unix__
-    #define DL_PREFIX "lib"
-    #define DL_SUFFIX ".so"
-#elif defined (__APPLE__) && defined (__MACH__)
-    #define DL_PREFIX ""
-    #define DL_SUFFIX ".dylib"
-#elif defined(_WIN32)
-    #define DL_PREFIX ""
-    #define DL_SUFFIX ".dll"
-#else
-    #define DL_PREFIX ""
-    #define DL_SUFFIX ""
-#endif
 
 static char *loadSource(const char *path) {
     FILE *srcFile = fopen(path, "rb");
@@ -64,7 +49,9 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
 
     if(module == NULL) {
         module = newModule(vm, name);
-        hashTableImportNames(&module->globals, &vm->core->globals);
+        if(vm->core != NULL) {
+            hashTableImportNames(&module->globals, &vm->core->globals);
+        }
         setModule(vm, name, module);
 
         push(vm, OBJ_VAL(name));
@@ -72,8 +59,11 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
         pop(vm);
     }
 
-    ObjFunction *fn = compile(vm, module, program);
-    return fn;
+    if(program != NULL) {
+        ObjFunction *fn = compile(vm, module, program);
+        return fn;
+    }
+    return NULL;
 }
 
 void setModule(JStarVM *vm, ObjString *name, ObjModule *module) {

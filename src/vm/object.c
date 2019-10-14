@@ -361,7 +361,7 @@ void jsrBufferFree(JStarBuffer *b) {
 // Debug logging functions
 
 #ifdef DBG_PRINT_GC
-DEFINE_TO_STRING(ObjType, OBJTYPE);
+    DEFINE_TO_STRING(ObjType, OBJTYPE);
 #endif
 
 void printObj(Obj *o) {

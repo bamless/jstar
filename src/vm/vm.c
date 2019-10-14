@@ -41,13 +41,13 @@ static void initImportPaths(JStarVM *vm) {
     size_t last = 0;
     size_t pathLen = strlen(jstarPath);
     ObjList *importPaths = vm->importpaths;
+
     for(size_t i = 0; i < pathLen; i++) {
         if(jstarPath[i] == ':') {
             ObjString *p = copyString(vm, jstarPath + last, i - last, true);
             push(vm, OBJ_VAL(p));
             listAppend(vm, importPaths, OBJ_VAL(p));
             pop(vm);
-
             last = i + 1;
         }
     }
@@ -103,6 +103,9 @@ JStarVM *jsrNewVM() {
 
     // Bootstrap the core module
     initCoreLibrary(vm);
+
+    // Init main module
+    compileWithModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true), NULL);
 
     // This is called after initCoreLibrary in order to correctly assign
     // classes to objects, since classes are created in intCoreLibrary

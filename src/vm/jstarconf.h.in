@@ -11,7 +11,7 @@
 #define JSTAR_VERSION \
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
 
-// compiler and platform in which this J* binary was compiled
+// compiler and platform on which this J* binary was compiled
 #define JSTAR_COMPILER "@CMAKE_C_COMPILER_ID@ @CMAKE_C_COMPILER_VERSION@"
 #define JSTAR_PLATFORM "@CMAKE_SYSTEM_NAME@"
 

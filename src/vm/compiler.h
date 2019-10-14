@@ -7,8 +7,6 @@
 
 #include <stdint.h>
 
-#define CTOR_STR "new"
-
 typedef struct JStarVM JStarVM;
 typedef struct Compiler Compiler;
 
