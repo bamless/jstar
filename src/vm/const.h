@@ -14,6 +14,7 @@
 // String constants
 #define CTOR_STR "new"
 #define THIS_STR "this"
+#define JSTARPATH "JSTARPATH"
 
 // Import constants
 #define PACKAGE_FILE "/__package__.jsr"

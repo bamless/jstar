@@ -18,8 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define JSTARPATH "JSTARPATH"
-
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly
 // handle the execution of except/ensure handlers
