@@ -572,7 +572,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             return true;
         }
         case OBJ_STRING: {
-            if(!IS_NUM(peek(vm)) || !isInt(AS_NUM(peek(vm)))) {
+            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
                 jsrRaise(vm, "TypeException", "Index of String subscript must be an integer.");
                 return false;
             }
