@@ -4,8 +4,8 @@
 // Version
 #define JSTAR_VERSION_MAJOR 0
 #define JSTAR_VERSION_MINOR 5
-#define JSTAR_VERSION_PATCH 5
-#define JSTAR_VERSION_STRING "0.5.5"
+#define JSTAR_VERSION_PATCH 6
+#define JSTAR_VERSION_STRING "0.5.6"
 
 // Increasing version number, used for range checking
 #define JSTAR_VERSION \
@@ -18,7 +18,7 @@
 // Options
 #define USE_COMPUTED_GOTOS
 #define NAN_TAGGING
-#define DBG_PRINT_EXEC
+/* #undef DBG_PRINT_EXEC */
 /* #undef DBG_PRINT_GC */
 /* #undef DBG_STRESS_GC */
 
