@@ -415,12 +415,12 @@ JSR_NATIVE(jsr_List_removeAt) {
 JSR_NATIVE(jsr_List_subList) {
     ObjList *list = AS_LIST(vm->apiStack[0]);
 
-    size_t from = jsrCheckIndex(vm, 1, list->count, "from");
+    size_t from = jsrCheckIndex(vm, 1, list->count + 1, "from");
     if(from == SIZE_MAX) return false;
     size_t to = jsrCheckIndex(vm, 2, list->count + 1, "to");
     if(to == SIZE_MAX) return false;
 
-    if(from >= to) JSR_RAISE(vm, "InvalidArgException", "from must be < to.");
+    if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
 
     size_t numElems = to - from;
     ObjList *subList = newList(vm, numElems < 16 ? 16 : numElems);
@@ -568,7 +568,7 @@ JSR_NATIVE(jsr_substr) {
     size_t to = jsrCheckIndex(vm, 2, str->length + 1, "to");
     if(to == SIZE_MAX) return false;
 
-    if(from > to) JSR_RAISE(vm, "InvalidArgException", "argument to must be >= from.");
+    if(from > to) JSR_RAISE(vm, "InvalidArgException", "argument from must be <= to.");
 
     size_t len = to - from;
     ObjString *sub = allocateString(vm, len);
