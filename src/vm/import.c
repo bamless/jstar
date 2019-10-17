@@ -49,14 +49,12 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
 
     if(module == NULL) {
         module = newModule(vm, name);
+
         if(vm->core != NULL) {
             hashTableImportNames(&module->globals, &vm->core->globals);
         }
+        
         setModule(vm, name, module);
-
-        push(vm, OBJ_VAL(name));
-        hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
-        pop(vm);
     }
 
     if(program != NULL) {

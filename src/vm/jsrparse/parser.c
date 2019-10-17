@@ -437,8 +437,7 @@ static Stmt *forStmt(Parser *p) {
             // if we dont have a semicolon we're parsing a foreach
             if(!matchSkipnl(p, TOK_SEMICOLON)) {
                 if(init->varDecl.init != NULL) {
-                    error(p, "Variable declaration in foreach "
-                             "cannot have initializer.");
+                    error(p, "Variable declaration in foreach cannot have initializer.");
                 }
                 require(p, TOK_IN);
 
@@ -497,7 +496,8 @@ static Stmt *blockStmt(Parser *p) {
     LinkedList *stmts = NULL;
 
     while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_ENSURE) && !matchSkipnl(p, TOK_EXCEPT) &&
-          !matchSkipnl(p, TOK_ELSE) && !matchSkipnl(p, TOK_ELIF) && !matchSkipnl(p, TOK_EOF)) {
+          !matchSkipnl(p, TOK_ELSE) && !matchSkipnl(p, TOK_ELIF) && !matchSkipnl(p, TOK_EOF)) 
+    {
         stmts = addElement(stmts, parseDeclaration(p));
     }
 
@@ -909,7 +909,8 @@ static Expr *relationalExpr(Parser *p) {
     Expr *l = additiveExpr(p);
 
     while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || match(p, TOK_LE) ||
-          match(p, TOK_IS)) {
+          match(p, TOK_IS)) 
+    {
         int line = p->peek.line;
         TokenType tokType = p->peek.type;
         advance(p);
