@@ -1,123 +1,72 @@
-# -*- mode: CMAKE; -*-
-
 cmake_minimum_required(VERSION 2.6)
+project(JStar)
 
-project(linenoise)
+# version
+set(JSTAR_VERSION_MAJOR 0)
+set(JSTAR_VERSION_MINOR 5)
+set(JSTAR_VERSION_PATCH 7)
 
-set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
+# options
+option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
+option(NAN_TAGGING "Use NaN tagging technique to store the VM internal type" ON)
+option(DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
+option(DBG_PRINT_GC "Trace the execution of the garbage collector" OFF)
+option(DBG_STRESS_GC "Stress the garbage collector by calling it on every allocation" OFF)
 
-# if(NOT CMAKE_BUILD_TYPE)
-#   set(CMAKE_BUILD_TYPE Release CACHE string STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
-# endif()
-
-message(STATUS "Build mode: ${CMAKE_BUILD_TYPE}")
-
-# INFO
-set(LINENOISE_VERSION "1.0.0" CACHE path PATH "Linenoise version")
-set(LINENOISE_DISPLAY_NAME "Linenoise-NG")
-set(LINENOISE_URL_INFO_ABOUT "https://github.com/arangodb/linenoise-ng")
-set(LINENOISE_CONTACT "hackers@arangodb.org")
-set(LINENOISE_FRIENDLY_STRING "Linenoise NG - Linenoise Next Generation")
-
-# compiler options
-if(CMAKE_COMPILER_IS_GNUCXX)
-  message(STATUS "Compiler type GNU: ${CMAKE_CXX_COMPILER}")
-  set(BASE_COMPILER_OPTIONS "-std=c++11 -Wall -Wextra -Wno-implicit-fallthrough")
-  set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${BASE_COMPILER_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} ${BASE_COMPILER_OPTIONS} -O0 -g")
-  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${BASE_COMPILER_OPTIONS} -Os")
-  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${BASE_COMPILER_OPTIONS} -O3 -fomit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${BASE_COMPILER_OPTIONS} -O3 -g")
-
-elseif(CMAKE_COMPILER_IS_CLANGCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # using regular Clang or AppleClang
-  message(STATUS "Compiler type CLANG: ${CMAKE_CXX_COMPILER}")
-  set(BASE_COMPILER_OPTIONS "-std=c++11 -Wall -Wextra -Wno-implicit-fallthrough")
-  set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${BASE_COMPILER_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} ${BASE_COMPILER_OPTIONS} -O0 -g")
-  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${BASE_COMPILER_OPTIONS} -Os")
-  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${BASE_COMPILER_OPTIONS} -O3 -fomit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${BASE_COMPILER_OPTIONS} -O3 -g")
-  
-elseif(MSVC) 
-  message(STATUS "Compiler type MSVC: ${CMAKE_CXX_COMPILER}")
-  add_definitions("-D_CRT_SECURE_NO_WARNINGS=1")
-
-  foreach (flag_var
-           CMAKE_CXX_FLAGS
-           CMAKE_CXX_FLAGS_DEBUG
-           CMAKE_CXX_FLAGS_RELEASE
-           CMAKE_CXX_FLAGS_MINSIZEREL
-           CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    if (flag_var MATCHES "DEBUG")
-      set(${flag_var} "${${flag_var}} /MTd")
-    else ()
-      set(${flag_var} "${${flag_var}} /MT")
-    endif ()
-  endforeach()
-  # https://msdn.microsoft.com/en-us/library/aa267384%28VS.60%29.aspx
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO /SUBSYSTEM:CONSOLE /LTCG /ignore:4099 /NODEFAULTLIB:libc.lib /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcd.lib /NODEFAULTLIB:msvcrtd.lib")
-  set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} /SUBSYSTEM:CONSOLE /ignore:4099 /NODEFAULTLIB:libc.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcd.lib /NODEFAULTLIB:msvcrtd.lib")
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /SUBSYSTEM:CONSOLE /ignore:4099 /NODEFAULTLIB:libc.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcd.lib /NODEFAULTLIB:msvcrtd.lib")
-  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /SUBSYSTEM:CONSOLE /ignore:4099 /NODEFAULTLIB:libc.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcd.lib /NODEFAULTLIB:msvcrtd.lib")
-else()
-  # unknown compiler
-  message(STATUS "Compiler type UNKNOWN: ${CMAKE_CXX_COMPILER}")
-  set(BASE_COMPILER_OPTIONS "-std=c++11 -Wall -Wextra")
-  set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${BASE_COMPILER_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} ${BASE_COMPILER_OPTIONS} -O0 -g")
-  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${BASE_COMPILER_OPTIONS} -Os")
-  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${BASE_COMPILER_OPTIONS} -O3 -fomit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${BASE_COMPILER_OPTIONS} -O3 -g")
-
-endif()
-
-include_directories(${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/src)
-
-# build liblinenoise
-add_library(
-  linenoise
-  STATIC
-  src/ConvertUTF.cpp
-  src/linenoise.cpp
-  src/wcwidth.cpp
+# setup option.h
+configure_file (
+	"${PROJECT_SOURCE_DIR}/include/jstarconf.h.in"
+	"${PROJECT_SOURCE_DIR}/include/jstarconf.h"
 )
 
+# set output directories
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# -- DISABLED --
-# # install
-# install(TARGETS linenoise DESTINATION lib)
+# set build type and  compilation options
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+	message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+	set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+endif()
 
-# # headers
-# install(FILES include/linenoise.h DESTINATION include)
+# set compiler flags
+if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter -Wno-unused-label")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -fomit-frame-pointer -s")
+elseif(${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -s -Qunused-arguments -Wno-unused-label -Wno-unused-command-line-argument")
+elseif(MSVC)
+	set(CMAKE_C_FLAGS "/wd4244")
+	add_definitions("-D_CRT_SECURE_NO_WARNINGS=1")
+	set(CMAKE_C_FLAGS_RELEASE "/Ox /GL")
+endif()
 
-# # build example
-# add_executable(
-#   example
-#   tst/example.c
-# )
+# required programs
+find_package(PythonInterp 3 REQUIRED)
 
-# target_link_libraries(
-#   example
-#   linenoise
-# )
-#-------------
+# Global include directory
+include_directories(${PROJECT_BINARY_DIR})
 
-# packaging
-include(CPack)
+# Subprojects
+add_subdirectory("cli")
+add_subdirectory("jstar")
 
-if (MSVC)
-else ()
-  set(CPACK_SET_DESTDIR ON)
-endif ()
+# ---- install targets ----
 
-set(CPACK_PACKAGE_VENDOR  "ArangoDB GmbH")
-set(CPACK_PACKAGE_CONTACT "info@arangodb.com")
-set(CPACK_PACKAGE_VERSION "${LINENOISE_VERSION}")
-
-set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
-
-set(CPACK_STRIP_FILES "ON")
-
-set(CPACK_PACKAGE_NAME "linenoise")
-set(CPACK_DEBIAN_PACKAGE_SECTION "utilities")
+#install libjstar along with jstar headers
+install(TARGETS jstar libjstar libjstar_static
+	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+	RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+)
+install(DIRECTORY 
+	"${CMAKE_SOURCE_DIR}/jstar/src/jsrparse" 
+	DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+	FILES_MATCHING
+	PATTERN "*.h"
+)
