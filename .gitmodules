@@ -1,0 +1,3 @@
+[submodule "cli/thirdparty/linenoise"]
+	path = cli/thirdparty/linenoise
+	url = https://github.com/bamless/linenoise-ng.git
