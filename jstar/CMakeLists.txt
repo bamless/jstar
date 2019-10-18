@@ -1,5 +1,5 @@
-FILE(GLOB_RECURSE SOURCES *.c)
-FILE(GLOB_RECURSE JSTAR_SOURCES *.jsr)
+FILE(GLOB_RECURSE SOURCES src/*.c)
+FILE(GLOB_RECURSE JSTAR_SOURCES src/*.jsr)
 
 # libjstar version
 set(LIBJSTAR_VERSION_MAJOR 1)
@@ -17,12 +17,12 @@ endforeach()
 foreach(jsr ${JSTAR_SOURCES})
 	add_custom_command(
 		OUTPUT  "${jsr}.h"
-		COMMAND python "${PROJECT_SOURCE_DIR}/../util/txt2incl.py" ${jsr} "${jsr}.h"
+		COMMAND python "${PROJECT_SOURCE_DIR}/util/txt2incl.py" ${jsr} "${jsr}.h"
 		DEPENDS ${jsr}
 	)
 endforeach()
 
-include_directories("${PROJECT_SOURCE_DIR}/vm" "${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/jstar/src" "${PROJECT_SOURCE_DIR}/include")
 
 # library's public headers
 set(PUBLIC_HEADERS 
