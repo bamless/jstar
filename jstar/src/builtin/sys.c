@@ -8,24 +8,16 @@
 #include <time.h>
 
 #ifdef _WIN32
-#define PLATFORM "win32"
+    #define PLATFORM "win32"
 #elif defined(__linux__)
-#define PLATFORM "linux"
+    #define PLATFORM "linux"
 #elif defined(__APPLE__)
-#define PLATFORM "darwin"
+    #define PLATFORM "darwin"
 #elif defined(__FreeBSD__)
-#define PLATFORM "freebsd"
+    #define PLATFORM "freebsd"
 #else
-#define PLATFORM "unknown"
+    #define PLATFORM "unknown"
 #endif
-
-static int argCount = 0;
-static const char **argVector = NULL;
-
-void sysInitArgs(int argc, const char **argv) {
-    argCount = argc;
-    argVector = argv;
-}
 
 JSR_NATIVE(jsr_exec) {
     const char *cmd = NULL;
@@ -85,53 +77,37 @@ JSR_NATIVE(jsr_sys_init) {
     // Set up the standard I/O streams (this is a little bit of an hack)
     if(!jsrGetGlobal(vm, "io", "File")) return false;
 
-    ObjInstance *fileout = newInstance(vm, AS_CLASS(vm->sp[-1]));
-    push(vm, OBJ_VAL(fileout));
-
-    jsrPushHandle(vm, (void *)stdout);
-    jsrSetField(vm, -2, FIELD_FILE_HANDLE);
-    jsrPop(vm);
-
-    jsrPushBoolean(vm, false);
-    jsrSetField(vm, -2, FIELD_FILE_CLOSED);
-    jsrPop(vm);
-
+    // Set stdout
+    jsrDup(vm);
+    jsrPushNull(vm);
+    jsrPushNull(vm);
+    jsrPushHandle(vm, stdout);
+    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
     jsrSetGlobal(vm, NULL, "out");
     jsrPop(vm);
 
-    ObjInstance *filein = newInstance(vm, AS_CLASS(vm->sp[-1]));
-    push(vm, OBJ_VAL(filein));
-
-    jsrPushHandle(vm, (void *)stdin);
-    jsrSetField(vm, -2, FIELD_FILE_HANDLE);
-    jsrPop(vm);
-
-    jsrPushBoolean(vm, false);
-    jsrSetField(vm, -2, FIELD_FILE_CLOSED);
-    jsrPop(vm);
-
-    jsrSetGlobal(vm, NULL, "stdin");
-    jsrPop(vm);
-
-    ObjInstance *fileerr = newInstance(vm, AS_CLASS(vm->sp[-1]));
-    push(vm, OBJ_VAL(fileerr));
-
-    jsrPushHandle(vm, (void *)stderr);
-    jsrSetField(vm, -2, FIELD_FILE_HANDLE);
-    jsrPop(vm);
-
-    jsrPushBoolean(vm, false);
-    jsrSetField(vm, -2, FIELD_FILE_CLOSED);
-    jsrPop(vm);
-
+    // Set stderr
+    jsrDup(vm);
+    jsrPushNull(vm);
+    jsrPushNull(vm);
+    jsrPushHandle(vm, stderr);
+    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
     jsrSetGlobal(vm, NULL, "err");
     jsrPop(vm);
 
+    // Set stdin
+    jsrPushNull(vm);
+    jsrPushNull(vm);
+    jsrPushHandle(vm, stdin);
+    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
+    jsrSetGlobal(vm, NULL, "stdin");
+    jsrPop(vm);
+
     // Set up command line arguments
-    if(argCount != 0) {
+    if(vm->argc != 0) {
         jsrGetGlobal(vm, NULL, "args");
-        for(int i = 0; i < argCount; i++) {
-            jsrPushString(vm, argVector[i]);
+        for(int i = 0; i < vm->argc; i++) {
+            jsrPushString(vm, vm->argv[i]);
             jsrListAppend(vm, -2);
             jsrPop(vm);
         }

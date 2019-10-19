@@ -75,6 +75,10 @@ typedef struct JStarVM {
     ObjString *radd, *rsub, *rmul, *rdiv, *rmod;
     ObjString *lt, *le, *gt, *ge, *eq, *neg;
 
+    // Script arguments
+    const char **argv;
+    int argc;
+
     // The empty tuple (singleton)
     ObjTuple *emptyTup;
 

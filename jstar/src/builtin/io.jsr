@@ -4,7 +4,7 @@ class FileNotFoundException : IOException end
 var SEEK_SET, SEEK_CUR, SEEK_END = 0, 1, 2
 
 class File
-    native new(path, mode)
+    native new(path, mode, handle=null)
 
     native tell()
     native seek(off, whence=0)
@@ -16,6 +16,11 @@ class File
     native write(data)
     native close()
     native flush()
+
+    fun writeln(data)
+        this.write(data)
+        this.write('\n')
+    end
 
     fun size()
         var oldpos = this.tell()

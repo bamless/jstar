@@ -77,7 +77,7 @@ JSTAR_API EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc);
 // Prints the the stack trace of the exception on the top of the stack
 JSTAR_API void jsrPrintStackTrace(JStarVM *vm);
 // Init the sys.args list with a list of arguments (usually main arguments)
-JSTAR_API void jsrInitCommandLineArgs(int argc, const char **argv);
+JSTAR_API void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv);
 // Add a path to be searched during module imports
 JSTAR_API void jsrAddImportPath(JStarVM *vm, const char *path);
 
@@ -190,7 +190,7 @@ JSTAR_API void jsrPushNull(JStarVM *vm);
 JSTAR_API void jsrPushList(JStarVM *vm);
 JSTAR_API void jsrPushTuple(JStarVM *vm, size_t size);
 JSTAR_API void jsrPushValue(JStarVM *vm, int slot);
-#define jsrDup() jsrPushValue(vm, -1)
+#define jsrDup(vm) jsrPushValue(vm, -1)
 
 // ---- J* to C values converter functions ----
 

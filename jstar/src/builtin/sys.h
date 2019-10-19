@@ -3,8 +3,6 @@
 
 #include "jstar.h"
 
-void sysInitArgs(int argc, const char **argv);
-
 JSR_NATIVE(jsr_time);
 JSR_NATIVE(jsr_exec);
 JSR_NATIVE(jsr_exit);

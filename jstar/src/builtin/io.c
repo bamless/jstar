@@ -88,34 +88,42 @@ static int jsrSeek(FILE *file, long offset, int blWhence) {
 // class File {
 
 JSR_NATIVE(jsr_File_new) {
-    if(!jsrCheckStr(vm, 1, "path") || !jsrCheckStr(vm, 2, "mode")) {
-        return false;
-    }
-
-    const char *path = jsrGetString(vm, 1);
-    const char *m = jsrGetString(vm, 2);
-
-    size_t mlen = strlen(m);
-    if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
-       (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
-        JSR_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
-    }
-
-    FILE *f = fopen(path, m);
-    if(f == NULL) {
-        if(errno == ENOENT) {
-            JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
+    if(jsrIsNull(vm, 3)) {
+        if(!jsrCheckStr(vm, 1, "path") || !jsrCheckStr(vm, 2, "mode")) {
+            return false;
         }
-        JSR_RAISE(vm, "IOException", strerror(errno));
+        
+        const char *path = jsrGetString(vm, 1);
+        const char *m = jsrGetString(vm, 2);
+
+        size_t mlen = strlen(m);
+        if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
+        (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
+            JSR_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
+        }
+
+        FILE *f = fopen(path, m);
+        if(f == NULL) {
+            if(errno == ENOENT) {
+                JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
+            }
+            JSR_RAISE(vm, "IOException", strerror(errno));
+        }
+
+        // this._handle = f
+        jsrPushHandle(vm, (void *)f);
+        jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+
+        //this._closed = false
+        jsrPushBoolean(vm, false);
+        jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+    } else if(jsrIsHandle(vm, 3)) {
+        jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+        jsrPushBoolean(vm, false);
+        jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+    } else {
+        JSR_RAISE(vm, "TypeException", "Provided FILE handle is not valid");
     }
-
-    // this._handle = f
-    jsrPushHandle(vm, (void *)f);
-    jsrSetField(vm, 0, FIELD_FILE_HANDLE);
-
-    //this._closed = false
-    jsrPushBoolean(vm, false);
-    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
 
     // return `this`. required in native constructors
     jsrPushValue(vm, 0);

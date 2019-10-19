@@ -789,48 +789,43 @@ static bool runEval(JStarVM *vm, int depth) {
     } while(0)
 
 #ifdef DBG_PRINT_EXEC
-#define PRINT_DBG_STACK()                        \
-    printf("     ");                             \
-    for(Value *v = vm->stack; v < vm->sp; v++) { \
-        printf("[");                             \
-        printValue(*v);                          \
-        printf("]");                             \
-    }                                            \
-    printf("$\n");                               \
-    disassembleIstr(&fn->chunk, (size_t)(ip - fn->chunk.code));
+    #define PRINT_DBG_STACK()                        \
+        printf("     ");                             \
+        for(Value *v = vm->stack; v < vm->sp; v++) { \
+            printf("[");                             \
+            printValue(*v);                          \
+            printf("]");                             \
+        }                                            \
+        printf("$\n");                               \
+        disassembleIstr(&fn->chunk, (size_t)(ip - fn->chunk.code));
 #else
-#define PRINT_DBG_STACK()
+    #define PRINT_DBG_STACK()
 #endif
 
 #if defined(USE_COMPUTED_GOTOS) && !defined(_MSC_VER)
-// import jumptable
-#include "opcode_jmp_table.h"
+    // import jumptable
+    #include "opcode_jmp_table.h"
 
-#define TARGET(op) TARGET_##op
+    #define TARGET(op) TARGET_##op
+    #define DISPATCH()                            \
+        do {                                      \
+            PRINT_DBG_STACK()                     \
+            goto *opJmpTable[(op = NEXT_CODE())]; \
+        } while(0)
 
-#define DISPATCH()                            \
-    do {                                      \
-        PRINT_DBG_STACK()                     \
-        goto *opJmpTable[(op = NEXT_CODE())]; \
-    } while(0)
-
-#define DECODE(op) DISPATCH();
-
-#define GOTO(op) goto TARGET(op)
-
+    #define DECODE(op) DISPATCH();
+    #define GOTO(op) goto TARGET(op)
 #else
+    #define TARGET(op) \
+        op:            \
+        case op
+    #define DISPATCH() goto decode
+    #define DECODE(op)     \
+        decode:            \
+        PRINT_DBG_STACK(); \
+        switch((op = NEXT_CODE()))
 
-#define TARGET(op) \
-    op:            \
-    case op
-#define DISPATCH() goto decode
-#define DECODE(op)     \
-    decode:            \
-    PRINT_DBG_STACK(); \
-    switch((op = NEXT_CODE()))
-
-#define GOTO(op) goto op
-
+    #define GOTO(op) goto op
 #endif
 
     // clang-format off
@@ -1592,8 +1587,9 @@ bool jsrGetField(JStarVM *vm, int slot, const char *name) {
     return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), true));
 }
 
-void jsrInitCommandLineArgs(int argc, const char **argv) {
-    sysInitArgs(argc, argv);
+void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv) {
+    vm->argc = argc;
+    vm->argv = argv;
 }
 
 void jsrAddImportPath(JStarVM *vm, const char *path) {
