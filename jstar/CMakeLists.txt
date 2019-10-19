@@ -24,19 +24,12 @@ endforeach()
 
 include_directories("${PROJECT_SOURCE_DIR}/jstar/src" "${PROJECT_SOURCE_DIR}/include")
 
-# library's public headers
-set(PUBLIC_HEADERS 
-	${PROJECT_SOURCE_DIR}/include/jstarconf.h
-	${PROJECT_SOURCE_DIR}/include/jstar.h
-	${PROJECT_SOURCE_DIR}/include/jstar.hpp
-)
-
 # static library
 add_library(libjstar_static STATIC ${SOURCES} ${JSTAR_HEADERS})
 target_compile_definitions(libjstar_static PRIVATE JSTAR_STATIC)
 set_target_properties(libjstar_static PROPERTIES 
 	OUTPUT_NAME   "jstars" 
-	PUBLIC_HEADER ${PUBLIC_HEADERS}
+	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/jstar.h;${PROJECT_SOURCE_DIR}/include/jstar.hpp;${PROJECT_SOURCE_DIR}/include/jstarconf.h"
 )
 
 # find the math library if needed
@@ -51,5 +44,5 @@ set_target_properties(libjstar PROPERTIES
 	OUTPUT_NAME   "jstar"
 	VERSION       ${LIBJSTAR_VERSION_STRING}
 	SOVERSION     ${LIBJSTAR_VERSION_MAJOR} 
-	PUBLIC_HEADER ${PUBLIC_HEADERS}
+	PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/jstar.h;${PROJECT_SOURCE_DIR}/include/jstar.hpp;${PROJECT_SOURCE_DIR}/include/jstarconf.h"
 )
