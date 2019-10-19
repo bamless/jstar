@@ -6,6 +6,9 @@ set(JSTAR_VERSION_MAJOR 0)
 set(JSTAR_VERSION_MINOR 5)
 set(JSTAR_VERSION_PATCH 8)
 
+# set the c standard
+set(CMAKE_C_STANDARD 11)
+
 # options
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
 option(NAN_TAGGING "Use NaN tagging technique to store the VM internal type" ON)
@@ -33,12 +36,12 @@ endif()
 
 # set compiler flags
 if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter -Wno-unused-label")
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-unused-label")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -fomit-frame-pointer -s")
 elseif(${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
-	set(CMAKE_C_FLAGS "-Wall -Wextra -std=c11 -Wno-unused-parameter")
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter")
+	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -s -Qunused-arguments -Wno-unused-label -Wno-unused-command-line-argument")
 elseif(MSVC)
 	set(CMAKE_C_FLAGS "/wd4244")
