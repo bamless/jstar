@@ -578,6 +578,54 @@ JSR_NATIVE(jsr_substr) {
     return true;
 }
 
+JSR_NATIVE(jsr_String_startsWith) {
+    if(!jsrCheckStr(vm, 1, "prefix") || !jsrCheckInt(vm, 2, "offset")) {
+        return false;
+    }
+
+    const char *prefix = jsrGetString(vm, 1);
+    size_t prefixLen = jsrGetStringSz(vm, 1);
+    int offset = jsrGetNumber(vm, 2);
+    size_t thisLen = jsrGetStringSz(vm, 0);
+
+    if(offset < 0 || thisLen < (size_t) offset || thisLen - offset < prefixLen) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    const char *thisStr = jsrGetString(vm, 0) + offset;
+    if(memcmp(thisStr, prefix, prefixLen) == 0) {
+        jsrPushBoolean(vm, true);
+        return true;
+    }
+
+    jsrPushBoolean(vm, false);
+    return true;
+}
+
+JSR_NATIVE(jsr_String_endsWith) {
+    if(!jsrCheckStr(vm, 1, "suffix")) return false;
+
+    const char *suffix = jsrGetString(vm, 1);
+    size_t suffixLen = jsrGetStringSz(vm, 1);
+    size_t thisLen = jsrGetStringSz(vm, 0);
+
+    if(thisLen < suffixLen) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    const char *thisStr = jsrGetString(vm, 0) + (thisLen - suffixLen);
+
+    if(memcmp(thisStr, suffix, suffixLen) == 0) {
+        jsrPushBoolean(vm, true);
+        return true;
+    }
+
+    jsrPushBoolean(vm, false);
+    return true;
+}
+
 JSR_NATIVE(jsr_String_join) {
     JStarBuffer joined;
     jsrBufferInit(vm, &joined);

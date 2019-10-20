@@ -22,6 +22,8 @@ class StackTrace end
 
 class String
     native substr(from, to)
+    native startsWith(prefix, offset = 0)
+    native endsWith(suffix)
     native join(iterable)
 
     native __eq__(o)

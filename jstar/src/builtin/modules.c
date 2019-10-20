@@ -109,7 +109,9 @@ Module builtInModules[] = {
         ENDCLASS
         CLASS(String)
             METHOD(substr,     &jsr_substr)
-            METHOD(join,     &jsr_String_join)
+            METHOD(startsWith, &jsr_String_startsWith)
+            METHOD(endsWith,   &jsr_String_endsWith)
+            METHOD(join,       &jsr_String_join)
             METHOD(__eq__,     &jsr_String_eq)
             METHOD(__len__,    &jsr_String_len)
             METHOD(__hash__,   &jsr_String_hash)

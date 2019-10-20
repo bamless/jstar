@@ -61,9 +61,11 @@ JSR_NATIVE(jsr_type);
 
 // class String
     JSR_NATIVE(jsr_substr);
+    JSR_NATIVE(jsr_String_startsWith);
+    JSR_NATIVE(jsr_String_endsWith);
+    JSR_NATIVE(jsr_String_join);
     JSR_NATIVE(jsr_String_len);
     JSR_NATIVE(jsr_String_string);
-    JSR_NATIVE(jsr_String_join);
     JSR_NATIVE(jsr_String_hash);
     JSR_NATIVE(jsr_String_eq);
     JSR_NATIVE(jsr_String_iter);
