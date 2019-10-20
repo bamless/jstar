@@ -334,9 +334,15 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     }
 
+
     char str[512] = {0};
-    snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName,
-             AS_OBJ(vm->apiStack[0]));
+    
+    if(strcmp(modName, JSR_CORE_MODULE) == 0) {
+        snprintf(str, sizeof(str) - 1, "<%s %s@%p>", funType, funName, AS_OBJ(vm->apiStack[0]));
+    } else {
+        snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName, 
+                 AS_OBJ(vm->apiStack[0]));
+    }
 
     jsrPushString(vm, str);
     return true;
