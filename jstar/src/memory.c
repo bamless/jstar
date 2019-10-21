@@ -377,6 +377,6 @@ void garbageCollect(JStarVM *vm) {
     printf("Completed GC, prev allocated: %lu, curr allocated "
            "%lu, freed: %lu bytes of memory, next GC: %lu.\n",
            prevAlloc, vm->allocated, curr, vm->nextGC);
-    puts("*--- End  of  GC ---*\n");
+    printf("*--- End  of  GC ---*\n");
 #endif
 }

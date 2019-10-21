@@ -62,6 +62,7 @@ ObjClass *newClass(JStarVM *vm, ObjString *name, ObjClass *superCls) {
     initHashTable(&cls->methods);
     return cls;
 }
+
 ObjInstance *newInstance(JStarVM *vm, ObjClass *cls) {
     ObjInstance *inst = (ObjInstance *)newObj(vm, sizeof(*inst), cls, OBJ_INST);
     initHashTable(&inst->fields);
@@ -265,7 +266,6 @@ ObjString *jsrBufferToString(JStarBuffer *b) {
     s->length = b->len;
     s->data = data;
     s->hash = 0;
-
     b->data = NULL;
     b->vm = NULL;
     b->len = b->size = 0;
@@ -449,8 +449,13 @@ void printObj(Obj *o) {
     }
     case OBJ_BOUND_METHOD: {
         ObjBoundMethod *b = (ObjBoundMethod *)o;
-        char *name = b->method->type == OBJ_FUNCTION ? ((ObjFunction *)b->method)->c.name->data
-                                                     : ((ObjNative *)b->method)->c.name->data;
+
+        char *name;
+        if(b->method->type == OBJ_FUNCTION)
+            name = ((ObjFunction *)b->method)->c.name->data;
+        else
+            name = ((ObjNative *)b->method)->c.name->data;
+  
         printf("<bound method ");
         printValue(b->bound);
         printf(":%s>", name);

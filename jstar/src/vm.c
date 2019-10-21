@@ -381,8 +381,8 @@ static bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
                 return callValue(vm, ctor, argc);
             } else if(argc != 0) {
                 jsrRaise(vm, "TypeException",
-                        "Function %s.new() Expected 0 args, but instead `%d` supplied.",
-                        cls->name->data, argc);
+                         "Function %s.new() Expected 0 args, but instead `%d` supplied.",
+                         cls->name->data, argc);
                 return false;
             }
 

@@ -240,8 +240,8 @@ ObjModule *newModule(JStarVM *vm, ObjString *name);
 ObjUpvalue *newUpvalue(JStarVM *vm, Value *addr);
 ObjList *newList(JStarVM *vm, size_t startSize);
 ObjTuple *newTuple(JStarVM *vm, size_t size);
-ObjTable *newTable(JStarVM *vm);
 ObjStackTrace *newStackTrace(JStarVM *vm);
+ObjTable *newTable(JStarVM *vm);
 
 ObjString *allocateString(JStarVM *vm, size_t length);
 ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern);
