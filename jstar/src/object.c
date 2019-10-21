@@ -15,11 +15,15 @@ static Obj *newObj(JStarVM *vm, size_t size, ObjClass *cls, ObjType type) {
     return o;
 }
 
-static Obj *newVarObj(JStarVM *vm, size_t size, size_t varSize, size_t count, ObjClass *cls, ObjType type) {
+static Obj *newVarObj(JStarVM *vm, size_t size, size_t varSize, 
+    size_t count, ObjClass *cls, ObjType type)
+{
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initCallable(Callable *c, ObjModule *module, ObjString *name, uint8_t argc, Value *defArr, uint8_t defc) {
+static void initCallable(Callable *c, ObjModule *module, ObjString *name,
+    uint8_t argc, Value *defArr, uint8_t defc)
+{
     c->argsCount = argc;
     c->defaultc = defc;
     c->vararg = false;
@@ -28,7 +32,9 @@ static void initCallable(Callable *c, ObjModule *module, ObjString *name, uint8_
     c->name = name;
 }
 
-ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defc) {
+ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, 
+    uint8_t argc, uint8_t defc)
+{
     Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
     memset(defArr, 0, defc * sizeof(Value));
     ObjFunction *f = (ObjFunction *)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
@@ -38,7 +44,9 @@ ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_
     return f;
 }
 
-ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn, uint8_t defc) {
+ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, 
+    uint8_t argc, JStarNative fn, uint8_t defc)
+{
     Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
     memset(defArr, 0, defc * sizeof(Value));
     ObjNative *n = (ObjNative *)newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
