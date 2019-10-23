@@ -321,13 +321,17 @@ JSR_NATIVE(jsr_Function_string) {
         modName = AS_NATIVE(vm->apiStack[0])->c.module->name->data;
         break;
     case OBJ_BOUND_METHOD: {
-        ObjBoundMethod *m = AS_BOUND_METHOD(vm->apiStack[0]);
         funType = "bound method";
-        funName = m->method->type == OBJ_CLOSURE ? ((ObjClosure *)m->method)->fn->c.name->data
-                                                 : ((ObjNative *)m->method)->c.name->data;
-        modName = m->method->type == OBJ_CLOSURE
-                      ? ((ObjClosure *)m->method)->fn->c.module->name->data
-                      : ((ObjNative *)m->method)->c.module->name->data;
+        ObjBoundMethod *m = AS_BOUND_METHOD(vm->apiStack[0]);
+        
+        Callable *c;
+        if(m->method->type == OBJ_CLOSURE)
+            c = &((ObjClosure *)m->method)->fn->c;
+        else
+            c = &((ObjNative *)m->method)->c;
+        
+        funName = c->name->data;
+        modName = c->module->name->data;
         break;
     }
     default:
