@@ -227,8 +227,9 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
     return NULL;
 }
 
-static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, const char *r,
-                       int off) {
+static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, 
+    size_t len, const char *r, int off)
+{
     rs->vm = vm;
     rs->str = s;
     rs->err = false;

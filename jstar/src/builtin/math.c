@@ -5,6 +5,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define BL_PI 3.14159265358979323846
 #define BL_E 2.71828182845904523536
@@ -114,6 +115,7 @@ JSR_NATIVE(jsr_seed) {
 }
 
 JSR_NATIVE(jsr_math_init) {
+    // Init constants
     jsrPushNumber(vm, HUGE_VAL);
     jsrSetGlobal(vm, NULL, "huge");
     jsrPushNumber(vm, NAN);
@@ -123,5 +125,7 @@ JSR_NATIVE(jsr_math_init) {
     jsrPushNumber(vm, BL_E);
     jsrSetGlobal(vm, NULL, "e");
     jsrPushNull(vm);
+    // Init rand seed
+    srand(time(NULL));
     return true;
 }

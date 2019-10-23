@@ -159,7 +159,7 @@ JSR_NATIVE(jsr_int) {
         return true;
     }
 
-    JSR_RAISE(vm, "InvalidArgException", "Argument must be a number or a string.");
+    JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
 }
 
 JSR_NATIVE(jsr_num) {
@@ -188,7 +188,7 @@ JSR_NATIVE(jsr_num) {
         return true;
     }
 
-    JSR_RAISE(vm, "InvalidArgException", "Argument must be a number or a string.");
+    JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
 }
 
 JSR_NATIVE(jsr_isInt) {

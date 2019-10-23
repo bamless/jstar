@@ -4,6 +4,6 @@
 #include "jstar.h"
 
 JSR_NATIVE(jsr_printStack);
-JSR_NATIVE(jsr_dis);
+JSR_NATIVE(jsr_disassemble);
 
 #endif

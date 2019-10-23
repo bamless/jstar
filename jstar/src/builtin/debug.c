@@ -18,9 +18,10 @@ JSR_NATIVE(jsr_printStack) {
     return true;
 }
 
-JSR_NATIVE(jsr_dis) {
-    if(!IS_OBJ(vm->apiStack[1]) || !(IS_CLOSURE(vm->apiStack[1]) || IS_NATIVE(vm->apiStack[1]) ||
-                                     IS_BOUND_METHOD(vm->apiStack[1]))) {
+JSR_NATIVE(jsr_disassemble) {
+    if(!IS_OBJ(vm->apiStack[1]) || !(IS_CLOSURE(vm->apiStack[1]) || 
+        IS_NATIVE(vm->apiStack[1]) || IS_BOUND_METHOD(vm->apiStack[1])))
+    {
         JSR_RAISE(vm, "InvalidArgException", "Argument to dis must be a function object.");
     }
 

@@ -1,22 +1,22 @@
 #ifndef CONST_H
 #define CONST_H
 
-// Runtime and compiler constants
-#define RECURSION_LIMIT 5000                       // After this many calls, StackOverflowException will be raised
-#define FRAME_SZ        1000                       // Starting frame size
-#define STACK_SZ        FRAME_SZ * (UINT8_MAX + 1) // We have at most UINT8_MAX+1 local var per frame
-#define INIT_GC         (1024 * 1024 * 10)         // 10MiB
+// Runtime constants
+#define RECURSION_LIMIT 5000                        // Max recursion depth
+#define FRAME_SZ        100                         // Starting frame size
+#define STACK_SZ        FRAME_SZ * (MAX_LOCALS + 1) // Stack size given frames
+#define INIT_GC         (1024 * 1024 * 10)          // 10MiB - First GC collection point
+#define HANDLER_MAX     10                          // Max number of try-excepts for a frame
 
-#define HANDLER_MAX     10                         // Max number of nested try/except/ensure
-#define MAX_TRY_DEPTH   HANDLER_MAX                // Max depth of nested trys
-#define MAX_LOCALS      UINT8_MAX
+// Compiler constants
+#define MAX_TRY_DEPTH   HANDLER_MAX                 // Max depth of nested trys
+#define MAX_LOCALS      UINT8_MAX                   // At most 255 local vars per frame
 
 // String constants
 #define CTOR_STR "new"
 #define THIS_STR "this"
 #define JSTARPATH "JSTARPATH"
 
-// Import constants
 #define PACKAGE_FILE "/__package__.jsr"
 
 #ifdef __unix__

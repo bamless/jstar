@@ -27,7 +27,7 @@ native seed(s)
 
 fun randint(a, b=null)
     if !isInt(a) or (b and !isInt(b)) then
-        raise InvalidArgException("a and b must be integers")
+        raise TypeException("a and b must be integers")
     end
     if b == null then
         a, b = 0, a

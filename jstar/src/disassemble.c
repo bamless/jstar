@@ -6,23 +6,20 @@
 
 void disassembleChunk(Chunk *c) {
     for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {
-        int extraArgs = 0;
-        if(c->code[i] == OP_CLOSURE) {
-            Value v = c->consts.arr[((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]];
-            extraArgs = (AS_FUNC(v)->upvaluec + 1) * 2;
-        }
-
         disassembleIstr(c, i);
-        i += extraArgs;
+        if(c->code[i] == OP_CLOSURE) {
+            Value func = c->consts.arr[((uint16_t)c->code[i + 1] << 8) | c->code[i + 2]];
+            i += (AS_FUNC(func)->upvaluec + 1) * 2;
+        }
     }
 }
 
 void disassembleIstr(Chunk *c, size_t i) {
     printf("%.4d %s ", (int)i, OpcodeName[c->code[i]]);
 
-    // decode arguments
+    // Decode arguments
     switch(c->code[i]) {
-    // instructions with 2 arguments representing signed offset
+    // Instructions with 2 arguments representing signed offset
     case OP_JUMP:
     case OP_JUMPT:
     case OP_JUMPF:
@@ -33,7 +30,7 @@ void disassembleIstr(Chunk *c, size_t i) {
         break;
     }
 
-    // instructions with 2 arguments representing 2 constant values
+    // Instructions with 2 arguments representing 2 constant values
     case OP_IMPORT_AS:
     case OP_NAT_METHOD:
     case OP_IMPORT_NAME: {
@@ -48,7 +45,7 @@ void disassembleIstr(Chunk *c, size_t i) {
         break;
     }
 
-    // method call instructions, 2 arguments representing argc and method name
+    // Method call instructions, 2 arguments representing argc and method name
     case OP_INVOKE:
     case OP_SUPER: {
         int argc = c->code[i + 1];
@@ -59,7 +56,7 @@ void disassembleIstr(Chunk *c, size_t i) {
         break;
     }
 
-    // instructions with 1 argument representing constant value
+    // Instructions with 1 argument representing constant value
     case OP_NATIVE:
     case OP_IMPORT:
     case OP_IMPORT_FROM:
@@ -101,7 +98,7 @@ void disassembleIstr(Chunk *c, size_t i) {
         break;
     }
 
-    // instructions with 1 argument representing an unsigned 1 byte integer
+    // Instructions with 1 argument representing an unsigned 1 byte integer
     case OP_CALL:
     case OP_UNPACK:
     case OP_NEW_TUPLE:
@@ -112,12 +109,13 @@ void disassembleIstr(Chunk *c, size_t i) {
         printf("%d", c->code[i + 1]);
         break;
 
+    // Closure disassemble
     case OP_CLOSURE: {
         int op = ((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
 
         printf("%d (", op);
         printValue(c->consts.arr[op]);
-        printf(")\n");
+        printf(")");
 
         ObjFunction *fn = AS_FUNC(c->consts.arr[op]);
 
@@ -125,9 +123,8 @@ void disassembleIstr(Chunk *c, size_t i) {
         for(uint8_t j = 0; j < fn->upvaluec; j++) {
             bool isLocal = c->code[offset++];
             int index = c->code[offset++];
-            printf("%04d              | %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
+            printf("\n%04d              | %s %d", offset - 2, isLocal ? "local" : "upvalue", index);
         }
-
         break;
     }
     }
