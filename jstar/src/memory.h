@@ -1,13 +1,13 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#include "object.h"
 #include "util.h"
 #include "value.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef struct Obj Obj;
 typedef struct JStarVM JStarVM;
 
 #define GC_ALLOC(vm, size) \
