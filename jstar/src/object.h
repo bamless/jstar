@@ -26,7 +26,7 @@
 typedef struct Frame Frame;
 
 #ifdef DBG_PRINT_GC
-DECLARE_TO_STRING(ObjType);
+    DECLARE_TO_STRING(ObjType);
 #endif
 
 // Macros for testing and casting objects

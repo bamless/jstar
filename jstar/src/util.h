@@ -6,16 +6,14 @@
 #include <stdio.h>
 
 // Macros for defining an enum with associated string names
-#define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(ENUM_ENTRY) } NAME
-#define ENUM_ENTRY(ENTRY) ENTRY,
+#define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(__ENUM_ENTRY) } NAME
+#define __ENUM_ENTRY(ENTRY) ENTRY,
 
-#define DECLARE_TO_STRING(ENUM_NAME) extern const char *CONCAT(ENUM_NAME, Name)[]
-
+#define DECLARE_TO_STRING(ENUM_NAME) extern const char *__CONCAT(ENUM_NAME, Name)[]
 #define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
-    const char *CONCAT(ENUM_NAME, Name)[] = {ENUMX(STRINGIFY)}
+    const char *__CONCAT(ENUM_NAME, Name)[] = {ENUMX(__STRINGIFY)}
 
-#define CONCAT(X, Y) X##Y
-#define STRINGIFY(X) #X,
+#define __STRINGIFY(X) #X,
 
 // Returns the aproximated base 10 length of an integer.
 // This macro returns a constant upper bound of the length,
@@ -36,12 +34,12 @@
         abort();                                                                                   \
     } while(0)
 
-#define assert(cond, msg)                                   \
-    do {                                                    \
-        if(!(cond)) {                                       \
-            fprintf(stderr, "Assertion failed: %s\n", msg); \
-            abort();                                        \
-        }                                                   \
+#define assert(cond, msg)                                                                    \
+    do {                                                                                     \
+        if(!(cond)) {                                                                        \
+            fprintf(stderr, "%s[%d]@%s(): assertion failed: %s\n", __FILE__, __LINE__, msg); \
+            abort();                                                                         \
+        }                                                                                    \
     } while(0)
 
 #else
@@ -52,7 +50,16 @@
 #endif
 
 // Returns the closest power of two to n, be it 2^x, where 2^x >= n
-int powerOf2Ceil(int n);
+static inline int powerOf2Ceil(int n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
+}
 
 // Hash a string
 static inline uint32_t hashString(const char *str, size_t length) {
