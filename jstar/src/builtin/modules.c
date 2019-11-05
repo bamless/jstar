@@ -151,7 +151,6 @@ Module builtInModules[] = {
         FUNCTION(platform,       jsr_platform)
         FUNCTION(clock,          jsr_clock)
         FUNCTION(gc,             jsr_gc)
-        FUNCTION(gets,           jsr_gets)
         FUNCTION(init,           jsr_sys_init)
     ENDMODULE
     MODULE(io)

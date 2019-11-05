@@ -7,7 +7,6 @@ native exec(cmd)
 native exit(n=0)
 native gc()
 native getImportPaths()
-native gets()
 native platform()
 native time()
 

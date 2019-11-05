@@ -60,19 +60,6 @@ JSR_NATIVE(jsr_gc) {
     return true;
 }
 
-JSR_NATIVE(jsr_gets) {
-    JStarBuffer b;
-    jsrBufferInit(vm, &b);
-
-    int c;
-    while((c = getc(stdin)) != EOF && c != '\n') {
-        jsrBufferAppendChar(&b, c);
-    }
-
-    jsrBufferPush(&b);
-    return true;
-}
-
 JSR_NATIVE(jsr_sys_init) {
     // Set up the standard I/O streams (this is a little bit of an hack)
     if(!jsrGetGlobal(vm, "io", "File")) return false;
