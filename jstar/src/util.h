@@ -34,12 +34,12 @@
         abort();                                                                                   \
     } while(0)
 
-#define assert(cond, msg)                                                                    \
-    do {                                                                                     \
-        if(!(cond)) {                                                                        \
-            fprintf(stderr, "%s[%d]@%s(): assertion failed: %s\n", __FILE__, __LINE__, msg); \
-            abort();                                                                         \
-        }                                                                                    \
+#define assert(cond, msg)                                                                              \
+    do {                                                                                               \
+        if(!(cond)) {                                                                                  \
+            fprintf(stderr, "%s[%d]@%s(): assertion failed: %s\n", __FILE__, __LINE__, __func__, msg); \
+            abort();                                                                                   \
+        }                                                                                              \
     } while(0)
 
 #else
