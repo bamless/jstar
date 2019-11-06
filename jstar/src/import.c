@@ -185,6 +185,7 @@ static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
         jsrBufferClear(&fullPath);
     }
 
+    jsrBufferFree(&fullPath);
     return false;
 }
 

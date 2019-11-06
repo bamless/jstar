@@ -75,7 +75,7 @@ JStarVM *jsrNewVM() {
 
     // Create constants strings
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
-    vm->stField = copyString(vm, "stacktrace", 10, true);
+    vm->stField = copyString(vm, EXC_STACKTRACE_FIELD, strlen(EXC_STACKTRACE_FIELD), true);
 
     vm->add = copyString(vm, "__add__", 7, true);
     vm->sub = copyString(vm, "__sub__", 7, true);
@@ -1490,7 +1490,7 @@ EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module,
 
     EvalResult res;
     if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) {
-        jsrPrintStackTrace(vm);
+        jsrPrintStacktrace(vm, -1);
     }
 
     pop(vm);
@@ -1575,7 +1575,8 @@ void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
         va_end(args);
 
         jsrPushString(vm, errStr);
-        hashTablePut(&excInst->fields, copyString(vm, "err", 3, true), pop(vm));
+        HashTable *fields = &excInst->fields;
+        hashTablePut(fields, copyString(vm, EXC_ERR_FIELD, strlen(EXC_ERR_FIELD), true), pop(vm));
     }
 }
 

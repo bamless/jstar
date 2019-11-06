@@ -1039,3 +1039,45 @@ JSR_NATIVE(jsr_Table_string) {
     return true;
 }
 // end
+
+// class Exception
+JSR_NATIVE(jsr_Exception_printStacktrace) {
+    ObjInstance *exc = AS_INSTANCE(vm->apiStack[0]);
+
+    Value stval = NULL_VAL;
+    hashTableGet(&exc->fields, vm->stField, &stval);
+
+    if(!IS_STACK_TRACE(stval)) {
+        jsrPushNull(vm);
+        return true;
+    }
+
+    ObjStackTrace *st = AS_STACK_TRACE(stval);
+
+    if(st->recordCount > 0) {
+        fprintf(stderr, "Traceback (most recent call last):\n");
+        for(int i = st->recordCount - 1; i >= 0; i--) {
+            FrameRecord *record = &st->records[i];
+            fprintf(stderr, "    ");
+            if(record->line >= 0)
+                fprintf(stderr, "[line %d]", record->line);
+            else
+                fprintf(stderr, "[line ?]");
+            fprintf(stderr, " module %s in %s\n", record->moduleName->data, record->funcName->data);
+        }
+    }
+
+    // print the exception instance information
+    Value v;
+    bool found = hashTableGet(&exc->fields, copyString(vm, EXC_ERR_FIELD, strlen(EXC_ERR_FIELD), true), &v);
+
+    if(found && IS_STRING(v) && AS_STRING(v)->length > 0) {
+        fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
+    } else {
+        fprintf(stderr, "%s\n", exc->base.cls->name->data);
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+// end

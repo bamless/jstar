@@ -372,9 +372,16 @@ native print(s, ...)
 //--------- Exceptions ---------
 
 class Exception
-    fun new(err=null)
-        this.err = err
+    fun new(err="")
+        this.__err = err
+        this.__stacktrace = null
     end
+
+    fun err()
+        return this.__err
+    end
+
+    native printStacktrace()
 end
 
 class TypeException : Exception end

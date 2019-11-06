@@ -86,4 +86,8 @@ JSR_NATIVE(jsr_type);
     JSR_NATIVE(jsr_Table_string);
 // end
 
+// class Exception
+    JSR_NATIVE(jsr_Exception_printStacktrace);
+// end
+
 #endif

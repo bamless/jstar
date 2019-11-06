@@ -118,11 +118,11 @@ ObjTuple *newTuple(JStarVM *vm, size_t size) {
 #define ST_DEF_SIZE 16
 
 ObjStackTrace *newStackTrace(JStarVM *vm) {
-    JStarBuffer stacktrace;
-    jsrBufferInit(vm, &stacktrace);
     ObjStackTrace *st = (ObjStackTrace *)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
-    st->stacktrace = stacktrace;
     st->lastTracedFrame = -1;
+    st->recordSize = 0;
+    st->recordCount = 0;
+    st->records = NULL;
     return st;
 }
 
@@ -130,31 +130,34 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 
-    Callable *c = f->fn.type == OBJ_CLOSURE ? &f->fn.as.closure->fn->c : &f->fn.as.native->c;
-    char line[MAX_STRLEN_FOR_INT_TYPE(int) + 1] = {0};
+    if(st->recordCount + 1 >= st->recordSize) {
+        size_t oldSize = sizeof(FrameRecord) * st->recordSize;
+        st->recordSize = st->records ? st->recordSize * 2 : 4;
+        st->records = GCallocate(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordSize);
+    }
+    
+    Callable *c = NULL;
+    FrameRecord *record = &st->records[st->recordCount++];
+    ObjType funType = f->fn.type;
 
-    if(f->fn.type == OBJ_CLOSURE) {
+    switch(funType) {
+    case OBJ_CLOSURE:
+        c =  &f->fn.as.closure->fn->c;
         Chunk *chunk = &f->fn.as.closure->fn->chunk;
         size_t op = f->ip - chunk->code - 1;
-        sprintf(line, "%d", getBytecodeSrcLine(chunk, op));
-    } else {
-        line[0] = '?';
+        record->line = getBytecodeSrcLine(chunk, op);
+        break;
+    case OBJ_NATIVE:
+        c = &f->fn.as.native->c;
+        record->line = -1;
+        break;
+    default:
+        UNREACHABLE();
+        break;
     }
-
-    jsrBufferAppendstr(&st->stacktrace, "[line ");
-    jsrBufferAppendstr(&st->stacktrace, line);
-    jsrBufferAppendstr(&st->stacktrace, "] ");
-
-    jsrBufferAppendstr(&st->stacktrace, "module ");
-    jsrBufferAppendstr(&st->stacktrace, c->module->name->data);
-    jsrBufferAppendstr(&st->stacktrace, " in ");
-
-    if(c->name != NULL) {
-        jsrBufferAppendstr(&st->stacktrace, c->name->data);
-        jsrBufferAppendstr(&st->stacktrace, "()\n");
-    } else {
-        jsrBufferAppendstr(&st->stacktrace, "<main>\n");
-    }
+    
+    record->moduleName = c->module->name;
+    record->funcName = c->name ? c->name : copyString(vm, "<main>", 6, true);
 }
 
 #define LIST_DEF_SZ 8

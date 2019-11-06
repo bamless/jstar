@@ -308,39 +308,10 @@ size_t jsrCheckIndex(JStarVM *vm, int slot, size_t max, const char *name) {
     return checkIndex(vm, i, max, name);
 }
 
-void jsrPrintStackTrace(JStarVM *vm) {
-    assert(IS_INSTANCE(peek(vm)), "Top of stack isnt't an exception");
-
-    ObjInstance *exc = AS_INSTANCE(peek(vm));
-
-    Value stval = NULL_VAL;
-    hashTableGet(&exc->fields, vm->stField, &stval);
-    assert(IS_STACK_TRACE(stval), "Top of stack isn't an exception");
-
-    ObjStackTrace *st = AS_STACK_TRACE(stval);
-
-    // Print stacktrace in reverse order of recording (most recent call last)
-    if(st->stacktrace.len > 0) {
-        fprintf(stderr, "Traceback (most recent call last):\n");
-
-        char *stacktrace = st->stacktrace.data;
-        int lastnl = st->stacktrace.len;
-        for(int i = lastnl - 1; i > 0; i--) {
-            if(stacktrace[i - 1] == '\n') {
-                fprintf(stderr, "    %.*s", lastnl - i, stacktrace + i);
-                lastnl = i;
-            }
-        }
-        fprintf(stderr, "    %.*s", lastnl, stacktrace);
-    }
-
-    // print the exception instance information
-    Value v;
-    bool found = hashTableGet(&exc->fields, copyString(vm, "err", 3, true), &v);
-
-    if(found && IS_STRING(v)) {
-        fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
-    } else {
-        fprintf(stderr, "%s\n", exc->base.cls->name->data);
-    }
+void jsrPrintStacktrace(JStarVM *vm, int slot) {
+    Value exc = vm->apiStack[apiStackIndex(vm, slot)];
+    assert(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
+    push(vm, exc);
+    jsrCallMethod(vm, "printStacktrace", 0);
+    jsrPop(vm);
 }

@@ -74,8 +74,8 @@ JSTAR_API EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const cha
 JSTAR_API EvalResult jsrCall(JStarVM *vm, uint8_t argc);
 JSTAR_API EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc);
 
-// Prints the the stack trace of the exception on the top of the stack
-JSTAR_API void jsrPrintStackTrace(JStarVM *vm);
+// Prints the the stack trace of the exception at slot 'slot'
+JSTAR_API void jsrPrintStacktrace(JStarVM *vm, int slot);
 // Init the sys.args list with a list of arguments (usually main arguments)
 JSTAR_API void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv);
 // Add a path to be searched during module imports

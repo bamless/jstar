@@ -142,6 +142,10 @@ Module builtInModules[] = {
             METHOD(__next__,   jsr_Table_next)
             METHOD(__string__, jsr_Table_string)
         ENDCLASS
+
+        CLASS(Exception)
+            METHOD(printStacktrace, jsr_Exception_printStacktrace)
+        ENDCLASS
     ENDMODULE
     MODULE(sys)
         FUNCTION(time,           jsr_time)

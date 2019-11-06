@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 /**
@@ -123,7 +124,7 @@ typedef struct ObjModule {
 } ObjModule;
 
 // Fields shared by all callable objects (functions and natives)
-typedef struct Callable {
+typedef struct {
     bool vararg;       // Whether the function is a vararg one
     uint8_t argsCount; // The arity of the function
     uint8_t defaultc;  // Number of default args of the function (0 if none)
@@ -174,7 +175,7 @@ typedef struct ObjTuple {
     Value arr[]; // Tuple elements (flexible array)
 } ObjTuple;
 
-typedef struct TableEntry {
+typedef struct {
     Value key; // The key of the entry
     Value val; // The actual value
 } TableEntry;
@@ -218,12 +219,20 @@ typedef struct ObjClosure {
     ObjUpvalue *upvalues[]; // the actual Upvalues
 } ObjClosure;
 
+typedef struct {
+    int line;
+    ObjString *moduleName;
+    ObjString *funcName;
+} FrameRecord;
+
 // Object that contains the dump of the stack's frames.
 // Used for storing the trace of an unhandled exception
 typedef struct ObjStackTrace {
     Obj base;
     int lastTracedFrame;
-    JStarBuffer stacktrace;
+    int recordCount;
+    int recordSize;
+    FrameRecord *records;
 } ObjStackTrace;
 
 // ---- Functions for allocating objects ----

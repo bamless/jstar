@@ -107,7 +107,9 @@ static void freeObject(JStarVM *vm, Obj *o) {
     }
     case OBJ_STACK_TRACE: {
         ObjStackTrace *st = (ObjStackTrace *)o;
-        jsrBufferFree(&st->stacktrace);
+        if(st->records != NULL) {
+            GC_FREEARRAY(vm, FrameRecord, st->records, st->recordSize);
+        }
         GC_FREE(vm, ObjStackTrace, st);
         break;
     }
@@ -270,9 +272,15 @@ static void recursevelyReach(JStarVM *vm, Obj *o) {
         reachValue(vm, *upvalue->addr);
         break;
     }
-    case OBJ_STRING:
+    case OBJ_STACK_TRACE: {
+        ObjStackTrace *stackTrace = (ObjStackTrace *)o;
+        for(int i = 0; i < stackTrace->recordCount; i++) {
+            reachObject(vm, (Obj *)stackTrace->records[i].funcName);
+            reachObject(vm, (Obj *)stackTrace->records[i].moduleName);
+        }
         break;
-    case OBJ_STACK_TRACE:
+    }
+    case OBJ_STRING:
         break;
     }
 }
