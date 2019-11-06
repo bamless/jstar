@@ -1148,10 +1148,14 @@ sup_invoke:;
             UNWIND_STACK(vm);
         }
 
-        if(op == OP_IMPORT)
+        switch(op) {
+        case OP_IMPORT:
             hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
-        else if(op == OP_IMPORT_AS)
+            break;
+        case OP_IMPORT_AS:
             hashTablePut(&vm->module->globals, GET_STRING(), OBJ_VAL(getModule(vm, name)));
+            break;
+        }
 
         //call the module's main if first time import
         if(!valueEquals(peek(vm), NULL_VAL)) {
@@ -1364,10 +1368,8 @@ sup_invoke:;
         }
 
         ObjStackTrace *st = newStackTrace(vm);
-        push(vm, OBJ_VAL(st));
         ObjInstance *excInst = AS_INSTANCE(exc);
         hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
-        pop(vm);
 
         UNWIND_STACK(vm);
     }
