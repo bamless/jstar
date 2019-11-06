@@ -48,7 +48,9 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
     ObjModule *module = getModule(vm, name);
 
     if(module == NULL) {
+        push(vm, OBJ_VAL(name));
         module = newModule(vm, name);
+        pop(vm);
 
         if(vm->core != NULL) {
             hashTableImportNames(&module->globals, &vm->core->globals);

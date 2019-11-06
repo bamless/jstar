@@ -1021,7 +1021,10 @@ static void compileNative(Compiler *c, Stmt *s) {
 
     ObjNative *native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
     native->c.vararg = s->nativeDecl.isVararg;
+
+    push(c->vm, OBJ_VAL(native));
     addDefaultConsts(c, native->c.defaults, s->nativeDecl.defArgs);
+    pop(c->vm);
 
     uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
     uint16_t nameConst = identifierConst(c, &s->nativeDecl.id, s->line);
@@ -1066,7 +1069,10 @@ static void compileMethods(Compiler *c, Stmt *cls) {
 
             ObjNative *n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
             n->c.vararg = m->nativeDecl.isVararg;
+
+            push(c->vm, OBJ_VAL(n));
             addDefaultConsts(c, n->c.defaults, m->nativeDecl.defArgs);
+            pop(c->vm);
 
             uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
             uint16_t id = identifierConst(c, &m->nativeDecl.id, m->line);
@@ -1388,7 +1394,6 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
     c->func->c.vararg = s->funcDecl.isVararg;
 
-    // Add default parameters
     addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
     if(s->funcDecl.id.length != 0) {
@@ -1432,8 +1437,6 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->chunk, HANDLE_VAL(NULL));
-
-    // Add default parameters
     addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
 
     // create new method name by concatenating the class name to it

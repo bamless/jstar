@@ -136,11 +136,13 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
         st->records = GCallocate(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordSize);
     }
     
-    Callable *c = NULL;
     FrameRecord *record = &st->records[st->recordCount++];
-    ObjType funType = f->fn.type;
+    record->funcName = NULL;
+    record->moduleName = NULL;
 
-    switch(funType) {
+    Callable *c = NULL;
+    
+    switch(f->fn.type) {
     case OBJ_CLOSURE:
         c =  &f->fn.as.closure->fn->c;
         Chunk *chunk = &f->fn.as.closure->fn->chunk;
