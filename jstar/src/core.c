@@ -210,11 +210,9 @@ JSR_NATIVE(jsr_char) {
 
 JSR_NATIVE(jsr_ascii) {
     if(!jsrCheckStr(vm, 1, "arg")) return false;
-
     const char *str = jsrGetString(vm, 1);
-    if(strlen(str) != 1) JSR_RAISE(vm, "InvalidArgException", "arg must be a String of length 1");
-
-    char c = str[0];
+    if(jsrGetStringSz(vm, 1) != 1) JSR_RAISE(vm, "InvalidArgException", "arg must be a String of length 1");
+    int c = str[0];
     jsrPushNumber(vm, (double)c);
     return true;
 }
@@ -234,7 +232,7 @@ JSR_NATIVE(jsr_print) {
         }
         printf(" %s", jsrGetString(vm, -1));
         jsrPop(vm);
-    }, );
+    },);
 
     printf("\n");
 

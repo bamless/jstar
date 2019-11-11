@@ -753,20 +753,20 @@ static bool runEval(JStarVM *vm, int depth) {
         }                                           \
     } while(0)
 
-#define BINARY_OVERLOAD(op, overload, reverse)             \
-    do {                                                   \
-        SAVE_FRAME();                                      \
-        if(!callBinaryOverload(vm, overload, reverse)) {   \
-            LOAD_FRAME();                                  \
-            ObjString *t1 = getClass(vm, peek(vm))->name;  \
-            ObjString *t2 = getClass(vm, peek2(vm))->name; \
-            jsrRaise(vm, "TypeException",                  \
-                    "Operator %s not defined "             \
-                    "for types %s, %s",                    \
-                    #op, t1->data, t2->data);              \
-            UNWIND_STACK(vm);                              \
-        }                                                  \
-        LOAD_FRAME();                                      \
+#define BINARY_OVERLOAD(op, overload, reverse)                \
+    do {                                                      \
+        SAVE_FRAME();                                         \
+        bool res = callBinaryOverload(vm, overload, reverse); \
+        LOAD_FRAME();                                         \
+        if(!res) {                                            \
+            ObjString *t1 = getClass(vm, peek(vm))->name;     \
+            ObjString *t2 = getClass(vm, peek2(vm))->name;    \
+            jsrRaise(vm, "TypeException",                     \
+                    "Operator %s not defined "                \
+                    "for types %s, %s",                       \
+                    #op, t1->data, t2->data);                 \
+            UNWIND_STACK(vm);                                 \
+        }                                                     \
     } while(0)
 
 #define UNWIND_HANDLER(h, cause, exc)  \
@@ -894,11 +894,9 @@ static bool runEval(JStarVM *vm, int depth) {
         } else {
             ObjClass *cls = getClass(vm, peek(vm));
             SAVE_FRAME();
-            if(!invokeMethod(vm, cls, vm->neg, 0)) {
-                LOAD_FRAME();
-                UNWIND_STACK(vm);
-            }
+            bool res = invokeMethod(vm, cls, vm->neg, 0);
             LOAD_FRAME();
+            if(!res) UNWIND_STACK(vm);
         }
         DISPATCH();
     }
@@ -931,11 +929,9 @@ static bool runEval(JStarVM *vm, int depth) {
             ObjClass *cls = getClass(vm, peek2(vm));
             if(hashTableGet(&cls->methods, vm->eq, &eq)) {
                 SAVE_FRAME();
-                if(!callValue(vm, eq, 1)) {
-                    LOAD_FRAME();
-                    UNWIND_STACK(vm);
-                }
+                bool res = callValue(vm, eq, 1);
                 LOAD_FRAME();
+                if(!res) UNWIND_STACK(vm);
             }
         }
         DISPATCH();
@@ -960,22 +956,18 @@ static bool runEval(JStarVM *vm, int depth) {
     TARGET(OP_SUBSCR_GET): {
         Value arg = pop(vm), operand = pop(vm);
         SAVE_FRAME();
-        if(!getSubscriptOfValue(vm, operand, arg)) {
-            LOAD_FRAME();
-            UNWIND_STACK(vm);
-        }
+        bool res = getSubscriptOfValue(vm, operand, arg);
         LOAD_FRAME();
+        if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
     TARGET(OP_SUBSCR_SET): {
         Value arg = pop(vm), operand = pop(vm), s = pop(vm);
         SAVE_FRAME();
-        if(!setSubscriptOfValue(vm, operand, arg, s)) {
-            LOAD_FRAME();
-            UNWIND_STACK(vm);
-        }
+        bool res = setSubscriptOfValue(vm, operand, arg, s);
         LOAD_FRAME();
+        if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
@@ -1040,11 +1032,9 @@ static bool runEval(JStarVM *vm, int depth) {
 
 call:
         SAVE_FRAME();
-        if(!callValue(vm, peekn(vm, argc), argc)) {
-            LOAD_FRAME();
-            UNWIND_STACK(vm);
-        }
+        bool res = callValue(vm, peekn(vm, argc), argc);
         LOAD_FRAME();
+        if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
@@ -1072,11 +1062,9 @@ invoke:;
         ObjString *name = GET_STRING();
 
         SAVE_FRAME();
-        if(!invokeFromValue(vm, name, argc)) {
-            LOAD_FRAME();
-            UNWIND_STACK(vm);
-        }
+        bool res = invokeFromValue(vm, name, argc);
         LOAD_FRAME();
+        if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
     
@@ -1106,11 +1094,9 @@ sup_invoke:;
         ObjClass *sup = AS_CLASS(fn->chunk.consts.arr[0]);
 
         SAVE_FRAME();
-        if(!invokeMethod(vm, sup, name, argc)) {
-            LOAD_FRAME();
-            UNWIND_STACK(vm);
-        }
+        bool res = invokeMethod(vm, sup, name, argc);
         LOAD_FRAME();
+        if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
@@ -1178,7 +1164,7 @@ sup_invoke:;
             Value val;
             if(!hashTableGet(&m->globals, n, &val)) {
                 jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
-                        n->data, m->name->data);
+                         n->data, m->name->data);
                 UNWIND_STACK(vm);
             } 
             hashTablePut(&vm->module->globals, n, val);
@@ -1249,7 +1235,7 @@ sup_invoke:;
     TARGET(OP_UNPACK): {
         if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
             jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
-                    getClass(vm, peek(vm))->name->data);
+                     getClass(vm, peek(vm))->name->data);
             UNWIND_STACK(vm);
         }
         if(!unpackObject(vm, AS_OBJ(pop(vm)),  NEXT_CODE())) {
