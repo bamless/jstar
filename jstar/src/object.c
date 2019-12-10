@@ -199,12 +199,12 @@ void listInsert(JStarVM *vm, ObjList *lst, size_t index, Value val) {
     }
 
     Value *arr = lst->arr;
-    for(size_t i = lst->count - 1; i >= index; i--) {
-        arr[i + 1] = arr[i];
+    for(size_t i = lst->count; i > index; i--) {
+        arr[i] = arr[i - 1];
     }
     arr[index] = val;
     lst->count++;
-    pop(vm); // pop val
+    pop(vm);
 }
 
 void listRemove(JStarVM *vm, ObjList *lst, size_t index) {
