@@ -27,14 +27,12 @@ native seed(s)
 
 fun randint(a, b=null)
     if !isInt(a) or (b and !isInt(b)) then
-        raise TypeException("a and b must be integers")
+        raise TypeException('a and b must be integers')
     end
     if b == null then
         a, b = 0, a
     end
-    if a >= b then 
-        raise InvalidArgException("a must be < b") 
-    end
+    assert(a < b, 'a must be < b')
     return int(a + random() * (b - a + 1))
 end
 
