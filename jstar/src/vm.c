@@ -192,13 +192,13 @@ void jsrEnsureStack(JStarVM *vm, size_t needed) {
 }
 
 static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
-    return cls == vm->numClass || cls == vm->strClass || cls == vm->boolClass ||
-           cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
+    return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
            cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass;
 }
 
 static bool isInstatiableBuiltin(JStarVM *vm, ObjClass *cls) {
-    return cls == vm->lstClass || cls == vm->tupClass;
+    return cls == vm->lstClass || cls == vm->tupClass || cls == vm->numClass ||
+           cls == vm->boolClass || cls == vm->strClass;
 }
 
 static bool isBuiltinClass(JStarVM *vm, ObjClass *cls) {

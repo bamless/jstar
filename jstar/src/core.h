@@ -7,8 +7,6 @@
 void initCoreLibrary(JStarVM *vm);
 
 JSR_NATIVE(jsr_int);
-JSR_NATIVE(jsr_num);
-JSR_NATIVE(jsr_isInt);
 
 JSR_NATIVE(jsr_char);
 JSR_NATIVE(jsr_ascii);
@@ -19,11 +17,14 @@ JSR_NATIVE(jsr_eval);
 JSR_NATIVE(jsr_type);
 
 // class Number
+    JSR_NATIVE(jsr_Number_new);
+    JSR_NATIVE(jsr_Number_isInt);
     JSR_NATIVE(jsr_Number_string);
     JSR_NATIVE(jsr_Number_hash);
 // end
 
 // class Boolean
+    JSR_NATIVE(jsr_Boolean_new);
     JSR_NATIVE(jsr_Boolean_string);
 // end
 
@@ -60,7 +61,8 @@ JSR_NATIVE(jsr_type);
 // end
 
 // class String
-    JSR_NATIVE(jsr_substr);
+    JSR_NATIVE(jsr_String_new);
+    JSR_NATIVE(jsr_String_substr);
     JSR_NATIVE(jsr_String_startsWith);
     JSR_NATIVE(jsr_String_endsWith);
     JSR_NATIVE(jsr_String_join);

@@ -1,24 +1,33 @@
 //--------- Built-in classes ---------
 
 class Number
+    native new(n);
+    native isInt();
     native __string__()
     native __hash__()
 end
+
 class Boolean
+    native new(b)
     native __string__()
 end
+
 class Null
     native __string__()
 end
+
 class Function
     native __string__()
 end
+
 class Module
     native __string__()
 end
+
 class StackTrace end
 
 class String
+    native new(...)
     native substr(from, to)
     native startsWith(prefix, offset = 0)
     native endsWith(suffix)
@@ -201,14 +210,14 @@ class Tuple : Sequence
 end
 
 class Table 
-    native __get__(key)
-    native __set__(key, val)
-    native __len__()
     native delete(key)
     native clear()
     native contains(key)
     native keys()
     native values()
+    native __get__(key)
+    native __set__(key, val)
+    native __len__()
     native __iter__(i)
     native __next__(i)
     native __string__()
@@ -364,8 +373,6 @@ native ascii(char)
 native char(num)
 native eval(source)
 native int(n)
-native isInt(n)
-native num(n)
 
 native print(s, ...)
 

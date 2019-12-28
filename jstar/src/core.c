@@ -146,13 +146,13 @@ JSR_NATIVE(jsr_int) {
         long long n = strtoll(nstr, &end, 10);
 
         if((n == 0 && end == nstr) || *end != '\0') {
-            JSR_RAISE(vm, "InvalidArgException", "\"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "'%s'.", nstr);
         }
         if(n == LLONG_MAX) {
-            JSR_RAISE(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "Overflow: '%s'.", nstr);
         }
         if(n == LLONG_MIN) {
-            JSR_RAISE(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
+            JSR_RAISE(vm, "InvalidArgException", "Underflow: '%s'.", nstr);
         }
 
         jsrPushNumber(vm, n);
@@ -160,45 +160,6 @@ JSR_NATIVE(jsr_int) {
     }
 
     JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
-}
-
-JSR_NATIVE(jsr_num) {
-    if(jsrIsNumber(vm, 1)) {
-        jsrPushNumber(vm, jsrGetNumber(vm, 1));
-        return true;
-    }
-    if(jsrIsString(vm, 1)) {
-        errno = 0;
-
-        char *end = NULL;
-        const char *nstr = jsrGetString(vm, 1);
-        double n = strtod(nstr, &end);
-
-        if((n == 0 && end == nstr) || *end != '\0') {
-            JSR_RAISE(vm, "InvalidArgException", "\"%s\".", nstr);
-        }
-        if(n == HUGE_VAL || n == -HUGE_VAL) {
-            JSR_RAISE(vm, "InvalidArgException", "Overflow: \"%s\".", nstr);
-        }
-        if(n == 0 && errno == ERANGE) {
-            JSR_RAISE(vm, "InvalidArgException", "Underflow: \"%s\".", nstr);
-        }
-
-        jsrPushNumber(vm, n);
-        return true;
-    }
-
-    JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
-}
-
-JSR_NATIVE(jsr_isInt) {
-    if(jsrIsNumber(vm, 1)) {
-        double n = jsrGetNumber(vm, 1);
-        jsrPushBoolean(vm, trunc(n) == n);
-        return true;
-    }
-    jsrPushBoolean(vm, false);
-    return true;
 }
 
 JSR_NATIVE(jsr_char) {
@@ -264,6 +225,41 @@ JSR_NATIVE(jsr_type) {
 }
 
 // class Number
+JSR_NATIVE(jsr_Number_new) {
+    if(jsrIsNumber(vm, 1)) {
+        jsrPushNumber(vm, jsrGetNumber(vm, 1));
+        return true;
+    }
+    if(jsrIsString(vm, 1)) {
+        errno = 0;
+
+        char *end = NULL;
+        const char *nstr = jsrGetString(vm, 1);
+        double n = strtod(nstr, &end);
+
+        if((n == 0 && end == nstr) || *end != '\0') {
+            JSR_RAISE(vm, "InvalidArgException", "'%s'.", nstr);
+        }
+        if(n == HUGE_VAL || n == -HUGE_VAL) {
+            JSR_RAISE(vm, "InvalidArgException", "Overflow: '%s'.", nstr);
+        }
+        if(n == 0 && errno == ERANGE) {
+            JSR_RAISE(vm, "InvalidArgException", "Underflow: '%s'.", nstr);
+        }
+
+        jsrPushNumber(vm, n);
+        return true;
+    }
+
+    JSR_RAISE(vm, "TypeException", "n must be a Number or a String.");
+}
+
+JSR_NATIVE(jsr_Number_isInt) {
+    double n = jsrGetNumber(vm, 0);
+    jsrPushBoolean(vm, trunc(n) == n);
+    return true;
+}
+
 JSR_NATIVE(jsr_Number_string) {
     char str[24]; // enough for .*g with DBL_DIG
     snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
@@ -285,6 +281,14 @@ JSR_NATIVE(jsr_Number_hash) {
 // end
 
 // class Boolean
+JSR_NATIVE(jsr_Boolean_new) {
+    if((jsrIsBoolean(vm, 1) && !jsrGetBoolean(vm, 1)) || jsrIsNull(vm, 1))
+        jsrPushBoolean(vm, false);
+    else
+        jsrPushBoolean(vm, true);
+    return true;
+}
+
 JSR_NATIVE(jsr_Boolean_string) {
     if(jsrGetBoolean(vm, 0))
         jsrPushString(vm, "true");
@@ -568,7 +572,29 @@ JSR_NATIVE(jsr_Tuple_sub) {
 // end
 
 // class String
-JSR_NATIVE(jsr_substr) {
+JSR_NATIVE(jsr_String_new) {
+    JStarBuffer string;
+    jsrBufferInit(vm, &string);
+
+    JSR_FOREACH(1, {
+        if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
+            jsrBufferFree(&string);
+            return false;
+        }
+        if(!jsrIsString(vm, -1)) {
+            jsrBufferFree(&string);
+            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+        }
+        jsrBufferAppendstr(&string, jsrGetString(vm, -1));
+        jsrPop(vm);
+    }, jsrBufferFree(&string));
+
+
+    jsrBufferPush(&string);
+    return true;
+}
+
+JSR_NATIVE(jsr_String_substr) {
     ObjString *str = AS_STRING(vm->apiStack[0]);
 
     size_t from = jsrCheckIndex(vm, 1, str->length + 1, "from");

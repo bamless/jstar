@@ -317,7 +317,7 @@ JSTAR_API void jsrBufferAppendChar(JStarBuffer *b, char c);
 JSTAR_API void jsrBufferClear(JStarBuffer *b);
 
 // Once the buffer is pushed on the J* stack it becomes a String and can't be modified further
-// One can reuse the BlBuffer struct by re-initializing it using the blBufferInit method.
+// One can reuse the JStarBuffer struct by re-initializing it using the jsrBufferInit method.
 JSTAR_API void jsrBufferPush(JStarBuffer *b);
 JSTAR_API void jsrBufferFree(JStarBuffer *b);
 

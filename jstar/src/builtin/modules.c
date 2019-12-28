@@ -67,8 +67,6 @@ typedef struct {
 Module builtInModules[] = {
     COREMODULE
         FUNCTION(int,   jsr_int)
-        FUNCTION(num,   jsr_num)
-        FUNCTION(isInt, jsr_isInt)
         FUNCTION(char,  jsr_char)
         FUNCTION(ascii, jsr_ascii)
         FUNCTION(type,  jsr_type)
@@ -76,11 +74,14 @@ Module builtInModules[] = {
         FUNCTION(eval,  jsr_eval)
 
         CLASS(Number)
+            METHOD(new,        jsr_Number_new)
+            METHOD(isInt,      jsr_Number_isInt)
             METHOD(__string__, jsr_Number_string)
             METHOD(__hash__,   jsr_Number_hash)
         ENDCLASS
 
         CLASS(Boolean)
+            METHOD(new,        jsr_Boolean_new)
             METHOD(__string__, jsr_Boolean_string)
         ENDCLASS
 
@@ -117,7 +118,8 @@ Module builtInModules[] = {
         ENDCLASS
 
         CLASS(String)
-            METHOD(substr,     jsr_substr)
+            METHOD(new,        jsr_String_new)
+            METHOD(substr,     jsr_String_substr)
             METHOD(startsWith, jsr_String_startsWith)
             METHOD(endsWith,   jsr_String_endsWith)
             METHOD(join,       jsr_String_join)
