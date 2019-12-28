@@ -17,6 +17,30 @@
         }                                                        \
     } while(0)
 
+
+typedef struct Parser {
+    Lexer lex;
+    Token peek;
+
+    const char *fname;
+    TokenType prevType;
+    const char *lnStart;
+
+    bool panic, hadError;
+} Parser;
+
+static void initParser(Parser *p, const char *fname, const char *src) {
+    p->panic = false;
+    p->hadError = false;
+    p->fname = fname;
+    p->prevType = -1;
+
+    initLexer(&p->lex, src);
+    nextToken(&p->lex, &p->peek);
+
+    p->lnStart = p->peek.lexeme;
+}
+
 //----- Utility functions ------
 
 static char *strchrnul(const char *str, char c) {
@@ -81,9 +105,10 @@ static Token require(Parser *p, TokenType type) {
         return t;
     }
 
-    char msg[1025] = {'\0'};
-    snprintf(msg, sizeof(msg), "Expected token `%s` but instead `%s` found.", 
-             tokNames[type], tokNames[p->peek.type]);
+    char msg[512] = {'\0'};
+    const char *expected = tokNames[type];
+    const char *found = tokNames[p->peek.type];
+    snprintf(msg, sizeof(msg), "Expected token `%s` but instead `%s` found.", expected, found);
     error(p, msg);
 
     return (Token){0, NULL, 0, 0};
@@ -133,29 +158,18 @@ static void classSynchronize(Parser *p) {
 
 //----- Recursive descent parser implementation ------
 
-static Expr *expression(Parser *p, bool tuple);
 static Stmt *parseProgram(Parser *p);
+static Expr *expression(Parser *p, bool tuple);
 
-static void initParser(Parser *p, const char *fname, const char *src) {
-    p->panic = false;
-    p->hadError = false;
-    p->fname = fname;
-    p->prevType = -1;
+Stmt *parse(const char *fname, const char *src) {
+    Parser p;
+    initParser(&p, fname, src);
 
-    initLexer(&p->lex, src);
-    nextToken(&p->lex, &p->peek);
+    Stmt *program = parseProgram(&p);
 
-    p->lnStart = p->peek.lexeme;
-}
+    if(!matchSkipnl(&p, TOK_EOF)) error(&p, "Unexpected token.");
 
-Stmt *parse(Parser *p, const char *fname, const char *src) {
-    initParser(p, fname, src);
-
-    Stmt *program = parseProgram(p);
-
-    if(!matchSkipnl(p, TOK_EOF)) error(p, "Unexpected token.");
-
-    if(p->hadError) {
+    if(p.hadError) {
         freeStmt(program);
         return NULL;
     }
@@ -163,14 +177,15 @@ Stmt *parse(Parser *p, const char *fname, const char *src) {
     return program;
 }
 
-Expr *parseExpression(Parser *p, const char *fname, const char *src) {
-    initParser(p, fname, src);
+Expr *parseExpression(const char *fname, const char *src) {
+    Parser p;
+    initParser(&p, fname, src);
 
-    Expr *expr = expression(p, true);
+    Expr *expr = expression(&p, true);
 
-    if(!matchSkipnl(p, TOK_EOF)) error(p, "Unexpected token.");
+    if(!matchSkipnl(&p, TOK_EOF)) error(&p, "Unexpected token.");
 
-    if(p->hadError) {
+    if(p.hadError) {
         freeExpr(expr);
         return NULL;
     }

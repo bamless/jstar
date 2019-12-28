@@ -119,10 +119,8 @@ static void loadNativeDynlib(JStarVM *vm, JStarBuffer *modulePath, ObjString *mo
 }
 
 static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, const char *source) {
-    Parser p;
-    Stmt *program = parse(&p, path, source);
-
-    if(p.hadError) return false;
+    Stmt *program = parse(path, source);
+    if(program == NULL) return false;
 
     ObjFunction *moduleFun = compileWithModule(vm, name, program);
     freeStmt(program);
@@ -137,10 +135,8 @@ static bool importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
     char *source = loadSource(path->data);
     if(source == NULL) return false;
 
-    bool imported;
-    if((imported = importWithSource(vm, path->data, name, source))) {
-        loadNativeDynlib(vm, path, name);
-    }
+    bool imported = importWithSource(vm, path->data, name, source);
+    if(imported) loadNativeDynlib(vm, path, name);
     free(source);
     
     return imported;

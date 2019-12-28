@@ -32,17 +32,7 @@
     t == TOK_LCURLY                                                                              \
 )
 
-typedef struct Parser {
-    Lexer lex;
-    Token peek;
-    const char *fname;
-    TokenType prevType;
-    const char *lnStart;
-    bool panic;
-    bool hadError;
-} Parser;
-
-JSTAR_API Stmt *parse(Parser *p, const char *fname, const char *src);
-JSTAR_API Expr *parseExpression(Parser *p, const char *fname, const char *src);
+JSTAR_API Stmt* parse(const char *fname, const char *src);
+JSTAR_API Expr* parseExpression(const char *fname, const char *src);
 
 #endif
