@@ -1,8 +1,8 @@
 //--------- Built-in classes ---------
 
 class Number
-    native new(n);
-    native isInt();
+    native new(n)
+    native isInt()
     native __string__()
     native __hash__()
 end
