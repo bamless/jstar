@@ -233,8 +233,9 @@ static Stmt *newStmt(int line, StmtType type) {
     return s;
 }
 
-Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args,
-                  LinkedList *defArgs, Stmt *body) {
+Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, 
+    LinkedList *args, LinkedList *defArgs, Stmt *body)
+{
     Stmt *f = newStmt(line, FUNCDECL);
     f->funcDecl.id.name = id;
     f->funcDecl.id.length = length;
@@ -245,8 +246,9 @@ Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedLi
     return f;
 }
 
-Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args,
-                    LinkedList *defArgs) {
+Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, 
+    LinkedList *args, LinkedList *defArgs)
+{
     Stmt *n = newStmt(line, NATIVEDECL);
     n->nativeDecl.id.name = id;
     n->nativeDecl.id.length = length;
@@ -264,6 +266,16 @@ Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedL
     c->classDecl.methods = methods;
     return c;
 }
+
+Stmt *newWithStmt(int line, Expr *e, size_t varLen, const char *varName, Stmt *block) {
+    Stmt *w = newStmt(line, WITH_STMT);
+    w->withStmt.e = e;
+    w->withStmt.var.length = varLen;
+    w->withStmt.var.name = varName;
+    w->withStmt.block = block;
+    return w;
+}
+
 
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
     Stmt *s = newStmt(line, FOR);
@@ -317,8 +329,9 @@ Stmt *newBlockStmt(int line, LinkedList *list) {
     return s;
 }
 
-Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as,
-                    size_t asLength) {
+Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, 
+    const char *as, size_t asLength) 
+{
     Stmt *s = newStmt(line, IMPORT);
     s->importStmt.modules = modules;
     s->importStmt.impNames = impNames;
@@ -486,6 +499,10 @@ void freeStmt(Stmt *s) {
         break;
     case RAISE_STMT:
         freeExpr(s->raiseStmt.exc);
+        break;
+    case WITH_STMT:
+        freeExpr(s->withStmt.e);
+        freeStmt(s->withStmt.block);
         break;
     case IMPORT: {
         LinkedList *head = s->importStmt.modules;

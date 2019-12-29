@@ -77,6 +77,7 @@ const char *tokNames[] = {
     "except",
     "ensure",
     "raise",
+    "with",
 
     "unterminated string",
     "newline",

@@ -42,6 +42,7 @@ static Keyword keywords[] = {
     {"ensure",   6, TOK_ENSURE},
     {"except",   6, TOK_EXCEPT},
     {"raise",    5, TOK_RAISE},
+    {"with",     4, TOK_WITH},
     {"continue", 8, TOK_CONTINUE},
     {"break",    5, TOK_BREAK},
     // sentinel

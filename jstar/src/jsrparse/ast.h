@@ -165,6 +165,7 @@ typedef enum StmtType {
     TRY_STMT,
     EXCEPT_STMT,
     RAISE_STMT,
+    WITH_STMT,
     CONTINUE_STMT,
     BREAK_STMT
 } StmtType;
@@ -236,6 +237,11 @@ struct Stmt {
         struct {
             Expr *exc;
         } raiseStmt;
+        struct {
+            Expr *e;
+            Identifier var;
+            Stmt *block;
+        } withStmt;
         Expr *exprStmt;
     };
 };
@@ -244,6 +250,7 @@ JSTAR_API Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id
 JSTAR_API Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
 JSTAR_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength);
 JSTAR_API Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
+JSTAR_API Stmt *newWithStmt(int line, Expr *e, size_t varLen, const char *varName, Stmt *block);
 JSTAR_API Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
 JSTAR_API Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 JSTAR_API Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init);

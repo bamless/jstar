@@ -84,6 +84,7 @@ typedef enum {
     TOK_EXCEPT,
     TOK_ENSURE,
     TOK_RAISE,
+    TOK_WITH,
 
     TOK_UNTERMINATED_STR,
     TOK_NEWLINE,

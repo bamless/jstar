@@ -911,7 +911,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
  *         ...
  *     end
  * end
- **/
+ */
 static void compileForEach(Compiler *c, Stmt *s) {
     enterScope(c);
 
@@ -1296,6 +1296,100 @@ static void compileRaiseStmt(Compiler *c, Stmt *s) {
     emitBytecode(c, OP_RAISE, s->line);
 }
 
+/*
+ * with Expr x
+ *   code
+ * end
+ * 
+ * begin
+ *   var x
+ *   try
+ *     x = Expr
+ *     code
+ *   ensure
+ *     if x then x.close() end
+ *   end
+ * end
+ */
+static void compileWithStatement(Compiler *c, Stmt *s) {
+    enterScope(c);
+
+    // var x
+    emitBytecode(c, OP_NULL, s->line);
+    declareVar(c, &s->withStmt.var, s->line);
+    defineVar(c, &s->withStmt.var, s->line);
+
+    // try
+    TryExcept tryBlock;
+    enterTryBlock(c, &tryBlock, s);
+
+    if(c->tryDepth > MAX_TRY_DEPTH) {
+        error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
+    }
+
+    size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);;
+    emitShort(c, 0, 0);
+    
+    // x = closable
+    Expr lval = { 
+        .line = s->line, 
+        .type = VAR_LIT, 
+        .var = {s->withStmt.var} 
+    };
+    Expr assign = {
+        .line = s->line,
+        .type = ASSIGN,
+        .assign = {
+            .lval = &lval,
+            .rval = s->withStmt.e
+        }
+    };
+    compileExpr(c, &assign);
+    emitBytecode(c, OP_POP, s->line);
+
+    // code
+    compileStatement(c, s->withStmt.block);
+
+    emitBytecode(c, OP_POP_HANDLER, s->line);
+    emitBytecode(c, OP_NULL, s->line);
+    emitBytecode(c, OP_NULL, s->line);
+
+    // ensure
+    enterScope(c);
+
+    Identifier exc = syntheticIdentifier(".exception");
+    declareVar(c, &exc, 0);
+    defineVar(c, &exc, 0);
+
+    Identifier cause = syntheticIdentifier(".cause");
+    declareVar(c, &cause, 0);
+    defineVar(c, &cause, 0);
+
+    setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
+
+    // if x then x.close() end
+    int closableID = resolveVariable(c, &s->withStmt.var, true, s->line);
+    assert(closableID >= 0, "Cannot resolve with closable");
+
+    emitBytecode(c, OP_GET_LOCAL, s->line);
+    emitBytecode(c, closableID, s->line);
+    size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
+    emitShort(c, 0, 0);
+
+    emitBytecode(c, OP_GET_LOCAL, s->line);
+    emitBytecode(c, closableID, s->line);
+    callMethod(c, "close", 0);
+    emitBytecode(c, OP_POP, s->line);
+
+    setJumpTo(c, falseJmp, c->func->chunk.count, s->line);
+
+    emitBytecode(c, OP_ENSURE_END, 0);
+    exitScope(c);
+
+    exitTryBlock(c, s);
+    exitScope(c);
+}
+
 static void compileLoopExitStmt(Compiler *c, Stmt *s) {
     bool isBreak = s->type == BREAK_STMT;
 
@@ -1357,11 +1451,14 @@ static void compileStatement(Compiler *c, Stmt *s) {
     case IMPORT:
         compileImportStatement(c, s);
         break;
+    case TRY_STMT:
+        compileTryExcept(c, s);
+        break;
     case RAISE_STMT:
         compileRaiseStmt(c, s);
         break;
-    case TRY_STMT:
-        compileTryExcept(c, s);
+    case WITH_STMT:
+        compileWithStatement(c, s);
         break;
     case CONTINUE_STMT:
     case BREAK_STMT:

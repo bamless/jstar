@@ -39,6 +39,7 @@ static int countBlocks(const char *line) {
         case TOK_FUN:
         case TOK_TRY:
         case TOK_THEN:
+        case TOK_WITH:
             depth++;
             break;
         case TOK_ELIF:

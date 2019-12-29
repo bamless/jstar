@@ -607,6 +607,19 @@ static Stmt *parseRaiseStmt(Parser *p) {
     return newRaiseStmt(line, exc);
 }
 
+static Stmt *parseWithStmt(Parser *p) {
+    int line = p->peek.line;
+    advance(p);
+
+    Expr *e = expression(p, true);
+    Token var = require(p, TOK_IDENTIFIER);
+
+    Stmt *block = blockStmt(p);
+    require(p, TOK_END);
+
+    return newWithStmt(line, e, var.length, var.lexeme, block);
+}
+
 static Stmt *parseStmt(Parser *p) {
     int line = p->peek.line;
 
@@ -632,6 +645,8 @@ static Stmt *parseStmt(Parser *p) {
         return parseTryStmt(p);
     case TOK_RAISE:
         return parseRaiseStmt(p);
+    case TOK_WITH:
+        return parseWithStmt(p);
     case TOK_CONTINUE:
         advance(p);
         STATEMENT_END(p);
