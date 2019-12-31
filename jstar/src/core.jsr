@@ -31,6 +31,8 @@ class String
     native substr(from, to)
     native startsWith(prefix, offset = 0)
     native endsWith(suffix)
+    native strip()
+    native chomp()
     native join(iterable)
 
     native __eq__(o)
@@ -368,13 +370,14 @@ fun toList(iterable)
     return lst
 end
 
-native type(o)
 native ascii(char)
 native char(num)
 native eval(source)
+native exec(cmd)
 native int(n)
-
+native system(cmd)
 native print(s, ...)
+native type(o)
 
 //--------- Exceptions ---------
 

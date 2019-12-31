@@ -1,24 +1,6 @@
-// Check for popen, pclose
-#ifdef __linux__
-
-#define USE_POPEN
-#define _GNU_SOURCE
-#include <stdio.h>
-#undef _GNU_SOURCE
-
-#elif defined(_WIN32)
-
-#define USE_POPEN
-#define popen _popen
-#define pclose _pclose
-
-#elif defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-
-#define USE_POPEN
-#define _POSIX_SOURCE
-#include <stdio.h>
-#undef _POSIX_SOURCE
-
+#ifdef _WIN32
+    #define popen _popen
+    #define pclose _pclose
 #endif
 
 #include "io.h"
@@ -64,7 +46,6 @@ static bool readline(JStarVM *vm, FILE *file) {
 
         jsrBufferAppendstr(&b, buf);
     }
-    if(b.data[b.len - 1] == '\n') b.len--;
     jsrBufferPush(&b);
     return true;
 }
@@ -312,8 +293,6 @@ JSR_NATIVE(jsr_File_flush) {
 // } class File
 
 // class __PFile {
-#ifdef USE_POPEN
-
 JSR_NATIVE(jsr_PFile_close) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
@@ -332,14 +311,6 @@ JSR_NATIVE(jsr_PFile_close) {
     jsrPushNumber(vm, ret);
     return true;
 }
-
-#else
-
-JSR_NATIVE(jsr_PFile_close) {
-    JSR_RAISE(vm, "Exception", "pclose not available on current system.");
-}
-
-#endif
 // }
 
 // functions
@@ -364,8 +335,6 @@ JSR_NATIVE(jsr_rename) {
     return true;
 }
 
-#ifdef USE_POPEN
-
 JSR_NATIVE(jsr_popen) {
     if(!jsrCheckStr(vm, 1, "name") || !jsrCheckStr(vm, 2, "mode")) {
         return false;
@@ -378,8 +347,8 @@ JSR_NATIVE(jsr_popen) {
         JSR_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
     }
 
-    FILE *f;
-    if((f = popen(pname, m)) == NULL) {
+    FILE *f = popen(pname, m);
+    if(f == NULL) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
@@ -388,11 +357,3 @@ JSR_NATIVE(jsr_popen) {
     if(jsrCall(vm, 1) != VM_EVAL_SUCCESS) return false;
     return true;
 }
-
-#else
-
-JSR_NATIVE(jsr_popen) {
-    JSR_RAISE(vm, "Exception", "popen not available on current system.");
-}
-
-#endif

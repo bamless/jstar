@@ -66,12 +66,14 @@ typedef struct {
 
 Module builtInModules[] = {
     COREMODULE
-        FUNCTION(int,   jsr_int)
-        FUNCTION(char,  jsr_char)
-        FUNCTION(ascii, jsr_ascii)
-        FUNCTION(type,  jsr_type)
-        FUNCTION(print, jsr_print)
-        FUNCTION(eval,  jsr_eval)
+        FUNCTION(ascii,  jsr_ascii)
+        FUNCTION(char,   jsr_char)
+        FUNCTION(eval,   jsr_eval)
+        FUNCTION(exec,   jsr_exec)
+        FUNCTION(int,    jsr_int)
+        FUNCTION(print,  jsr_print)
+        FUNCTION(system, jsr_system)
+        FUNCTION(type,   jsr_type)
 
         CLASS(Number)
             METHOD(new,        jsr_Number_new)
@@ -122,6 +124,8 @@ Module builtInModules[] = {
             METHOD(substr,     jsr_String_substr)
             METHOD(startsWith, jsr_String_startsWith)
             METHOD(endsWith,   jsr_String_endsWith)
+            METHOD(strip,      jsr_String_strip)
+            METHOD(chomp,      jsr_String_chomp)
             METHOD(join,       jsr_String_join)
             METHOD(__eq__,     jsr_String_eq)
             METHOD(__len__,    jsr_String_len)
@@ -151,7 +155,6 @@ Module builtInModules[] = {
     ENDMODULE
     MODULE(sys)
         FUNCTION(time,           jsr_time)
-        FUNCTION(exec,           jsr_exec)
         FUNCTION(exit,           jsr_exit)
         FUNCTION(getImportPaths, jsr_getImportPaths)
         FUNCTION(platform,       jsr_platform)

@@ -6,6 +6,7 @@
 
 #include "builtin/modules.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
@@ -13,6 +14,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef _WIN32
+    #define popen _popen
+    #define pclose _pclose
+#endif
 
 static ObjClass *createClass(JStarVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
     ObjString *n = copyString(vm, name, strlen(name), true);
@@ -221,6 +227,43 @@ JSR_NATIVE(jsr_eval) {
 
 JSR_NATIVE(jsr_type) {
     push(vm, OBJ_VAL(getClass(vm, peek(vm))));
+    return true;
+}
+
+JSR_NATIVE(jsr_system) {
+    const char *cmd = NULL;
+    if(!jsrIsNull(vm, 1)) {
+        if(!jsrCheckStr(vm, 1, "cmd")) return false;
+        cmd = jsrGetString(vm, 1);
+    }
+    jsrPushNumber(vm, system(cmd));
+    return true;
+}
+
+JSR_NATIVE(jsr_exec) {
+    if(!jsrCheckStr(vm, 1, "cmd")) return false;
+    FILE *proc = popen(jsrGetString(vm, 1), "r");
+    if(proc == NULL) {
+        JSR_RAISE(vm, "Exception", strerror(errno));
+    }
+
+    JStarBuffer data;
+    jsrBufferInit(vm, &data);
+
+    char buf[512];
+    while(fgets(buf, 512, proc) != NULL) {
+        jsrBufferAppendstr(&data, buf);
+    }
+
+    if(ferror(proc)) {
+        pclose(proc);
+        jsrBufferFree(&data);
+        JSR_RAISE(vm, "Exception", strerror(errno));
+    } else {
+        pclose(proc);
+        jsrBufferPush(&data);
+    }
+
     return true;
 }
 
@@ -660,20 +703,57 @@ JSR_NATIVE(jsr_String_endsWith) {
     return true;
 }
 
+JSR_NATIVE(jsr_String_strip) {
+    const char *str = jsrGetString(vm, 0);
+    size_t start = 0, end = jsrGetStringSz(vm, 0);
+
+    while(isspace(str[start]) && start < end) {
+        start++;
+    }
+    while(isspace(str[end - 1]) && start < end) {
+        end--;
+    }
+
+    if(start == end)
+        jsrPushString(vm, "");
+    else if(start != 0 || end != jsrGetStringSz(vm, 0))
+        jsrPushStringSz(vm, &str[start], (size_t)(end - start));
+    else
+        jsrPushValue(vm, 0);
+    return true;
+}
+
+JSR_NATIVE(jsr_String_chomp) {
+    const char *str = jsrGetString(vm, 0);
+    size_t end = jsrGetStringSz(vm, 0);
+
+    char c = str[end - 1];
+    while((c == '\n' || c == '\r') && end > 0) {
+        end--;
+        c = str[end - 1];
+    }
+
+    if(end != jsrGetStringSz(vm, 0))
+        jsrPushStringSz(vm, str, end);
+    else
+        jsrPushValue(vm, 0);
+    return true;
+}
+
 JSR_NATIVE(jsr_String_join) {
     JStarBuffer joined;
     jsrBufferInit(vm, &joined);
 
     JSR_FOREACH(1, {
-            if(!jsrIsString(vm, -1)) {
-                if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
-                    jsrBufferFree(&joined);
-                    return false;
-                }
+        if(!jsrIsString(vm, -1)) {
+            if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
+                jsrBufferFree(&joined);
+                return false;
             }
-            jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-            jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
-            jsrPop(vm);
+        }
+        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+        jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+        jsrPop(vm);
     }, jsrBufferFree(&joined))
 
     if(joined.len > 0) {

@@ -19,16 +19,6 @@
     #define PLATFORM "unknown"
 #endif
 
-JSR_NATIVE(jsr_exec) {
-    const char *cmd = NULL;
-    if(!jsrIsNull(vm, 1)) {
-        if(!jsrCheckStr(vm, 1, "cmd")) return false;
-        cmd = jsrGetString(vm, 1);
-    }
-    jsrPushNumber(vm, system(cmd));
-    return true;
-}
-
 JSR_NATIVE(jsr_exit) {
     if(!jsrCheckInt(vm, 1, "n")) return false;
     exit(jsrGetNumber(vm, 1));

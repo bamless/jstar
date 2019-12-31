@@ -6,14 +6,13 @@
 // J* core libray bootstrap
 void initCoreLibrary(JStarVM *vm);
 
-JSR_NATIVE(jsr_int);
-
-JSR_NATIVE(jsr_char);
 JSR_NATIVE(jsr_ascii);
-
-JSR_NATIVE(jsr_print);
+JSR_NATIVE(jsr_char);
 JSR_NATIVE(jsr_eval);
-
+JSR_NATIVE(jsr_exec);
+JSR_NATIVE(jsr_int);
+JSR_NATIVE(jsr_print);
+JSR_NATIVE(jsr_system);
 JSR_NATIVE(jsr_type);
 
 // class Number
@@ -65,6 +64,8 @@ JSR_NATIVE(jsr_type);
     JSR_NATIVE(jsr_String_substr);
     JSR_NATIVE(jsr_String_startsWith);
     JSR_NATIVE(jsr_String_endsWith);
+    JSR_NATIVE(jsr_String_strip);
+    JSR_NATIVE(jsr_String_chomp);
     JSR_NATIVE(jsr_String_join);
     JSR_NATIVE(jsr_String_len);
     JSR_NATIVE(jsr_String_string);
