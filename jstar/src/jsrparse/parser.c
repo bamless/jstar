@@ -706,6 +706,11 @@ static Expr *literal(Parser *p) {
         advance(p);
         return e;
     }
+    case TOK_COMMAND: {
+        Expr *e = newCmdLiteral(line, p->peek.lexeme + 1, p->peek.length - 2);
+        advance(p);
+        return e;
+    }
     case TOK_NULL: {
         advance(p);
         return newNullLiteral(line);

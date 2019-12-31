@@ -68,6 +68,13 @@ Expr *newStrLiteral(int line, const char *str, size_t len) {
     return e;
 }
 
+Expr *newCmdLiteral(int line, const char *cmd, size_t len) {
+    Expr *e = newExpr(line, CMD_LIT);
+    e->str.str = cmd;
+    e->str.length = len;
+    return e;
+}
+
 Expr *newVarLiteral(int line, const char *var, size_t len) {
     Expr *e = newExpr(line, VAR_LIT);
     e->var.id.name = var;

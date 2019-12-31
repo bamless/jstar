@@ -48,6 +48,7 @@ const char *tokNames[] = {
 
     "IDENTIFIER",
     "STRING",
+    "COMMAND",
     "NUMBER",
 
     "and",

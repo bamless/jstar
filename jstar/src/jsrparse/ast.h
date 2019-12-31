@@ -34,6 +34,7 @@ typedef enum ExprType {
     NUM_LIT,
     BOOL_LIT,
     STR_LIT,
+    CMD_LIT,
     VAR_LIT,
     NULL_LIT,
     EXPR_LST,
@@ -135,6 +136,7 @@ JSTAR_API Expr *newNumLiteral(int line, double num);
 JSTAR_API Expr *newBoolLiteral(int line, bool boolean);
 JSTAR_API Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
 JSTAR_API Expr *newStrLiteral(int line, const char *str, size_t len);
+JSTAR_API Expr *newCmdLiteral(int line, const char *cmd, size_t len);
 JSTAR_API Expr *newVarLiteral(int line, const char *str, size_t len);
 JSTAR_API Expr *newArrLiteral(int line, Expr *exprs);
 JSTAR_API Expr *newTupleLiteral(int line, Expr *exprs);

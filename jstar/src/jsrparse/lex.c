@@ -189,7 +189,7 @@ static void hexNumber(Lexer *lex, Token *tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static void string(Lexer *lex, char end, Token *tok) {
+static bool stringBody(Lexer *lex, char end) {
     while(peekChar(lex) != end && !isAtEnd(lex)) {
         if(peekChar(lex) == '\n') lex->curr_line++;
         if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
@@ -198,13 +198,27 @@ static void string(Lexer *lex, char end, Token *tok) {
 
     // unterminated string
     if(isAtEnd(lex)) {
-        makeToken(lex, tok, TOK_UNTERMINATED_STR);
-        return;
+        return false;
     }
 
     advance(lex);
+    return true;
+}
 
+static void string(Lexer *lex, char end, Token *tok) {
+    if(!stringBody(lex, end)) {
+        makeToken(lex, tok, TOK_UNTERMINATED_STR);
+        return;
+    }
     makeToken(lex, tok, TOK_STRING);
+}
+
+static void command(Lexer *lex, Token *tok) {
+    if(!stringBody(lex, '`')) {
+        makeToken(lex, tok, TOK_UNTERMINATED_STR);
+        return;
+    }
+    makeToken(lex, tok, TOK_COMMAND);
 }
 
 static void identifier(Lexer *lex, Token *tok) {
@@ -284,6 +298,9 @@ void nextToken(Lexer *lex, Token *tok) {
     case '\'':
     case '"':
         string(lex, c, tok);
+        break;
+    case '`':
+        command(lex, tok);
         break;
     case '.':
         if(peekChar(lex) == '.' && peekChar2(lex) == '.') {
