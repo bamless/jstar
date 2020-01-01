@@ -929,7 +929,6 @@ static void compileForEach(Compiler *c, Stmt *s) {
     Identifier expr = syntheticIdentifier(".expr");
     declareVar(c, &expr, s->forEach.iterable->line);
     defineVar(c, &expr, s->forEach.iterable->line);
-    int exprID = c->localsCount - 1;
 
     compileExpr(c, s->forEach.iterable);
 
@@ -939,29 +938,22 @@ static void compileForEach(Compiler *c, Stmt *s) {
     declareVar(c, &iterator, s->line);
     defineVar(c, &iterator, s->line);
 
-    int iterID = c->localsCount - 1;
-
     emitBytecode(c, OP_NULL, 0);
 
     Loop l;
     startLoop(c, &l);
 
-    emitBytecode(c, OP_GET_LOCAL, 0);
-    emitBytecode(c, exprID, 0);
-    emitBytecode(c, OP_GET_LOCAL, 0);
-    emitBytecode(c, iterID, 0);
+    compileVariable(c, &expr, false, s->line);
+    compileVariable(c, &iterator, false, s->line);
     callMethod(c, "__iter__", 1);
 
-    emitBytecode(c, OP_SET_LOCAL, 0);
-    emitBytecode(c, iterID, 0);
+    compileVariable(c, &iterator, true, s->line);
 
     size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
-    emitBytecode(c, OP_GET_LOCAL, 0);
-    emitBytecode(c, exprID, 0);
-    emitBytecode(c, OP_GET_LOCAL, 0);
-    emitBytecode(c, iterID, 0);
+    compileVariable(c, &expr, false, s->line);
+    compileVariable(c, &iterator, false, s->line);
     callMethod(c, "__next__", 1);
 
     Stmt *varDecl = s->forEach.var;
@@ -1172,11 +1164,9 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
 static void compileExcepts(Compiler *c, LinkedList *excs) {
     Stmt *exc = (Stmt *)excs->elem;
 
-    Identifier excId = syntheticIdentifier(".exception");
-    uint8_t exception = resolveVariable(c, &excId, true, exc->line);
+    Identifier exception = syntheticIdentifier(".exception");
 
-    emitBytecode(c, OP_GET_LOCAL, exc->line);
-    emitBytecode(c, exception, exc->line);
+    compileVariable(c, &exception, false, exc->line);
     compileExpr(c, exc->excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
@@ -1185,17 +1175,14 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
 
     enterScope(c);
 
-    emitBytecode(c, OP_GET_LOCAL, exc->line);
-    emitBytecode(c, exception, exc->line);
+    compileVariable(c, &exception, false, exc->line);
     declareVar(c, &exc->excStmt.var, exc->line);
     defineVar(c, &exc->excStmt.var, exc->line);
 
     compileStatements(c, exc->excStmt.block->blockStmt.stmts);
 
     emitBytecode(c, OP_NULL, exc->line);
-    emitBytecode(c, OP_SET_LOCAL, exc->line);
-
-    emitBytecode(c, exception, exc->line);
+    compileVariable(c, &exception, true, exc->line);
     emitBytecode(c, OP_POP, exc->line);
 
     exitScope(c);
@@ -1379,16 +1366,11 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
     setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
 
     // if x then x.close() end
-    int closableID = resolveVariable(c, &s->withStmt.var, true, s->line);
-    assert(closableID >= 0, "Cannot resolve with closable");
-
-    emitBytecode(c, OP_GET_LOCAL, s->line);
-    emitBytecode(c, closableID, s->line);
+    compileVariable(c, &s->withStmt.var, false, s->line);
     size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
     emitShort(c, 0, 0);
 
-    emitBytecode(c, OP_GET_LOCAL, s->line);
-    emitBytecode(c, closableID, s->line);
+    compileVariable(c, &s->withStmt.var, false, s->line);
     callMethod(c, "close", 0);
     emitBytecode(c, OP_POP, s->line);
 
