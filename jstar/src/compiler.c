@@ -533,9 +533,8 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         compileLval(c, e->assign.lval);
         break;
     }
-
-    // Unpack assignement of the form: a, b, ..., c = ...
     case TUPLE_LIT: {
+        // Unpack assignement of the form: a, b, ..., c = ...
         int assignments = 0;
         Expr *lvals[UINT8_MAX];
 
@@ -548,7 +547,6 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         }
 
         Expr *rval = e->assign.rval;
-
         if(IS_CONST_UNPACK(rval->type)) {
             Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
             compileConstUnpackLst(c, NULL, lst, assignments);
@@ -558,8 +556,8 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
             emitBytecode(c, (uint8_t)assignments, e->line);
         }
 
-        // compile lvals in reverse order in order to assign correct values to variables in case
-        // of a const unpack
+        // compile lvals in reverse order in order to assign 
+        // correct values to variables in case of a const unpack
         for(int n = assignments - 1; n >= 0; n--) {
             compileLval(c, lvals[n]);
             if(n != 0) emitBytecode(c, OP_POP, e->line);
@@ -686,9 +684,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST: {
-        foreach(n, e->exprList.lst) { 
-            compileExpr(c, (Expr *)n->elem); 
-        }
+        foreach(n, e->exprList.lst) compileExpr(c, (Expr *)n->elem); 
         break;
     }
     case NUM_LIT:
@@ -732,17 +728,13 @@ static void compileExpr(Compiler *c, Expr *e) {
         break;
     }
     case TUPLE_LIT: {
-        LinkedList *exprs = e->tuple.exprs->exprList.lst;
-
         int i = 0;
-        foreach(n, exprs) {
+        foreach(n, e->tuple.exprs->exprList.lst) {
             compileExpr(c, (Expr *)n->elem);
             i++;
         }
-        if(i > UINT8_MAX) {
-            error(c, e->line, "Too many elements in tuple literal.");
-            break;
-        }
+
+        if(i >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
         emitBytecode(c, OP_NEW_TUPLE, e->line);
         emitBytecode(c, i, e->line);
         break;
@@ -804,8 +796,8 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
         }
     }
 
-    // define in reverse order in order to assign correct values to variables in case of a
-    // const unpack
+    // define in reverse order in order to assign correct 
+    // values to variables in case of a const unpack
     for(int i = numDecls - 1; i >= 0; i--) {
         if(c->depth == 0)
             defineVar(c, decls[i], s->line);
