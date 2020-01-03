@@ -331,14 +331,14 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     appendNativeFrame(vm, native);
 
     ObjModule *oldModule = vm->module;
-    Value *oldApiStack = vm->apiStack;
+    size_t apiStackOff = vm->apiStack - vm->stack;
 
     vm->module = native->c.module;
     vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
     if(!native->fn(vm)) {
         vm->module = oldModule;
-        vm->apiStack = oldApiStack;
+        vm->apiStack = vm->stack + apiStackOff;
         return false;
     }
 
@@ -348,7 +348,7 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     vm->sp = vm->apiStack;
     
     vm->module = oldModule;
-    vm->apiStack = oldApiStack;
+    vm->apiStack = vm->stack + apiStackOff;;
 
     push(vm, ret);
     return true;
@@ -1485,7 +1485,7 @@ EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module,
     return res;
 }
 
-static EvalResult finishCall(JStarVM *vm, int depth, int offSp) {
+static EvalResult finishCall(JStarVM *vm, int depth, size_t offSp) {
     // Evaluate frame if present
     if(vm->frameCount > depth && !runEval(vm, depth)) {
         // Exception was thrown, push it as result
@@ -1499,7 +1499,7 @@ static EvalResult finishCall(JStarVM *vm, int depth, int offSp) {
     return VM_EVAL_SUCCESS;
 }
 
-static void callError(JStarVM *vm, int depth, int offsp) {
+static void callError(JStarVM *vm, int depth, size_t offsp) {
     // Finish to unwind the stack
     if(vm->frameCount > depth) {
         unwindStack(vm, depth);
@@ -1510,7 +1510,7 @@ static void callError(JStarVM *vm, int depth, int offsp) {
 }
 
 EvalResult jsrCall(JStarVM *vm, uint8_t argc) {
-    int offsp = vm->sp - vm->stack - argc - 1;
+    size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
