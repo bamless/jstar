@@ -331,12 +331,14 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     appendNativeFrame(vm, native);
 
     ObjModule *oldModule = vm->module;
+    Value *oldApiStack = vm->apiStack;
 
     vm->module = native->c.module;
     vm->apiStack = vm->frames[vm->frameCount - 1].stack;
 
     if(!native->fn(vm)) {
         vm->module = oldModule;
+        vm->apiStack = oldApiStack;
         return false;
     }
 
@@ -344,7 +346,9 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
 
     vm->frameCount--;
     vm->sp = vm->apiStack;
+    
     vm->module = oldModule;
+    vm->apiStack = oldApiStack;
 
     push(vm, ret);
     return true;
@@ -1494,12 +1498,6 @@ static EvalResult finishCall(JStarVM *vm, int depth, int offSp) {
     }
 
     // reset API stack
-    if(vm->frameCount != 0 && vm->frames[vm->frameCount - 1].fn.type == OBJ_NATIVE) {
-        vm->apiStack = vm->frames[vm->frameCount - 1].stack;
-    } else {
-        vm->apiStack = vm->stack;
-    }
-
     return res;
 }
 
