@@ -1492,7 +1492,7 @@ static EvalResult finishCall(JStarVM *vm, int depth, int offSp) {
         Value exc = pop(vm);
         vm->sp = vm->stack + offSp;
         push(vm, exc);
-        return VM_RUNTIME_ERR
+        return VM_RUNTIME_ERR;
     }
 
     // reset API stack
