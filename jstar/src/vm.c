@@ -1486,19 +1486,17 @@ EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module,
 }
 
 static EvalResult finishCall(JStarVM *vm, int depth, int offSp) {
-    EvalResult res = VM_EVAL_SUCCESS;
-
     // Evaluate frame if present
     if(vm->frameCount > depth && !runEval(vm, depth)) {
         // Exception was thrown, push it as result
-        res = VM_RUNTIME_ERR;
         Value exc = pop(vm);
         vm->sp = vm->stack + offSp;
         push(vm, exc);
+        return VM_RUNTIME_ERR
     }
 
     // reset API stack
-    return res;
+    return VM_EVAL_SUCCESS;
 }
 
 static void callError(JStarVM *vm, int depth, int offsp) {
