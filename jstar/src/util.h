@@ -14,7 +14,9 @@
     const char *__CONCAT(ENUM_NAME, Name)[] = {ENUMX(__STRINGIFY)}
 
 #define __STRINGIFY(X) #X,
-#define __CONCAT(X, Y) X##Y
+#ifndef __CONCAT
+    #define __CONCAT(X, Y) X##Y
+#endif
 
 // Returns the aproximated base 10 length of an integer.
 // This macro returns a constant upper bound of the length,
@@ -65,12 +67,10 @@ static inline int powerOf2Ceil(int n) {
 // Hash a string
 static inline uint32_t hashString(const char *str, size_t length) {
     uint32_t hash = 2166136261u;
-
     for(size_t i = 0; i < length; i++) {
         hash ^= str[i];
         hash *= 16777619;
     }
-
     return hash;
 }
 

@@ -9,7 +9,6 @@
 #include "jsrparse/parser.h"
 
 #include "builtin/modules.h"
-#include "builtin/sys.h"
 
 #include <float.h>
 #include <limits.h>
@@ -807,8 +806,10 @@ static bool runEval(JStarVM *vm, int depth) {
 #endif
 
 #if defined(USE_COMPUTED_GOTOS) && !defined(_MSC_VER)
-    // import jumptable
-    #include "opcode_jmp_table.h"
+    // create jumptable
+    #define DEFINE_JMP_TABLE() static void *opJmpTable[] = {OPCODE(JMPTARGET)}
+    #define JMPTARGET(X) &&TARGET_##X,
+    DEFINE_JMP_TABLE();
 
     #define TARGET(op) TARGET_##op
     #define DISPATCH()                            \
@@ -1495,7 +1496,6 @@ static EvalResult finishCall(JStarVM *vm, int depth, size_t offSp) {
         return VM_RUNTIME_ERR;
     }
 
-    // reset API stack
     return VM_EVAL_SUCCESS;
 }
 
