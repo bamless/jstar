@@ -1522,7 +1522,7 @@ EvalResult jsrCall(JStarVM *vm, uint8_t argc) {
 }
 
 EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
-    int offsp = vm->sp - vm->stack - argc - 1;
+    size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
     ObjString *meth = copyString(vm, name, strlen(name), true);
