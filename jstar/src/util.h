@@ -14,6 +14,7 @@
     const char *__CONCAT(ENUM_NAME, Name)[] = {ENUMX(__STRINGIFY)}
 
 #define __STRINGIFY(X) #X,
+#define __CONCAT(X, Y) X##Y
 
 // Returns the aproximated base 10 length of an integer.
 // This macro returns a constant upper bound of the length,
