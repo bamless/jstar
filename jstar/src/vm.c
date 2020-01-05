@@ -1416,12 +1416,13 @@ sup_invoke:;
 }
 
 static bool unwindStack(JStarVM *vm, int depth) {
-    assert(IS_INSTANCE(peek(vm)), "Top of stack is not an exception");
+    assert(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
     ObjInstance *exception = AS_INSTANCE(peek(vm));
 
     Value stVal = NULL_VAL;
     hashTableGet(&exception->fields, vm->stField, &stVal);
-    assert(IS_STACK_TRACE(stVal), "Top of stack is not a raised exception");
+    assert(IS_STACK_TRACE(stVal), "Exception doesn't have a stacktrace object");
+
     ObjStackTrace *st = AS_STACK_TRACE(stVal);
 
     for(; vm->frameCount > depth; vm->frameCount--) {
@@ -1458,7 +1459,7 @@ static bool unwindStack(JStarVM *vm, int depth) {
  */
 
 EvalResult jsrEvaluate(JStarVM *vm, const char *fpath, const char *src) {
-    return jsrEvaluateModule(vm, fpath, "__main__", src);
+    return jsrEvaluateModule(vm, fpath, JSR_MAIN_MODULE, src);
 }
 
 EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module, const char *src) {
