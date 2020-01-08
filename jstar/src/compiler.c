@@ -459,15 +459,15 @@ static void compileFunction(Compiler *c, Stmt *s);
 static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
     Stmt *f = e->as.anonFunc.func;
     if(name != NULL) {
-        f->funcDecl.id.length = name->length;
-        f->funcDecl.id.name = name->name;
+        f->as.funcDecl.id.length = name->length;
+        f->as.funcDecl.id.name = name->name;
         compileFunction(c, f);
     } else {
         char funcName[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
         sprintf(funcName, "anon:%d", f->line);
 
-        f->funcDecl.id.length = strlen(funcName);
-        f->funcDecl.id.name = funcName;
+        f->as.funcDecl.id.length = strlen(funcName);
+        f->as.funcDecl.id.name = funcName;
 
         compileFunction(c, f);
     }
@@ -771,23 +771,23 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     int numDecls = 0;
     Identifier *decls[MAX_LOCALS];
 
-    foreach(n, s->varDecl.ids) {
+    foreach(n, s->as.varDecl.ids) {
         if(numDecls == MAX_LOCALS) break;
         Identifier *name = (Identifier *)n->elem;
         declareVar(c, name, s->line);
         decls[numDecls++] = name;
     }
 
-    if(s->varDecl.init != NULL) {
-        Expr *init = s->varDecl.init;
-        ExprType initType = s->varDecl.init->type;
+    if(s->as.varDecl.init != NULL) {
+        Expr *init = s->as.varDecl.init;
+        ExprType initType = s->as.varDecl.init->type;
 
-        if(s->varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
+        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
             Expr *e = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
             compileConstUnpackLst(c, decls, e, numDecls);
         } else {
             compileRval(c, decls[0], init);
-            if(s->varDecl.isUnpack) {
+            if(s->as.varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)numDecls, s->line);
             }
@@ -819,8 +819,8 @@ static void compileReturn(Compiler *c, Stmt *s) {
         error(c, s->line, "Cannot use return in constructor.");
     }
 
-    if(s->returnStmt.e != NULL) {
-        compileExpr(c, s->returnStmt.e);
+    if(s->as.returnStmt.e != NULL) {
+        compileExpr(c, s->as.returnStmt.e);
     } else {
         emitBytecode(c, OP_NULL, s->line);
     }
@@ -830,18 +830,18 @@ static void compileReturn(Compiler *c, Stmt *s) {
 
 static void compileIfStatement(Compiler *c, Stmt *s) {
     // compile the condition
-    compileExpr(c, s->ifStmt.cond);
+    compileExpr(c, s->as.ifStmt.cond);
 
     // emit the jump istr for false condtion with dummy address
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
     // compile 'then' branch
-    compileStatement(c, s->ifStmt.thenStmt);
+    compileStatement(c, s->as.ifStmt.thenStmt);
 
     // if the 'if' has an 'else' emit istruction to jump over the 'else' branch
     size_t exitJmp = 0;
-    if(s->ifStmt.elseStmt != NULL) {
+    if(s->as.ifStmt.elseStmt != NULL) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
@@ -850,8 +850,8 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
     setJumpTo(c, falseJmp, c->func->chunk.count, s->line);
 
     // If present compile 'else' branch and set the exit jump to 'else' end
-    if(s->ifStmt.elseStmt != NULL) {
-        compileStatement(c, s->ifStmt.elseStmt);
+    if(s->as.ifStmt.elseStmt != NULL) {
+        compileStatement(c, s->as.ifStmt.elseStmt);
         setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
     }
 }
@@ -860,12 +860,12 @@ static void compileForStatement(Compiler *c, Stmt *s) {
     enterScope(c);
 
     // init
-    if(s->forStmt.init != NULL) {
-        compileStatement(c, s->forStmt.init);
+    if(s->as.forStmt.init != NULL) {
+        compileStatement(c, s->as.forStmt.init);
     }
 
     size_t firstJmp = 0;
-    if(s->forStmt.act != NULL) {
+    if(s->as.forStmt.act != NULL) {
         firstJmp = emitBytecode(c, OP_JUMP, s->line);
         emitShort(c, 0, 0);
     }
@@ -874,28 +874,28 @@ static void compileForStatement(Compiler *c, Stmt *s) {
     startLoop(c, &l);
 
     // act
-    if(s->forStmt.act != NULL) {
-        compileExpr(c, s->forStmt.act);
+    if(s->as.forStmt.act != NULL) {
+        compileExpr(c, s->as.forStmt.act);
         emitBytecode(c, OP_POP, 0);
         setJumpTo(c, firstJmp, c->func->chunk.count, s->line);
     }
 
     // condition
     size_t exitJmp = 0;
-    if(s->forStmt.cond != NULL) {
-        compileExpr(c, s->forStmt.cond);
+    if(s->as.forStmt.cond != NULL) {
+        compileExpr(c, s->as.forStmt.cond);
         exitJmp = emitBytecode(c, OP_JUMPF, 0);
         emitShort(c, 0, 0);
     }
 
     // body
-    compileStatement(c, s->forStmt.body);
+    compileStatement(c, s->as.forStmt.body);
 
     // jump back to for start
     emitJumpTo(c, OP_JUMP, l.start, 0);
 
     // set the exit jump
-    if(s->forStmt.cond != NULL) {
+    if(s->as.forStmt.cond != NULL) {
         setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
     }
 
@@ -921,10 +921,10 @@ static void compileForEach(Compiler *c, Stmt *s) {
     enterScope(c);
 
     Identifier expr = syntheticIdentifier(".expr");
-    declareVar(c, &expr, s->forEach.iterable->line);
-    defineVar(c, &expr, s->forEach.iterable->line);
+    declareVar(c, &expr, s->as.forEach.iterable->line);
+    defineVar(c, &expr, s->as.forEach.iterable->line);
 
-    compileExpr(c, s->forEach.iterable);
+    compileExpr(c, s->as.forEach.iterable);
 
     // set the iterator variable with a name that it's not an identifier.
     // this will avoid the user shadowing the iterator with a declared variable.
@@ -950,25 +950,25 @@ static void compileForEach(Compiler *c, Stmt *s) {
     compileVariable(c, &iterator, false, s->line);
     callMethod(c, "__next__", 1);
 
-    Stmt *varDecl = s->forEach.var;
+    Stmt *varDecl = s->as.forEach.var;
 
     enterScope(c);
 
     // declare the variables used for iteration
     int num = 0;
 
-    foreach(n, varDecl->varDecl.ids) {
+    foreach(n, varDecl->as.varDecl.ids) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);
         num++;
     }
 
-    if(varDecl->varDecl.isUnpack) {
+    if(varDecl->as.varDecl.isUnpack) {
         emitBytecode(c, OP_UNPACK, s->line);
         emitBytecode(c, (uint8_t)num, s->line);
     }
 
-    compileStatements(c, s->forEach.body->blockStmt.stmts);
+    compileStatements(c, s->as.forEach.body->as.blockStmt.stmts);
 
     exitScope(c);
 
@@ -983,11 +983,11 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
     Loop l;
     startLoop(c, &l);
 
-    compileExpr(c, s->whileStmt.cond);
+    compileExpr(c, s->as.whileStmt.cond);
     size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
-    compileStatement(c, s->whileStmt.body);
+    compileStatement(c, s->as.whileStmt.body);
 
     emitJumpTo(c, OP_JUMP, l.start, 0);
     setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
@@ -1013,18 +1013,18 @@ static void compileFunction(Compiler *c, Stmt *s) {
 }
 
 static void compileNative(Compiler *c, Stmt *s) {
-    size_t defaults = listLength(s->nativeDecl.defArgs);
-    size_t arity = listLength(s->nativeDecl.formalArgs);
+    size_t defaults = listLength(s->as.nativeDecl.defArgs);
+    size_t arity = listLength(s->as.nativeDecl.formalArgs);
 
     ObjNative *native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
-    native->c.vararg = s->nativeDecl.isVararg;
+    native->c.vararg = s->as.nativeDecl.isVararg;
 
     push(c->vm, OBJ_VAL(native));
-    addDefaultConsts(c, native->c.defaults, s->nativeDecl.defArgs);
+    addDefaultConsts(c, native->c.defaults, s->as.nativeDecl.defArgs);
     pop(c->vm);
 
     uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
-    uint16_t nameConst = identifierConst(c, &s->nativeDecl.id, s->line);
+    uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
     native->c.name = AS_STRING(c->func->chunk.consts.arr[nameConst]);
 
     emitBytecode(c, OP_GET_CONST, s->line);
@@ -1035,7 +1035,7 @@ static void compileNative(Compiler *c, Stmt *s) {
 }
 
 static void compileMethods(Compiler *c, Stmt *cls) {
-    LinkedList *methods = cls->classDecl.methods;
+    LinkedList *methods = cls->as.classDecl.methods;
 
     Compiler methCompiler;
     foreach(n, methods) {
@@ -1044,7 +1044,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
         case FUNCDECL: {
             initCompiler(&methCompiler, c, TYPE_METHOD, c->depth + 1, c->vm);
 
-            ObjFunction *meth = method(&methCompiler, c->func->c.module, &cls->classDecl.id, m);
+            ObjFunction *meth = method(&methCompiler, c->func->c.module, &cls->as.classDecl.id, m);
 
             emitBytecode(c, OP_CLOSURE, m->line);
             emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
@@ -1055,32 +1055,32 @@ static void compileMethods(Compiler *c, Stmt *cls) {
             }
 
             emitBytecode(c, OP_DEF_METHOD, cls->line);
-            emitShort(c, identifierConst(c, &m->funcDecl.id, m->line), cls->line);
+            emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
 
             endCompiler(&methCompiler);
             break;
         }
         case NATIVEDECL: {
-            size_t defaults = listLength(m->nativeDecl.defArgs);
-            size_t arity = listLength(m->nativeDecl.formalArgs);
+            size_t defaults = listLength(m->as.nativeDecl.defArgs);
+            size_t arity = listLength(m->as.nativeDecl.formalArgs);
 
             ObjNative *n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
-            n->c.vararg = m->nativeDecl.isVararg;
+            n->c.vararg = m->as.nativeDecl.isVararg;
 
             push(c->vm, OBJ_VAL(n));
-            addDefaultConsts(c, n->c.defaults, m->nativeDecl.defArgs);
+            addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
             pop(c->vm);
 
             uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
-            uint16_t id = identifierConst(c, &m->nativeDecl.id, m->line);
+            uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
 
-            Identifier *classId = &cls->classDecl.id;
-            size_t len = classId->length + m->nativeDecl.id.length + 1;
+            Identifier *classId = &cls->as.classDecl.id;
+            size_t len = classId->length + m->as.nativeDecl.id.length + 1;
             ObjString *name = allocateString(c->vm, len);
 
             memcpy(name->data, classId->name, classId->length);
             name->data[classId->length] = '.';
-            memcpy(name->data + classId->length + 1, m->nativeDecl.id.name, m->nativeDecl.id.length);
+            memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name, m->as.nativeDecl.id.length);
 
             n->c.name = name;
 
@@ -1096,37 +1096,38 @@ static void compileMethods(Compiler *c, Stmt *cls) {
 }
 
 static void compileClass(Compiler *c, Stmt *s) {
-    declareVar(c, &s->classDecl.id, s->line);
+    declareVar(c, &s->as.classDecl.id, s->line);
 
-    bool isSubClass = s->classDecl.sup != NULL;
+    bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
-        compileExpr(c, s->classDecl.sup);
+        compileExpr(c, s->as.classDecl.sup);
         emitBytecode(c, OP_NEW_SUBCLASS, s->line);
     } else {
         emitBytecode(c, OP_NEW_CLASS, s->line);
     }
 
-    emitShort(c, identifierConst(c, &s->classDecl.id, s->line), s->line);
+    emitShort(c, identifierConst(c, &s->as.classDecl.id, s->line), s->line);
     compileMethods(c, s);
 
-    defineVar(c, &s->classDecl.id, s->line);
+    defineVar(c, &s->as.classDecl.id, s->line);
 }
 
 static void compileImportStatement(Compiler *c, Stmt *s) {
-    const char *base = ((Identifier *)s->importStmt.modules->elem)->name;
+    const char *base = ((Identifier *)s->as.importStmt.modules->elem)->name;
 
     // import module (if nested module, import all from outer to inner)
     uint16_t nameConst;
     int length = -1;
-    foreach(n, s->importStmt.modules) {
+    foreach(n, s->as.importStmt.modules) {
         Identifier *name = (Identifier *)n->elem;
 
         // create fully qualified name of module
         length += name->length + 1;         // length of current submodule plus a dot
         Identifier module = {length, base}; // name of current submodule
 
-        if(n == s->importStmt.modules && s->importStmt.impNames == NULL &&
-           s->importStmt.as.name == NULL) {
+        if(n == s->as.importStmt.modules && s->as.importStmt.impNames == NULL &&
+           s->as.importStmt.as.name == NULL)
+        {
             emitBytecode(c, OP_IMPORT, s->line);
         } else {
             emitBytecode(c, OP_IMPORT_FROM, s->line);
@@ -1139,17 +1140,17 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
         }
     }
 
-    if(s->importStmt.impNames != NULL) {
-        foreach(n, s->importStmt.impNames) {
+    if(s->as.importStmt.impNames != NULL) {
+        foreach(n, s->as.importStmt.impNames) {
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, nameConst, s->line);
             emitShort(c, identifierConst(c, (Identifier *)n->elem, s->line), s->line);
         }
-    } else if(s->importStmt.as.name != NULL) {
+    } else if(s->as.importStmt.as.name != NULL) {
         // set last import as an import as
         c->func->chunk.code[c->func->chunk.count - 3] = OP_IMPORT_AS;
         // emit the as name
-        emitShort(c, identifierConst(c, &s->importStmt.as, s->line), s->line);
+        emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
     }
 
     emitBytecode(c, OP_POP, s->line);
@@ -1161,7 +1162,7 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     Identifier exception = syntheticIdentifier(".exception");
 
     compileVariable(c, &exception, false, exc->line);
-    compileExpr(c, exc->excStmt.cls);
+    compileExpr(c, exc->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
@@ -1170,10 +1171,10 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     enterScope(c);
 
     compileVariable(c, &exception, false, exc->line);
-    declareVar(c, &exc->excStmt.var, exc->line);
-    defineVar(c, &exc->excStmt.var, exc->line);
+    declareVar(c, &exc->as.excStmt.var, exc->line);
+    defineVar(c, &exc->as.excStmt.var, exc->line);
 
-    compileStatements(c, exc->excStmt.block->blockStmt.stmts);
+    compileStatements(c, exc->as.excStmt.block->as.blockStmt.stmts);
 
     emitBytecode(c, OP_NULL, exc->line);
     compileVariable(c, &exception, true, exc->line);
@@ -1199,14 +1200,14 @@ static void enterTryBlock(Compiler *c, TryExcept *tryExc, Stmt *try) {
     tryExc->depth = c->depth;
     tryExc->next = c->tryBlocks;
     c->tryBlocks = tryExc;
-    if(try->tryStmt.ensure != NULL) c->tryDepth++;
-    if(try->tryStmt.excs != NULL) c->tryDepth++;
+    if(try->as.tryStmt.ensure != NULL) c->tryDepth++;
+    if(try->as.tryStmt.excs != NULL) c->tryDepth++;
 }
 
 static void exitTryBlock(Compiler *c, Stmt *try) {
     c->tryBlocks = c->tryBlocks->next;
-    if(try->tryStmt.ensure != NULL) c->tryDepth--;
-    if(try->tryStmt.excs != NULL) c->tryDepth--;
+    if(try->as.tryStmt.ensure != NULL) c->tryDepth--;
+    if(try->as.tryStmt.excs != NULL) c->tryDepth--;
 }
 
 static void compileTryExcept(Compiler *c, Stmt *s) {
@@ -1217,8 +1218,8 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
         error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
     }
 
-    bool hasExcept = s->tryStmt.excs != NULL;
-    bool hasEnsure = s->tryStmt.ensure != NULL;
+    bool hasExcept = s->as.tryStmt.excs != NULL;
+    bool hasEnsure = s->as.tryStmt.ensure != NULL;
 
     size_t excSetup = 0;
     size_t ensSetup = 0;
@@ -1232,7 +1233,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
         emitShort(c, 0, 0);
     }
 
-    compileStatement(c, s->tryStmt.block);
+    compileStatement(c, s->as.tryStmt.block);
 
     if(hasExcept) emitBytecode(c, OP_POP_HANDLER, s->line);
 
@@ -1261,7 +1262,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
         setJumpTo(c, excSetup, c->func->chunk.count, s->line);
 
-        compileExcepts(c, s->tryStmt.excs);
+        compileExcepts(c, s->as.tryStmt.excs);
 
         if(hasEnsure) {
             emitBytecode(c, OP_POP_HANDLER, 0);
@@ -1275,7 +1276,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 
     if(hasEnsure) {
         setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
-        compileStatements(c, s->tryStmt.ensure->blockStmt.stmts);
+        compileStatements(c, s->as.tryStmt.ensure->as.blockStmt.stmts);
         emitBytecode(c, OP_ENSURE_END, 0);
         exitScope(c);
     }
@@ -1284,7 +1285,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
 }
 
 static void compileRaiseStmt(Compiler *c, Stmt *s) {
-    compileExpr(c, s->raiseStmt.exc);
+    compileExpr(c, s->as.raiseStmt.exc);
     emitBytecode(c, OP_RAISE, s->line);
 }
 
@@ -1308,8 +1309,8 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
 
     // var x
     emitBytecode(c, OP_NULL, s->line);
-    declareVar(c, &s->withStmt.var, s->line);
-    defineVar(c, &s->withStmt.var, s->line);
+    declareVar(c, &s->as.withStmt.var, s->line);
+    defineVar(c, &s->as.withStmt.var, s->line);
 
     // try
     TryExcept tryBlock;
@@ -1326,21 +1327,21 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
     Expr lval = { 
         .line = s->line, 
         .type = VAR_LIT, 
-        .as = {.var = {s->withStmt.var}}
+        .as = {.var = {s->as.withStmt.var}}
     };
     Expr assign = {
         .line = s->line,
         .type = ASSIGN,
         .as = {.assign = {
             .lval = &lval,
-            .rval = s->withStmt.e
+            .rval = s->as.withStmt.e
         }}
     };
     compileExpr(c, &assign);
     emitBytecode(c, OP_POP, s->line);
 
     // code
-    compileStatement(c, s->withStmt.block);
+    compileStatement(c, s->as.withStmt.block);
 
     emitBytecode(c, OP_POP_HANDLER, s->line);
     emitBytecode(c, OP_NULL, s->line);
@@ -1360,11 +1361,11 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
     setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
 
     // if x then x.close() end
-    compileVariable(c, &s->withStmt.var, false, s->line);
+    compileVariable(c, &s->as.withStmt.var, false, s->line);
     size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
     emitShort(c, 0, 0);
 
-    compileVariable(c, &s->withStmt.var, false, s->line);
+    compileVariable(c, &s->as.withStmt.var, false, s->line);
     callMethod(c, "close", 0);
     emitBytecode(c, OP_POP, s->line);
 
@@ -1409,28 +1410,28 @@ static void compileStatement(Compiler *c, Stmt *s) {
         break;
     case BLOCK:
         enterScope(c);
-        compileStatements(c, s->blockStmt.stmts);
+        compileStatements(c, s->as.blockStmt.stmts);
         exitScope(c);
         break;
     case RETURN_STMT:
         compileReturn(c, s);
         break;
     case EXPR:
-        compileExpr(c, s->exprStmt);
+        compileExpr(c, s->as.exprStmt);
         emitBytecode(c, OP_POP, 0);
         break;
     case VARDECL:
         compileVarDecl(c, s);
         break;
     case FUNCDECL:
-        declareVar(c, &s->funcDecl.id, s->line);
+        declareVar(c, &s->as.funcDecl.id, s->line);
         compileFunction(c, s);
-        defineVar(c, &s->funcDecl.id, s->line);
+        defineVar(c, &s->as.funcDecl.id, s->line);
         break;
     case NATIVEDECL:
-        declareVar(c, &s->funcDecl.id, s->line);
+        declareVar(c, &s->as.funcDecl.id, s->line);
         compileNative(c, s);
-        defineVar(c, &s->funcDecl.id, s->line);
+        defineVar(c, &s->as.funcDecl.id, s->line);
         break;
     case CLASSDECL:
         compileClass(c, s);
@@ -1472,16 +1473,16 @@ static void exitFunctionScope(Compiler *c) {
 }
 
 static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
-    size_t defaults = listLength(s->funcDecl.defArgs);
-    size_t arity = listLength(s->funcDecl.formalArgs);
+    size_t defaults = listLength(s->as.funcDecl.defArgs);
+    size_t arity = listLength(s->as.funcDecl.formalArgs);
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
-    c->func->c.vararg = s->funcDecl.isVararg;
+    c->func->c.vararg = s->as.funcDecl.isVararg;
 
-    addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
+    addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
 
-    if(s->funcDecl.id.length != 0) {
-        c->func->c.name = copyString(c->vm, s->funcDecl.id.name, s->funcDecl.id.length, true);
+    if(s->as.funcDecl.id.length != 0) {
+        c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length, true);
     }
 
     enterFunctionScope(c);
@@ -1491,18 +1492,18 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     Identifier id = syntheticIdentifier("");
     addLocal(c, &id, s->line);
 
-    foreach(n, s->funcDecl.formalArgs) {
+    foreach(n, s->as.funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);
     }
 
-    if(s->funcDecl.isVararg) {
+    if(s->as.funcDecl.isVararg) {
         Identifier args = syntheticIdentifier("args");
         declareVar(c, &args, s->line);
         defineVar(c, &args, s->line);
     }
 
-    compileStatements(c, s->funcDecl.body->blockStmt.stmts);
+    compileStatements(c, s->as.funcDecl.body->as.blockStmt.stmts);
 
     emitBytecode(c, OP_NULL, 0);
     emitBytecode(c, OP_RETURN, 0);
@@ -1513,29 +1514,29 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 }
 
 static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s) {
-    size_t defaults = listLength(s->funcDecl.defArgs);
-    size_t arity = listLength(s->funcDecl.formalArgs);
+    size_t defaults = listLength(s->as.funcDecl.defArgs);
+    size_t arity = listLength(s->as.funcDecl.formalArgs);
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
-    c->func->c.vararg = s->funcDecl.isVararg;
+    c->func->c.vararg = s->as.funcDecl.isVararg;
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->chunk, HANDLE_VAL(NULL));
-    addDefaultConsts(c, c->func->c.defaults, s->funcDecl.defArgs);
+    addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
 
     // create new method name by concatenating the class name to it
-    size_t length = classId->length + s->funcDecl.id.length + 1;
+    size_t length = classId->length + s->as.funcDecl.id.length + 1;
     ObjString *name = allocateString(c->vm, length);
 
     memcpy(name->data, classId->name, classId->length);
     name->data[classId->length] = '.';
-    memcpy(name->data + classId->length + 1, s->funcDecl.id.name, s->funcDecl.id.length);
+    memcpy(name->data + classId->length + 1, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
 
     c->func->c.name = name;
 
     // if in costructor change the type
     Identifier ctor = syntheticIdentifier(CTOR_STR);
-    if(identifierEquals(&s->funcDecl.id, &ctor)) {
+    if(identifierEquals(&s->as.funcDecl.id, &ctor)) {
         c->type = TYPE_CTOR;
     }
 
@@ -1548,18 +1549,18 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
     // define and declare arguments
 
-    foreach(n, s->funcDecl.formalArgs) {
+    foreach(n, s->as.funcDecl.formalArgs) {
         declareVar(c, (Identifier *)n->elem, s->line);
         defineVar(c, (Identifier *)n->elem, s->line);
     }
 
-    if(s->funcDecl.isVararg) {
+    if(s->as.funcDecl.isVararg) {
         Identifier args = syntheticIdentifier("args");
         declareVar(c, &args, s->line);
         defineVar(c, &args, s->line);
     }
 
-    compileStatements(c, s->funcDecl.body->blockStmt.stmts);
+    compileStatements(c, s->as.funcDecl.body->as.blockStmt.stmts);
 
     // if in constructor return the instance
     if(c->type == TYPE_CTOR) {

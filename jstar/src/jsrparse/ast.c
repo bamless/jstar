@@ -244,12 +244,12 @@ Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id,
     LinkedList *args, LinkedList *defArgs, Stmt *body)
 {
     Stmt *f = newStmt(line, FUNCDECL);
-    f->funcDecl.id.name = id;
-    f->funcDecl.id.length = length;
-    f->funcDecl.formalArgs = args;
-    f->funcDecl.defArgs = defArgs;
-    f->funcDecl.isVararg = vararg;
-    f->funcDecl.body = body;
+    f->as.funcDecl.id.name = id;
+    f->as.funcDecl.id.length = length;
+    f->as.funcDecl.formalArgs = args;
+    f->as.funcDecl.defArgs = defArgs;
+    f->as.funcDecl.isVararg = vararg;
+    f->as.funcDecl.body = body;
     return f;
 }
 
@@ -257,82 +257,82 @@ Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id,
     LinkedList *args, LinkedList *defArgs)
 {
     Stmt *n = newStmt(line, NATIVEDECL);
-    n->nativeDecl.id.name = id;
-    n->nativeDecl.id.length = length;
-    n->nativeDecl.formalArgs = args;
-    n->nativeDecl.isVararg = vararg;
-    n->nativeDecl.defArgs = defArgs;
+    n->as.nativeDecl.id.name = id;
+    n->as.nativeDecl.id.length = length;
+    n->as.nativeDecl.formalArgs = args;
+    n->as.nativeDecl.isVararg = vararg;
+    n->as.nativeDecl.defArgs = defArgs;
     return n;
 }
 
 Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods) {
     Stmt *c = newStmt(line, CLASSDECL);
-    c->classDecl.sup = sup;
-    c->classDecl.id.name = cid;
-    c->classDecl.id.length = clength;
-    c->classDecl.methods = methods;
+    c->as.classDecl.sup = sup;
+    c->as.classDecl.id.name = cid;
+    c->as.classDecl.id.length = clength;
+    c->as.classDecl.methods = methods;
     return c;
 }
 
 Stmt *newWithStmt(int line, Expr *e, size_t varLen, const char *varName, Stmt *block) {
     Stmt *w = newStmt(line, WITH_STMT);
-    w->withStmt.e = e;
-    w->withStmt.var.length = varLen;
-    w->withStmt.var.name = varName;
-    w->withStmt.block = block;
+    w->as.withStmt.e = e;
+    w->as.withStmt.var.length = varLen;
+    w->as.withStmt.var.name = varName;
+    w->as.withStmt.block = block;
     return w;
 }
 
 
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
     Stmt *s = newStmt(line, FOR);
-    s->forStmt.init = init;
-    s->forStmt.cond = cond;
-    s->forStmt.act = act;
-    s->forStmt.body = body;
+    s->as.forStmt.init = init;
+    s->as.forStmt.cond = cond;
+    s->as.forStmt.act = act;
+    s->as.forStmt.body = body;
     return s;
 }
 
 Stmt *newForEach(int line, Stmt *var, Expr *iter, Stmt *body) {
     Stmt *s = newStmt(line, FOREACH);
-    s->forEach.var = var;
-    s->forEach.iterable = iter;
-    s->forEach.body = body;
+    s->as.forEach.var = var;
+    s->as.forEach.iterable = iter;
+    s->as.forEach.body = body;
     return s;
 }
 
 Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init) {
     Stmt *s = newStmt(line, VARDECL);
-    s->varDecl.ids = ids;
-    s->varDecl.isUnpack = isUnpack;
-    s->varDecl.init = init;
+    s->as.varDecl.ids = ids;
+    s->as.varDecl.isUnpack = isUnpack;
+    s->as.varDecl.init = init;
     return s;
 }
 
 Stmt *newWhileStmt(int line, Expr *cond, Stmt *body) {
     Stmt *s = newStmt(line, WHILE);
-    s->whileStmt.cond = cond;
-    s->whileStmt.body = body;
+    s->as.whileStmt.cond = cond;
+    s->as.whileStmt.body = body;
     return s;
 }
 
 Stmt *newReturnStmt(int line, Expr *e) {
     Stmt *s = newStmt(line, RETURN_STMT);
-    s->returnStmt.e = e;
+    s->as.returnStmt.e = e;
     return s;
 }
 
 Stmt *newIfStmt(int line, Expr *cond, Stmt *thenStmt, Stmt *elseStmt) {
     Stmt *s = newStmt(line, IF);
-    s->ifStmt.cond = cond;
-    s->ifStmt.thenStmt = thenStmt;
-    s->ifStmt.elseStmt = elseStmt;
+    s->as.ifStmt.cond = cond;
+    s->as.ifStmt.thenStmt = thenStmt;
+    s->as.ifStmt.elseStmt = elseStmt;
     return s;
 }
 
 Stmt *newBlockStmt(int line, LinkedList *list) {
     Stmt *s = newStmt(line, BLOCK);
-    s->blockStmt.stmts = list;
+    s->as.blockStmt.stmts = list;
     return s;
 }
 
@@ -340,51 +340,51 @@ Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames,
     const char *as, size_t asLength) 
 {
     Stmt *s = newStmt(line, IMPORT);
-    s->importStmt.modules = modules;
-    s->importStmt.impNames = impNames;
-    s->importStmt.as.name = as;
-    s->importStmt.as.length = asLength;
+    s->as.importStmt.modules = modules;
+    s->as.importStmt.impNames = impNames;
+    s->as.importStmt.as.name = as;
+    s->as.importStmt.as.length = asLength;
     return s;
 }
 
 Stmt *newExprStmt(int line, Expr *e) {
     Stmt *s = newStmt(line, EXPR);
-    s->exprStmt = e;
+    s->as.exprStmt = e;
     return s;
 }
 
 Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure) {
     Stmt *s = newStmt(line, TRY_STMT);
-    s->tryStmt.block = blck;
-    s->tryStmt.excs = excs;
-    s->tryStmt.ensure = ensure;
+    s->as.tryStmt.block = blck;
+    s->as.tryStmt.excs = excs;
+    s->as.tryStmt.ensure = ensure;
     return s;
 }
 
 Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block) {
     Stmt *s = newStmt(line, EXCEPT_STMT);
-    s->excStmt.block = block;
-    s->excStmt.cls = cls;
-    s->excStmt.var.length = vlen;
-    s->excStmt.var.name = var;
+    s->as.excStmt.block = block;
+    s->as.excStmt.cls = cls;
+    s->as.excStmt.var.length = vlen;
+    s->as.excStmt.var.name = var;
     return s;
 }
 
 Stmt *newRaiseStmt(int line, Expr *e) {
     Stmt *s = newStmt(line, RAISE_STMT);
-    s->raiseStmt.exc = e;
+    s->as.raiseStmt.exc = e;
     return s;
 }
 
 Stmt *newContinueStmt(int line) {
     Stmt *s = newStmt(line, CONTINUE_STMT);
-    s->exprStmt = NULL;
+    s->as.exprStmt = NULL;
     return s;
 }
 
 Stmt *newBreakStmt(int line) {
     Stmt *s = newStmt(line, BREAK_STMT);
-    s->exprStmt = NULL;
+    s->as.exprStmt = NULL;
     return s;
 }
 
@@ -393,33 +393,33 @@ void freeStmt(Stmt *s) {
 
     switch(s->type) {
     case IF:
-        freeExpr(s->ifStmt.cond);
-        freeStmt(s->ifStmt.thenStmt);
-        freeStmt(s->ifStmt.elseStmt);
+        freeExpr(s->as.ifStmt.cond);
+        freeStmt(s->as.ifStmt.thenStmt);
+        freeStmt(s->as.ifStmt.elseStmt);
         break;
     case FOR:
-        freeStmt(s->forStmt.init);
-        freeExpr(s->forStmt.cond);
-        freeExpr(s->forStmt.act);
-        freeStmt(s->forStmt.body);
+        freeStmt(s->as.forStmt.init);
+        freeExpr(s->as.forStmt.cond);
+        freeExpr(s->as.forStmt.act);
+        freeStmt(s->as.forStmt.body);
         break;
     case FOREACH:
-        freeStmt(s->forEach.var);
-        freeExpr(s->forEach.iterable);
-        freeStmt(s->forEach.body);
+        freeStmt(s->as.forEach.var);
+        freeExpr(s->as.forEach.iterable);
+        freeStmt(s->as.forEach.body);
         break;
     case WHILE:
-        freeExpr(s->whileStmt.cond);
-        freeStmt(s->whileStmt.body);
+        freeExpr(s->as.whileStmt.cond);
+        freeStmt(s->as.whileStmt.body);
         break;
     case RETURN_STMT:
-        freeExpr(s->returnStmt.e);
+        freeExpr(s->as.returnStmt.e);
         break;
     case EXPR:
-        freeExpr(s->exprStmt);
+        freeExpr(s->as.exprStmt);
         break;
     case BLOCK: {
-        LinkedList *head = s->blockStmt.stmts;
+        LinkedList *head = s->as.blockStmt.stmts;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -429,7 +429,7 @@ void freeStmt(Stmt *s) {
         break;
     }
     case FUNCDECL: {
-        LinkedList *head = s->funcDecl.formalArgs;
+        LinkedList *head = s->as.funcDecl.formalArgs;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -437,7 +437,7 @@ void freeStmt(Stmt *s) {
             free(f);
         }
 
-        head = s->funcDecl.defArgs;
+        head = s->as.funcDecl.defArgs;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -445,11 +445,11 @@ void freeStmt(Stmt *s) {
             free(f);
         }
 
-        freeStmt(s->funcDecl.body);
+        freeStmt(s->as.funcDecl.body);
         break;
     }
     case NATIVEDECL: {
-        LinkedList *head = s->nativeDecl.formalArgs;
+        LinkedList *head = s->as.nativeDecl.formalArgs;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -457,7 +457,7 @@ void freeStmt(Stmt *s) {
             free(f);
         }
 
-        head = s->nativeDecl.defArgs;
+        head = s->as.nativeDecl.defArgs;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -467,8 +467,8 @@ void freeStmt(Stmt *s) {
         break;
     }
     case CLASSDECL: {
-        freeExpr(s->classDecl.sup);
-        LinkedList *head = s->classDecl.methods;
+        freeExpr(s->as.classDecl.sup);
+        LinkedList *head = s->as.classDecl.methods;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -478,8 +478,8 @@ void freeStmt(Stmt *s) {
         break;
     }
     case VARDECL: {
-        freeExpr(s->varDecl.init);
-        LinkedList *head = s->varDecl.ids;
+        freeExpr(s->as.varDecl.init);
+        LinkedList *head = s->as.varDecl.ids;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -489,10 +489,10 @@ void freeStmt(Stmt *s) {
         break;
     }
     case TRY_STMT:
-        freeStmt(s->tryStmt.block);
-        freeStmt(s->tryStmt.ensure);
+        freeStmt(s->as.tryStmt.block);
+        freeStmt(s->as.tryStmt.ensure);
 
-        LinkedList *head = s->tryStmt.excs;
+        LinkedList *head = s->as.tryStmt.excs;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -501,18 +501,18 @@ void freeStmt(Stmt *s) {
         }
         break;
     case EXCEPT_STMT:
-        freeExpr(s->excStmt.cls);
-        freeStmt(s->excStmt.block);
+        freeExpr(s->as.excStmt.cls);
+        freeStmt(s->as.excStmt.block);
         break;
     case RAISE_STMT:
-        freeExpr(s->raiseStmt.exc);
+        freeExpr(s->as.raiseStmt.exc);
         break;
     case WITH_STMT:
-        freeExpr(s->withStmt.e);
-        freeStmt(s->withStmt.block);
+        freeExpr(s->as.withStmt.e);
+        freeStmt(s->as.withStmt.block);
         break;
     case IMPORT: {
-        LinkedList *head = s->importStmt.modules;
+        LinkedList *head = s->as.importStmt.modules;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -520,7 +520,7 @@ void freeStmt(Stmt *s) {
             free(f);
         }
 
-        head = s->importStmt.impNames;
+        head = s->as.importStmt.impNames;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;

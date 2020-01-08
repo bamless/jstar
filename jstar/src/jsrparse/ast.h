@@ -245,7 +245,7 @@ struct Stmt {
             Stmt *block;
         } withStmt;
         Expr *exprStmt;
-    };
+    } as;
 };
 
 JSTAR_API Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);

@@ -451,7 +451,7 @@ static Stmt *forStmt(Parser *p) {
 
             // if we dont have a semicolon we're parsing a foreach
             if(!matchSkipnl(p, TOK_SEMICOLON)) {
-                if(init->varDecl.init != NULL) {
+                if(init->as.varDecl.init != NULL) {
                     error(p, "Variable declaration in foreach cannot have initializer.");
                 }
                 require(p, TOK_IN);
