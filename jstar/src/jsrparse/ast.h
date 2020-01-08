@@ -69,7 +69,7 @@ struct Expr {
         struct {
             Operator op;
             Expr *left, *right;
-        } bin;
+        } binary;
         struct {
             Operator op;
             Expr *operand;
@@ -80,34 +80,34 @@ struct Expr {
         struct {
             Operator op;
             Expr *lval, *rval;
-        } compundAssign;
+        } compound;
         struct {
             size_t length;
             const char *str;
-        } str;
+        } string;
         struct {
             Identifier id;
         } var;
         struct {
             LinkedList *lst;
-        } exprList;
+        } list;
         struct {
             Expr *callee, *args;
-        } callExpr;
+        } call;
         struct {
             Expr *base, *exp;
-        } expExpr;
+        } exponent;
         struct {
             Expr *left;
             Identifier id;
-        } accessExpr;
+        } access;
         struct {
             Expr *left;
             Expr *index;
-        } arrAccExpr;
+        } arrayAccess;
         struct {
             Expr *exprs;
-        } arr;
+        } array;
         struct {
             Expr *exprs;
         } tuple;
@@ -124,7 +124,7 @@ struct Expr {
         } anonFunc;
         double num;
         bool boolean;
-    };
+    } as;
 };
 
 JSTAR_API Expr *newBinary(int line, Operator op, Expr *l, Expr *r);

@@ -314,10 +314,10 @@ static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) 
         Expr *e = (Expr *)n->elem;
         switch(e->type) {
         case NUM_LIT:
-            defaults[i++] = NUM_VAL(e->num);
+            defaults[i++] = NUM_VAL(e->as.num);
             break;
         case BOOL_LIT:
-            defaults[i++] = BOOL_VAL(e->boolean);
+            defaults[i++] = BOOL_VAL(e->as.boolean);
             break;
         case STR_LIT:
             defaults[i++] = OBJ_VAL(readString(c, e));
@@ -334,9 +334,9 @@ static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) 
 static void compileExpr(Compiler *c, Expr *e);
 
 static void compileBinaryExpr(Compiler *c, Expr *e) {
-    compileExpr(c, e->bin.left);
-    compileExpr(c, e->bin.right);
-    switch(e->bin.op) {
+    compileExpr(c, e->as.binary.left);
+    compileExpr(c, e->as.binary.right);
+    switch(e->as.binary.op) {
     case PLUS:
         emitBytecode(c, OP_ADD, e->line);
         break;
@@ -381,22 +381,22 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
 }
 
 static void compileLogicExpr(Compiler *c, Expr *e) {
-    compileExpr(c, e->bin.left);
+    compileExpr(c, e->as.binary.left);
     emitBytecode(c, OP_DUP, e->line);
 
-    uint8_t jmp = e->bin.op == AND ? OP_JUMPF : OP_JUMPT;
+    uint8_t jmp = e->as.binary.op == AND ? OP_JUMPF : OP_JUMPT;
     size_t scJmp = emitBytecode(c, jmp, 0);
     emitShort(c, 0, 0);
 
     emitBytecode(c, OP_POP, e->line);
-    compileExpr(c, e->bin.right);
+    compileExpr(c, e->as.binary.right);
 
     setJumpTo(c, scJmp, c->func->chunk.count, e->line);
 }
 
 static void compileUnaryExpr(Compiler *c, Expr *e) {
-    compileExpr(c, e->unary.operand);
-    switch(e->unary.op) {
+    compileExpr(c, e->as.unary.operand);
+    switch(e->as.unary.op) {
     case MINUS:
         emitBytecode(c, OP_NEG, e->line);
         break;
@@ -416,17 +416,17 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
 }
 
 static void compileTernaryExpr(Compiler *c, Expr *e) {
-    compileExpr(c, e->ternary.cond);
+    compileExpr(c, e->as.ternary.cond);
 
     size_t falseJmp = emitBytecode(c, OP_JUMPF, e->line);
     emitShort(c, 0, 0);
 
-    compileExpr(c, e->ternary.thenExpr);
+    compileExpr(c, e->as.ternary.thenExpr);
     size_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
     emitShort(c, 0, 0);
 
     setJumpTo(c, falseJmp, c->func->chunk.count, e->line);
-    compileExpr(c, e->ternary.elseExpr);
+    compileExpr(c, e->as.ternary.elseExpr);
 
     setJumpTo(c, exitJmp, c->func->chunk.count, e->line);
 }
@@ -457,7 +457,7 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
 static void compileFunction(Compiler *c, Stmt *s);
 
 static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
-    Stmt *f = e->anonFunc.func;
+    Stmt *f = e->as.anonFunc.func;
     if(name != NULL) {
         f->funcDecl.id.length = name->length;
         f->funcDecl.id.name = name->name;
@@ -476,17 +476,17 @@ static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
 static void compileLval(Compiler *c, Expr *e) {
     switch(e->type) {
     case VAR_LIT:
-        compileVariable(c, &e->var.id, true, e->line);
+        compileVariable(c, &e->as.var.id, true, e->line);
         break;
     case ACCESS_EXPR: {
-        compileExpr(c, e->accessExpr.left);
+        compileExpr(c, e->as.access.left);
         emitBytecode(c, OP_SET_FIELD, e->line);
-        emitShort(c, identifierConst(c, &e->accessExpr.id, e->line), e->line);
+        emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
         break;
     }
     case ARR_ACC: {
-        compileExpr(c, e->arrAccExpr.left);
-        compileExpr(c, e->arrAccExpr.index);
+        compileExpr(c, e->as.arrayAccess.left);
+        compileExpr(c, e->as.arrayAccess.index);
         emitBytecode(c, OP_SUBSCR_SET, e->line);
         break;
     }
@@ -505,7 +505,7 @@ static void compileRval(Compiler *c, Identifier *boundName, Expr *e) {
 
 static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *exprs, int num) {
     int i = 0;
-    foreach(n, exprs->exprList.lst) {
+    foreach(n, exprs->as.list.lst) {
         compileRval(c, boundNames ? boundNames[i] : NULL, (Expr *)n->elem);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
@@ -515,22 +515,22 @@ static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *ex
 }
 
 static void compileAssignExpr(Compiler *c, Expr *e) {
-    switch(e->assign.lval->type) {
+    switch(e->as.assign.lval->type) {
     case VAR_LIT: {
-        Identifier *name = &e->assign.lval->var.id;
-        compileRval(c, name, e->assign.rval);
-        compileLval(c, e->assign.lval);
+        Identifier *name = &e->as.assign.lval->as.var.id;
+        compileRval(c, name, e->as.assign.rval);
+        compileLval(c, e->as.assign.lval);
         break;
     }
     case ACCESS_EXPR: {
-        Identifier *name = &e->assign.lval->accessExpr.id;
-        compileRval(c, name, e->assign.rval);
-        compileLval(c, e->assign.lval);
+        Identifier *name = &e->as.assign.lval->as.access.id;
+        compileRval(c, name, e->as.assign.rval);
+        compileLval(c, e->as.assign.lval);
         break;
     }
     case ARR_ACC: {
-        compileRval(c, NULL, e->assign.rval);
-        compileLval(c, e->assign.lval);
+        compileRval(c, NULL, e->as.assign.rval);
+        compileLval(c, e->as.assign.lval);
         break;
     }
     case TUPLE_LIT: {
@@ -538,7 +538,8 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         int assignments = 0;
         Expr *lvals[UINT8_MAX];
 
-        foreach(n, e->assign.lval->tuple.exprs->exprList.lst) {
+        Expr *tuple = e->as.assign.lval;
+        foreach(n, tuple->as.tuple.exprs->as.list.lst) {
             if(assignments == UINT8_MAX) {
                 error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
                 break;
@@ -546,12 +547,12 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
             lvals[assignments++] = (Expr *)n->elem;
         }
 
-        Expr *rval = e->assign.rval;
+        Expr *rval = e->as.assign.rval;
         if(IS_CONST_UNPACK(rval->type)) {
-            Expr *lst = rval->type == ARR_LIT ? rval->arr.exprs : rval->tuple.exprs;
+            Expr *lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
             compileConstUnpackLst(c, NULL, lst, assignments);
         } else {
-            compileRval(c, NULL, e->assign.rval);
+            compileRval(c, NULL, e->as.assign.rval);
             emitBytecode(c, OP_UNPACK, e->line);
             emitBytecode(c, (uint8_t)assignments, e->line);
         }
@@ -571,13 +572,13 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
 }
 
 static void compileCompundAssign(Compiler *c, Expr *e) {
-    Operator op = e->compundAssign.op;
-    Expr *l = e->compundAssign.lval;
-    Expr *r = e->compundAssign.rval;
+    Operator op = e->as.compound.op;
+    Expr *l = e->as.compound.lval;
+    Expr *r = e->as.compound.rval;
 
     // expand compound assignement (e.g. a op= b -> a = a op b)
-    Expr binary = {e->line, BINARY, .bin = {op, l, r}};
-    Expr assignment = {e->line, ASSIGN, .assign = {l, &binary}};
+    Expr binary = {e->line, BINARY, .as = {.binary = {op, l, r}}};
+    Expr assignment = {e->line, ASSIGN, .as = {.assign = {l, &binary}}};
 
     // compile as a normal assignment
     compileAssignExpr(c, &assignment);
@@ -587,12 +588,12 @@ static void compileCallExpr(Compiler *c, Expr *e) {
     Opcode callCode = OP_CALL;
     Opcode callInline = OP_CALL_0;
 
-    Expr *callee = e->callExpr.callee;
+    Expr *callee = e->as.call.callee;
     bool isMethod = callee->type == ACCESS_EXPR;
 
     if(isMethod) {
-        bool isSuper = callee->accessExpr.left->type == SUPER_LIT;
-        int line = callee->accessExpr.left->line;
+        bool isSuper = callee->as.access.left->type == SUPER_LIT;
+        int line = callee->as.access.left->line;
 
         if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
             error(c, line, "Can't use `super` outside method.");
@@ -604,14 +605,14 @@ static void compileCallExpr(Compiler *c, Expr *e) {
             emitBytecode(c, OP_GET_LOCAL, e->line);
             emitBytecode(c, 0, e->line);
         } else {
-            compileExpr(c, callee->accessExpr.left);
+            compileExpr(c, callee->as.access.left);
         }
     } else {
         compileExpr(c, callee);
     }
 
     uint8_t argsc = 0;
-    foreach(n, e->callExpr.args->exprList.lst) {
+    foreach(n, e->as.call.args->as.list.lst) {
         if(argsc++ == UINT8_MAX) {
             error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
             return;
@@ -627,25 +628,25 @@ static void compileCallExpr(Compiler *c, Expr *e) {
     }
 
     if(isMethod) {
-        emitShort(c, identifierConst(c, &callee->accessExpr.id, e->line), e->line);
+        emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
     }
 }
 
 static void compileAccessExpression(Compiler *c, Expr *e) {
-    compileExpr(c, e->accessExpr.left);
+    compileExpr(c, e->as.access.left);
     emitBytecode(c, OP_GET_FIELD, e->line);
-    emitShort(c, identifierConst(c, &e->accessExpr.id, e->line), e->line);
+    emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
 }
 
 static void compileArraryAccExpression(Compiler *c, Expr *e) {
-    compileExpr(c, e->arrAccExpr.left);
-    compileExpr(c, e->arrAccExpr.index);
+    compileExpr(c, e->as.arrayAccess.left);
+    compileExpr(c, e->as.arrayAccess.index);
     emitBytecode(c, OP_SUBSCR_GET, e->line);
 }
 
 static void compileExpExpr(Compiler *c, Expr *e) {
-    compileExpr(c, e->expExpr.base);
-    compileExpr(c, e->expExpr.exp);
+    compileExpr(c, e->as.exponent.base);
+    compileExpr(c, e->as.exponent.exp);
     emitBytecode(c, OP_POW, e->line);
 }
 
@@ -660,7 +661,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileCompundAssign(c, e);
         break;
     case BINARY:
-        if(e->bin.op == AND || e->bin.op == OR)
+        if(e->as.binary.op == AND || e->as.binary.op == OR)
             compileLogicExpr(c, e);
         else
             compileBinaryExpr(c, e);
@@ -684,16 +685,16 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST: {
-        foreach(n, e->exprList.lst) compileExpr(c, (Expr *)n->elem); 
+        foreach(n, e->as.list.lst) compileExpr(c, (Expr *)n->elem); 
         break;
     }
     case NUM_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);
-        emitShort(c, createConst(c, NUM_VAL(e->num), e->line), e->line);
+        emitShort(c, createConst(c, NUM_VAL(e->as.num), e->line), e->line);
         break;
     case BOOL_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);
-        emitShort(c, createConst(c, BOOL_VAL(e->boolean), e->line), e->line);
+        emitShort(c, createConst(c, BOOL_VAL(e->as.boolean), e->line), e->line);
         break;
     case STR_LIT: {
         ObjString *str = readString(c, e);
@@ -713,14 +714,14 @@ static void compileExpr(Compiler *c, Expr *e) {
         break;
     }
     case VAR_LIT:
-        compileVariable(c, &e->var.id, false, e->line);
+        compileVariable(c, &e->as.var.id, false, e->line);
         break;
     case NULL_LIT:
         emitBytecode(c, OP_NULL, e->line);
         break;
     case ARR_LIT: {
         emitBytecode(c, OP_NEW_LIST, e->line);
-        LinkedList *exprs = e->arr.exprs->exprList.lst;
+        LinkedList *exprs = e->as.array.exprs->as.list.lst;
         foreach(n, exprs) {
             compileExpr(c, (Expr *)n->elem);
             emitBytecode(c, OP_APPEND_LIST, e->line);
@@ -729,7 +730,7 @@ static void compileExpr(Compiler *c, Expr *e) {
     }
     case TUPLE_LIT: {
         int i = 0;
-        foreach(n, e->tuple.exprs->exprList.lst) {
+        foreach(n, e->as.tuple.exprs->as.list.lst) {
             compileExpr(c, (Expr *)n->elem);
             i++;
         }
@@ -742,7 +743,7 @@ static void compileExpr(Compiler *c, Expr *e) {
     case TABLE_LIT: {
         emitBytecode(c, OP_NEW_TABLE, e->line);
 
-        LinkedList *head = e->table.keyVals->exprList.lst;
+        LinkedList *head = e->as.table.keyVals->as.list.lst;
         while(head) {
             Expr *key = (Expr *)head->elem;
             Expr *val = (Expr *)head->next->elem;
@@ -778,13 +779,14 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     }
 
     if(s->varDecl.init != NULL) {
+        Expr *init = s->varDecl.init;
         ExprType initType = s->varDecl.init->type;
 
         if(s->varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
-            Expr *e = initType == ARR_LIT ? s->varDecl.init->arr.exprs : s->varDecl.init->tuple.exprs;
+            Expr *e = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
             compileConstUnpackLst(c, decls, e, numDecls);
         } else {
-            compileRval(c, decls[0], s->varDecl.init);
+            compileRval(c, decls[0], init);
             if(s->varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)numDecls, s->line);
@@ -1324,15 +1326,15 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
     Expr lval = { 
         .line = s->line, 
         .type = VAR_LIT, 
-        .var = {s->withStmt.var} 
+        .as = {.var = {s->withStmt.var}}
     };
     Expr assign = {
         .line = s->line,
         .type = ASSIGN,
-        .assign = {
+        .as = {.assign = {
             .lval = &lval,
             .rval = s->withStmt.e
-        }
+        }}
     };
     compileExpr(c, &assign);
     emitBytecode(c, OP_POP, s->line);
@@ -1576,9 +1578,9 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 static ObjString *readString(Compiler *c, Expr *e) {
     JStarBuffer sb;
     jsrBufferInit(c->vm, &sb);
-    const char *str = e->str.str;
+    const char *str = e->as.string.str;
 
-    for(size_t i = 0; i < e->str.length; i++) {
+    for(size_t i = 0; i < e->as.string.length; i++) {
         char c = str[i];
         if(c == '\\') {
             switch(str[i + 1]) {

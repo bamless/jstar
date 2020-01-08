@@ -24,23 +24,23 @@ static Expr *newExpr(int line, ExprType type) {
 
 Expr *newBinary(int line, Operator op, Expr *l, Expr *r) {
     Expr *e = newExpr(line, BINARY);
-    e->bin.op = op;
-    e->bin.left = l;
-    e->bin.right = r;
+    e->as.binary.op = op;
+    e->as.binary.left = l;
+    e->as.binary.right = r;
     return e;
 }
 
 Expr *newAssign(int line, Expr *lval, Expr *rval) {
     Expr *e = newExpr(line, ASSIGN);
-    e->assign.lval = lval;
-    e->assign.rval = rval;
+    e->as.assign.lval = lval;
+    e->as.assign.rval = rval;
     return e;
 }
 
 Expr *newUnary(int line, Operator op, Expr *operand) {
     Expr *e = newExpr(line, UNARY);
-    e->unary.op = op;
-    e->unary.operand = operand;
+    e->as.unary.op = op;
+    e->as.unary.operand = operand;
     return e;
 }
 
@@ -51,115 +51,115 @@ Expr *newNullLiteral(int line) {
 
 Expr *newNumLiteral(int line, double num) {
     Expr *e = newExpr(line, NUM_LIT);
-    e->num = num;
+    e->as.num = num;
     return e;
 }
 
 Expr *newBoolLiteral(int line, bool boolean) {
     Expr *e = newExpr(line, BOOL_LIT);
-    e->boolean = boolean;
+    e->as.boolean = boolean;
     return e;
 }
 
 Expr *newStrLiteral(int line, const char *str, size_t len) {
     Expr *e = newExpr(line, STR_LIT);
-    e->str.str = str;
-    e->str.length = len;
+    e->as.string.str = str;
+    e->as.string.length = len;
     return e;
 }
 
 Expr *newCmdLiteral(int line, const char *cmd, size_t len) {
     Expr *e = newExpr(line, CMD_LIT);
-    e->str.str = cmd;
-    e->str.length = len;
+    e->as.string.str = cmd;
+    e->as.string.length = len;
     return e;
 }
 
 Expr *newVarLiteral(int line, const char *var, size_t len) {
     Expr *e = newExpr(line, VAR_LIT);
-    e->var.id.name = var;
-    e->var.id.length = len;
+    e->as.var.id.name = var;
+    e->as.var.id.length = len;
     return e;
 }
 
 Expr *newArrLiteral(int line, Expr *exprs) {
     Expr *a = newExpr(line, ARR_LIT);
-    a->arr.exprs = exprs;
+    a->as.array.exprs = exprs;
     return a;
 }
 
 Expr *newTupleLiteral(int line, Expr *exprs) {
     Expr *a = newExpr(line, TUPLE_LIT);
-    a->tuple.exprs = exprs;
+    a->as.tuple.exprs = exprs;
     return a;
 }
 
 Expr *newTableLiteral(int line, Expr *keyVals) {
     Expr *t = newExpr(line, TABLE_LIT);
-    t->table.keyVals = keyVals;
+    t->as.table.keyVals = keyVals;
     return t;
 }
 
 Expr *newExprList(int line, LinkedList *exprs) {
     Expr *e = newExpr(line, EXPR_LST);
-    e->exprList.lst = exprs;
+    e->as.list.lst = exprs;
     return e;
 }
 
 Expr *newCallExpr(int line, Expr *callee, LinkedList *args) {
     Expr *e = newExpr(line, CALL_EXPR);
-    e->callExpr.callee = callee;
-    e->callExpr.args = newExprList(line, args);
+    e->as.call.callee = callee;
+    e->as.call.args = newExprList(line, args);
     return e;
 }
 
 Expr *newExpExpr(int line, Expr *base, Expr *exp) {
     Expr *e = newExpr(line, EXP_EXPR);
-    e->expExpr.base = base;
-    e->expExpr.exp = exp;
+    e->as.exponent.base = base;
+    e->as.exponent.exp = exp;
     return e;
 }
 
 Expr *newSuperLiteral(int line) {
     Expr *e = newExpr(line, SUPER_LIT);
-    e->num = 0;
+    e->as.num = 0;
     return e;
 }
 
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
     Expr *e = newExpr(line, ACCESS_EXPR);
-    e->accessExpr.left = left;
-    e->accessExpr.id.name = name;
-    e->accessExpr.id.length = length;
+    e->as.access.left = left;
+    e->as.access.id.name = name;
+    e->as.access.id.length = length;
     return e;
 }
 
 Expr *newArrayAccExpr(int line, Expr *left, Expr *index) {
     Expr *e = newExpr(line, ARR_ACC);
-    e->arrAccExpr.left = left;
-    e->arrAccExpr.index = index;
+    e->as.arrayAccess.left = left;
+    e->as.arrayAccess.index = index;
     return e;
 }
 
 Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr) {
     Expr *e = newExpr(line, TERNARY);
-    e->ternary.cond = cond;
-    e->ternary.thenExpr = thenExpr;
-    e->ternary.elseExpr = elseExpr;
+    e->as.ternary.cond = cond;
+    e->as.ternary.thenExpr = thenExpr;
+    e->as.ternary.elseExpr = elseExpr;
     return e;
 }
 
 Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
     Expr *e = newExpr(line, COMP_ASSIGN);
-    e->compundAssign.op = op;
-    e->compundAssign.lval = lval;
-    e->compundAssign.rval = rval;
+    e->as.compound.op = op;
+    e->as.compound.lval = lval;
+    e->as.compound.rval = rval;
     return e;
 }
 
 Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body) {
     Expr *e = newExpr(line, ANON_FUNC);
-    e->anonFunc.func = newFuncDecl(line, vararg, 0, NULL, args, defArgs, body);
+    e->as.anonFunc.func = newFuncDecl(line, vararg, 0, NULL, args, defArgs, body);
     return e;
 }
 
@@ -168,27 +168,27 @@ void freeExpr(Expr *e) {
 
     switch(e->type) {
     case BINARY:
-        freeExpr(e->bin.left);
-        freeExpr(e->bin.right);
+        freeExpr(e->as.binary.left);
+        freeExpr(e->as.binary.right);
         break;
     case UNARY:
-        freeExpr(e->unary.operand);
+        freeExpr(e->as.unary.operand);
         break;
     case ASSIGN:
-        freeExpr(e->assign.lval);
-        freeExpr(e->assign.rval);
+        freeExpr(e->as.assign.lval);
+        freeExpr(e->as.assign.rval);
         break;
     case ARR_LIT:
-        freeExpr(e->arr.exprs);
+        freeExpr(e->as.array.exprs);
         break;
     case TUPLE_LIT:
-        freeExpr(e->tuple.exprs);
+        freeExpr(e->as.tuple.exprs);
         break;
     case TABLE_LIT:
-        freeExpr(e->table.keyVals);
+        freeExpr(e->as.table.keyVals);
         break;
     case EXPR_LST: {
-        LinkedList *head = e->exprList.lst;
+        LinkedList *head = e->as.list.lst;
         while(head != NULL) {
             LinkedList *f = head;
             head = head->next;
@@ -198,31 +198,31 @@ void freeExpr(Expr *e) {
         break;
     }
     case CALL_EXPR:
-        freeExpr(e->callExpr.callee);
-        freeExpr(e->callExpr.args);
+        freeExpr(e->as.call.callee);
+        freeExpr(e->as.call.args);
         break;
     case ACCESS_EXPR:
-        freeExpr(e->accessExpr.left);
+        freeExpr(e->as.access.left);
         break;
     case ARR_ACC:
-        freeExpr(e->arrAccExpr.left);
-        freeExpr(e->arrAccExpr.index);
+        freeExpr(e->as.arrayAccess.left);
+        freeExpr(e->as.arrayAccess.index);
         break;
     case TERNARY:
-        freeExpr(e->ternary.cond);
-        freeExpr(e->ternary.thenExpr);
-        freeExpr(e->ternary.elseExpr);
+        freeExpr(e->as.ternary.cond);
+        freeExpr(e->as.ternary.thenExpr);
+        freeExpr(e->as.ternary.elseExpr);
         break;
     case COMP_ASSIGN:
-        freeExpr(e->compundAssign.lval);
-        freeExpr(e->compundAssign.rval);
+        freeExpr(e->as.compound.lval);
+        freeExpr(e->as.compound.rval);
         break;
     case ANON_FUNC:
-        freeStmt(e->anonFunc.func);
+        freeStmt(e->as.anonFunc.func);
         break;
     case EXP_EXPR:
-        freeExpr(e->expExpr.base);
-        freeExpr(e->expExpr.exp);
+        freeExpr(e->as.exponent.base);
+        freeExpr(e->as.exponent.exp);
         break;
     default:
         break;

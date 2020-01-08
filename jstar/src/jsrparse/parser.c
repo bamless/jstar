@@ -1098,7 +1098,7 @@ static Expr *expression(Parser *p, bool parseTuple) {
         }
         
         if(l != NULL && l->type == TUPLE_LIT) {
-            checkUnpackAssignement(p, l->tuple.exprs->exprList.lst, assignToken);
+            checkUnpackAssignement(p, l->as.tuple.exprs->as.list.lst, assignToken);
         }
 
         advance(p);
