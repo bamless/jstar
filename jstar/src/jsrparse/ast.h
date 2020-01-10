@@ -150,8 +150,8 @@ JSTAR_API Expr *newExpExpr(int line, Expr *base, Expr *exp);
 JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 JSTAR_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
 JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
-JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
 JSTAR_API Expr *newSuperLiteral(int line, const char *name, size_t len, Expr *args);
+JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
 
 JSTAR_API void freeExpr(Expr *e);
 

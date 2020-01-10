@@ -39,7 +39,7 @@ class File
     end
 
     fun __string__()
-        return "<" + ("closed " if this._closed else "open ") + super.__string__() + ">"
+        return "<" + ("closed " if this._closed else "open ") + super() + ">"
     end
 end
 
