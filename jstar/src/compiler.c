@@ -611,13 +611,14 @@ static void compileCallExpr(Compiler *c, Expr *e) {
         compileExpr(c, callee);
     }
 
-    uint8_t argsc = 0;
+    int argsc = 0;
     foreach(n, e->as.call.args->as.list.lst) {
-        if(argsc++ == UINT8_MAX) {
-            error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
-            return;
-        }
         compileExpr(c, (Expr *)n->elem);
+        argsc++;
+    }
+
+    if(argsc >= UINT8_MAX) {
+        error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
     }
 
     if(argsc <= 10) {
@@ -729,15 +730,14 @@ static void compileExpr(Compiler *c, Expr *e) {
         break;
     }
     case TUPLE_LIT: {
-        int i = 0;
+        int numElems = 0;
         foreach(n, e->as.tuple.exprs->as.list.lst) {
             compileExpr(c, (Expr *)n->elem);
-            i++;
+            numElems++;
         }
-
-        if(i >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
+        if(numElems >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
         emitBytecode(c, OP_NEW_TUPLE, e->line);
-        emitBytecode(c, i, e->line);
+        emitBytecode(c, numElems, e->line);
         break;
     }
     case TABLE_LIT: {

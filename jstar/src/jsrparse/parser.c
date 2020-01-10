@@ -665,14 +665,13 @@ static Stmt *parseStmt(Parser *p) {
 
 //----- Expressions parse ------
 
-LinkedList *expressionLst(Parser *p) {
+static LinkedList *expressionLst(Parser *p) {
     LinkedList *exprs = NULL;
 
     exprs = addElement(NULL, expression(p, false));
     while(matchSkipnl(p, TOK_COMMA)) {
         advance(p);
         skipNewLines(p);
-
         exprs = addElement(exprs, expression(p, false));
     }
 
@@ -732,17 +731,17 @@ static Expr *literal(Parser *p) {
         return e;
     }
     case TOK_LSQUARE: {
-        require(p, TOK_LSQUARE);
+        advance(p);
         LinkedList *exprs = NULL;
         if(!matchSkipnl(p, TOK_RSQUARE)) exprs = expressionLst(p);
         require(p, TOK_RSQUARE);
+
         return newArrLiteral(line, newExprList(line, exprs));
     }
     case TOK_LCURLY: {
-        require(p, TOK_LCURLY);
+        advance(p);
 
         LinkedList *keyVals = NULL;
-
         while(!matchSkipnl(p, TOK_RCURLY)) {
             Expr *key;
             if(match(p, TOK_DOT)) {
