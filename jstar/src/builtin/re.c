@@ -6,11 +6,17 @@
 #include <stddef.h>
 #include <string.h>
 
-#define MAX_CAPTURES 31
+#define MAX_CAPTURES        31
 #define CAPTURE_UNFINISHED -1
-#define CAPTURE_POSITION -2
+#define CAPTURE_POSITION   -2
 
 #define ESCAPE '%'
+
+#define REG_ERR(error, ...)                                       \
+    do {                                                          \
+        rs->err = true;                                           \
+        jsrRaise(rs->vm, "RegexException", error, ##__VA_ARGS__); \
+    } while(0)                                                    \
 
 typedef struct {
     const char *str;
@@ -98,8 +104,7 @@ static int captureToClose(RegexState *rs) {
     for(int i = rs->capturec - 1; i > 0; i--) {
         if(rs->captures[i].len == CAPTURE_UNFINISHED) return i;
     }
-    rs->err = true;
-    jsrRaise(rs->vm, "RegexException", "Invalid regex capture.");
+    REG_ERR("Invalid regex capture.");
     return -1;
 }
 
@@ -107,8 +112,7 @@ static const char *match(RegexState *rs, const char *s, const char *r);
 
 static const char *startCapture(RegexState *rs, const char *s, const char *r) {
     if(rs->capturec >= MAX_CAPTURES) {
-        rs->err = true;
-        jsrRaise(rs->vm, "RegexException", "Max capture number exceeded (%d).", MAX_CAPTURES);
+        REG_ERR("Max capture number exceeded (%d).", MAX_CAPTURES);
         return NULL;
     }
 
@@ -139,8 +143,9 @@ static const char *endCapture(RegexState *rs, const char *s, const char *r) {
 
 static const char *greedyMatch(RegexState *rs, const char *s, const char *r, const char *er) {
     ptrdiff_t i = 0;
-    while(s[i] != '\0' && matchClassOrChar(s[i], r, er))
+    while(s[i] != '\0' && matchClassOrChar(s[i], r, er)) {
         i++;
+    }
 
     while(i >= 0) {
         const char *res;
@@ -165,16 +170,14 @@ static const char *endClass(RegexState *rs, const char *r) {
     switch(*r++) {
     case ESCAPE:
         if(*r == '\0') {
-            rs->err = true;
-            jsrRaise(rs->vm, "RegexException", "Malformed regex (ends with `%c`).", ESCAPE);
+            REG_ERR("Malformed regex (ends with `%c`).", ESCAPE);
             return NULL;
         }
         return r + 1;
     case '[':
         do {
             if(*r == '\0') {
-                rs->err = true;
-                jsrRaise(rs->vm, "RegexException", "Malformed regex (unmatched `[`).");
+                REG_ERR("Malformed regex (unmatched `[`).");
                 return NULL;
             }
             if(*r++ == ESCAPE && *r != '\0') r++; // Skip escape
@@ -264,11 +267,11 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s,
     return false;
 }
 
-#define FIND_ERR 0
-#define FIND_MATCH 1
-#define FIND_NOMATCH 2
+typedef enum FindRes {
+    FIND_ERR, FIND_MATCH, FIND_NOMATCH
+} FindRes;
 
-static int find_aux(JStarVM *vm, RegexState *rs) {
+static FindRes findAux(JStarVM *vm, RegexState *rs) {
     if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || !jsrCheckInt(vm, 3, "off")) {
         return FIND_ERR;
     }
@@ -303,7 +306,7 @@ static bool pushCapture(JStarVM *vm, RegexState *rs, int n) {
 
 JSR_NATIVE(jsr_re_match) {
     RegexState rs;
-    int res = find_aux(vm, &rs);
+    FindRes res = findAux(vm, &rs);
 
     if(res == FIND_ERR) return false;
     if(res == FIND_NOMATCH) return true;
@@ -325,7 +328,7 @@ JSR_NATIVE(jsr_re_match) {
 
 JSR_NATIVE(jsr_re_find) {
     RegexState rs;
-    int res = find_aux(vm, &rs);
+    FindRes res = findAux(vm, &rs);
 
     if(res == FIND_ERR) return false;
     if(res == FIND_NOMATCH) return true;
@@ -348,8 +351,9 @@ JSR_NATIVE(jsr_re_find) {
 }
 
 JSR_NATIVE(jsr_re_gmatch) {
-    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex"))
+    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex")) {
         return false;
+    }
 
     const char *regex = jsrGetString(vm, 2);
     const char *str = jsrGetString(vm, 1);
@@ -389,14 +393,14 @@ JSR_NATIVE(jsr_re_gmatch) {
             jsrPop(vm);
         }
 
-        // increment by the number of chars since last match
+        ptrdiff_t offSinceLast;
         if(lastmatch != NULL)
-            off += rs.captures[0].start - lastmatch;
+            offSinceLast = rs.captures[0].start - lastmatch;
         else
-            off += rs.captures[0].start - str;
+            offSinceLast = rs.captures[0].start - str;
 
-        off += rs.captures[0].len;
-
+        // increment by the number of chars since last match
+        off += offSinceLast + rs.captures[0].len;
         // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
@@ -409,15 +413,15 @@ static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *
         switch(*sub) {
         case ESCAPE:
             sub++;
-
             if(*sub == '\0') {
-                JSR_RAISE(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
+                jsrRaise(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
+                return false;
             }
 
             int len = 0;
-            while(isdigit(sub[len]))
+            while(isdigit(sub[len])) {
                 len++;
-
+            }
             if(len == 0) goto def;
 
             int capture = strtol(sub, NULL, 10);
@@ -472,7 +476,7 @@ JSR_NATIVE(jsr_re_gsub) {
             continue;
         }
 
-        int offSinceLast;
+        ptrdiff_t offSinceLast;
         if(lastmatch != NULL) {
             offSinceLast = rs.captures[0].start - lastmatch;
             jsrBufferAppend(&b, lastmatch, offSinceLast);
