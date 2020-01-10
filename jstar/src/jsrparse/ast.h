@@ -122,6 +122,10 @@ struct Expr {
         struct {
             Stmt *func;
         } anonFunc;
+        struct {
+            Identifier name;
+            Expr *args;
+        } sup;
         double num;
         bool boolean;
     } as;
@@ -131,7 +135,6 @@ JSTAR_API Expr *newBinary(int line, Operator op, Expr *l, Expr *r);
 JSTAR_API Expr *newAssign(int line, Expr *lval, Expr *rval);
 JSTAR_API Expr *newUnary(int line, Operator op, Expr *operand);
 JSTAR_API Expr *newNullLiteral(int line);
-JSTAR_API Expr *newSuperLiteral(int line);
 JSTAR_API Expr *newNumLiteral(int line, double num);
 JSTAR_API Expr *newBoolLiteral(int line, bool boolean);
 JSTAR_API Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
@@ -148,6 +151,7 @@ JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t len
 JSTAR_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
 JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
 JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
+JSTAR_API Expr *newSuperLiteral(int line, const char *name, size_t len, Expr *args);
 
 JSTAR_API void freeExpr(Expr *e);
 

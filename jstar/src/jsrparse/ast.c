@@ -120,12 +120,6 @@ Expr *newExpExpr(int line, Expr *base, Expr *exp) {
     return e;
 }
 
-Expr *newSuperLiteral(int line) {
-    Expr *e = newExpr(line, SUPER_LIT);
-    e->as.num = 0;
-    return e;
-}
-
 Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length) {
     Expr *e = newExpr(line, ACCESS_EXPR);
     e->as.access.left = left;
@@ -160,6 +154,14 @@ Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
 Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body) {
     Expr *e = newExpr(line, ANON_FUNC);
     e->as.anonFunc.func = newFuncDecl(line, vararg, 0, NULL, args, defArgs, body);
+    return e;
+}
+
+Expr *newSuperLiteral(int line, const char *name, size_t len, Expr *args) {
+    Expr *e = newExpr(line, SUPER_LIT);
+    e->as.sup.name.name = name;
+    e->as.sup.name.length = len;
+    e->as.sup.args = args;
     return e;
 }
 
@@ -223,6 +225,9 @@ void freeExpr(Expr *e) {
     case EXP_EXPR:
         freeExpr(e->as.exponent.base);
         freeExpr(e->as.exponent.exp);
+        break;
+    case SUPER_LIT:
+        freeExpr(e->as.sup.args);
         break;
     default:
         break;

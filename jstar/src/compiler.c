@@ -52,6 +52,7 @@ typedef struct Compiler {
 
     FuncType type;
     ObjFunction *func;
+    Stmt *funcAST;
 
     uint8_t localsCount;
     Local locals[MAX_LOCALS];
@@ -592,44 +593,65 @@ static void compileCallExpr(Compiler *c, Expr *e) {
     bool isMethod = callee->type == ACCESS_EXPR;
 
     if(isMethod) {
-        bool isSuper = callee->as.access.left->type == SUPER_LIT;
-        int line = callee->as.access.left->line;
-
-        if(isSuper && c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
-            error(c, line, "Can't use `super` outside method.");
-        }
-
-        callCode = isSuper ? OP_SUPER : OP_INVOKE;
-        callInline = isSuper ? OP_SUPER_0 : OP_INVOKE_0;
-        if(isSuper) {
-            emitBytecode(c, OP_GET_LOCAL, e->line);
-            emitBytecode(c, 0, e->line);
-        } else {
-            compileExpr(c, callee->as.access.left);
-        }
+        callCode = OP_INVOKE;
+        callInline = OP_INVOKE_0;
+        compileExpr(c, callee->as.access.left);
     } else {
         compileExpr(c, callee);
     }
 
-    int argsc = 0;
+    int argc = 0;
     foreach(n, e->as.call.args->as.list.lst) {
         compileExpr(c, (Expr *)n->elem);
-        argsc++;
+        argc++;
     }
 
-    if(argsc >= UINT8_MAX) {
+    if(argc >= UINT8_MAX) {
         error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
     }
 
-    if(argsc <= 10) {
-        emitBytecode(c, callInline + argsc, e->line);
+    if(argc <= 10) {
+        emitBytecode(c, callInline + argc, e->line);
     } else {
         emitBytecode(c, callCode, e->line);
-        emitBytecode(c, argsc, e->line);
+        emitBytecode(c, argc, e->line);
     }
 
     if(isMethod) {
         emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
+    }
+}
+
+static void compileSuper(Compiler *c, Expr *e) {
+    if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
+        error(c, e->line, "Can only use `super` in method call");
+        return;
+    }
+
+    emitBytecode(c, OP_GET_LOCAL, e->line);
+    emitBytecode(c, 0, e->line);
+
+    int argc = 0;
+    foreach(n, e->as.sup.args->as.list.lst) {
+        compileExpr(c, (Expr *)n->elem);
+        argc++;
+    }
+
+    if(argc >= UINT8_MAX) {
+        error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
+    }
+
+    if(argc <= 10) {
+        emitBytecode(c, OP_SUPER_0 + argc, e->line);
+    } else {
+        emitBytecode(c, OP_SUPER, e->line);
+        emitBytecode(c, argc, e->line);
+    }
+
+    if(e->as.sup.name.name != NULL) {
+        emitShort(c, identifierConst(c, &e->as.sup.name, e->line), e->line);
+    } else {
+        emitShort(c, identifierConst(c, &c->funcAST->as.funcDecl.id, e->line), e->line);
     }
 }
 
@@ -758,11 +780,11 @@ static void compileExpr(Compiler *c, Expr *e) {
         }
         break;
     }
+    case SUPER_LIT:
+        compileSuper(c, e);
+        break;
     case ANON_FUNC:
         compileAnonymousFunc(c, NULL, e);
-        break;
-    case SUPER_LIT:
-        error(c, e->line, "Can only use `super` in method call");
         break;
     }
 }
@@ -1478,6 +1500,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
     c->func->c.vararg = s->as.funcDecl.isVararg;
+    c->funcAST = s;
 
     addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
 
@@ -1519,6 +1542,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults);
     c->func->c.vararg = s->as.funcDecl.isVararg;
+    c->funcAST = s;
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->chunk, HANDLE_VAL(NULL));
@@ -1531,7 +1555,6 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     memcpy(name->data, classId->name, classId->length);
     name->data[classId->length] = '.';
     memcpy(name->data + classId->length + 1, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
-
     c->func->c.name = name;
 
     // if in costructor change the type

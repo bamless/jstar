@@ -714,10 +714,6 @@ static Expr *literal(Parser *p) {
         advance(p);
         return newNullLiteral(line);
     }
-    case TOK_SUPER: {
-        advance(p);
-        return newSuperLiteral(line);
-    }
     case TOK_LPAREN: {
         advance(p);
 
@@ -737,6 +733,26 @@ static Expr *literal(Parser *p) {
         require(p, TOK_RSQUARE);
 
         return newArrLiteral(line, newExprList(line, exprs));
+    }
+    case TOK_SUPER: {
+        advance(p);
+
+        const char *name = NULL;
+        size_t nameLen = 0;
+
+        if(match(p, TOK_DOT)) {
+            advance(p);
+            Token id = require(p, TOK_IDENTIFIER);
+            name = id.lexeme;
+            nameLen = id.length;
+        }
+
+        require(p, TOK_LPAREN);
+        LinkedList *args = NULL;
+        if(!match(p, TOK_RPAREN)) args = expressionLst(p);
+        require(p, TOK_RPAREN);
+
+        return newSuperLiteral(line, name, nameLen, newExprList(line, args));
     }
     case TOK_LCURLY: {
         advance(p);
