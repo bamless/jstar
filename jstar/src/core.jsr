@@ -158,39 +158,40 @@ class List : Sequence
     end
 
     fun sort(comp=null)
-        var size = #this - 1
         var temp = List(#this, fun(i) return this[i] end)
+
+        fun merge(l, m, r)
+            var k, i, j = l, l, m + 1
+
+            while i <= m and j <= r do
+                if comp(this[i], this[j]) <= 0 if comp else this[i] <= this[j] then
+                    temp[k] = this[i]
+                    i += 1
+                else
+                    temp[k] = this[j]
+                    j += 1
+                end
+                k += 1
+            end
+            
+            var size = #this
+            while i < size and i <= m do
+                temp[k] = this[i]
+                i += 1; k += 1
+            end
+
+            for var i = l; i <= r; i += 1 do
+                this[i] = temp[i]
+            end
+        end
+        
+        var size = #this - 1
         for var m = 1; m <= size; m *= 2 do
             for var i = 0; i < size; i += 2 * m do
                 var from, mid, to = i, i + m - 1, i + 2 * m - 1
                 if to > size then to = size end
-                this.__merge(temp, from, mid, to, comp)
+                merge(from, mid, to)
             end
-        end
-    end
-
-    fun __merge(temp, l, m, r, comp)
-        var k, i, j = l, l, m + 1
-
-        while i <= m and j <= r do
-            if comp(this[i], this[j]) <= 0 if comp else this[i] <= this[j] then
-                temp[k] = this[i]
-                i += 1
-            else
-                temp[k] = this[j]
-                j += 1
-            end
-            k += 1
-        end
-        
-        var size = #this
-        while i < size and i <= m do
-            temp[k] = this[i]
-            i += 1; k += 1
-        end
-
-        for var i = l; i <= r; i += 1 do
-            this[i] = temp[i]
         end
     end
 
