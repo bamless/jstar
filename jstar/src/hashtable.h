@@ -36,7 +36,7 @@ void hashTableMerge(HashTable *t, HashTable *o);
 void hashTableImportNames(HashTable *t, HashTable *o);
 
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
-ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
+ObjString *hashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash);
 
 void reachHashTable(JStarVM *vm, HashTable *t);
 

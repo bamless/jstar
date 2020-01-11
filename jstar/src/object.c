@@ -244,7 +244,7 @@ static ObjString *newString(JStarVM *vm, const char *cstring, size_t length) {
 ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern) {
     if(intern) {
         uint32_t hash = hashString(str, length);
-        ObjString *interned = HashTableGetString(&vm->strings, str, length, hash);
+        ObjString *interned = hashTableGetString(&vm->strings, str, length, hash);
         if(interned == NULL) {
             interned = newString(vm, str, length);
             interned->hash = hash;

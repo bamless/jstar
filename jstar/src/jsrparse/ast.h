@@ -7,50 +7,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef enum Operator {
-    PLUS,
-    MINUS,
-    MULT,
-    DIV,
-    MOD,
-    EQ,
-    NEQ,
-    AND,
-    OR,
-    NOT,
-    GT,
-    GE,
-    LT,
-    LE,
-    IS,
-    LENGTH,
-    STRINGOP
-} Operator;
-
-typedef enum ExprType {
-    BINARY,
-    UNARY,
-    ASSIGN,
-    NUM_LIT,
-    BOOL_LIT,
-    STR_LIT,
-    CMD_LIT,
-    VAR_LIT,
-    NULL_LIT,
-    EXPR_LST,
-    CALL_EXPR,
-    EXP_EXPR,
-    SUPER_LIT,
-    ACCESS_EXPR,
-    ARR_LIT,
-    TUPLE_LIT,
-    TABLE_LIT,
-    ARR_ACC,
-    TERNARY,
-    COMP_ASSIGN,
-    ANON_FUNC,
-} ExprType;
-
 typedef struct Identifier {
     size_t length;
     const char *name;
@@ -58,6 +14,20 @@ typedef struct Identifier {
 
 JSTAR_API Identifier *newIdentifier(size_t length, const char *name);
 JSTAR_API bool identifierEquals(Identifier *id1, Identifier *id2);
+
+typedef enum Operator {
+    PLUS, MINUS, MULT, DIV, MOD, EQ, 
+    NEQ, AND, OR, NOT, GT, GE, LT, LE, 
+    IS, LENGTH, STRINGOP
+} Operator;
+
+typedef enum ExprType {
+    BINARY, UNARY, ASSIGN, NUM_LIT, BOOL_LIT,
+    STR_LIT, CMD_LIT, VAR_LIT, NULL_LIT, EXPR_LST,
+    CALL_EXPR, EXP_EXPR, SUPER_LIT, ACCESS_EXPR,
+    ARR_LIT, TUPLE_LIT, TABLE_LIT, ARR_ACC,
+    TERNARY, COMP_ASSIGN, ANON_FUNC,
+} ExprType;
 
 typedef struct Expr Expr;
 typedef struct Stmt Stmt;
@@ -156,24 +126,10 @@ JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, Linked
 JSTAR_API void freeExpr(Expr *e);
 
 typedef enum StmtType {
-    IF,
-    FOR,
-    WHILE,
-    FOREACH,
-    BLOCK,
-    RETURN_STMT,
-    EXPR,
-    VARDECL,
-    FUNCDECL,
-    NATIVEDECL,
-    CLASSDECL,
-    IMPORT,
-    TRY_STMT,
-    EXCEPT_STMT,
-    RAISE_STMT,
-    WITH_STMT,
-    CONTINUE_STMT,
-    BREAK_STMT
+    IF, FOR, WHILE, FOREACH, BLOCK, RETURN_STMT,
+    EXPR, VARDECL, FUNCDECL, NATIVEDECL, CLASSDECL,
+    IMPORT, TRY_STMT, EXCEPT_STMT, RAISE_STMT,
+    WITH_STMT, CONTINUE_STMT, BREAK_STMT
 } StmtType;
 
 struct Stmt {

@@ -405,7 +405,7 @@ static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t ar
     Value method;
     if(!hashTableGet(&cls->methods, name, &method)) {
         jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
-                name->data);
+                 name->data);
         return false;
     }
 
@@ -467,7 +467,7 @@ static bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
                 // if we didnt find a field try to return bound method
                 if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
                     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
-                            inst->base.cls->name->data, name->data);
+                             inst->base.cls->name->data, name->data);
                     return false;
                 }
 
@@ -486,7 +486,7 @@ static bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
                 // if we didnt find a global name try to return bound method
                 if(!hashTableGet(&mod->base.cls->methods, name, &v)) {
                     jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
-                            name->data, mod->name->data);
+                             name->data, mod->name->data);
                     return false;
                 }
 
@@ -507,7 +507,7 @@ static bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
 
     if(!hashTableGet(&cls->methods, name, &v)) {
         jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
-                name->data);
+                 name->data);
         return false;
     }
 
@@ -535,7 +535,7 @@ static bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s) {
 
     ObjClass *cls = getClass(vm, val);
     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
-            name->data);
+             name->data);
     return false;
 }
 

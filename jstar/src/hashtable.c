@@ -122,7 +122,7 @@ void hashTableImportNames(HashTable *t, HashTable *o) {
     }
 }
 
-ObjString *HashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash) {
+ObjString *hashTableGetString(HashTable *t, const char *str, size_t length, uint32_t hash) {
     if(t->entries == NULL) return NULL;
     size_t i = hash & t->sizeMask;
     for(;;) {

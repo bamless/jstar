@@ -193,11 +193,8 @@ Expr *parseExpression(const char *fname, const char *src) {
     return expr;
 }
 
-//----- Declarations ------
-
+//----- Statement parse ------
 static Expr *literal(Parser *p);
-static Stmt *parseStmt(Parser *p);
-static Stmt *blockStmt(Parser *p);
 
 static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, bool *vararg) {
     require(p, TOK_LPAREN);
@@ -253,76 +250,74 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, bool 
     require(p, TOK_RPAREN);
 }
 
-static Stmt *parseFuncDecl(Parser *p) {
-    int line = p->peek.line;
-    Token fun = require(p, TOK_FUN);
+static Stmt *parseStmt(Parser *p);
 
-    if(!match(p, TOK_IDENTIFIER)) {
-        rewindTo(&p->lex, &fun);
-        nextToken(&p->lex, &p->peek);
-        return NULL;
+static Stmt *blockStmt(Parser *p) {
+    int line = p->peek.line;
+    LinkedList *stmts = NULL;
+
+    while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_ENSURE) && !matchSkipnl(p, TOK_EXCEPT) &&
+          !matchSkipnl(p, TOK_ELSE) && !matchSkipnl(p, TOK_ELIF) && !matchSkipnl(p, TOK_EOF)) 
+    {
+        stmts = addElement(stmts, parseStmt(p));
     }
 
-    Token fname = require(p, TOK_IDENTIFIER);
+    return newBlockStmt(line, stmts);
+}
 
-    bool vararg = false;
-    LinkedList *args = NULL, *defArgs = NULL;
-    formalArgs(p, &args, &defArgs, &vararg);
+
+static Stmt *elifStmt(Parser *p);
+
+static Stmt *ifBody(Parser *p, int line) {
+    Expr *cond = expression(p, true);
+
+    require(p, TOK_THEN);
+
+    Stmt *thenBody = blockStmt(p);
+    Stmt *elseBody = NULL;
+
+    if(matchSkipnl(p, TOK_ELIF)) {
+        elseBody = elifStmt(p);
+    }
+
+    if(matchSkipnl(p, TOK_ELSE)) {
+        advance(p);
+        elseBody = blockStmt(p);
+    }
+
+    return newIfStmt(line, cond, thenBody, elseBody);
+}
+
+static Stmt *elifStmt(Parser *p) {
+    int line = p->peek.line;
+    require(p, TOK_ELIF);
+    return ifBody(p, line);
+}
+
+static Stmt *ifStmt(Parser *p) {
+    int line = p->peek.line;
+    require(p, TOK_IF);
+
+    Stmt *ifStmt = ifBody(p, line);
+
+    require(p, TOK_END);
+
+    return ifStmt;
+}
+
+static Stmt *whileStmt(Parser *p) {
+    int line = p->peek.line;
+    require(p, TOK_WHILE);
+
+    Expr *cond = expression(p, true);
+
+    require(p, TOK_DO);
 
     Stmt *body = blockStmt(p);
 
     require(p, TOK_END);
 
-    return newFuncDecl(line, vararg, fname.length, fname.lexeme, args, defArgs, body);
-}
-
-static Stmt *parseNativeDecl(Parser *p) {
-    int line = p->peek.line;
-    require(p, TOK_NAT);
-
-    Token fname = require(p, TOK_IDENTIFIER);
-
-    bool vararg = false;
-    LinkedList *args = NULL, *defArgs = NULL;
-    formalArgs(p, &args, &defArgs, &vararg);
-
-    STATEMENT_END(p);
-
-    return newNativeDecl(line, vararg, fname.length, fname.lexeme, args, defArgs);
-}
-
-static Stmt *parseClassDecl(Parser *p) {
-    int line = p->peek.line;
-    require(p, TOK_CLASS);
-
-    Token cls = require(p, TOK_IDENTIFIER);
-
-    Expr *sup = NULL;
-    if(matchSkipnl(p, TOK_COLON)) {
-        advance(p);
-        sup = expression(p, true);
-    }
-
-    LinkedList *methods = NULL;
-    while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_EOF)) {
-        if(matchSkipnl(p, TOK_NAT)) {
-            methods = addElement(methods, parseNativeDecl(p));
-        } else {
-            Stmt *fun = parseFuncDecl(p);
-            if(fun == NULL) {
-                error(p, "Expected function or native delcaration.");
-                advance(p);
-            } else {
-                methods = addElement(methods, fun);
-            }
-        }
-
-        if(p->panic) classSynchronize(p);
-    }
-
-    require(p, TOK_END);
-
-    return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
+    return newWhileStmt(line, cond, body);
 }
 
 static Stmt *varDecl(Parser *p) {
@@ -351,93 +346,6 @@ static Stmt *varDecl(Parser *p) {
     }
 
     return newVarDecl(line, isUnpack, ids, init);
-}
-
-static Stmt *parseDeclaration(Parser *p) {
-    if(matchSkipnl(p, TOK_CLASS)) {
-        return parseClassDecl(p);
-    }
-    if(matchSkipnl(p, TOK_NAT)) {
-        return parseNativeDecl(p);
-    }
-    if(matchSkipnl(p, TOK_FUN)) {
-        Stmt *funcDecl = parseFuncDecl(p);
-        if(funcDecl != NULL) return funcDecl;
-    }
-    if(matchSkipnl(p, TOK_VAR)) {
-        Stmt *var = varDecl(p);
-        STATEMENT_END(p);
-        return var;
-    }
-
-    return parseStmt(p);
-}
-
-static Stmt *parseProgram(Parser *p) {
-    LinkedList *stmts = NULL;
-
-    while(!matchSkipnl(p, TOK_EOF)) {
-        stmts = addElement(stmts, parseDeclaration(p));
-        if(p->panic) synchronize(p);
-    }
-
-    return newFuncDecl(0, false, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
-}
-
-//----- Statements parse ------
-
-static Stmt *parseElif(Parser *p);
-
-static Stmt *parseIfBody(Parser *p, int line) {
-    Expr *cond = expression(p, true);
-
-    require(p, TOK_THEN);
-
-    Stmt *thenBody = blockStmt(p);
-    Stmt *elseBody = NULL;
-
-    if(matchSkipnl(p, TOK_ELIF)) {
-        elseBody = parseElif(p);
-    }
-
-    if(matchSkipnl(p, TOK_ELSE)) {
-        advance(p);
-        elseBody = blockStmt(p);
-    }
-
-    return newIfStmt(line, cond, thenBody, elseBody);
-}
-
-static Stmt *parseElif(Parser *p) {
-    int line = p->peek.line;
-    require(p, TOK_ELIF);
-    return parseIfBody(p, line);
-}
-
-static Stmt *ifStmt(Parser *p) {
-    int line = p->peek.line;
-    require(p, TOK_IF);
-
-    Stmt *ifStmt = parseIfBody(p, line);
-
-    require(p, TOK_END);
-
-    return ifStmt;
-}
-
-static Stmt *whileStmt(Parser *p) {
-    int line = p->peek.line;
-    require(p, TOK_WHILE);
-
-    Expr *cond = expression(p, true);
-
-    require(p, TOK_DO);
-
-    Stmt *body = blockStmt(p);
-
-    require(p, TOK_END);
-
-    return newWhileStmt(line, cond, body);
 }
 
 static Stmt *forStmt(Parser *p) {
@@ -506,20 +414,7 @@ static Stmt *returnStmt(Parser *p) {
     return newReturnStmt(line, e);
 }
 
-static Stmt *blockStmt(Parser *p) {
-    int line = p->peek.line;
-    LinkedList *stmts = NULL;
-
-    while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_ENSURE) && !matchSkipnl(p, TOK_EXCEPT) &&
-          !matchSkipnl(p, TOK_ELSE) && !matchSkipnl(p, TOK_ELIF) && !matchSkipnl(p, TOK_EOF)) 
-    {
-        stmts = addElement(stmts, parseDeclaration(p));
-    }
-
-    return newBlockStmt(line, stmts);
-}
-
-static Stmt *parseImport(Parser *p) {
+static Stmt *importStmt(Parser *p) {
     int line = p->peek.line;
     require(p, TOK_IMPORT);
 
@@ -562,7 +457,7 @@ static Stmt *parseImport(Parser *p) {
     return newImportStmt(line, modules, importNames, as.lexeme, as.length);
 }
 
-static Stmt *parseTryStmt(Parser *p) {
+static Stmt *tryStmt(Parser *p) {
     int line = p->peek.line;
     require(p, TOK_TRY);
 
@@ -597,7 +492,7 @@ static Stmt *parseTryStmt(Parser *p) {
     return newTryStmt(line, tryBlock, excs, ensure);
 }
 
-static Stmt *parseRaiseStmt(Parser *p) {
+static Stmt *raiseStmt(Parser *p) {
     int line = p->peek.line;
     advance(p);
 
@@ -607,7 +502,7 @@ static Stmt *parseRaiseStmt(Parser *p) {
     return newRaiseStmt(line, exc);
 }
 
-static Stmt *parseWithStmt(Parser *p) {
+static Stmt *withStmt(Parser *p) {
     int line = p->peek.line;
     advance(p);
 
@@ -620,9 +515,80 @@ static Stmt *parseWithStmt(Parser *p) {
     return newWithStmt(line, e, var.length, var.lexeme, block);
 }
 
+static Stmt *funcDecl(Parser *p) {
+    int line = p->peek.line;
+    Token fun = require(p, TOK_FUN);
+
+    if(!match(p, TOK_IDENTIFIER)) {
+        rewindTo(&p->lex, &fun);
+        nextToken(&p->lex, &p->peek);
+        return NULL;
+    }
+
+    Token fname = require(p, TOK_IDENTIFIER);
+
+    bool vararg = false;
+    LinkedList *args = NULL, *defArgs = NULL;
+    formalArgs(p, &args, &defArgs, &vararg);
+
+    Stmt *body = blockStmt(p);
+
+    require(p, TOK_END);
+
+    return newFuncDecl(line, vararg, fname.length, fname.lexeme, args, defArgs, body);
+}
+
+static Stmt *nativeDecl(Parser *p) {
+    int line = p->peek.line;
+    require(p, TOK_NAT);
+
+    Token fname = require(p, TOK_IDENTIFIER);
+
+    bool vararg = false;
+    LinkedList *args = NULL, *defArgs = NULL;
+    formalArgs(p, &args, &defArgs, &vararg);
+
+    STATEMENT_END(p);
+
+    return newNativeDecl(line, vararg, fname.length, fname.lexeme, args, defArgs);
+}
+
+static Stmt *classDecl(Parser *p) {
+    int line = p->peek.line;
+    require(p, TOK_CLASS);
+
+    Token cls = require(p, TOK_IDENTIFIER);
+
+    Expr *sup = NULL;
+    if(matchSkipnl(p, TOK_COLON)) {
+        advance(p);
+        sup = expression(p, true);
+    }
+
+    LinkedList *methods = NULL;
+    while(!matchSkipnl(p, TOK_END) && !matchSkipnl(p, TOK_EOF)) {
+        if(matchSkipnl(p, TOK_NAT)) {
+            methods = addElement(methods, nativeDecl(p));
+        } else {
+            Stmt *fun = funcDecl(p);
+            if(fun == NULL) {
+                error(p, "Expected function or native delcaration.");
+                advance(p);
+            } else {
+                methods = addElement(methods, fun);
+            }
+        }
+
+        if(p->panic) classSynchronize(p);
+    }
+
+    require(p, TOK_END);
+
+    return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
+}
+
 static Stmt *parseStmt(Parser *p) {
     int line = p->peek.line;
-
     skipNewLines(p);
 
     switch(p->peek.type) {
@@ -640,13 +606,13 @@ static Stmt *parseStmt(Parser *p) {
         require(p, TOK_END);
         return block;
     case TOK_IMPORT:
-        return parseImport(p);
+        return importStmt(p);
     case TOK_TRY:
-        return parseTryStmt(p);
+        return tryStmt(p);
     case TOK_RAISE:
-        return parseRaiseStmt(p);
+        return raiseStmt(p);
     case TOK_WITH:
-        return parseWithStmt(p);
+        return withStmt(p);
     case TOK_CONTINUE:
         advance(p);
         STATEMENT_END(p);
@@ -655,12 +621,37 @@ static Stmt *parseStmt(Parser *p) {
         advance(p);
         STATEMENT_END(p);
         return newBreakStmt(line);
-    default: {
-        Expr *e = expression(p, true);
+    case TOK_CLASS:
+        return classDecl(p);
+    case TOK_NAT:
+        return nativeDecl(p);
+    case TOK_FUN: {
+        Stmt *func = funcDecl(p);
+        if(func != NULL) return func;
+        break;
+    }
+    case TOK_VAR: {
+        Stmt *var = varDecl(p);
         STATEMENT_END(p);
-        return newExprStmt(line, e);
+        return var;
     }
+    default: break;
     }
+
+    Expr *e = expression(p, true);
+    STATEMENT_END(p);
+    return newExprStmt(line, e);
+}
+
+static Stmt *parseProgram(Parser *p) {
+    LinkedList *stmts = NULL;
+
+    while(!matchSkipnl(p, TOK_EOF)) {
+        stmts = addElement(stmts, parseStmt(p));
+        if(p->panic) synchronize(p);
+    }
+
+    return newFuncDecl(0, false, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
 }
 
 //----- Expressions parse ------
