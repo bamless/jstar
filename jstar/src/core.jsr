@@ -34,7 +34,6 @@ class String
     native strip()
     native chomp()
     native join(iterable)
-
     native __eq__(o)
     native __len__()
     native __iter__(iter)
@@ -354,13 +353,13 @@ fun sorted(iterable, comp=null)
 end
 
 fun switch(cond)
-	return fun(jmpTbl)
-		if jmpTbl.contains(cond) then
-			jmpTbl[cond](cond)
-		else
-			jmpTbl['__dflt__'](cond)
-		end
-	end
+    return fun(jmpTbl)
+        if jmpTbl.contains(cond) then
+            jmpTbl[cond](cond)
+        else
+            jmpTbl['__dflt__'](cond)
+        end
+    end
 end
 
 fun toList(iterable)
