@@ -60,7 +60,7 @@ typedef struct Frame Frame;
 #define AS_TABLE(o)         ((ObjTable *)AS_OBJ(o))
 
 #define STRING_GET_HASH(s)    (s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
-#define STRING_EQUALS(s1, s2) (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data))
+#define STRING_EQUALS(s1, s2) (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data) == 0)
 
 // These types are used internally by the object system and are
 // Never exposed to the user, to whom all values behave like

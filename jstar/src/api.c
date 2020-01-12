@@ -115,6 +115,11 @@ void jsrPushTuple(JStarVM *vm, size_t size) {
     push(vm, OBJ_VAL(tup));
 }
 
+void jsrPushTable(JStarVM *vm) {
+    validateStack(vm);
+    push(vm, OBJ_VAL(newTable(vm)));
+}
+
 void jsrPushValue(JStarVM *vm, int slot) {
     validateStack(vm);
     push(vm, apiStackSlot(vm, slot));
@@ -262,6 +267,10 @@ bool jsrIsHandle(JStarVM *vm, int slot) {
     return IS_HANDLE(apiStackSlot(vm, slot));
 }
 
+bool jsrIsTable(JStarVM *vm, int slot) {
+    return IS_TABLE(apiStackSlot(vm, slot));
+}
+
 bool jsrCheckNum(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsNumber(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a number.", name);
     return true;
@@ -299,6 +308,11 @@ bool jsrCheckInstance(JStarVM *vm, int slot, const char *name) {
 
 bool jsrCheckHandle(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsHandle(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be an Handle.", name);
+    return true;
+}
+
+bool jsrCheckTable(JStarVM *vm, int slot, const char *name) {
+    if(!jsrIsTable(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Table.", name);
     return true;
 }
 

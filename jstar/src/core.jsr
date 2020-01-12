@@ -226,6 +226,12 @@ class Table
     native __string__()
 end
 
+class Enum
+    native new(...)
+    native value(name)
+    native name(value)
+end
+
 //--------- Standard iterators ---------
 
 class Iter
@@ -345,6 +351,16 @@ fun sorted(iterable, comp=null)
     var lst = toList(iterable)
     lst.sort(comp)
     return lst
+end
+
+fun switch(cond)
+	return fun(jmpTbl)
+		if jmpTbl.contains(cond) then
+			jmpTbl[cond](cond)
+		else
+			jmpTbl['__dflt__'](cond)
+		end
+	end
 end
 
 fun toList(iterable)

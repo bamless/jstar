@@ -149,6 +149,12 @@ Module builtInModules[] = {
             METHOD(__string__, jsr_Table_string)
         ENDCLASS
 
+        CLASS(Enum)
+            METHOD(new,   jsr_Enum_new)
+            METHOD(value, jsr_Enum_value)
+            METHOD(name,  jsr_Enum_name)
+        ENDCLASS
+
         CLASS(Exception)
             METHOD(printStacktrace, jsr_Exception_printStacktrace)
         ENDCLASS

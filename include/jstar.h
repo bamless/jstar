@@ -189,6 +189,7 @@ JSTAR_API void jsrPushHandle(JStarVM *vm, void *handle);
 JSTAR_API void jsrPushNull(JStarVM *vm);
 JSTAR_API void jsrPushList(JStarVM *vm);
 JSTAR_API void jsrPushTuple(JStarVM *vm, size_t size);
+JSTAR_API void jsrPushTable(JStarVM *vm);
 JSTAR_API void jsrPushValue(JStarVM *vm, int slot);
 #define jsrDup(vm) jsrPushValue(vm, -1)
 
@@ -267,6 +268,7 @@ JSTAR_API bool jsrIsBoolean(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsHandle(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsNull(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsInstance(JStarVM *vm, int slot);
+JSTAR_API bool jsrIsTable(JStarVM *vm, int slot);
 
 // These functions return true if the slot is of the given type, false otherwise leaving a
 // TypeException on top of the stack with a message customized with 'name'
@@ -278,6 +280,7 @@ JSTAR_API bool jsrCheckTuple(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckBool(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckInstance(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckHandle(JStarVM *vm, int slot, const char *name);
+JSTAR_API bool jsrCheckTable(JStarVM *vm, int slot, const char *name);
 
 // Check if the value at slot "slot" is an integer >= 0 and < max.
 // Returns the number casted to size_t if true, SIZE_MAX if false
