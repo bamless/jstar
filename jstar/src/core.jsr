@@ -355,9 +355,9 @@ end
 fun switch(cond)
     return fun(jmpTbl)
         if jmpTbl.contains(cond) then
-            jmpTbl[cond](cond)
+            return jmpTbl[cond](cond)
         else
-            jmpTbl['__dflt__'](cond)
+            return jmpTbl['__dflt__'](cond)
         end
     end
 end
