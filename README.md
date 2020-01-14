@@ -1,4 +1,7 @@
 # J*
+
+<p align="center"><img src="./docs/assets/images/JStar512.png"></p>
+
 A dynamic lightweight scripting language
 
 # How to use
