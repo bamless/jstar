@@ -33,15 +33,17 @@ static int countBlocks(const char *line) {
     int depth = 0;
     while(tok.type != TOK_EOF && tok.type != TOK_NEWLINE) {
         switch(tok.type) {
+        case TOK_LCURLY:
         case TOK_BEGIN:
-        case TOK_DO:
         case TOK_CLASS:
-        case TOK_FUN:
-        case TOK_TRY:
         case TOK_THEN:
         case TOK_WITH:
+        case TOK_FUN:
+        case TOK_TRY:
+        case TOK_DO:
             depth++;
             break;
+        case TOK_RCURLY:
         case TOK_ELIF:
         case TOK_END:
             depth--;
