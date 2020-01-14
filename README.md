@@ -1,4 +1,6 @@
 # J*
+![J*](/docs/assets/images/JStar512.png "J*")
+
 A dynamic lightweight scripting language
 
 # How to use
