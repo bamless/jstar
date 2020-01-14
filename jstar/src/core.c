@@ -1178,9 +1178,7 @@ JSR_NATIVE(jsr_Enum_new) {
     jsrSetField(vm, 0, M_VALUE_NAME);
     jsrPop(vm);
 
-    jsrTupleGetLength(vm, 1);
-    if(jsrGetNumber(vm, -1) == 0) JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
-    jsrPop(vm);
+    if(jsrTupleGetLength(vm, 1) == 0) JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
 
     jsrTupleGet(vm, 0, 1);
     bool customEnum = jsrIsTable(vm, -1);

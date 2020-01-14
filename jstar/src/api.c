@@ -170,16 +170,10 @@ void jsrListGet(JStarVM *vm, size_t i, int slot) {
     push(vm, lst->arr[i]);
 }
 
-void jsrListGetLength(JStarVM *vm, int slot) {
+size_t jsrListGetLength(JStarVM *vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     assert(IS_LIST(lst), "Not a list");
-    push(vm, NUM_VAL((double)AS_LIST(lst)->count));
-}
-
-void jsrTupleGetLength(JStarVM *vm, int slot) {
-    Value tup = apiStackSlot(vm, slot);
-    assert(IS_TUPLE(tup), "Not a tuple");
-    push(vm, NUM_VAL((double)AS_TUPLE(tup)->size));
+    return AS_LIST(lst)->count;
 }
 
 void jsrTupleGet(JStarVM *vm, size_t i, int slot) {
@@ -188,6 +182,12 @@ void jsrTupleGet(JStarVM *vm, size_t i, int slot) {
     ObjTuple *tuple = AS_TUPLE(tupVal);
     assert(i < tuple->size, "Out of bounds");
     push(vm, tuple->arr[i]);
+}
+
+size_t jsrTupleGetLength(JStarVM *vm, int slot) {
+    Value tup = apiStackSlot(vm, slot);
+    assert(IS_TUPLE(tup), "Not a tuple");
+    return AS_TUPLE(tup)->size;
 }
 
 bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {

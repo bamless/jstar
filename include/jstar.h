@@ -217,16 +217,16 @@ JSTAR_API const char *jsrGetString(JStarVM *vm, int slot);
 JSTAR_API void jsrListAppend(JStarVM *vm, int slot);
 JSTAR_API void jsrListInsert(JStarVM *vm, size_t i, int slot);
 JSTAR_API void jsrListRemove(JStarVM *vm, size_t i, int slot);
-JSTAR_API void jsrListGetLength(JStarVM *vm, int slot);
 JSTAR_API void jsrListGet(JStarVM *vm, size_t i, int slot);
+JSTAR_API size_t jsrListGetLength(JStarVM *vm, int slot);
 
 // ---- Tuple manipulation functions ----
 
 // These functions do not perfrom bounds checking,
 // use blCeckIndex first if needed.
 
-JSTAR_API void jsrTupleGetLength(JStarVM *vm, int slot);
 JSTAR_API void jsrTupleGet(JStarVM *vm, size_t i, int slot);
+JSTAR_API size_t jsrTupleGetLength(JStarVM *vm, int slot);
 
 // ---- Object instances manipulation functions ----
 
