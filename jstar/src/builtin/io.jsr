@@ -1,5 +1,5 @@
-class IOException : Exception end
-class FileNotFoundException : IOException end
+class IOException is Exception end
+class FileNotFoundException is IOException end
 
 var SEEK_SET, SEEK_CUR, SEEK_END = 0, 1, 2
 
@@ -43,7 +43,7 @@ class File
     end
 end
 
-class __PFile : File
+class __PFile is File
     fun new(handle)
         this._handle = handle
         this._closed = false

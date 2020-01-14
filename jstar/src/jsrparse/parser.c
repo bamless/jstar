@@ -560,7 +560,7 @@ static Stmt *classDecl(Parser *p) {
     Token cls = require(p, TOK_IDENTIFIER);
 
     Expr *sup = NULL;
-    if(matchSkipnl(p, TOK_COLON)) {
+    if(matchSkipnl(p, TOK_IS)) {
         advance(p);
         sup = expression(p, true);
     }

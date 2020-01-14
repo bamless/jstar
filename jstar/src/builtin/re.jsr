@@ -1,4 +1,4 @@
-class RegexException : Exception end
+class RegexException is Exception end
 
 native match(str, regex, off=0)
 native find(str, regex, off=0)

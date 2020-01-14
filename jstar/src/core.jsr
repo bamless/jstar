@@ -105,7 +105,7 @@ class Sequence
     end
 end
 
-class List : Sequence
+class List is Sequence
     native new(n=0, init=null)
     native add(e)
     native insert(i, e)
@@ -201,7 +201,7 @@ class List : Sequence
     end
 end
 
-class Tuple : Sequence
+class Tuple is Sequence
     native new(seq)
     native subTuple(from, to)
     native __len__()
@@ -412,14 +412,13 @@ class Exception
     native printStacktrace()
 end
 
-class TypeException : Exception end
-class NameException : Exception end
-class FieldException : Exception end
-class MethodException : Exception end
-class ImportException : Exception end
-class StackOverflowException : Exception end
-class DivisionByZeroException : Exception end
-class InvalidArgException : Exception end
-class IndexOutOfBoundException : Exception end
-class AssertException : Exception end
-class NotImplementedException : Exception end
+class TypeException is Exception end
+class NameException is Exception end
+class FieldException is Exception end
+class MethodException is Exception end
+class ImportException is Exception end
+class StackOverflowException is Exception end
+class InvalidArgException is Exception end
+class IndexOutOfBoundException is Exception end
+class AssertException is Exception end
+class NotImplementedException is Exception end
