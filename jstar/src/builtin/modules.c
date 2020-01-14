@@ -113,10 +113,10 @@ Module builtInModules[] = {
 
         CLASS(Tuple)
             METHOD(new,      jsr_Tuple_new)
-            METHOD(sub,      jsr_Tuple_sub)
             METHOD(__len__,  jsr_Tuple_len)
             METHOD(__iter__, jsr_Tuple_iter)
             METHOD(__next__, jsr_Tuple_next)
+            METHOD(sub,      jsr_Tuple_subTuple)
         ENDCLASS
 
         CLASS(String)

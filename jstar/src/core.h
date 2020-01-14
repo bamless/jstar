@@ -56,7 +56,7 @@ JSR_NATIVE(jsr_type);
     JSR_NATIVE(jsr_Tuple_len);
     JSR_NATIVE(jsr_Tuple_iter);
     JSR_NATIVE(jsr_Tuple_next);
-    JSR_NATIVE(jsr_Tuple_sub);
+    JSR_NATIVE(jsr_Tuple_subTuple);
 // end
 
 // class String

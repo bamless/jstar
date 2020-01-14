@@ -29,7 +29,7 @@ class StackTrace end
 class String
     native new(...)
     native substr(from, to)
-    native startsWith(prefix, offset = 0)
+    native startsWith(prefix, offset=0)
     native endsWith(suffix)
     native strip()
     native chomp()
@@ -52,7 +52,8 @@ class Sequence
     end
 
     fun indexOf(e)
-        for var i = 0; i < #this; i += 1 do
+        var lenth = #this
+        for var i = 0; i < length; i += 1 do
             if this[i] == e then
                 return i
             end
@@ -73,7 +74,7 @@ class Sequence
         return #this == 0
     end
 
-    fun foreach(pred)
+    fun forEach(pred)
         for var e in this do pred(e) end
     end
 
@@ -125,10 +126,6 @@ class List : Sequence
     end
 
     fun insertAll(iterable, i=0)
-        if i < 0 or i >= #this then
-            raise IndexOutOfBoundException(##i)
-        end
-
         var changed = false
         for var e in iterable do
             this.insert(i, e)
@@ -138,7 +135,8 @@ class List : Sequence
     end
 
     fun remove(e)
-        for var i = 0; i < #this; i += 1 do
+        var length = #this
+        for var i = 0; i < length; i += 1 do
             if e == this[i] then
                 this.removeAt(i)
                 return true
@@ -154,6 +152,10 @@ class List : Sequence
             changed = changed or r
         end
         return changed
+    end
+
+    fun pop()
+        return this.removeAt(#this - 1)
     end
 
     fun sort(comp=null)
@@ -201,7 +203,7 @@ end
 
 class Tuple : Sequence
     native new(seq)
-    native sub(from, to)
+    native subTuple(from, to)
     native __len__()
     native __iter__(iter)
     native __next__(idx)

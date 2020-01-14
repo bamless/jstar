@@ -594,7 +594,7 @@ JSR_NATIVE(jsr_Tuple_next) {
     return true;
 }
 
-JSR_NATIVE(jsr_Tuple_sub) {
+JSR_NATIVE(jsr_Tuple_subTuple) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
     size_t from = jsrCheckIndex(vm, 1, tup->size, "from");
