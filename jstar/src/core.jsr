@@ -233,6 +233,109 @@ class Enum
     native name(value)
 end
 
+//--------- Core functions ---------
+
+fun assert(cond, msg="assertion failed")
+    if !cond then raise AssertException(msg) end
+end
+
+fun min(iterable)
+    var res
+    for var e in iterable do
+        if !res then
+            res = e
+        else
+            if e < res then res = e end
+        end
+    end
+    if !res then raise InvalidArgException('iterable is an empty sequence') end
+    return res
+end
+
+fun max(iterable)
+    var res
+    for var e in iterable do
+        if !res then
+            res = e
+        else
+            if e > res then res = e end
+        end
+    end
+    if !res then raise InvalidArgException('iterable is an empty sequence') end
+    return res
+end
+
+fun sorted(iterable, comp=null)
+    var lst = toList(iterable)
+    lst.sort(comp)
+    return lst
+end
+
+fun sum(iterable)
+    var s = 0
+    for var i in iterable do
+        s += i
+    end
+    return s
+end
+
+fun switch(cond)
+    return fun(jmpTbl)
+        if jmpTbl.contains(cond) then
+            return jmpTbl[cond](cond)
+        else
+            return jmpTbl['__dflt__'](cond)
+        end
+    end
+end
+
+fun toList(iterable)
+    var size
+    try
+        size = #iterable
+    except MethodException e
+    end
+
+    var lst
+    if size then
+        lst = List(size)
+        var i = 0;
+        for var e in iterable do
+            lst[i] = e
+            i += 1
+        end
+    else
+        lst = []
+        for var e in iterable do
+            lst.add(e)
+        end
+    end
+    return lst
+end
+
+fun toTable(iterable)
+    var table = {}
+    if iterable is Table then
+        for var k in iterable do
+            table[k] = iterable[k]
+        end
+    else
+        for var k, v in iterable do
+            table[k] = v
+        end
+    end
+    return table
+end
+
+native ascii(char)
+native char(num)
+native eval(source)
+native exec(cmd)
+native int(n)
+native system(cmd)
+native print(s, ...)
+native type(o)
+
 //--------- Standard iterators ---------
 
 class Iter
@@ -303,11 +406,45 @@ class Enumerate
     end
 end
 
+class Filter
+    fun new(func, iter)
+        this.__func = func
+        this.__iter = iter
+    end
+
+    fun __iter__(i)
+        var iter = i
+        while iter = this.__iter.__iter__(iter) do
+            if this.__func(this.__iter.__next__(iter)) then
+                return iter
+            end
+        end
+        return false
+    end
+
+    fun __next__(i)
+        return this.__iter.__next__(i)
+    end
+end
+
+class Map
+    fun new(func, iter)
+        this.__func = func
+        this.__iter = iter
+    end
+
+    fun __iter__(i)
+        return this.__iter.__iter__(i)
+    end
+
+    fun __next__(i)
+        return this.__func(this.__iter.__next__(i))
+    end
+end
+
 class Zip
     fun new(...)
-        if #args == 0 then 
-            raise TypeException("Must provide at least one iterator.") 
-        end
+        if #args == 0 then raise TypeException("Must provide at least one iterator.") end
         this.__iters = args
         this.__result = []
     end
@@ -341,61 +478,6 @@ class Zip
         return Tuple(res)
     end
 end
-
-//--------- Core functions ---------
-
-fun assert(cond, msg="assertion failed")
-    if !cond then raise AssertException(msg) end
-end
-
-fun sorted(iterable, comp=null)
-    var lst = toList(iterable)
-    lst.sort(comp)
-    return lst
-end
-
-fun switch(cond)
-    return fun(jmpTbl)
-        if jmpTbl.contains(cond) then
-            return jmpTbl[cond](cond)
-        else
-            return jmpTbl['__dflt__'](cond)
-        end
-    end
-end
-
-fun toList(iterable)
-    var size
-    try
-        size = #iterable
-    except MethodException e
-    end
-
-    var lst
-    if size then
-        lst = List(size)
-        var i = 0;
-        for var e in iterable do
-            lst[i] = e
-            i += 1
-        end
-    else
-        lst = []
-        for var e in iterable do
-            lst.add(e)
-        end
-    end
-    return lst
-end
-
-native ascii(char)
-native char(num)
-native eval(source)
-native exec(cmd)
-native int(n)
-native system(cmd)
-native print(s, ...)
-native type(o)
 
 //--------- Exceptions ---------
 
