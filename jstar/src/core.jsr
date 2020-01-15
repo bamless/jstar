@@ -444,7 +444,9 @@ end
 
 class Zip
     fun new(...)
-        if #args == 0 then raise TypeException("Must provide at least one iterator.") end
+        if #args == 0 then 
+            raise TypeException("Must provide at least one iterator.")
+        end
         this.__iters = args
         this.__result = []
     end
