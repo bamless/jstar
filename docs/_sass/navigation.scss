@@ -9,6 +9,7 @@
   background-color: $sidebar-color;
 
   @include mq(md) {
+    display: none !important;
     position: absolute;
     top: 0;
     right: 0;
@@ -102,9 +103,22 @@
   }
 }
 
+.navigation-image {
+  width: 65%; 
+  display: none;
+  margin-left: auto; 
+  margin-right: auto;
+  margin-bottom: 0.5rem;
+
+  @include mq(md) {
+    display: block !important;
+  }
+}
+
 .navigation-list-toggle {
   position: absolute;
   right: $sp-4;
+  top: 1.675rem;
 
   @include mq(md) {
     display: none !important;
