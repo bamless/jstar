@@ -19,8 +19,6 @@
 #define EXC_ERR_FIELD "__err"
 #define EXC_STACKTRACE_FIELD "__stacktrace"
 
-#define JSTARPATH "JSTARPATH"
-
 #define PACKAGE_FILE "/__package__.jsr"
 
 #ifdef __unix__

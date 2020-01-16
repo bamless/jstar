@@ -31,30 +31,6 @@ static void reset(JStarVM *vm) {
     vm->module = NULL;
 }
 
-static void initImportPaths(JStarVM *vm) {
-    const char *jstarPath = getenv(JSTARPATH);
-    if(jstarPath == NULL) return;
-
-    size_t last = 0;
-    size_t pathLen = strlen(jstarPath);
-    ObjList *importPaths = vm->importpaths;
-
-    for(size_t i = 0; i < pathLen; i++) {
-        if(jstarPath[i] == ':') {
-            ObjString *p = copyString(vm, jstarPath + last, i - last, true);
-            push(vm, OBJ_VAL(p));
-            listAppend(vm, importPaths, OBJ_VAL(p));
-            pop(vm);
-            last = i + 1;
-        }
-    }
-
-    ObjString *p = copyString(vm, jstarPath + last, pathLen - last, true);
-    push(vm, OBJ_VAL(p));
-    listAppend(vm, importPaths, OBJ_VAL(p));
-    pop(vm);
-}
-
 JStarVM *jsrNewVM() {
     JStarVM *vm = calloc(1, sizeof(*vm));
 
@@ -108,7 +84,6 @@ JStarVM *jsrNewVM() {
     // classes to objects, since classes are created in intCoreLibrary
     vm->importpaths = newList(vm, 8);
     vm->emptyTup = newTuple(vm, 0);
-    initImportPaths(vm);
 
     return vm;
 }

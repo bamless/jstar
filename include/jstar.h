@@ -113,6 +113,10 @@ JSTAR_API void jsrEnsureStack(JStarVM *vm, size_t needed);
 // A C function callable from J*
 typedef bool (*JStarNative)(JStarVM *vm);
 
+// Read a whole file. The returned buffer is malloc'd, so the user should free() it when done.
+// On error returns NULL and sets errno to the appropriate error.
+char *jsrReadFile(const char *path);
+
 // ---- Registry to register native functions ----
 
 // J* native registry, used to associate names to native pointers in native c extension modules.

@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define JSTARPATH "JSTARPATH"
+
 static JStarVM *vm;
 
 static void header() {
@@ -100,36 +102,31 @@ static void dorepl() {
     linenoiseHistoryFree();
 }
 
-static char *readSrcFile(const char *path) {
-    FILE *srcFile = fopen(path, "rb");
-    if(srcFile == NULL || errno == EISDIR) {
-        if(srcFile) fclose(srcFile);
-        perror("Error while reading input file");
-        return NULL;
+static void initImportPaths(char **paths, int count) {
+    for(int i = 0; i < count; i++) {
+        jsrAddImportPath(vm, paths[i]);
     }
 
-    fseek(srcFile, 0, SEEK_END);
-    size_t size = ftell(srcFile);
-    rewind(srcFile);
+    const char *jstarPath = getenv(JSTARPATH);
+    if(jstarPath == NULL) return;
 
-    char *src = malloc(size + 1);
-    if(src == NULL) {
-        fclose(srcFile);
-        fprintf(stderr, "Error while reading the file: out of memory.\n");
-        return NULL;
+    JStarBuffer path;
+    jsrBufferInit(vm, &path);
+
+    size_t last = 0;
+    size_t pathLen = strlen(jstarPath);
+    for(size_t i = 0; i < pathLen; i++) {
+        if(jstarPath[i] == ':') {
+            jsrBufferAppend(&path, jstarPath + last, i - last);
+            jsrAddImportPath(vm, path.data);
+            jsrBufferClear(&path);
+            last = i + 1;
+        }
     }
 
-    size_t read = fread(src, sizeof(char), size, srcFile);
-    if(read < size) {
-        free(src);
-        fclose(srcFile);
-        fprintf(stderr, "Error: couldn't read file.\n");
-        return NULL;
-    }
-
-    fclose(srcFile);
-    src[read] = '\0';
-    return src;
+    jsrBufferAppend(&path, jstarPath + last, pathLen - last);
+    jsrAddImportPath(vm, path.data);
+    jsrBufferFree(&path);
 }
 
 int main(int argc, const char **argv) {
@@ -137,6 +134,7 @@ int main(int argc, const char **argv) {
 
     EvalResult res = VM_EVAL_SUCCESS;
     if(argc == 1) {
+        initImportPaths(NULL, 0);
         dorepl();
     } else {
         // set command line args for use in scripts
@@ -148,13 +146,15 @@ int main(int argc, const char **argv) {
             size_t length = directory - argv[1] + 1;
             char *path = calloc(length + 1, 1);
             memcpy(path, argv[1], length);
-            jsrAddImportPath(vm, path);
+            initImportPaths(&path, 1);
             free(path);
         }
 
         // read file and evaluate
-        char *src = readSrcFile(argv[1]);
+        char *src = jsrReadFile(argv[1]);
         if(src == NULL) {
+            fprintf(stderr, "Error reading input file ");
+            perror(argv[1]);
             exit(EXIT_FAILURE);
         }
 

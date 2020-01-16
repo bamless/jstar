@@ -14,36 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static char *loadSource(const char *path) {
-    FILE *srcFile = fopen(path, "rb");
-    if(srcFile == NULL || errno == EISDIR) {
-        if(srcFile) fclose(srcFile);
-        return NULL;
-    }
-
-    fseek(srcFile, 0, SEEK_END);
-    size_t size = ftell(srcFile);
-    rewind(srcFile);
-
-    char *src = malloc(size + 1);
-    if(src == NULL) {
-        fclose(srcFile);
-        return NULL;
-    }
-
-    size_t read = fread(src, sizeof(char), size, srcFile);
-    if(read < size) {
-        free(src);
-        fclose(srcFile);
-        return NULL;
-    }
-
-    fclose(srcFile);
-
-    src[read] = '\0';
-    return src;
-}
-
 ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
     ObjModule *module = getModule(vm, name);
 
@@ -132,7 +102,7 @@ static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, con
 }
 
 static bool importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
-    char *source = loadSource(path->data);
+    char *source = jsrReadFile(path->data);
     if(source == NULL) return false;
 
     bool imported = importWithSource(vm, path->data, name, source);

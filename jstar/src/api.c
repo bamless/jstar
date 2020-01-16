@@ -4,6 +4,8 @@
 #include "util.h"
 #include "vm.h"
 
+#include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 /**
@@ -14,6 +16,35 @@
  * 
  * The JStarBuffer functions are implemented at the end of object.c
  */
+
+char *jsrReadFile(const char *path) {
+    FILE *srcFile = fopen(path, "rb");
+    if(srcFile == NULL || errno == EISDIR) {
+        if(srcFile) fclose(srcFile);
+        return NULL;
+    }
+
+    fseek(srcFile, 0, SEEK_END);
+    size_t size = ftell(srcFile);
+    rewind(srcFile);
+
+    char *src = malloc(size + 1);
+    if(src == NULL) {
+        fclose(srcFile);
+        return NULL;
+    }
+
+    size_t read = fread(src, sizeof(char), size, srcFile);
+    if(read < size) {
+        free(src);
+        fclose(srcFile);
+        return NULL;
+    }
+
+    fclose(srcFile);
+    src[read] = '\0';
+    return src;
+}
 
 static void validateStack(JStarVM *vm) {
     assert((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
