@@ -74,31 +74,25 @@ Module builtInModules[] = {
         FUNCTION(print,  jsr_print)
         FUNCTION(system, jsr_system)
         FUNCTION(type,   jsr_type)
-
         CLASS(Number)
             METHOD(new,        jsr_Number_new)
             METHOD(isInt,      jsr_Number_isInt)
             METHOD(__string__, jsr_Number_string)
             METHOD(__hash__,   jsr_Number_hash)
         ENDCLASS
-
         CLASS(Boolean)
             METHOD(new,        jsr_Boolean_new)
             METHOD(__string__, jsr_Boolean_string)
         ENDCLASS
-
         CLASS(Null)
             METHOD(__string__, jsr_Null_string)
         ENDCLASS
-
         CLASS(Function)
             METHOD(__string__, jsr_Function_string)
         ENDCLASS
-
         CLASS(Module)
             METHOD(__string__, jsr_Module_string)
         ENDCLASS
-
         CLASS(List)
             METHOD(new,      jsr_List_new)
             METHOD(add,      jsr_List_add)
@@ -110,7 +104,6 @@ Module builtInModules[] = {
             METHOD(__iter__, jsr_List_iter)
             METHOD(__next__, jsr_List_next)
         ENDCLASS
-
         CLASS(Tuple)
             METHOD(new,      jsr_Tuple_new)
             METHOD(__len__,  jsr_Tuple_len)
@@ -118,7 +111,6 @@ Module builtInModules[] = {
             METHOD(__next__, jsr_Tuple_next)
             METHOD(subTuple, jsr_Tuple_subTuple)
         ENDCLASS
-
         CLASS(String)
             METHOD(new,        jsr_String_new)
             METHOD(substr,     jsr_String_substr)
@@ -134,7 +126,6 @@ Module builtInModules[] = {
             METHOD(__next__,   jsr_String_next)
             METHOD(__string__, jsr_String_string)
         ENDCLASS
-
         CLASS(Table)
             METHOD(__get__,    jsr_Table_get)
             METHOD(__set__,    jsr_Table_set)
@@ -148,13 +139,11 @@ Module builtInModules[] = {
             METHOD(__next__,   jsr_Table_next)
             METHOD(__string__, jsr_Table_string)
         ENDCLASS
-
         CLASS(Enum)
             METHOD(new,   jsr_Enum_new)
             METHOD(value, jsr_Enum_value)
             METHOD(name,  jsr_Enum_name)
         ENDCLASS
-
         CLASS(Exception)
             METHOD(printStacktrace, jsr_Exception_printStacktrace)
         ENDCLASS
@@ -181,11 +170,9 @@ Module builtInModules[] = {
             METHOD(rewind,   jsr_File_rewind)
             METHOD(flush,    jsr_File_flush)
         ENDCLASS
-
         CLASS(__PFile)
             METHOD(close, jsr_PFile_close)
         ENDCLASS
-
         FUNCTION(popen,  jsr_popen)
         FUNCTION(remove, jsr_remove)
         FUNCTION(rename, jsr_rename)

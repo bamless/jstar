@@ -6,10 +6,11 @@
 
   <div class="page-wrap">
     <div class="side-bar">
-      <a href="{{ site.url }}{{ site.baseurl }}" class="site-title fs-6 lh-tight">{{ site.title }}</a>
+      <a href="{{ site.url }}{{ site.baseurl }}" class="site-title fs-6 lh-tight"><img style="width: 48px; display: block;" src="{{site.url}}/jstar/assets/images/JStar256.png"/></a>
       <span class="fs-3"><button class="js-main-nav-trigger navigation-list-toggle btn btn-outline" type="button" data-text-toggle="Hide">Menu</button></span>
       <div class="navigation main-nav js-main-nav">
-        {% include nav.html %}
+      <a href="{{ site.url }}{{ site.baseurl }}"><img class="navigation-image" src="{{site.url}}/jstar/assets/images/JStar256.png"/></a>
+      {% include nav.html %}
       </div>
       <footer role="contentinfo" class="site-footer">
         <p class="text-small text-grey-dk-000 mb-0">This site uses <a href="https://github.com/pmarsceill/just-the-docs">Just the Docs</a>, a documentation theme for Jekyll.</p>
