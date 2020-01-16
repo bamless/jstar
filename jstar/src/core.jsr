@@ -215,7 +215,7 @@ class List is Sequence
     end
 
     fun sort(comp=null)
-        var temp = List(#this, fun(i) return this[i] end)
+        var temp = List(#this, |i| => this[i])
 
         fun merge(l, m, r)
             var k, i, j = l, l, m + 1
