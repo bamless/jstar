@@ -47,12 +47,28 @@ class Sequence
         raise NotImplementedException('Sequence is an abstract class')
     end
 
+    fun __get__(i)
+        raise NotImplementedException('Sequence must implement __get__')
+    end
+
+    fun __len__()
+        raise NotImplementedException('Sequence must implement __set__')
+    end
+
+    fun __iter__(i)
+        raise NotImplementedException('Sequence must implement __iter__')
+    end
+
+    fun __next__(i)
+        raise NotImplementedException('Sequence must implement __next__')
+    end
+
     fun contains(e)
         return this.indexOf(e) != -1
     end
 
     fun indexOf(e)
-        var lenth = #this
+        var length = #this
         for var i = 0; i < length; i += 1 do
             if this[i] == e then
                 return i
@@ -68,6 +84,16 @@ class Sequence
             end
         end
         return -1
+    end
+
+    fun count(e)
+        var count = 0
+        for var o in this do
+            if o == e then 
+                count += 1
+            end
+        end
+        return count
     end
 
     fun empty()
