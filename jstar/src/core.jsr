@@ -352,21 +352,21 @@ fun toList(iterable)
     except MethodException e
     end
 
-    var lst
     if size then
-        lst = List(size)
+        var lst = List(size)
         var i = 0;
         for var e in iterable do
             lst[i] = e
             i += 1
         end
+        return lst
     else
-        lst = []
+        var lst = []
         for var e in iterable do
             lst.add(e)
         end
+        return lst
     end
-    return lst
 end
 
 fun toTable(iterable)
