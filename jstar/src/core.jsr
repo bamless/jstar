@@ -27,10 +27,6 @@ end
 class StackTrace end
 
 class Iter
-    fun new()
-        raise NotImplementedException('Iter is an abstract class')
-    end
-
     fun __iter__(i)
         var name = type(this).getName()
         raise NotImplementedException(name + ' must implement __get__ as is Iter subclass')

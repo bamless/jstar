@@ -8,7 +8,7 @@ native gsub(str, regex, sub, num=0)
 fun gfind(s, r)
     var off, endl = 0, null
 
-    class GfindIter
+    class GfindIter is Iter
         fun __iter__(_)
             var res = find(s, r, off)
             if !res then 
