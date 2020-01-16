@@ -22,6 +22,7 @@ typedef enum {
     TOK_COMMA,
     TOK_DOT,
     TOK_VARARG,
+    TOK_ARROW,
 
     TOK_EQUAL,
     TOK_PLUS_EQ,
@@ -45,6 +46,7 @@ typedef enum {
     TOK_HASH_HASH,
 
     TOK_COLON,
+    TOK_PIPE,
     TOK_SEMICOLON,
     TOK_IN,
 

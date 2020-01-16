@@ -26,7 +26,43 @@ end
 
 class StackTrace end
 
-class String
+class Iter
+    fun new()
+        raise NotImplementedException('Iter is an abstract class')
+    end
+
+    fun __iter__(i)
+        var name = type(this).getName()
+        raise NotImplementedException(name + ' must implement __get__ as is Iter subclass')
+    end
+
+    fun __next__(i)
+        var name = type(this).getName()
+        raise NotImplementedException(name + ' must implement __get__ as is Iter subclass')
+    end
+
+    fun forEach(func)
+        for var e in this do func(e) end
+    end
+
+    fun enumerate() 
+        return Enumerate(this)
+    end
+
+    fun map(func)
+        return Map(func, this)
+    end
+
+    fun filter(func) 
+        return Filter(func, this)
+    end
+
+    fun zip(iterable)
+        return Zip(this, iterable)
+    end
+end
+
+class String is Iter
     native new(...)
     native substr(from, to)
     native startsWith(prefix, offset=0)
@@ -42,25 +78,19 @@ class String
     native __hash__()
 end
 
-class Sequence
+class Sequence is Iter
     fun new()
         raise NotImplementedException('Sequence is an abstract class')
     end
 
     fun __get__(i)
-        raise NotImplementedException('Sequence must implement __get__')
+        var name = type(this).getName()
+        raise NotImplementedException(name + ' must implement __get__ as is Sequence subclass')
     end
 
     fun __len__()
-        raise NotImplementedException('Sequence must implement __set__')
-    end
-
-    fun __iter__(i)
-        raise NotImplementedException('Sequence must implement __iter__')
-    end
-
-    fun __next__(i)
-        raise NotImplementedException('Sequence must implement __next__')
+        var name = type(this).getName()
+        raise NotImplementedException(name + ' must implement __len__ as is Sequence subclass')
     end
 
     fun contains(e)
@@ -100,8 +130,8 @@ class Sequence
         return #this == 0
     end
 
-    fun forEach(pred)
-        for var e in this do pred(e) end
+    fun reverse()
+        return Reverse(this)
     end
 
     fun __eq__(o)
@@ -364,36 +394,15 @@ native type(o)
 
 //--------- Standard iterators ---------
 
-class Iter
-    fun new(indexable)
-        this.__indexable = indexable
-    end
-
-    fun __iter__(i)
-        if i == null then
-            return 0
-        end
-        if i < #this.__indexable - 1 then
-            return i + 1
-        else 
-            return false
-        end
-    end
-
-    fun __next__(i)
-        return this.__indexable[i]
-    end
-end
-
-class Reverse
-    fun new(indexable)
-        this.__indexable = indexable
-        this.__size = #indexable
+class Reverse is Sequence
+    fun new(sequence)
+        this.__sequence = sequence
+        this.__size = #sequence
     end
 
     fun __get__(i)
         try
-            return this.__indexable[this.__size - i - 1]
+            return this.__sequence[this.__size - i - 1]
         except IndexOutOfBoundException e
             raise IndexOutOfBoundException(##i)
         end
@@ -411,11 +420,11 @@ class Reverse
     end
 
     fun __next__(i)
-        return this.__indexable[this.__size - i - 1]
+        return this.__sequence[this.__size - i - 1]
     end
 end
 
-class Enumerate
+class Enumerate is Iter
     fun new(iter, start=0)
         this.__iter = iter
         this.__idx = start
@@ -432,7 +441,7 @@ class Enumerate
     end
 end
 
-class Filter
+class Filter is Iter
     fun new(func, iter)
         this.__func = func
         this.__iter = iter
@@ -453,7 +462,7 @@ class Filter
     end
 end
 
-class Map
+class Map is Iter
     fun new(func, iter)
         this.__func = func
         this.__iter = iter
@@ -468,7 +477,7 @@ class Map
     end
 end
 
-class Zip
+class Zip is Iter
     fun new(...)
         if #args == 0 then 
             raise TypeException("Must provide at least one iterator.")

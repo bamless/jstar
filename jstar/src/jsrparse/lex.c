@@ -277,6 +277,9 @@ void nextToken(Lexer *lex, Token *tok) {
     case ':':
         makeToken(lex, tok, TOK_COLON);
         break;
+    case '|':
+        makeToken(lex, tok, TOK_PIPE);
+        break;
     case ',':
         makeToken(lex, tok, TOK_COMMA);
         break;
@@ -350,6 +353,8 @@ void nextToken(Lexer *lex, Token *tok) {
     case '=':
         if(match(lex, '='))
             makeToken(lex, tok, TOK_EQUAL_EQUAL);
+        else if(match(lex, '>'))
+            makeToken(lex, tok, TOK_ARROW);
         else
             makeToken(lex, tok, TOK_EQUAL);
         break;
