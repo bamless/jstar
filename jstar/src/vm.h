@@ -67,8 +67,7 @@ typedef struct JStarVM {
     Compiler *currCompiler;
 
     // Constant strings needed by compiler and runtime
-    ObjString *ctor;
-    ObjString *stField;
+    ObjString *ctor, *stacktrace, *next, *iter;
 
     // Names of overloadable operator's methods
     ObjString *add, *sub, *mul, *div, *mod, *get, *set;

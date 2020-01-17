@@ -334,8 +334,10 @@ void garbageCollect(JStarVM *vm) {
     reachObject(vm, (Obj *)vm->neg);
 
     reachObject(vm, (Obj *)vm->ctor);
-    reachObject(vm, (Obj *)vm->stField);
+    reachObject(vm, (Obj *)vm->stacktrace);
     reachObject(vm, (Obj *)vm->emptyTup);
+    reachObject(vm, (Obj *)vm->next);
+    reachObject(vm, (Obj *)vm->iter);
 
     // reach loaded modules
     reachHashTable(vm, &vm->modules);

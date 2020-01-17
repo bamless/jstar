@@ -49,8 +49,10 @@ JStarVM *jsrNewVM() {
     vm->nextGC = INIT_GC;
 
     // Create constants strings
+    vm->stacktrace = copyString(vm, EXC_STACKTRACE_FIELD, strlen(EXC_STACKTRACE_FIELD), true);
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
-    vm->stField = copyString(vm, EXC_STACKTRACE_FIELD, strlen(EXC_STACKTRACE_FIELD), true);
+    vm->next = copyString(vm, "__next__", 8, true);
+    vm->iter = copyString(vm, "__iter__", 8, true);
 
     vm->add = copyString(vm, "__add__", 7, true);
     vm->sub = copyString(vm, "__sub__", 7, true);
@@ -985,11 +987,39 @@ static bool runEval(JStarVM *vm, int depth) {
         DISPATCH();
     }
 
+    TARGET(OP_GET_ITER): {
+        vm->sp[0] = vm->sp[-2];
+        vm->sp[1] = vm->sp[-1];
+        vm->sp += 2;
+        SAVE_FRAME();
+        bool res = invokeFromValue(vm, vm->iter, 1);
+        LOAD_FRAME();
+        if(!res) UNWIND_STACK(vm);
+        DISPATCH();
+    }
+
+    TARGET(OP_FOR_ITER): {
+        vm->sp[-2] = vm->sp[-1];
+        int16_t off = NEXT_SHORT();
+        if(isValTrue(pop(vm))) {
+            vm->sp[0] = vm->sp[-2];
+            vm->sp[1] = vm->sp[-1];
+            vm->sp += 2;
+            SAVE_FRAME();
+            bool res = invokeFromValue(vm, vm->next, 1);
+            LOAD_FRAME();
+            if(!res) UNWIND_STACK(vm);
+        } else {
+            ip += off;
+        }
+        DISPATCH();
+    }
+
     TARGET(OP_NULL): {
         push(vm, NULL_VAL);
         DISPATCH();
     }
-    
+
     {
         uint8_t argc;
 
@@ -1335,7 +1365,7 @@ sup_invoke:;
 
         ObjStackTrace *st = newStackTrace(vm);
         ObjInstance *excInst = AS_INSTANCE(exc);
-        hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
+        hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
 
         UNWIND_STACK(vm);
     }
@@ -1395,7 +1425,7 @@ static bool unwindStack(JStarVM *vm, int depth) {
     ObjInstance *exception = AS_INSTANCE(peek(vm));
 
     Value stVal = NULL_VAL;
-    hashTableGet(&exception->fields, vm->stField, &stVal);
+    hashTableGet(&exception->fields, vm->stacktrace, &stVal);
     assert(IS_STACK_TRACE(stVal), "Exception doesn't have a stacktrace object");
 
     ObjStackTrace *st = AS_STACK_TRACE(stVal);
@@ -1521,7 +1551,7 @@ void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
 
     push(vm, OBJ_VAL(excInst));
     ObjStackTrace *st = newStackTrace(vm);
-    hashTablePut(&excInst->fields, vm->stField, OBJ_VAL(st));
+    hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
 
     if(err != NULL) {
         char errStr[1024] = {0};

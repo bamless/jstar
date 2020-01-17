@@ -959,21 +959,12 @@ static void compileForEach(Compiler *c, Stmt *s) {
     Loop l;
     startLoop(c, &l);
 
-    compileVariable(c, &expr, false, s->line);
-    compileVariable(c, &iterator, false, s->line);
-    callMethod(c, "__iter__", 1);
-
+    emitBytecode(c, OP_GET_ITER, s->line);
     compileVariable(c, &iterator, true, s->line);
-
-    size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
+    size_t exitJmp = emitBytecode(c, OP_FOR_ITER, 0);
     emitShort(c, 0, 0);
 
-    compileVariable(c, &expr, false, s->line);
-    compileVariable(c, &iterator, false, s->line);
-    callMethod(c, "__next__", 1);
-
     Stmt *varDecl = s->as.forEach.var;
-
     enterScope(c);
 
     // declare the variables used for iteration

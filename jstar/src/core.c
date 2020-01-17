@@ -496,11 +496,7 @@ JSR_NATIVE(jsr_List_clear) {
 JSR_NATIVE(jsr_List_iter) {
     ObjList *lst = AS_LIST(vm->apiStack[0]);
 
-    if(IS_NULL(vm->apiStack[1])) {
-        if(lst->count == 0) {
-            push(vm, BOOL_VAL(false));
-            return true;
-        }
+    if(IS_NULL(vm->apiStack[1]) && lst->count != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
@@ -558,16 +554,12 @@ JSR_NATIVE(jsr_Tuple_len) {
 JSR_NATIVE(jsr_Tuple_iter) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
-    if(jsrIsNull(vm, 1)) {
-        if(tup->size == 0) {
-            push(vm, BOOL_VAL(false));
-            return true;
-        }
+    if(IS_NULL (vm->apiStack[1]) && tup->size != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
 
-    if(jsrIsNumber(vm, 1)) {
+    if(IS_NUM(vm->apiStack[1])) {
         double idx = AS_NUM(vm->apiStack[1]);
         if(idx >= 0 && idx < tup->size - 1) {
             push(vm, NUM_VAL(idx + 1));
@@ -1247,7 +1239,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
     ObjInstance *exc = AS_INSTANCE(vm->apiStack[0]);
 
     Value stval = NULL_VAL;
-    hashTableGet(&exc->fields, vm->stField, &stval);
+    hashTableGet(&exc->fields, vm->stacktrace, &stval);
 
     if(!IS_STACK_TRACE(stval)) {
         jsrPushNull(vm);
