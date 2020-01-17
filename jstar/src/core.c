@@ -738,9 +738,12 @@ JSR_NATIVE(jsr_String_join) {
 
     JSR_FOREACH(1, {
         if(!jsrIsString(vm, -1)) {
-            if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
+            if((jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS)) {
                 jsrBufferFree(&joined);
                 return false;
+            }
+            if(!jsrIsString(vm, -1)) {
+                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
             }
         }
         jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
