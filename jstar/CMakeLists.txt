@@ -2,7 +2,7 @@ FILE(GLOB_RECURSE SOURCES src/*.c)
 FILE(GLOB_RECURSE JSTAR_SOURCES src/*.jsr)
 
 if(USE_COMPUTED_GOTOS)
-	if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_C_COMPILER_ID} STREQUAL "Clang")
+	if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
 		# disable crossjumping optimization on vm.c for an extra ~15% dispatch performance
 		set_property(SOURCE "src/vm.c" PROPERTY COMPILE_FLAGS "-fno-crossjumping ")
 	endif()
