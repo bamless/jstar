@@ -561,7 +561,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             double index = AS_NUM(arg);
 
             if(index < 0 || index >= str->length) {
-                jsrRaise(vm, "IndexOutOfBoundException", "String index out of bound: %lu.", index);
+                jsrRaise(vm, "IndexOutOfBoundException", "String index out of bound: %g.", index);
                 return false;
             }
             char character = str->data[(size_t)index];
