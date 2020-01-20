@@ -28,13 +28,11 @@ class StackTrace end
 
 class Iter
     fun __iter__(i)
-        var name = type(this).getName()
-        raise NotImplementedException(name + ' must implement __get__ as is Iter subclass')
+        raise NotImplementedException()
     end
 
     fun __next__(i)
-        var name = type(this).getName()
-        raise NotImplementedException(name + ' must implement __get__ as is Iter subclass')
+        raise NotImplementedException()
     end
 
     fun forEach(func)
@@ -80,13 +78,11 @@ class Sequence is Iter
     end
 
     fun __get__(i)
-        var name = type(this).getName()
-        raise NotImplementedException(name + ' must implement __get__ as is Sequence subclass')
+        raise NotImplementedException()
     end
 
     fun __len__()
-        var name = type(this).getName()
-        raise NotImplementedException(name + ' must implement __len__ as is Sequence subclass')
+        raise NotImplementedException()
     end
 
     fun contains(e)
@@ -265,7 +261,7 @@ class Tuple is Sequence
     end
 end
 
-class Table 
+class Table
     native delete(key)
     native clear()
     native contains(key)
@@ -300,7 +296,9 @@ fun min(iterable)
             if e < res then res = e end
         end
     end
-    if !res then raise InvalidArgException('iterable is an empty sequence') end
+    if !res then 
+        raise InvalidArgException('iterable is an empty sequence')
+    end
     return res
 end
 
@@ -313,7 +311,9 @@ fun max(iterable)
             if e > res then res = e end
         end
     end
-    if !res then raise InvalidArgException('iterable is an empty sequence') end
+    if !res then
+        raise InvalidArgException('iterable is an empty sequence')
+    end
     return res
 end
 
