@@ -53,7 +53,7 @@ ObjModule *getModule(JStarVM *vm, ObjString *name) {
     return AS_MODULE(module);
 }
 
-static void loadNativeDynlib(JStarVM *vm, JStarBuffer *modulePath, ObjString *moduleName) {
+static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *moduleName) {
     const char *rootPath = strrchr(modulePath->data, '/');
     const char *simpleName = strrchr(moduleName->data, '.');
 
@@ -90,26 +90,41 @@ static void loadNativeDynlib(JStarVM *vm, JStarBuffer *modulePath, ObjString *mo
 
 static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, const char *source) {
     Stmt *program = parse(path, source);
-    if(program == NULL) return false;
 
+    if(program == NULL) {
+        return false;
+    }
+        
     ObjFunction *moduleFun = compileWithModule(vm, name, program);
     freeStmt(program);
 
-    if(moduleFun == NULL) return false;
+    if(moduleFun == NULL) {
+        return false;
+    }
 
     push(vm, OBJ_VAL(moduleFun));
     return true;
 }
 
-static bool importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
+typedef enum ImportResult {
+    IMPORT_OK, IMPORT_ERR, IMPORT_NOT_FOUND
+} ImportResult;
+
+static ImportResult importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
     char *source = jsrReadFile(path->data);
-    if(source == NULL) return false;
+    if(source == NULL) {
+        return IMPORT_NOT_FOUND;
+    }
 
     bool imported = importWithSource(vm, path->data, name, source);
-    if(imported) loadNativeDynlib(vm, path, name);
     free(source);
-    
-    return imported;
+
+    if(imported) {
+        tryNativeLib(vm, path, name);
+        return IMPORT_OK;
+    } else {
+        return IMPORT_ERR;
+    }
 }
 
 static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
@@ -119,35 +134,38 @@ static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
     jsrBufferInit(vm, &fullPath);
 
     for(size_t i = 0; i < paths->count + 1; i++) {
-        if(i == paths->count) {
-            // We have run through all import paths, try CWD
-            jsrBufferAppendstr(&fullPath, "./");
-        } else {
+        if(i < paths->count) {
             if(!IS_STRING(paths->arr[i])) continue;
             jsrBufferAppendstr(&fullPath, AS_STRING(paths->arr[i])->data);
-            jsrBufferAppendChar(&fullPath, '/');
+            if(fullPath.len > 0 && fullPath.data[fullPath.len - 1] != '/') {
+                jsrBufferAppendChar(&fullPath, '/');
+            }
         }
 
-        size_t moduleStart = fullPath.len - 1;
+        size_t moduleStart = fullPath.len;
         jsrBufferAppendstr(&fullPath, name->data);
         jsrBufferReplaceChar(&fullPath, moduleStart, '.', '/');
 
-        // try to load a package
+        ImportResult res;
+        
+        // try to load a package (__package__.bl file in a directory)
         size_t moduleEnd = fullPath.len;
         jsrBufferAppendstr(&fullPath, PACKAGE_FILE);
+        res = importFromPath(vm, &fullPath, name);
 
-        if(importFromPath(vm, &fullPath, name)) {
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
-            return true;
+            return res == IMPORT_OK;
         }
 
         // if there is no package try to load module (i.e. normal .jsr file)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendstr(&fullPath, ".jsr");
+        res = importFromPath(vm, &fullPath, name);
 
-        if(importFromPath(vm, &fullPath, name)) {
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
-            return true;
+            return res == IMPORT_OK;
         }
 
         jsrBufferClear(&fullPath);
@@ -177,16 +195,19 @@ bool importModule(JStarVM *vm, ObjString *name) {
     char *nameStart = strrchr(name->data, '.');
 
     // not a nested module, nothing to do
-    if(nameStart == NULL) return true;
+    if(nameStart == NULL) {
+        return true;
+    }
 
     nameStart++;
     ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     push(vm, OBJ_VAL(parentName));
+    
     ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart), true);
     ObjModule *module = getModule(vm, name);
     ObjModule *parent = getModule(vm, parentName);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
-    pop(vm);
 
+    pop(vm);
     return true;
 }
