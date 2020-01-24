@@ -16,6 +16,11 @@ option(DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
 option(DBG_PRINT_GC "Trace the execution of the garbage collector" OFF)
 option(DBG_STRESS_GC "Stress the garbage collector by calling it on every allocation" OFF)
 
+option(JSTAR_IO "Include the 'io' module in the language" ON)
+option(JSTAR_MATH "Include the 'math' module in the language" ON)
+option(JSTAR_DEBUG "Include the 'debug' module in the language" ON)
+option(JSTAR_RE "Include the 're' module in the language" ON)
+
 # setup option.h
 configure_file (
 	"${PROJECT_SOURCE_DIR}/include/jstarconf.h.in"

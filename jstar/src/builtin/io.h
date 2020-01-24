@@ -28,5 +28,6 @@ JSR_NATIVE(jsr_PFile_close);
 JSR_NATIVE(jsr_popen);
 JSR_NATIVE(jsr_remove);
 JSR_NATIVE(jsr_rename);
+JSR_NATIVE(jsr_io_init);
 
 #endif

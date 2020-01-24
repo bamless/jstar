@@ -3,7 +3,7 @@
 #include "memory.h"
 #include "vm.h"
 
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -44,6 +44,17 @@ JSR_NATIVE(jsr_clock) {
     return true;
 }
 
+JSR_NATIVE(jsr_getenv) {
+    if(!jsrCheckStr(vm, 1, "name")) return false;
+    char *value = getenv(jsrGetString(vm, 1));
+    if(value != NULL) {
+        jsrPushString(vm, value);
+        return true;
+    }
+    jsrPushNull(vm);
+    return true;
+}
+
 JSR_NATIVE(jsr_gc) {
     garbageCollect(vm);
     jsrPushNull(vm);
@@ -51,35 +62,6 @@ JSR_NATIVE(jsr_gc) {
 }
 
 JSR_NATIVE(jsr_sys_init) {
-    // Set up the standard I/O streams (this is a little bit of an hack)
-    if(!jsrGetGlobal(vm, "io", "File")) return false;
-
-    // Set stdout
-    jsrDup(vm);
-    jsrPushNull(vm);
-    jsrPushNull(vm);
-    jsrPushHandle(vm, stdout);
-    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
-    jsrSetGlobal(vm, NULL, "out");
-    jsrPop(vm);
-
-    // Set stderr
-    jsrDup(vm);
-    jsrPushNull(vm);
-    jsrPushNull(vm);
-    jsrPushHandle(vm, stderr);
-    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
-    jsrSetGlobal(vm, NULL, "err");
-    jsrPop(vm);
-
-    // Set stdin
-    jsrPushNull(vm);
-    jsrPushNull(vm);
-    jsrPushHandle(vm, stdin);
-    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
-    jsrSetGlobal(vm, NULL, "stdin");
-    jsrPop(vm);
-
     // Set up command line arguments
     if(vm->argc != 0) {
         jsrGetGlobal(vm, NULL, "args");
