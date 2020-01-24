@@ -22,6 +22,11 @@
 #cmakedefine DBG_PRINT_GC
 #cmakedefine DBG_STRESS_GC
 
+#cmakedefine JSTAR_IO
+#cmakedefine JSTAR_MATH
+#cmakedefine JSTAR_DEBUG
+#cmakedefine JSTAR_RE
+
 #ifndef JSTAR_STATIC
     #if defined(_WIN32) && defined(_MSC_VER)
         #if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)

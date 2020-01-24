@@ -22,6 +22,11 @@
 /* #undef DBG_PRINT_GC */
 /* #undef DBG_STRESS_GC */
 
+#define JSTAR_IO
+#define JSTAR_MATH
+#define JSTAR_DEBUG
+#define JSTAR_RE
+
 #ifndef JSTAR_STATIC
     #if defined(_WIN32) && defined(_MSC_VER)
         #if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)

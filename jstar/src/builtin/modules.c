@@ -7,17 +7,25 @@
 #include "sys.jsr.h"
 #include "sys.h"
 
-#include "io.jsr.h"
-#include "io.h"
+#ifdef JSTAR_IO
+    #include "io.jsr.h"
+    #include "io.h"
+#endif
 
-#include "math.jsr.h"
-#include "math.h"
+#ifdef JSTAR_MATH
+    #include "math.jsr.h"
+    #include "math.h"
+#endif
 
-#include "debug.jsr.h"
-#include "debug.h"
+#ifdef JSTAR_DEBUG
+    #include "debug.jsr.h"
+    #include "debug.h"
+#endif
 
-#include "re.jsr.h"
-#include "re.h"
+#ifdef JSTAR_RE
+    #include "re.jsr.h"
+    #include "re.h"
+#endif
 
 #include <string.h>
 
@@ -154,9 +162,11 @@ Module builtInModules[] = {
         FUNCTION(getImportPaths, jsr_getImportPaths)
         FUNCTION(platform,       jsr_platform)
         FUNCTION(clock,          jsr_clock)
+        FUNCTION(getenv,         jsr_getenv)
         FUNCTION(gc,             jsr_gc)
         FUNCTION(init,           jsr_sys_init)
     ENDMODULE
+#ifdef JSTAR_IO
     MODULE(io)
         CLASS(File)
             METHOD(new,      jsr_File_new)
@@ -176,7 +186,10 @@ Module builtInModules[] = {
         FUNCTION(popen,  jsr_popen)
         FUNCTION(remove, jsr_remove)
         FUNCTION(rename, jsr_rename)
+        FUNCTION(init,   jsr_io_init)
     ENDMODULE
+#endif
+#ifdef JSTAR_MATH
     MODULE(math)
         FUNCTION(abs,    jsr_abs)
         FUNCTION(acos,   jsr_acos)
@@ -206,16 +219,21 @@ Module builtInModules[] = {
         FUNCTION(seed,   jsr_seed)
         FUNCTION(init,   jsr_math_init)
     ENDMODULE
+#endif
+#ifdef JSTAR_RE
     MODULE(re)
         FUNCTION(match,  jsr_re_match)
         FUNCTION(find,   jsr_re_find)
         FUNCTION(gmatch, jsr_re_gmatch)
         FUNCTION(gsub,   jsr_re_gsub)
     ENDMODULE
+#endif
+#ifdef JSTAR_DEBUG
     MODULE(debug)
         FUNCTION(printStack,  jsr_printStack)
         FUNCTION(disassemble, jsr_disassemble)
     ENDMODULE
+#endif
     MODULES_END
 };
 

@@ -357,3 +357,36 @@ JSR_NATIVE(jsr_popen) {
     if(jsrCall(vm, 1) != VM_EVAL_SUCCESS) return false;
     return true;
 }
+
+JSR_NATIVE(jsr_io_init) {
+    if(!jsrGetGlobal(vm, "io", "File")) return false;
+
+    // Set stdout
+    jsrDup(vm);
+    jsrPushNull(vm);
+    jsrPushNull(vm);
+    jsrPushHandle(vm, stdout);
+    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
+    jsrSetGlobal(vm, NULL, "stdout");
+    jsrPop(vm);
+
+    // Set stderr
+    jsrDup(vm);
+    jsrPushNull(vm);
+    jsrPushNull(vm);
+    jsrPushHandle(vm, stderr);
+    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
+    jsrSetGlobal(vm, NULL, "stderr");
+    jsrPop(vm);
+
+    // Set stdin
+    jsrPushNull(vm);
+    jsrPushNull(vm);
+    jsrPushHandle(vm, stdin);
+    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
+    jsrSetGlobal(vm, NULL, "stdin");
+    jsrPop(vm);
+
+    jsrPushNull(vm);
+    return true;
+}
