@@ -25,6 +25,33 @@ static void completion(const char *buf, linenoiseCompletions *lc) {
     linenoiseAddCompletion(lc, indented);
 }
 
+static void initImportPaths(char **paths, int count) {
+    for(int i = 0; i < count; i++) {
+        jsrAddImportPath(vm, paths[i]);
+    }
+
+    const char *jstarPath = getenv(JSTARPATH);
+    if(jstarPath == NULL) return;
+
+    JStarBuffer path;
+    jsrBufferInit(vm, &path);
+
+    size_t last = 0;
+    size_t pathLen = strlen(jstarPath);
+    for(size_t i = 0; i < pathLen; i++) {
+        if(jstarPath[i] == ':') {
+            jsrBufferAppend(&path, jstarPath + last, i - last);
+            jsrAddImportPath(vm, path.data);
+            jsrBufferClear(&path);
+            last = i + 1;
+        }
+    }
+
+    jsrBufferAppend(&path, jstarPath + last, pathLen - last);
+    jsrAddImportPath(vm, path.data);
+    jsrBufferFree(&path);
+}
+
 static int countBlocks(const char *line) {
     Lexer lex;
     Token tok;
@@ -72,6 +99,9 @@ static void addPrintIfExpr(JStarBuffer *sb) {
 }
 
 static void dorepl() {
+    char *thisDir = "./";
+    initImportPaths(&thisDir, 1);
+
     header();
     linenoiseSetCompletionCallback(completion);
 
@@ -102,39 +132,11 @@ static void dorepl() {
     linenoiseHistoryFree();
 }
 
-static void initImportPaths(char **paths, int count) {
-    for(int i = 0; i < count; i++) {
-        jsrAddImportPath(vm, paths[i]);
-    }
-
-    const char *jstarPath = getenv(JSTARPATH);
-    if(jstarPath == NULL) return;
-
-    JStarBuffer path;
-    jsrBufferInit(vm, &path);
-
-    size_t last = 0;
-    size_t pathLen = strlen(jstarPath);
-    for(size_t i = 0; i < pathLen; i++) {
-        if(jstarPath[i] == ':') {
-            jsrBufferAppend(&path, jstarPath + last, i - last);
-            jsrAddImportPath(vm, path.data);
-            jsrBufferClear(&path);
-            last = i + 1;
-        }
-    }
-
-    jsrBufferAppend(&path, jstarPath + last, pathLen - last);
-    jsrAddImportPath(vm, path.data);
-    jsrBufferFree(&path);
-}
-
 int main(int argc, const char **argv) {
     vm = jsrNewVM();
 
     EvalResult res = VM_EVAL_SUCCESS;
     if(argc == 1) {
-        initImportPaths(NULL, 0);
         dorepl();
     } else {
         // set command line args for use in scripts
@@ -146,8 +148,13 @@ int main(int argc, const char **argv) {
             size_t length = directory - argv[1] + 1;
             char *path = calloc(length + 1, 1);
             memcpy(path, argv[1], length);
+            
             initImportPaths(&path, 1);
+            
             free(path);
+        } else {
+            char *thisDir = "./";
+            initImportPaths(&thisDir, 1);
         }
 
         // read file and evaluate

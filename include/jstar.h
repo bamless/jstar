@@ -115,7 +115,7 @@ typedef bool (*JStarNative)(JStarVM *vm);
 
 // Read a whole file. The returned buffer is malloc'd, so the user should free() it when done.
 // On error returns NULL and sets errno to the appropriate error.
-char *jsrReadFile(const char *path);
+JSTAR_API char *jsrReadFile(const char *path);
 
 // ---- Registry to register native functions ----
 
