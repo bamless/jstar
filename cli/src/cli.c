@@ -13,11 +13,6 @@
 
 static JStarVM *vm;
 
-static void header() {
-    printf("J* Version %s\n", JSTAR_VERSION_STRING);
-    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
-}
-
 // Little hack to enable adding a tab in linenoise
 static void completion(const char *buf, linenoiseCompletions *lc) {
     char indented[1025];
@@ -25,31 +20,29 @@ static void completion(const char *buf, linenoiseCompletions *lc) {
     linenoiseAddCompletion(lc, indented);
 }
 
-static void initImportPaths(char **paths, int count) {
-    for(int i = 0; i < count; i++) {
-        jsrAddImportPath(vm, paths[i]);
-    }
+static void initImportPaths(const char *path) {
+    jsrAddImportPath(vm, path);
 
     const char *jstarPath = getenv(JSTARPATH);
     if(jstarPath == NULL) return;
 
-    JStarBuffer path;
-    jsrBufferInit(vm, &path);
+    JStarBuffer buf;
+    jsrBufferInit(vm, &buf);
 
     size_t last = 0;
     size_t pathLen = strlen(jstarPath);
     for(size_t i = 0; i < pathLen; i++) {
         if(jstarPath[i] == ':') {
-            jsrBufferAppend(&path, jstarPath + last, i - last);
-            jsrAddImportPath(vm, path.data);
-            jsrBufferClear(&path);
+            jsrBufferAppend(&buf, jstarPath + last, i - last);
+            jsrAddImportPath(vm, buf.data);
+            jsrBufferClear(&buf);
             last = i + 1;
         }
     }
 
-    jsrBufferAppend(&path, jstarPath + last, pathLen - last);
-    jsrAddImportPath(vm, path.data);
-    jsrBufferFree(&path);
+    jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
+    jsrAddImportPath(vm, buf.data);
+    jsrBufferFree(&buf);
 }
 
 static int countBlocks(const char *line) {
@@ -93,17 +86,16 @@ static void addPrintIfExpr(JStarBuffer *sb) {
         // assign the result of the expression to `_`
         jsrBufferPrependstr(sb, "var _ = ");
         jsrBufferAppendChar(sb, '\n');
-        // print `_` if not null
         jsrBufferAppendstr(sb, "if _ != null then print(_) end");
     }
 }
 
 static void dorepl() {
-    char *thisDir = "./";
-    initImportPaths(&thisDir, 1);
-
-    header();
     linenoiseSetCompletionCallback(completion);
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
+
+    initImportPaths("./");
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
@@ -146,15 +138,14 @@ int main(int argc, const char **argv) {
         char *directory = strrchr(argv[1], '/');
         if(directory != NULL) {
             size_t length = directory - argv[1] + 1;
-            char *path = calloc(length + 1, 1);
+            char *path = calloc(length + 1, sizeof(char));
             memcpy(path, argv[1], length);
-            
-            initImportPaths(&path, 1);
+
+            initImportPaths(path);
             
             free(path);
         } else {
-            char *thisDir = "./";
-            initImportPaths(&thisDir, 1);
+            initImportPaths("./");
         }
 
         // read file and evaluate
