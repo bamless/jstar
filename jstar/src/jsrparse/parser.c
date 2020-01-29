@@ -22,10 +22,8 @@ static void initParser(Parser *p, const char *fname, const char *src) {
     p->hadError = false;
     p->fname = fname;
     p->prevType = -1;
-
     initLexer(&p->lex, src);
     nextToken(&p->lex, &p->peek);
-
     p->lnStart = p->peek.lexeme;
 }
 
@@ -87,27 +85,27 @@ static Token require(Parser *p, TokenType type) {
         return t;
     }
 
-    char msg[512] = {'\0'};
+    char message[512];
     const char *expected = tokNames[type];
     const char *found = tokNames[p->peek.type];
-    snprintf(msg, sizeof(msg), "Expected token `%s` but instead `%s` found.", expected, found);
-    error(p, msg);
+    snprintf(message, sizeof(message), "Expected token `%s`, instead `%s` found.", expected, found);
+    error(p, message);
 
-    return (Token){0, NULL, 0, 0};
+    return (Token) {0, NULL, 0, 0};
 }
 
 static void requireStmtEnd(Parser *p) {
     if(!IS_IMPLICIT_END(p->peek.type)) {                    
-        if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON))
+        if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) {
             advance(p);                                     
-        else                                                
-            error(p, "Expected token `newline` or `;`.");   
+        } else {                                                
+            error(p, "Expected token `newline` or `;`.");
+        }   
     }         
 }
 
 static void synchronize(Parser *p) {
     p->panic = false;
-
     while(!match(p, TOK_EOF)) {
         switch(p->peek.type) {
         case TOK_FUN:
@@ -130,7 +128,6 @@ static void synchronize(Parser *p) {
 
 static void classSynchronize(Parser *p) {
     p->panic = false;
-
     while(!match(p, TOK_EOF)) {
         switch(p->peek.type) {
         case TOK_FUN:
@@ -304,7 +301,6 @@ static Stmt *ifStmt(Parser *p) {
     advance(p);
 
     Stmt *ifStmt = ifBody(p, line);
-
     require(p, TOK_END);
 
     return ifStmt;
@@ -318,9 +314,7 @@ static Stmt *whileStmt(Parser *p) {
     skipNewLines(p);
 
     require(p, TOK_DO);
-
     Stmt *body = blockStmt(p);
-
     require(p, TOK_END);
 
     return newWhileStmt(line, cond, body);
@@ -766,10 +760,10 @@ static Expr *literal(Parser *p) {
         return newArrLiteral(line, newExprList(line, exprs));
     }
     case TOK_SUPER: {
-        advance(p);
-
         const char *name = NULL;
         size_t nameLen = 0;
+        
+        advance(p);
 
         if(match(p, TOK_DOT)) {
             advance(p);
@@ -778,8 +772,9 @@ static Expr *literal(Parser *p) {
             nameLen = id.length;
         }
 
-        require(p, TOK_LPAREN);
         LinkedList *args = NULL;
+
+        require(p, TOK_LPAREN);
         if(!match(p, TOK_RPAREN)) args = expressionLst(p);
         require(p, TOK_RPAREN);
 
