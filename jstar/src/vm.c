@@ -20,9 +20,9 @@
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly
 // handle the execution of except/ensure handlers
-typedef enum UnwindCause { CAUSE_EXCEPT, CAUSE_RETURN } UnwindCause;
-
-static bool unwindStack(JStarVM *vm, int depth);
+typedef enum UnwindCause { 
+    CAUSE_EXCEPT, CAUSE_RETURN 
+} UnwindCause;
 
 static void reset(JStarVM *vm) {
     vm->sp = vm->stack;
@@ -49,8 +49,9 @@ JStarVM *jsrNewVM() {
     vm->nextGC = INIT_GC;
 
     // Create constants strings
-    vm->stacktrace = copyString(vm, EXC_STACKTRACE_FIELD, strlen(EXC_STACKTRACE_FIELD), true);
+    vm->stacktrace = copyString(vm, EXC_M_STACKTRACE, strlen(EXC_M_STACKTRACE), true);
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
+
     vm->next = copyString(vm, "__next__", 8, true);
     vm->iter = copyString(vm, "__iter__", 8, true);
 
@@ -699,6 +700,8 @@ static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name
     }
     return NULL;
 }
+
+static bool unwindStack(JStarVM *vm, int depth);
 
 static bool runEval(JStarVM *vm, int depth) {
     register Frame *frame;
@@ -1562,7 +1565,7 @@ void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
 
         jsrPushString(vm, errStr);
         HashTable *fields = &excInst->fields;
-        hashTablePut(fields, copyString(vm, EXC_ERR_FIELD, strlen(EXC_ERR_FIELD), true), pop(vm));
+        hashTablePut(fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), pop(vm));
     }
 }
 
