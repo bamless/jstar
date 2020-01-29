@@ -236,10 +236,10 @@ static void packVarargs(JStarVM *vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static void raiseArgsException(JStarVM *vm, Callable *function, int expected, 
+static void raiseArgsExc(JStarVM *vm, Callable *function, int expected, 
     int supplied, const char *quantity)
 {
-    jsrRaise(vm, "TypeException", "Function `%s.%s` takes at %s %d arguments, %d supplied.", 
+    jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.", 
        function->module->name->data, function->name->data, quantity, expected, supplied);
 }
 
@@ -249,7 +249,7 @@ static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
 
         if((!c->vararg && argc > most) || argc < least) {
             bool tooMany = argc > most;
-            raiseArgsException(vm, c, tooMany ? most : least, argc, tooMany ? "most" : "least");
+            raiseArgsExc(vm, c, tooMany ? most : least, argc, tooMany ? "at most" : "at least");
             return false;
         }
 
@@ -261,12 +261,12 @@ static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
         if(c->vararg) packVarargs(vm, argc > most ? argc - most : 0);
     } else if(c->vararg) {
         if(argc < c->argsCount) {
-            raiseArgsException(vm, c, c->argsCount, argc, "least");
+            raiseArgsExc(vm, c, c->argsCount, argc, "at least");
             return false;
         }
         packVarargs(vm, argc - c->argsCount);
     } else if(c->argsCount != argc) {
-        raiseArgsException(vm, c, c->argsCount, argc, "exactly");
+        raiseArgsExc(vm, c, c->argsCount, argc, "exactly");
         return false;
     }
     return true;
