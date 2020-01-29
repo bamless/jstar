@@ -1,10 +1,14 @@
 #include "core.h"
+#include "compiler.h"
 #include "import.h"
 #include "memory.h"
 #include "object.h"
 #include "vm.h"
 
 #include "builtin/modules.h"
+
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -220,8 +224,30 @@ JSR_NATIVE(jsr_eval) {
     else
         mod = prevFrame->fn.as.native->c.module;
 
-    EvalResult res = jsrEvaluateModule(vm, "<string>", mod->name->data, jsrGetString(vm, 1));
-    jsrPushBoolean(vm, res == VM_EVAL_SUCCESS);
+    Stmt *program = parse("<eval>", jsrGetString(vm, 1));
+    if(program == NULL) {
+        JSR_RAISE(vm, "SyntaxException", "Syntax error");
+    }
+
+    ObjFunction *fn = compileWithModule(vm, mod->name, program);
+    freeStmt(program);
+
+    if(fn == NULL) {
+        JSR_RAISE(vm, "SyntaxException", "Syntax error");
+    }
+
+    push(vm, OBJ_VAL(fn));
+    ObjClosure *closure = newClosure(vm, fn);
+    pop(vm);
+
+    push(vm, OBJ_VAL(closure));
+
+    EvalResult res;
+    if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) return false;
+
+    pop(vm);
+
+    jsrPushNull(vm);
     return true;
 }
 
