@@ -92,6 +92,7 @@ static void addPrintIfExpr(JStarBuffer *sb) {
 
 static void dorepl() {
     linenoiseSetCompletionCallback(completion);
+    
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 
@@ -132,7 +133,7 @@ int main(int argc, const char **argv) {
         dorepl();
     } else {
         // set command line args for use in scripts
-        jsrInitCommandLineArgs(vm, argc - 2, argv + 2);
+        jsrInitCommandLineArgs(vm, argc - 2, &argv[2]);
 
         // set base import path to script's directory
         char *directory = strrchr(argv[1], '/');
