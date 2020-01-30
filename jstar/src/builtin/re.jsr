@@ -2,44 +2,48 @@ class RegexException is Exception end
 
 native match(str, regex, off=0)
 native find(str, regex, off=0)
-native gmatch(str, regex)
 native gsub(str, regex, sub, num=0)
+native gmatch(str, regex)
 
-fun gfind(s, r)
-    var off, endl = 0, null
+fun igmatch(str, regex)
+    return _GMatch(str, regex)
+end
 
-    class GfindIter is Iter
-        fun __iter__(_)
-            var res = find(s, r, off)
-            if !res then 
-                return null 
+class _GMatch
+    fun new(s, r)
+        this.s, this.r = s, r
+        this.off, this.endl = 0, null
+    end
+
+    fun __iter__(_)
+        var res = find(this.s, this.r, this.off)
+        if !res then 
+            return null
+        end
+        
+        var b, e = res
+
+        while e == this.endl and e - b == 0 do
+            res = find(this.s, this.r, this.off += 1)
+            if res then
+                return null
             end
-            
-            var b, e = res
-
-            while e == endl and e - b == 0 do
-                if !(res = find(s, r, off += 1)) then
-                    return null
-                end
-                b, e = res
-            end
-
-            off = endl = e
-
-            var nres = #res
-            if nres == 2 then
-                return s.substr(b, e)
-            elif nres == 3 then
-                return res[2]
-            else
-                return res.sub(2, nres)
-            end
+            b, e = res
         end
 
-        fun __next__(match)
-            return match
+        this.off = this.endl = e
+
+        var nres = #res
+        if   nres == 2 then
+            return this.s.substr(b, e)
+        elif nres == 3 then
+            return res[2]
+        else
+            return res.subTuple(2, nres)
         end
     end
 
-    return GfindIter()
+    fun __next__(match)
+        return match
+    end
 end

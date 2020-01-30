@@ -20,6 +20,7 @@
 
 typedef struct {
     const char *str;
+    const char *strEnd;
     int capturec;
     JStarVM *vm;
     bool err;
@@ -32,35 +33,16 @@ typedef struct {
 static bool matchClass(char c, char cls) {
     bool res;
     switch(tolower(cls)) {
-    case 'a':
-        res = isalpha(c);
-        break;
-    case 'c':
-        res = iscntrl(c);
-        break;
-    case 'd':
-        res = isdigit(c);
-        break;
-    case 'l':
-        res = islower(c);
-        break;
-    case 'p':
-        res = ispunct(c);
-        break;
-    case 's':
-        res = isspace(c);
-        break;
-    case 'u':
-        res = isupper(c);
-        break;
-    case 'w':
-        res = isalnum(c);
-        break;
-    case 'x':
-        res = isxdigit(c);
-        break;
-    default:
-        return c == cls;
+    case 'a': res = isalpha(c);  break;
+    case 'c': res = iscntrl(c);  break;
+    case 'd': res = isdigit(c);  break;
+    case 'l': res = islower(c);  break;
+    case 'p': res = ispunct(c);  break;
+    case 's': res = isspace(c);  break;
+    case 'u': res = isupper(c);  break;
+    case 'w': res = isalnum(c);  break;
+    case 'x': res = isxdigit(c); break;
+    default:  return c == cls;
     }
     return isupper(cls) ? !res : res;
 }
@@ -141,6 +123,22 @@ static const char *endCapture(RegexState *rs, const char *s, const char *r) {
     return res;
 }
 
+static const char *matchCapture(RegexState *rs, const char *s, int captureNo) {
+    if(captureNo > rs->capturec - 1 ||
+       rs->captures[captureNo].len == CAPTURE_UNFINISHED || 
+       rs->captures[captureNo].len == CAPTURE_POSITION) 
+    {
+        return NULL;
+    }
+
+    const char *capture = rs->captures[captureNo].start;
+    size_t captureLen = rs->captures[captureNo].len;
+    if((size_t)(rs->strEnd - s) < captureLen || memcmp(s, capture, captureLen) != 0) {
+        return NULL;
+    }
+    return s + captureLen;
+}
+
 static const char *greedyMatch(RegexState *rs, const char *s, const char *r, const char *er) {
     ptrdiff_t i = 0;
     while(s[i] != '\0' && matchClassOrChar(s[i], r, er)) {
@@ -197,12 +195,25 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
     case '$':
         if(r[1] == '\0') return *s == '\0' ? s : NULL;
         goto def;
+    case ESCAPE:
+        if(isdigit(r[1])) {
+            int len = 1;
+            while(isdigit(r[len])) {
+                len++;
+            }
+            int capture = strtol(r + 1, NULL, 10);
+            s = matchCapture(rs, s, capture);
+            if(s == NULL) return NULL;
+            return match(rs, s, r + len);
+        }
+        goto def;
     case '\0':
         return s;
     default:
     def : {
         const char *er = endClass(rs, r);
         if(er == NULL) return NULL;
+
         bool isMatch = *s != '\0' && matchClassOrChar(*s, r, er);
 
         switch(*er) {
@@ -218,10 +229,7 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
         case '-':
             return lazyMatch(rs, s, r, er);
         default: {
-            if(!isMatch)
-                return NULL;
-            else
-                return match(rs, s + 1, er);
+            return isMatch ? match(rs, s + 1, er) : NULL;
         }
         }
     }
@@ -235,6 +243,7 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s,
 {
     rs->vm = vm;
     rs->str = s;
+    rs->strEnd = s + len;
     rs->err = false;
     rs->capturec = 1;
     rs->captures[0].start = s;
@@ -399,16 +408,16 @@ JSR_NATIVE(jsr_re_gmatch) {
         else
             offSinceLast = rs.captures[0].start - str;
 
-        // increment by the number of chars since last match
+        // increment by the number of chars since last match plus the length of current match
         off += offSinceLast + rs.captures[0].len;
-        // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
     }
 
     return true;
 }
 
-static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *s, const char *sub) {
+static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *sub) 
+{
     for(; *sub != '\0'; sub++) {
         switch(*sub) {
         case ESCAPE:
@@ -422,7 +431,10 @@ static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *
             while(isdigit(sub[len])) {
                 len++;
             }
-            if(len == 0) goto def;
+
+            if(len == 0) {
+                goto def;
+            }
 
             int capture = strtol(sub, NULL, 10);
             if(!pushCapture(vm, rs, capture)) return false;
@@ -438,17 +450,29 @@ static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *
     return true;
 }
 
+static bool subCall(JStarVM *vm, RegexState *rs, JStarBuffer *b, int funSlot) {
+    jsrPushValue(vm, funSlot);
+    for(int i = 1; i < rs->capturec; i++) {
+        jsrPushStringSz(vm, rs->captures[i].start, rs->captures[i].len);
+    }
+    if(jsrCall(vm, rs->capturec - 1) != VM_EVAL_SUCCESS) return false;
+    if(!jsrCheckStr(vm, -1, "'sub()' return value")) return false;
+    jsrBufferAppendstr(b, jsrGetString(vm, -1));
+    jsrPop(vm);
+    return true;
+}
+
 JSR_NATIVE(jsr_re_gsub) {
-    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || 
-       !jsrCheckStr(vm, 3, "sub") || !jsrCheckInt(vm, 4, "num"))
-    {
+    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || !jsrCheckInt(vm, 4, "num")) {
         return false;
+    }
+    if(!jsrIsString(vm, 3) && !jsrIsFunction(vm, 3)) {
+        JSR_RAISE(vm, "TypeException", "sub must be either a String or a Function.");
     }
 
     const char *str = jsrGetString(vm, 1);
     size_t len = jsrGetStringSz(vm, 1);
     const char *regex = jsrGetString(vm, 2);
-    const char *sub = jsrGetString(vm, 3);
     int num = jsrGetNumber(vm, 4);
 
     JStarBuffer b;
@@ -485,17 +509,23 @@ JSR_NATIVE(jsr_re_gsub) {
             jsrBufferAppend(&b, str, offSinceLast);
         }
 
-        if(!substitute(vm, &rs, &b, str, sub)) {
-            jsrBufferFree(&b);
-            return false;
+        if(jsrIsString(vm, 3)) {
+            const char *sub = jsrGetString(vm, 3);
+            if(!substitute(vm, &rs, &b, sub)) {
+                jsrBufferFree(&b);
+                return false;
+            }
+        } else {
+            if(!subCall(vm, &rs, &b, 3)) {
+                jsrBufferFree(&b);
+                return false;
+            }
         }
 
-        numsub++;
-
-        // increment by the number of chars since last match
+        // increment by the number of chars since last match plus the len of the current match
         off += offSinceLast + rs.captures[0].len;
-        // set lastmatch to one past the end of current match
         lastmatch = rs.captures[0].start + rs.captures[0].len;
+        numsub++;
     }
 
     if(lastmatch != NULL) {
