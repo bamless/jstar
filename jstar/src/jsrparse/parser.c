@@ -1149,7 +1149,6 @@ static Expr *expression(Parser *p, bool parseTuple) {
 
         while(match(p, TOK_COMMA)) {
             advance(p);
-            skipNewLines(p);
             if(!IS_EXPR_START(p->peek.type)) break;
             exprs = addElement(exprs, ternaryExpr(p));
         }
