@@ -302,6 +302,11 @@ bool jsrIsTable(JStarVM *vm, int slot) {
     return IS_TABLE(apiStackSlot(vm, slot));
 }
 
+bool jsrIsFunction(JStarVM *vm, int slot) {
+    Value val = apiStackSlot(vm, slot);
+    return IS_CLOSURE(val) || IS_NATIVE(val) || IS_BOUND_METHOD(val);
+}
+
 bool jsrCheckNum(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsNumber(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a number.", name);
     return true;
@@ -344,6 +349,11 @@ bool jsrCheckHandle(JStarVM *vm, int slot, const char *name) {
 
 bool jsrCheckTable(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsTable(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Table.", name);
+    return true;
+}
+
+bool jsrCheckFunction(JStarVM *vm, int slot, const char *name) {
+    if(!jsrIsFunction(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Function.", name);
     return true;
 }
 
