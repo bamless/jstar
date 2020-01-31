@@ -469,7 +469,7 @@ JSR_NATIVE(jsr_List_add) {
 
 JSR_NATIVE(jsr_List_insert) {
     ObjList *l = AS_LIST(vm->apiStack[0]);
-    size_t index = jsrCheckIndex(vm, 1, l->count, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->count + 1, "i");
     if(index == SIZE_MAX) return false;
 
     listInsert(vm, l, index, vm->apiStack[2]);
