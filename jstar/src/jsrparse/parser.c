@@ -681,17 +681,21 @@ static Stmt *parseProgram(Parser *p) {
 
 //----- Expressions parse ------
 
-static LinkedList *expressionLst(Parser *p) {
+static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
     LinkedList *exprs = NULL;
 
-    exprs = addElement(NULL, expression(p, false));
-    while(match(p, TOK_COMMA)) {
-        advance(p);
-        skipNewLines(p);
+    require(p, open);
+    skipNewLines(p);
+
+    while(!match(p, close)) {
         exprs = addElement(exprs, expression(p, false));
+        skipNewLines(p);
+        if(!match(p, TOK_COMMA)) break;
+        advance(p);
         skipNewLines(p);
     }
 
+    require(p, close);
     return exprs;
 }
 
@@ -747,16 +751,7 @@ static Expr *literal(Parser *p) {
         return e;
     }
     case TOK_LSQUARE: {
-        LinkedList *exprs = NULL;
-        
-        advance(p);
-
-        skipNewLines(p);
-        if(!match(p, TOK_RSQUARE)) exprs = expressionLst(p);
-        skipNewLines(p);
-
-        require(p, TOK_RSQUARE);
-
+        LinkedList *exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
         return newArrLiteral(line, newExprList(line, exprs));
     }
     case TOK_SUPER: {
@@ -772,12 +767,7 @@ static Expr *literal(Parser *p) {
             nameLen = id.length;
         }
 
-        LinkedList *args = NULL;
-
-        require(p, TOK_LPAREN);
-        if(!match(p, TOK_RPAREN)) args = expressionLst(p);
-        require(p, TOK_RPAREN);
-
+        LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
         return newSuperLiteral(line, name, nameLen, newExprList(line, args));
     }
     case TOK_LCURLY: {
@@ -854,15 +844,7 @@ static Expr *postfixExpr(Parser *p) {
             break;
         }
         case TOK_LPAREN: {
-            LinkedList *args = NULL;
-
-            advance(p);
-
-            skipNewLines(p);
-            if(!match(p, TOK_RPAREN)) args = expressionLst(p);
-            skipNewLines(p);
-
-            require(p, TOK_RPAREN);
+            LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
             lit = newCallExpr(line, lit, args);
             break;
         }
