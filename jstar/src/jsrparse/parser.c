@@ -1141,12 +1141,11 @@ static Expr *expression(Parser *p, bool parseTuple) {
     if(IS_ASSIGN(p->peek.type)) {
         TokenType assignToken = p->peek.type;
 
-        if(l != NULL && !IS_LVALUE(l->type)) {
-            error(p, "Left hand side of assignment must be an lvalue.");
-        }
-        
-        if(l != NULL && l->type == TUPLE_LIT) {
-            checkUnpackAssignement(p, l->as.tuple.exprs->as.list.lst, assignToken);
+        if(l != NULL) {
+            if(l->type == TUPLE_LIT)
+                checkUnpackAssignement(p, l->as.tuple.exprs->as.list.lst, assignToken);
+            else if(!IS_LVALUE(l->type))
+                error(p, "Left hand side of assignment must be an lvalue.");
         }
 
         advance(p);

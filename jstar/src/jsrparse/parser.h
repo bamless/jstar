@@ -18,7 +18,7 @@
 
 // Tokens that identify an lvalue, i.e. an assignable expression
 #define IS_LVALUE(type) \
-    (type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC || type == TUPLE_LIT)
+    (type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC)
 
 // Tokens that identify a constant expression
 #define IS_CONSTANT_LITERAL(type) \
