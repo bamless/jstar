@@ -335,6 +335,8 @@ static Stmt *varDecl(Parser *p) {
         if(match(p, TOK_COMMA)) {
             advance(p);
             if(!isUnpack) isUnpack = true;
+        } else {
+            break;
         }
     } while(match(p, TOK_IDENTIFIER));
 
