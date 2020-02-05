@@ -488,18 +488,17 @@ static Stmt *tryStmt(Parser *p) {
 
             excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, block));
         }
-
-        if(match(p, TOK_ENSURE)) {
-            advance(p);
-            ensure = blockStmt(p);
-        }
-    } else {
-        require(p, TOK_ENSURE);
+    } 
+    if(match(p, TOK_ENSURE)) {
+        advance(p);
         ensure = blockStmt(p);
     }
 
-    require(p, TOK_END);
+    if(!excs && !ensure) {
+        error(p, "Expected except or ensure clause");
+    }
 
+    require(p, TOK_END);
     return newTryStmt(line, tryBlock, excs, ensure);
 }
 
