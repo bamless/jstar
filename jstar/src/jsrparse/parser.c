@@ -363,7 +363,6 @@ static Stmt *forStmt(Parser *p) {
                 if(init->as.varDecl.init != NULL) {
                     error(p, "Variable declaration in foreach cannot have initializer.");
                 }
-
                 advance(p);
                 skipNewLines(p);
 
@@ -371,11 +370,10 @@ static Stmt *forStmt(Parser *p) {
                 skipNewLines(p);
 
                 require(p, TOK_DO);
-
+                
                 Stmt *body = blockStmt(p);
-
+                
                 require(p, TOK_END);
-
                 return newForEach(line, init, e, body);
             }
         } else {
@@ -406,7 +404,6 @@ static Stmt *forStmt(Parser *p) {
     Stmt *body = blockStmt(p);
 
     require(p, TOK_END);
-
     return newForStmt(line, init, cond, act, body);
 }
 
@@ -420,7 +417,6 @@ static Stmt *returnStmt(Parser *p) {
     }
 
     requireStmtEnd(p);
-
     return newReturnStmt(line, e);
 }
 
@@ -450,12 +446,11 @@ static Stmt *importStmt(Parser *p) {
         } else {
             for(;;) {
                 skipNewLines(p);
-
                 Token name = require(p, TOK_IDENTIFIER);
                 importNames = addElement(importNames, newIdentifier(name.length, name.lexeme));
 
                 if(!match(p, TOK_COMMA)) break;
-
+                
                 advance(p);
                 skipNewLines(p);
             }
@@ -467,7 +462,6 @@ static Stmt *importStmt(Parser *p) {
     }
 
     requireStmtEnd(p);
-
     return newImportStmt(line, modules, importNames, as.lexeme, as.length);
 }
 
@@ -490,7 +484,8 @@ static Stmt *tryStmt(Parser *p) {
 
             excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, block));
         }
-    } 
+    }
+
     if(match(p, TOK_ENSURE)) {
         advance(p);
         ensure = blockStmt(p);
@@ -507,11 +502,8 @@ static Stmt *tryStmt(Parser *p) {
 static Stmt *raiseStmt(Parser *p) {
     int line = p->peek.line;
     advance(p);
-
     Expr *exc = expression(p, true);
-    
     requireStmtEnd(p);
-
     return newRaiseStmt(line, exc);
 }
 
@@ -520,18 +512,15 @@ static Stmt *withStmt(Parser *p) {
     advance(p);
 
     Expr *e = expression(p, true);
-
     Token var = require(p, TOK_IDENTIFIER);
-
     Stmt *block = blockStmt(p);
-    require(p, TOK_END);
 
+    require(p, TOK_END);
     return newWithStmt(line, e, var.length, var.lexeme, block);
 }
 
 static Stmt *funcDecl(Parser *p) {
     int line = p->peek.line;
-
     Token fun = require(p, TOK_FUN);
 
     if(!match(p, TOK_IDENTIFIER)) {
@@ -549,7 +538,6 @@ static Stmt *funcDecl(Parser *p) {
     Stmt *body = blockStmt(p);
 
     require(p, TOK_END);
-
     return newFuncDecl(line, vararg, fname.length, fname.lexeme, args, defArgs, body);
 }
 
@@ -564,7 +552,6 @@ static Stmt *nativeDecl(Parser *p) {
     formalArgs(p, &args, &defArgs, &vararg, TOK_LPAREN, TOK_RPAREN);
 
     requireStmtEnd(p);
-
     return newNativeDecl(line, vararg, fname.length, fname.lexeme, args, defArgs);
 }
 
@@ -577,7 +564,6 @@ static Stmt *classDecl(Parser *p) {
     Expr *sup = NULL;
     if(match(p, TOK_IS)) {
         advance(p);
-        
         sup = expression(p, true);
         skipNewLines(p);
         
@@ -605,7 +591,6 @@ static Stmt *classDecl(Parser *p) {
     }
 
     require(p, TOK_END);
-
     return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
 }
 
@@ -660,9 +645,7 @@ static Stmt *parseStmt(Parser *p) {
     }
 
     Expr *e = expression(p, true);
-
     requireStmtEnd(p);
-    
     return newExprStmt(line, e);
 }
 
@@ -878,7 +861,6 @@ static Expr *anonymousFunc(Parser *p) {
         Stmt *body = blockStmt(p);
 
         require(p, TOK_END);
-
         return newAnonymousFunc(line, vararg, args, defArgs, body);
     }
     if(match(p, TOK_PIPE)) {
@@ -932,7 +914,6 @@ static Expr *unaryExpr(Parser *p) {
         advance(p);
         return newUnary(line, STRINGOP, unaryExpr(p));
     }
-
     return powExpr(p);
 }
 
@@ -992,8 +973,8 @@ static Expr *additiveExpr(Parser *p) {
 static Expr *relationalExpr(Parser *p) {
     Expr *l = additiveExpr(p);
 
-    while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || match(p, TOK_LE) ||
-          match(p, TOK_IS)) 
+    while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || 
+        match(p, TOK_LE) || match(p, TOK_IS)) 
     {
         int line = p->peek.line;
         TokenType tokType = p->peek.type;
@@ -1055,8 +1036,8 @@ static Expr *logicAndExpr(Parser *p) {
     while(match(p, TOK_AND)) {
         int line = p->peek.line;
         advance(p);
-        Expr *r = equalityExpr(p);
 
+        Expr *r = equalityExpr(p);
         l = newBinary(line, AND, l, r);
     }
 
@@ -1069,8 +1050,8 @@ static Expr *logicOrExpr(Parser *p) {
     while(match(p, TOK_OR)) {
         int line = p->peek.line;
         advance(p);
-        Expr *r = logicAndExpr(p);
 
+        Expr *r = logicAndExpr(p);
         l = newBinary(line, OR, l, r);
     }
 
@@ -1084,11 +1065,10 @@ static Expr *ternaryExpr(Parser *p) {
     if(match(p, TOK_IF)) {
         advance(p);
         Expr *cond = ternaryExpr(p);
-
+        
         require(p, TOK_ELSE);
-
+        
         Expr *elseExpr = ternaryExpr(p);
-
         return newTernary(line, cond, expr, elseExpr);
     }
 
