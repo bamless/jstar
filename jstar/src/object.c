@@ -332,8 +332,9 @@ void jsrBufferReplaceChar(JStarBuffer *b, size_t start, char c, char r) {
 }
 
 void jsrBufferPrepend(JStarBuffer *b, const char *str, size_t len) {
-    if(b->len + len >= b->size)
+    if(b->len + len >= b->size) {
         jsrBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
+    }
     memmove(b->data + len, b->data, b->len);
     memcpy(b->data, str, len);
     b->len += len;
