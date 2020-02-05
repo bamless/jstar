@@ -96,23 +96,20 @@ ObjUpvalue *newUpvalue(JStarVM *vm, Value *addr) {
 }
 
 ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method) {
-    ObjBoundMethod *bound =
-        (ObjBoundMethod *)newObj(vm, sizeof(*bound), vm->funClass, OBJ_BOUND_METHOD);
-    bound->bound = b;
-    bound->method = method;
-    return bound;
+    ObjBoundMethod *bm = (ObjBoundMethod *)newObj(vm, sizeof(*bm), vm->funClass, OBJ_BOUND_METHOD);
+    bm->bound = b;
+    bm->method = method;
+    return bm;
 }
 
 ObjTuple *newTuple(JStarVM *vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
-
-    ObjTuple *tuple =
-        (ObjTuple *)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
-    tuple->size = size;
-    for(uint8_t i = 0; i < tuple->size; i++) {
-        tuple->arr[i] = NULL_VAL;
+    ObjTuple *t = (ObjTuple *)newVarObj(vm, sizeof(*t), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
+    t->size = size;
+    for(uint8_t i = 0; i < t->size; i++) {
+        t->arr[i] = NULL_VAL;
     }
-    return tuple;
+    return t;
 }
 
 #define ST_DEF_SIZE 16
@@ -265,7 +262,6 @@ ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern) 
 ObjString *jsrBufferToString(JStarBuffer *b) {
     char *data = GCallocate(b->vm, b->data, b->size, b->len + 1);
     data[b->len] = '\0';
-
     ObjString *s = (ObjString *)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
     s->interned = false;
     s->length = b->len;
@@ -274,7 +270,6 @@ ObjString *jsrBufferToString(JStarBuffer *b) {
     b->data = NULL;
     b->vm = NULL;
     b->len = b->size = 0;
-
     return s;
 }
 
@@ -282,8 +277,9 @@ ObjString *jsrBufferToString(JStarBuffer *b) {
 
 static void jsrBufGrow(JStarBuffer *b, size_t len) {
     size_t newSize = b->size;
-    while(newSize < b->len + len)
+    while(newSize < b->len + len) {
         newSize <<= 1;
+    }
     char *newData = GCallocate(b->vm, b->data, b->size, newSize);
     b->size = newSize;
     b->data = newData;
@@ -302,8 +298,9 @@ void jsrBufferInitSz(JStarVM *vm, JStarBuffer *b, size_t size) {
 }
 
 void jsrBufferAppend(JStarBuffer *b, const char *str, size_t len) {
-    if(b->len + len >= b->size)
+    if(b->len + len >= b->size) {
         jsrBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
+    }
     memcpy(&b->data[b->len], str, len);
     b->len += len;
     b->data[b->len] = '\0';
