@@ -13,7 +13,10 @@
 #define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
     const char *__CONCAT(ENUM_NAME, Name)[] = {ENUMX(__STRINGIFY)}
 
-#define __STRINGIFY(X) #X,
+#ifndef __STRINGIFY
+    #define __STRINGIFY(X) #X,
+#endif
+
 #ifndef __CONCAT
     #define __CONCAT(X, Y) X##Y
 #endif
