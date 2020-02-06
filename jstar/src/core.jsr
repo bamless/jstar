@@ -59,6 +59,7 @@ end
 class String is Iter
     native new(...)
     native substr(from, to)
+    native charAt(idx)
     native startsWith(prefix, offset=0)
     native endsWith(suffix)
     native strip()
@@ -379,8 +380,8 @@ fun toTable(iterable)
     return table
 end
 
-native ascii(char)
-native char(num)
+native ascii(num)
+native char(c)
 native eval(source)
 native exec(cmd)
 native int(n)
