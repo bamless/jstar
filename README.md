@@ -1,6 +1,8 @@
 # J*
 
-<p align="center"><img src="./docs/assets/images/JStar512.png"></p>
+<p align="center">
+  <img src="./docs/assets/images/JStar350.png" alt="J* Programming Language" title="J* Programming Language">
+</p>
 
 A dynamic lightweight scripting language
 
