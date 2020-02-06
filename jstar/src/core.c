@@ -173,18 +173,19 @@ JSR_NATIVE(jsr_int) {
 }
 
 JSR_NATIVE(jsr_char) {
-    if(!jsrCheckInt(vm, 1, "num")) return false;
-    char c = jsrGetNumber(vm, 1);
-    jsrPushStringSz(vm, &c, 1);
+    if(!jsrCheckStr(vm, 1, "c")) return false;
+    const char *str = jsrGetString(vm, 1);
+    if(jsrGetStringSz(vm, 1) != 1) JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
+    int c = str[0];
+    jsrPushNumber(vm, (double)c);
     return true;
 }
 
+
 JSR_NATIVE(jsr_ascii) {
-    if(!jsrCheckStr(vm, 1, "arg")) return false;
-    const char *str = jsrGetString(vm, 1);
-    if(jsrGetStringSz(vm, 1) != 1) JSR_RAISE(vm, "InvalidArgException", "arg must be a String of length 1");
-    int c = str[0];
-    jsrPushNumber(vm, (double)c);
+    if(!jsrCheckInt(vm, 1, "num")) return false;
+    char c = jsrGetNumber(vm, 1);
+    jsrPushStringSz(vm, &c, 1);
     return true;
 }
 
@@ -670,6 +671,18 @@ JSR_NATIVE(jsr_String_substr) {
     memcpy(sub->data, str->data + from, len);
 
     push(vm, OBJ_VAL(sub));
+    return true;
+}
+
+JSR_NATIVE(jsr_String_charAt) {
+    if(!jsrCheckInt(vm, 1, "idx")) return false;
+
+    ObjString *str = AS_STRING(vm->apiStack[0]);
+    size_t i = jsrCheckIndex(vm, 1, str->length, "idx");
+    if(i == SIZE_MAX) return false;
+
+    int c = str->data[i];
+    jsrPushNumber(vm, (double)c);
     return true;
 }
 

@@ -122,6 +122,7 @@ Module builtInModules[] = {
         CLASS(String)
             METHOD(new,        jsr_String_new)
             METHOD(substr,     jsr_String_substr)
+            METHOD(charAt,     jsr_String_charAt)
             METHOD(startsWith, jsr_String_startsWith)
             METHOD(endsWith,   jsr_String_endsWith)
             METHOD(strip,      jsr_String_strip)
