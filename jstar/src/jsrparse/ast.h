@@ -3,6 +3,7 @@
 
 #include "jstarconf.h"
 #include "linkedlist.h"
+#include "token.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -120,7 +121,7 @@ JSTAR_API Expr *newExpExpr(int line, Expr *base, Expr *exp);
 JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 JSTAR_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
 JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
-JSTAR_API Expr *newSuperLiteral(int line, const char *name, size_t len, Expr *args);
+JSTAR_API Expr *newSuperLiteral(int line, Token *name, Expr *args);
 JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
 
 JSTAR_API void freeExpr(Expr *e);
@@ -208,12 +209,12 @@ struct Stmt {
     } as;
 };
 
-JSTAR_API Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs, Stmt *body);
-JSTAR_API Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, LinkedList *args, LinkedList *defArgs);
-JSTAR_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, const char *as, size_t asLength);
-JSTAR_API Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods);
-JSTAR_API Stmt *newWithStmt(int line, Expr *e, size_t varLen, const char *varName, Stmt *block);
-JSTAR_API Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block);
+JSTAR_API Stmt *newFuncDecl(int line, bool vararg, Token *name, LinkedList *args, LinkedList *defArgs, Stmt *body);
+JSTAR_API Stmt *newNativeDecl(int line, bool vararg, Token *name, LinkedList *args, LinkedList *defArgs);
+JSTAR_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, Token *as);
+JSTAR_API Stmt *newClassDecl(int line, Token *clsName, Expr *sup, LinkedList *methods);
+JSTAR_API Stmt *newWithStmt(int line, Expr *e, Token *varName, Stmt *block);
+JSTAR_API Stmt *newExceptStmt(int line, Expr *cls, Token *varName, Stmt *block);
 JSTAR_API Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body);
 JSTAR_API Stmt *newVarDecl(int line, bool isUnpack, LinkedList *ids, Expr *init);
 JSTAR_API Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure);
