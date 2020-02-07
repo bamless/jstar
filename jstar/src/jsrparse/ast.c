@@ -153,14 +153,16 @@ Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval) {
 
 Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body) {
     Expr *e = newExpr(line, ANON_FUNC);
-    e->as.anonFunc.func = newFuncDecl(line, vararg, 0, NULL, args, defArgs, body);
+    // Empty name
+    Token name = {0};
+    e->as.anonFunc.func = newFuncDecl(line, vararg, &name, args, defArgs, body);
     return e;
 }
 
-Expr *newSuperLiteral(int line, const char *name, size_t len, Expr *args) {
+Expr *newSuperLiteral(int line, Token *name, Expr *args) {
     Expr *e = newExpr(line, SUPER_LIT);
-    e->as.sup.name.name = name;
-    e->as.sup.name.length = len;
+    e->as.sup.name.name = name->lexeme;
+    e->as.sup.name.length = name->length;
     e->as.sup.args = args;
     return e;
 }
@@ -245,12 +247,12 @@ static Stmt *newStmt(int line, StmtType type) {
     return s;
 }
 
-Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id, 
+Stmt *newFuncDecl(int line, bool vararg, Token *name, 
     LinkedList *args, LinkedList *defArgs, Stmt *body)
 {
     Stmt *f = newStmt(line, FUNCDECL);
-    f->as.funcDecl.id.name = id;
-    f->as.funcDecl.id.length = length;
+    f->as.funcDecl.id.name = name->lexeme;
+    f->as.funcDecl.id.length = name->length;
     f->as.funcDecl.formalArgs = args;
     f->as.funcDecl.defArgs = defArgs;
     f->as.funcDecl.isVararg = vararg;
@@ -258,32 +260,30 @@ Stmt *newFuncDecl(int line, bool vararg, size_t length, const char *id,
     return f;
 }
 
-Stmt *newNativeDecl(int line, bool vararg, size_t length, const char *id, 
-    LinkedList *args, LinkedList *defArgs)
-{
+Stmt *newNativeDecl(int line, bool vararg, Token *name, LinkedList *args, LinkedList *defArgs) {
     Stmt *n = newStmt(line, NATIVEDECL);
-    n->as.nativeDecl.id.name = id;
-    n->as.nativeDecl.id.length = length;
+    n->as.nativeDecl.id.name = name->lexeme;
+    n->as.nativeDecl.id.length = name->length;
     n->as.nativeDecl.formalArgs = args;
     n->as.nativeDecl.isVararg = vararg;
     n->as.nativeDecl.defArgs = defArgs;
     return n;
 }
 
-Stmt *newClassDecl(int line, size_t clength, const char *cid, Expr *sup, LinkedList *methods) {
+Stmt *newClassDecl(int line, Token *clsName, Expr *sup, LinkedList *methods) {
     Stmt *c = newStmt(line, CLASSDECL);
     c->as.classDecl.sup = sup;
-    c->as.classDecl.id.name = cid;
-    c->as.classDecl.id.length = clength;
+    c->as.classDecl.id.name = clsName->lexeme;
+    c->as.classDecl.id.length = clsName->length;
     c->as.classDecl.methods = methods;
     return c;
 }
 
-Stmt *newWithStmt(int line, Expr *e, size_t varLen, const char *varName, Stmt *block) {
+Stmt *newWithStmt(int line, Expr *e, Token *varName, Stmt *block) {
     Stmt *w = newStmt(line, WITH_STMT);
     w->as.withStmt.e = e;
-    w->as.withStmt.var.length = varLen;
-    w->as.withStmt.var.name = varName;
+    w->as.withStmt.var.name = varName->lexeme;
+    w->as.withStmt.var.length = varName->length;
     w->as.withStmt.block = block;
     return w;
 }
@@ -341,14 +341,13 @@ Stmt *newBlockStmt(int line, LinkedList *list) {
     return s;
 }
 
-Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, 
-    const char *as, size_t asLength) 
+Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, Token *as) 
 {
     Stmt *s = newStmt(line, IMPORT);
     s->as.importStmt.modules = modules;
     s->as.importStmt.impNames = impNames;
-    s->as.importStmt.as.name = as;
-    s->as.importStmt.as.length = asLength;
+    s->as.importStmt.as.name = as->lexeme;
+    s->as.importStmt.as.length = as->length;
     return s;
 }
 
@@ -366,12 +365,12 @@ Stmt *newTryStmt(int line, Stmt *blck, LinkedList *excs, Stmt *ensure) {
     return s;
 }
 
-Stmt *newExceptStmt(int line, Expr *cls, size_t vlen, const char *var, Stmt *block) {
+Stmt *newExceptStmt(int line, Expr *cls, Token *varName, Stmt *block) {
     Stmt *s = newStmt(line, EXCEPT_STMT);
     s->as.excStmt.block = block;
     s->as.excStmt.cls = cls;
-    s->as.excStmt.var.length = vlen;
-    s->as.excStmt.var.name = var;
+    s->as.excStmt.var.length = varName->length;
+    s->as.excStmt.var.name = varName->lexeme;
     return s;
 }
 

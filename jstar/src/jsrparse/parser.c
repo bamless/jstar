@@ -462,7 +462,7 @@ static Stmt *importStmt(Parser *p) {
     }
 
     requireStmtEnd(p);
-    return newImportStmt(line, modules, importNames, as.lexeme, as.length);
+    return newImportStmt(line, modules, importNames, &as);
 }
 
 static Stmt *tryStmt(Parser *p) {
@@ -479,10 +479,10 @@ static Stmt *tryStmt(Parser *p) {
             advance(p);
 
             Expr *cls = expression(p, true);
-            Token exc = require(p, TOK_IDENTIFIER);
+            Token var = require(p, TOK_IDENTIFIER);
             Stmt *block = blockStmt(p);
 
-            excs = addElement(excs, newExceptStmt(excLine, cls, exc.length, exc.lexeme, block));
+            excs = addElement(excs, newExceptStmt(excLine, cls, &var, block));
         }
     }
 
@@ -516,7 +516,7 @@ static Stmt *withStmt(Parser *p) {
     Stmt *block = blockStmt(p);
 
     require(p, TOK_END);
-    return newWithStmt(line, e, var.length, var.lexeme, block);
+    return newWithStmt(line, e, &var, block);
 }
 
 static Stmt *funcDecl(Parser *p) {
@@ -538,7 +538,7 @@ static Stmt *funcDecl(Parser *p) {
     Stmt *body = blockStmt(p);
 
     require(p, TOK_END);
-    return newFuncDecl(line, vararg, fname.length, fname.lexeme, args, defArgs, body);
+    return newFuncDecl(line, vararg, &fname, args, defArgs, body);
 }
 
 static Stmt *nativeDecl(Parser *p) {
@@ -552,14 +552,14 @@ static Stmt *nativeDecl(Parser *p) {
     formalArgs(p, &args, &defArgs, &vararg, TOK_LPAREN, TOK_RPAREN);
 
     requireStmtEnd(p);
-    return newNativeDecl(line, vararg, fname.length, fname.lexeme, args, defArgs);
+    return newNativeDecl(line, vararg, &fname, args, defArgs);
 }
 
 static Stmt *classDecl(Parser *p) {
     int line = p->peek.line;
     advance(p);
 
-    Token cls = require(p, TOK_IDENTIFIER);
+    Token clsName = require(p, TOK_IDENTIFIER);
 
     Expr *sup = NULL;
     if(match(p, TOK_IS)) {
@@ -591,7 +591,7 @@ static Stmt *classDecl(Parser *p) {
     }
 
     require(p, TOK_END);
-    return newClassDecl(line, cls.length, cls.lexeme, sup, methods);
+    return newClassDecl(line, &clsName, sup, methods);
 }
 
 static Stmt *parseStmt(Parser *p) {
@@ -659,8 +659,9 @@ static Stmt *parseProgram(Parser *p) {
 
         if(p->panic) synchronize(p);
     }
-
-    return newFuncDecl(0, false, 0, NULL, NULL, NULL, newBlockStmt(0, stmts));
+    
+    Token name = {0};
+    return newFuncDecl(0, false, &name, NULL, NULL, newBlockStmt(0, stmts));
 }
 
 //----- Expressions parse ------
@@ -739,20 +740,17 @@ static Expr *literal(Parser *p) {
         return newArrLiteral(line, newExprList(line, exprs));
     }
     case TOK_SUPER: {
-        const char *name = NULL;
-        size_t nameLen = 0;
+        Token name = {0};
         
         advance(p);
 
         if(match(p, TOK_DOT)) {
             advance(p);
-            Token id = require(p, TOK_IDENTIFIER);
-            name = id.lexeme;
-            nameLen = id.length;
+            name = require(p, TOK_IDENTIFIER);
         }
 
         LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-        return newSuperLiteral(line, name, nameLen, newExprList(line, args));
+        return newSuperLiteral(line, &name, newExprList(line, args));
     }
     case TOK_LCURLY: {
         advance(p);
