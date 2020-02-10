@@ -197,9 +197,10 @@ bool importModule(JStarVM *vm, ObjString *name) {
     // not a nested module, nothing to do
     if(nameStart == NULL) {
         return true;
+    } else {
+        nameStart++;
     }
 
-    nameStart++;
     ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     push(vm, OBJ_VAL(parentName));
     

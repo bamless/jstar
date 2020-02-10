@@ -220,10 +220,10 @@ JSR_NATIVE(jsr_eval) {
 
     ObjModule *mod;
     Frame *prevFrame = &vm->frames[vm->frameCount - 2];
-    if(prevFrame->fn.type == OBJ_CLOSURE)
-        mod = prevFrame->fn.as.closure->fn->c.module;
+    if(IS_CLOSURE(prevFrame->fn))
+        mod = AS_CLOSURE(prevFrame->fn)->fn->c.module;
     else
-        mod = prevFrame->fn.as.native->c.module;
+        mod = AS_NATIVE(prevFrame->fn)->c.module;
 
     Stmt *program = parse("<eval>", jsrGetString(vm, 1));
     if(program == NULL) {
@@ -782,6 +782,7 @@ JSR_NATIVE(jsr_String_join) {
                 return false;
             }
             if(!jsrIsString(vm, -1)) {
+                jsrBufferFree(&joined);
                 JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
             }
         }

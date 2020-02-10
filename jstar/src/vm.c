@@ -124,15 +124,13 @@ static Frame *getFrame(JStarVM *vm, Callable *c) {
 
 static void appendCallFrame(JStarVM *vm, ObjClosure *closure) {
     Frame *callFrame = getFrame(vm, &closure->fn->c);
-    callFrame->fn.type = OBJ_CLOSURE;
-    callFrame->fn.as.closure = closure;
+    callFrame->fn = OBJ_VAL(closure);
     callFrame->ip = closure->fn->chunk.code;
 }
 
 static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
     Frame *callFrame = getFrame(vm, &native->c);
-    callFrame->fn.type = OBJ_NATIVE;
-    callFrame->fn.as.native = native;
+    callFrame->fn = OBJ_VAL(native);
     callFrame->ip = NULL;
 }
 
@@ -325,7 +323,7 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     vm->sp = vm->apiStack;
     
     vm->module = oldModule;
-    vm->apiStack = vm->stack + apiStackOff;;
+    vm->apiStack = vm->stack + apiStackOff;
 
     push(vm, ret);
     return true;
@@ -568,9 +566,9 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             char character = str->data[(size_t)index];
             push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
             return true;
+        }
         default:
             break;
-        }
         }
     }
     
@@ -713,7 +711,7 @@ static bool runEval(JStarVM *vm, int depth) {
 #define LOAD_FRAME()                         \
     frame = &vm->frames[vm->frameCount - 1]; \
     frameStack = frame->stack;               \
-    closure = frame->fn.as.closure;          \
+    closure = AS_CLOSURE(frame->fn);         \
     fn = closure->fn;                        \
     ip = frame->ip;
 
@@ -1220,7 +1218,7 @@ sup_invoke:;
             if(isLocal) {
                 c->upvalues[i] = captureUpvalue(vm, frame->stack + index);
             } else {
-                c->upvalues[i] = frame->fn.as.closure->upvalues[index];
+                c->upvalues[i] = AS_CLOSURE(frame->fn)->upvalues[index];
             }
         }
         DISPATCH();
@@ -1436,10 +1434,10 @@ static bool unwindStack(JStarVM *vm, int depth) {
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame *frame = &vm->frames[vm->frameCount - 1];
         
-        if(frame->fn.type == OBJ_CLOSURE)
-            vm->module = frame->fn.as.closure->fn->c.module;
+        if(IS_CLOSURE(frame->fn))
+            vm->module = AS_CLOSURE(frame->fn)->fn->c.module;
         else
-            vm->module = frame->fn.as.native->c.module;
+            vm->module = AS_NATIVE(frame->fn)->c.module;
 
         stRecordFrame(vm, st, frame, vm->frameCount);
 

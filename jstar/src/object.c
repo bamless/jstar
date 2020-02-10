@@ -139,20 +139,15 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
 
     Callable *c = NULL;
     
-    switch(f->fn.type) {
-    case OBJ_CLOSURE:
-        c =  &f->fn.as.closure->fn->c;
-        Chunk *chunk = &f->fn.as.closure->fn->chunk;
+    if(IS_CLOSURE(f->fn)) {
+        ObjClosure *closure = AS_CLOSURE(f->fn);
+        c =  &closure->fn->c;
+        Chunk *chunk = &closure->fn->chunk;
         size_t op = f->ip - chunk->code - 1;
         record->line = getBytecodeSrcLine(chunk, op);
-        break;
-    case OBJ_NATIVE:
-        c = &f->fn.as.native->c;
+    } else {
+        c = &AS_NATIVE(f->fn)->c;
         record->line = -1;
-        break;
-    default:
-        UNREACHABLE();
-        break;
     }
     
     record->moduleName = c->module->name;
@@ -239,7 +234,7 @@ static ObjString *newString(JStarVM *vm, const char *cstring, size_t length) {
 }
 
 ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern) {
-    if(intern) {
+    if(intern || length < 256) {
         uint32_t hash = hashString(str, length);
         ObjString *interned = hashTableGetString(&vm->strings, str, length, hash);
         if(interned == NULL) {
