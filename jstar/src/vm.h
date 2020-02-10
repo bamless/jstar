@@ -11,33 +11,22 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef enum HandlerType {
-    HANDLER_ENSURE, 
-    HANDLER_EXCEPT 
-} HandlerType;
-
 // This stores the info needed to jump
 // to handler code and to restore the
 // VM state when handling exceptions
 typedef struct Handler {
-    HandlerType type; // The type of the handler block
-    uint8_t *handler; // The start of except (or ensure) handler
-    Value *savesp;    // Stack pointer to restore when handling exceptions
+    enum {
+        HANDLER_ENSURE, 
+        HANDLER_EXCEPT 
+    } type;             // The type of the handler block
+    uint8_t *handler;   // The start of except (or ensure) handler
+    Value *savesp;      // Stack pointer to restore when handling exceptions
 } Handler;
-
-// Tagged union used to store either a native or a function
-typedef struct {
-    ObjType type;
-    union {
-        ObjClosure *closure;
-        ObjNative *native;
-    } as;
-} Function;
 
 typedef struct Frame {
     uint8_t *ip;                   // Instruction pointer
     Value *stack;                  // Base of stack for current frame
-    Function fn;                   // The function associated with the frame (a Native or a Closure)
+    Value fn;                      // The function associated with the frame (Native or Closure)
     Handler handlers[HANDLER_MAX]; // Exception handlers
     uint8_t handlerc;              // Exception handlers count
 } Frame;
@@ -159,14 +148,12 @@ static inline int apiStackIndex(JStarVM *vm, int slot) {
 static inline Value apiStackSlot(JStarVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0)
-        return vm->sp[slot];
-    else
-        return vm->apiStack[slot];
+    if(slot < 0) return vm->sp[slot];
+    return vm->apiStack[slot];
 }
 
-#define peek(vm) ((vm)->sp[-1])
-#define peek2(vm) ((vm)->sp[-2])
+#define peek(vm)     ((vm)->sp[-1])
+#define peek2(vm)    ((vm)->sp[-2])
 #define peekn(vm, n) ((vm)->sp[-(n + 1)])
 
 #endif
