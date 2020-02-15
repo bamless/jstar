@@ -39,7 +39,7 @@
 typedef struct JStarVM JStarVM;
 
 typedef enum {
-    VM_EVAL_SUCCESS, // The VM successfully executed the code
+    VM_EVAL_SUCCESS,  // The VM successfully executed the code
     VM_SYNTAX_ERR,    // A syntax error has been encountered in parsing
     VM_COMPILE_ERR,   // An error has been encountered during compilation
     VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
@@ -141,7 +141,7 @@ JSTAR_API void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...);
 
 // Check if two J* values are equal.
 // As this function may call the __eq__ method, it behaves like
-// blCall, i.e. the two values should be on the top of the stack
+// jsrCall, i.e. the two values should be on the top of the stack
 // when calling, and the result will be left on the top of the
 // stack popping the two values.
 // This function will return true if the execution was successful,
@@ -155,15 +155,16 @@ JSTAR_API bool jsrIs(JStarVM *vm, int slot, int classSlot);
 // ---- Iterable protocol functions ----
 
 // `iterable` is the slot in which the iterable object is sitting and `res` is the slot of the
-// result of the last blIter call or, if first time calling blIter, a slot containing null.
-// blNext is called to obtain the next element in the iteration. The element will be placed
+// result of the last jsrIter call or, if first time calling jsrIter, a slot containing null.
+// jsrNext is called to obtain the next element in the iteration. The element will be placed
 // on the top of the stack.
 JSTAR_API bool jsrIter(JStarVM *vm, int iterable, int res, bool *err);
 JSTAR_API bool jsrNext(JStarVM *vm, int iterable, int res);
 
-// Macro that automatically configures the loop to iterate over a J* iterable using blIter and
-// blNext.
+// Macro that automatically configures the loop to iterate over a J* iterable using jsrIter and
+// jsrNext.
 // `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
+// `cleanup` is used as the cleanup code before exiting in case of an error and it is optional.
 // Beware that the macro pushes a new value on top of the stack to store the result of blIter, so
 // negative slot indeces to access previously pushed elements should be offset by one
 #define JSR_FOREACH(iter, code, cleanup)         \
@@ -180,10 +181,9 @@ JSTAR_API bool jsrNext(JStarVM *vm, int iterable, int res);
         jsrPop(vm);                              \
     }
 
-// ---- C to J* values converting functions ----
+// ---- C to J* value converting functions ----
 
 // The converted value is left on the top of the stack
-
 JSTAR_API void jsrPushNumber(JStarVM *vm, double number);
 JSTAR_API void jsrPushBoolean(JStarVM *vm, bool boolean);
 JSTAR_API void jsrPushStringSz(JStarVM *vm, const char *string, size_t size);
@@ -196,6 +196,9 @@ JSTAR_API void jsrPushTuple(JStarVM *vm, size_t size);
 JSTAR_API void jsrPushTable(JStarVM *vm);
 JSTAR_API void jsrPushValue(JStarVM *vm, int slot);
 #define jsrDup(vm) jsrPushValue(vm, -1)
+
+// Pop a value from the top of the stack
+JSTAR_API void jsrPop(JStarVM *vm);
 
 // ---- J* to C values converter functions ----
 
@@ -216,8 +219,7 @@ JSTAR_API const char *jsrGetString(JStarVM *vm, int slot);
 // ---- List manipulation functions ----
 
 // These functions do not perfrom bounds checking,
-// use blCeckIndex first if needed.
-
+// use jsrCeckIndex first if needed.
 JSTAR_API void jsrListAppend(JStarVM *vm, int slot);
 JSTAR_API void jsrListInsert(JStarVM *vm, size_t i, int slot);
 JSTAR_API void jsrListRemove(JStarVM *vm, size_t i, int slot);
@@ -227,8 +229,7 @@ JSTAR_API size_t jsrListGetLength(JStarVM *vm, int slot);
 // ---- Tuple manipulation functions ----
 
 // These functions do not perfrom bounds checking,
-// use blCeckIndex first if needed.
-
+// use jsrCeckIndex first if needed.
 JSTAR_API void jsrTupleGet(JStarVM *vm, size_t i, int slot);
 JSTAR_API size_t jsrTupleGetLength(JStarVM *vm, int slot);
 
@@ -275,26 +276,28 @@ JSTAR_API bool jsrIsInstance(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsTable(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsFunction(JStarVM *vm, int slot);
 
-// These functions return true if the slot is of the given type, false otherwise leaving a
-// TypeException on top of the stack with a message customized with 'name'
-JSTAR_API bool jsrCheckNum(JStarVM *vm, int slot, const char *name);
+// These functions return true if the slot is of the given type, false otherwise 
+// leaving a TypeException on top of the stack with a message customized with 'name'
+JSTAR_API bool jsrCheckNumber(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckInt(JStarVM *vm, int slot, const char *name);
-JSTAR_API bool jsrCheckStr(JStarVM *vm, int slot, const char *name);
+JSTAR_API bool jsrCheckString(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckList(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckTuple(JStarVM *vm, int slot, const char *name);
-JSTAR_API bool jsrCheckBool(JStarVM *vm, int slot, const char *name);
+JSTAR_API bool jsrCheckBoolean(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckInstance(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckHandle(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckTable(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckFunction(JStarVM *vm, int slot, const char *name);
 
+// Utility macro for checking a value type in the stack.
+// In case of error it exits signaling the error
+#define JSR_CHECK(type, slot, name) \
+    if(!jsrCheck##type(vm, slot, name)) return false
+
 // Check if the value at slot "slot" is an integer >= 0 and < max.
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndex(JStarVM *vm, int slot, size_t max, const char *name);
-
-// Pop a value from the top of the stack
-JSTAR_API void jsrPop(JStarVM *vm);
 
 /**
  * =========================================================

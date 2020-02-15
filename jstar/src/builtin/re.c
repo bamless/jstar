@@ -281,7 +281,10 @@ typedef enum FindRes {
 } FindRes;
 
 static FindRes findAux(JStarVM *vm, RegexState *rs) {
-    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || !jsrCheckInt(vm, 3, "off")) {
+    if(!jsrCheckString(vm, 1, "str") || 
+       !jsrCheckString(vm, 2, "regex") || 
+       !jsrCheckInt(vm, 3, "off"))
+    {
         return FIND_ERR;
     }
 
@@ -360,9 +363,8 @@ JSR_NATIVE(jsr_re_find) {
 }
 
 JSR_NATIVE(jsr_re_gmatch) {
-    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex")) {
-        return false;
-    }
+    JSR_CHECK(String, 1, "str");
+    JSR_CHECK(String, 2, "regex");
 
     const char *regex = jsrGetString(vm, 2);
     const char *str = jsrGetString(vm, 1);
@@ -456,16 +458,17 @@ static bool subCall(JStarVM *vm, RegexState *rs, JStarBuffer *b, int funSlot) {
         jsrPushStringSz(vm, rs->captures[i].start, rs->captures[i].len);
     }
     if(jsrCall(vm, rs->capturec - 1) != VM_EVAL_SUCCESS) return false;
-    if(!jsrCheckStr(vm, -1, "'sub()' return value")) return false;
+    JSR_CHECK(String, -1, "sub() return value");
     jsrBufferAppendstr(b, jsrGetString(vm, -1));
     jsrPop(vm);
     return true;
 }
 
 JSR_NATIVE(jsr_re_gsub) {
-    if(!jsrCheckStr(vm, 1, "str") || !jsrCheckStr(vm, 2, "regex") || !jsrCheckInt(vm, 4, "num")) {
-        return false;
-    }
+    JSR_CHECK(String, 1, "str");
+    JSR_CHECK(String, 2, "regex");
+    JSR_CHECK(Int, 4, "num");
+
     if(!jsrIsString(vm, 3) && !jsrIsFunction(vm, 3)) {
         JSR_RAISE(vm, "TypeException", "sub must be either a String or a Function.");
     }

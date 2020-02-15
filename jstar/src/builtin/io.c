@@ -70,16 +70,17 @@ static int jsrSeek(FILE *file, long offset, int blWhence) {
 
 JSR_NATIVE(jsr_File_new) {
     if(jsrIsNull(vm, 3)) {
-        if(!jsrCheckStr(vm, 1, "path") || !jsrCheckStr(vm, 2, "mode")) {
-            return false;
-        }
+        JSR_CHECK(String, 1, "path");
+        JSR_CHECK(String, 2, "mode");
         
         const char *path = jsrGetString(vm, 1);
         const char *m = jsrGetString(vm, 2);
 
         size_t mlen = strlen(m);
         if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
-        (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
+          (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || 
+          (mlen > 2 && m[2] != 'b'))
+        {
             JSR_RAISE(vm, "InvalidArgException", "invalid mode string \"%s\"", m);
         }
 
@@ -121,8 +122,9 @@ static bool checkClosed(JStarVM *vm) {
 JSR_NATIVE(jsr_File_seek) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckInt(vm, 1, "off") || !jsrCheckInt(vm, 2, "whence")) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    JSR_CHECK(Int, 1, "off");
+    JSR_CHECK(Int, 2, "whence");
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -144,7 +146,7 @@ JSR_NATIVE(jsr_File_seek) {
 JSR_NATIVE(jsr_File_tell) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -160,7 +162,7 @@ JSR_NATIVE(jsr_File_tell) {
 JSR_NATIVE(jsr_File_rewind) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
     rewind(f);
@@ -171,9 +173,9 @@ JSR_NATIVE(jsr_File_rewind) {
 
 JSR_NATIVE(jsr_File_read) {
     if(!checkClosed(vm)) return false;
-    if(!jsrCheckInt(vm, 1, "bytes")) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    JSR_CHECK(Int, 1, "bytes");
 
     double bytes = jsrGetNumber(vm, 1);
     if(bytes < 0) JSR_RAISE(vm, "InvalidArgException", "bytes must be >= 0");
@@ -196,7 +198,8 @@ JSR_NATIVE(jsr_File_read) {
 JSR_NATIVE(jsr_File_readAll) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -229,7 +232,7 @@ JSR_NATIVE(jsr_File_readAll) {
 JSR_NATIVE(jsr_File_readLine) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -242,9 +245,9 @@ JSR_NATIVE(jsr_File_readLine) {
 
 JSR_NATIVE(jsr_File_write) {
     if(!checkClosed(vm)) return false;
-    if(!jsrCheckStr(vm, 1, "data")) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    JSR_CHECK(String, 1, "data");
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -262,7 +265,7 @@ JSR_NATIVE(jsr_File_write) {
 JSR_NATIVE(jsr_File_close) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -281,7 +284,7 @@ JSR_NATIVE(jsr_File_close) {
 JSR_NATIVE(jsr_File_flush) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -296,7 +299,7 @@ JSR_NATIVE(jsr_File_flush) {
 JSR_NATIVE(jsr_PFile_close) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    if(!jsrCheckHandle(vm, -1, FIELD_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
 
@@ -316,7 +319,7 @@ JSR_NATIVE(jsr_PFile_close) {
 // functions
 
 JSR_NATIVE(jsr_remove) {
-    if(!jsrCheckStr(vm, 1, "path")) return false;
+    JSR_CHECK(String, 1, "path");
     if(remove(jsrGetString(vm, 1)) == -1) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
@@ -325,9 +328,9 @@ JSR_NATIVE(jsr_remove) {
 }
 
 JSR_NATIVE(jsr_rename) {
-    if(!jsrCheckStr(vm, 1, "oldpath") || !jsrCheckStr(vm, 2, "newpath")) {
-        return false;
-    }
+    JSR_CHECK(String, 1, "oldpath");
+    JSR_CHECK(String, 2, "newpath");
+
     if(rename(jsrGetString(vm, 1), jsrGetString(vm, 2)) == -1) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
@@ -336,9 +339,7 @@ JSR_NATIVE(jsr_rename) {
 }
 
 JSR_NATIVE(jsr_popen) {
-    if(!jsrCheckStr(vm, 1, "name") || !jsrCheckStr(vm, 2, "mode")) {
-        return false;
-    }
+    JSR_CHECK(String, 1, "name");
 
     const char *pname = jsrGetString(vm, 1);
     const char *m = jsrGetString(vm, 2);
