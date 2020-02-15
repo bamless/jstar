@@ -20,7 +20,7 @@
 #endif
 
 JSR_NATIVE(jsr_exit) {
-    if(!jsrCheckInt(vm, 1, "n")) return false;
+    JSR_CHECK(Int, 1, "n");
     exit(jsrGetNumber(vm, 1));
 }
 
@@ -45,7 +45,7 @@ JSR_NATIVE(jsr_clock) {
 }
 
 JSR_NATIVE(jsr_getenv) {
-    if(!jsrCheckStr(vm, 1, "name")) return false;
+    JSR_CHECK(String, 1, "name");
     char *value = getenv(jsrGetString(vm, 1));
     if(value != NULL) {
         jsrPushString(vm, value);

@@ -307,7 +307,7 @@ bool jsrIsFunction(JStarVM *vm, int slot) {
     return IS_CLOSURE(val) || IS_NATIVE(val) || IS_BOUND_METHOD(val);
 }
 
-bool jsrCheckNum(JStarVM *vm, int slot, const char *name) {
+bool jsrCheckNumber(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsNumber(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a number.", name);
     return true;
 }
@@ -317,7 +317,7 @@ bool jsrCheckInt(JStarVM *vm, int slot, const char *name) {
     return true;
 }
 
-bool jsrCheckStr(JStarVM *vm, int slot, const char *name) {
+bool jsrCheckString(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsString(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a String.", name);
     return true;
 }
@@ -332,7 +332,7 @@ bool jsrCheckTuple(JStarVM *vm, int slot, const char *name) {
     return true;
 }
 
-bool jsrCheckBool(JStarVM *vm, int slot, const char *name) {
+bool jsrCheckBoolean(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsBoolean(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a String.", name);
     return true;
 }

@@ -173,7 +173,7 @@ JSR_NATIVE(jsr_int) {
 }
 
 JSR_NATIVE(jsr_char) {
-    if(!jsrCheckStr(vm, 1, "c")) return false;
+    JSR_CHECK(String, 1, "c");
     const char *str = jsrGetString(vm, 1);
     if(jsrGetStringSz(vm, 1) != 1) JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
     int c = str[0];
@@ -183,7 +183,7 @@ JSR_NATIVE(jsr_char) {
 
 
 JSR_NATIVE(jsr_ascii) {
-    if(!jsrCheckInt(vm, 1, "num")) return false;
+    JSR_CHECK(Int, 1, "num");
     char c = jsrGetNumber(vm, 1);
     jsrPushStringSz(vm, &c, 1);
     return true;
@@ -213,7 +213,8 @@ JSR_NATIVE(jsr_print) {
 }
 
 JSR_NATIVE(jsr_eval) {
-    if(!jsrCheckStr(vm, 1, "source")) return false;
+    JSR_CHECK(String, 1, "source");
+
     if(vm->frameCount < 1) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
@@ -260,7 +261,7 @@ JSR_NATIVE(jsr_type) {
 JSR_NATIVE(jsr_system) {
     const char *cmd = NULL;
     if(!jsrIsNull(vm, 1)) {
-        if(!jsrCheckStr(vm, 1, "cmd")) return false;
+        JSR_CHECK(String, 1, "cmd");
         cmd = jsrGetString(vm, 1);
     }
     jsrPushNumber(vm, system(cmd));
@@ -268,7 +269,8 @@ JSR_NATIVE(jsr_system) {
 }
 
 JSR_NATIVE(jsr_exec) {
-    if(!jsrCheckStr(vm, 1, "cmd")) return false;
+    JSR_CHECK(String, 1, "cmd");
+
     FILE *proc = popen(jsrGetString(vm, 1), "r");
     if(proc == NULL) {
         JSR_RAISE(vm, "Exception", strerror(errno));
@@ -437,10 +439,13 @@ JSR_NATIVE(jsr_Module_string) {
 
 // class List
 JSR_NATIVE(jsr_List_new) {
-    if(!jsrCheckInt(vm, 1, "size")) return false;
+    JSR_CHECK(Int, 1, "size");
+    
     double count = jsrGetNumber(vm, 1);
+    if(count < 0) {
+        JSR_RAISE(vm, "TypeException", "size must be >= 0");
+    }
 
-    if(count < 0) JSR_RAISE(vm, "TypeException", "size must be >= 0");
     ObjList *lst = newList(vm, count < 16 ? 16 : count);
     lst->count = count;
     push(vm, OBJ_VAL(lst));
@@ -675,7 +680,7 @@ JSR_NATIVE(jsr_String_substr) {
 }
 
 JSR_NATIVE(jsr_String_charAt) {
-    if(!jsrCheckInt(vm, 1, "idx")) return false;
+    JSR_CHECK(Int, 1, "idx");
 
     ObjString *str = AS_STRING(vm->apiStack[0]);
     size_t i = jsrCheckIndex(vm, 1, str->length, "idx");
@@ -687,9 +692,8 @@ JSR_NATIVE(jsr_String_charAt) {
 }
 
 JSR_NATIVE(jsr_String_startsWith) {
-    if(!jsrCheckStr(vm, 1, "prefix") || !jsrCheckInt(vm, 2, "offset")) {
-        return false;
-    }
+    JSR_CHECK(String, 1, "prefix");
+    JSR_CHECK(Int, 2, "offset");
 
     const char *prefix = jsrGetString(vm, 1);
     size_t prefixLen = jsrGetStringSz(vm, 1);
@@ -712,7 +716,7 @@ JSR_NATIVE(jsr_String_startsWith) {
 }
 
 JSR_NATIVE(jsr_String_endsWith) {
-    if(!jsrCheckStr(vm, 1, "suffix")) return false;
+    JSR_CHECK(String, 1, "suffix");
 
     const char *suffix = jsrGetString(vm, 1);
     size_t suffixLen = jsrGetStringSz(vm, 1);
@@ -884,7 +888,7 @@ JSR_NATIVE(jsr_String_next) {
 static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key, TableEntry **out) {
     push(vm, key);
     if(jsrCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCESS) return false;
-    if(!jsrCheckNum(vm, -1, "__hash__ return value")) return false;
+    JSR_CHECK(Number, -1, "__hash__() return value");
 
     uint32_t hash = jsrGetNumber(vm, -1);
     pop(vm);
@@ -908,7 +912,7 @@ static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value k
             push(vm, key);
             push(vm, e->key);
             if(jsrCallMethod(vm, "__eq__", 1) != VM_EVAL_SUCCESS) return false;
-            if(!jsrCheckBool(vm, -1, "__eq__ return value")) return false;
+            JSR_CHECK(Boolean, -1, "__eq__() return value");
 
             bool equals = jsrGetBoolean(vm, -1);
             pop(vm);

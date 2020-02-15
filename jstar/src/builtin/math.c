@@ -10,18 +10,18 @@
 #define BL_PI 3.14159265358979323846
 #define BL_E 2.71828182845904523536
 
-#define STDLIB_MATH_FUN_X(fun)                       \
-    JSR_NATIVE(jsr_##fun) {                          \
-        if(!jsrCheckNum(vm, 1, "x")) return false;   \
-        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1))); \
-        return true;                                 \
+#define STDLIB_MATH_FUN_X(fun)                        \
+    JSR_NATIVE(jsr_##fun) {                           \
+        if(!jsrCheckNumber(vm, 1, "x")) return false; \
+        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1)));  \
+        return true;                                  \
     }
 
-#define STDLIB_MATH_FUN_XY(fun)                                                \
-    JSR_NATIVE(jsr_##fun) {                                                    \
-        if(!jsrCheckNum(vm, 1, "x") || !jsrCheckNum(vm, 2, "y")) return false; \
-        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));      \
-        return true;                                                           \
+#define STDLIB_MATH_FUN_XY(fun)                                                      \
+    JSR_NATIVE(jsr_##fun) {                                                          \
+        if(!jsrCheckNumber(vm, 1, "x") || !jsrCheckNumber(vm, 2, "y")) return false; \
+        jsrPushNumber(vm, fun(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));            \
+        return true;                                                                 \
     }
 
 static double deg(double x) {
@@ -36,7 +36,7 @@ static double rad(double x) {
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 JSR_NATIVE(jsr_abs) {
-    if(!jsrCheckNum(vm, 1, "x")) return false;
+    JSR_CHECK(Number, 1, "x");
     jsrPushNumber(vm, fabs(jsrGetNumber(vm, 1)));
     return true;
 }
@@ -46,9 +46,8 @@ STDLIB_MATH_FUN_X(asin)
 STDLIB_MATH_FUN_X(atan)
 
 JSR_NATIVE(jsr_atan2) {
-    if(!jsrCheckNum(vm, 1, "y") || !jsrCheckNum(vm, 2, "x")) {
-        return false;
-    }
+    JSR_CHECK(Number, 1, "y");
+    JSR_CHECK(Number, 2, "x");
     jsrPushNumber(vm, atan2(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));
     return true;
 }
@@ -61,7 +60,7 @@ STDLIB_MATH_FUN_X(exp)
 STDLIB_MATH_FUN_X(floor)
 
 JSR_NATIVE(jsr_frexp) {
-    if(!jsrCheckNum(vm, 1, "x")) return false;
+    JSR_CHECK(Number, 1, "x");
     double m;
     int e;
     m = frexp(jsrGetNumber(vm, 1), &e);
@@ -73,9 +72,8 @@ JSR_NATIVE(jsr_frexp) {
 }
 
 JSR_NATIVE(jsr_ldexp) {
-    if(!jsrCheckNum(vm, 1, "x") || !jsrCheckInt(vm, 2, "exp")) {
-        return false;
-    }
+    JSR_CHECK(Number, 1, "x");
+    JSR_CHECK(Int, 2, "exp");
     jsrPushNumber(vm, ldexp(jsrGetNumber(vm, 1), jsrGetNumber(vm, 2)));
     return true;
 }
@@ -92,7 +90,7 @@ STDLIB_MATH_FUN_X(tan)
 STDLIB_MATH_FUN_X(tanh)
 
 JSR_NATIVE(jsr_modf) {
-    if(!jsrCheckNum(vm, 1, "x")) return false;
+    JSR_CHECK(Number, 1, "x");
     double integer, frac;
     integer = modf(jsrGetNumber(vm, 1), &frac);
     ObjTuple *ret = newTuple(vm, 2);
@@ -108,7 +106,7 @@ JSR_NATIVE(jsr_random) {
 }
 
 JSR_NATIVE(jsr_seed) {
-    if(!jsrCheckInt(vm, 1, "s")) return false;
+    JSR_CHECK(Int, 1, "s");
     srand(jsrGetNumber(vm, 1));
     jsrPushNull(vm);
     return true;
