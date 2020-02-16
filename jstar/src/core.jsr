@@ -1,5 +1,3 @@
-//--------- Built-in classes ---------
-
 class Number
     native new(n)
     native isInt()
@@ -40,19 +38,19 @@ class Iter
     end
 
     fun enumerate() 
-        return Enumerate(this)
+        return IEnumerate(this)
     end
 
     fun map(func)
-        return Map(func, this)
+        return IMap(func, this)
     end
 
     fun filter(func) 
-        return Filter(func, this)
+        return IFilter(func, this)
     end
 
     fun zip(iterable)
-        return Zip(this, iterable)
+        return IZip(this, iterable)
     end
 end
 
@@ -124,7 +122,7 @@ class Sequence is Iter
     end
 
     fun reverse()
-        return Reverse(this)
+        return IReverse(this)
     end
 
     fun __eq__(o)
@@ -282,40 +280,8 @@ class Enum
     native name(value)
 end
 
-//--------- Core functions ---------
-
 fun assert(cond, msg="assertion failed")
     if !cond then raise AssertException(msg) end
-end
-
-fun min(iterable)
-    var res
-    for var e in iterable do
-        if !res then
-            res = e
-        else
-            if e < res then res = e end
-        end
-    end
-    if !res then 
-        raise InvalidArgException('iterable is an empty sequence')
-    end
-    return res
-end
-
-fun max(iterable)
-    var res
-    for var e in iterable do
-        if !res then
-            res = e
-        else
-            if e > res then res = e end
-        end
-    end
-    if !res then
-        raise InvalidArgException('iterable is an empty sequence')
-    end
-    return res
 end
 
 fun sorted(iterable, comp=null)
@@ -324,46 +290,37 @@ fun sorted(iterable, comp=null)
     return lst
 end
 
-fun sum(iterable)
-    var s = 0
-    for var i in iterable do
-        s += i
-    end
-    return s
-end
+fun reduce(iterable, fn)
+    var acc, iter = null, iterable.__iter__(null)
 
-fun switch(cond)
-    return fun(jmpTbl)
-        if jmpTbl.contains(cond) then
-            return jmpTbl[cond](cond)
-        else
-            return jmpTbl['__dflt__'](cond)
-        end
+    if iter then
+        acc = iterable.__next__(iter) 
+    else
+        return null
     end
+    
+    while iter = iterable.__iter__(iter) do
+        acc = fn(acc, iterable.__next__(iter))
+    end
+
+    return acc
 end
 
 fun toList(iterable)
-    var size
-    try
-        size = #iterable
-    except MethodException e
+    if iterable is Sequence then
+        var len = #iterable
+        var list = List(len)
+        for var i = 0; i < len; i += 1 do
+            list[i] = iterable[i]
+        end
+        return list
     end
 
-    if size then
-        var lst = List(size)
-        var i = 0;
-        for var e in iterable do
-            lst[i] = e
-            i += 1
-        end
-        return lst
-    else
-        var lst = []
-        for var e in iterable do
-            lst.add(e)
-        end
-        return lst
+    var list = []
+    for var e in iterable do
+        list.add(e)
     end
+    return list
 end
 
 fun toTable(iterable)
@@ -389,9 +346,7 @@ native system(cmd)
 native print(s, ...)
 native type(o)
 
-//--------- Standard iterators ---------
-
-class Reverse is Sequence
+class IReverse is Sequence
     fun new(sequence)
         this.__sequence = sequence
         this.__size = #sequence
@@ -421,7 +376,7 @@ class Reverse is Sequence
     end
 end
 
-class Enumerate is Iter
+class IEnumerate is Iter
     fun new(iter, start=0)
         this.__iter = iter
         this.__idx = start
@@ -438,7 +393,7 @@ class Enumerate is Iter
     end
 end
 
-class Filter is Iter
+class IFilter is Iter
     fun new(func, iter)
         this.__func = func
         this.__iter = iter
@@ -459,7 +414,7 @@ class Filter is Iter
     end
 end
 
-class Map is Iter
+class IMap is Iter
     fun new(func, iter)
         this.__func = func
         this.__iter = iter
@@ -474,7 +429,7 @@ class Map is Iter
     end
 end
 
-class Zip is Iter
+class IZip is Iter
     fun new(...)
         if #args == 0 then 
             raise TypeException("Must provide at least one iterator.")
@@ -484,32 +439,27 @@ class Zip is Iter
     end
 
     fun __iter__(tup)
-        if tup == null then
-            for var iterator in this.__iters do
-                this.__result.add(iterator.__iter__(null))
-            end
-        else
-            var i = 0
-            for var iterator in this.__iters do
-                var res = iterator.__iter__(tup[i])
-                if !res then return false end
-                this.__result.add(res)
-                i += 1
-            end
+        var i = 0
+        for var iterator in this.__iters do
+            var res = iterator.__iter__(tup[i] if tup else null)
+            if !res then return false end
+            this.__result.add(res)
+            i += 1
         end
-
         var res = Tuple(this.__result)
         this.__result.clear()
         return res
     end
 
     fun __next__(tup)
-        var i, res = 0, []
+        var i = 0
         for var iterator in this.__iters do
-            res.add(iterator.__next__(tup[i]))
+            this.__result.add(iterator.__next__(tup[i]))
             i += 1
         end
-        return Tuple(res)
+        var res = Tuple(this.__result)
+        this.__result.clear()
+        return res
     end
 end
 
