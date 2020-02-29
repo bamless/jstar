@@ -988,7 +988,7 @@ static bool runEval(JStarVM *vm, int depth) {
         DISPATCH();
     }
 
-    TARGET(OP_GET_ITER): {
+    TARGET(OP_FOR_ITER): {
         vm->sp[0] = vm->sp[-2];
         vm->sp[1] = vm->sp[-1];
         vm->sp += 2;
@@ -999,7 +999,7 @@ static bool runEval(JStarVM *vm, int depth) {
         DISPATCH();
     }
 
-    TARGET(OP_FOR_ITER): {
+    TARGET(OP_FOR_NEXT): {
         vm->sp[-2] = vm->sp[-1];
         int16_t off = NEXT_SHORT();
         if(isValTrue(pop(vm))) {

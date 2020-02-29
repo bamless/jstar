@@ -959,9 +959,9 @@ static void compileForEach(Compiler *c, Stmt *s) {
     Loop l;
     startLoop(c, &l);
 
-    emitBytecode(c, OP_GET_ITER, s->line);
+    emitBytecode(c, OP_FOR_ITER, s->line);
     compileVariable(c, &iterator, true, s->line);
-    size_t exitJmp = emitBytecode(c, OP_FOR_ITER, 0);
+    size_t exitJmp = emitBytecode(c, OP_FOR_NEXT, 0);
     emitShort(c, 0, 0);
 
     Stmt *varDecl = s->as.forEach.var;

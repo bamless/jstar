@@ -23,7 +23,7 @@ void disassembleIstr(Chunk *c, size_t i) {
     case OP_JUMP:
     case OP_JUMPT:
     case OP_JUMPF:
-    case OP_FOR_ITER:
+    case OP_FOR_NEXT:
     case OP_SETUP_EXCEPT:
     case OP_SETUP_ENSURE: {
         int16_t off = (int16_t)((uint16_t)c->code[i + 1] << 8) | c->code[i + 2];
