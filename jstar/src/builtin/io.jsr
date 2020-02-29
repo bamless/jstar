@@ -49,15 +49,6 @@ class __PFile is File
         this._closed = false
     end
 
-    fun readAll()
-        var lines = []
-        var line
-        while line = this.readLine() do
-            lines.add(line)
-        end
-        return ''.join(lines)
-    end
-
     native close()
 end
 

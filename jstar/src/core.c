@@ -742,19 +742,21 @@ JSR_NATIVE(jsr_String_strip) {
     const char *str = jsrGetString(vm, 0);
     size_t start = 0, end = jsrGetStringSz(vm, 0);
 
-    while(isspace(str[start]) && start < end) {
+    while(start < end && isspace(str[start])) {
         start++;
     }
-    while(isspace(str[end - 1]) && start < end) {
+    while(start < end && isspace(str[end - 1])) {
         end--;
     }
 
-    if(start == end)
+    if(start == end) {
         jsrPushString(vm, "");
-    else if(start != 0 || end != jsrGetStringSz(vm, 0))
+    } else if(start != 0 || end != jsrGetStringSz(vm, 0)) {
         jsrPushStringSz(vm, &str[start], (size_t)(end - start));
-    else
+    } else {
         jsrPushValue(vm, 0);
+    }
+
     return true;
 }
 
@@ -762,16 +764,16 @@ JSR_NATIVE(jsr_String_chomp) {
     const char *str = jsrGetString(vm, 0);
     size_t end = jsrGetStringSz(vm, 0);
 
-    char c = str[end - 1];
-    while((c == '\n' || c == '\r') && end > 0) {
+    while(end > 0 && isspace(str[end - 1])) {
         end--;
-        c = str[end - 1];
     }
 
-    if(end != jsrGetStringSz(vm, 0))
+    if(end != jsrGetStringSz(vm, 0)) {
         jsrPushStringSz(vm, str, end);
-    else
+    } else {
         jsrPushValue(vm, 0);
+    }
+
     return true;
 }
 
