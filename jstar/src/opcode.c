@@ -7,7 +7,7 @@ int opcodeArgsNumber(Opcode op) {
     case OP_JUMP:
     case OP_JUMPT:
     case OP_JUMPF:
-    case OP_FOR_ITER:
+    case OP_FOR_NEXT:
     case OP_SETUP_EXCEPT:
     case OP_SETUP_ENSURE:
         return 2;

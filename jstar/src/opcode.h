@@ -61,8 +61,8 @@
     X(OP_JUMP)          \
     X(OP_JUMPT)         \
     X(OP_JUMPF)         \
-    X(OP_GET_ITER)      \
     X(OP_FOR_ITER)      \
+    X(OP_FOR_NEXT)      \
     X(OP_IMPORT)        \
     X(OP_IMPORT_AS)     \
     X(OP_IMPORT_FROM)   \
