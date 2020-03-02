@@ -15,18 +15,17 @@
 // to handler code and to restore the
 // VM state when handling exceptions
 typedef struct Handler {
-    enum {
-        HANDLER_ENSURE, 
-        HANDLER_EXCEPT 
-    } type;             // The type of the handler block
-    uint8_t *handler;   // The start of except (or ensure) handler
-    Value *savesp;      // Stack pointer to restore when handling exceptions
+#define HANDLER_ENSURE OP_SETUP_ENSURE
+#define HANDLER_EXCEPT OP_SETUP_EXCEPT
+    uint8_t type;     // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
+    uint8_t *handler; // The address of the handler code
+    Value *savesp;    // Stack pointer to restore state when handling exceptions
 } Handler;
 
 typedef struct Frame {
     uint8_t *ip;                   // Instruction pointer
     Value *stack;                  // Base of stack for current frame
-    Value fn;                      // The function associated with the frame (Native or Closure)
+    Value fn;                      // The function associated with the frame (native or closure)
     Handler handlers[HANDLER_MAX]; // Exception handlers
     uint8_t handlerc;              // Exception handlers count
 } Frame;

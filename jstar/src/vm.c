@@ -750,13 +750,13 @@ static bool runEval(JStarVM *vm, int depth) {
         }                                                     \
     } while(0)
 
-#define UNWIND_HANDLER(h, cause, exc)  \
+#define RESTORE_HANDLER(h, cause, exc) \
     do {                               \
         frame->ip = h->handler;        \
         vm->sp = h->savesp;            \
         closeUpvalues(vm, vm->sp - 1); \
         push(vm, exc);                 \
-        push(vm, cause);               \
+        push(vm, NUM_VAL(cause));      \
     } while(0)
 
 #define UNWIND_STACK(vm)              \
@@ -1071,7 +1071,6 @@ call:
 
 invoke:;
         ObjString *name = GET_STRING();
-
         SAVE_FRAME();
         bool res = invokeFromValue(vm, name, argc);
         LOAD_FRAME();
@@ -1103,7 +1102,6 @@ sup_invoke:;
         ObjString *name = GET_STRING();
         // The superclass is stored as a const in the function itself
         ObjClass *sup = AS_CLASS(fn->chunk.consts.arr[0]);
-
         SAVE_FRAME();
         bool res = invokeMethod(vm, sup, name, argc);
         LOAD_FRAME();
@@ -1117,7 +1115,7 @@ sup_invoke:;
         while(frame->handlerc > 0) {
             Handler *h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
-                UNWIND_HANDLER(h, NUM_VAL(CAUSE_RETURN), ret);
+                RESTORE_HANDLER(h, CAUSE_RETURN, ret);
                 LOAD_FRAME();
                 DISPATCH();
             }
@@ -1268,7 +1266,6 @@ sup_invoke:;
         ObjClass *cls = AS_CLASS(peek(vm));
         ObjString *methodName = GET_STRING();
         ObjNative *native = AS_NATIVE(GET_CONST());
-
         native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
         if(native->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
@@ -1281,7 +1278,6 @@ sup_invoke:;
     TARGET(OP_NATIVE): {
         ObjString *name = GET_STRING();
         ObjNative *nat  = AS_NATIVE(peek(vm));
-
         nat->fn = resolveNative(vm->module, NULL, name->data);
         if(nat->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
@@ -1322,9 +1318,9 @@ sup_invoke:;
     TARGET(OP_SETUP_ENSURE): {
         uint16_t handlerOff = NEXT_SHORT();
         Handler *handler = &frame->handlers[frame->handlerc++];
-        handler->type = op == OP_SETUP_EXCEPT ? HANDLER_EXCEPT : HANDLER_ENSURE;
         handler->handler = ip + handlerOff;
         handler->savesp = vm->sp;
+        handler->type = op;
         DISPATCH();
     }
     
@@ -1333,17 +1329,13 @@ sup_invoke:;
             UnwindCause cause = AS_NUM(pop(vm));
 
             switch(cause) {
-            case CAUSE_EXCEPT: {
-                // if we still have the exception on the top of the stack
-                if(!IS_NULL(peek(vm))) {
-                    // continue unwinding
-                    UNWIND_STACK(vm);
-                }
+            case CAUSE_EXCEPT:
+                // continue unwinding
+                UNWIND_STACK(vm);
                 break;
-            }
-            case CAUSE_RETURN: {
+            case CAUSE_RETURN:
+                // return will handle ensure handlers
                 GOTO(OP_RETURN);
-            }
             default:
                 UNREACHABLE();
                 break;
@@ -1363,11 +1355,9 @@ sup_invoke:;
             jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
             UNWIND_STACK(vm);
         }
-
         ObjStackTrace *st = newStackTrace(vm);
         ObjInstance *excInst = AS_INSTANCE(exc);
         hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
-
         UNWIND_STACK(vm);
     }
 
@@ -1445,7 +1435,7 @@ static bool unwindStack(JStarVM *vm, int depth) {
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
             Handler *h = &frame->handlers[--frame->handlerc];
-            UNWIND_HANDLER(h, NUM_VAL(CAUSE_EXCEPT), exc);
+            RESTORE_HANDLER(h, CAUSE_EXCEPT, exc);
             return true;
         }
 
