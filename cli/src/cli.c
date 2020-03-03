@@ -141,9 +141,7 @@ int main(int argc, const char **argv) {
             size_t length = directory - argv[1] + 1;
             char *path = calloc(length + 1, sizeof(char));
             memcpy(path, argv[1], length);
-
             initImportPaths(path);
-            
             free(path);
         } else {
             initImportPaths("./");

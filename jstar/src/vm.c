@@ -717,10 +717,10 @@ static bool runEval(JStarVM *vm, int depth) {
 
 #define SAVE_FRAME() frame->ip = ip;
 
-#define NEXT_CODE() (*ip++)
+#define NEXT_CODE()  (*ip++)
 #define NEXT_SHORT() (ip += 2, ((uint16_t)ip[-2] << 8) | ip[-1])
 
-#define GET_CONST() (fn->chunk.consts.arr[NEXT_SHORT()])
+#define GET_CONST()  (fn->chunk.consts.arr[NEXT_SHORT()])
 #define GET_STRING() (AS_STRING(GET_CONST()))
 
 #define BINARY(type, op, overload, reverse)         \
@@ -743,9 +743,9 @@ static bool runEval(JStarVM *vm, int depth) {
             ObjString *t1 = getClass(vm, peek(vm))->name;     \
             ObjString *t2 = getClass(vm, peek2(vm))->name;    \
             jsrRaise(vm, "TypeException",                     \
-                    "Operator %s not defined "                \
-                    "for types %s, %s",                       \
-                    #op, t1->data, t2->data);                 \
+                     "Operator %s not defined "               \
+                     "for types %s, %s",                      \
+                     #op, t1->data, t2->data);                \
             UNWIND_STACK(vm);                                 \
         }                                                     \
     } while(0)
@@ -785,9 +785,8 @@ static bool runEval(JStarVM *vm, int depth) {
 
 #if defined(USE_COMPUTED_GOTOS) && !defined(_MSC_VER)
     // create jumptable
-    #define DEFINE_JMP_TABLE() static void *opJmpTable[] = {OPCODE(JMPTARGET)}
     #define JMPTARGET(X) &&TARGET_##X,
-    DEFINE_JMP_TABLE();
+    static void *opJmpTable[] = {OPCODE(JMPTARGET)};
 
     #define TARGET(op) TARGET_##op
     #define DISPATCH()                            \
