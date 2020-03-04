@@ -107,6 +107,16 @@ typedef struct JStarVM {
     size_t reachedCapacity, reachedCount;
 } JStarVM;
 
+bool runEval(JStarVM *vm, int depth);
+
+bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name);
+bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s);
+
+bool callValue(JStarVM *vm, Value callee, uint8_t argc);
+bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc);
+
+bool unwindStack(JStarVM *vm, int depth);
+
 static inline void push(JStarVM *vm, Value v) {
     *vm->sp++ = v;
 }
@@ -136,6 +146,18 @@ static inline bool isInstance(JStarVM *vm, Value i, ObjClass *cls) {
     return false;
 }
 
+static inline Value peek(JStarVM *vm) {
+    return vm->sp[-1];
+}
+
+static inline Value peek2(JStarVM *vm) {
+    return vm->sp[-2];
+}
+
+static inline Value peekn(JStarVM *vm, int n) {
+    return vm->sp[-(n + 1)];
+}
+
 static inline int apiStackIndex(JStarVM *vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
@@ -150,9 +172,5 @@ static inline Value apiStackSlot(JStarVM *vm, int slot) {
     if(slot < 0) return vm->sp[slot];
     return vm->apiStack[slot];
 }
-
-#define peek(vm)     ((vm)->sp[-1])
-#define peek2(vm)    ((vm)->sp[-2])
-#define peekn(vm, n) ((vm)->sp[-(n + 1)])
 
 #endif
