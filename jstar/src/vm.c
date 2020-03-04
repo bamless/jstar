@@ -5,9 +5,6 @@
 #include "memory.h"
 #include "opcode.h"
 
-#include "jsrparse/ast.h"
-#include "jsrparse/parser.h"
-
 #include "builtin/modules.h"
 
 #include <float.h>
@@ -132,38 +129,6 @@ static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
     Frame *callFrame = getFrame(vm, &native->c);
     callFrame->fn = OBJ_VAL(native);
     callFrame->ip = NULL;
-}
-
-void jsrEnsureStack(JStarVM *vm, size_t needed) {
-    if(vm->sp + needed < vm->stack + vm->stackSz) return;
-
-    Value *oldStack = vm->stack;
-
-    vm->stackSz = powerOf2Ceil(vm->stackSz);
-    vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
-
-    if(vm->stack != oldStack) {
-        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
-            vm->apiStack = vm->stack + (vm->apiStack - oldStack);
-        }
-
-        for(int i = 0; i < vm->frameCount; i++) {
-            Frame *frame = &vm->frames[i];
-            frame->stack = vm->stack + (frame->stack - oldStack);
-            for(int j = 0; j < frame->handlerc; j++) {
-                Handler *h = &frame->handlers[j];
-                h->savesp = vm->stack + (h->savesp - oldStack);
-            }
-        }
-
-        ObjUpvalue *upvalue = vm->upvalues;
-        while(upvalue) {
-            upvalue->addr = vm->stack + (upvalue->addr - oldStack);
-            upvalue = upvalue->next;
-        }
-
-        vm->sp = vm->stack + (vm->sp - oldStack);
-    }
 }
 
 static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
@@ -329,7 +294,7 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     return true;
 }
 
-static bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
+bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
         case OBJ_CLOSURE:
@@ -388,7 +353,7 @@ static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
-static bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc) {
+bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -432,7 +397,7 @@ static bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc) {
     return invokeMethod(vm, cls, name, argc);
 }
 
-static bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
+bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
@@ -491,7 +456,7 @@ static bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
     return true;
 }
 
-static bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s) {
+bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
@@ -699,20 +664,22 @@ static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name
     return NULL;
 }
 
-static bool unwindStack(JStarVM *vm, int depth);
-
-static bool runEval(JStarVM *vm, int depth) {
+bool runEval(JStarVM *vm, int depth) {
     register Frame *frame;
     register Value *frameStack;
     register ObjClosure *closure;
     register ObjFunction *fn;
     register uint8_t *ip;
 
-#define LOAD_FRAME()                         \
-    frame = &vm->frames[vm->frameCount - 1]; \
-    frameStack = frame->stack;               \
-    closure = AS_CLOSURE(frame->fn);         \
-    fn = closure->fn;                        \
+    assert(vm->frameCount != 0, "No frame to evaluate");
+    assert(vm->frameCount >= depth, "Too few frame to evaluate");
+
+#define LOAD_FRAME()                                                  \
+    frame = &vm->frames[vm->frameCount - 1];                          \
+    frameStack = frame->stack;                                        \
+    assert(IS_CLOSURE(frame->fn), "Trying to evaluate native frame"); \
+    closure = AS_CLOSURE(frame->fn);                                  \
+    fn = closure->fn;                                                 \
     ip = frame->ip;
 
 #define SAVE_FRAME() frame->ip = ip;
@@ -1410,7 +1377,7 @@ sup_invoke:;
     return false;
 }
 
-static bool unwindStack(JStarVM *vm, int depth) {
+bool unwindStack(JStarVM *vm, int depth) {
     assert(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
     ObjInstance *exception = AS_INSTANCE(peek(vm));
 
@@ -1444,133 +1411,4 @@ static bool unwindStack(JStarVM *vm, int depth) {
     // we have reached the end of the stack or a native/function boundary,
     // return from evaluation leaving the exception on top of the stack
     return false;
-}
-
-/**
- * =========================================================
- *  API - J* VM entry points, Object manipulation 
- *  and utility functions implementation
- * =========================================================
- */
-
-EvalResult jsrEvaluate(JStarVM *vm, const char *fpath, const char *src) {
-    return jsrEvaluateModule(vm, fpath, JSR_MAIN_MODULE, src);
-}
-
-EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module, const char *src) {
-    Stmt *program = parse(fpath, src);
-    if(program == NULL) return VM_SYNTAX_ERR;
-
-    ObjString *name = copyString(vm, module, strlen(module), true);
-    ObjFunction *fn = compileWithModule(vm, name, program);
-    freeStmt(program);
-
-    if(fn == NULL) return VM_COMPILE_ERR;
-
-    push(vm, OBJ_VAL(fn));
-    ObjClosure *closure = newClosure(vm, fn);
-    pop(vm);
-
-    push(vm, OBJ_VAL(closure));
-
-    EvalResult res;
-    if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) {
-        jsrPrintStacktrace(vm, -1);
-    }
-
-    pop(vm);
-    return res;
-}
-
-static EvalResult finishCall(JStarVM *vm, int depth, size_t offSp) {
-    // Evaluate frame if present
-    if(vm->frameCount > depth && !runEval(vm, depth)) {
-        // Exception was thrown, push it as result
-        Value exc = pop(vm);
-        vm->sp = vm->stack + offSp;
-        push(vm, exc);
-        return VM_RUNTIME_ERR;
-    }
-
-    return VM_EVAL_SUCCESS;
-}
-
-static void callError(JStarVM *vm, int depth, size_t offsp) {
-    // Finish to unwind the stack
-    if(vm->frameCount > depth) {
-        unwindStack(vm, depth);
-        Value exc = pop(vm);
-        vm->sp = vm->stack + offsp;
-        push(vm, exc);
-    }
-}
-
-EvalResult jsrCall(JStarVM *vm, uint8_t argc) {
-    size_t offsp = vm->sp - vm->stack - argc - 1;
-    int depth = vm->frameCount;
-
-    if(!callValue(vm, peekn(vm, argc), argc)) {
-        callError(vm, depth, offsp);
-        return VM_RUNTIME_ERR;
-    }
-
-    return finishCall(vm, depth, offsp);
-}
-
-EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
-    size_t offsp = vm->sp - vm->stack - argc - 1;
-    int depth = vm->frameCount;
-
-    ObjString *meth = copyString(vm, name, strlen(name), true);
-
-    if(!invokeFromValue(vm, meth, argc)) {
-        callError(vm, depth, offsp);
-        return VM_RUNTIME_ERR;
-    }
-
-    return finishCall(vm, depth, offsp);
-}
-
-void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
-    if(!jsrGetGlobal(vm, NULL, cls)) return;
-
-    ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
-    if(!isInstance(vm, OBJ_VAL(excInst), vm->excClass)) {
-        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
-    }
-
-    push(vm, OBJ_VAL(excInst));
-    ObjStackTrace *st = newStackTrace(vm);
-    hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
-
-    if(err != NULL) {
-        char errStr[1024] = {0};
-        va_list args;
-        va_start(args, err);
-        vsnprintf(errStr, sizeof(errStr) - 1, err, args);
-        va_end(args);
-
-        jsrPushString(vm, errStr);
-        HashTable *fields = &excInst->fields;
-        hashTablePut(fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), pop(vm));
-    }
-}
-
-void jsrSetField(JStarVM *vm, int slot, const char *name) {
-    Value val = apiStackSlot(vm, slot);
-    setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
-}
-
-bool jsrGetField(JStarVM *vm, int slot, const char *name) {
-    Value val = apiStackSlot(vm, slot);
-    return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), true));
-}
-
-void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv) {
-    vm->argc = argc;
-    vm->argv = argv;
-}
-
-void jsrAddImportPath(JStarVM *vm, const char *path) {
-    listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path), false)));
 }

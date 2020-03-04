@@ -4,18 +4,146 @@
 #include "util.h"
 #include "vm.h"
 
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
+
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 /**
- * The bulk of the API (jstar.h) implementation.
+ * The bulk of the API (jstar.h) impleemntation.
  * 
- * The VM entry point functions and others that need to manipulate the VM internals are implemented 
- * at the end of vm.c
- * 
- * The JStarBuffer functions are implemented at the end of object.c
+ * JStarBuffer is implemented in object.c
  */
+
+EvalResult jsrEvaluate(JStarVM *vm, const char *fpath, const char *src) {
+    return jsrEvaluateModule(vm, fpath, JSR_MAIN_MODULE, src);
+}
+
+EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *module, const char *src) {
+    Stmt *program = parse(fpath, src);
+    if(program == NULL) return VM_SYNTAX_ERR;
+
+    ObjString *name = copyString(vm, module, strlen(module), true);
+    ObjFunction *fn = compileWithModule(vm, name, program);
+    freeStmt(program);
+
+    if(fn == NULL) return VM_COMPILE_ERR;
+
+    push(vm, OBJ_VAL(fn));
+    ObjClosure *closure = newClosure(vm, fn);
+    pop(vm);
+
+    push(vm, OBJ_VAL(closure));
+
+    EvalResult res;
+    if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) {
+        jsrPrintStacktrace(vm, -1);
+    }
+
+    pop(vm);
+    return res;
+}
+
+static EvalResult finishCall(JStarVM *vm, int depth, size_t offSp) {
+    // Evaluate frame if present
+    if(vm->frameCount > depth && !runEval(vm, depth)) {
+        // Exception was thrown, push it as result
+        Value exc = pop(vm);
+        vm->sp = vm->stack + offSp;
+        push(vm, exc);
+        return VM_RUNTIME_ERR;
+    }
+
+    return VM_EVAL_SUCCESS;
+}
+
+static void callError(JStarVM *vm, int depth, size_t offsp) {
+    // Finish to unwind the stack
+    if(vm->frameCount > depth) {
+        unwindStack(vm, depth);
+        Value exc = pop(vm);
+        vm->sp = vm->stack + offsp;
+        push(vm, exc);
+    }
+}
+
+EvalResult jsrCall(JStarVM *vm, uint8_t argc) {
+    size_t offsp = vm->sp - vm->stack - argc - 1;
+    int depth = vm->frameCount;
+
+    if(!callValue(vm, peekn(vm, argc), argc)) {
+        callError(vm, depth, offsp);
+        return VM_RUNTIME_ERR;
+    }
+
+    return finishCall(vm, depth, offsp);
+}
+
+EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
+    size_t offsp = vm->sp - vm->stack - argc - 1;
+    int depth = vm->frameCount;
+
+    ObjString *meth = copyString(vm, name, strlen(name), true);
+
+    if(!invokeFromValue(vm, meth, argc)) {
+        callError(vm, depth, offsp);
+        return VM_RUNTIME_ERR;
+    }
+
+    return finishCall(vm, depth, offsp);
+}
+
+void jsrPrintStacktrace(JStarVM *vm, int slot) {
+    Value exc = vm->apiStack[apiStackIndex(vm, slot)];
+    assert(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
+    push(vm, exc);
+    jsrCallMethod(vm, "printStacktrace", 0);
+    jsrPop(vm);
+}
+
+void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv) {
+    vm->argc = argc;
+    vm->argv = argv;
+}
+
+void jsrAddImportPath(JStarVM *vm, const char *path) {
+    listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path), false)));
+}
+
+void jsrEnsureStack(JStarVM *vm, size_t needed) {
+    if(vm->sp + needed < vm->stack + vm->stackSz) return;
+
+    Value *oldStack = vm->stack;
+
+    vm->stackSz = powerOf2Ceil(vm->stackSz);
+    vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
+
+    if(vm->stack != oldStack) {
+        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
+            vm->apiStack = vm->stack + (vm->apiStack - oldStack);
+        }
+
+        for(int i = 0; i < vm->frameCount; i++) {
+            Frame *frame = &vm->frames[i];
+            frame->stack = vm->stack + (frame->stack - oldStack);
+            for(int j = 0; j < frame->handlerc; j++) {
+                Handler *h = &frame->handlers[j];
+                h->savesp = vm->stack + (h->savesp - oldStack);
+            }
+        }
+
+        ObjUpvalue *upvalue = vm->upvalues;
+        while(upvalue) {
+            upvalue->addr = vm->stack + (upvalue->addr - oldStack);
+            upvalue = upvalue->next;
+        }
+
+        vm->sp = vm->stack + (vm->sp - oldStack);
+    }
+}
 
 char *jsrReadFile(const char *path) {
     FILE *srcFile = fopen(path, "rb");
@@ -162,12 +290,8 @@ void jsrPop(JStarVM *vm) {
 }
 
 void jsrSetGlobal(JStarVM *vm, const char *mname, const char *name) {
-    assert(vm->module != NULL || mname != NULL,
-           "Calling blSetGlobal outside of Native function requires specifying a module");
-    ObjModule *module = vm->module;
-    if(mname != NULL) {
-        module = getModule(vm, copyString(vm, mname, strlen(mname), true));
-    }
+    assert(vm->module || mname, "Calling jsrSetGlobal outside of Native function requires specifying a module");
+    ObjModule *module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
     hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
@@ -221,14 +345,19 @@ size_t jsrTupleGetLength(JStarVM *vm, int slot) {
     return AS_TUPLE(tup)->size;
 }
 
-bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {
-    assert(vm->module != NULL || mname != NULL, "no module in top-level getGlobal");
+void jsrSetField(JStarVM *vm, int slot, const char *name) {
+    Value val = apiStackSlot(vm, slot);
+    setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
+}
 
-    ObjModule *module;
-    if(mname != NULL)
-        module = getModule(vm, copyString(vm, mname, strlen(mname), true));
-    else
-        module = vm->module;
+bool jsrGetField(JStarVM *vm, int slot, const char *name) {
+    Value val = apiStackSlot(vm, slot);
+    return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), true));
+}
+
+bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {
+    assert(vm->module || mname, "Calling jsrGetGlobal outside of Native function requires specifying a module");
+    ObjModule *module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
 
     Value res;
     ObjString *namestr = copyString(vm, name, strlen(name), true);
@@ -363,10 +492,27 @@ size_t jsrCheckIndex(JStarVM *vm, int slot, size_t max, const char *name) {
     return checkIndex(vm, i, max, name);
 }
 
-void jsrPrintStacktrace(JStarVM *vm, int slot) {
-    Value exc = vm->apiStack[apiStackIndex(vm, slot)];
-    assert(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
-    push(vm, exc);
-    jsrCallMethod(vm, "printStacktrace", 0);
-    jsrPop(vm);
+void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
+    if(!jsrGetGlobal(vm, NULL, cls)) return;
+
+    ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
+    if(!isInstance(vm, OBJ_VAL(excInst), vm->excClass)) {
+        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+    }
+
+    push(vm, OBJ_VAL(excInst));
+    ObjStackTrace *st = newStackTrace(vm);
+    hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
+
+    if(err != NULL) {
+        char errStr[1024] = {0};
+        va_list args;
+        va_start(args, err);
+        vsnprintf(errStr, sizeof(errStr) - 1, err, args);
+        va_end(args);
+
+        jsrPushString(vm, errStr);
+        HashTable *fields = &excInst->fields;
+        hashTablePut(fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), pop(vm));
+    }
 }
