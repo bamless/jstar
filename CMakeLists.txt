@@ -41,7 +41,7 @@ endif()
 
 # set compiler flags
 if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-	set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-unused-label -Wno-typedef-redefinition")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-unused-label")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -fomit-frame-pointer")
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -s")
