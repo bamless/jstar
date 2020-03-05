@@ -914,12 +914,7 @@ static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value k
             push(vm, key);
             push(vm, e->key);
             if(jsrCallMethod(vm, "__eq__", 1) != VM_EVAL_SUCCESS) return false;
-            JSR_CHECK(Boolean, -1, "__eq__() return value");
-
-            bool equals = jsrGetBoolean(vm, -1);
-            pop(vm);
-
-            if(equals) {
+            if(isValTrue(*--vm->sp)) {
                 *out = e;
                 return true;
             }
@@ -988,6 +983,7 @@ JSR_NATIVE(jsr_Table_set) {
     if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
+    
     bool isNew = IS_NULL(e->key);
     if(isNew) {
         t->count++;

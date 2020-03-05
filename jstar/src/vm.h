@@ -125,6 +125,11 @@ static inline Value pop(JStarVM *vm) {
     return *--vm->sp;
 }
 
+static inline bool isValTrue(Value val) {
+    if(IS_BOOL(val)) return AS_BOOL(val);
+    return !IS_NULL(val);
+}
+
 static inline ObjClass *getClass(JStarVM *vm, Value v) {
     if(IS_NUM(v)) {
         return vm->numClass;
