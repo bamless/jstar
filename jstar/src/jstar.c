@@ -13,7 +13,7 @@
 #include <string.h>
 
 /**
- * The bulk of the API (jstar.h) impleemntation.
+ * The bulk of the API (jstar.h) implementation.
  * 
  * JStarBuffer is implemented in object.c
  */
@@ -56,7 +56,6 @@ static EvalResult finishCall(JStarVM *vm, int depth, size_t offSp) {
         push(vm, exc);
         return VM_RUNTIME_ERR;
     }
-
     return VM_EVAL_SUCCESS;
 }
 
@@ -86,9 +85,7 @@ EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
     size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
-    ObjString *meth = copyString(vm, name, strlen(name), true);
-
-    if(!invokeFromValue(vm, meth, argc)) {
+    if(!invokeFromValue(vm, copyString(vm, name, strlen(name), true), argc)) {
         callError(vm, depth, offsp);
         return VM_RUNTIME_ERR;
     }
@@ -182,6 +179,12 @@ static size_t checkIndex(JStarVM *vm, double i, size_t max, const char *name) {
     if(i >= 0 && i < max) return (size_t)i;
     jsrRaise(vm, "IndexOutOfBoundException", "%g.", i);
     return SIZE_MAX;
+}
+
+bool jsrRawEquals(JStarVM *vm, int slot1, int slot2) {
+    Value v1 = apiStackSlot(vm, slot1);
+    Value v2 = apiStackSlot(vm, slot2);
+    return valueEquals(v1, v2);
 }
 
 bool jsrEquals(JStarVM *vm) {
@@ -282,6 +285,24 @@ void jsrPushTable(JStarVM *vm) {
 void jsrPushValue(JStarVM *vm, int slot) {
     validateStack(vm);
     push(vm, apiStackSlot(vm, slot));
+}
+
+void jsrPushNative(JStarVM *vm, const char *name, JStarNative nat, uint8_t argc) {
+    validateStack(vm);
+
+    ObjModule *mod;
+    if(vm->module) {
+        mod = vm->module;
+    } else {
+        mod = getModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true));
+    }
+
+    ObjString *objName = copyString(vm, name, strlen(name), true);
+    push(vm, OBJ_VAL(objName));
+    ObjNative *objNative = newNative(vm, mod, objName, argc, nat, 0);
+    pop(vm);
+
+    push(vm, OBJ_VAL(objNative));
 }
 
 void jsrPop(JStarVM *vm) {

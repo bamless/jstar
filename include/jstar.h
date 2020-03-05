@@ -139,6 +139,9 @@ typedef struct JStarNativeReg {
 // If "cls" cannot be found in current module a NameException is raised instead.
 JSTAR_API void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...);
 
+// Check if two objects are the same (doesn't call __eq__ overload)
+JSTAR_API bool jsrRawEquals(JStarVM *vm, int slot1, int slot2);
+
 // Check if two J* values are equal.
 // As this function may call the __eq__ method, it behaves like
 // jsrCall, i.e. the two values should be on the top of the stack
@@ -195,6 +198,7 @@ JSTAR_API void jsrPushList(JStarVM *vm);
 JSTAR_API void jsrPushTuple(JStarVM *vm, size_t size);
 JSTAR_API void jsrPushTable(JStarVM *vm);
 JSTAR_API void jsrPushValue(JStarVM *vm, int slot);
+JSTAR_API void jsrPushNative(JStarVM *vm, const char *name, JStarNative nat, uint8_t argc);
 #define jsrDup(vm) jsrPushValue(vm, -1)
 
 // Pop a value from the top of the stack

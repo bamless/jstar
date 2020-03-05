@@ -445,7 +445,6 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
 
     Value v;
     ObjClass *cls = getClass(vm, val);
-
     if(!hashTableGet(&cls->methods, name, &v)) {
         jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
                  name->data);
@@ -568,16 +567,10 @@ static bool setSubscriptOfValue(JStarVM *vm, Value operand, Value arg, Value s) 
     push(vm, operand);
     push(vm, arg);
     push(vm, s);
-
     if(!invokeMethod(vm, getClass(vm, operand), vm->set, 2)) {
         return false;
     }
     return true;
-}
-
-static bool isValTrue(Value val) {
-    if(IS_BOOL(val)) return AS_BOOL(val);
-    return !IS_NULL(val);
 }
 
 static ObjString *stringConcatenate(JStarVM *vm, ObjString *s1, ObjString *s2) {
