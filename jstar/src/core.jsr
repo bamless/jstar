@@ -464,8 +464,6 @@ class IZip is Iter
     end
 end
 
-//--------- Exceptions ---------
-
 class Exception
     fun new(err="")
         this.__err = err
