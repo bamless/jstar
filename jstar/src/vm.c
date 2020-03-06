@@ -1,3 +1,4 @@
+#include "vm.h"
 #include "core.h"
 #include "disassemble.h"
 #include "import.h"
