@@ -305,6 +305,13 @@ void jsrPushNative(JStarVM *vm, const char *name, JStarNative nat, uint8_t argc)
     push(vm, OBJ_VAL(objNative));
 }
 
+void *jsrPushUserdata(JStarVM *vm, size_t size, void (*finalize)(void*)) {
+    validateStack(vm);
+    ObjUserdata *udata = newUserData(vm, size, finalize);
+    push(vm, OBJ_VAL(udata));
+    return (void *)udata->data;
+}
+
 void jsrPop(JStarVM *vm) {
     assert(vm->sp > vm->apiStack, "Popping past frame boundary");
     pop(vm);
@@ -392,6 +399,10 @@ bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {
     return true;
 }
 
+void *jsrGetUserdata(JStarVM *vm, int slot) {
+    return (void *)AS_USERDATA(apiStackSlot(vm, slot))->data;
+}
+
 double jsrGetNumber(JStarVM *vm, int slot) {
     return AS_NUM(apiStackSlot(vm, slot));
 }
@@ -457,6 +468,11 @@ bool jsrIsFunction(JStarVM *vm, int slot) {
     return IS_CLOSURE(val) || IS_NATIVE(val) || IS_BOUND_METHOD(val);
 }
 
+bool jsrIsUserdata(JStarVM *vm, int slot) {
+    Value val = apiStackSlot(vm, slot);
+    return IS_USERDATA(val);
+}
+
 bool jsrCheckNumber(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsNumber(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a number.", name);
     return true;
@@ -504,6 +520,11 @@ bool jsrCheckTable(JStarVM *vm, int slot, const char *name) {
 
 bool jsrCheckFunction(JStarVM *vm, int slot, const char *name) {
     if(!jsrIsFunction(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Function.", name);
+    return true;
+}
+
+bool jsrCheckUserdata(JStarVM *vm, int slot, const char *name) {
+    if(!jsrIsUserdata(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Userdata.", name);
     return true;
 }
 

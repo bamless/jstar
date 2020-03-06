@@ -50,6 +50,7 @@ typedef struct JStarVM {
     ObjClass *tupClass;
     ObjClass *excClass;
     ObjClass *tableClass;
+    ObjClass *udataClass;
 
     // Current VM compiler
     Compiler *currCompiler;

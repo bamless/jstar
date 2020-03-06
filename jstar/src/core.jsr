@@ -23,6 +23,7 @@ class Module
 end
 
 class StackTrace end
+class Userdata end
 
 class Iter
     fun __iter__(i)

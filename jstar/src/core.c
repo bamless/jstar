@@ -131,6 +131,7 @@ void initCoreLibrary(JStarVM *vm) {
     vm->tupClass   = AS_CLASS(getDefinedName(vm, core, "Tuple"));
     vm->excClass   = AS_CLASS(getDefinedName(vm, core, "Exception"));
     vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
+    vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
 
     core->base.cls = vm->modClass;
 
@@ -412,9 +413,7 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     }
 
-
     char str[512] = {0};
-    
     if(strcmp(modName, JSR_CORE_MODULE) == 0) {
         snprintf(str, sizeof(str) - 1, "<%s %s@%p>", funType, funName, AS_OBJ(vm->apiStack[0]));
     } else {

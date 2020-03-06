@@ -199,6 +199,7 @@ JSTAR_API void jsrPushTuple(JStarVM *vm, size_t size);
 JSTAR_API void jsrPushTable(JStarVM *vm);
 JSTAR_API void jsrPushValue(JStarVM *vm, int slot);
 JSTAR_API void jsrPushNative(JStarVM *vm, const char *name, JStarNative nat, uint8_t argc);
+JSTAR_API void *jsrPushUserdata(JStarVM *vm, size_t size, void (*finalize)(void*));
 #define jsrDup(vm) jsrPushValue(vm, -1)
 
 // Pop a value from the top of the stack
@@ -265,6 +266,10 @@ JSTAR_API void jsrSetGlobal(JStarVM *vm, const char *mname, const char *name);
 // used module will be the current one.
 JSTAR_API bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name);
 
+// ---- Userdata manipulation functions ----
+
+JSTAR_API void *jsrGetUserdata(JStarVM *vm, int slot);
+
 // ---- J* type checking functions ----
 
 // These functions return true if the slot is of the given type, false otherwise
@@ -279,6 +284,7 @@ JSTAR_API bool jsrIsNull(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsInstance(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsTable(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsFunction(JStarVM *vm, int slot);
+JSTAR_API bool jsrIsUserdata(JStarVM *vm, int slot);
 
 // These functions return true if the slot is of the given type, false otherwise 
 // leaving a TypeException on top of the stack with a message customized with 'name'
@@ -292,6 +298,7 @@ JSTAR_API bool jsrCheckInstance(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckHandle(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckTable(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckFunction(JStarVM *vm, int slot, const char *name);
+JSTAR_API bool jsrCheckUserdata(JStarVM *vm, int slot, const char *name);
 
 // Utility macro for checking a value type in the stack.
 // In case of error it exits signaling the error
