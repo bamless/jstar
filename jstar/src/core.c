@@ -61,7 +61,7 @@ static uint64_t hash64(uint64_t x) {
 static JSR_NATIVE(jsr_Object_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
     char str[256];
-    snprintf(str, 255, "<%s@%p>", o->cls->name->data, (void *)o);
+    snprintf(str, sizeof(str), "<%s@%p>", o->cls->name->data, (void *)o);
     jsrPushString(vm, str);
     return true;
 }
@@ -87,7 +87,7 @@ static JSR_NATIVE(jsr_Class_getName) {
 static JSR_NATIVE(jsr_Class_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
     char str[256];
-    snprintf(str, 255, "<Class %s@%p>", ((ObjClass *)o)->name->data, (void *)o);
+    snprintf(str, sizeof(str), "<Class %s@%p>", ((ObjClass *)o)->name->data, (void *)o);
     jsrPushString(vm, str);
     return true;
 }
@@ -335,7 +335,7 @@ JSR_NATIVE(jsr_Number_isInt) {
 
 JSR_NATIVE(jsr_Number_string) {
     char str[24]; // enough for .*g with DBL_DIG
-    snprintf(str, sizeof(str) - 1, "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
+    snprintf(str, sizeof(str), "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
     jsrPushString(vm, str);
     return true;
 }
@@ -413,11 +413,11 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     }
 
-    char str[512] = {0};
+    char str[256] = {0};
     if(strcmp(modName, JSR_CORE_MODULE) == 0) {
-        snprintf(str, sizeof(str) - 1, "<%s %s@%p>", funType, funName, AS_OBJ(vm->apiStack[0]));
+        snprintf(str, sizeof(str), "<%s %s@%p>", funType, funName, AS_OBJ(vm->apiStack[0]));
     } else {
-        snprintf(str, sizeof(str) - 1, "<%s %s.%s@%p>", funType, modName, funName, 
+        snprintf(str, sizeof(str), "<%s %s.%s@%p>", funType, modName, funName, 
                  AS_OBJ(vm->apiStack[0]));
     }
 
@@ -430,7 +430,7 @@ JSR_NATIVE(jsr_Function_string) {
 JSR_NATIVE(jsr_Module_string) {
     char str[256];
     ObjModule *m = AS_MODULE(vm->apiStack[0]);
-    snprintf(str, sizeof(str) - 1, "<module %s@%p>", m->name->data, m);
+    snprintf(str, sizeof(str), "<module %s@%p>", m->name->data, m);
     jsrPushString(vm, str);
     return true;
 }
