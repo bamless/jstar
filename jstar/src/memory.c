@@ -123,6 +123,12 @@ static void freeObject(JStarVM *vm, Obj *o) {
         GC_FREE(vm, ObjUpvalue, upvalue);
         break;
     }
+    case OBJ_USERDATA: {
+        ObjUserdata *udata = (ObjUserdata *) o;
+        if(udata->finalize) udata->finalize((void *)udata->data);
+        GC_FREE_VAR(vm, ObjUserdata, uint8_t, udata->size, udata);
+        break;
+    }
     }
 }
 
@@ -280,6 +286,7 @@ static void recursevelyReach(JStarVM *vm, Obj *o) {
         }
         break;
     }
+    case OBJ_USERDATA:
     case OBJ_STRING:
         break;
     }
@@ -311,6 +318,7 @@ void garbageCollect(JStarVM *vm) {
     reachObject(vm, (Obj *)vm->tupClass);
     reachObject(vm, (Obj *)vm->excClass);
     reachObject(vm, (Obj *)vm->tableClass);
+    reachObject(vm, (Obj *)vm->udataClass);
 
     reachObject(vm, (Obj *)vm->add);
     reachObject(vm, (Obj *)vm->mul);

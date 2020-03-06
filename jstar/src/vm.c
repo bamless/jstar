@@ -133,7 +133,8 @@ static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
 
 static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
     return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
-           cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass;
+           cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass ||
+           cls == vm->udataClass;
 }
 
 static bool isInstatiableBuiltin(JStarVM *vm, ObjClass *cls) {

@@ -104,12 +104,23 @@ ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method) {
 
 ObjTuple *newTuple(JStarVM *vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
+
     ObjTuple *t = (ObjTuple *)newVarObj(vm, sizeof(*t), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
     t->size = size;
+
     for(uint8_t i = 0; i < t->size; i++) {
         t->arr[i] = NULL_VAL;
     }
+
     return t;
+}
+
+ObjUserdata *newUserData(JStarVM *vm, size_t size, void (*finalize)(void*)) {
+    ObjUserdata *udata = (ObjUserdata *)newVarObj(vm, sizeof(*udata), sizeof(uint8_t), size,
+                                                  vm->udataClass, OBJ_USERDATA);  
+    udata->size = size;
+    udata->finalize = finalize;
+    return udata;
 }
 
 #define ST_DEF_SIZE 16
@@ -138,7 +149,6 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
     record->moduleName = NULL;
 
     Callable *c = NULL;
-    
     if(IS_CLOSURE(f->fn)) {
         ObjClosure *closure = AS_CLOSURE(f->fn);
         c =  &closure->fn->c;
@@ -467,6 +477,9 @@ void printObj(Obj *o) {
         break;
     case OBJ_UPVALUE:
         printf("<upvalue %p>", (void *)o);
+        break;
+    case OBJ_USERDATA:
+        printf("<userdata %p", (void*)o);
         break;
     }
 }

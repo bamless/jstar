@@ -45,6 +45,7 @@ typedef struct Frame Frame;
 #define IS_TUPLE(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TUPLE)
 #define IS_STACK_TRACE(o)   (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STACK_TRACE)
 #define IS_TABLE(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TABLE)
+#define IS_USERDATA(o)      (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_USERDATA)
 
 #define AS_BOUND_METHOD(o)  ((ObjBoundMethod *)AS_OBJ(o))
 #define AS_LIST(o)          ((ObjList *)AS_OBJ(o))
@@ -58,6 +59,7 @@ typedef struct Frame Frame;
 #define AS_TUPLE(o)         ((ObjTuple *)AS_OBJ(o))
 #define AS_STACK_TRACE(o)   ((ObjStackTrace *)AS_OBJ(o))
 #define AS_TABLE(o)         ((ObjTable *)AS_OBJ(o))
+#define AS_USERDATA(o)      ((ObjUserdata*)AS_OBJ(o))
 
 #define STRING_GET_HASH(s)    (s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
 #define STRING_EQUALS(s1, s2) (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data) == 0)
@@ -78,7 +80,8 @@ typedef struct Frame Frame;
     X(OBJ_CLOSURE)      \
     X(OBJ_UPVALUE)      \
     X(OBJ_TUPLE)        \
-    X(OBJ_TABLE)
+    X(OBJ_TABLE)        \
+    X(OBJ_USERDATA)
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
@@ -235,12 +238,21 @@ typedef struct ObjStackTrace {
     FrameRecord *records;
 } ObjStackTrace;
 
+// Garbage collected user data
+typedef struct ObjUserdata {
+    Obj base;
+    void (*finalize)(void*); // Custom function to finalize the userdatum   
+    size_t size;             // The size ot the userdatum
+    uint8_t data[];          // The data
+} ObjUserdata;
+
 // ---- Functions for allocating objects ----
 // These functions use GCallocate to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
 ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn, uint8_t defaultc);
 ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, uint8_t defaultc);
+ObjUserdata *newUserData(JStarVM *vm, size_t size, void (*finalize)(void*));
 ObjClass *newClass(JStarVM *vm, ObjString *name, ObjClass *superCls);
 ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method);
 ObjInstance *newInstance(JStarVM *vm, ObjClass *cls);
