@@ -640,15 +640,6 @@ JSR_NATIVE(jsr_Tuple_subTuple) {
     return true;
 }
 
-
-    // fun __hash__()
-    //     var hashCode = 1
-    //     for var e in this do
-    //         hashCode = (31 * hashCode + (e.__hash__() if e else 0)) % 0xffffffff
-    //     end
-    //     return hashCode
-    // end
-
 JSR_NATIVE(jsr_Tuple_hash) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
