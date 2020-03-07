@@ -669,12 +669,11 @@ bool runEval(JStarVM *vm, int depth) {
     assert(vm->frameCount != 0, "No frame to evaluate");
     assert(vm->frameCount >= depth, "Too few frame to evaluate");
 
-#define LOAD_FRAME()                                                  \
-    frame = &vm->frames[vm->frameCount - 1];                          \
-    frameStack = frame->stack;                                        \
-    assert(IS_CLOSURE(frame->fn), "Trying to evaluate native frame"); \
-    closure = AS_CLOSURE(frame->fn);                                  \
-    fn = closure->fn;                                                 \
+#define LOAD_FRAME()                         \
+    frame = &vm->frames[vm->frameCount - 1]; \
+    frameStack = frame->stack;               \
+    closure = AS_CLOSURE(frame->fn);         \
+    fn = closure->fn;                        \
     ip = frame->ip;
 
 #define SAVE_FRAME() frame->ip = ip;

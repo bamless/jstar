@@ -57,6 +57,12 @@ static uint64_t hash64(uint64_t x) {
     return x;
 }
 
+static uint32_t hashNumber(double num) {
+    if(num == -0) num = 0;
+    union {double d; uint64_t r;} c = {.d = num};
+    return (uint32_t)hash64(c.r);
+}
+
 // class Object
 static JSR_NATIVE(jsr_Object_string) {
     Obj *o = AS_OBJ(vm->apiStack[0]);
@@ -341,14 +347,7 @@ JSR_NATIVE(jsr_Number_string) {
 }
 
 JSR_NATIVE(jsr_Number_hash) {
-    double num = jsrGetNumber(vm, 0);
-    if(num == 0) num = 0;
-    union {
-        double d;
-        uint64_t r;
-    } c = {.d = num};
-    uint64_t n = hash64(c.r);
-    jsrPushNumber(vm, (uint32_t)n);
+    jsrPushNumber(vm, hashNumber(AS_NUM(vm->apiStack[0])));
     return true;
 }
 // end
@@ -367,6 +366,11 @@ JSR_NATIVE(jsr_Boolean_string) {
         jsrPushString(vm, "true");
     else
         jsrPushString(vm, "false");
+    return true;
+}
+
+JSR_NATIVE(jsr_Boolean_hash) {
+    jsrPushNumber(vm, AS_BOOL(vm->apiStack[0]));
     return true;
 }
 // end
@@ -565,8 +569,8 @@ JSR_NATIVE(jsr_Tuple_new) {
     if(!jsrIsList(vm, 1)) {
         jsrPushList(vm);
         JSR_FOREACH(1, {
-                jsrListAppend(vm, 2);
-                jsrPop(vm);
+            jsrListAppend(vm, 2);
+            jsrPop(vm);
         },)
     }
 
@@ -633,6 +637,33 @@ JSR_NATIVE(jsr_Tuple_subTuple) {
     memcpy(sub->arr, tup->arr + from, numElems * sizeof(Value));
 
     push(vm, OBJ_VAL(sub));
+    return true;
+}
+
+
+    // fun __hash__()
+    //     var hashCode = 1
+    //     for var e in this do
+    //         hashCode = (31 * hashCode + (e.__hash__() if e else 0)) % 0xffffffff
+    //     end
+    //     return hashCode
+    // end
+
+JSR_NATIVE(jsr_Tuple_hash) {
+    ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
+
+    uint32_t hash = 1;
+    for(size_t i = 0; i < tup->size; i++) {
+        push(vm, tup->arr[i]);
+        if(jsrCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCESS) return false;
+        JSR_CHECK(Number, -1, "__hash__() return value");
+        uint32_t elemHash = jsrGetNumber(vm, -1);
+        pop(vm);
+
+        hash = 31 * hash + elemHash;
+    }
+
+    jsrPushNumber(vm, hash);
     return true;
 }
 // end
@@ -886,13 +917,55 @@ JSR_NATIVE(jsr_String_next) {
 #define GROW_FACTOR      2
 #define INITIAL_CAPACITY 8
 
-static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key, TableEntry **out) {
+static bool tableKeyHash(JStarVM* vm, Value key, uint32_t *hash) {
+    if(IS_STRING(key)) {
+        *hash = STRING_GET_HASH(AS_STRING(key));
+        return true;
+    }
+    if(IS_NUM(key)) {
+        *hash = hashNumber(AS_NUM(key));
+        return true;
+    }
+    if(IS_BOOL(key)) {
+        *hash = AS_BOOL(key);
+        return true;
+    }
+
     push(vm, key);
     if(jsrCallMethod(vm, "__hash__", 0) != VM_EVAL_SUCCESS) return false;
     JSR_CHECK(Number, -1, "__hash__() return value");
-
-    uint32_t hash = jsrGetNumber(vm, -1);
+    *hash = (uint32_t)jsrGetNumber(vm, -1);
     pop(vm);
+    return hash;
+}
+
+static bool tableKeyEquals(JStarVM *vm, Value k1, Value k2, bool *eq) {
+    if(IS_STRING(k1)) {
+        if(!IS_STRING(k2)) { *eq = false; return true; }
+        *eq = STRING_EQUALS(AS_STRING(k1), AS_STRING(k2));
+        return true;
+    }
+    if(IS_NUM(k1)) {
+        if(!IS_NUM(k2)) { *eq = false; return true; }
+        *eq = AS_NUM(k1) == AS_NUM(k2);
+        return true;
+    }
+    if(IS_BOOL(k1)) {
+        if(!IS_BOOL(k2)) { *eq = false; return true; }
+        *eq = AS_BOOL(k1) == AS_BOOL(k2);
+        return true;
+    }
+
+    push(vm, k1);
+    push(vm, k2);
+    if(jsrCallMethod(vm, "__eq__", 1) != VM_EVAL_SUCCESS) return false;
+    *eq = isValTrue(*--vm->sp);
+    return true;
+}
+
+static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key, TableEntry **out) {
+    uint32_t hash;
+    if(!tableKeyHash(vm, key, &hash)) return false;
 
     size_t i = hash & sizeMask;
     TableEntry *tomb = NULL;
@@ -910,10 +983,9 @@ static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value k
                 tomb = e;
             }
         } else {
-            push(vm, key);
-            push(vm, e->key);
-            if(jsrCallMethod(vm, "__eq__", 1) != VM_EVAL_SUCCESS) return false;
-            if(isValTrue(*--vm->sp)) {
+            bool eq;
+            if(!tableKeyEquals(vm, key, e->key, &eq)) return false;
+            if(eq) {
                 *out = e;
                 return true;
             }
