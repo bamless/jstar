@@ -91,6 +91,7 @@ Module builtInModules[] = {
         CLASS(Boolean)
             METHOD(new,        jsr_Boolean_new)
             METHOD(__string__, jsr_Boolean_string)
+            METHOD(__hash__,   jsr_Boolean_hash)
         ENDCLASS
         CLASS(Null)
             METHOD(__string__, jsr_Null_string)
@@ -117,6 +118,7 @@ Module builtInModules[] = {
             METHOD(__len__,  jsr_Tuple_len)
             METHOD(__iter__, jsr_Tuple_iter)
             METHOD(__next__, jsr_Tuple_next)
+            METHOD(__hash__, jsr_Tuple_hash)
             METHOD(subTuple, jsr_Tuple_subTuple)
         ENDCLASS
         CLASS(String)

@@ -8,6 +8,7 @@ end
 class Boolean
     native new(b)
     native __string__()
+    native __hash__()
 end
 
 class Null
@@ -143,14 +144,6 @@ class Sequence is Iter
         end
         return true
     end
-
-    fun __hash__()
-        var hashCode = 1
-        for var e in this do
-            hashCode = (31 * hashCode + (e.__hash__() if e else 0)) % 0xffffffff
-        end
-        return hashCode
-    end
 end
 
 class List is Sequence
@@ -255,6 +248,7 @@ class Tuple is Sequence
     native __len__()
     native __iter__(iter)
     native __next__(idx)
+    native __hash__()
 
     fun __string__()
         return "(" + ", ".join(this) + ")"

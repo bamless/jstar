@@ -25,6 +25,7 @@ JSR_NATIVE(jsr_type);
 // class Boolean
     JSR_NATIVE(jsr_Boolean_new);
     JSR_NATIVE(jsr_Boolean_string);
+    JSR_NATIVE(jsr_Boolean_hash);
 // end
 
 // class Null
@@ -57,6 +58,7 @@ JSR_NATIVE(jsr_type);
     JSR_NATIVE(jsr_Tuple_iter);
     JSR_NATIVE(jsr_Tuple_next);
     JSR_NATIVE(jsr_Tuple_subTuple);
+    JSR_NATIVE(jsr_Tuple_hash);
 // end
 
 // class String
