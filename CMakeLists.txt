@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 2.6)
 project(JStar)
 
 # version
-set(JSTAR_VERSION_MAJOR 0)
-set(JSTAR_VERSION_MINOR 9)
-set(JSTAR_VERSION_PATCH 18)
+set(JSTAR_VERSION_MAJOR 1)
+set(JSTAR_VERSION_MINOR 0)
+set(JSTAR_VERSION_PATCH 0)
 
 # set the c standard
 set(CMAKE_C_STANDARD 99)
