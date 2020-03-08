@@ -101,6 +101,43 @@ void jsrPrintStacktrace(JStarVM *vm, int slot) {
     jsrPop(vm);
 }
 
+void jsrRaiseException(JStarVM *vm, int slot) {
+    Value exc = apiStackSlot(vm, slot);
+    if(!isInstance(vm, exc, vm->excClass)) {
+        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+        return;
+    }
+    ObjInstance *objException = (ObjInstance *)AS_OBJ(exc);
+    ObjStackTrace *staktrace = newStackTrace(vm);
+    hashTablePut(&objException->fields, vm->stacktrace, OBJ_VAL(staktrace));
+    jsrPushValue(vm, slot);
+}
+
+void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
+    if(!jsrGetGlobal(vm, NULL, cls)) return;
+
+    ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
+    if(!isInstance(vm, OBJ_VAL(excInst), vm->excClass)) {
+        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+    }
+
+    push(vm, OBJ_VAL(excInst));
+    ObjStackTrace *st = newStackTrace(vm);
+    hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
+
+    if(err != NULL) {
+        char errStr[1024] = {0};
+        va_list args;
+        va_start(args, err);
+        vsnprintf(errStr, sizeof(errStr) - 1, err, args);
+        va_end(args);
+
+        jsrPushString(vm, errStr);
+        HashTable *fields = &excInst->fields;
+        hashTablePut(fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), pop(vm));
+    }
+}
+
 void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv) {
     vm->argc = argc;
     vm->argv = argv;
@@ -532,29 +569,4 @@ size_t jsrCheckIndex(JStarVM *vm, int slot, size_t max, const char *name) {
     if(!jsrCheckInt(vm, slot, name)) return SIZE_MAX;
     double i = jsrGetNumber(vm, slot);
     return checkIndex(vm, i, max, name);
-}
-
-void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
-    if(!jsrGetGlobal(vm, NULL, cls)) return;
-
-    ObjInstance *excInst = newInstance(vm, AS_CLASS(pop(vm)));
-    if(!isInstance(vm, OBJ_VAL(excInst), vm->excClass)) {
-        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
-    }
-
-    push(vm, OBJ_VAL(excInst));
-    ObjStackTrace *st = newStackTrace(vm);
-    hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
-
-    if(err != NULL) {
-        char errStr[1024] = {0};
-        va_list args;
-        va_start(args, err);
-        vsnprintf(errStr, sizeof(errStr) - 1, err, args);
-        va_end(args);
-
-        jsrPushString(vm, errStr);
-        HashTable *fields = &excInst->fields;
-        hashTablePut(fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), pop(vm));
-    }
 }

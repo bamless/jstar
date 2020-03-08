@@ -81,6 +81,15 @@ JSTAR_API void jsrInitCommandLineArgs(JStarVM *vm, int argc, const char **argv);
 // Add a path to be searched during module imports
 JSTAR_API void jsrAddImportPath(JStarVM *vm, const char *path);
 
+// Raises the axception at 'slot'. If the object at 'slot' is not an exception instance it
+// raises a type exception
+JSTAR_API void jsrRaiseException(JStarVM *vm, int slot);
+
+// Instantiate an exception from "cls" with "err" as an error string and raises
+// it, leaving it on top of the stack.
+// If "cls" cannot be found in current module a NameException is raised instead.
+JSTAR_API void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...);
+
 /**
  * =========================================================
  *  Native function API
@@ -133,11 +142,6 @@ typedef struct JStarNativeReg {
 #define JSR_REGEND                   { REG_SENTINEL, { .function = { NULL, NULL } } }
 
 // ---- Overloadable operator functions ----
-
-// Instantiate an exception from "cls" with "err" as an error string and raises
-// it, leaving it on top of the stack.
-// If "cls" cannot be found in current module a NameException is raised instead.
-JSTAR_API void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...);
 
 // Check if two objects are the same (doesn't call __eq__ overload)
 JSTAR_API bool jsrRawEquals(JStarVM *vm, int slot1, int slot2);
