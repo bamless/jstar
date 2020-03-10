@@ -1,16 +1,15 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+
 #include "jstar.h"
 #include "chunk.h"
 #include "hashtable.h"
 #include "util.h"
 #include "value.h"
-
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 /**
  * Object system of the J* language.
@@ -85,7 +84,7 @@ typedef struct Frame Frame;
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
-typedef struct ObjClass ObjClass;
+struct ObjClass;
 
 // Base class of all the Objects.
 // Defines shared properties of all objects, such as the type and the class

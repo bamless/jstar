@@ -1,9 +1,11 @@
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
 
-#include "value.h"
-
 #include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "value.h"
 
 typedef struct JStarVM JStarVM;
 typedef struct ObjString ObjString;

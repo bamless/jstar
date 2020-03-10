@@ -1,18 +1,19 @@
 #include "import.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "jsrparse/parser.h"
+#include "builtin/modules.h"
+
 #include "compiler.h"
 #include "const.h"
 #include "dynload.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "memory.h"
-
-#include "jsrparse/parser.h"
-
-#include "builtin/modules.h"
-
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
+#include "value.h"
 
 ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
     ObjModule *module = getModule(vm, name);

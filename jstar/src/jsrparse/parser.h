@@ -3,9 +3,7 @@
 
 #include "ast.h"
 #include "jstarconf.h"
-#include "lex.h"
-
-#include <stdbool.h>
+#include "token.h"
 
 // tokens that implicitly signal the end of a statement (without requiring a ';' or '\n')
 #define IS_IMPLICIT_END(t) (                                                             \

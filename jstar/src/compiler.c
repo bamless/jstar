@@ -1,4 +1,13 @@
 #include "compiler.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "jsrparse/linkedlist.h"
+
 #include "const.h"
 #include "jstar.h"
 #include "memory.h"
@@ -6,10 +15,7 @@
 #include "util.h"
 #include "value.h"
 #include "vm.h"
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
+#include "chunk.h"
 
 // In case of a direct assignement of the form:
 //  var a, b, ..., c = x, y, ..., z

@@ -1,10 +1,12 @@
 #ifndef IMPORT_H
 #define IMPORT_H
 
-#include "object.h"
-#include "vm.h"
+#include <stdbool.h>
 
 #include "jsrparse/ast.h"
+
+#include "object.h"
+#include "vm.h"
 
 #define MAX_IMPORT_PATH_LEN 2048
 

@@ -1,7 +1,5 @@
 #include "chunk.h"
 
-#include <string.h>
-
 void initChunk(Chunk *c) {
     c->size = 0;
     c->linesSize = 0;

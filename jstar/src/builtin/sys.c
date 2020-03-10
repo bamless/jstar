@@ -1,11 +1,13 @@
 #include "sys.h"
-#include "io.h"
-#include "memory.h"
-#include "vm.h"
 
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
+#include <stdbool.h>
+#include <sys/time.h>
+
+#include "memory.h"
+#include "vm.h"
+#include "value.h"
 
 #ifdef _WIN32
     #define PLATFORM "win32"

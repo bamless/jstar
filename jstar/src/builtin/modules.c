@@ -1,11 +1,10 @@
 #include "modules.h"
-#include "object.h"
 
 #include "core.jsr.h"
 #include "core.h"
-
 #include "sys.jsr.h"
 #include "sys.h"
+#include "jstarconf.h"
 
 #ifdef JSTAR_IO
     #include "io.jsr.h"

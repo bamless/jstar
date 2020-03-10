@@ -1,8 +1,12 @@
 #include "disassemble.h"
-#include "object.h"
-#include "opcode.h"
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "object.h"
+#include "opcode.h"
+#include "value.h"
 
 void disassembleChunk(Chunk *c) {
     for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {

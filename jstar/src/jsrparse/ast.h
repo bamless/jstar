@@ -1,12 +1,12 @@
 #ifndef AST_H
 #define AST_H
 
+#include <stdbool.h>
+#include <stdlib.h>
+
 #include "jstarconf.h"
 #include "linkedlist.h"
 #include "token.h"
-
-#include <stdbool.h>
-#include <stdlib.h>
 
 typedef struct Identifier {
     size_t length;
