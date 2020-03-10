@@ -1,6 +1,8 @@
 #ifndef DISASSEMBLE_H
 #define DISASSEMBLE_H
 
+#include <stddef.h>
+
 #include "chunk.h"
 
 void disassembleChunk(Chunk *c);

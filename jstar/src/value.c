@@ -1,8 +1,10 @@
 #include "value.h"
-#include "object.h"
 
 #include <float.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "object.h"
 
 void initValueArray(ValueArray *a) {
     a->size = 0;

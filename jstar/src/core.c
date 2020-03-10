@@ -1,23 +1,28 @@
 #include "core.h"
-#include "compiler.h"
-#include "import.h"
-#include "memory.h"
-#include "object.h"
-#include "vm.h"
-
-#include "builtin/modules.h"
-
-#include "jsrparse/ast.h"
-#include "jsrparse/parser.h"
 
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "builtin/modules.h"
+
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
+
+#include "import.h"
+#include "memory.h"
+#include "object.h"
+#include "vm.h"
+#include "const.h"
+#include "hashtable.h"
+#include "value.h"
 
 #ifdef _WIN32
     #define popen _popen

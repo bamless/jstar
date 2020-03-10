@@ -1,13 +1,14 @@
-#include "jstar.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "jstar.h"
+#include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
 #include "jsrparse/parser.h"
+#include "jsrparse/token.h"
 
 #include "linenoise.h"
-
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
 
 #define JSTARPATH "JSTARPATH"
 

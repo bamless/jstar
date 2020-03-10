@@ -2,6 +2,9 @@
 
 #include <string.h>
 
+#include "linkedlist.h"
+#include "token.h"
+
 Identifier *newIdentifier(size_t length, const char *name) {
     Identifier *id = malloc(sizeof(*id));
     id->length = length;

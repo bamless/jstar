@@ -4,12 +4,13 @@
 #endif
 
 #include "io.h"
-#include "util.h"
 
 #include <errno.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+
+#include "util.h"
 
 #define JSR_SEEK_SET 0
 #define JSR_SEEK_CUR 1

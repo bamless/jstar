@@ -1,10 +1,14 @@
 #include "re.h"
-#include "memory.h"
-#include "vm.h"
 
 #include <ctype.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+#include "vm.h"
+#include "object.h"
+#include "value.h"
 
 #define MAX_CAPTURES        31
 #define CAPTURE_UNFINISHED -1

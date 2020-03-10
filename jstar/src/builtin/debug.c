@@ -1,10 +1,13 @@
 #include "debug.h"
-#include "chunk.h"
-#include "vm.h"
-
-#include "disassemble.h"
 
 #include <stdio.h>
+#include <stdbool.h>
+
+#include "chunk.h"
+#include "vm.h"
+#include "disassemble.h"
+#include "object.h"
+#include "value.h"
 
 JSR_NATIVE(jsr_printStack) {
     for(Value *v = vm->stack; v < vm->sp; v++) {

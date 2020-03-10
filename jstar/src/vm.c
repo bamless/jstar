@@ -1,19 +1,17 @@
 #include "vm.h"
+
+#include <math.h>
+#include <string.h>
+
+#include "builtin/modules.h"
+
 #include "core.h"
-#include "disassemble.h"
 #include "import.h"
 #include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
-
-#include "builtin/modules.h"
-
-#include <float.h>
-#include <limits.h>
-#include <math.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
+#include "chunk.h"
+#include "jstarconf.h"
 
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly

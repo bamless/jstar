@@ -1,16 +1,21 @@
 #include "jstar.h"
-#include "import.h"
-#include "memory.h"
-#include "util.h"
-#include "vm.h"
-
-#include "jsrparse/ast.h"
-#include "jsrparse/parser.h"
 
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
+
+#include "import.h"
+#include "memory.h"
+#include "util.h"
+#include "vm.h"
+#include "const.h"
+#include "hashtable.h"
+#include "object.h"
+#include "value.h"
 
 /**
  * The bulk of the API (jstar.h) implementation.

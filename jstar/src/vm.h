@@ -1,15 +1,17 @@
 #ifndef VM_H
 #define VM_H
 
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
 #include "compiler.h"
 #include "const.h"
 #include "hashtable.h"
 #include "object.h"
 #include "util.h"
 #include "value.h"
-
-#include <stdint.h>
-#include <stdlib.h>
+#include "opcode.h"
 
 // This stores the info needed to jump
 // to handler code and to restore the

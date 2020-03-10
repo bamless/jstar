@@ -1,10 +1,14 @@
 #include "parser.h"
-#include "linkedlist.h"
-#include "token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+
+#include "ast.h"
+#include "lex.h"
+#include "linkedlist.h"
+#include "token.h"
 
 typedef struct Parser {
     Lexer lex;

@@ -1,11 +1,10 @@
 #ifndef VALUE_H
 #define VALUE_H
 
-#include "jstarconf.h"
-
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
+
+#include "jstarconf.h"
 
 /**
  * Here we define the Value type. This is a C type that can store any type

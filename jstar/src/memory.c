@@ -1,15 +1,13 @@
 #include "memory.h"
-#include "jstar.h"
+
+#include <stdint.h>
+#include <stdio.h>
+
 #include "chunk.h"
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
-#include "jstar.h"
 #include "vm.h"
-
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE 2

@@ -1,12 +1,12 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "object.h"
-#include "util.h"
-#include "value.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "object.h"
+#include "value.h"
+#include "vm.h"
 
 typedef struct JStarVM JStarVM;
 
