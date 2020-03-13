@@ -551,10 +551,10 @@ static void compileLval(Compiler *c, Expr *e) {
 }
 
 static void compileRval(Compiler *c, Identifier *boundName, Expr *e) {
-    if(e->type != ANON_FUNC)
-        compileExpr(c, e);
-    else
+    if(e->type == ANON_FUNC)
         compileAnonymousFunc(c, boundName, e);
+    else
+        compileExpr(c, e);
 }
 
 static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *exprs, int num) {
@@ -565,6 +565,38 @@ static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *ex
     }
     if(i < num) {
         error(c, exprs->line, "Too little values to unpack.");
+    }
+}
+
+// Compile an unpack assignment of the form: a, b, ..., z = ...
+static void compileUnpackAssign(Compiler *c, Expr *e) {
+    int assignments = 0;
+    Expr *lvals[UINT8_MAX];
+
+    Expr *tuple = e->as.assign.lval;
+    foreach(n, tuple->as.tuple.exprs->as.list.lst) {
+        if(assignments == UINT8_MAX) {
+            error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
+            break;
+        }
+        lvals[assignments++] = (Expr *)n->elem;
+    }
+
+    Expr *rval = e->as.assign.rval;
+    if(IS_CONST_UNPACK(rval->type)) {
+        Expr *lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
+        compileConstUnpackLst(c, NULL, lst, assignments);
+    } else {
+        compileRval(c, NULL, e->as.assign.rval);
+        emitBytecode(c, OP_UNPACK, e->line);
+        emitBytecode(c, (uint8_t)assignments, e->line);
+    }
+
+    // compile lvals in reverse order in order to assign 
+    // correct values to variables in case of a const unpack
+    for(int n = assignments - 1; n >= 0; n--) {
+        compileLval(c, lvals[n]);
+        if(n != 0) emitBytecode(c, OP_POP, e->line);
     }
 }
 
@@ -588,35 +620,7 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
         break;
     }
     case TUPLE_LIT: {
-        // Unpack assignement of the form: a, b, ..., c = ...
-        int assignments = 0;
-        Expr *lvals[UINT8_MAX];
-
-        Expr *tuple = e->as.assign.lval;
-        foreach(n, tuple->as.tuple.exprs->as.list.lst) {
-            if(assignments == UINT8_MAX) {
-                error(c, e->line, "Exceeded max number of unpack assignment (%d).", UINT8_MAX);
-                break;
-            }
-            lvals[assignments++] = (Expr *)n->elem;
-        }
-
-        Expr *rval = e->as.assign.rval;
-        if(IS_CONST_UNPACK(rval->type)) {
-            Expr *lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
-            compileConstUnpackLst(c, NULL, lst, assignments);
-        } else {
-            compileRval(c, NULL, e->as.assign.rval);
-            emitBytecode(c, OP_UNPACK, e->line);
-            emitBytecode(c, (uint8_t)assignments, e->line);
-        }
-
-        // compile lvals in reverse order in order to assign 
-        // correct values to variables in case of a const unpack
-        for(int n = assignments - 1; n >= 0; n--) {
-            compileLval(c, lvals[n]);
-            if(n != 0) emitBytecode(c, OP_POP, e->line);
-        }
+        compileUnpackAssign(c, e);
         break;
     }
     default:
