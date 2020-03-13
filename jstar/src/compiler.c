@@ -764,8 +764,6 @@ static void compileTableLit(Compiler *c, Expr *e) {
     }
 }
 
-static ObjString *readString(Compiler *c, Expr *e);
-
 static void compileExpr(Compiler *c, Expr *e) {
     switch(e->type) {
     case ASSIGN:
