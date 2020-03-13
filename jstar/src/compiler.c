@@ -313,7 +313,54 @@ static void callMethod(Compiler *c, const char *name, int args) {
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
-static ObjString *readString(Compiler *c, Expr *e);
+static ObjString *readString(Compiler *c, Expr *e) {
+    JStarBuffer sb;
+    jsrBufferInit(c->vm, &sb);
+    const char *str = e->as.string.str;
+
+    for(size_t i = 0; i < e->as.string.length; i++) {
+        char c = str[i];
+        if(c == '\\') {
+            switch(str[i + 1]) {
+            case '0':
+                jsrBufferAppendChar(&sb, '\0');
+                break;
+            case 'a':
+                jsrBufferAppendChar(&sb, '\a');
+                break;
+            case 'b':
+                jsrBufferAppendChar(&sb, '\b');
+                break;
+            case 'f':
+                jsrBufferAppendChar(&sb, '\f');
+                break;
+            case 'n':
+                jsrBufferAppendChar(&sb, '\n');
+                break;
+            case 'r':
+                jsrBufferAppendChar(&sb, '\r');
+                break;
+            case 't':
+                jsrBufferAppendChar(&sb, '\t');
+                break;
+            case 'v':
+                jsrBufferAppendChar(&sb, '\v');
+                break;
+            case 'e':
+                jsrBufferAppendChar(&sb, '\e');
+                break;
+            default:
+                jsrBufferAppendChar(&sb, str[i + 1]);
+                break;
+            }
+            i++;
+        } else {
+            jsrBufferAppendChar(&sb, c);
+        }
+    }
+
+    return jsrBufferToString(&sb);
+}
 
 static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) {
     int i = 0;
@@ -679,6 +726,44 @@ static void compileExpExpr(Compiler *c, Expr *e) {
     emitBytecode(c, OP_POW, e->line);
 }
 
+static void compileArrayLit(Compiler *c, Expr *e) {
+    emitBytecode(c, OP_NEW_LIST, e->line);
+    LinkedList *exprs = e->as.array.exprs->as.list.lst;
+    foreach(n, exprs) {
+        compileExpr(c, (Expr *)n->elem);
+        emitBytecode(c, OP_APPEND_LIST, e->line);
+    }
+}
+
+static void compileTupleLit(Compiler *c, Expr *e) {
+    int numElems = 0;
+    foreach(n, e->as.tuple.exprs->as.list.lst) {
+        compileExpr(c, (Expr *)n->elem);
+        numElems++;
+    }
+    if(numElems >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
+    emitBytecode(c, OP_NEW_TUPLE, e->line);
+    emitBytecode(c, numElems, e->line);
+}
+
+static void compileTableLit(Compiler *c, Expr *e) {
+    emitBytecode(c, OP_NEW_TABLE, e->line);
+
+    LinkedList *head = e->as.table.keyVals->as.list.lst;
+    while(head) {
+        Expr *key = (Expr *)head->elem;
+        Expr *val = (Expr *)head->next->elem;
+
+        emitBytecode(c, OP_DUP, e->line);
+        compileExpr(c, key);
+        compileExpr(c, val);
+        callMethod(c, "__set__", 2);
+        emitBytecode(c, OP_POP, e->line);
+
+        head = head->next->next;
+    }
+}
+
 static ObjString *readString(Compiler *c, Expr *e);
 
 static void compileExpr(Compiler *c, Expr *e) {
@@ -749,41 +834,15 @@ static void compileExpr(Compiler *c, Expr *e) {
         emitBytecode(c, OP_NULL, e->line);
         break;
     case ARR_LIT: {
-        emitBytecode(c, OP_NEW_LIST, e->line);
-        LinkedList *exprs = e->as.array.exprs->as.list.lst;
-        foreach(n, exprs) {
-            compileExpr(c, (Expr *)n->elem);
-            emitBytecode(c, OP_APPEND_LIST, e->line);
-        }
+        compileArrayLit(c, e);
         break;
     }
     case TUPLE_LIT: {
-        int numElems = 0;
-        foreach(n, e->as.tuple.exprs->as.list.lst) {
-            compileExpr(c, (Expr *)n->elem);
-            numElems++;
-        }
-        if(numElems >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
-        emitBytecode(c, OP_NEW_TUPLE, e->line);
-        emitBytecode(c, numElems, e->line);
+        compileTupleLit(c, e);
         break;
     }
     case TABLE_LIT: {
-        emitBytecode(c, OP_NEW_TABLE, e->line);
-
-        LinkedList *head = e->as.table.keyVals->as.list.lst;
-        while(head) {
-            Expr *key = (Expr *)head->elem;
-            Expr *val = (Expr *)head->next->elem;
-
-            emitBytecode(c, OP_DUP, e->line);
-            compileExpr(c, key);
-            compileExpr(c, val);
-            callMethod(c, "__set__", 2);
-            emitBytecode(c, OP_POP, e->line);
-
-            head = head->next->next;
-        }
+        compileTableLit(c, e);
         break;
     }
     case SUPER_LIT:
@@ -1594,55 +1653,6 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     exitFunctionScope(c);
 
     return c->func;
-}
-
-static ObjString *readString(Compiler *c, Expr *e) {
-    JStarBuffer sb;
-    jsrBufferInit(c->vm, &sb);
-    const char *str = e->as.string.str;
-
-    for(size_t i = 0; i < e->as.string.length; i++) {
-        char c = str[i];
-        if(c == '\\') {
-            switch(str[i + 1]) {
-            case '0':
-                jsrBufferAppendChar(&sb, '\0');
-                break;
-            case 'a':
-                jsrBufferAppendChar(&sb, '\a');
-                break;
-            case 'b':
-                jsrBufferAppendChar(&sb, '\b');
-                break;
-            case 'f':
-                jsrBufferAppendChar(&sb, '\f');
-                break;
-            case 'n':
-                jsrBufferAppendChar(&sb, '\n');
-                break;
-            case 'r':
-                jsrBufferAppendChar(&sb, '\r');
-                break;
-            case 't':
-                jsrBufferAppendChar(&sb, '\t');
-                break;
-            case 'v':
-                jsrBufferAppendChar(&sb, '\v');
-                break;
-            case 'e':
-                jsrBufferAppendChar(&sb, '\e');
-                break;
-            default:
-                jsrBufferAppendChar(&sb, str[i + 1]);
-                break;
-            }
-            i++;
-        } else {
-            jsrBufferAppendChar(&sb, c);
-        }
-    }
-
-    return jsrBufferToString(&sb);
 }
 
 void reachCompilerRoots(JStarVM *vm, Compiler *c) {
