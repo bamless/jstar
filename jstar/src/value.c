@@ -25,7 +25,6 @@ static void grow(ValueArray *a) {
 
 int valueArrayAppend(ValueArray *a, Value v) {
     if(a->count + 1 > a->size) grow(a);
-
     a->arr[a->count] = v;
     return a->count++;
 }
