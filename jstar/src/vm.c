@@ -742,7 +742,7 @@ bool runEval(JStarVM *vm, int depth) {
     #define PRINT_DBG_STACK()
 #endif
 
-#if defined(USE_COMPUTED_GOTOS) && !defined(_MSC_VER)
+#ifdef USE_COMPUTED_GOTOS
     // create jumptable
     #define JMPTARGET(X) &&TARGET_##X,
     static void *opJmpTable[] = {OPCODE(JMPTARGET)};
@@ -755,18 +755,13 @@ bool runEval(JStarVM *vm, int depth) {
         } while(0)
 
     #define DECODE(op) DISPATCH();
-    #define GOTO(op) goto TARGET(op)
 #else
-    #define TARGET(op) \
-        op:            \
-        case op
+    #define TARGET(op) case op
     #define DISPATCH() goto decode
     #define DECODE(op)     \
         decode:            \
         PRINT_DBG_STACK(); \
         switch((op = NEXT_CODE()))
-
-    #define GOTO(op) goto op
 #endif
 
     // clang-format off
@@ -1067,6 +1062,7 @@ sup_invoke:;
         DISPATCH();
     }
 
+    op_return:
     TARGET(OP_RETURN): {
         Value ret = pop(vm);
 
@@ -1293,7 +1289,7 @@ sup_invoke:;
                 break;
             case CAUSE_RETURN:
                 // return will handle ensure handlers
-                GOTO(OP_RETURN);
+                goto op_return;
             default:
                 UNREACHABLE();
                 break;
