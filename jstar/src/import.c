@@ -143,17 +143,17 @@ static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
             }
         }
 
-        size_t moduleStart = fullPath.len;
+        size_t moduleStart = fullPath.len; 
+        size_t moduleEnd = moduleStart + name->length;
         jsrBufferAppendstr(&fullPath, name->data);
         jsrBufferReplaceChar(&fullPath, moduleStart, '.', '/');
 
         ImportResult res;
         
         // try to load a package (__package__.bl file in a directory)
-        size_t moduleEnd = fullPath.len;
         jsrBufferAppendstr(&fullPath, PACKAGE_FILE);
         res = importFromPath(vm, &fullPath, name);
-
+        
         if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
