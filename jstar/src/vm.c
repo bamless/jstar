@@ -1062,7 +1062,7 @@ sup_invoke:;
         DISPATCH();
     }
 
-    op_return:
+op_return:
     TARGET(OP_RETURN): {
         Value ret = pop(vm);
 
