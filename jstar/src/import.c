@@ -34,6 +34,7 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
         ObjFunction *fn = compile(vm, module, program);
         return fn;
     }
+
     return NULL;
 }
 
@@ -58,10 +59,11 @@ static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *module
     const char *rootPath = strrchr(modulePath->data, '/');
     const char *simpleName = strrchr(moduleName->data, '.');
 
-    if(simpleName == NULL)
+    if(simpleName == NULL) {
         simpleName = moduleName->data;
-    else
+    } else {
         simpleName++;
+    }
  
     jsrBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
     jsrBufferAppendstr(modulePath, "/");
