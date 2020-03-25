@@ -68,7 +68,7 @@ typedef uint64_t Value;
 #define IS_HANDLE(val)  (((val) & (QNAN | TRUE_TAG)) == QNAN)
 #define IS_OBJ(val)     (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 #define IS_BOOL(val)    (((val) & (QNAN | FALSE_TAG)) == (QNAN | FALSE_TAG))
-#define IS_NUM(val)     (((val)&QNAN) != QNAN)
+#define IS_NUM(val)     (((val) & QNAN) != QNAN)
 #define IS_NULL(val)    ((val) == NULL_VAL)
 
 #define IS_INT(val)     (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))

@@ -12,8 +12,8 @@
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
 
 // compiler and platform on which this J* binary was compiled
-#define JSTAR_COMPILER "GNU 9.2.1"
-#define JSTAR_PLATFORM "Linux"
+#define JSTAR_COMPILER "GNU 9.3.0"
+#define JSTAR_PLATFORM "Windows"
 
 // Options
 #define USE_COMPUTED_GOTOS
