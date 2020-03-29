@@ -9,17 +9,12 @@
 #define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(__ENUM_ENTRY) } NAME
 #define __ENUM_ENTRY(ENTRY) ENTRY,
 
-#define DECLARE_TO_STRING(ENUM_NAME) extern const char *__CONCAT(ENUM_NAME, Name)[]
+#define DECLARE_TO_STRING(ENUM_NAME) extern const char *__TOK_CONCAT(ENUM_NAME, Name)[]
 #define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
-    const char *__CONCAT(ENUM_NAME, Name)[] = {ENUMX(__STRINGIFY)}
+    const char *__TOK_CONCAT(ENUM_NAME, Name)[] = {ENUMX(__TOK_STRINGIFY)}
 
-#ifndef __STRINGIFY
-    #define __STRINGIFY(X) #X,
-#endif
-
-#ifndef __CONCAT
-    #define __CONCAT(X, Y) X##Y
-#endif
+#define __TOK_STRINGIFY(X) #X,
+#define __TOK_CONCAT(X, Y) X##Y
 
 // Returns the aproximated base 10 length of an integer.
 // This macro returns a constant upper bound of the length,
