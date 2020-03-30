@@ -57,24 +57,31 @@ endif()
 # required programs
 find_package(PythonInterp 3 REQUIRED)
 
-# Global include directory
+# global include directory
 include_directories(${PROJECT_BINARY_DIR})
 
-# Subprojects
+# subprojects
 add_subdirectory("cli")
 add_subdirectory("jstar")
 
 # ---- install targets ----
 
-#install libjstar along with jstar headers
+# install all build products
 install(TARGETS jstar libjstar libjstar_static
-	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
-	RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-	PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+	LIBRARY DESTINATION       "${CMAKE_INSTALL_PREFIX}/lib"
+	RUNTIME DESTINATION       "${CMAKE_INSTALL_PREFIX}/bin"
 )
-install(DIRECTORY 
-	"${CMAKE_SOURCE_DIR}/jstar/src/jsrparse" 
-	DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
-	FILES_MATCHING
-	PATTERN "*.h"
+
+# install header files
+install(FILES
+	"include/jstar.h" 
+	"include/jstar.hpp"
+	"include/jstarconf.h"
+	DESTINATION "include"
+)
+
+install(DIRECTORY
+	"jstar/src/jsrparse" 
+	DESTINATION "include"
+	FILES_MATCHING PATTERN "*.h"
 )
