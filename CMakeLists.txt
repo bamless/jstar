@@ -41,11 +41,11 @@ endif()
 
 # set compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-unused-label")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter -s")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -fomit-frame-pointer")
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -s")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
-	set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-unused-label -Wno-typedef-redefinition")
+	set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter -Wno-typedef-redefinition -Wno-unused-command-line-argument -s")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -flto -fomit-frame-pointer")
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -s")
 elseif(MSVC)
