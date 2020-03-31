@@ -1,9 +1,8 @@
-#include "ast.h"
+#include "jsrparse/ast.h"
+#include "jsrparse/linkedlist.h"
+#include "jsrparse/token.h"
 
 #include <string.h>
-
-#include "linkedlist.h"
-#include "token.h"
 
 Identifier *newIdentifier(size_t length, const char *name) {
     Identifier *id = malloc(sizeof(*id));

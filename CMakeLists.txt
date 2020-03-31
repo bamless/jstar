@@ -23,21 +23,22 @@ option(JSTAR_RE    "Include the 're' module in the language" ON)
 
 # setup option.h
 configure_file (
-	"${PROJECT_SOURCE_DIR}/include/jstarconf.h.in"
-	"${PROJECT_SOURCE_DIR}/include/jstarconf.h"
+	"jstar/include/jstarconf.h.in"
+	"jstar/include/jstarconf.h"
 )
 
-# set output directories
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-# set build type and  compilation options
+# set default build type if not specified
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
 	set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
 endif()
+
+# set output directories
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN   TRUE)
 
 # set compiler flags
 if(CMAKE_COMPILER_IS_GNUCC)
@@ -57,9 +58,6 @@ endif()
 # required programs
 find_package(PythonInterp 3 REQUIRED)
 
-# global include directory
-include_directories(${PROJECT_BINARY_DIR})
-
 # subprojects
 add_subdirectory("cli")
 add_subdirectory("jstar")
@@ -68,20 +66,13 @@ add_subdirectory("jstar")
 
 # install all build products
 install(TARGETS jstar libjstar libjstar_static
-	LIBRARY DESTINATION       "${CMAKE_INSTALL_PREFIX}/lib"
-	RUNTIME DESTINATION       "${CMAKE_INSTALL_PREFIX}/bin"
+	LIBRARY DESTINATION lib
+	RUNTIME DESTINATION bin
 )
 
 # install header files
-install(FILES
-	"include/jstar.h" 
-	"include/jstar.hpp"
-	"include/jstarconf.h"
-	DESTINATION "include"
-)
-
 install(DIRECTORY
-	"jstar/src/jsrparse" 
-	DESTINATION "include"
+	"jstar/include/" 
+	DESTINATION include
 	FILES_MATCHING PATTERN "*.h"
 )

@@ -1,10 +1,9 @@
-#include "lex.h"
+#include "jsrparse/lex.h"
+#include "jsrparse/token.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "token.h"
 
 typedef struct {
     const char *name;
