@@ -7,7 +7,6 @@
 #include "jsrparse/lex.h"
 #include "jsrparse/parser.h"
 #include "jsrparse/token.h"
-
 #include "linenoise.h"
 
 #define JSTARPATH "JSTARPATH"
