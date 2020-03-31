@@ -1,14 +1,13 @@
-#include "parser.h"
+#include "jsrparse/parser.h"
+#include "jsrparse/ast.h"
+#include "jsrparse/lex.h"
+#include "jsrparse/linkedlist.h"
+#include "jsrparse/token.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-
-#include "ast.h"
-#include "lex.h"
-#include "linkedlist.h"
-#include "token.h"
 
 typedef struct Parser {
     Lexer lex;

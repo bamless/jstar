@@ -29,7 +29,7 @@ foreach(jsr ${JSTAR_SOURCES})
 	)
 endforeach()
 
-include_directories("${PROJECT_SOURCE_DIR}/jstar/src" "${PROJECT_SOURCE_DIR}/include")
+include_directories("src" "include")
 
 # set extra libraries that we need to link
 set(EXTRA_LIBS)

@@ -1,4 +1,4 @@
-#include "linkedlist.h"
+#include "jsrparse/linkedlist.h"
 
 LinkedList *addElement(LinkedList *lst, void *elem) {
     LinkedList *node = malloc(sizeof(*node));
