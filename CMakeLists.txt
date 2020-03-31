@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
-project(JStar)
+project(jstar)
 
 # version
 set(JSTAR_VERSION_MAJOR 1)
