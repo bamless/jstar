@@ -69,6 +69,7 @@ add_subdirectory("jstar")
 # install all build products
 install(TARGETS jstar libjstar libjstar_static
 	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION lib
 	RUNTIME DESTINATION bin
 )
 
