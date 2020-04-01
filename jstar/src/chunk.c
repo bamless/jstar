@@ -35,10 +35,8 @@ size_t writeByte(Chunk *c, uint8_t b, int line) {
         growCode(c);
         growLines(c);
     }
-
     c->code[c->count] = b;
     c->lines[c->linesCount++] = line;
-
     return c->count++;
 }
 
@@ -48,14 +46,12 @@ int getBytecodeSrcLine(Chunk *c, size_t index) {
 
 int addConstant(Chunk *c, Value constant) {
     ValueArray *consts = &c->consts;
-
     if(consts->count == UINT16_MAX) return -1;
-
+    
     for(int i = 0; i < consts->count; i++) {
         if(valueEquals(consts->arr[i], constant)) {
             return i;
         }
     }
-
     return valueArrayAppend(&c->consts, constant);
 }

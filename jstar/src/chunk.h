@@ -21,7 +21,6 @@ void initChunk(Chunk *c);
 void freeChunk(Chunk *c);
 size_t writeByte(Chunk *c, uint8_t b, int line);
 int addConstant(Chunk *c, Value constant);
-
 int getBytecodeSrcLine(Chunk *c, size_t index);
 
 #endif
