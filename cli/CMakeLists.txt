@@ -5,7 +5,7 @@ include_directories(
 
 add_subdirectory("thirdparty/linenoise")
 
-# setup relative rpath
+# setup relative rpath on unix and macos
 if(APPLE)
     set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
 else()
@@ -15,3 +15,8 @@ endif()
 # add executable and libjstar dependency
 add_executable(jstar src/cli.c)
 target_link_libraries(jstar libjstar linenoise)
+
+# add icon to exe on windows
+if(WIN32)
+    target_sources(jstar PRIVATE "${CMAKE_SOURCE_DIR}/util/icon.rc")
+endif()
