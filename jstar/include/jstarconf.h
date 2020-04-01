@@ -16,7 +16,7 @@
 #define JSTAR_PLATFORM "Linux"
 
 // Options
-#define USE_COMPUTED_GOTOS
+/* #undef USE_COMPUTED_GOTOS */
 #define NAN_TAGGING
 /* #undef DBG_PRINT_EXEC */
 /* #undef DBG_PRINT_GC */
