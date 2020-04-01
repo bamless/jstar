@@ -184,10 +184,8 @@ static ObjUpvalue *captureUpvalue(JStarVM *vm, Value *addr) {
 static void closeUpvalues(JStarVM *vm, Value *last) {
     while(vm->upvalues != NULL && vm->upvalues->addr >= last) {
         ObjUpvalue *upvalue = vm->upvalues;
-
         upvalue->closed = *upvalue->addr;
         upvalue->addr = &upvalue->closed;
-
         vm->upvalues = upvalue->next;
     }
 }
@@ -251,7 +249,6 @@ static bool callFunction(JStarVM *vm, ObjClosure *closure, uint8_t argc) {
     // worst case bound
     jsrEnsureStack(vm, UINT8_MAX);
     appendCallFrame(vm, closure);
-
     vm->module = closure->fn->c.module;
 
     return true;
@@ -286,7 +283,6 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
 
     vm->frameCount--;
     vm->sp = vm->apiStack;
-    
     vm->module = oldModule;
     vm->apiStack = vm->stack + apiStackOff;
 
@@ -411,7 +407,6 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
                              inst->base.cls->name->data, name->data);
                     return false;
                 }
-
                 push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
                 return true;
             }
@@ -430,7 +425,6 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
                              name->data, mod->name->data);
                     return false;
                 }
-
                 push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
                 return true;
             }
@@ -495,6 +489,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
                 jsrRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
                 return false;
             }
+            
             push(vm, list->arr[(size_t)index]);
             return true;
         }
@@ -511,6 +506,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
                 jsrRaise(vm, "IndexOutOfBoundException", "Tuple index out of bound: %g.", index);
                 return false;
             }
+
             push(vm, tuple->arr[(size_t)index]);
             return true;
         }
@@ -527,6 +523,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
                 jsrRaise(vm, "IndexOutOfBoundException", "String index out of bound: %g.", index);
                 return false;
             }
+            
             char character = str->data[(size_t)index];
             push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
             return true;
