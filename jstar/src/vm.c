@@ -313,8 +313,8 @@ bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
                 return false;
             }
 
-            vm->sp[-argc - 1] =
-                isInstatiableBuiltin(vm, cls) ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
+            vm->sp[-argc - 1] = isInstatiableBuiltin(vm, cls) ? 
+                                NULL_VAL : OBJ_VAL(newInstance(vm, cls));
 
             Value ctor;
             if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
@@ -345,7 +345,6 @@ static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t ar
                  name->data);
         return false;
     }
-
     return callValue(vm, method, argc);
 }
 

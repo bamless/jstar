@@ -134,15 +134,32 @@ static inline bool isValTrue(Value val) {
 }
 
 static inline ObjClass *getClass(JStarVM *vm, Value v) {
-    if(IS_NUM(v)) {
-        return vm->numClass;
-    } else if(IS_BOOL(v)) {
+#ifdef NAN_TAGGING
+    if(IS_NUM(v)) return vm->numClass;
+    if(IS_OBJ(v)) return AS_OBJ(v)->cls;
+
+    switch(GET_TAG(v)) {
+    case TRUE_TAG: 
+    case FALSE_TAG:
         return vm->boolClass;
-    } else if(IS_OBJ(v)) {
-        return AS_OBJ(v)->cls;
-    } else {
+    case NULL_TAG:
+    default:
         return vm->nullClass;
     }
+#else
+    switch(v.type) {
+    case VAL_NUM:
+        return vm->numClass;
+    case VAL_BOOL:
+        return vm->boolClass;
+    case VAL_OBJ:
+        return AS_OBJ(v)->cls;
+    case VAL_HANDLE:
+    case VAL_NULL:
+    default:
+        return vm->nullClass;
+    }
+#endif
 }
 
 static inline bool isInstance(JStarVM *vm, Value i, ObjClass *cls) {
