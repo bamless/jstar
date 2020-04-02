@@ -61,9 +61,14 @@ typedef uint64_t Value;
 #define SIGN_BIT        ((uint64_t)1 << 63)
 #define QNAN            ((uint64_t)0x7FFC000000000000)
 
+#define MASK_TAG        3
+
+#define HANDLE_TAG      0
 #define NULL_TAG        1
 #define FALSE_TAG       2
 #define TRUE_TAG        3
+
+#define GET_TAG(val)    ((val) & MASK_TAG)
 
 #define IS_HANDLE(val)  (((val) & (QNAN | TRUE_TAG)) == QNAN)
 #define IS_OBJ(val)     (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
