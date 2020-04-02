@@ -686,7 +686,7 @@ static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
     return exprs;
 }
 
-static Stmt *parseSuperLiteral(Parser *p) {
+static Expr *parseSuperLiteral(Parser *p) {
     int line = p->peek.line;
     Token name = {0};
     
@@ -701,7 +701,7 @@ static Stmt *parseSuperLiteral(Parser *p) {
     return newSuperLiteral(line, &name, newExprList(line, args));
 }
 
-static Stmt *parseTableLiteral(Parser *p) {
+static Expr *parseTableLiteral(Parser *p) {
     int line = p->peek.line;
     
     advance(p);
