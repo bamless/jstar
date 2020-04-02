@@ -194,24 +194,21 @@ bool importModule(JStarVM *vm, ObjString *name) {
         return false;
     }
 
-    // we loaded the module (or package), set simple name in parent package if any
+    // we loaded the module (or package), set simple name in parent module if any
     char *nameStart = strrchr(name->data, '.');
 
     // not a nested module, nothing to do
     if(nameStart == NULL) {
         return true;
-    } else {
-        nameStart++;
     }
 
+    nameStart++;
     ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     push(vm, OBJ_VAL(parentName));
-    
     ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart), true);
     ObjModule *module = getModule(vm, name);
     ObjModule *parent = getModule(vm, parentName);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
-
     pop(vm);
     return true;
 }

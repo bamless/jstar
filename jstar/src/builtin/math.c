@@ -10,7 +10,7 @@
 #include "value.h"
 
 #define BL_PI 3.14159265358979323846
-#define BL_E 2.71828182845904523536
+#define BL_E  2.71828182845904523536
 
 #define STDLIB_MATH_FUN_X(fun)                        \
     JSR_NATIVE(jsr_##fun) {                           \

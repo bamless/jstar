@@ -19,7 +19,6 @@ void *GCallocate(JStarVM *vm, void *ptr, size_t oldsize, size_t size) {
 #ifdef DBG_STRESS_GC
         garbageCollect(vm);
 #endif
-
         if(vm->allocated > vm->nextGC) {
             garbageCollect(vm);
         }

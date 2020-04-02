@@ -518,7 +518,7 @@ static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
         compileFunction(c, f);
     } else {
         char funcName[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
-        sprintf(funcName, "anon:%d", f->line);
+        sprintf(funcName, ANON_PREFIX"%d", f->line);
 
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;

@@ -219,7 +219,6 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
         if(er == NULL) return NULL;
 
         bool isMatch = *s != '\0' && matchClassOrChar(*s, r, er);
-
         switch(*er) {
         case '?': {
             const char *res;
@@ -255,7 +254,6 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s,
 
     if(off < 0) off += len;
     if(off < 0 || (size_t)off > len) return false;
-
     s += off;
 
     if(*r == '^') {
@@ -422,8 +420,7 @@ JSR_NATIVE(jsr_re_gmatch) {
     return true;
 }
 
-static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *sub) 
-{
+static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *sub) {
     for(; *sub != '\0'; sub++) {
         switch(*sub) {
         case ESCAPE:
