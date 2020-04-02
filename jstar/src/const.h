@@ -15,6 +15,7 @@
 // String constants
 #define CTOR_STR "new"
 #define THIS_STR "this"
+#define ANON_PREFIX "anon@"
 
 #define EXC_M_ERR "__err"
 #define EXC_M_STACKTRACE "__stacktrace"

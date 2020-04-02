@@ -15,7 +15,7 @@ static JStarVM *vm;
 
 // Little hack to enable adding a tab in linenoise
 static void completion(const char *buf, linenoiseCompletions *lc) {
-    char indented[1025];
+    char indented[1024];
     snprintf(indented, sizeof(indented), "%s    ", buf);
     linenoiseAddCompletion(lc, indented);
 }
@@ -79,14 +79,11 @@ static int countBlocks(const char *line) {
 }
 
 static void addPrintIfExpr(JStarBuffer *sb) {
-    Expr *e;
-    // If the line is a (correctly formed) expression
-    if((e = parseExpression(NULL, sb->data)) != NULL) {
-        freeExpr(e);
-        // assign the result of the expression to `_`
+    Expr *e = parseExpression(NULL, sb->data);
+    if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
-        jsrBufferAppendChar(sb, '\n');
-        jsrBufferAppendstr(sb, "if _ != null then print(_) end");
+        jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");
+        freeExpr(e);
     }
 }
 

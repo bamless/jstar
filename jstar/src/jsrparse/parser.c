@@ -93,7 +93,6 @@ static Token require(Parser *p, TokenType type) {
     const char *found = tokNames[p->peek.type];
     snprintf(message, sizeof(message), "Expected token `%s`, instead `%s` found.", expected, found);
     error(p, message);
-
     return (Token) {0, NULL, 0, 0};
 }
 
@@ -687,20 +686,72 @@ static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
     return exprs;
 }
 
+static Stmt *parseSuperLiteral(Parser *p) {
+    int line = p->peek.line;
+    Token name = {0};
+    
+    advance(p);
+
+    if(match(p, TOK_DOT)) {
+        advance(p);
+        name = require(p, TOK_IDENTIFIER);
+    }
+
+    LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+    return newSuperLiteral(line, &name, newExprList(line, args));
+}
+
+static Stmt *parseTableLiteral(Parser *p) {
+    int line = p->peek.line;
+    
+    advance(p);
+    skipNewLines(p);
+
+    LinkedList *keyVals = NULL;
+    while(!match(p, TOK_RCURLY)) {
+        Expr *key;
+        if(match(p, TOK_DOT)) {
+            advance(p);
+            skipNewLines(p);
+            Token id = require(p, TOK_IDENTIFIER);
+            key = newStrLiteral(id.line, id.lexeme, id.length);
+        } else {
+            key = expression(p, false);
+        }
+
+        skipNewLines(p);
+        require(p, TOK_COLON);
+        skipNewLines(p);
+
+        Expr *val = expression(p, false);
+        skipNewLines(p);
+
+        if(p->hadError) break;
+
+        keyVals = addElement(keyVals, key);
+        keyVals = addElement(keyVals, val);
+
+        if(!match(p, TOK_RCURLY)) {
+            require(p, TOK_COMMA);
+            skipNewLines(p);
+        }
+    }
+
+    require(p, TOK_RCURLY);
+    return newTableLiteral(line, newExprList(line, keyVals));
+}
+
 static Expr *literal(Parser *p) {
     int line = p->peek.line;
     switch(p->peek.type) {
     case TOK_NUMBER: {
-        const char *end = p->peek.lexeme + p->peek.length;
-        double num = strtod(p->peek.lexeme, (char **)&end);
-        Expr *e = newNumLiteral(line, num);
+        Expr *e = newNumLiteral(line, strtod(p->peek.lexeme, NULL));
         advance(p);
         return e;
     }
     case TOK_TRUE:
     case TOK_FALSE: {
-        bool boolean = p->peek.type == TOK_TRUE ? true : false;
-        Expr *e = newBoolLiteral(line, boolean);
+        Expr *e = newBoolLiteral(line, p->peek.type == TOK_TRUE);
         advance(p);
         return e;
     }
@@ -723,6 +774,16 @@ static Expr *literal(Parser *p) {
         advance(p);
         return newNullLiteral(line);
     }
+    case TOK_LSQUARE: {
+        LinkedList *exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
+        return newArrLiteral(line, newExprList(line, exprs));
+    }
+    case TOK_SUPER: {
+        return parseSuperLiteral(p);
+    }
+    case TOK_LCURLY: {
+        return parseTableLiteral(p);
+    }
     case TOK_LPAREN: {
         advance(p);
         skipNewLines(p);
@@ -737,60 +798,6 @@ static Expr *literal(Parser *p) {
      
         require(p, TOK_RPAREN);
         return e;
-    }
-    case TOK_LSQUARE: {
-        LinkedList *exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-        return newArrLiteral(line, newExprList(line, exprs));
-    }
-    case TOK_SUPER: {
-        Token name = {0};
-        
-        advance(p);
-
-        if(match(p, TOK_DOT)) {
-            advance(p);
-            name = require(p, TOK_IDENTIFIER);
-        }
-
-        LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-        return newSuperLiteral(line, &name, newExprList(line, args));
-    }
-    case TOK_LCURLY: {
-        advance(p);
-        skipNewLines(p);
-
-        LinkedList *keyVals = NULL;
-        while(!match(p, TOK_RCURLY)) {
-            Expr *key;
-            if(match(p, TOK_DOT)) {
-                advance(p);
-                skipNewLines(p);
-                Token id = require(p, TOK_IDENTIFIER);
-                key = newStrLiteral(id.line, id.lexeme, id.length);
-            } else {
-                key = expression(p, false);
-            }
-
-            skipNewLines(p);
-            require(p, TOK_COLON);
-            skipNewLines(p);
-
-            Expr *val = expression(p, false);
-            skipNewLines(p);
-
-            if(p->hadError) break;
-
-            keyVals = addElement(keyVals, key);
-            keyVals = addElement(keyVals, val);
-
-            if(!match(p, TOK_RCURLY)) {
-                require(p, TOK_COMMA);
-                skipNewLines(p);
-            }
-        }
-
-        require(p, TOK_RCURLY);
-        return newTableLiteral(line, newExprList(line, keyVals));
     }
     case TOK_UNTERMINATED_STR:
         error(p, "Unterminated String.");
@@ -975,7 +982,7 @@ static Expr *relationalExpr(Parser *p) {
     Expr *l = additiveExpr(p);
 
     while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || 
-        match(p, TOK_LE) || match(p, TOK_IS)) 
+          match(p, TOK_LE) || match(p, TOK_IS)) 
     {
         int line = p->peek.line;
         TokenType tokType = p->peek.type;
@@ -1037,9 +1044,7 @@ static Expr *logicAndExpr(Parser *p) {
     while(match(p, TOK_AND)) {
         int line = p->peek.line;
         advance(p);
-
-        Expr *r = equalityExpr(p);
-        l = newBinary(line, AND, l, r);
+        l = newBinary(line, AND, l,  equalityExpr(p));
     }
 
     return l;
@@ -1051,9 +1056,7 @@ static Expr *logicOrExpr(Parser *p) {
     while(match(p, TOK_OR)) {
         int line = p->peek.line;
         advance(p);
-
-        Expr *r = logicAndExpr(p);
-        l = newBinary(line, OR, l, r);
+        l = newBinary(line, OR, l, logicAndExpr(p));
     }
 
     return l;
@@ -1066,9 +1069,7 @@ static Expr *ternaryExpr(Parser *p) {
     if(match(p, TOK_IF)) {
         advance(p);
         Expr *cond = ternaryExpr(p);
-        
         require(p, TOK_ELSE);
-        
         Expr *elseExpr = ternaryExpr(p);
         return newTernary(line, cond, expr, elseExpr);
     }

@@ -131,7 +131,7 @@ void jsrRaise(JStarVM *vm, const char *cls, const char *err, ...) {
     hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
 
     if(err != NULL) {
-        char errStr[1024] = {0};
+        char errStr[512] = {0};
         va_list args;
         va_start(args, err);
         vsnprintf(errStr, sizeof(errStr) - 1, err, args);

@@ -50,7 +50,7 @@ JSTAR_API JStarVM *jsrNewVM();
 // Free a previously obtained VM along with all the state
 JSTAR_API void jsrFreeVM(JStarVM *vm);
 
-// Evaluate J* code in the context of module (or __main__ in blEvaluate)
+// Evaluate J* code in the context of module (or __main__ in jsrEvaluate)
 // as top level <main> function.
 // VM_EVAL_SUCCSESS will be returned if the execution completed normally
 // In case of errors, either VM_SYNTAX_ERR, VM_COMPILE_ERR or VM_RUNTIME_ERR
@@ -172,7 +172,7 @@ JSTAR_API bool jsrNext(JStarVM *vm, int iterable, int res);
 // jsrNext.
 // `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
 // `cleanup` is used as the cleanup code before exiting in case of an error and it is optional.
-// Beware that the macro pushes a new value on top of the stack to store the result of blIter, so
+// Beware that the macro pushes a new value on top of the stack to store the result of jsrIter, so
 // negative slot indeces to access previously pushed elements should be offset by one
 #define JSR_FOREACH(iter, code, cleanup)         \
     {                                            \
@@ -322,7 +322,7 @@ JSTAR_API size_t jsrCheckIndex(JStarVM *vm, int slot, size_t max, const char *na
 
 // Dynamic Buffer that holds memory allocated by the J* garbage collector.
 // This memory is owned by J*, but cannot be collected until the buffer 
-// is pushed on the stack using the blBufferPush method.
+// is pushed on the stack using the jsrBufferPush method.
 // Used for efficient creation of Strings in the native API.
 typedef struct JStarBuffer {
     JStarVM *vm;
