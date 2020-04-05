@@ -482,7 +482,6 @@ static Stmt *tryStmt(Parser *p) {
             Expr *cls = expression(p, true);
             Token var = require(p, TOK_IDENTIFIER);
             Stmt *block = blockStmt(p);
-
             excs = addElement(excs, newExceptStmt(excLine, cls, &var, block));
         }
     }
