@@ -327,7 +327,6 @@ static Stmt *varDecl(Parser *p) {
     
     bool isUnpack = false;
     LinkedList *identifiers = NULL;
-
     advance(p);
 
     do {
@@ -562,13 +561,12 @@ static Stmt *classDecl(Parser *p) {
     advance(p);
 
     Token clsName = require(p, TOK_IDENTIFIER);
-
     Expr *sup = NULL;
+
     if(match(p, TOK_IS)) {
         advance(p);
         sup = expression(p, true);
         skipNewLines(p);
-        
         if(p->panic) classSynchronize(p);
     }
 
@@ -588,7 +586,6 @@ static Stmt *classDecl(Parser *p) {
             }
         }
         skipNewLines(p);
-
         if(p->panic) classSynchronize(p);
     }
 
@@ -658,7 +655,6 @@ static Stmt *parseProgram(Parser *p) {
     while(!match(p, TOK_EOF)) {
         stmts = addElement(stmts, parseStmt(p));
         skipNewLines(p);
-
         if(p->panic) synchronize(p);
     }
     
@@ -670,7 +666,6 @@ static Stmt *parseProgram(Parser *p) {
 
 static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
     LinkedList *exprs = NULL;
-
     require(p, open);
     skipNewLines(p);
 
@@ -689,7 +684,6 @@ static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
 static Expr *parseSuperLiteral(Parser *p) {
     int line = p->peek.line;
     Token name = {0};
-    
     advance(p);
 
     if(match(p, TOK_DOT)) {
@@ -703,7 +697,6 @@ static Expr *parseSuperLiteral(Parser *p) {
 
 static Expr *parseTableLiteral(Parser *p) {
     int line = p->peek.line;
-    
     advance(p);
     skipNewLines(p);
 
@@ -795,7 +788,6 @@ static Expr *literal(Parser *p) {
      
         Expr *e = expression(p, true);
         skipNewLines(p);
-     
         require(p, TOK_RPAREN);
         return e;
     }
@@ -843,9 +835,7 @@ static Expr *postfixExpr(Parser *p) {
         case TOK_LSQUARE: {
             require(p, TOK_LSQUARE);
             skipNewLines(p);
-
             lit = newArrayAccExpr(line, lit, expression(p, true));
-
             require(p, TOK_RSQUARE);
             break;
         }
@@ -882,7 +872,6 @@ static Expr *anonymousFunc(Parser *p) {
 
         Expr *e = expression(p, false);
         Stmt *body = newBlockStmt(line, addElement(NULL, newReturnStmt(line, e)));
-
         return newAnonymousFunc(line, vararg, args, defArgs, body);
     }
     return postfixExpr(p);
@@ -934,7 +923,6 @@ static Expr *multiplicativeExpr(Parser *p) {
         advance(p);
 
         Expr *r = unaryExpr(p);
-
         switch(tokType) {
         case TOK_MULT:
             l = newBinary(line, MULT, l, r);
@@ -962,7 +950,6 @@ static Expr *additiveExpr(Parser *p) {
         advance(p);
 
         Expr *r = multiplicativeExpr(p);
-
         switch(tokType) {
         case TOK_PLUS:
             l = newBinary(line, PLUS, l, r);
@@ -989,7 +976,6 @@ static Expr *relationalExpr(Parser *p) {
         advance(p);
 
         Expr *r = additiveExpr(p);
-
         switch(tokType) {
         case TOK_GT:
             l = newBinary(line, GT, l, r);
@@ -1022,7 +1008,6 @@ static Expr *equalityExpr(Parser *p) {
         advance(p);
 
         Expr *r = relationalExpr(p);
-
         switch(tokType) {
         case TOK_EQUAL_EQUAL:
             l = newBinary(line, EQ, l, r);
