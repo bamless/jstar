@@ -449,9 +449,7 @@ static Stmt *importStmt(Parser *p) {
                 skipNewLines(p);
                 Token name = require(p, TOK_IDENTIFIER);
                 importNames = addElement(importNames, newIdentifier(name.length, name.lexeme));
-
                 if(!match(p, TOK_COMMA)) break;
-                
                 advance(p);
                 skipNewLines(p);
             }
