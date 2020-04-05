@@ -4,6 +4,7 @@
 #include "jsrparse/linkedlist.h"
 #include "jsrparse/token.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +36,7 @@ static char *strchrnul(const char *str, char c) {
     return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
 }
 
-static void error(Parser *p, const char *msg) {
+static void error(Parser *p, const char *msg, ...) {
     if(p->panic) return;
     p->panic = p->hadError = true;
 
@@ -51,7 +52,12 @@ static void error(Parser *p, const char *msg) {
             fprintf(stderr, " ");
         }
         fprintf(stderr, "^\n");
-        fprintf(stderr, "%s\n", msg);
+
+        va_list args;
+        va_start(args, msg);
+        vfprintf(stderr, msg, args);
+        va_end(args);
+        fprintf(stderr, "\n");
     }
 }
 
@@ -85,12 +91,7 @@ static Token require(Parser *p, TokenType type) {
         advance(p);
         return t;
     }
-
-    char message[512];
-    const char *expected = tokNames[type];
-    const char *found = tokNames[p->peek.type];
-    snprintf(message, sizeof(message), "Expected token `%s`, instead `%s` found.", expected, found);
-    error(p, message);
+    error(p, "Expected token `%s`, instead `%s` found.", tokNames[type], tokNames[p->peek.type]);
     return (Token) {0, NULL, 0, 0};
 }
 
