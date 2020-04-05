@@ -70,10 +70,10 @@ typedef uint64_t Value;
 
 #define GET_TAG(val)    ((val) & MASK_TAG)
 
-#define IS_HANDLE(val)  (((val) & (QNAN | TRUE_TAG)) == QNAN)
-#define IS_OBJ(val)     (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
-#define IS_BOOL(val)    (((val) & (QNAN | FALSE_TAG)) == (QNAN | FALSE_TAG))
+#define IS_HANDLE(val)  (((val) & TRUE_VAL) == QNAN)
 #define IS_NUM(val)     (((val) & QNAN) != QNAN)
+#define IS_BOOL(val)    (((val) & FALSE_VAL) == FALSE_VAL)
+#define IS_OBJ(val)     (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 #define IS_NULL(val)    ((val) == NULL_VAL)
 
 #define IS_INT(val)     (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
