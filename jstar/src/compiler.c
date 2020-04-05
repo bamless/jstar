@@ -800,10 +800,11 @@ static void compileExpr(Compiler *c, Expr *e) {
     case EXP_EXPR:
         compileExpExpr(c, e);
         break;
-    case EXPR_LST: {
-        foreach(n, e->as.list.lst) compileExpr(c, (Expr *)n->elem); 
+    case EXPR_LST:
+        foreach(n, e->as.list.lst) {
+            compileExpr(c, (Expr *)n->elem);
+        } 
         break;
-    }
     case NUM_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);
         emitShort(c, createConst(c, NUM_VAL(e->as.num), e->line), e->line);
@@ -835,18 +836,15 @@ static void compileExpr(Compiler *c, Expr *e) {
     case NULL_LIT:
         emitBytecode(c, OP_NULL, e->line);
         break;
-    case ARR_LIT: {
+    case ARR_LIT:
         compileArrayLit(c, e);
         break;
-    }
-    case TUPLE_LIT: {
+    case TUPLE_LIT:
         compileTupleLit(c, e);
         break;
-    }
-    case TABLE_LIT: {
+    case TABLE_LIT:
         compileTableLit(c, e);
         break;
-    }
     case SUPER_LIT:
         compileSuper(c, e);
         break;
