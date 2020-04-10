@@ -204,11 +204,12 @@ static Expr *literal(Parser *p);
 static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, 
     bool *vararg, TokenType open, TokenType close) 
 {
+    Token arg = {};
+    
     require(p, open);
     skipNewLines(p);
 
-    Token arg = {};
-
+    // Parse normal arguments
     while((*args == NULL || match(p, TOK_COMMA)) && !match(p, close)) {
         if(*args != NULL) {
             advance(p);
@@ -235,6 +236,7 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs,
 
     skipNewLines(p);
 
+    // Parse arguments with default value
     while((*defArgs == NULL || match(p, TOK_COMMA)) && !match(p, close)) {
         if(*defArgs != NULL) {
             if(match(p, TOK_COMMA)) {
@@ -263,8 +265,8 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs,
             error(p, "Default argument must be a constant");
         }
 
-        *args = addElement(*args, newIdentifier(arg.length, arg.lexeme));
         *defArgs = addElement(*defArgs, c);
+        *args = addElement(*args, newIdentifier(arg.length, arg.lexeme));
     }
 
     require(p, close);
@@ -656,7 +658,8 @@ static Stmt *parseStmt(Parser *p) {
         if(func != NULL) return func;
         break;
     }
-    default: break;
+    default:
+        break;
     }
 
     Expr *e = expression(p, true);
