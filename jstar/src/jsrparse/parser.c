@@ -95,16 +95,6 @@ static Token require(Parser *p, TokenType type) {
     return (Token) {0, NULL, 0, 0};
 }
 
-static void requireStmtEnd(Parser *p) {
-    if(!IS_IMPLICIT_END(p->peek.type)) {                    
-        if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) {
-            advance(p);                                     
-        } else {                                                
-            error(p, "Expected token `newline` or `;`.");
-        }   
-    }         
-}
-
 static void synchronize(Parser *p) {
     p->panic = false;
     while(!match(p, TOK_EOF)) {
@@ -139,6 +129,34 @@ static void classSynchronize(Parser *p) {
         }
         advance(p);
     }
+}
+
+static bool isImplicitEnd(Token *tok) {
+    TokenType t = tok->type;
+    return t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE ||
+           t == TOK_EXCEPT;
+}
+
+static bool isStatementEnd(Token *tok) {
+    return isImplicitEnd(tok) || tok->type == TOK_NEWLINE || tok->type == TOK_SEMICOLON;
+}
+
+static bool isLValue(ExprType type) {
+    return type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC;
+}
+
+static bool isConstantLiteral(ExprType type) {
+    return type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT;
+}
+
+static void requireStmtEnd(Parser *p) {
+    if(!isImplicitEnd(&p->peek)) {                    
+        if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) {
+            advance(p);                                     
+        } else {                                                
+            error(p, "Expected token `newline` or `;`.");
+        }   
+    }         
 }
 
 //----- Recursive descent parser implementation ------
@@ -189,7 +207,7 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs,
     require(p, open);
     skipNewLines(p);
 
-    Token arg = {0};
+    Token arg = {};
 
     while((*args == NULL || match(p, TOK_COMMA)) && !match(p, close)) {
         if(*args != NULL) {
@@ -241,7 +259,7 @@ static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs,
         Expr *c = literal(p);
         skipNewLines(p);
 
-        if(c != NULL && !IS_CONSTANT_LITERAL(c->type)) {
+        if(c != NULL && !isConstantLiteral(c->type)) {
             error(p, "Default argument must be a constant");
         }
 
@@ -259,7 +277,7 @@ static Stmt *blockStmt(Parser *p) {
     LinkedList *stmts = NULL;
     
     skipNewLines(p);
-    while(!IS_IMPLICIT_END(p->peek.type)) {
+    while(!isImplicitEnd(&p->peek)) {
         stmts = addElement(stmts, parseStmt(p));
         skipNewLines(p);
     }
@@ -350,6 +368,24 @@ static Stmt *varDecl(Parser *p) {
     return newVarDecl(line, isUnpack, identifiers, init);
 }
 
+static Stmt *forEach(Parser *p, Stmt *var, int line) {
+    if(var->as.varDecl.init != NULL) {
+        error(p, "Variable declaration in foreach cannot have initializer.");
+    }
+    advance(p);
+    skipNewLines(p);
+
+    Expr *e = expression(p, true);
+    skipNewLines(p);
+
+    require(p, TOK_DO);
+    
+    Stmt *body = blockStmt(p);
+    
+    require(p, TOK_END);
+    return newForEach(line, var, e, body);
+}
+
 static Stmt *forStmt(Parser *p) {
     int line = p->peek.line;
     advance(p);
@@ -358,23 +394,8 @@ static Stmt *forStmt(Parser *p) {
     if(!match(p, TOK_SEMICOLON)) {
         if(match(p, TOK_VAR)) {
             init = varDecl(p);
-
             if(match(p, TOK_IN)) {
-                if(init->as.varDecl.init != NULL) {
-                    error(p, "Variable declaration in foreach cannot have initializer.");
-                }
-                advance(p);
-                skipNewLines(p);
-
-                Expr *e = expression(p, true);
-                skipNewLines(p);
-
-                require(p, TOK_DO);
-                
-                Stmt *body = blockStmt(p);
-                
-                require(p, TOK_END);
-                return newForEach(line, init, e, body);
+               return forEach(p, init, line);
             }
         } else {
             Expr *e = expression(p, true);
@@ -412,7 +433,7 @@ static Stmt *returnStmt(Parser *p) {
     advance(p);
 
     Expr *e = NULL;
-    if(!IS_STATEMENT_END(p->peek.type)) {
+    if(!isStatementEnd(&p->peek)) {
         e = expression(p, true);
     }
 
@@ -433,7 +454,7 @@ static Stmt *importStmt(Parser *p) {
         advance(p);
     }
 
-    Token as = {0};
+    Token asName = {};
     LinkedList *importNames = NULL;
 
     if(match(p, TOK_FOR)) {
@@ -445,7 +466,6 @@ static Stmt *importStmt(Parser *p) {
             importNames = addElement(importNames, newIdentifier(all.length, all.lexeme));
         } else {
             for(;;) {
-                skipNewLines(p);
                 Token name = require(p, TOK_IDENTIFIER);
                 importNames = addElement(importNames, newIdentifier(name.length, name.lexeme));
                 if(!match(p, TOK_COMMA)) break;
@@ -456,11 +476,11 @@ static Stmt *importStmt(Parser *p) {
     } else if(match(p, TOK_AS)) {
         advance(p);
         skipNewLines(p);
-        as = require(p, TOK_IDENTIFIER);
+        asName = require(p, TOK_IDENTIFIER);
     }
 
     requireStmtEnd(p);
-    return newImportStmt(line, modules, importNames, &as);
+    return newImportStmt(line, modules, importNames, &asName);
 }
 
 static Stmt *tryStmt(Parser *p) {
@@ -654,14 +674,16 @@ static Stmt *parseProgram(Parser *p) {
         if(p->panic) synchronize(p);
     }
     
-    Token name = {0};
+    Token name = {};
     return newFuncDecl(0, false, &name, NULL, NULL, newBlockStmt(0, stmts));
 }
 
 //----- Expressions parse ------
 
-static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
+static Expr *expressionLst(Parser *p, TokenType open, TokenType close) {
+    int line = p->peek.line;
     LinkedList *exprs = NULL;
+
     require(p, open);
     skipNewLines(p);
 
@@ -674,12 +696,12 @@ static LinkedList *expressionLst(Parser *p, TokenType open, TokenType close) {
     }
 
     require(p, close);
-    return exprs;
+    return newExprList(line, exprs);
 }
 
 static Expr *parseSuperLiteral(Parser *p) {
     int line = p->peek.line;
-    Token name = {0};
+    Token name = {};
     advance(p);
 
     if(match(p, TOK_DOT)) {
@@ -687,8 +709,8 @@ static Expr *parseSuperLiteral(Parser *p) {
         name = require(p, TOK_IDENTIFIER);
     }
 
-    LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-    return newSuperLiteral(line, &name, newExprList(line, args));
+    Expr *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+    return newSuperLiteral(line, &name, args);
 }
 
 static Expr *parseTableLiteral(Parser *p) {
@@ -732,30 +754,32 @@ static Expr *parseTableLiteral(Parser *p) {
 
 static Expr *literal(Parser *p) {
     int line = p->peek.line;
-    switch(p->peek.type) {
+    Token *tok = &p->peek;
+
+    switch(tok->type) {
     case TOK_NUMBER: {
-        Expr *e = newNumLiteral(line, strtod(p->peek.lexeme, NULL));
+        Expr *e = newNumLiteral(line, strtod(tok->lexeme, NULL));
         advance(p);
         return e;
     }
     case TOK_TRUE:
     case TOK_FALSE: {
-        Expr *e = newBoolLiteral(line, p->peek.type == TOK_TRUE);
+        Expr *e = newBoolLiteral(line, tok->type == TOK_TRUE);
         advance(p);
         return e;
     }
     case TOK_IDENTIFIER: {
-        Expr *e = newVarLiteral(line, p->peek.lexeme, p->peek.length);
+        Expr *e = newVarLiteral(line, tok->lexeme, tok->length);
         advance(p);
         return e;
     }
     case TOK_STRING: {
-        Expr *e = newStrLiteral(line, p->peek.lexeme + 1, p->peek.length - 2);
+        Expr *e = newStrLiteral(line, tok->lexeme + 1, tok->length - 2);
         advance(p);
         return e;
     }
     case TOK_COMMAND: {
-        Expr *e = newCmdLiteral(line, p->peek.lexeme + 1, p->peek.length - 2);
+        Expr *e = newCmdLiteral(line, tok->lexeme + 1, tok->length - 2);
         advance(p);
         return e;
     }
@@ -764,8 +788,8 @@ static Expr *literal(Parser *p) {
         return newNullLiteral(line);
     }
     case TOK_LSQUARE: {
-        LinkedList *exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-        return newArrLiteral(line, newExprList(line, exprs));
+        Expr *exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
+        return newArrLiteral(line, exprs);
     }
     case TOK_SUPER: {
         return parseSuperLiteral(p);
@@ -820,11 +844,12 @@ static Expr *postfixExpr(Parser *p) {
         }
         case TOK_LCURLY: {
             Expr *table = literal(p);
-            lit = newCallExpr(line, lit, addElement(NULL, table));
+            Expr *args = newExprList(line, addElement(NULL, table));
+            lit = newCallExpr(line, lit, args);
             break;
         }
         case TOK_LPAREN: {
-            LinkedList *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+            Expr *args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
             lit = newCallExpr(line, lit, args);
             break;
         }
@@ -1058,26 +1083,24 @@ static Expr *ternaryExpr(Parser *p) {
     return expr;
 }
 
-static Operator tokenToOperator(TokenType t) {
-    switch(t) {
-    case TOK_PLUS:
-        return PLUS;
-    case TOK_MINUS:
-        return MINUS;
-    case TOK_DIV:
-        return DIV;
-    case TOK_MULT:
-        return MULT;
-    case TOK_MOD:
-        return MOD;
-    default:
-        return -1;
+static Expr *tupleExpression(Parser *p, Expr *first) {
+    int line = p->peek.line;
+    LinkedList *exprs = addElement(NULL, first);
+
+    while(match(p, TOK_COMMA)) {
+        advance(p);
+        if(match(p, TOK_RPAREN) || isStatementEnd(&p->peek)) {
+            break;
+        }
+        exprs = addElement(exprs, ternaryExpr(p));
     }
+
+    return newTupleLiteral(line, newExprList(line, exprs));
 }
 
-static void checkUnpackAssignement(Parser *p, LinkedList *lst, TokenType assignToken) {
-    foreach(n, lst) {
-        if(!IS_LVALUE(((Expr *)n->elem)->type)) {
+static void checkUnpackAssignement(Parser *p, Expr *lvals, TokenType assignToken) {
+    foreach(n, lvals->as.list.lst) {
+        if(!isLValue(((Expr *)n->elem)->type)) {
             error(p, "Left hand side of assignment must be an lvalue.");
         }
         if(assignToken != TOK_EQUAL) {
@@ -1086,38 +1109,47 @@ static void checkUnpackAssignement(Parser *p, LinkedList *lst, TokenType assignT
     }
 }
 
+
+static Operator assignTokToOperator(TokenType t) {
+    switch(t) {
+    case TOK_PLUS_EQ:
+        return PLUS;
+    case TOK_MINUS_EQ:
+        return MINUS;
+    case TOK_DIV_EQ:
+        return DIV;
+    case TOK_MULT_EQ:
+        return MULT;
+    case TOK_MOD_EQ:
+        return MOD;
+    default:
+        return -1;
+    }
+}
+
 static Expr *expression(Parser *p, bool parseTuple) {
     int line = p->peek.line;
     Expr *l = ternaryExpr(p);
 
     if(parseTuple && match(p, TOK_COMMA)) {
-        LinkedList *exprs = addElement(NULL, l);
-
-        while(match(p, TOK_COMMA)) {
-            advance(p);
-            if(!IS_EXPR_START(p->peek.type)) break;
-            exprs = addElement(exprs, ternaryExpr(p));
-        }
-
-        l = newTupleLiteral(line, newExprList(line, exprs));
+        l = tupleExpression(p, l);
     }
 
     if(IS_ASSIGN(p->peek.type)) {
         TokenType assignToken = p->peek.type;
 
         if(l != NULL) {
-            if(l->type == TUPLE_LIT)
-                checkUnpackAssignement(p, l->as.tuple.exprs->as.list.lst, assignToken);
-            else if(!IS_LVALUE(l->type))
+            if(l->type == TUPLE_LIT) 
+                checkUnpackAssignement(p, l->as.tuple.exprs, assignToken);
+            else if(!isLValue(l->type))
                 error(p, "Left hand side of assignment must be an lvalue.");
         }
 
         advance(p);
         Expr *r = expression(p, true);
 
-        // check if we're parsing a compund assginment
         if(IS_COMPUND_ASSIGN(assignToken)) {
-            l = newCompoundAssing(line, tokenToOperator(COMPUND_ASS_TO_OP(assignToken)), l, r);
+            l = newCompoundAssing(line, assignTokToOperator(assignToken), l, r);
         } else {
             l = newAssign(line, l, r);
         }

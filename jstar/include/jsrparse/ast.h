@@ -102,27 +102,28 @@ struct Expr {
     } as;
 };
 
-JSTAR_API Expr *newBinary(int line, Operator op, Expr *l, Expr *r);
-JSTAR_API Expr *newAssign(int line, Expr *lval, Expr *rval);
-JSTAR_API Expr *newUnary(int line, Operator op, Expr *operand);
-JSTAR_API Expr *newNullLiteral(int line);
-JSTAR_API Expr *newNumLiteral(int line, double num);
-JSTAR_API Expr *newBoolLiteral(int line, bool boolean);
-JSTAR_API Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
-JSTAR_API Expr *newStrLiteral(int line, const char *str, size_t len);
+JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, 
+                                 Stmt *body);
+JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
+JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
+JSTAR_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
 JSTAR_API Expr *newCmdLiteral(int line, const char *cmd, size_t len);
 JSTAR_API Expr *newVarLiteral(int line, const char *str, size_t len);
-JSTAR_API Expr *newArrLiteral(int line, Expr *exprs);
-JSTAR_API Expr *newTupleLiteral(int line, Expr *exprs);
+JSTAR_API Expr *newStrLiteral(int line, const char *str, size_t len);
+JSTAR_API Expr *newArrayAccExpr(int line, Expr *left, Expr *index);
+JSTAR_API Expr *newBinary(int line, Operator op, Expr *l, Expr *r);
+JSTAR_API Expr *newSuperLiteral(int line, Token *name, Expr *args);
+JSTAR_API Expr *newCallExpr(int line, Expr *callee, Expr *args);
+JSTAR_API Expr *newUnary(int line, Operator op, Expr *operand);
+JSTAR_API Expr *newAssign(int line, Expr *lval, Expr *rval);
+JSTAR_API Expr *newExpExpr(int line, Expr *base, Expr *exp);
 JSTAR_API Expr *newTableLiteral(int line, Expr *keyVals);
 JSTAR_API Expr *newExprList(int line, LinkedList *exprs);
-JSTAR_API Expr *newCallExpr(int line, Expr *callee, LinkedList *args);
-JSTAR_API Expr *newExpExpr(int line, Expr *base, Expr *exp);
-JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
-JSTAR_API Expr *newTernary(int line, Expr *cond, Expr *thenExpr, Expr *elseExpr);
-JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
-JSTAR_API Expr *newSuperLiteral(int line, Token *name, Expr *args);
-JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, Stmt *body);
+JSTAR_API Expr *newBoolLiteral(int line, bool boolean);
+JSTAR_API Expr *newTupleLiteral(int line, Expr *exprs);
+JSTAR_API Expr *newArrLiteral(int line, Expr *exprs);
+JSTAR_API Expr *newNumLiteral(int line, double num);
+JSTAR_API Expr *newNullLiteral(int line);
 
 JSTAR_API void freeExpr(Expr *e);
 
@@ -209,8 +210,10 @@ struct Stmt {
     } as;
 };
 
-JSTAR_API Stmt *newFuncDecl(int line, bool vararg, Token *name, LinkedList *args, LinkedList *defArgs, Stmt *body);
-JSTAR_API Stmt *newNativeDecl(int line, bool vararg, Token *name, LinkedList *args, LinkedList *defArgs);
+JSTAR_API Stmt *newFuncDecl(int line, bool vararg, Token *name, LinkedList *args, 
+                            LinkedList *defArgs, Stmt *body);
+JSTAR_API Stmt *newNativeDecl(int line, bool vararg, Token *name, LinkedList *args, 
+                              LinkedList *defArgs);
 JSTAR_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, Token *as);
 JSTAR_API Stmt *newClassDecl(int line, Token *clsName, Expr *sup, LinkedList *methods);
 JSTAR_API Stmt *newWithStmt(int line, Expr *e, Token *varName, Stmt *block);

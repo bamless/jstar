@@ -108,10 +108,10 @@ Expr *newExprList(int line, LinkedList *exprs) {
     return e;
 }
 
-Expr *newCallExpr(int line, Expr *callee, LinkedList *args) {
+Expr *newCallExpr(int line, Expr *callee, Expr *args) {
     Expr *e = newExpr(line, CALL_EXPR);
     e->as.call.callee = callee;
-    e->as.call.args = newExprList(line, args);
+    e->as.call.args = args;
     return e;
 }
 
