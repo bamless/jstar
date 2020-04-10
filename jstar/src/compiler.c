@@ -46,7 +46,11 @@ typedef struct TryExcept {
     struct TryExcept *next;
 } TryExcept;
 
-typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
+typedef enum FuncType { 
+    TYPE_FUNC, 
+    TYPE_METHOD, 
+    TYPE_CTOR 
+} FuncType;
 
 typedef struct Compiler {
     JStarVM *vm;

@@ -6,9 +6,6 @@ extern const char *tokNames[];
 #define IS_ASSIGN(tok) (tok <= TOK_MOD_EQ && tok >= TOK_EQUAL)
 #define IS_COMPUND_ASSIGN(tok) (tok <= TOK_MOD_EQ && tok > TOK_EQUAL)
 
-#define _COMPOUND_ASS_TO_OP_OFF (TOK_PLUS - TOK_PLUS_EQ)
-#define COMPUND_ASS_TO_OP(ass) (ass + _COMPOUND_ASS_TO_OP_OFF)
-
 typedef enum {
     TOK_LPAREN,
     TOK_RPAREN,
