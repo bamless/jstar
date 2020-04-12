@@ -1242,7 +1242,6 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     Stmt *exc = (Stmt *)excs->elem;
 
     Identifier exception = syntheticIdentifier(".exception");
-
     compileVariable(c, &exception, false, exc->line);
     compileExpr(c, exc->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
