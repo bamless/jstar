@@ -89,7 +89,6 @@ static void addPrintIfExpr(JStarBuffer *sb) {
 
 static void dorepl() {
     linenoiseSetCompletionCallback(completion);
-    
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 
