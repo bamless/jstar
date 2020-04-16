@@ -754,7 +754,7 @@ bool runEval(JStarVM* vm, int depth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(a + b));
         } else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
-            ObjString *conc = stringConcatenate(vm, AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
+            ObjString* conc = stringConcatenate(vm, AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
             pop(vm);
             pop(vm);
             push(vm, OBJ_VAL(conc));
@@ -805,7 +805,7 @@ bool runEval(JStarVM* vm, int depth) {
         if(IS_NUM(peek(vm))) {
             push(vm, NUM_VAL(-AS_NUM(pop(vm))));
         } else {
-            ObjClass *cls = getClass(vm, peek(vm));
+            ObjClass* cls = getClass(vm, peek(vm));
             SAVE_FRAME();
             bool res = invokeMethod(vm, cls, vm->neg, 0);
             LOAD_FRAME();
@@ -839,7 +839,7 @@ bool runEval(JStarVM* vm, int depth) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
         } else {
             Value eq;
-            ObjClass *cls = getClass(vm, peek2(vm));
+            ObjClass* cls = getClass(vm, peek2(vm));
             if(hashTableGet(&cls->methods, vm->eq, &eq)) {
                 SAVE_FRAME();
                 bool res = callValue(vm, eq, 1);
@@ -1000,7 +1000,7 @@ call:
         argc = NEXT_CODE();
 
 invoke:;
-        ObjString *name = GET_STRING();
+        ObjString* name = GET_STRING();
         SAVE_FRAME();
         bool res = invokeValue(vm, name, argc);
         LOAD_FRAME();
@@ -1029,9 +1029,9 @@ invoke:;
         argc = NEXT_CODE();
 
 sup_invoke:;
-        ObjString *name = GET_STRING();
+        ObjString* name = GET_STRING();
         // The superclass is stored as a const in the function itself
-        ObjClass *sup = AS_CLASS(fn->chunk.consts.arr[0]);
+        ObjClass* sup = AS_CLASS(fn->chunk.consts.arr[0]);
         SAVE_FRAME();
         bool res = invokeMethod(vm, sup, name, argc);
         LOAD_FRAME();
@@ -1044,7 +1044,7 @@ op_return:
         Value ret = pop(vm);
 
         while(frame->handlerc > 0) {
-            Handler *h = &frame->handlers[--frame->handlerc];
+            Handler* h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
                 RESTORE_HANDLER(h, CAUSE_RETURN, ret);
                 LOAD_FRAME();
@@ -1068,7 +1068,7 @@ op_return:
     TARGET(OP_IMPORT): 
     TARGET(OP_IMPORT_AS):
     TARGET(OP_IMPORT_FROM): {
-        ObjString *name = GET_STRING();
+        ObjString* name = GET_STRING();
         if(!importModule(vm, name)) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
             UNWIND_STACK(vm);
@@ -1086,7 +1086,7 @@ op_return:
         //call the module's main if first time import
         if(!valueEquals(peek(vm), NULL_VAL)) {
             SAVE_FRAME();
-            ObjClosure *c = newClosure(vm, AS_FUNC(peek(vm)));
+            ObjClosure* c = newClosure(vm, AS_FUNC(peek(vm)));
             vm->sp[-1] = OBJ_VAL(c); 
             callFunction(vm, c, 0);
             LOAD_FRAME();
@@ -1095,8 +1095,8 @@ op_return:
     }
     
     TARGET(OP_IMPORT_NAME): {
-        ObjModule *m = getModule(vm, GET_STRING());
-        ObjString *n = GET_STRING();
+        ObjModule* m = getModule(vm, GET_STRING());
+        ObjString* n = GET_STRING();
 
         if(n->data[0] == '*') {
             hashTableImportNames(&vm->module->globals, &m->globals);
@@ -1125,7 +1125,7 @@ op_return:
     
     TARGET(OP_NEW_TUPLE): {
         uint8_t size = NEXT_CODE();
-        ObjTuple *t = newTuple(vm, size);
+        ObjTuple* t = newTuple(vm, size);
         for(int i = size - 1; i >= 0; i--) {
             t->arr[i] = pop(vm);
         }
@@ -1139,7 +1139,7 @@ op_return:
     }
 
     TARGET(OP_CLOSURE): {
-        ObjClosure *c = newClosure(vm, AS_FUNC(GET_CONST()));
+        ObjClosure* c = newClosure(vm, AS_FUNC(GET_CONST()));
         push(vm, OBJ_VAL(c));
         for(uint8_t i = 0; i < c->fn->upvaluec; i++) {
             uint8_t isLocal = NEXT_CODE();
@@ -1163,7 +1163,7 @@ op_return:
             jsrRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
             UNWIND_STACK(vm);
         }
-        ObjClass *cls = AS_CLASS(pop(vm));
+        ObjClass* cls = AS_CLASS(pop(vm));
         if(isBuiltinClass(vm, cls)) {
             jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
             UNWIND_STACK(vm);
@@ -1185,8 +1185,8 @@ op_return:
     }
     
     TARGET(OP_DEF_METHOD): {
-        ObjClass *cls = AS_CLASS(peek2(vm));
-        ObjString *methodName = GET_STRING();
+        ObjClass* cls = AS_CLASS(peek2(vm));
+        ObjString* methodName = GET_STRING();
         // Set the superclass as a const in the function
         AS_CLOSURE(peek(vm))->fn->chunk.consts.arr[0] = OBJ_VAL(cls->superCls);
         hashTablePut(&cls->methods, methodName, pop(vm));
@@ -1194,9 +1194,9 @@ op_return:
     }
     
     TARGET(OP_NAT_METHOD): {
-        ObjClass *cls = AS_CLASS(peek(vm));
-        ObjString *methodName = GET_STRING();
-        ObjNative *native = AS_NATIVE(GET_CONST());
+        ObjClass* cls = AS_CLASS(peek(vm));
+        ObjString* methodName = GET_STRING();
+        ObjNative* native = AS_NATIVE(GET_CONST());
         native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
         if(native->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
@@ -1207,8 +1207,8 @@ op_return:
     }
 
     TARGET(OP_NATIVE): {
-        ObjString *name = GET_STRING();
-        ObjNative *nat  = AS_NATIVE(peek(vm));
+        ObjString* name = GET_STRING();
+        ObjNative* nat  = AS_NATIVE(peek(vm));
         nat->fn = resolveNative(vm->module, NULL, name->data);
         if(nat->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
@@ -1228,7 +1228,7 @@ op_return:
     }
 
     TARGET(OP_GET_GLOBAL): {
-        ObjString *name = GET_STRING();
+        ObjString* name = GET_STRING();
         if(!hashTableGet(&vm->module->globals, name, vm->sp++)) {
             jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
             UNWIND_STACK(vm);
@@ -1237,7 +1237,7 @@ op_return:
     }
 
     TARGET(OP_SET_GLOBAL): {
-        ObjString *name = GET_STRING();
+        ObjString* name = GET_STRING();
         if(hashTablePut(&vm->module->globals, name, peek(vm))) {
             jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
             UNWIND_STACK(vm);
@@ -1248,7 +1248,7 @@ op_return:
     TARGET(OP_SETUP_EXCEPT): 
     TARGET(OP_SETUP_ENSURE): {
         uint16_t handlerOff = NEXT_SHORT();
-        Handler *handler = &frame->handlers[frame->handlerc++];
+        Handler* handler = &frame->handlers[frame->handlerc++];
         handler->handler = ip + handlerOff;
         handler->savesp = vm->sp;
         handler->type = op;
@@ -1286,8 +1286,8 @@ op_return:
             jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
             UNWIND_STACK(vm);
         }
-        ObjStackTrace *st = newStackTrace(vm);
-        ObjInstance *excInst = AS_INSTANCE(exc);
+        ObjStackTrace* st = newStackTrace(vm);
+        ObjInstance* excInst = AS_INSTANCE(exc);
         hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
         UNWIND_STACK(vm);
     }
@@ -1324,7 +1324,7 @@ op_return:
     }
 
     TARGET(OP_DUP): {
-        *vm->sp = *(vm->sp - 1);
+        *vm->sp =* (vm->sp - 1);
         vm->sp++;
         DISPATCH();
     }
