@@ -5,9 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "jstar.h"
 #include "chunk.h"
 #include "hashtable.h"
+#include "jstar.h"
 #include "util.h"
 #include "value.h"
 

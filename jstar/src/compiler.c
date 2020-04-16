@@ -343,7 +343,7 @@ static ObjString *readString(Compiler *c, Expr *e) {
                 break;
             case 'r':
                 jsrBufferAppendChar(&sb, '\r');
-                break;\
+                break;
             case 't':
                 jsrBufferAppendChar(&sb, '\t');
                 break;
