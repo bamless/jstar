@@ -47,7 +47,7 @@ JSR_NATIVE(jsr_clock) {
 
 JSR_NATIVE(jsr_getenv) {
     JSR_CHECK(String, 1, "name");
-    char *value = getenv(jsrGetString(vm, 1));
+    char* value = getenv(jsrGetString(vm, 1));
     if(value != NULL) {
         jsrPushString(vm, value);
         return true;

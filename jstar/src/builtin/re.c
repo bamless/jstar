@@ -23,13 +23,13 @@
     } while(0)
 
 typedef struct {
-    const char *str;
-    const char *strEnd;
+    const char* str;
+    const char* strEnd;
     int capturec;
-    JStarVM *vm;
+    JStarVM* vm;
     bool err;
     struct {
-        const char *start;
+        const char* start;
         ptrdiff_t len;
     } captures[MAX_CAPTURES];
 } RegexState;
@@ -70,7 +70,7 @@ static bool matchClass(char c, char cls) {
     return isupper(cls) ? !res : res;
 }
 
-static bool matchCustomClass(char c, const char *r, const char *er) {
+static bool matchCustomClass(char c, const char* r, const char* er) {
     bool ret = true;
     if(r[1] == '^') {
         ret = false;
@@ -92,7 +92,7 @@ static bool matchCustomClass(char c, const char *r, const char *er) {
     return !ret;
 }
 
-static bool matchClassOrChar(char matchChar, const char *r, const char *er) {
+static bool matchClassOrChar(char matchChar, const char* r, const char* er) {
     switch(*r) {
     case '.':
         return true;
@@ -105,7 +105,7 @@ static bool matchClassOrChar(char matchChar, const char *r, const char *er) {
     }
 }
 
-static int captureToClose(RegexState *rs) {
+static int captureToClose(RegexState* rs) {
     for(int i = rs->capturec - 1; i > 0; i--) {
         if(rs->captures[i].len == CAPTURE_UNFINISHED) return i;
     }
@@ -113,9 +113,9 @@ static int captureToClose(RegexState *rs) {
     return -1;
 }
 
-static const char *match(RegexState *rs, const char *s, const char *r);
+static const char* match(RegexState* rs, const char* s, const char* r);
 
-static const char *startCapture(RegexState *rs, const char *s, const char *r) {
+static const char* startCapture(RegexState* rs, const char* s, const char* r) {
     if(rs->capturec >= MAX_CAPTURES) {
         REG_ERR("Max capture number exceeded (%d).", MAX_CAPTURES);
         return NULL;
@@ -130,29 +130,29 @@ static const char *startCapture(RegexState *rs, const char *s, const char *r) {
     rs->captures[rs->capturec].start = s;
     rs->capturec++;
 
-    const char *res;
+    const char* res;
     if((res = match(rs, s, r + 1)) == NULL) {
         rs->capturec--;
     }
     return res;
 }
 
-static const char *endCapture(RegexState *rs, const char *s, const char *r) {
+static const char* endCapture(RegexState* rs, const char* s, const char* r) {
     int i = captureToClose(rs);
     if(i == -1) return NULL;
     rs->captures[i].len = s - rs->captures[i].start;
-    const char *res;
+    const char* res;
     if((res = match(rs, s, r + 1)) == NULL) rs->captures[i].len = CAPTURE_UNFINISHED;
     return res;
 }
 
-static const char *matchCapture(RegexState *rs, const char *s, int captureNo) {
+static const char* matchCapture(RegexState* rs, const char* s, int captureNo) {
     if(captureNo > rs->capturec - 1 || rs->captures[captureNo].len == CAPTURE_UNFINISHED ||
        rs->captures[captureNo].len == CAPTURE_POSITION) {
         return NULL;
     }
 
-    const char *capture = rs->captures[captureNo].start;
+    const char* capture = rs->captures[captureNo].start;
     size_t captureLen = rs->captures[captureNo].len;
     if((size_t)(rs->strEnd - s) < captureLen || memcmp(s, capture, captureLen) != 0) {
         return NULL;
@@ -160,14 +160,14 @@ static const char *matchCapture(RegexState *rs, const char *s, int captureNo) {
     return s + captureLen;
 }
 
-static const char *greedyMatch(RegexState *rs, const char *s, const char *r, const char *er) {
+static const char* greedyMatch(RegexState* rs, const char* s, const char* r, const char* er) {
     ptrdiff_t i = 0;
     while(s[i] != '\0' && matchClassOrChar(s[i], r, er)) {
         i++;
     }
 
     while(i >= 0) {
-        const char *res;
+        const char* res;
         if((res = match(rs, s + i, er + 1)) != NULL) return res;
         if(rs->err) return NULL;
         i--;
@@ -176,16 +176,16 @@ static const char *greedyMatch(RegexState *rs, const char *s, const char *r, con
     return NULL;
 }
 
-static const char *lazyMatch(RegexState *rs, const char *s, const char *r, const char *er) {
+static const char* lazyMatch(RegexState* rs, const char* s, const char* r, const char* er) {
     do {
-        const char *res;
+        const char* res;
         if((res = match(rs, s, er + 1)) != NULL) return res;
         if(rs->err) return NULL;
     } while(*s != '\0' && matchClassOrChar(*s++, r, er));
     return NULL;
 }
 
-static const char *endClass(RegexState *rs, const char *r) {
+static const char* endClass(RegexState* rs, const char* r) {
     switch(*r++) {
     case ESCAPE:
         if(*r == '\0') {
@@ -207,7 +207,7 @@ static const char *endClass(RegexState *rs, const char *r) {
     }
 }
 
-static const char *match(RegexState *rs, const char *s, const char *r) {
+static const char* match(RegexState* rs, const char* s, const char* r) {
     switch(*r) {
     case '(':
         return startCapture(rs, s, r);
@@ -232,13 +232,13 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
         return s;
     default:
     def : {
-        const char *er = endClass(rs, r);
+        const char* er = endClass(rs, r);
         if(er == NULL) return NULL;
 
         bool isMatch = *s != '\0' && matchClassOrChar(*s, r, er);
         switch(*er) {
         case '?': {
-            const char *res;
+            const char* res;
             if(isMatch && (res = match(rs, s + 1, er + 1)) != NULL) return res;
             return match(rs, s, er + 1);
         }
@@ -258,7 +258,7 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
     return NULL;
 }
 
-static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, const char *r,
+static bool matchRegex(JStarVM* vm, RegexState* rs, const char* s, size_t len, const char* r,
                        int off) {
     rs->vm = vm;
     rs->str = s;
@@ -273,7 +273,7 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, c
     s += off;
 
     if(*r == '^') {
-        const char *res;
+        const char* res;
         if((res = match(rs, s, r + 1)) != NULL) {
             rs->captures[0].len = res - s;
             return true;
@@ -282,7 +282,7 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, c
     }
 
     do {
-        const char *res;
+        const char* res;
         if((res = match(rs, s, r)) != NULL) {
             rs->captures[0].start = s;
             rs->captures[0].len = res - s;
@@ -296,15 +296,15 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, c
 
 typedef enum FindRes { FIND_ERR, FIND_MATCH, FIND_NOMATCH } FindRes;
 
-static FindRes findAux(JStarVM *vm, RegexState *rs) {
+static FindRes findAux(JStarVM* vm, RegexState* rs) {
     if(!jsrCheckString(vm, 1, "str") || !jsrCheckString(vm, 2, "regex") ||
        !jsrCheckInt(vm, 3, "off")) {
         return FIND_ERR;
     }
 
-    const char *str = jsrGetString(vm, 1);
+    const char* str = jsrGetString(vm, 1);
     size_t len = jsrGetStringSz(vm, 1);
-    const char *regex = jsrGetString(vm, 2);
+    const char* regex = jsrGetString(vm, 2);
     double off = jsrGetNumber(vm, 3);
 
     if(!matchRegex(vm, rs, str, len, regex, off)) {
@@ -316,7 +316,7 @@ static FindRes findAux(JStarVM *vm, RegexState *rs) {
     return FIND_MATCH;
 }
 
-static bool pushCapture(JStarVM *vm, RegexState *rs, int n) {
+static bool pushCapture(JStarVM* vm, RegexState* rs, int n) {
     if(n < 0 || n >= rs->capturec)
         JSR_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
     if(rs->captures[n].len == CAPTURE_UNFINISHED)
@@ -340,7 +340,7 @@ JSR_NATIVE(jsr_re_match) {
     if(rs.capturec <= 2) {
         if(!pushCapture(vm, &rs, rs.capturec - 1)) return false;
     } else {
-        ObjTuple *ret = newTuple(vm, rs.capturec - 1);
+        ObjTuple* ret = newTuple(vm, rs.capturec - 1);
         push(vm, OBJ_VAL(ret));
 
         for(int i = 1; i < rs.capturec; i++) {
@@ -359,7 +359,7 @@ JSR_NATIVE(jsr_re_find) {
     if(res == FIND_ERR) return false;
     if(res == FIND_NOMATCH) return true;
 
-    ObjTuple *ret = newTuple(vm, rs.capturec + 1);
+    ObjTuple* ret = newTuple(vm, rs.capturec + 1);
     push(vm, OBJ_VAL(ret));
 
     ptrdiff_t start = rs.captures[0].start - rs.str;
@@ -380,14 +380,14 @@ JSR_NATIVE(jsr_re_gmatch) {
     JSR_CHECK(String, 1, "str");
     JSR_CHECK(String, 2, "regex");
 
-    const char *regex = jsrGetString(vm, 2);
-    const char *str = jsrGetString(vm, 1);
+    const char* regex = jsrGetString(vm, 2);
+    const char* str = jsrGetString(vm, 1);
     size_t len = jsrGetStringSz(vm, 1);
 
     jsrPushList(vm);
 
     size_t off = 0;
-    const char *lastmatch = NULL;
+    const char* lastmatch = NULL;
     while(off <= len) {
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, off)) {
@@ -406,7 +406,7 @@ JSR_NATIVE(jsr_re_gmatch) {
             jsrListAppend(vm, -2);
             jsrPop(vm);
         } else {
-            ObjTuple *tup = newTuple(vm, rs.capturec - 1);
+            ObjTuple* tup = newTuple(vm, rs.capturec - 1);
             push(vm, OBJ_VAL(tup));
 
             for(int i = 1; i < rs.capturec; i++) {
@@ -432,7 +432,7 @@ JSR_NATIVE(jsr_re_gmatch) {
     return true;
 }
 
-static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *sub) {
+static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* sub) {
     for(; *sub != '\0'; sub++) {
         switch(*sub) {
         case ESCAPE:
@@ -465,7 +465,7 @@ static bool substitute(JStarVM *vm, RegexState *rs, JStarBuffer *b, const char *
     return true;
 }
 
-static bool subCall(JStarVM *vm, RegexState *rs, JStarBuffer *b, int funSlot) {
+static bool subCall(JStarVM* vm, RegexState* rs, JStarBuffer* b, int funSlot) {
     jsrPushValue(vm, funSlot);
     for(int i = 1; i < rs->capturec; i++) {
         jsrPushStringSz(vm, rs->captures[i].start, rs->captures[i].len);
@@ -486,9 +486,9 @@ JSR_NATIVE(jsr_re_gsub) {
         JSR_RAISE(vm, "TypeException", "sub must be either a String or a Function.");
     }
 
-    const char *str = jsrGetString(vm, 1);
+    const char* str = jsrGetString(vm, 1);
     size_t len = jsrGetStringSz(vm, 1);
-    const char *regex = jsrGetString(vm, 2);
+    const char* regex = jsrGetString(vm, 2);
     int num = jsrGetNumber(vm, 4);
 
     JStarBuffer b;
@@ -496,7 +496,7 @@ JSR_NATIVE(jsr_re_gsub) {
 
     int numsub = 0;
     size_t off = 0;
-    const char *lastmatch = NULL;
+    const char* lastmatch = NULL;
 
     while(off <= len) {
         if(num > 0 && numsub > num - 1) break;
@@ -526,7 +526,7 @@ JSR_NATIVE(jsr_re_gsub) {
         }
 
         if(jsrIsString(vm, 3)) {
-            const char *sub = jsrGetString(vm, 3);
+            const char* sub = jsrGetString(vm, 3);
             if(!substitute(vm, &rs, &b, sub)) {
                 jsrBufferFree(&b);
                 return false;

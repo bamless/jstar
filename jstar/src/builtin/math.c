@@ -66,7 +66,7 @@ JSR_NATIVE(jsr_frexp) {
     double m;
     int e;
     m = frexp(jsrGetNumber(vm, 1), &e);
-    ObjTuple *ret = newTuple(vm, 2);
+    ObjTuple* ret = newTuple(vm, 2);
     ret->arr[0] = NUM_VAL(m);
     ret->arr[1] = NUM_VAL(e);
     push(vm, OBJ_VAL(ret));
@@ -95,7 +95,7 @@ JSR_NATIVE(jsr_modf) {
     JSR_CHECK(Number, 1, "x");
     double integer, frac;
     integer = modf(jsrGetNumber(vm, 1), &frac);
-    ObjTuple *ret = newTuple(vm, 2);
+    ObjTuple* ret = newTuple(vm, 2);
     ret->arr[0] = NUM_VAL(integer);
     ret->arr[1] = NUM_VAL(frac);
     push(vm, OBJ_VAL(ret));

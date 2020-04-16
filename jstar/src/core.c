@@ -27,27 +27,27 @@
 #    define pclose _pclose
 #endif
 
-static ObjClass *createClass(JStarVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
-    ObjString *n = copyString(vm, name, strlen(name), true);
+static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
+    ObjString* n = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(n));
-    ObjClass *c = newClass(vm, n, sup);
+    ObjClass* c = newClass(vm, n, sup);
     pop(vm);
 
     hashTablePut(&m->globals, n, OBJ_VAL(c));
     return c;
 }
 
-static Value getDefinedName(JStarVM *vm, ObjModule *m, const char *name) {
+static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
     hashTableGet(&m->globals, copyString(vm, name, strlen(name), true), &v);
     return v;
 }
 
-static void defMethod(JStarVM *vm, ObjModule *m, ObjClass *cls, JStarNative n, const char *name,
+static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative n, const char* name,
                       uint8_t argc) {
-    ObjString *strName = copyString(vm, name, strlen(name), true);
+    ObjString* strName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(strName));
-    ObjNative *native = newNative(vm, m, strName, argc, n, 0);
+    ObjNative* native = newNative(vm, m, strName, argc, n, 0);
     pop(vm);
 
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
@@ -71,9 +71,9 @@ static uint32_t hashNumber(double num) {
 
 // class Object
 static JSR_NATIVE(jsr_Object_string) {
-    Obj *o = AS_OBJ(vm->apiStack[0]);
+    Obj* o = AS_OBJ(vm->apiStack[0]);
     char str[256];
-    snprintf(str, sizeof(str), "<%s@%p>", o->cls->name->data, (void *)o);
+    snprintf(str, sizeof(str), "<%s@%p>", o->cls->name->data, (void*)o);
     jsrPushString(vm, str);
     return true;
 }
@@ -97,19 +97,19 @@ static JSR_NATIVE(jsr_Class_getName) {
 }
 
 static JSR_NATIVE(jsr_Class_string) {
-    Obj *o = AS_OBJ(vm->apiStack[0]);
+    Obj* o = AS_OBJ(vm->apiStack[0]);
     char str[256];
-    snprintf(str, sizeof(str), "<Class %s@%p>", ((ObjClass *)o)->name->data, (void *)o);
+    snprintf(str, sizeof(str), "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*)o);
     jsrPushString(vm, str);
     return true;
 }
 // end
 
-void initCoreLibrary(JStarVM *vm) {
-    ObjString *name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
+void initCoreLibrary(JStarVM* vm) {
+    ObjString* name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
 
     push(vm, OBJ_VAL(name));
-    ObjModule *core = newModule(vm, name);
+    ObjModule* core = newModule(vm, name);
     setModule(vm, core->name, core);
     vm->core = core;
     pop(vm);
@@ -149,7 +149,7 @@ void initCoreLibrary(JStarVM *vm) {
 
     // Patch up the class field of any string or function that was allocated
     // before the creation of their corresponding class object
-    for(Obj *o = vm->objects; o != NULL; o = o->next) {
+    for(Obj* o = vm->objects; o != NULL; o = o->next) {
         if(o->type == OBJ_STRING) {
             o->cls = vm->strClass;
         } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
@@ -164,8 +164,8 @@ JSR_NATIVE(jsr_int) {
         return true;
     }
     if(jsrIsString(vm, 1)) {
-        char *end = NULL;
-        const char *nstr = jsrGetString(vm, 1);
+        char* end = NULL;
+        const char* nstr = jsrGetString(vm, 1);
         long long n = strtoll(nstr, &end, 10);
 
         if((n == 0 && end == nstr) || *end != '\0') {
@@ -187,7 +187,7 @@ JSR_NATIVE(jsr_int) {
 
 JSR_NATIVE(jsr_char) {
     JSR_CHECK(String, 1, "c");
-    const char *str = jsrGetString(vm, 1);
+    const char* str = jsrGetString(vm, 1);
     if(jsrGetStringSz(vm, 1) != 1)
         JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
     int c = str[0];
@@ -234,19 +234,19 @@ JSR_NATIVE(jsr_eval) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
 
-    ObjModule *mod;
-    Frame *prevFrame = &vm->frames[vm->frameCount - 2];
+    ObjModule* mod;
+    Frame* prevFrame = &vm->frames[vm->frameCount - 2];
     if(IS_CLOSURE(prevFrame->fn))
         mod = AS_CLOSURE(prevFrame->fn)->fn->c.module;
     else
         mod = AS_NATIVE(prevFrame->fn)->c.module;
 
-    Stmt *program = parse("<eval>", jsrGetString(vm, 1));
+    Stmt* program = parse("<eval>", jsrGetString(vm, 1));
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
-    ObjFunction *fn = compileWithModule(vm, mod->name, program);
+    ObjFunction* fn = compileWithModule(vm, mod->name, program);
     freeStmt(program);
 
     if(fn == NULL) {
@@ -254,7 +254,7 @@ JSR_NATIVE(jsr_eval) {
     }
 
     push(vm, OBJ_VAL(fn));
-    ObjClosure *closure = newClosure(vm, fn);
+    ObjClosure* closure = newClosure(vm, fn);
     pop(vm);
 
     push(vm, OBJ_VAL(closure));
@@ -274,7 +274,7 @@ JSR_NATIVE(jsr_type) {
 }
 
 JSR_NATIVE(jsr_system) {
-    const char *cmd = NULL;
+    const char* cmd = NULL;
     if(!jsrIsNull(vm, 1)) {
         JSR_CHECK(String, 1, "cmd");
         cmd = jsrGetString(vm, 1);
@@ -286,7 +286,7 @@ JSR_NATIVE(jsr_system) {
 JSR_NATIVE(jsr_exec) {
     JSR_CHECK(String, 1, "cmd");
 
-    FILE *proc = popen(jsrGetString(vm, 1), "r");
+    FILE* proc = popen(jsrGetString(vm, 1), "r");
     if(proc == NULL) {
         JSR_RAISE(vm, "Exception", strerror(errno));
     }
@@ -320,8 +320,8 @@ JSR_NATIVE(jsr_Number_new) {
     if(jsrIsString(vm, 1)) {
         errno = 0;
 
-        char *end = NULL;
-        const char *nstr = jsrGetString(vm, 1);
+        char* end = NULL;
+        const char* nstr = jsrGetString(vm, 1);
         double n = strtod(nstr, &end);
 
         if((n == 0 && end == nstr) || *end != '\0') {
@@ -392,9 +392,9 @@ JSR_NATIVE(jsr_Null_string) {
 
 // class Function
 JSR_NATIVE(jsr_Function_string) {
-    const char *funType = NULL;
-    const char *funName = NULL;
-    const char *modName = NULL;
+    const char* funType = NULL;
+    const char* funName = NULL;
+    const char* modName = NULL;
 
     switch(OBJ_TYPE(vm->apiStack[0])) {
     case OBJ_CLOSURE:
@@ -409,13 +409,13 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     case OBJ_BOUND_METHOD: {
         funType = "bound method";
-        ObjBoundMethod *m = AS_BOUND_METHOD(vm->apiStack[0]);
+        ObjBoundMethod* m = AS_BOUND_METHOD(vm->apiStack[0]);
 
-        Callable *c;
+        Callable* c;
         if(m->method->type == OBJ_CLOSURE)
-            c = &((ObjClosure *)m->method)->fn->c;
+            c = &((ObjClosure*)m->method)->fn->c;
         else
-            c = &((ObjNative *)m->method)->c;
+            c = &((ObjNative*)m->method)->c;
 
         funName = c->name->data;
         modName = c->module->name->data;
@@ -441,7 +441,7 @@ JSR_NATIVE(jsr_Function_string) {
 // class Module
 JSR_NATIVE(jsr_Module_string) {
     char str[256];
-    ObjModule *m = AS_MODULE(vm->apiStack[0]);
+    ObjModule* m = AS_MODULE(vm->apiStack[0]);
     snprintf(str, sizeof(str), "<module %s@%p>", m->name->data, m);
     jsrPushString(vm, str);
     return true;
@@ -457,7 +457,7 @@ JSR_NATIVE(jsr_List_new) {
         JSR_RAISE(vm, "TypeException", "size must be >= 0");
     }
 
-    ObjList *lst = newList(vm, count < 16 ? 16 : count);
+    ObjList* lst = newList(vm, count < 16 ? 16 : count);
     lst->count = count;
     push(vm, OBJ_VAL(lst));
 
@@ -478,14 +478,14 @@ JSR_NATIVE(jsr_List_new) {
 }
 
 JSR_NATIVE(jsr_List_add) {
-    ObjList *l = AS_LIST(vm->apiStack[0]);
+    ObjList* l = AS_LIST(vm->apiStack[0]);
     listAppend(vm, l, vm->apiStack[1]);
     jsrPushNull(vm);
     return true;
 }
 
 JSR_NATIVE(jsr_List_insert) {
-    ObjList *l = AS_LIST(vm->apiStack[0]);
+    ObjList* l = AS_LIST(vm->apiStack[0]);
     size_t index = jsrCheckIndex(vm, 1, l->count + 1, "i");
     if(index == SIZE_MAX) return false;
 
@@ -500,7 +500,7 @@ JSR_NATIVE(jsr_List_len) {
 }
 
 JSR_NATIVE(jsr_List_removeAt) {
-    ObjList *l = AS_LIST(vm->apiStack[0]);
+    ObjList* l = AS_LIST(vm->apiStack[0]);
     size_t index = jsrCheckIndex(vm, 1, l->count, "i");
     if(index == SIZE_MAX) return false;
 
@@ -511,7 +511,7 @@ JSR_NATIVE(jsr_List_removeAt) {
 }
 
 JSR_NATIVE(jsr_List_subList) {
-    ObjList *list = AS_LIST(vm->apiStack[0]);
+    ObjList* list = AS_LIST(vm->apiStack[0]);
 
     size_t from = jsrCheckIndex(vm, 1, list->count + 1, "from");
     if(from == SIZE_MAX) return false;
@@ -521,7 +521,7 @@ JSR_NATIVE(jsr_List_subList) {
     if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
 
     size_t numElems = to - from;
-    ObjList *subList = newList(vm, numElems < 16 ? 16 : numElems);
+    ObjList* subList = newList(vm, numElems < 16 ? 16 : numElems);
 
     memcpy(subList->arr, list->arr + from, numElems * sizeof(Value));
     subList->count = numElems;
@@ -537,7 +537,7 @@ JSR_NATIVE(jsr_List_clear) {
 }
 
 JSR_NATIVE(jsr_List_iter) {
-    ObjList *lst = AS_LIST(vm->apiStack[0]);
+    ObjList* lst = AS_LIST(vm->apiStack[0]);
 
     if(IS_NULL(vm->apiStack[1]) && lst->count != 0) {
         push(vm, NUM_VAL(0));
@@ -557,7 +557,7 @@ JSR_NATIVE(jsr_List_iter) {
 }
 
 JSR_NATIVE(jsr_List_next) {
-    ObjList *lst = AS_LIST(vm->apiStack[0]);
+    ObjList* lst = AS_LIST(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
         double idx = AS_NUM(vm->apiStack[1]);
@@ -583,8 +583,8 @@ JSR_NATIVE(jsr_Tuple_new) {
             }, )
     }
 
-    ObjList *lst = AS_LIST(vm->sp[-1]);
-    ObjTuple *tup = newTuple(vm, lst->count);
+    ObjList* lst = AS_LIST(vm->sp[-1]);
+    ObjTuple* tup = newTuple(vm, lst->count);
     if(lst->count > 0) memcpy(tup->arr, lst->arr, sizeof(Value) * lst->count);
     push(vm, OBJ_VAL(tup));
     return true;
@@ -596,7 +596,7 @@ JSR_NATIVE(jsr_Tuple_len) {
 }
 
 JSR_NATIVE(jsr_Tuple_iter) {
-    ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
+    ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
     if(IS_NULL(vm->apiStack[1]) && tup->size != 0) {
         push(vm, NUM_VAL(0));
@@ -616,7 +616,7 @@ JSR_NATIVE(jsr_Tuple_iter) {
 }
 
 JSR_NATIVE(jsr_Tuple_next) {
-    ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
+    ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
         double idx = AS_NUM(vm->apiStack[1]);
@@ -631,7 +631,7 @@ JSR_NATIVE(jsr_Tuple_next) {
 }
 
 JSR_NATIVE(jsr_Tuple_subTuple) {
-    ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
+    ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
     size_t from = jsrCheckIndex(vm, 1, tup->size, "from");
     if(from == SIZE_MAX) return false;
@@ -641,7 +641,7 @@ JSR_NATIVE(jsr_Tuple_subTuple) {
     if(from >= to) JSR_RAISE(vm, "InvalidArgException", "from must be < to.");
 
     size_t numElems = to - from;
-    ObjTuple *sub = newTuple(vm, numElems);
+    ObjTuple* sub = newTuple(vm, numElems);
 
     memcpy(sub->arr, tup->arr + from, numElems * sizeof(Value));
 
@@ -650,7 +650,7 @@ JSR_NATIVE(jsr_Tuple_subTuple) {
 }
 
 JSR_NATIVE(jsr_Tuple_hash) {
-    ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
+    ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
     uint32_t hash = 1;
     for(size_t i = 0; i < tup->size; i++) {
@@ -694,7 +694,7 @@ JSR_NATIVE(jsr_String_new) {
 }
 
 JSR_NATIVE(jsr_String_substr) {
-    ObjString *str = AS_STRING(vm->apiStack[0]);
+    ObjString* str = AS_STRING(vm->apiStack[0]);
 
     size_t from = jsrCheckIndex(vm, 1, str->length + 1, "from");
     if(from == SIZE_MAX) return false;
@@ -704,7 +704,7 @@ JSR_NATIVE(jsr_String_substr) {
     if(from > to) JSR_RAISE(vm, "InvalidArgException", "argument from must be <= to.");
 
     size_t len = to - from;
-    ObjString *sub = allocateString(vm, len);
+    ObjString* sub = allocateString(vm, len);
     memcpy(sub->data, str->data + from, len);
 
     push(vm, OBJ_VAL(sub));
@@ -714,7 +714,7 @@ JSR_NATIVE(jsr_String_substr) {
 JSR_NATIVE(jsr_String_charAt) {
     JSR_CHECK(Int, 1, "idx");
 
-    ObjString *str = AS_STRING(vm->apiStack[0]);
+    ObjString* str = AS_STRING(vm->apiStack[0]);
     size_t i = jsrCheckIndex(vm, 1, str->length, "idx");
     if(i == SIZE_MAX) return false;
 
@@ -727,7 +727,7 @@ JSR_NATIVE(jsr_String_startsWith) {
     JSR_CHECK(String, 1, "prefix");
     JSR_CHECK(Int, 2, "offset");
 
-    const char *prefix = jsrGetString(vm, 1);
+    const char* prefix = jsrGetString(vm, 1);
     size_t prefixLen = jsrGetStringSz(vm, 1);
     int offset = jsrGetNumber(vm, 2);
     size_t thisLen = jsrGetStringSz(vm, 0);
@@ -737,7 +737,7 @@ JSR_NATIVE(jsr_String_startsWith) {
         return true;
     }
 
-    const char *thisStr = jsrGetString(vm, 0) + offset;
+    const char* thisStr = jsrGetString(vm, 0) + offset;
     if(memcmp(thisStr, prefix, prefixLen) == 0) {
         jsrPushBoolean(vm, true);
         return true;
@@ -750,7 +750,7 @@ JSR_NATIVE(jsr_String_startsWith) {
 JSR_NATIVE(jsr_String_endsWith) {
     JSR_CHECK(String, 1, "suffix");
 
-    const char *suffix = jsrGetString(vm, 1);
+    const char* suffix = jsrGetString(vm, 1);
     size_t suffixLen = jsrGetStringSz(vm, 1);
     size_t thisLen = jsrGetStringSz(vm, 0);
 
@@ -759,7 +759,7 @@ JSR_NATIVE(jsr_String_endsWith) {
         return true;
     }
 
-    const char *thisStr = jsrGetString(vm, 0) + (thisLen - suffixLen);
+    const char* thisStr = jsrGetString(vm, 0) + (thisLen - suffixLen);
 
     if(memcmp(thisStr, suffix, suffixLen) == 0) {
         jsrPushBoolean(vm, true);
@@ -771,7 +771,7 @@ JSR_NATIVE(jsr_String_endsWith) {
 }
 
 JSR_NATIVE(jsr_String_strip) {
-    const char *str = jsrGetString(vm, 0);
+    const char* str = jsrGetString(vm, 0);
     size_t start = 0, end = jsrGetStringSz(vm, 0);
 
     while(start < end && isspace(str[start])) {
@@ -793,7 +793,7 @@ JSR_NATIVE(jsr_String_strip) {
 }
 
 JSR_NATIVE(jsr_String_chomp) {
-    const char *str = jsrGetString(vm, 0);
+    const char* str = jsrGetString(vm, 0);
     size_t end = jsrGetStringSz(vm, 0);
 
     while(end > 0 && isspace(str[end - 1])) {
@@ -860,8 +860,8 @@ JSR_NATIVE(jsr_String_eq) {
         return true;
     }
 
-    ObjString *s1 = AS_STRING(vm->apiStack[0]);
-    ObjString *s2 = AS_STRING(vm->apiStack[1]);
+    ObjString* s1 = AS_STRING(vm->apiStack[0]);
+    ObjString* s2 = AS_STRING(vm->apiStack[1]);
 
     if(s1->interned && s2->interned) {
         jsrPushBoolean(vm, s1 == s2);
@@ -878,7 +878,7 @@ JSR_NATIVE(jsr_String_eq) {
 }
 
 JSR_NATIVE(jsr_String_iter) {
-    ObjString *s = AS_STRING(vm->apiStack[0]);
+    ObjString* s = AS_STRING(vm->apiStack[0]);
 
     if(IS_NULL(vm->apiStack[1])) {
         if(s->length == 0) {
@@ -902,7 +902,7 @@ JSR_NATIVE(jsr_String_iter) {
 }
 
 JSR_NATIVE(jsr_String_next) {
-    ObjString *str = AS_STRING(vm->apiStack[0]);
+    ObjString* str = AS_STRING(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
         double idx = AS_NUM(vm->apiStack[1]);
@@ -922,7 +922,7 @@ JSR_NATIVE(jsr_String_next) {
 #define GROW_FACTOR      2
 #define INITIAL_CAPACITY 8
 
-static bool tableKeyHash(JStarVM *vm, Value key, uint32_t *hash) {
+static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
     if(IS_STRING(key)) {
         *hash = STRING_GET_HASH(AS_STRING(key));
         return true;
@@ -944,7 +944,7 @@ static bool tableKeyHash(JStarVM *vm, Value key, uint32_t *hash) {
     return hash;
 }
 
-static bool tableKeyEquals(JStarVM *vm, Value k1, Value k2, bool *eq) {
+static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
     if(IS_STRING(k1)) {
         if(!IS_STRING(k2)) {
             *eq = false;
@@ -977,16 +977,16 @@ static bool tableKeyEquals(JStarVM *vm, Value k1, Value k2, bool *eq) {
     return true;
 }
 
-static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key,
-                      TableEntry **out) {
+static bool findEntry(JStarVM* vm, TableEntry* entries, size_t sizeMask, Value key,
+                      TableEntry** out) {
     uint32_t hash;
     if(!tableKeyHash(vm, key, &hash)) return false;
 
     size_t i = hash & sizeMask;
-    TableEntry *tomb = NULL;
+    TableEntry* tomb = NULL;
 
     for(;;) {
-        TableEntry *e = &entries[i];
+        TableEntry* e = &entries[i];
         if(IS_NULL(e->key)) {
             if(IS_NULL(e->val)) {
                 if(tomb)
@@ -1009,9 +1009,9 @@ static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value k
     }
 }
 
-static void growEntries(JStarVM *vm, ObjTable *t) {
+static void growEntries(JStarVM* vm, ObjTable* t) {
     size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
-    TableEntry *newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newSize);
+    TableEntry* newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newSize);
     for(size_t i = 0; i < newSize; i++) {
         newEntries[i].key = NULL_VAL;
         newEntries[i].val = NULL_VAL;
@@ -1020,10 +1020,10 @@ static void growEntries(JStarVM *vm, ObjTable *t) {
     t->numEntries = 0, t->count = 0;
     if(t->sizeMask != 0) {
         for(size_t i = 0; i <= t->sizeMask; i++) {
-            TableEntry *e = &t->entries[i];
+            TableEntry* e = &t->entries[i];
             if(IS_NULL(e->key)) continue;
 
-            TableEntry *dest;
+            TableEntry* dest;
             findEntry(vm, newEntries, newSize - 1, e->key, &dest);
             dest->key = e->key;
             dest->val = e->val;
@@ -1038,13 +1038,13 @@ static void growEntries(JStarVM *vm, ObjTable *t) {
 JSR_NATIVE(jsr_Table_get) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
     if(t->entries == NULL) {
         push(vm, NULL_VAL);
         return true;
     }
 
-    TableEntry *e;
+    TableEntry* e;
     if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
@@ -1060,12 +1060,12 @@ JSR_NATIVE(jsr_Table_get) {
 JSR_NATIVE(jsr_Table_set) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
     if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
         growEntries(vm, t);
     }
 
-    TableEntry *e;
+    TableEntry* e;
     if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
@@ -1085,14 +1085,14 @@ JSR_NATIVE(jsr_Table_set) {
 
 JSR_NATIVE(jsr_Table_delete) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
 
     if(t->entries == NULL) {
         push(vm, BOOL_VAL(false));
         return true;
     }
 
-    TableEntry *toDelete;
+    TableEntry* toDelete;
     if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &toDelete)) {
         return false;
     }
@@ -1111,7 +1111,7 @@ JSR_NATIVE(jsr_Table_delete) {
 }
 
 JSR_NATIVE(jsr_Table_clear) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
     t->numEntries = t->count = 0;
     for(size_t i = 0; i < t->sizeMask + 1; i++) {
         t->entries[i].key = NULL_VAL;
@@ -1122,7 +1122,7 @@ JSR_NATIVE(jsr_Table_clear) {
 }
 
 JSR_NATIVE(jsr_Table_len) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
     push(vm, NUM_VAL(t->count));
     return true;
 }
@@ -1130,13 +1130,13 @@ JSR_NATIVE(jsr_Table_len) {
 JSR_NATIVE(jsr_Table_contains) {
     if(jsrIsNull(vm, 0)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
     if(t->entries == NULL) {
         push(vm, BOOL_VAL(false));
         return true;
     }
 
-    TableEntry *e;
+    TableEntry* e;
     if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
@@ -1146,8 +1146,8 @@ JSR_NATIVE(jsr_Table_contains) {
 }
 
 JSR_NATIVE(jsr_Table_keys) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
-    TableEntry *entries = t->entries;
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
+    TableEntry* entries = t->entries;
 
     jsrPushList(vm);
 
@@ -1165,8 +1165,8 @@ JSR_NATIVE(jsr_Table_keys) {
 }
 
 JSR_NATIVE(jsr_Table_values) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
-    TableEntry *entries = t->entries;
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
+    TableEntry* entries = t->entries;
 
     jsrPushList(vm);
 
@@ -1184,7 +1184,7 @@ JSR_NATIVE(jsr_Table_values) {
 }
 
 JSR_NATIVE(jsr_Table_iter) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
 
     if(IS_NULL(vm->apiStack[1]) && t->entries == NULL) {
         push(vm, BOOL_VAL(false));
@@ -1214,7 +1214,7 @@ JSR_NATIVE(jsr_Table_iter) {
 }
 
 JSR_NATIVE(jsr_Table_next) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
         double idx = AS_NUM(vm->apiStack[1]);
@@ -1230,13 +1230,13 @@ JSR_NATIVE(jsr_Table_next) {
 }
 
 JSR_NATIVE(jsr_Table_string) {
-    ObjTable *t = AS_TABLE(vm->apiStack[0]);
+    ObjTable* t = AS_TABLE(vm->apiStack[0]);
 
     JStarBuffer buf;
     jsrBufferInit(vm, &buf);
     jsrBufferAppendChar(&buf, '{');
 
-    TableEntry *entries = t->entries;
+    TableEntry* entries = t->entries;
     if(entries != NULL) {
         for(size_t i = 0; i < t->sizeMask + 1; i++) {
             if(!IS_NULL(entries[i].key)) {
@@ -1270,13 +1270,13 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "__valueName"
 
-static bool checkEnumElem(JStarVM *vm, int slot) {
+static bool checkEnumElem(JStarVM* vm, int slot) {
     if(!jsrIsString(vm, slot)) {
         JSR_RAISE(vm, "TypeException", "Enum element must be a String");
     }
 
-    ObjInstance *inst = AS_INSTANCE(vm->apiStack[0]);
-    const char *enumElem = jsrGetString(vm, slot);
+    ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
+    const char* enumElem = jsrGetString(vm, slot);
     size_t enumElemLen = jsrGetStringSz(vm, slot);
 
     if(isalpha(enumElem[0])) {
@@ -1286,7 +1286,7 @@ static bool checkEnumElem(JStarVM *vm, int slot) {
                 JSR_RAISE(vm, "InvalidArgException", "Invalid Enum element `%s`", enumElem);
             }
         }
-        ObjString *str = AS_STRING(apiStackSlot(vm, slot));
+        ObjString* str = AS_STRING(apiStackSlot(vm, slot));
         if(hashTableContainsKey(&inst->fields, str)) {
             JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem);
         }
@@ -1368,7 +1368,7 @@ JSR_NATIVE(jsr_Enum_name) {
 
 // class Exception
 JSR_NATIVE(jsr_Exception_printStacktrace) {
-    ObjInstance *exc = AS_INSTANCE(vm->apiStack[0]);
+    ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
 
     Value stval = NULL_VAL;
     hashTableGet(&exc->fields, vm->stacktrace, &stval);
@@ -1378,12 +1378,12 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
         return true;
     }
 
-    ObjStackTrace *st = AS_STACK_TRACE(stval);
+    ObjStackTrace* st = AS_STACK_TRACE(stval);
 
     if(st->recordCount > 0) {
         fprintf(stderr, "Traceback (most recent call last):\n");
         for(int i = st->recordCount - 1; i >= 0; i--) {
-            FrameRecord *record = &st->records[i];
+            FrameRecord* record = &st->records[i];
             fprintf(stderr, "    ");
             if(record->line >= 0)
                 fprintf(stderr, "[line %d]", record->line);

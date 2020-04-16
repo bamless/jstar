@@ -9,9 +9,9 @@
 #define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(__ENUM_ENTRY) } NAME
 #define __ENUM_ENTRY(ENTRY)      ENTRY,
 
-#define DECLARE_TO_STRING(ENUM_NAME) extern const char *__TOK_CONCAT(ENUM_NAME, Name)[]
+#define DECLARE_TO_STRING(ENUM_NAME) extern const char* __TOK_CONCAT(ENUM_NAME, Name)[]
 #define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
-    const char *__TOK_CONCAT(ENUM_NAME, Name)[] = {ENUMX(__TOK_STRINGIFY)}
+    const char* __TOK_CONCAT(ENUM_NAME, Name)[] = {ENUMX(__TOK_STRINGIFY)}
 
 #define __TOK_STRINGIFY(X) #X,
 #define __TOK_CONCAT(X, Y) X##Y
@@ -64,7 +64,7 @@ static inline int powerOf2Ceil(int n) {
 }
 
 // Hash a string
-static inline uint32_t hashString(const char *str, size_t length) {
+static inline uint32_t hashString(const char* str, size_t length) {
     uint32_t hash = 2166136261u;
     for(size_t i = 0; i < length; i++) {
         hash ^= str[i];

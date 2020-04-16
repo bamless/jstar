@@ -6,7 +6,7 @@
 #    include <Windows.h>
 #endif
 
-void *dynload(const char *path) {
+void* dynload(const char* path) {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     return dlopen(path, RTLD_NOW);
 #elif defined(_WIN32)
@@ -17,7 +17,7 @@ void *dynload(const char *path) {
 #endif
 }
 
-void dynfree(void *handle) {
+void dynfree(void* handle) {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     dlclose(handle);
 #elif defined(_WIN32)
@@ -27,7 +27,7 @@ void dynfree(void *handle) {
 #endif
 }
 
-void *dynsim(void *handle, const char *symbol) {
+void* dynsim(void* handle, const char* symbol) {
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
     return dlsym(handle, symbol);
 #elif defined(_WIN32)

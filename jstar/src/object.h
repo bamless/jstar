@@ -46,19 +46,19 @@ DECLARE_TO_STRING(ObjType);
 #define IS_TABLE(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TABLE)
 #define IS_USERDATA(o)     (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_USERDATA)
 
-#define AS_BOUND_METHOD(o) ((ObjBoundMethod *)AS_OBJ(o))
-#define AS_LIST(o)         ((ObjList *)AS_OBJ(o))
-#define AS_STRING(o)       ((ObjString *)AS_OBJ(o))
-#define AS_FUNC(o)         ((ObjFunction *)AS_OBJ(o))
-#define AS_NATIVE(o)       ((ObjNative *)AS_OBJ(o))
-#define AS_CLASS(o)        ((ObjClass *)AS_OBJ(o))
-#define AS_INSTANCE(o)     ((ObjInstance *)AS_OBJ(o))
-#define AS_MODULE(o)       ((ObjModule *)AS_OBJ(o))
-#define AS_CLOSURE(o)      ((ObjClosure *)AS_OBJ(o))
-#define AS_TUPLE(o)        ((ObjTuple *)AS_OBJ(o))
-#define AS_STACK_TRACE(o)  ((ObjStackTrace *)AS_OBJ(o))
-#define AS_TABLE(o)        ((ObjTable *)AS_OBJ(o))
-#define AS_USERDATA(o)     ((ObjUserdata *)AS_OBJ(o))
+#define AS_BOUND_METHOD(o) ((ObjBoundMethod*)AS_OBJ(o))
+#define AS_LIST(o)         ((ObjList*)AS_OBJ(o))
+#define AS_STRING(o)       ((ObjString*)AS_OBJ(o))
+#define AS_FUNC(o)         ((ObjFunction*)AS_OBJ(o))
+#define AS_NATIVE(o)       ((ObjNative*)AS_OBJ(o))
+#define AS_CLASS(o)        ((ObjClass*)AS_OBJ(o))
+#define AS_INSTANCE(o)     ((ObjInstance*)AS_OBJ(o))
+#define AS_MODULE(o)       ((ObjModule*)AS_OBJ(o))
+#define AS_CLOSURE(o)      ((ObjClosure*)AS_OBJ(o))
+#define AS_TUPLE(o)        ((ObjTuple*)AS_OBJ(o))
+#define AS_STACK_TRACE(o)  ((ObjStackTrace*)AS_OBJ(o))
+#define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
+#define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
 
 #define STRING_GET_HASH(s) (s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
 #define STRING_EQUALS(s1, s2) \
@@ -96,8 +96,8 @@ struct ObjClass;
 typedef struct Obj {
     ObjType type;          // The type of the object
     bool reached;          // Flag used to signal that an object is reachable during a GC
-    struct ObjClass *cls;  // The class of the Object
-    struct Obj *next;      // Next object in the linked list of all allocated objects
+    struct ObjClass* cls;  // The class of the Object
+    struct Obj* next;      // Next object in the linked list of all allocated objects
 } Obj;
 
 // A J* String. In J* Strings are immutable and can contain arbitrary
@@ -109,19 +109,19 @@ typedef struct ObjString {
     size_t length;  // Length of the string
     uint32_t hash;  // The string's hash (gets calculated once at allocation)
     bool interned;  // Whether the string is interned or not
-    char *data;     // The actual data of the string (NUL terminated)
+    char* data;     // The actual data of the string (NUL terminated)
 } ObjString;
 
 // Native C extension. It contains the handle to the dynamic library and resolved
 // symbol to a native registry.
 typedef struct NativeExt {
-    void *dynlib;
-    JStarNativeReg *registry;
+    void* dynlib;
+    JStarNativeReg* registry;
 } NativeExt;
 
 typedef struct ObjModule {
     Obj base;
-    ObjString *name;    // Name of the module
+    ObjString* name;    // Name of the module
     HashTable globals;  // HashTable containing the global variables of the module
     NativeExt natives;  // Natives registered in this module
 } ObjModule;
@@ -131,9 +131,9 @@ typedef struct {
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
     uint8_t defaultc;   // Number of default args of the function (0 if none)
-    Value *defaults;    // Array of default arguments (NULL if no defaults)
-    ObjModule *module;  // The module of the function
-    ObjString *name;    // The name of the function
+    Value* defaults;    // Array of default arguments (NULL if no defaults)
+    ObjModule* module;  // The module of the function
+    ObjString* name;    // The name of the function
 } Callable;
 
 // A compiled J* function
@@ -154,8 +154,8 @@ typedef struct ObjNative {
 // A user defined class
 typedef struct ObjClass {
     Obj base;
-    ObjString *name;            // The name of the class
-    struct ObjClass *superCls;  // Pointer to the parent class (or NULL)
+    ObjString* name;            // The name of the class
+    struct ObjClass* superCls;  // Pointer to the parent class (or NULL)
     HashTable methods;          // HashTable containing methods (ObjFunction/ObjNative)
 } ObjClass;
 
@@ -169,7 +169,7 @@ typedef struct ObjList {
     Obj base;
     size_t size;   // Size of the List (how much space is currently allocated)
     size_t count;  // How many objects are currently in the list
-    Value *arr;    // List elements
+    Value* arr;    // List elements
 } ObjList;
 
 typedef struct ObjTuple {
@@ -188,14 +188,14 @@ typedef struct ObjTable {
     size_t sizeMask;      // The size of the entries array
     size_t numEntries;    // The number of entries in the Table (including tombstones)
     size_t count;         // The number of actual entries in the Table (i.e. excluding tombstones)
-    TableEntry *entries;  // The actual array of entries
+    TableEntry* entries;  // The actual array of entries
 } ObjTable;
 
 // A bound method. It contains a method with an associated target.
 typedef struct ObjBoundMethod {
     Obj base;
     Value bound;  // The value to which the method is bound
-    Obj *method;  // The actual method
+    Obj* method;  // The actual method
 } ObjBoundMethod;
 
 // An upvalue is a variable captured from an outer scope by a closure.
@@ -208,24 +208,24 @@ typedef struct ObjBoundMethod {
 // that originally stored it has benn popped.
 typedef struct ObjUpvalue {
     Obj base;
-    Value *addr;              // The address of the upvalue
+    Value* addr;              // The address of the upvalue
     Value closed;             // Stores the upvalue when closed
-    struct ObjUpvalue *next;  // Pointer to the next open upvalue. NULL when closed
+    struct ObjUpvalue* next;  // Pointer to the next open upvalue. NULL when closed
 } ObjUpvalue;
 
 // A closure always wraps an ObjFunction and stores the flattened hierarchy of
 // Upvalues that the function closes over.
 typedef struct ObjClosure {
     Obj base;
-    ObjFunction *fn;         // The function
+    ObjFunction* fn;         // The function
     uint8_t upvalueCount;    // The number of Upvalues the function closes over
-    ObjUpvalue *upvalues[];  // the actual Upvalues
+    ObjUpvalue* upvalues[];  // the actual Upvalues
 } ObjClosure;
 
 typedef struct {
     int line;
-    ObjString *moduleName;
-    ObjString *funcName;
+    ObjString* moduleName;
+    ObjString* funcName;
 } FrameRecord;
 
 // Object that contains the dump of the stack's frames.
@@ -235,56 +235,56 @@ typedef struct ObjStackTrace {
     int lastTracedFrame;
     int recordCount;
     int recordSize;
-    FrameRecord *records;
+    FrameRecord* records;
 } ObjStackTrace;
 
 // Garbage collected user data
 typedef struct ObjUserdata {
     Obj base;
-    void (*finalize)(void *);  // Custom function to finalize the userdatum
-    size_t size;               // The size ot the userdatum
-    uint8_t data[];            // The data
+    void (*finalize)(void*);  // Custom function to finalize the userdatum
+    size_t size;              // The size ot the userdatum
+    uint8_t data[];           // The data
 } ObjUserdata;
 
 // ---- Functions for allocating objects ----
 // These functions use GCallocate to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
-ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn,
+ObjNative* newNative(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc, JStarNative fn,
                      uint8_t defaultc);
-ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
+ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc,
                          uint8_t defaultc);
-ObjUserdata *newUserData(JStarVM *vm, size_t size, void (*finalize)(void *));
-ObjClass *newClass(JStarVM *vm, ObjString *name, ObjClass *superCls);
-ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method);
-ObjInstance *newInstance(JStarVM *vm, ObjClass *cls);
-ObjClosure *newClosure(JStarVM *vm, ObjFunction *fn);
-ObjModule *newModule(JStarVM *vm, ObjString *name);
-ObjUpvalue *newUpvalue(JStarVM *vm, Value *addr);
-ObjList *newList(JStarVM *vm, size_t startSize);
-ObjTuple *newTuple(JStarVM *vm, size_t size);
-ObjStackTrace *newStackTrace(JStarVM *vm);
-ObjTable *newTable(JStarVM *vm);
+ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
+ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
+ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method);
+ObjInstance* newInstance(JStarVM* vm, ObjClass* cls);
+ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn);
+ObjModule* newModule(JStarVM* vm, ObjString* name);
+ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr);
+ObjList* newList(JStarVM* vm, size_t startSize);
+ObjTuple* newTuple(JStarVM* vm, size_t size);
+ObjStackTrace* newStackTrace(JStarVM* vm);
+ObjTable* newTable(JStarVM* vm);
 
-ObjString *allocateString(JStarVM *vm, size_t length);
-ObjString *copyString(JStarVM *vm, const char *str, size_t length, bool intern);
+ObjString* allocateString(JStarVM* vm, size_t length);
+ObjString* copyString(JStarVM* vm, const char* str, size_t length, bool intern);
 
 // ---- Functions for manipulating objects ----
 
 // Dumps a frame in a ObjStackTrace
-void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth);
+void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth);
 
 // ObjList manipulation functions
-void listAppend(JStarVM *vm, ObjList *lst, Value v);
-void listInsert(JStarVM *vm, ObjList *lst, size_t index, Value val);
-void listRemove(JStarVM *vm, ObjList *lst, size_t index);
+void listAppend(JStarVM* vm, ObjList* lst, Value v);
+void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
+void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 
 // Convert a JStarBuffer to an ObjString
-ObjString *jsrBufferToString(JStarBuffer *b);
+ObjString* jsrBufferToString(JStarBuffer* b);
 
 // ---- Debug functions ----
 
 // Prints an Obj in a human readable form
-void printObj(Obj *o);
+void printObj(Obj* o);
 
 #endif

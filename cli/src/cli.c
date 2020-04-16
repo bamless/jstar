@@ -11,19 +11,19 @@
 
 #define JSTARPATH "JSTARPATH"
 
-static JStarVM *vm;
+static JStarVM* vm;
 
 // Little hack to enable adding a tab in linenoise
-static void completion(const char *buf, linenoiseCompletions *lc) {
+static void completion(const char* buf, linenoiseCompletions* lc) {
     char indented[1024];
     snprintf(indented, sizeof(indented), "%s    ", buf);
     linenoiseAddCompletion(lc, indented);
 }
 
-static void initImportPaths(const char *path) {
+static void initImportPaths(const char* path) {
     jsrAddImportPath(vm, path);
 
-    const char *jstarPath = getenv(JSTARPATH);
+    const char* jstarPath = getenv(JSTARPATH);
     if(jstarPath == NULL) return;
 
     JStarBuffer buf;
@@ -45,7 +45,7 @@ static void initImportPaths(const char *path) {
     jsrBufferFree(&buf);
 }
 
-static int countBlocks(const char *line) {
+static int countBlocks(const char* line) {
     Lexer lex;
     Token tok;
 
@@ -78,8 +78,8 @@ static int countBlocks(const char *line) {
     return depth;
 }
 
-static void addPrintIfExpr(JStarBuffer *sb) {
-    Expr *e = parseExpression(NULL, sb->data);
+static void addPrintIfExpr(JStarBuffer* sb) {
+    Expr* e = parseExpression(NULL, sb->data);
     if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
         jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");
@@ -97,7 +97,7 @@ static void dorepl() {
     JStarBuffer src;
     jsrBufferInit(vm, &src);
 
-    char *line;
+    char* line;
     while((line = linenoise("J*>> ")) != NULL) {
         linenoiseHistoryAdd(line);
         int depth = countBlocks(line);
@@ -121,7 +121,7 @@ static void dorepl() {
     linenoiseHistoryFree();
 }
 
-int main(int argc, const char **argv) {
+int main(int argc, const char** argv) {
     vm = jsrNewVM();
 
     EvalResult res = VM_EVAL_SUCCESS;
@@ -132,10 +132,10 @@ int main(int argc, const char **argv) {
         jsrInitCommandLineArgs(vm, argc - 2, &argv[2]);
 
         // set base import path to script's directory
-        char *directory = strrchr(argv[1], '/');
+        char* directory = strrchr(argv[1], '/');
         if(directory != NULL) {
             size_t length = directory - argv[1] + 1;
-            char *path = calloc(length + 1, sizeof(char));
+            char* path = calloc(length + 1, sizeof(char));
             memcpy(path, argv[1], length);
             initImportPaths(path);
             free(path);
@@ -144,7 +144,7 @@ int main(int argc, const char **argv) {
         }
 
         // read file and evaluate
-        char *src = jsrReadFile(argv[1]);
+        char* src = jsrReadFile(argv[1]);
         if(src == NULL) {
             fprintf(stderr, "Error reading input file ");
             perror(argv[1]);

@@ -78,10 +78,10 @@ typedef uint64_t Value;
 
 #    define IS_INT(val) (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
 
-#    define AS_HANDLE(val) ((void *)(uintptr_t)(((val) & ~QNAN) >> 2))
+#    define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
 #    define AS_BOOL(value) ((value) == TRUE_VAL)
 #    define AS_NUM(value)  valueToNum(value)
-#    define AS_OBJ(value)  ((Obj *)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
+#    define AS_OBJ(value)  ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
 #    define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
 #    define NUM_VAL(num)  numToValue(num)
@@ -122,8 +122,8 @@ typedef struct {
     union {
         bool boolean;
         double num;
-        void *handle;
-        Obj *obj;
+        void* handle;
+        Obj* obj;
     };
 } Value;
 
@@ -143,7 +143,7 @@ typedef struct {
 #    define HANDLE_VAL(h) ((Value){VAL_HANDLE, {.handle = h}})
 #    define NUM_VAL(n)    ((Value){VAL_NUM, {.num = n}})
 #    define BOOL_VAL(b)   ((Value){VAL_BOOL, {.boolean = b}})
-#    define OBJ_VAL(val)  ((Value){VAL_OBJ, {.obj = (Obj *)val}})
+#    define OBJ_VAL(val)  ((Value){VAL_OBJ, {.obj = (Obj*)val}})
 #    define TRUE_VAL      ((Value){VAL_BOOL, {.boolean = true}})
 #    define FALSE_VAL     ((Value){VAL_BOOL, {.boolean = false}})
 #    define NULL_VAL      ((Value){VAL_NULL, {.num = 0}})
@@ -174,12 +174,12 @@ static inline bool valueEquals(Value v1, Value v2) {
 
 typedef struct ValueArray {
     int size, count;
-    Value *arr;
+    Value* arr;
 } ValueArray;
 
-void initValueArray(ValueArray *a);
-void freeValueArray(ValueArray *a);
-int valueArrayAppend(ValueArray *a, Value v);
+void initValueArray(ValueArray* a);
+void freeValueArray(ValueArray* a);
+int valueArrayAppend(ValueArray* a, Value v);
 
 void printValue(Value val);
 

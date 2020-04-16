@@ -6,24 +6,24 @@
 
 #include "object.h"
 
-void initValueArray(ValueArray *a) {
+void initValueArray(ValueArray* a) {
     a->size = 0;
     a->count = 0;
     a->arr = NULL;
 }
 
-void freeValueArray(ValueArray *a) {
+void freeValueArray(ValueArray* a) {
     a->size = 0;
     a->count = 0;
     free(a->arr);
 }
 
-static void grow(ValueArray *a) {
+static void grow(ValueArray* a) {
     a->size = a->size == 0 ? VAL_ARR_DEF_SZ : a->size * VAL_ARR_GROW_FAC;
     a->arr = realloc(a->arr, a->size * sizeof(Value));
 }
 
-int valueArrayAppend(ValueArray *a, Value v) {
+int valueArrayAppend(ValueArray* a, Value v) {
     if(a->count + 1 > a->size) grow(a);
     a->arr[a->count] = v;
     return a->count++;

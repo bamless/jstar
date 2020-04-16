@@ -17,15 +17,15 @@
 // handle the execution of except/ensure handlers
 typedef enum UnwindCause { CAUSE_EXCEPT, CAUSE_RETURN } UnwindCause;
 
-static void reset(JStarVM *vm) {
+static void reset(JStarVM* vm) {
     vm->sp = vm->stack;
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
     vm->module = NULL;
 }
 
-JStarVM *jsrNewVM() {
-    JStarVM *vm = calloc(1, sizeof(*vm));
+JStarVM* jsrNewVM() {
+    JStarVM* vm = calloc(1, sizeof(*vm));
 
     vm->stackSz = STACK_SZ;
     vm->stack = malloc(sizeof(Value) * STACK_SZ);
@@ -84,7 +84,7 @@ JStarVM *jsrNewVM() {
     return vm;
 }
 
-void jsrFreeVM(JStarVM *vm) {
+void jsrFreeVM(JStarVM* vm) {
     reset(vm);
 
     free(vm->stack);
@@ -101,13 +101,13 @@ void jsrFreeVM(JStarVM *vm) {
     free(vm);
 }
 
-static Frame *getFrame(JStarVM *vm, Callable *c) {
+static Frame* getFrame(JStarVM* vm, Callable* c) {
     if(vm->frameCount + 1 == vm->frameSz) {
         vm->frameSz *= 2;
         vm->frames = realloc(vm->frames, sizeof(Frame) * vm->frameSz);
     }
 
-    Frame *callFrame = &vm->frames[vm->frameCount++];
+    Frame* callFrame = &vm->frames[vm->frameCount++];
     callFrame->stack = vm->sp - (c->argsCount + 1);
     callFrame->handlerc = 0;
     if(c->vararg) callFrame->stack--;
@@ -115,30 +115,30 @@ static Frame *getFrame(JStarVM *vm, Callable *c) {
     return callFrame;
 }
 
-static void appendCallFrame(JStarVM *vm, ObjClosure *closure) {
-    Frame *callFrame = getFrame(vm, &closure->fn->c);
+static void appendCallFrame(JStarVM* vm, ObjClosure* closure) {
+    Frame* callFrame = getFrame(vm, &closure->fn->c);
     callFrame->fn = OBJ_VAL(closure);
     callFrame->ip = closure->fn->chunk.code;
 }
 
-static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
-    Frame *callFrame = getFrame(vm, &native->c);
+static void appendNativeFrame(JStarVM* vm, ObjNative* native) {
+    Frame* callFrame = getFrame(vm, &native->c);
     callFrame->fn = OBJ_VAL(native);
     callFrame->ip = NULL;
 }
 
-static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
+static bool isNonInstantiableBuiltin(JStarVM* vm, ObjClass* cls) {
     return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass ||
            cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass ||
            cls == vm->udataClass;
 }
 
-static bool isInstatiableBuiltin(JStarVM *vm, ObjClass *cls) {
+static bool isInstatiableBuiltin(JStarVM* vm, ObjClass* cls) {
     return cls == vm->lstClass || cls == vm->tupClass || cls == vm->numClass ||
            cls == vm->boolClass || cls == vm->strClass;
 }
 
-static bool isBuiltinClass(JStarVM *vm, ObjClass *cls) {
+static bool isBuiltinClass(JStarVM* vm, ObjClass* cls) {
     return isNonInstantiableBuiltin(vm, cls) || isInstatiableBuiltin(vm, cls);
 }
 
@@ -146,20 +146,20 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static void createClass(JStarVM *vm, ObjString *name, ObjClass *superCls) {
-    ObjClass *cls = newClass(vm, name, superCls);
+static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
+    ObjClass* cls = newClass(vm, name, superCls);
     hashTableMerge(&cls->methods, &superCls->methods);
     push(vm, OBJ_VAL(cls));
 }
 
-static ObjUpvalue *captureUpvalue(JStarVM *vm, Value *addr) {
+static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
     if(vm->upvalues == NULL) {
         vm->upvalues = newUpvalue(vm, addr);
         return vm->upvalues;
     }
 
-    ObjUpvalue *prev = NULL;
-    ObjUpvalue *upvalue = vm->upvalues;
+    ObjUpvalue* prev = NULL;
+    ObjUpvalue* upvalue = vm->upvalues;
 
     while(upvalue != NULL && upvalue->addr > addr) {
         prev = upvalue;
@@ -168,7 +168,7 @@ static ObjUpvalue *captureUpvalue(JStarVM *vm, Value *addr) {
 
     if(upvalue != NULL && upvalue->addr == addr) return upvalue;
 
-    ObjUpvalue *createdUpvalue = newUpvalue(vm, addr);
+    ObjUpvalue* createdUpvalue = newUpvalue(vm, addr);
     if(prev == NULL)
         vm->upvalues = createdUpvalue;
     else
@@ -178,30 +178,30 @@ static ObjUpvalue *captureUpvalue(JStarVM *vm, Value *addr) {
     return createdUpvalue;
 }
 
-static void closeUpvalues(JStarVM *vm, Value *last) {
+static void closeUpvalues(JStarVM* vm, Value* last) {
     while(vm->upvalues != NULL && vm->upvalues->addr >= last) {
-        ObjUpvalue *upvalue = vm->upvalues;
+        ObjUpvalue* upvalue = vm->upvalues;
         upvalue->closed = *upvalue->addr;
         upvalue->addr = &upvalue->closed;
         vm->upvalues = upvalue->next;
     }
 }
 
-static void packVarargs(JStarVM *vm, uint8_t count) {
-    ObjTuple *args = newTuple(vm, count);
+static void packVarargs(JStarVM* vm, uint8_t count) {
+    ObjTuple* args = newTuple(vm, count);
     for(int i = count - 1; i >= 0; i--) {
         args->arr[i] = pop(vm);
     }
     push(vm, OBJ_VAL(args));
 }
 
-static void raiseArgsExc(JStarVM *vm, Callable *function, int expected, int supplied,
-                         const char *quantity) {
+static void raiseArgsExc(JStarVM* vm, Callable* function, int expected, int supplied,
+                         const char* quantity) {
     jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.",
              function->module->name->data, function->name->data, quantity, expected, supplied);
 }
 
-static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
+static bool adjustArguments(JStarVM* vm, Callable* c, uint8_t argc) {
     if(c->defaultc != 0) {
         uint8_t most = c->argsCount, least = most - c->defaultc;
 
@@ -230,7 +230,7 @@ static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
     return true;
 }
 
-static bool callFunction(JStarVM *vm, ObjClosure *closure, uint8_t argc) {
+static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
     if(vm->frameCount + 1 == RECURSION_LIMIT) {
         jsrRaise(vm, "StackOverflowException", NULL);
         return false;
@@ -250,7 +250,7 @@ static bool callFunction(JStarVM *vm, ObjClosure *closure, uint8_t argc) {
     return true;
 }
 
-static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
+static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     if(vm->frameCount + 1 == RECURSION_LIMIT) {
         jsrRaise(vm, "StackOverflowException", NULL);
         return false;
@@ -263,7 +263,7 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     jsrEnsureStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
     appendNativeFrame(vm, native);
 
-    ObjModule *oldModule = vm->module;
+    ObjModule* oldModule = vm->module;
     size_t apiStackOff = vm->apiStack - vm->stack;
 
     vm->module = native->c.module;
@@ -286,7 +286,7 @@ static bool callNative(JStarVM *vm, ObjNative *native, uint8_t argc) {
     return true;
 }
 
-bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
+bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
         case OBJ_CLOSURE:
@@ -294,15 +294,15 @@ bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
         case OBJ_NATIVE:
             return callNative(vm, AS_NATIVE(callee), argc);
         case OBJ_BOUND_METHOD: {
-            ObjBoundMethod *m = AS_BOUND_METHOD(callee);
+            ObjBoundMethod* m = AS_BOUND_METHOD(callee);
             vm->sp[-argc - 1] = m->bound;
             if(m->method->type == OBJ_CLOSURE)
-                return callFunction(vm, (ObjClosure *)m->method, argc);
+                return callFunction(vm, (ObjClosure*)m->method, argc);
             else
-                return callNative(vm, (ObjNative *)m->method, argc);
+                return callNative(vm, (ObjNative*)m->method, argc);
         }
         case OBJ_CLASS: {
-            ObjClass *cls = AS_CLASS(callee);
+            ObjClass* cls = AS_CLASS(callee);
 
             if(isNonInstantiableBuiltin(vm, cls)) {
                 jsrRaise(vm, "Exception", "class %s can't be directly instatiated",
@@ -330,12 +330,12 @@ bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
         }
     }
 
-    ObjClass *cls = getClass(vm, callee);
+    ObjClass* cls = getClass(vm, callee);
     jsrRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
     return false;
 }
 
-static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t argc) {
+static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc) {
     Value method;
     if(!hashTableGet(&cls->methods, name, &method)) {
         jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
@@ -345,12 +345,12 @@ static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
-bool invokeValue(JStarVM *vm, ObjString *name, uint8_t argc) {
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
-            ObjInstance *inst = AS_INSTANCE(val);
+            ObjInstance* inst = AS_INSTANCE(val);
 
             // Check if field shadows a method
             Value f;
@@ -361,7 +361,7 @@ bool invokeValue(JStarVM *vm, ObjString *name, uint8_t argc) {
             return invokeMethod(vm, inst->base.cls, name, argc);
         }
         case OBJ_MODULE: {
-            ObjModule *mod = AS_MODULE(val);
+            ObjModule* mod = AS_MODULE(val);
 
             Value func;
             // check if method shadows a function in the module
@@ -378,22 +378,22 @@ bool invokeValue(JStarVM *vm, ObjString *name, uint8_t argc) {
             return callValue(vm, func, argc);
         }
         default: {
-            Obj *o = AS_OBJ(val);
+            Obj* o = AS_OBJ(val);
             return invokeMethod(vm, o->cls, name, argc);
         }
         }
     }
 
     // if builtin type get the class and try to invoke
-    ObjClass *cls = getClass(vm, val);
+    ObjClass* cls = getClass(vm, val);
     return invokeMethod(vm, cls, name, argc);
 }
 
-bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
+bool getFieldFromValue(JStarVM* vm, Value val, ObjString* name) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
-            ObjInstance *inst = AS_INSTANCE(val);
+            ObjInstance* inst = AS_INSTANCE(val);
 
             Value v;
             if(!hashTableGet(&inst->fields, name, &v)) {
@@ -411,7 +411,7 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
             return true;
         }
         case OBJ_MODULE: {
-            ObjModule *mod = AS_MODULE(val);
+            ObjModule* mod = AS_MODULE(val);
 
             Value v;
             if(!hashTableGet(&mod->globals, name, &v)) {
@@ -434,7 +434,7 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
     }
 
     Value v;
-    ObjClass *cls = getClass(vm, val);
+    ObjClass* cls = getClass(vm, val);
     if(!hashTableGet(&cls->methods, name, &v)) {
         jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
                  name->data);
@@ -445,16 +445,16 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name) {
     return true;
 }
 
-bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s) {
+bool setFieldOfValue(JStarVM* vm, Value val, ObjString* name, Value s) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
-            ObjInstance *inst = AS_INSTANCE(val);
+            ObjInstance* inst = AS_INSTANCE(val);
             hashTablePut(&inst->fields, name, s);
             return true;
         }
         case OBJ_MODULE: {
-            ObjModule *mod = AS_MODULE(val);
+            ObjModule* mod = AS_MODULE(val);
             hashTablePut(&mod->globals, name, s);
             return true;
         }
@@ -463,13 +463,13 @@ bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s) {
         }
     }
 
-    ObjClass *cls = getClass(vm, val);
+    ObjClass* cls = getClass(vm, val);
     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
              name->data);
     return false;
 }
 
-static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
+static bool getSubscriptOfValue(JStarVM* vm, Value operand, Value arg) {
     if(IS_OBJ(operand)) {
         switch(OBJ_TYPE(operand)) {
         case OBJ_LIST: {
@@ -478,7 +478,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
                 return false;
             }
 
-            ObjList *list = AS_LIST(operand);
+            ObjList* list = AS_LIST(operand);
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
             if(index == SIZE_MAX) return false;
 
@@ -491,7 +491,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
                 return false;
             }
 
-            ObjTuple *tuple = AS_TUPLE(operand);
+            ObjTuple* tuple = AS_TUPLE(operand);
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), tuple->size);
             if(index == SIZE_MAX) return false;
 
@@ -504,7 +504,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
                 return false;
             }
 
-            ObjString *str = AS_STRING(operand);
+            ObjString* str = AS_STRING(operand);
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
             if(index == SIZE_MAX) return false;
 
@@ -525,14 +525,14 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
     return true;
 }
 
-static bool setSubscriptOfValue(JStarVM *vm, Value operand, Value arg, Value s) {
+static bool setSubscriptOfValue(JStarVM* vm, Value operand, Value arg, Value s) {
     if(IS_LIST(operand)) {
         if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
             jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
             return false;
         }
 
-        ObjList *list = AS_LIST(operand);
+        ObjList* list = AS_LIST(operand);
         size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
         if(index == SIZE_MAX) return false;
 
@@ -550,17 +550,17 @@ static bool setSubscriptOfValue(JStarVM *vm, Value operand, Value arg, Value s) 
     return true;
 }
 
-static ObjString *stringConcatenate(JStarVM *vm, ObjString *s1, ObjString *s2) {
+static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
     size_t length = s1->length + s2->length;
-    ObjString *str = allocateString(vm, length);
+    ObjString* str = allocateString(vm, length);
     memcpy(str->data, s1->data, s1->length);
     memcpy(str->data + s1->length, s2->data, s2->length);
     return str;
 }
 
-static bool callBinaryOverload(JStarVM *vm, ObjString *name, ObjString *reverse) {
+static bool callBinaryOverload(JStarVM* vm, ObjString* name, ObjString* reverse) {
     Value op;
-    ObjClass *cls = getClass(vm, peek2(vm));
+    ObjClass* cls = getClass(vm, peek2(vm));
     if(hashTableGet(&cls->methods, name, &op)) {
         return callValue(vm, op, 1);
     }
@@ -571,7 +571,7 @@ static bool callBinaryOverload(JStarVM *vm, ObjString *name, ObjString *reverse)
         vm->sp[-1] = vm->sp[-2];
         vm->sp[-2] = b;
 
-        ObjClass *cls2 = getClass(vm, peek2(vm));
+        ObjClass* cls2 = getClass(vm, peek2(vm));
         if(hashTableGet(&cls2->methods, reverse, &op)) {
             return callValue(vm, op, 1);
         }
@@ -579,18 +579,18 @@ static bool callBinaryOverload(JStarVM *vm, ObjString *name, ObjString *reverse)
     return false;
 }
 
-static bool unpackObject(JStarVM *vm, Obj *o, uint8_t n) {
+static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     size_t size = 0;
-    Value *arr = NULL;
+    Value* arr = NULL;
 
     switch(o->type) {
     case OBJ_TUPLE:
-        arr = ((ObjTuple *)o)->arr;
-        size = ((ObjTuple *)o)->size;
+        arr = ((ObjTuple*)o)->arr;
+        size = ((ObjTuple*)o)->size;
         break;
     case OBJ_LIST:
-        arr = ((ObjList *)o)->arr;
-        size = ((ObjList *)o)->count;
+        arr = ((ObjList*)o)->arr;
+        size = ((ObjList*)o)->count;
         break;
     default:
         UNREACHABLE();
@@ -608,23 +608,23 @@ static bool unpackObject(JStarVM *vm, Obj *o, uint8_t n) {
     return true;
 }
 
-static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name) {
+static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name) {
     JStarNative n;
     if((n = resolveBuiltIn(m->name->data, cls, name)) != NULL) {
         return n;
     }
 
-    JStarNativeReg *reg = m->natives.registry;
+    JStarNativeReg* reg = m->natives.registry;
     if(reg != NULL) {
         for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
             if(reg[i].type == REG_METHOD && cls != NULL) {
-                const char *clsName = reg[i].as.method.cls;
-                const char *methName = reg[i].as.method.name;
+                const char* clsName = reg[i].as.method.cls;
+                const char* methName = reg[i].as.method.name;
                 if(strcmp(cls, clsName) == 0 && strcmp(name, methName) == 0) {
                     return reg[i].as.method.meth;
                 }
             } else if(reg[i].type == REG_FUNCTION && cls == NULL) {
-                const char *funName = reg[i].as.function.name;
+                const char* funName = reg[i].as.function.name;
                 if(strcmp(name, funName) == 0) {
                     return reg[i].as.function.fun;
                 }
@@ -634,12 +634,12 @@ static JStarNative resolveNative(ObjModule *m, const char *cls, const char *name
     return NULL;
 }
 
-bool runEval(JStarVM *vm, int depth) {
-    register Frame *frame;
-    register Value *frameStack;
-    register ObjClosure *closure;
-    register ObjFunction *fn;
-    register uint8_t *ip;
+bool runEval(JStarVM* vm, int depth) {
+    register Frame* frame;
+    register Value* frameStack;
+    register ObjClosure* closure;
+    register ObjFunction* fn;
+    register uint8_t* ip;
 
     assert(vm->frameCount != 0, "No frame to evaluate");
     assert(vm->frameCount >= depth, "Too few frame to evaluate");
@@ -676,8 +676,8 @@ bool runEval(JStarVM *vm, int depth) {
         bool res = callBinaryOverload(vm, overload, reverse); \
         LOAD_FRAME();                                         \
         if(!res) {                                            \
-            ObjString *t1 = getClass(vm, peek(vm))->name;     \
-            ObjString *t2 = getClass(vm, peek2(vm))->name;    \
+            ObjString* t1 = getClass(vm, peek(vm))->name;     \
+            ObjString* t2 = getClass(vm, peek2(vm))->name;    \
             jsrRaise(vm, "TypeException",                     \
                      "Operator %s not defined "               \
                      "for types %s, %s",                      \
@@ -708,7 +708,7 @@ bool runEval(JStarVM *vm, int depth) {
 #ifdef DBG_PRINT_EXEC
 #    define PRINT_DBG_STACK()                        \
         printf("     ");                             \
-        for(Value *v = vm->stack; v < vm->sp; v++) { \
+        for(Value* v = vm->stack; v < vm->sp; v++) { \
             printf("[");                             \
             printValue(*v);                          \
             printf("]");                             \
@@ -722,13 +722,13 @@ bool runEval(JStarVM *vm, int depth) {
 #ifdef USE_COMPUTED_GOTOS
 // create jumptable
 #    define JMPTARGET(X) &&TARGET_##X,
-    static void *opJmpTable[] = {OPCODE(JMPTARGET)};
+    static void* opJmpTable[] = {OPCODE(JMPTARGET)};
 
 #    define TARGET(op) TARGET_##op
 #    define DISPATCH()                            \
         do {                                      \
             PRINT_DBG_STACK()                     \
-            goto *opJmpTable[(op = NEXT_CODE())]; \
+            goto* opJmpTable[(op = NEXT_CODE())]; \
         } while(0)
 
 #    define DECODE(op) DISPATCH();
@@ -1342,18 +1342,18 @@ op_return:
     return false;
 }
 
-bool unwindStack(JStarVM *vm, int depth) {
+bool unwindStack(JStarVM* vm, int depth) {
     assert(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
-    ObjInstance *exception = AS_INSTANCE(peek(vm));
+    ObjInstance* exception = AS_INSTANCE(peek(vm));
 
     Value stVal = NULL_VAL;
     hashTableGet(&exception->fields, vm->stacktrace, &stVal);
     assert(IS_STACK_TRACE(stVal), "Exception doesn't have a stacktrace object");
 
-    ObjStackTrace *st = AS_STACK_TRACE(stVal);
+    ObjStackTrace* st = AS_STACK_TRACE(stVal);
 
     for(; vm->frameCount > depth; vm->frameCount--) {
-        Frame *frame = &vm->frames[vm->frameCount - 1];
+        Frame* frame = &vm->frames[vm->frameCount - 1];
 
         if(IS_CLOSURE(frame->fn))
             vm->module = AS_CLOSURE(frame->fn)->fn->c.module;
@@ -1365,7 +1365,7 @@ bool unwindStack(JStarVM *vm, int depth) {
         // if current frame has except or ensure handlers retore handler state and exit
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
-            Handler *h = &frame->handlers[--frame->handlerc];
+            Handler* h = &frame->handlers[--frame->handlerc];
             RESTORE_HANDLER(h, CAUSE_EXCEPT, exc);
             return true;
         }

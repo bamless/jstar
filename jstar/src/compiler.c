@@ -37,27 +37,27 @@ typedef struct Upvalue {
 typedef struct Loop {
     int depth;
     size_t start;
-    struct Loop *next;
+    struct Loop* next;
 } Loop;
 
 typedef struct TryExcept {
     int depth;
-    struct TryExcept *next;
+    struct TryExcept* next;
 } TryExcept;
 
 typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
 
 typedef struct Compiler {
-    JStarVM *vm;
-    Compiler *prev;
+    JStarVM* vm;
+    Compiler* prev;
 
     bool hasSuper;
 
-    Loop *loops;
+    Loop* loops;
 
     FuncType type;
-    ObjFunction *func;
-    Stmt *funcAST;
+    ObjFunction* func;
+    Stmt* funcAST;
 
     uint8_t localsCount;
     Local locals[MAX_LOCALS];
@@ -68,13 +68,13 @@ typedef struct Compiler {
     int depth;
 
     int tryDepth;
-    TryExcept *tryBlocks;
+    TryExcept* tryBlocks;
 } Compiler;
 
-static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s);
-static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s);
+static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s);
+static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s);
 
-static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, JStarVM *vm) {
+static void initCompiler(Compiler* c, Compiler* prev, FuncType t, int depth, JStarVM* vm) {
     c->vm = vm;
     c->type = t;
     c->func = NULL;
@@ -89,22 +89,22 @@ static void initCompiler(Compiler *c, Compiler *prev, FuncType t, int depth, JSt
     vm->currCompiler = c;
 }
 
-static void endCompiler(Compiler *c) {
+static void endCompiler(Compiler* c) {
     if(c->prev != NULL) {
         c->prev->hadError |= c->hadError;
     }
     c->vm->currCompiler = c->prev;
 }
 
-ObjFunction *compile(JStarVM *vm, ObjModule *module, Stmt *s) {
+ObjFunction* compile(JStarVM* vm, ObjModule* module, Stmt* s) {
     Compiler c;
     initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
-    ObjFunction *func = function(&c, module, s);
+    ObjFunction* func = function(&c, module, s);
     endCompiler(&c);
     return c.hadError ? NULL : func;
 }
 
-static void error(Compiler *c, int line, const char *format, ...) {
+static void error(Compiler* c, int line, const char* format, ...) {
     fprintf(stderr, "[line:%d] ", line);
     va_list args;
     va_start(args, format);
@@ -114,20 +114,20 @@ static void error(Compiler *c, int line, const char *format, ...) {
     c->hadError = true;
 }
 
-static size_t emitBytecode(Compiler *c, uint8_t b, int line) {
+static size_t emitBytecode(Compiler* c, uint8_t b, int line) {
     if(line == 0 && c->func->chunk.linesCount > 0) {
         line = c->func->chunk.lines[c->func->chunk.linesCount - 1];
     }
     return writeByte(&c->func->chunk, b, line);
 }
 
-static size_t emitShort(Compiler *c, uint16_t s, int line) {
+static size_t emitShort(Compiler* c, uint16_t s, int line) {
     size_t i = emitBytecode(c, (uint8_t)(s >> 8), line);
     emitBytecode(c, (uint8_t)s, line);
     return i;
 }
 
-static void discardLocal(Compiler *c, Local *local) {
+static void discardLocal(Compiler* c, Local* local) {
     if(local->isUpvalue) {
         emitBytecode(c, OP_CLOSE_UPVALUE, 0);
     } else {
@@ -135,56 +135,56 @@ static void discardLocal(Compiler *c, Local *local) {
     }
 }
 
-static void enterScope(Compiler *c) {
+static void enterScope(Compiler* c) {
     c->depth++;
 }
 
-static void exitScope(Compiler *c) {
+static void exitScope(Compiler* c) {
     c->depth--;
     while(c->localsCount > 0 && c->locals[c->localsCount - 1].depth > c->depth) {
         discardLocal(c, &c->locals[--c->localsCount]);
     }
 }
 
-static void discardScope(Compiler *c, int depth) {
+static void discardScope(Compiler* c, int depth) {
     int localsCount = c->localsCount;
     while(localsCount > 0 && c->locals[localsCount - 1].depth > depth) {
         discardLocal(c, &c->locals[--localsCount]);
     }
 }
 
-static uint16_t createConst(Compiler *c, Value constant, int line) {
+static uint16_t createConst(Compiler* c, Value constant, int line) {
     int index = addConstant(&c->func->chunk, constant);
     if(index == -1) {
-        const char *name = c->func->c.name == NULL ? "<main>" : c->func->c.name->data;
+        const char* name = c->func->c.name == NULL ? "<main>" : c->func->c.name->data;
         error(c, line, "too many constants in function %s", name);
         return 0;
     }
     return (uint16_t)index;
 }
 
-static Identifier syntheticIdentifier(const char *name) {
+static Identifier syntheticIdentifier(const char* name) {
     return (Identifier){strlen(name), name};
 }
 
-static uint16_t identifierConst(Compiler *c, Identifier *id, int line) {
-    ObjString *idStr = copyString(c->vm, id->name, id->length, true);
+static uint16_t identifierConst(Compiler* c, Identifier* id, int line) {
+    ObjString* idStr = copyString(c->vm, id->name, id->length, true);
     return createConst(c, OBJ_VAL(idStr), line);
 }
 
-static void addLocal(Compiler *c, Identifier *id, int line) {
+static void addLocal(Compiler* c, Identifier* id, int line) {
     if(c->localsCount == MAX_LOCALS) {
         error(c, line, "Too many local variables in function %s.", c->func->c.name->data);
         return;
     }
-    Local *local = &c->locals[c->localsCount];
+    Local* local = &c->locals[c->localsCount];
     local->isUpvalue = false;
     local->depth = -1;
     local->id = *id;
     c->localsCount++;
 }
 
-static int resolveVariable(Compiler *c, Identifier *id, bool inFunc, int line) {
+static int resolveVariable(Compiler* c, Identifier* id, bool inFunc, int line) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(identifierEquals(&c->locals[i].id, id)) {
             if(inFunc && c->locals[i].depth == -1) {
@@ -197,10 +197,10 @@ static int resolveVariable(Compiler *c, Identifier *id, bool inFunc, int line) {
     return -1;
 }
 
-static int addUpvalue(Compiler *c, uint8_t index, bool local, int line) {
+static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
     uint8_t upvalueCount = c->func->upvaluec;
     for(uint8_t i = 0; i < upvalueCount; i++) {
-        Upvalue *upval = &c->upvalues[i];
+        Upvalue* upval = &c->upvalues[i];
         if(upval->index == index && upval->isLocal == local) {
             return i;
         }
@@ -216,7 +216,7 @@ static int addUpvalue(Compiler *c, uint8_t index, bool local, int line) {
     return c->func->upvaluec++;
 }
 
-static int resolveUpvalue(Compiler *c, Identifier *id, int line) {
+static int resolveUpvalue(Compiler* c, Identifier* id, int line) {
     if(c->prev == NULL) {
         return -1;
     }
@@ -235,7 +235,7 @@ static int resolveUpvalue(Compiler *c, Identifier *id, int line) {
     return -1;
 }
 
-static void declareVar(Compiler *c, Identifier *id, int line) {
+static void declareVar(Compiler* c, Identifier* id, int line) {
     if(c->depth == 0) return;
 
     for(int i = c->localsCount - 1; i >= 0; i--) {
@@ -248,12 +248,12 @@ static void declareVar(Compiler *c, Identifier *id, int line) {
     addLocal(c, id, line);
 }
 
-static void markInitialized(Compiler *c, int id) {
+static void markInitialized(Compiler* c, int id) {
     assert(id >= 0 && id < c->localsCount, "Invalid local variable");
     c->locals[id].depth = c->depth;
 }
 
-static void defineVar(Compiler *c, Identifier *id, int line) {
+static void defineVar(Compiler* c, Identifier* id, int line) {
     if(c->depth == 0) {
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, id, line), line);
@@ -262,7 +262,7 @@ static void defineVar(Compiler *c, Identifier *id, int line) {
     }
 }
 
-static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
+static size_t emitJumpTo(Compiler* c, int jmpOpcode, size_t target, int line) {
     int32_t offset = target - (c->func->chunk.count + 3);
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
@@ -272,24 +272,24 @@ static size_t emitJumpTo(Compiler *c, int jmpOpcode, size_t target, int line) {
     return c->func->chunk.count - 2;
 }
 
-static void setJumpTo(Compiler *c, size_t jumpAddr, size_t target, int line) {
+static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
     int32_t offset = target - (jumpAddr + 3);
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
-    Chunk *chunk = &c->func->chunk;
+    Chunk* chunk = &c->func->chunk;
     chunk->code[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
     chunk->code[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
 }
 
-static void startLoop(Compiler *c, Loop *loop) {
+static void startLoop(Compiler* c, Loop* loop) {
     loop->depth = c->depth;
     loop->start = c->func->chunk.count;
     loop->next = c->loops;
     c->loops = loop;
 }
 
-static void patchLoopExitStmts(Compiler *c, size_t start, size_t cont, size_t brk) {
+static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t brk) {
     for(size_t i = start; i < c->func->chunk.count; i++) {
         Opcode code = c->func->chunk.code[i];
         if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
@@ -301,21 +301,21 @@ static void patchLoopExitStmts(Compiler *c, size_t start, size_t cont, size_t br
     }
 }
 
-static void endLoop(Compiler *c) {
+static void endLoop(Compiler* c) {
     patchLoopExitStmts(c, c->loops->start, c->loops->start, c->func->chunk.count);
     c->loops = c->loops->next;
 }
 
-static void callMethod(Compiler *c, const char *name, int args) {
+static void callMethod(Compiler* c, const char* name, int args) {
     Identifier meth = syntheticIdentifier(name);
     emitBytecode(c, OP_INVOKE_0 + args, 0);
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
-static ObjString *readString(Compiler *c, Expr *e) {
+static ObjString* readString(Compiler* c, Expr* e) {
     JStarBuffer sb;
     jsrBufferInit(c->vm, &sb);
-    const char *str = e->as.string.str;
+    const char* str = e->as.string.str;
 
     for(size_t i = 0; i < e->as.string.length; i++) {
         char c = str[i];
@@ -361,10 +361,10 @@ static ObjString *readString(Compiler *c, Expr *e) {
     return jsrBufferToString(&sb);
 }
 
-static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) {
+static void addDefaultConsts(Compiler* c, Value* defaults, LinkedList* defArgs) {
     int i = 0;
     foreach(n, defArgs) {
-        Expr *e = (Expr *)n->elem;
+        Expr* e = (Expr*)n->elem;
         switch(e->type) {
         case NUM_LIT:
             defaults[i++] = NUM_VAL(e->as.num);
@@ -384,9 +384,9 @@ static void addDefaultConsts(Compiler *c, Value *defaults, LinkedList *defArgs) 
     }
 }
 
-static void compileExpr(Compiler *c, Expr *e);
+static void compileExpr(Compiler* c, Expr* e);
 
-static void compileBinaryExpr(Compiler *c, Expr *e) {
+static void compileBinaryExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.binary.left);
     compileExpr(c, e->as.binary.right);
     switch(e->as.binary.op) {
@@ -433,7 +433,7 @@ static void compileBinaryExpr(Compiler *c, Expr *e) {
     }
 }
 
-static void compileLogicExpr(Compiler *c, Expr *e) {
+static void compileLogicExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.binary.left);
     emitBytecode(c, OP_DUP, e->line);
 
@@ -447,7 +447,7 @@ static void compileLogicExpr(Compiler *c, Expr *e) {
     setJumpTo(c, scJmp, c->func->chunk.count, e->line);
 }
 
-static void compileUnaryExpr(Compiler *c, Expr *e) {
+static void compileUnaryExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.unary.operand);
     switch(e->as.unary.op) {
     case MINUS:
@@ -468,7 +468,7 @@ static void compileUnaryExpr(Compiler *c, Expr *e) {
     }
 }
 
-static void compileTernaryExpr(Compiler *c, Expr *e) {
+static void compileTernaryExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.ternary.cond);
 
     size_t falseJmp = emitBytecode(c, OP_JUMPF, e->line);
@@ -484,7 +484,7 @@ static void compileTernaryExpr(Compiler *c, Expr *e) {
     setJumpTo(c, exitJmp, c->func->chunk.count, e->line);
 }
 
-static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
+static void compileVariable(Compiler* c, Identifier* id, bool set, int line) {
     int i = resolveVariable(c, id, true, line);
     if(i != -1) {
         if(set)
@@ -507,10 +507,10 @@ static void compileVariable(Compiler *c, Identifier *id, bool set, int line) {
     }
 }
 
-static void compileFunction(Compiler *c, Stmt *s);
+static void compileFunction(Compiler* c, Stmt* s);
 
-static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
-    Stmt *f = e->as.anonFunc.func;
+static void compileAnonymousFunc(Compiler* c, Identifier* name, Expr* e) {
+    Stmt* f = e->as.anonFunc.func;
     if(name != NULL) {
         f->as.funcDecl.id.length = name->length;
         f->as.funcDecl.id.name = name->name;
@@ -526,7 +526,7 @@ static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
     }
 }
 
-static void compileLval(Compiler *c, Expr *e) {
+static void compileLval(Compiler* c, Expr* e) {
     switch(e->type) {
     case VAR_LIT:
         compileVariable(c, &e->as.var.id, true, e->line);
@@ -549,17 +549,17 @@ static void compileLval(Compiler *c, Expr *e) {
     }
 }
 
-static void compileRval(Compiler *c, Identifier *boundName, Expr *e) {
+static void compileRval(Compiler* c, Identifier* boundName, Expr* e) {
     if(e->type == ANON_FUNC)
         compileAnonymousFunc(c, boundName, e);
     else
         compileExpr(c, e);
 }
 
-static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *exprs, int num) {
+static void compileConstUnpackLst(Compiler* c, Identifier** boundNames, Expr* exprs, int num) {
     int i = 0;
     foreach(n, exprs->as.list.lst) {
-        compileRval(c, boundNames ? boundNames[i] : NULL, (Expr *)n->elem);
+        compileRval(c, boundNames ? boundNames[i] : NULL, (Expr*)n->elem);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
@@ -568,22 +568,22 @@ static void compileConstUnpackLst(Compiler *c, Identifier **boundNames, Expr *ex
 }
 
 // Compile an unpack assignment of the form: a, b, ..., z = ...
-static void compileUnpackAssign(Compiler *c, Expr *e) {
+static void compileUnpackAssign(Compiler* c, Expr* e) {
     int assignments = 0;
-    Expr *lvals[UINT8_MAX];
+    Expr* lvals[UINT8_MAX];
 
-    Expr *tuple = e->as.assign.lval;
+    Expr* tuple = e->as.assign.lval;
     foreach(n, tuple->as.tuple.exprs->as.list.lst) {
         if(assignments == UINT8_MAX) {
             error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
             break;
         }
-        lvals[assignments++] = (Expr *)n->elem;
+        lvals[assignments++] = (Expr*)n->elem;
     }
 
-    Expr *rval = e->as.assign.rval;
+    Expr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
-        Expr *lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
+        Expr* lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
         compileConstUnpackLst(c, NULL, lst, assignments);
     } else {
         compileRval(c, NULL, e->as.assign.rval);
@@ -599,16 +599,16 @@ static void compileUnpackAssign(Compiler *c, Expr *e) {
     }
 }
 
-static void compileAssignExpr(Compiler *c, Expr *e) {
+static void compileAssignExpr(Compiler* c, Expr* e) {
     switch(e->as.assign.lval->type) {
     case VAR_LIT: {
-        Identifier *name = &e->as.assign.lval->as.var.id;
+        Identifier* name = &e->as.assign.lval->as.var.id;
         compileRval(c, name, e->as.assign.rval);
         compileLval(c, e->as.assign.lval);
         break;
     }
     case ACCESS_EXPR: {
-        Identifier *name = &e->as.assign.lval->as.access.id;
+        Identifier* name = &e->as.assign.lval->as.access.id;
         compileRval(c, name, e->as.assign.rval);
         compileLval(c, e->as.assign.lval);
         break;
@@ -628,10 +628,10 @@ static void compileAssignExpr(Compiler *c, Expr *e) {
     }
 }
 
-static void compileCompundAssign(Compiler *c, Expr *e) {
+static void compileCompundAssign(Compiler* c, Expr* e) {
     Operator op = e->as.compound.op;
-    Expr *l = e->as.compound.lval;
-    Expr *r = e->as.compound.rval;
+    Expr* l = e->as.compound.lval;
+    Expr* r = e->as.compound.rval;
 
     // expand compound assignement (e.g. a op= b -> a = a op b)
     Expr binary = {e->line, BINARY, .as = {.binary = {op, l, r}}};
@@ -641,11 +641,11 @@ static void compileCompundAssign(Compiler *c, Expr *e) {
     compileAssignExpr(c, &assignment);
 }
 
-static void compileCallExpr(Compiler *c, Expr *e) {
+static void compileCallExpr(Compiler* c, Expr* e) {
     Opcode callCode = OP_CALL;
     Opcode callInline = OP_CALL_0;
 
-    Expr *callee = e->as.call.callee;
+    Expr* callee = e->as.call.callee;
     bool isMethod = callee->type == ACCESS_EXPR;
 
     if(isMethod) {
@@ -658,7 +658,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
 
     int argc = 0;
     foreach(n, e->as.call.args->as.list.lst) {
-        compileExpr(c, (Expr *)n->elem);
+        compileExpr(c, (Expr*)n->elem);
         argc++;
     }
 
@@ -678,7 +678,7 @@ static void compileCallExpr(Compiler *c, Expr *e) {
     }
 }
 
-static void compileSuper(Compiler *c, Expr *e) {
+static void compileSuper(Compiler* c, Expr* e) {
     if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
         error(c, e->line, "Can only use `super` in method call");
         return;
@@ -689,7 +689,7 @@ static void compileSuper(Compiler *c, Expr *e) {
 
     int argc = 0;
     foreach(n, e->as.sup.args->as.list.lst) {
-        compileExpr(c, (Expr *)n->elem);
+        compileExpr(c, (Expr*)n->elem);
         argc++;
     }
 
@@ -711,37 +711,37 @@ static void compileSuper(Compiler *c, Expr *e) {
     }
 }
 
-static void compileAccessExpression(Compiler *c, Expr *e) {
+static void compileAccessExpression(Compiler* c, Expr* e) {
     compileExpr(c, e->as.access.left);
     emitBytecode(c, OP_GET_FIELD, e->line);
     emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
 }
 
-static void compileArraryAccExpression(Compiler *c, Expr *e) {
+static void compileArraryAccExpression(Compiler* c, Expr* e) {
     compileExpr(c, e->as.arrayAccess.left);
     compileExpr(c, e->as.arrayAccess.index);
     emitBytecode(c, OP_SUBSCR_GET, e->line);
 }
 
-static void compileExpExpr(Compiler *c, Expr *e) {
+static void compileExpExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.exponent.base);
     compileExpr(c, e->as.exponent.exp);
     emitBytecode(c, OP_POW, e->line);
 }
 
-static void compileArrayLit(Compiler *c, Expr *e) {
+static void compileArrayLit(Compiler* c, Expr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
-    LinkedList *exprs = e->as.array.exprs->as.list.lst;
+    LinkedList* exprs = e->as.array.exprs->as.list.lst;
     foreach(n, exprs) {
-        compileExpr(c, (Expr *)n->elem);
+        compileExpr(c, (Expr*)n->elem);
         emitBytecode(c, OP_APPEND_LIST, e->line);
     }
 }
 
-static void compileTupleLit(Compiler *c, Expr *e) {
+static void compileTupleLit(Compiler* c, Expr* e) {
     int numElems = 0;
     foreach(n, e->as.tuple.exprs->as.list.lst) {
-        compileExpr(c, (Expr *)n->elem);
+        compileExpr(c, (Expr*)n->elem);
         numElems++;
     }
     if(numElems >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
@@ -749,13 +749,13 @@ static void compileTupleLit(Compiler *c, Expr *e) {
     emitBytecode(c, numElems, e->line);
 }
 
-static void compileTableLit(Compiler *c, Expr *e) {
+static void compileTableLit(Compiler* c, Expr* e) {
     emitBytecode(c, OP_NEW_TABLE, e->line);
 
-    LinkedList *head = e->as.table.keyVals->as.list.lst;
+    LinkedList* head = e->as.table.keyVals->as.list.lst;
     while(head) {
-        Expr *key = (Expr *)head->elem;
-        Expr *val = (Expr *)head->next->elem;
+        Expr* key = (Expr*)head->elem;
+        Expr* val = (Expr*)head->next->elem;
 
         emitBytecode(c, OP_DUP, e->line);
         compileExpr(c, key);
@@ -767,7 +767,7 @@ static void compileTableLit(Compiler *c, Expr *e) {
     }
 }
 
-static void compileExpr(Compiler *c, Expr *e) {
+static void compileExpr(Compiler* c, Expr* e) {
     switch(e->type) {
     case ASSIGN:
         compileAssignExpr(c, e);
@@ -800,7 +800,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST:
-        foreach(n, e->as.list.lst) { compileExpr(c, (Expr *)n->elem); }
+        foreach(n, e->as.list.lst) { compileExpr(c, (Expr*)n->elem); }
         break;
     case NUM_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);
@@ -811,13 +811,13 @@ static void compileExpr(Compiler *c, Expr *e) {
         emitShort(c, createConst(c, BOOL_VAL(e->as.boolean), e->line), e->line);
         break;
     case STR_LIT: {
-        ObjString *str = readString(c, e);
+        ObjString* str = readString(c, e);
         emitBytecode(c, OP_GET_CONST, e->line);
         emitShort(c, createConst(c, OBJ_VAL(str), e->line), e->line);
         break;
     }
     case CMD_LIT: {
-        ObjString *cmd = readString(c, e);
+        ObjString* cmd = readString(c, e);
         uint16_t cmdID = createConst(c, OBJ_VAL(cmd), e->line);
         Identifier exec = syntheticIdentifier("exec");
         emitBytecode(c, OP_GET_GLOBAL, e->line);
@@ -851,23 +851,23 @@ static void compileExpr(Compiler *c, Expr *e) {
     }
 }
 
-static void compileVarDecl(Compiler *c, Stmt *s) {
+static void compileVarDecl(Compiler* c, Stmt* s) {
     int numDecls = 0;
-    Identifier *decls[MAX_LOCALS];
+    Identifier* decls[MAX_LOCALS];
 
     foreach(n, s->as.varDecl.ids) {
         if(numDecls == MAX_LOCALS) break;
-        Identifier *name = (Identifier *)n->elem;
+        Identifier* name = (Identifier*)n->elem;
         declareVar(c, name, s->line);
         decls[numDecls++] = name;
     }
 
     if(s->as.varDecl.init != NULL) {
-        Expr *init = s->as.varDecl.init;
+        Expr* init = s->as.varDecl.init;
         ExprType initType = s->as.varDecl.init->type;
 
         if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
-            Expr *e = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
+            Expr* e = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
             compileConstUnpackLst(c, decls, e, numDecls);
         } else {
             compileRval(c, decls[0], init);
@@ -892,10 +892,10 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
     }
 }
 
-static void compileStatement(Compiler *c, Stmt *s);
-static void compileStatements(Compiler *c, LinkedList *stmts);
+static void compileStatement(Compiler* c, Stmt* s);
+static void compileStatements(Compiler* c, LinkedList* stmts);
 
-static void compileReturn(Compiler *c, Stmt *s) {
+static void compileReturn(Compiler* c, Stmt* s) {
     if(c->prev == NULL) {
         error(c, s->line, "Cannot use return in global scope.");
     }
@@ -912,7 +912,7 @@ static void compileReturn(Compiler *c, Stmt *s) {
     emitBytecode(c, OP_RETURN, s->line);
 }
 
-static void compileIfStatement(Compiler *c, Stmt *s) {
+static void compileIfStatement(Compiler* c, Stmt* s) {
     // compile the condition
     compileExpr(c, s->as.ifStmt.cond);
 
@@ -940,7 +940,7 @@ static void compileIfStatement(Compiler *c, Stmt *s) {
     }
 }
 
-static void compileForStatement(Compiler *c, Stmt *s) {
+static void compileForStatement(Compiler* c, Stmt* s) {
     enterScope(c);
 
     // init
@@ -1001,7 +1001,7 @@ static void compileForStatement(Compiler *c, Stmt *s) {
  *     end
  * end
  */
-static void compileForEach(Compiler *c, Stmt *s) {
+static void compileForEach(Compiler* c, Stmt* s) {
     enterScope(c);
 
     Identifier expr = syntheticIdentifier(".expr");
@@ -1026,15 +1026,15 @@ static void compileForEach(Compiler *c, Stmt *s) {
     size_t exitJmp = emitBytecode(c, OP_FOR_NEXT, 0);
     emitShort(c, 0, 0);
 
-    Stmt *varDecl = s->as.forEach.var;
+    Stmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
     // declare the variables used for iteration
     int num = 0;
 
     foreach(n, varDecl->as.varDecl.ids) {
-        declareVar(c, (Identifier *)n->elem, s->line);
-        defineVar(c, (Identifier *)n->elem, s->line);
+        declareVar(c, (Identifier*)n->elem, s->line);
+        defineVar(c, (Identifier*)n->elem, s->line);
         num++;
     }
 
@@ -1054,7 +1054,7 @@ static void compileForEach(Compiler *c, Stmt *s) {
     exitScope(c);
 }
 
-static void compileWhileStatement(Compiler *c, Stmt *s) {
+static void compileWhileStatement(Compiler* c, Stmt* s) {
     Loop l;
     startLoop(c, &l);
 
@@ -1070,11 +1070,11 @@ static void compileWhileStatement(Compiler *c, Stmt *s) {
     endLoop(c);
 }
 
-static void compileFunction(Compiler *c, Stmt *s) {
+static void compileFunction(Compiler* c, Stmt* s) {
     Compiler compiler;
     initCompiler(&compiler, c, TYPE_FUNC, c->depth + 1, c->vm);
 
-    ObjFunction *func = function(&compiler, c->func->c.module, s);
+    ObjFunction* func = function(&compiler, c->func->c.module, s);
 
     emitBytecode(c, OP_CLOSURE, s->line);
     emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
@@ -1087,11 +1087,11 @@ static void compileFunction(Compiler *c, Stmt *s) {
     endCompiler(&compiler);
 }
 
-static void compileNative(Compiler *c, Stmt *s) {
+static void compileNative(Compiler* c, Stmt* s) {
     size_t defaults = listLength(s->as.nativeDecl.defArgs);
     size_t arity = listLength(s->as.nativeDecl.formalArgs);
 
-    ObjNative *native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
+    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
     native->c.vararg = s->as.nativeDecl.isVararg;
 
     push(c->vm, OBJ_VAL(native));
@@ -1109,17 +1109,17 @@ static void compileNative(Compiler *c, Stmt *s) {
     emitShort(c, nameConst, s->line);
 }
 
-static void compileMethods(Compiler *c, Stmt *cls) {
-    LinkedList *methods = cls->as.classDecl.methods;
+static void compileMethods(Compiler* c, Stmt* cls) {
+    LinkedList* methods = cls->as.classDecl.methods;
 
     Compiler methCompiler;
     foreach(n, methods) {
-        Stmt *m = (Stmt *)n->elem;
+        Stmt* m = (Stmt*)n->elem;
         switch(m->type) {
         case FUNCDECL: {
             initCompiler(&methCompiler, c, TYPE_METHOD, c->depth + 1, c->vm);
 
-            ObjFunction *meth = method(&methCompiler, c->func->c.module, &cls->as.classDecl.id, m);
+            ObjFunction* meth = method(&methCompiler, c->func->c.module, &cls->as.classDecl.id, m);
 
             emitBytecode(c, OP_CLOSURE, m->line);
             emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
@@ -1139,7 +1139,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
             size_t defaults = listLength(m->as.nativeDecl.defArgs);
             size_t arity = listLength(m->as.nativeDecl.formalArgs);
 
-            ObjNative *n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
+            ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
             n->c.vararg = m->as.nativeDecl.isVararg;
 
             push(c->vm, OBJ_VAL(n));
@@ -1149,9 +1149,9 @@ static void compileMethods(Compiler *c, Stmt *cls) {
             uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
             uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
 
-            Identifier *classId = &cls->as.classDecl.id;
+            Identifier* classId = &cls->as.classDecl.id;
             size_t len = classId->length + m->as.nativeDecl.id.length + 1;
-            ObjString *name = allocateString(c->vm, len);
+            ObjString* name = allocateString(c->vm, len);
 
             memcpy(name->data, classId->name, classId->length);
             name->data[classId->length] = '.';
@@ -1171,7 +1171,7 @@ static void compileMethods(Compiler *c, Stmt *cls) {
     }
 }
 
-static void compileClass(Compiler *c, Stmt *s) {
+static void compileClass(Compiler* c, Stmt* s) {
     declareVar(c, &s->as.classDecl.id, s->line);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
@@ -1188,14 +1188,14 @@ static void compileClass(Compiler *c, Stmt *s) {
     defineVar(c, &s->as.classDecl.id, s->line);
 }
 
-static void compileImportStatement(Compiler *c, Stmt *s) {
-    const char *base = ((Identifier *)s->as.importStmt.modules->elem)->name;
+static void compileImportStatement(Compiler* c, Stmt* s) {
+    const char* base = ((Identifier*)s->as.importStmt.modules->elem)->name;
 
     // import module (if nested module, import all from outer to inner)
     uint16_t nameConst;
     int length = -1;
     foreach(n, s->as.importStmt.modules) {
-        Identifier *name = (Identifier *)n->elem;
+        Identifier* name = (Identifier*)n->elem;
 
         // create fully qualified name of module
         length += name->length + 1;          // length of current submodule plus a dot
@@ -1219,7 +1219,7 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
         foreach(n, s->as.importStmt.impNames) {
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, nameConst, s->line);
-            emitShort(c, identifierConst(c, (Identifier *)n->elem, s->line), s->line);
+            emitShort(c, identifierConst(c, (Identifier*)n->elem, s->line), s->line);
         }
     } else if(s->as.importStmt.as.name != NULL) {
         // set last import as an import as
@@ -1231,8 +1231,8 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
     emitBytecode(c, OP_POP, s->line);
 }
 
-static void compileExcepts(Compiler *c, LinkedList *excs) {
-    Stmt *exc = (Stmt *)excs->elem;
+static void compileExcepts(Compiler* c, LinkedList* excs) {
+    Stmt* exc = (Stmt*)excs->elem;
 
     Identifier exception = syntheticIdentifier(".exception");
     compileVariable(c, &exception, false, exc->line);
@@ -1270,7 +1270,7 @@ static void compileExcepts(Compiler *c, LinkedList *excs) {
     }
 }
 
-static void enterTryBlock(Compiler *c, TryExcept *tryExc, Stmt *try) {
+static void enterTryBlock(Compiler* c, TryExcept* tryExc, Stmt* try) {
     tryExc->depth = c->depth;
     tryExc->next = c->tryBlocks;
     c->tryBlocks = tryExc;
@@ -1278,13 +1278,13 @@ static void enterTryBlock(Compiler *c, TryExcept *tryExc, Stmt *try) {
     if(try->as.tryStmt.excs != NULL) c->tryDepth++;
 }
 
-static void exitTryBlock(Compiler *c, Stmt *try) {
+static void exitTryBlock(Compiler* c, Stmt* try) {
     c->tryBlocks = c->tryBlocks->next;
     if(try->as.tryStmt.ensure != NULL) c->tryDepth--;
     if(try->as.tryStmt.excs != NULL) c->tryDepth--;
 }
 
-static void compileTryExcept(Compiler *c, Stmt *s) {
+static void compileTryExcept(Compiler* c, Stmt* s) {
     TryExcept tryBlock;
     enterTryBlock(c, &tryBlock, s);
 
@@ -1358,7 +1358,7 @@ static void compileTryExcept(Compiler *c, Stmt *s) {
     exitTryBlock(c, s);
 }
 
-static void compileRaiseStmt(Compiler *c, Stmt *s) {
+static void compileRaiseStmt(Compiler* c, Stmt* s) {
     compileExpr(c, s->as.raiseStmt.exc);
     emitBytecode(c, OP_RAISE, s->line);
 }
@@ -1378,7 +1378,7 @@ static void compileRaiseStmt(Compiler *c, Stmt *s) {
  *   end
  * end
  */
-static void compileWithStatement(Compiler *c, Stmt *s) {
+static void compileWithStatement(Compiler* c, Stmt* s) {
     enterScope(c);
 
     // var x
@@ -1444,7 +1444,7 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
     exitScope(c);
 }
 
-static void compileLoopExitStmt(Compiler *c, Stmt *s) {
+static void compileLoopExitStmt(Compiler* c, Stmt* s) {
     bool isBreak = s->type == BREAK_STMT;
 
     if(c->loops == NULL) {
@@ -1460,7 +1460,7 @@ static void compileLoopExitStmt(Compiler *c, Stmt *s) {
     emitShort(c, 0, 0);
 }
 
-static void compileStatement(Compiler *c, Stmt *s) {
+static void compileStatement(Compiler* c, Stmt* s) {
     switch(s->type) {
     case IF:
         compileIfStatement(c, s);
@@ -1524,19 +1524,19 @@ static void compileStatement(Compiler *c, Stmt *s) {
     }
 }
 
-static void compileStatements(Compiler *c, LinkedList *stmts) {
-    foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
+static void compileStatements(Compiler* c, LinkedList* stmts) {
+    foreach(n, stmts) { compileStatement(c, (Stmt*)n->elem); }
 }
 
-static void enterFunctionScope(Compiler *c) {
+static void enterFunctionScope(Compiler* c) {
     c->depth++;
 }
 
-static void exitFunctionScope(Compiler *c) {
+static void exitFunctionScope(Compiler* c) {
     c->depth--;
 }
 
-static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
+static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     size_t defaults = listLength(s->as.funcDecl.defArgs);
     size_t arity = listLength(s->as.funcDecl.formalArgs);
 
@@ -1558,8 +1558,8 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     addLocal(c, &id, s->line);
 
     foreach(n, s->as.funcDecl.formalArgs) {
-        declareVar(c, (Identifier *)n->elem, s->line);
-        defineVar(c, (Identifier *)n->elem, s->line);
+        declareVar(c, (Identifier*)n->elem, s->line);
+        defineVar(c, (Identifier*)n->elem, s->line);
     }
 
     if(s->as.funcDecl.isVararg) {
@@ -1578,7 +1578,7 @@ static ObjFunction *function(Compiler *c, ObjModule *module, Stmt *s) {
     return c->func;
 }
 
-static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, Stmt *s) {
+static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s) {
     size_t defaults = listLength(s->as.funcDecl.defArgs);
     size_t arity = listLength(s->as.funcDecl.formalArgs);
 
@@ -1592,7 +1592,7 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
 
     // create new method name by concatenating the class name to it
     size_t length = classId->length + s->as.funcDecl.id.length + 1;
-    ObjString *name = allocateString(c->vm, length);
+    ObjString* name = allocateString(c->vm, length);
 
     memcpy(name->data, classId->name, classId->length);
     name->data[classId->length] = '.';
@@ -1615,8 +1615,8 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     // define and declare arguments
 
     foreach(n, s->as.funcDecl.formalArgs) {
-        declareVar(c, (Identifier *)n->elem, s->line);
-        defineVar(c, (Identifier *)n->elem, s->line);
+        declareVar(c, (Identifier*)n->elem, s->line);
+        defineVar(c, (Identifier*)n->elem, s->line);
     }
 
     if(s->as.funcDecl.isVararg) {
@@ -1641,9 +1641,9 @@ static ObjFunction *method(Compiler *c, ObjModule *module, Identifier *classId, 
     return c->func;
 }
 
-void reachCompilerRoots(JStarVM *vm, Compiler *c) {
+void reachCompilerRoots(JStarVM* vm, Compiler* c) {
     while(c != NULL) {
-        reachObject(vm, (Obj *)c->func);
+        reachObject(vm, (Obj*)c->func);
         c = c->prev;
     }
 }

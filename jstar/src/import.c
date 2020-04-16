@@ -14,8 +14,8 @@
 #include "memory.h"
 #include "value.h"
 
-ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
-    ObjModule *module = getModule(vm, name);
+ObjFunction* compileWithModule(JStarVM* vm, ObjString* name, Stmt* program) {
+    ObjModule* module = getModule(vm, name);
 
     if(module == NULL) {
         push(vm, OBJ_VAL(name));
@@ -30,14 +30,14 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
     }
 
     if(program != NULL) {
-        ObjFunction *fn = compile(vm, module, program);
+        ObjFunction* fn = compile(vm, module, program);
         return fn;
     }
 
     return NULL;
 }
 
-void setModule(JStarVM *vm, ObjString *name, ObjModule *module) {
+void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
     push(vm, OBJ_VAL(module));
     push(vm, OBJ_VAL(name));
     hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
@@ -46,7 +46,7 @@ void setModule(JStarVM *vm, ObjString *name, ObjModule *module) {
     hashTablePut(&vm->modules, name, OBJ_VAL(module));
 }
 
-ObjModule *getModule(JStarVM *vm, ObjString *name) {
+ObjModule* getModule(JStarVM* vm, ObjString* name) {
     Value module;
     if(!hashTableGet(&vm->modules, name, &module)) {
         return NULL;
@@ -54,9 +54,9 @@ ObjModule *getModule(JStarVM *vm, ObjString *name) {
     return AS_MODULE(module);
 }
 
-static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *moduleName) {
-    const char *rootPath = strrchr(modulePath->data, '/');
-    const char *simpleName = strrchr(moduleName->data, '.');
+static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
+    const char* rootPath = strrchr(modulePath->data, '/');
+    const char* simpleName = strrchr(moduleName->data, '.');
 
     if(simpleName == NULL) {
         simpleName = moduleName->data;
@@ -70,13 +70,13 @@ static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *module
     jsrBufferAppendstr(modulePath, simpleName);
     jsrBufferAppendstr(modulePath, DL_SUFFIX);
 
-    void *dynlib = dynload(modulePath->data);
+    void* dynlib = dynload(modulePath->data);
     if(dynlib != NULL) {
         jsrBufferClear(modulePath);
         jsrBufferAppendstr(modulePath, "jsr_open_");
         jsrBufferAppendstr(modulePath, simpleName);
 
-        typedef JStarNativeReg *(*RegFunc)();
+        typedef JStarNativeReg* (*RegFunc)();
         RegFunc open_lib = (RegFunc)dynsim(dynlib, modulePath->data);
 
         if(open_lib == NULL) {
@@ -84,20 +84,20 @@ static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *module
             return;
         }
 
-        ObjModule *m = getModule(vm, moduleName);
+        ObjModule* m = getModule(vm, moduleName);
         m->natives.dynlib = dynlib;
         m->natives.registry = (*open_lib)();
     }
 }
 
-static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, const char *source) {
-    Stmt *program = parse(path, source);
+static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
+    Stmt* program = parse(path, source);
 
     if(program == NULL) {
         return false;
     }
 
-    ObjFunction *moduleFun = compileWithModule(vm, name, program);
+    ObjFunction* moduleFun = compileWithModule(vm, name, program);
     freeStmt(program);
 
     if(moduleFun == NULL) {
@@ -110,8 +110,8 @@ static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, con
 
 typedef enum ImportResult { IMPORT_OK, IMPORT_ERR, IMPORT_NOT_FOUND } ImportResult;
 
-static ImportResult importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
-    char *source = jsrReadFile(path->data);
+static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name) {
+    char* source = jsrReadFile(path->data);
     if(source == NULL) {
         return IMPORT_NOT_FOUND;
     }
@@ -127,8 +127,8 @@ static ImportResult importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *na
     }
 }
 
-static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
-    ObjList *paths = vm->importpaths;
+static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
+    ObjList* paths = vm->importpaths;
 
     JStarBuffer fullPath;
     jsrBufferInit(vm, &fullPath);
@@ -175,14 +175,14 @@ static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
     return false;
 }
 
-bool importModule(JStarVM *vm, ObjString *name) {
+bool importModule(JStarVM* vm, ObjString* name) {
     if(hashTableContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);
         return true;
     }
 
     // check if builtin
-    const char *builtinSrc = readBuiltInModule(name->data);
+    const char* builtinSrc = readBuiltInModule(name->data);
     if(builtinSrc != NULL) {
         return importWithSource(vm, name->data, name, builtinSrc);
     }
@@ -192,7 +192,7 @@ bool importModule(JStarVM *vm, ObjString *name) {
     }
 
     // we loaded the module (or package), set simple name in parent module if any
-    char *nameStart = strrchr(name->data, '.');
+    char* nameStart = strrchr(name->data, '.');
 
     // not a nested module, nothing to do
     if(nameStart == NULL) {
@@ -200,11 +200,11 @@ bool importModule(JStarVM *vm, ObjString *name) {
     }
 
     nameStart++;
-    ObjString *parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
+    ObjString* parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     push(vm, OBJ_VAL(parentName));
-    ObjString *simpleName = copyString(vm, nameStart, strlen(nameStart), true);
-    ObjModule *module = getModule(vm, name);
-    ObjModule *parent = getModule(vm, parentName);
+    ObjString* simpleName = copyString(vm, nameStart, strlen(nameStart), true);
+    ObjModule* module = getModule(vm, name);
+    ObjModule* parent = getModule(vm, parentName);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
     pop(vm);
     return true;
