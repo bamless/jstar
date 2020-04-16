@@ -485,7 +485,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
             if(index == SIZE_MAX) return false;
             
-            push(vm, list->arr[(size_t)index]);
+            push(vm, list->arr[index]);
             return true;
         }
         case OBJ_TUPLE: {
@@ -498,7 +498,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), tuple->size);
             if(index == SIZE_MAX) return false;
 
-            push(vm, tuple->arr[(size_t)index]);
+            push(vm, tuple->arr[index]);
             return true;
         }
         case OBJ_STRING: {
@@ -511,7 +511,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
             if(index == SIZE_MAX) return false;
 
-            char character = str->data[(size_t)index];
+            char character = str->data[index];
             push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
             return true;
         }
@@ -539,7 +539,7 @@ static bool setSubscriptOfValue(JStarVM *vm, Value operand, Value arg, Value s) 
         size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
         if(index == SIZE_MAX) return false;
 
-        list->arr[(size_t)index] = s;
+        list->arr[index] = s;
         push(vm, s);
         return true;
     }
