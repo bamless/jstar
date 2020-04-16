@@ -2,9 +2,9 @@
 #define JSTARCONF_H
 
 // Version
-#define JSTAR_VERSION_MAJOR @JSTAR_VERSION_MAJOR@
-#define JSTAR_VERSION_MINOR @JSTAR_VERSION_MINOR@
-#define JSTAR_VERSION_PATCH @JSTAR_VERSION_PATCH@
+#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR @
+#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR @
+#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH @
 #define JSTAR_VERSION_STRING "@JSTAR_VERSION_MAJOR@.@JSTAR_VERSION_MINOR@.@JSTAR_VERSION_PATCH@"
 
 // Increasing version number, used for range checking
@@ -28,17 +28,17 @@
 #cmakedefine JSTAR_RE
 
 #ifndef JSTAR_STATIC
-    #if defined(_WIN32) && defined(_MSC_VER)
-        #if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)
-            #define JSTAR_API __declspec(dllexport)
-        #else
-            #define JSTAR_API __declspec(dllimport)
-        #endif
-    #else
-        #define JSTAR_API
-    #endif
+#    if defined(_WIN32) && defined(_MSC_VER)
+#        if defined(libjstar_EXPORTS) || defined(NATIVE_EXPORTS)
+#            define JSTAR_API __declspec(dllexport)
+#        else
+#            define JSTAR_API __declspec(dllimport)
+#        endif
+#    else
+#        define JSTAR_API
+#    endif
 #else
-    #define JSTAR_API
+#    define JSTAR_API
 #endif
 
 #endif
