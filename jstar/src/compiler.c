@@ -1,26 +1,25 @@
 #include "compiler.h"
 
 #include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
-#include "jsrparse/linkedlist.h"
-
+#include "chunk.h"
 #include "const.h"
+#include "jsrparse/linkedlist.h"
 #include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
-#include "chunk.h"
 
 // In case of a direct assignement of the form:
 //  var a, b, ..., c = x, y, ..., z
 // Where the right hand side is an unpackable object (i.e. a tuple or a list)
-// We can omit the creation of the tuple/list, assigning directly the elements 
+// We can omit the creation of the tuple/list, assigning directly the elements
 // to the variables. We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) (type == ARR_LIT || type == TUPLE_LIT)
 
@@ -46,11 +45,7 @@ typedef struct TryExcept {
     struct TryExcept *next;
 } TryExcept;
 
-typedef enum FuncType { 
-    TYPE_FUNC, 
-    TYPE_METHOD, 
-    TYPE_CTOR 
-} FuncType;
+typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
 
 typedef struct Compiler {
     JStarVM *vm;
@@ -522,7 +517,7 @@ static void compileAnonymousFunc(Compiler *c, Identifier *name, Expr *e) {
         compileFunction(c, f);
     } else {
         char funcName[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
-        sprintf(funcName, ANON_PREFIX"%d", f->line);
+        sprintf(funcName, ANON_PREFIX "%d", f->line);
 
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;
@@ -596,7 +591,7 @@ static void compileUnpackAssign(Compiler *c, Expr *e) {
         emitBytecode(c, (uint8_t)assignments, e->line);
     }
 
-    // compile lvals in reverse order in order to assign 
+    // compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
     for(int n = assignments - 1; n >= 0; n--) {
         compileLval(c, lvals[n]);
@@ -805,9 +800,7 @@ static void compileExpr(Compiler *c, Expr *e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST:
-        foreach(n, e->as.list.lst) {
-            compileExpr(c, (Expr *)n->elem);
-        } 
+        foreach(n, e->as.list.lst) { compileExpr(c, (Expr *)n->elem); }
         break;
     case NUM_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);
@@ -889,7 +882,7 @@ static void compileVarDecl(Compiler *c, Stmt *s) {
         }
     }
 
-    // define in reverse order in order to assign correct 
+    // define in reverse order in order to assign correct
     // values to variables in case of a const unpack
     for(int i = numDecls - 1; i >= 0; i--) {
         if(c->depth == 0)
@@ -1162,7 +1155,8 @@ static void compileMethods(Compiler *c, Stmt *cls) {
 
             memcpy(name->data, classId->name, classId->length);
             name->data[classId->length] = '.';
-            memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name, m->as.nativeDecl.id.length);
+            memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name,
+                   m->as.nativeDecl.id.length);
 
             n->c.name = name;
 
@@ -1204,12 +1198,11 @@ static void compileImportStatement(Compiler *c, Stmt *s) {
         Identifier *name = (Identifier *)n->elem;
 
         // create fully qualified name of module
-        length += name->length + 1;         // length of current submodule plus a dot
-        Identifier module = {length, base}; // name of current submodule
+        length += name->length + 1;          // length of current submodule plus a dot
+        Identifier module = {length, base};  // name of current submodule
 
         if(n == s->as.importStmt.modules && s->as.importStmt.impNames == NULL &&
-           s->as.importStmt.as.name == NULL)
-        {
+           s->as.importStmt.as.name == NULL) {
             emitBytecode(c, OP_IMPORT, s->line);
         } else {
             emitBytecode(c, OP_IMPORT_FROM, s->line);
@@ -1374,7 +1367,7 @@ static void compileRaiseStmt(Compiler *c, Stmt *s) {
  * with Expr x
  *   code
  * end
- * 
+ *
  * begin
  *   var x
  *   try
@@ -1401,23 +1394,15 @@ static void compileWithStatement(Compiler *c, Stmt *s) {
         error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
     }
 
-    size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);;
+    size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
+    ;
     emitShort(c, 0, 0);
-    
+
     // x = closable
-    Expr lval = { 
-        .line = s->line, 
-        .type = VAR_LIT, 
-        .as = {.var = {s->as.withStmt.var}}
-    };
-    Expr assign = {
-        .line = s->line,
-        .type = ASSIGN,
-        .as = {.assign = {
-            .lval = &lval,
-            .rval = s->as.withStmt.e
-        }}
-    };
+    Expr lval = {.line = s->line, .type = VAR_LIT, .as = {.var = {s->as.withStmt.var}}};
+    Expr assign = {.line = s->line,
+                   .type = ASSIGN,
+                   .as = {.assign = {.lval = &lval, .rval = s->as.withStmt.e}}};
     compileExpr(c, &assign);
     emitBytecode(c, OP_POP, s->line);
 
@@ -1540,9 +1525,7 @@ static void compileStatement(Compiler *c, Stmt *s) {
 }
 
 static void compileStatements(Compiler *c, LinkedList *stmts) {
-    foreach(n, stmts) { 
-        compileStatement(c, (Stmt *)n->elem); 
-    }
+    foreach(n, stmts) { compileStatement(c, (Stmt *)n->elem); }
 }
 
 static void enterFunctionScope(Compiler *c) {

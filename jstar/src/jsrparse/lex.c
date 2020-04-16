@@ -1,9 +1,10 @@
 #include "jsrparse/lex.h"
-#include "jsrparse/token.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "jsrparse/token.h"
 
 typedef struct {
     const char *name;
@@ -112,8 +113,7 @@ static void skipSpacesAndComments(Lexer *lex) {
             break;
         case '/':
             if(peekChar2(lex) == '/') {
-                while(peekChar(lex) != '\n' && !isAtEnd(lex))
-                    advance(lex);
+                while(peekChar(lex) != '\n' && !isAtEnd(lex)) advance(lex);
             } else {
                 return;
             }
@@ -155,8 +155,7 @@ static void eofToken(Lexer *lex, Token *tok) {
 }
 
 static void integer(Lexer *lex) {
-    while(isNum(peekChar(lex)))
-        advance(lex);
+    while(isNum(peekChar(lex))) advance(lex);
 }
 
 static void number(Lexer *lex, Token *tok) {
@@ -177,8 +176,7 @@ static void number(Lexer *lex, Token *tok) {
 }
 
 static void hexNumber(Lexer *lex, Token *tok) {
-    while(isHex(peekChar(lex)))
-        advance(lex);
+    while(isHex(peekChar(lex))) advance(lex);
 
     if(match(lex, 'e')) {
         char c = peekChar(lex);
@@ -222,8 +220,7 @@ static void command(Lexer *lex, Token *tok) {
 }
 
 static void identifier(Lexer *lex, Token *tok) {
-    while(isAlphaNum(peekChar(lex)))
-        advance(lex);
+    while(isAlphaNum(peekChar(lex))) advance(lex);
 
     TokenType type = TOK_IDENTIFIER;
 

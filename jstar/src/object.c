@@ -1,9 +1,10 @@
 #include "object.h"
+
+#include <stdio.h>
+#include <string.h>
+
 #include "memory.h"
 #include "vm.h"
-
-#include <string.h>
-#include <stdio.h>
 
 static Obj *newObj(JStarVM *vm, size_t size, ObjClass *cls, ObjType type) {
     Obj *o = GC_ALLOC(vm, size);
@@ -15,15 +16,13 @@ static Obj *newObj(JStarVM *vm, size_t size, ObjClass *cls, ObjType type) {
     return o;
 }
 
-static Obj *newVarObj(JStarVM *vm, size_t size, size_t varSize, 
-    size_t count, ObjClass *cls, ObjType type)
-{
+static Obj *newVarObj(JStarVM *vm, size_t size, size_t varSize, size_t count, ObjClass *cls,
+                      ObjType type) {
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initCallable(Callable *c, ObjModule *module, ObjString *name,
-    uint8_t argc, Value *defArr, uint8_t defc)
-{
+static void initCallable(Callable *c, ObjModule *module, ObjString *name, uint8_t argc,
+                         Value *defArr, uint8_t defc) {
     c->argsCount = argc;
     c->defaultc = defc;
     c->vararg = false;
@@ -32,9 +31,8 @@ static void initCallable(Callable *c, ObjModule *module, ObjString *name,
     c->name = name;
 }
 
-ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, 
-    uint8_t argc, uint8_t defc)
-{
+ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc,
+                         uint8_t defc) {
     Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
     memset(defArr, 0, defc * sizeof(Value));
     ObjFunction *f = (ObjFunction *)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
@@ -44,9 +42,8 @@ ObjFunction *newFunction(JStarVM *vm, ObjModule *module, ObjString *name,
     return f;
 }
 
-ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, 
-    uint8_t argc, JStarNative fn, uint8_t defc)
-{
+ObjNative *newNative(JStarVM *vm, ObjModule *module, ObjString *name, uint8_t argc, JStarNative fn,
+                     uint8_t defc) {
     Value *defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
     memset(defArr, 0, defc * sizeof(Value));
     ObjNative *n = (ObjNative *)newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
@@ -105,7 +102,8 @@ ObjBoundMethod *newBoundMethod(JStarVM *vm, Value b, Obj *method) {
 ObjTuple *newTuple(JStarVM *vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
 
-    ObjTuple *t = (ObjTuple *)newVarObj(vm, sizeof(*t), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
+    ObjTuple *t =
+        (ObjTuple *)newVarObj(vm, sizeof(*t), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
     t->size = size;
 
     for(uint8_t i = 0; i < t->size; i++) {
@@ -115,9 +113,9 @@ ObjTuple *newTuple(JStarVM *vm, size_t size) {
     return t;
 }
 
-ObjUserdata *newUserData(JStarVM *vm, size_t size, void (*finalize)(void*)) {
+ObjUserdata *newUserData(JStarVM *vm, size_t size, void (*finalize)(void *)) {
     ObjUserdata *udata = (ObjUserdata *)newVarObj(vm, sizeof(*udata), sizeof(uint8_t), size,
-                                                  vm->udataClass, OBJ_USERDATA);  
+                                                  vm->udataClass, OBJ_USERDATA);
     udata->size = size;
     udata->finalize = finalize;
     return udata;
@@ -143,7 +141,7 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
         st->recordSize = st->records ? st->recordSize * 2 : 4;
         st->records = GCallocate(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordSize);
     }
-    
+
     FrameRecord *record = &st->records[st->recordCount++];
     record->funcName = NULL;
     record->moduleName = NULL;
@@ -151,7 +149,7 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
     Callable *c = NULL;
     if(IS_CLOSURE(f->fn)) {
         ObjClosure *closure = AS_CLOSURE(f->fn);
-        c =  &closure->fn->c;
+        c = &closure->fn->c;
         Chunk *chunk = &closure->fn->chunk;
         size_t op = f->ip - chunk->code - 1;
         record->line = getBytecodeSrcLine(chunk, op);
@@ -159,12 +157,12 @@ void stRecordFrame(JStarVM *vm, ObjStackTrace *st, Frame *f, int depth) {
         c = &AS_NATIVE(f->fn)->c;
         record->line = -1;
     }
-    
+
     record->moduleName = c->module->name;
     record->funcName = c->name ? c->name : copyString(vm, "<main>", 6, true);
 }
 
-#define LIST_DEF_SZ 8
+#define LIST_DEF_SZ    8
 #define LIST_GROW_RATE 2
 
 ObjList *newList(JStarVM *vm, size_t startSize) {
@@ -190,7 +188,7 @@ void listAppend(JStarVM *vm, ObjList *lst, Value val) {
         growList(vm, lst);
     }
     lst->arr[lst->count++] = val;
-    pop(vm); // pop val
+    pop(vm);  // pop val
 }
 
 void listInsert(JStarVM *vm, ObjList *lst, size_t index, Value val) {
@@ -304,7 +302,7 @@ void jsrBufferInitSz(JStarVM *vm, JStarBuffer *b, size_t size) {
 
 void jsrBufferAppend(JStarBuffer *b, const char *str, size_t len) {
     if(b->len + len >= b->size) {
-        jsrBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
+        jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
     memcpy(&b->data[b->len], str, len);
     b->len += len;
@@ -338,7 +336,7 @@ void jsrBufferReplaceChar(JStarBuffer *b, size_t start, char c, char r) {
 
 void jsrBufferPrepend(JStarBuffer *b, const char *str, size_t len) {
     if(b->len + len >= b->size) {
-        jsrBufGrow(b, len + 1); // the >= and the +1 are for the terminating NUL
+        jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
     memmove(b->data + len, b->data, b->len);
     memcpy(b->data, str, len);
@@ -377,7 +375,7 @@ void jsrBufferFree(JStarBuffer *b) {
 // Debug logging functions
 
 #ifdef DBG_PRINT_GC
-    DEFINE_TO_STRING(ObjType, OBJTYPE);
+DEFINE_TO_STRING(ObjType, OBJTYPE);
 #endif
 
 void printObj(Obj *o) {
@@ -463,7 +461,7 @@ void printObj(Obj *o) {
             name = ((ObjFunction *)b->method)->c.name->data;
         else
             name = ((ObjNative *)b->method)->c.name->data;
-  
+
         printf("<bound method ");
         printValue(b->bound);
         printf(":%s>", name);
@@ -479,7 +477,7 @@ void printObj(Obj *o) {
         printf("<upvalue %p>", (void *)o);
         break;
     case OBJ_USERDATA:
-        printf("<userdata %p", (void*)o);
+        printf("<userdata %p", (void *)o);
         break;
     }
 }

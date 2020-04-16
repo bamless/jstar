@@ -5,28 +5,26 @@
 #include <float.h>
 #include <limits.h>
 #include <math.h>
-#include <stdio.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "builtin/modules.h"
-
-#include "jsrparse/ast.h"
-#include "jsrparse/parser.h"
-
-#include "import.h"
-#include "memory.h"
-#include "object.h"
-#include "vm.h"
 #include "const.h"
 #include "hashtable.h"
+#include "import.h"
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
+#include "memory.h"
+#include "object.h"
 #include "value.h"
+#include "vm.h"
 
 #ifdef _WIN32
-    #define popen _popen
-    #define pclose _pclose
+#    define popen  _popen
+#    define pclose _pclose
 #endif
 
 static ObjClass *createClass(JStarVM *vm, ObjModule *m, ObjClass *sup, const char *name) {
@@ -64,7 +62,10 @@ static uint64_t hash64(uint64_t x) {
 
 static uint32_t hashNumber(double num) {
     if(num == -0) num = 0;
-    union {double d; uint64_t r;} c = {.d = num};
+    union {
+        double d;
+        uint64_t r;
+    } c = {.d = num};
     return (uint32_t)hash64(c.r);
 }
 
@@ -115,10 +116,10 @@ void initCoreLibrary(JStarVM *vm) {
 
     // Setup the class object. It will be the class of every other class
     vm->clsClass = createClass(vm, core, NULL, "Class");
-    vm->clsClass->base.cls = vm->clsClass; // Class is the class of itself
+    vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
 
     // Setup the base class of the object hierarchy
-    vm->objClass = createClass(vm, core, NULL, "Object"); // Object has no superclass
+    vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
     defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
     defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
     defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
@@ -131,16 +132,16 @@ void initCoreLibrary(JStarVM *vm) {
 
     jsrEvaluateModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
 
-    vm->strClass   = AS_CLASS(getDefinedName(vm, core, "String"));
-    vm->boolClass  = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-    vm->lstClass   = AS_CLASS(getDefinedName(vm, core, "List"));
-    vm->numClass   = AS_CLASS(getDefinedName(vm, core, "Number"));
-    vm->funClass   = AS_CLASS(getDefinedName(vm, core, "Function"));
-    vm->modClass   = AS_CLASS(getDefinedName(vm, core, "Module"));
-    vm->nullClass  = AS_CLASS(getDefinedName(vm, core, "Null"));
-    vm->stClass    = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-    vm->tupClass   = AS_CLASS(getDefinedName(vm, core, "Tuple"));
-    vm->excClass   = AS_CLASS(getDefinedName(vm, core, "Exception"));
+    vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
+    vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+    vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
+    vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
+    vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
+    vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
+    vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
+    vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+    vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+    vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
     vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
     vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
 
@@ -187,12 +188,12 @@ JSR_NATIVE(jsr_int) {
 JSR_NATIVE(jsr_char) {
     JSR_CHECK(String, 1, "c");
     const char *str = jsrGetString(vm, 1);
-    if(jsrGetStringSz(vm, 1) != 1) JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
+    if(jsrGetStringSz(vm, 1) != 1)
+        JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
     int c = str[0];
     jsrPushNumber(vm, (double)c);
     return true;
 }
-
 
 JSR_NATIVE(jsr_ascii) {
     JSR_CHECK(Int, 1, "num");
@@ -204,19 +205,21 @@ JSR_NATIVE(jsr_ascii) {
 JSR_NATIVE(jsr_print) {
     jsrPushValue(vm, 1);
     if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) return false;
-    if(!jsrIsString(vm, -1)) JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+    if(!jsrIsString(vm, -1))
+        JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
 
     printf("%s", jsrGetString(vm, -1));
     jsrPop(vm);
 
-    JSR_FOREACH(2, {
-        if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) return false;
-        if(!jsrIsString(vm, -1)) {
-            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-        }
-        printf(" %s", jsrGetString(vm, -1));
-        jsrPop(vm);
-    },);
+    JSR_FOREACH(
+        2, {
+            if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) return false;
+            if(!jsrIsString(vm, -1)) {
+                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+            }
+            printf(" %s", jsrGetString(vm, -1));
+            jsrPop(vm);
+        }, );
 
     printf("\n");
 
@@ -345,7 +348,7 @@ JSR_NATIVE(jsr_Number_isInt) {
 }
 
 JSR_NATIVE(jsr_Number_string) {
-    char str[24]; // enough for .*g with DBL_DIG
+    char str[24];  // enough for .*g with DBL_DIG
     snprintf(str, sizeof(str), "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
     jsrPushString(vm, str);
     return true;
@@ -407,13 +410,13 @@ JSR_NATIVE(jsr_Function_string) {
     case OBJ_BOUND_METHOD: {
         funType = "bound method";
         ObjBoundMethod *m = AS_BOUND_METHOD(vm->apiStack[0]);
-        
+
         Callable *c;
         if(m->method->type == OBJ_CLOSURE)
             c = &((ObjClosure *)m->method)->fn->c;
         else
             c = &((ObjNative *)m->method)->c;
-        
+
         funName = c->name->data;
         modName = c->module->name->data;
         break;
@@ -426,7 +429,7 @@ JSR_NATIVE(jsr_Function_string) {
     if(strcmp(modName, JSR_CORE_MODULE) == 0) {
         snprintf(str, sizeof(str), "<%s %s@%p>", funType, funName, AS_OBJ(vm->apiStack[0]));
     } else {
-        snprintf(str, sizeof(str), "<%s %s.%s@%p>", funType, modName, funName, 
+        snprintf(str, sizeof(str), "<%s %s.%s@%p>", funType, modName, funName,
                  AS_OBJ(vm->apiStack[0]));
     }
 
@@ -448,7 +451,7 @@ JSR_NATIVE(jsr_Module_string) {
 // class List
 JSR_NATIVE(jsr_List_new) {
     JSR_CHECK(Int, 1, "size");
-    
+
     double count = jsrGetNumber(vm, 1);
     if(count < 0) {
         JSR_RAISE(vm, "TypeException", "size must be >= 0");
@@ -500,7 +503,7 @@ JSR_NATIVE(jsr_List_removeAt) {
     ObjList *l = AS_LIST(vm->apiStack[0]);
     size_t index = jsrCheckIndex(vm, 1, l->count, "i");
     if(index == SIZE_MAX) return false;
-    
+
     Value r = l->arr[index];
     listRemove(vm, l, index);
     push(vm, r);
@@ -573,10 +576,11 @@ JSR_NATIVE(jsr_List_next) {
 JSR_NATIVE(jsr_Tuple_new) {
     if(!jsrIsList(vm, 1)) {
         jsrPushList(vm);
-        JSR_FOREACH(1, {
-            jsrListAppend(vm, 2);
-            jsrPop(vm);
-        },)
+        JSR_FOREACH(
+            1, {
+                jsrListAppend(vm, 2);
+                jsrPop(vm);
+            }, )
     }
 
     ObjList *lst = AS_LIST(vm->sp[-1]);
@@ -594,7 +598,7 @@ JSR_NATIVE(jsr_Tuple_len) {
 JSR_NATIVE(jsr_Tuple_iter) {
     ObjTuple *tup = AS_TUPLE(vm->apiStack[0]);
 
-    if(IS_NULL (vm->apiStack[1]) && tup->size != 0) {
+    if(IS_NULL(vm->apiStack[1]) && tup->size != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
@@ -669,19 +673,21 @@ JSR_NATIVE(jsr_String_new) {
     JStarBuffer string;
     jsrBufferInit(vm, &string);
 
-    JSR_FOREACH(1, {
-        if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
-            jsrBufferFree(&string);
-            return false;
-        }
-        if(!jsrIsString(vm, -1)) {
-            jsrBufferFree(&string);
-            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-        }
-        jsrBufferAppendstr(&string, jsrGetString(vm, -1));
-        jsrPop(vm);
-    }, jsrBufferFree(&string));
-
+    JSR_FOREACH(
+        1,
+        {
+            if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) {
+                jsrBufferFree(&string);
+                return false;
+            }
+            if(!jsrIsString(vm, -1)) {
+                jsrBufferFree(&string);
+                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+            }
+            jsrBufferAppendstr(&string, jsrGetString(vm, -1));
+            jsrPop(vm);
+        },
+        jsrBufferFree(&string));
 
     jsrBufferPush(&string);
     return true;
@@ -726,7 +732,7 @@ JSR_NATIVE(jsr_String_startsWith) {
     int offset = jsrGetNumber(vm, 2);
     size_t thisLen = jsrGetStringSz(vm, 0);
 
-    if(offset < 0 || thisLen < (size_t) offset || thisLen - offset < prefixLen) {
+    if(offset < 0 || thisLen < (size_t)offset || thisLen - offset < prefixLen) {
         jsrPushBoolean(vm, false);
         return true;
     }
@@ -807,21 +813,24 @@ JSR_NATIVE(jsr_String_join) {
     JStarBuffer joined;
     jsrBufferInit(vm, &joined);
 
-    JSR_FOREACH(1, {
-        if(!jsrIsString(vm, -1)) {
-            if((jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS)) {
-                jsrBufferFree(&joined);
-                return false;
-            }
+    JSR_FOREACH(
+        1,
+        {
             if(!jsrIsString(vm, -1)) {
-                jsrBufferFree(&joined);
-                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+                if((jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS)) {
+                    jsrBufferFree(&joined);
+                    return false;
+                }
+                if(!jsrIsString(vm, -1)) {
+                    jsrBufferFree(&joined);
+                    JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+                }
             }
-        }
-        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-        jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
-        jsrPop(vm);
-    }, jsrBufferFree(&joined))
+            jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+            jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+            jsrPop(vm);
+        },
+        jsrBufferFree(&joined))
 
     if(joined.len > 0) {
         jsrBufferTrunc(&joined, joined.len - jsrGetStringSz(vm, 0));
@@ -906,14 +915,14 @@ JSR_NATIVE(jsr_String_next) {
     push(vm, NULL_VAL);
     return true;
 }
-// end 
+// end
 
 // class Table
 #define MAX_LOAD_FACTOR  0.75
 #define GROW_FACTOR      2
 #define INITIAL_CAPACITY 8
 
-static bool tableKeyHash(JStarVM* vm, Value key, uint32_t *hash) {
+static bool tableKeyHash(JStarVM *vm, Value key, uint32_t *hash) {
     if(IS_STRING(key)) {
         *hash = STRING_GET_HASH(AS_STRING(key));
         return true;
@@ -937,17 +946,26 @@ static bool tableKeyHash(JStarVM* vm, Value key, uint32_t *hash) {
 
 static bool tableKeyEquals(JStarVM *vm, Value k1, Value k2, bool *eq) {
     if(IS_STRING(k1)) {
-        if(!IS_STRING(k2)) { *eq = false; return true; }
+        if(!IS_STRING(k2)) {
+            *eq = false;
+            return true;
+        }
         *eq = STRING_EQUALS(AS_STRING(k1), AS_STRING(k2));
         return true;
     }
     if(IS_NUM(k1)) {
-        if(!IS_NUM(k2)) { *eq = false; return true; }
+        if(!IS_NUM(k2)) {
+            *eq = false;
+            return true;
+        }
         *eq = AS_NUM(k1) == AS_NUM(k2);
         return true;
     }
     if(IS_BOOL(k1)) {
-        if(!IS_BOOL(k2)) { *eq = false; return true; }
+        if(!IS_BOOL(k2)) {
+            *eq = false;
+            return true;
+        }
         *eq = AS_BOOL(k1) == AS_BOOL(k2);
         return true;
     }
@@ -959,7 +977,8 @@ static bool tableKeyEquals(JStarVM *vm, Value k1, Value k2, bool *eq) {
     return true;
 }
 
-static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key, TableEntry **out) {
+static bool findEntry(JStarVM *vm, TableEntry *entries, size_t sizeMask, Value key,
+                      TableEntry **out) {
     uint32_t hash;
     if(!tableKeyHash(vm, key, &hash)) return false;
 
@@ -1018,7 +1037,7 @@ static void growEntries(JStarVM *vm, ObjTable *t) {
 
 JSR_NATIVE(jsr_Table_get) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
-    
+
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     if(t->entries == NULL) {
         push(vm, NULL_VAL);
@@ -1040,7 +1059,7 @@ JSR_NATIVE(jsr_Table_get) {
 
 JSR_NATIVE(jsr_Table_set) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
-    
+
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
         growEntries(vm, t);
@@ -1050,7 +1069,7 @@ JSR_NATIVE(jsr_Table_set) {
     if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
-    
+
     bool isNew = IS_NULL(e->key);
     if(isNew) {
         t->count++;
@@ -1067,7 +1086,7 @@ JSR_NATIVE(jsr_Table_set) {
 JSR_NATIVE(jsr_Table_delete) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
-    
+
     if(t->entries == NULL) {
         push(vm, BOOL_VAL(false));
         return true;
@@ -1105,12 +1124,12 @@ JSR_NATIVE(jsr_Table_clear) {
 JSR_NATIVE(jsr_Table_len) {
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     push(vm, NUM_VAL(t->count));
-    return true;    
+    return true;
 }
 
 JSR_NATIVE(jsr_Table_contains) {
     if(jsrIsNull(vm, 0)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
-    
+
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
     if(t->entries == NULL) {
         push(vm, BOOL_VAL(false));
@@ -1212,7 +1231,7 @@ JSR_NATIVE(jsr_Table_next) {
 
 JSR_NATIVE(jsr_Table_string) {
     ObjTable *t = AS_TABLE(vm->apiStack[0]);
-    
+
     JStarBuffer buf;
     jsrBufferInit(vm, &buf);
     jsrBufferAppendChar(&buf, '{');
@@ -1251,15 +1270,15 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "__valueName"
 
-static bool checkEnumElem(JStarVM* vm, int slot) {
+static bool checkEnumElem(JStarVM *vm, int slot) {
     if(!jsrIsString(vm, slot)) {
         JSR_RAISE(vm, "TypeException", "Enum element must be a String");
     }
-    
+
     ObjInstance *inst = AS_INSTANCE(vm->apiStack[0]);
     const char *enumElem = jsrGetString(vm, slot);
     size_t enumElemLen = jsrGetStringSz(vm, slot);
-    
+
     if(isalpha(enumElem[0])) {
         for(size_t i = 1; i < enumElemLen; i++) {
             char c = enumElem[i];
@@ -1294,37 +1313,38 @@ JSR_NATIVE(jsr_Enum_new) {
     }
 
     int i = 0;
-    JSR_FOREACH(2, {
-        if(!checkEnumElem(vm, -1)) return false;
+    JSR_FOREACH(
+        2, {
+            if(!checkEnumElem(vm, -1)) return false;
 
-        if(customEnum) {
-            jsrPushValue(vm, 2);
-            jsrPushValue(vm, -2);
-            if(jsrCallMethod(vm, "__get__", 1) != VM_EVAL_SUCCESS) return false;
-        } else {
-            jsrPushNumber(vm, i);
-        }
+            if(customEnum) {
+                jsrPushValue(vm, 2);
+                jsrPushValue(vm, -2);
+                if(jsrCallMethod(vm, "__get__", 1) != VM_EVAL_SUCCESS) return false;
+            } else {
+                jsrPushNumber(vm, i);
+            }
 
-        jsrSetField(vm, 0, jsrGetString(vm, -2));
-        jsrPop(vm);
+            jsrSetField(vm, 0, jsrGetString(vm, -2));
+            jsrPop(vm);
 
-        if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
+            if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
 
-        if(customEnum) {
-            jsrPushValue(vm, 2);
+            if(customEnum) {
+                jsrPushValue(vm, 2);
+                jsrPushValue(vm, -3);
+                if(jsrCallMethod(vm, "__get__", 1) != VM_EVAL_SUCCESS) return false;
+            } else {
+                jsrPushNumber(vm, i);
+            }
+
             jsrPushValue(vm, -3);
-            if(jsrCallMethod(vm, "__get__", 1) != VM_EVAL_SUCCESS) return false;
-        } else {
-            jsrPushNumber(vm, i);
-        }
+            if(jsrCallMethod(vm, "__set__", 2) != VM_EVAL_SUCCESS) return false;
+            jsrPop(vm);
 
-        jsrPushValue(vm, -3);
-        if(jsrCallMethod(vm, "__set__", 2) != VM_EVAL_SUCCESS) return false;
-        jsrPop(vm);
-        
-        jsrPop(vm);
-        i++;
-    },);
+            jsrPop(vm);
+            i++;
+        }, );
 
     if(i == 0) JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     jsrPop(vm);
@@ -1342,7 +1362,7 @@ JSR_NATIVE(jsr_Enum_name) {
     if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
     jsrPushValue(vm, 1);
     if(jsrCallMethod(vm, "__get__", 1) != VM_EVAL_SUCCESS) return false;
-    return true; 
+    return true;
 }
 // end
 

@@ -1,9 +1,10 @@
 #include "hashtable.h"
-#include "memory.h"
-#include "object.h"
 
 #include <stdbool.h>
 #include <string.h>
+
+#include "memory.h"
+#include "object.h"
 
 #define MAX_LOAD_FACTOR  0.75
 #define GROW_FACTOR      2
@@ -68,7 +69,7 @@ bool hashTablePut(HashTable *t, ObjString *key, Value val) {
     if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
         growEntries(t);
     }
-    
+
     Entry *e = findEntry(t->entries, t->sizeMask, key);
     bool isNew = e->key == NULL;
     if(isNew && IS_NULL(e->value)) {
@@ -115,7 +116,7 @@ void hashTableMerge(HashTable *t, HashTable *o) {
 void hashTableImportNames(HashTable *t, HashTable *o) {
     if(o->entries == NULL) return;
     for(size_t i = 0; i <= o->sizeMask; i++) {
-        Entry *e = &o->entries[i]; 
+        Entry *e = &o->entries[i];
         if(e->key != NULL && e->key->data[0] != '_') {
             hashTablePut(t, e->key, e->value);
         }
@@ -129,10 +130,8 @@ ObjString *hashTableGetString(HashTable *t, const char *str, size_t length, uint
         Entry *e = &t->entries[i];
         if(e->key == NULL) {
             if(IS_NULL(e->value)) return NULL;
-        } else if(STRING_GET_HASH(e->key) == hash && 
-            e->key->length == length && 
-            memcmp(e->key->data, str, length) == 0)
-        {
+        } else if(STRING_GET_HASH(e->key) == hash && e->key->length == length &&
+                  memcmp(e->key->data, str, length) == 0) {
             return e->key;
         }
         i = (i + 1) & t->sizeMask;
@@ -142,8 +141,8 @@ ObjString *hashTableGetString(HashTable *t, const char *str, size_t length, uint
 void reachHashTable(JStarVM *vm, HashTable *t) {
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
-        Entry* e = &t->entries[i];
-        reachObject(vm, (Obj*) e->key);
+        Entry *e = &t->entries[i];
+        reachObject(vm, (Obj *)e->key);
         reachValue(vm, e->value);
     }
 }
@@ -151,7 +150,7 @@ void reachHashTable(JStarVM *vm, HashTable *t) {
 void removeUnreachedStrings(HashTable *t) {
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
-        Entry* e = &t->entries[i];
+        Entry *e = &t->entries[i];
         if(e->key != NULL && !e->key->base.reached) {
             hashTableDel(t, e->key);
         }

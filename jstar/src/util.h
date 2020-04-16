@@ -7,7 +7,7 @@
 
 // Macros for defining an enum with associated string names
 #define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(__ENUM_ENTRY) } NAME
-#define __ENUM_ENTRY(ENTRY) ENTRY,
+#define __ENUM_ENTRY(ENTRY)      ENTRY,
 
 #define DECLARE_TO_STRING(ENUM_NAME) extern const char *__TOK_CONCAT(ENUM_NAME, Name)[]
 #define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
@@ -24,26 +24,30 @@
     (((t)-1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
 
 #define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
-#define __MAX_STRLEN_FOR_SIGNED_TYPE(t) (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
+#define __MAX_STRLEN_FOR_SIGNED_TYPE(t)   (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
 
 #ifndef NDEBUG
 
-#define UNREACHABLE() do {                                                                     \
-    fprintf(stderr, "%s[%d]@%s(): reached unreachable code.\n", __FILE__, __LINE__, __func__); \
-    abort();                                                                                   \
-} while(0)
+#    define UNREACHABLE()                                                                   \
+        do {                                                                                \
+            fprintf(stderr, "%s[%d]@%s(): reached unreachable code.\n", __FILE__, __LINE__, \
+                    __func__);                                                              \
+            abort();                                                                        \
+        } while(0)
 
-#define assert(cond, msg) do {                                                                     \
-    if(!(cond)) {                                                                                  \
-        fprintf(stderr, "%s[%d]@%s(): assertion failed: %s\n", __FILE__, __LINE__, __func__, msg); \
-        abort();                                                                                   \
-    }                                                                                              \
-} while(0)
+#    define assert(cond, msg)                                                              \
+        do {                                                                               \
+            if(!(cond)) {                                                                  \
+                fprintf(stderr, "%s[%d]@%s(): assertion failed: %s\n", __FILE__, __LINE__, \
+                        __func__, msg);                                                    \
+                abort();                                                                   \
+            }                                                                              \
+        } while(0)
 
 #else
 
-#define UNREACHABLE()
-#define assert(cond, msg)
+#    define UNREACHABLE()
+#    define assert(cond, msg)
 
 #endif
 

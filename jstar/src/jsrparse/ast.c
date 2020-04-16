@@ -1,8 +1,9 @@
 #include "jsrparse/ast.h"
-#include "jsrparse/linkedlist.h"
-#include "jsrparse/token.h"
 
 #include <string.h>
+
+#include "jsrparse/linkedlist.h"
+#include "jsrparse/token.h"
 
 Identifier *newIdentifier(size_t length, const char *name) {
     Identifier *id = malloc(sizeof(*id));
@@ -249,9 +250,8 @@ static Stmt *newStmt(int line, StmtType type) {
     return s;
 }
 
-Stmt *newFuncDecl(int line, bool vararg, Token *name, 
-    LinkedList *args, LinkedList *defArgs, Stmt *body)
-{
+Stmt *newFuncDecl(int line, bool vararg, Token *name, LinkedList *args, LinkedList *defArgs,
+                  Stmt *body) {
     Stmt *f = newStmt(line, FUNCDECL);
     f->as.funcDecl.id.name = name->lexeme;
     f->as.funcDecl.id.length = name->length;
@@ -289,7 +289,6 @@ Stmt *newWithStmt(int line, Expr *e, Token *varName, Stmt *block) {
     w->as.withStmt.block = block;
     return w;
 }
-
 
 Stmt *newForStmt(int line, Stmt *init, Expr *cond, Expr *act, Stmt *body) {
     Stmt *s = newStmt(line, FOR);
@@ -343,8 +342,7 @@ Stmt *newBlockStmt(int line, LinkedList *list) {
     return s;
 }
 
-Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, Token *as) 
-{
+Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, Token *as) {
     Stmt *s = newStmt(line, IMPORT);
     s->as.importStmt.modules = modules;
     s->as.importStmt.impNames = impNames;

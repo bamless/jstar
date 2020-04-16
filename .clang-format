@@ -1,11 +1,13 @@
 ﻿---
+BasedOnStyle: Google
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: 'true'
 ColumnLimit: '100'
 IndentWidth: '4'
 MaxEmptyLinesToKeep: '1'
-PointerAlignment: Right
 SpaceBeforeParens: Never
-AlignEscapedNewlinesLeft: 'true'
+IndentPPDirectives: AfterHash
+AlignConsecutiveMacros: true
+IndentCaseLabels: false
 
 ...

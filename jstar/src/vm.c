@@ -4,21 +4,18 @@
 #include <string.h>
 
 #include "builtin/modules.h"
-
+#include "chunk.h"
 #include "core.h"
 #include "import.h"
 #include "jstar.h"
+#include "jstarconf.h"
 #include "memory.h"
 #include "opcode.h"
-#include "chunk.h"
-#include "jstarconf.h"
 
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly
 // handle the execution of except/ensure handlers
-typedef enum UnwindCause { 
-    CAUSE_EXCEPT, CAUSE_RETURN 
-} UnwindCause;
+typedef enum UnwindCause { CAUSE_EXCEPT, CAUSE_RETURN } UnwindCause;
 
 static void reset(JStarVM *vm) {
     vm->sp = vm->stack;
@@ -131,7 +128,7 @@ static void appendNativeFrame(JStarVM *vm, ObjNative *native) {
 }
 
 static bool isNonInstantiableBuiltin(JStarVM *vm, ObjClass *cls) {
-    return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass || 
+    return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass ||
            cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass ||
            cls == vm->udataClass;
 }
@@ -198,11 +195,10 @@ static void packVarargs(JStarVM *vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static void raiseArgsExc(JStarVM *vm, Callable *function, int expected, 
-    int supplied, const char *quantity)
-{
-    jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.", 
-       function->module->name->data, function->name->data, quantity, expected, supplied);
+static void raiseArgsExc(JStarVM *vm, Callable *function, int expected, int supplied,
+                         const char *quantity) {
+    jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.",
+             function->module->name->data, function->name->data, quantity, expected, supplied);
 }
 
 static bool adjustArguments(JStarVM *vm, Callable *c, uint8_t argc) {
@@ -309,12 +305,13 @@ bool callValue(JStarVM *vm, Value callee, uint8_t argc) {
             ObjClass *cls = AS_CLASS(callee);
 
             if(isNonInstantiableBuiltin(vm, cls)) {
-                jsrRaise(vm, "Exception", "class %s can't be directly instatiated", cls->name->data);
+                jsrRaise(vm, "Exception", "class %s can't be directly instatiated",
+                         cls->name->data);
                 return false;
             }
 
-            vm->sp[-argc - 1] = isInstatiableBuiltin(vm, cls) ? 
-                                NULL_VAL : OBJ_VAL(newInstance(vm, cls));
+            vm->sp[-argc - 1] =
+                isInstatiableBuiltin(vm, cls) ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
 
             Value ctor;
             if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
@@ -484,7 +481,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             ObjList *list = AS_LIST(operand);
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
             if(index == SIZE_MAX) return false;
-            
+
             push(vm, list->arr[index]);
             return true;
         }
@@ -519,7 +516,7 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             break;
         }
     }
-    
+
     push(vm, operand);
     push(vm, arg);
     if(!invokeMethod(vm, getClass(vm, operand), vm->get, 1)) {
@@ -588,14 +585,14 @@ static bool unpackObject(JStarVM *vm, Obj *o, uint8_t n) {
 
     switch(o->type) {
     case OBJ_TUPLE:
-        arr = ((ObjTuple*)o)->arr;
-        size = ((ObjTuple*)o)->size;
+        arr = ((ObjTuple *)o)->arr;
+        size = ((ObjTuple *)o)->size;
         break;
     case OBJ_LIST:
-        arr = ((ObjList*)o)->arr;
-        size = ((ObjList*)o)->count;
+        arr = ((ObjList *)o)->arr;
+        size = ((ObjList *)o)->count;
         break;
-    default: 
+    default:
         UNREACHABLE();
         break;
     }
@@ -709,7 +706,7 @@ bool runEval(JStarVM *vm, int depth) {
     } while(0)
 
 #ifdef DBG_PRINT_EXEC
-    #define PRINT_DBG_STACK()                        \
+#    define PRINT_DBG_STACK()                        \
         printf("     ");                             \
         for(Value *v = vm->stack; v < vm->sp; v++) { \
             printf("[");                             \
@@ -719,27 +716,27 @@ bool runEval(JStarVM *vm, int depth) {
         printf("$\n");                               \
         disassembleIstr(&fn->chunk, (size_t)(ip - fn->chunk.code));
 #else
-    #define PRINT_DBG_STACK()
+#    define PRINT_DBG_STACK()
 #endif
 
 #ifdef USE_COMPUTED_GOTOS
-    // create jumptable
-    #define JMPTARGET(X) &&TARGET_##X,
+// create jumptable
+#    define JMPTARGET(X) &&TARGET_##X,
     static void *opJmpTable[] = {OPCODE(JMPTARGET)};
 
-    #define TARGET(op) TARGET_##op
-    #define DISPATCH()                            \
+#    define TARGET(op) TARGET_##op
+#    define DISPATCH()                            \
         do {                                      \
             PRINT_DBG_STACK()                     \
             goto *opJmpTable[(op = NEXT_CODE())]; \
         } while(0)
 
-    #define DECODE(op) DISPATCH();
+#    define DECODE(op) DISPATCH();
 #else
-    #define TARGET(op) case op
-    #define DISPATCH() goto decode
-    #define DECODE(op)     \
-        decode:            \
+#    define TARGET(op) case op
+#    define DISPATCH() goto decode
+#    define DECODE(op)     \
+    decode:                \
         PRINT_DBG_STACK(); \
         switch((op = NEXT_CODE()))
 #endif
@@ -1357,7 +1354,7 @@ bool unwindStack(JStarVM *vm, int depth) {
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame *frame = &vm->frames[vm->frameCount - 1];
-        
+
         if(IS_CLOSURE(frame->fn))
             vm->module = AS_CLOSURE(frame->fn)->fn->c.module;
         else

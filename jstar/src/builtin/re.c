@@ -1,16 +1,16 @@
 #include "re.h"
 
 #include <ctype.h>
-#include <stddef.h>
-#include <string.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "vm.h"
 #include "object.h"
 #include "value.h"
+#include "vm.h"
 
-#define MAX_CAPTURES        31
+#define MAX_CAPTURES       31
 #define CAPTURE_UNFINISHED -1
 #define CAPTURE_POSITION   -2
 
@@ -20,7 +20,7 @@
     do {                                                          \
         rs->err = true;                                           \
         jsrRaise(rs->vm, "RegexException", error, ##__VA_ARGS__); \
-    } while(0)                                                    \
+    } while(0)
 
 typedef struct {
     const char *str;
@@ -37,16 +37,35 @@ typedef struct {
 static bool matchClass(char c, char cls) {
     bool res;
     switch(tolower(cls)) {
-    case 'a': res = isalpha(c);  break;
-    case 'c': res = iscntrl(c);  break;
-    case 'd': res = isdigit(c);  break;
-    case 'l': res = islower(c);  break;
-    case 'p': res = ispunct(c);  break;
-    case 's': res = isspace(c);  break;
-    case 'u': res = isupper(c);  break;
-    case 'w': res = isalnum(c);  break;
-    case 'x': res = isxdigit(c); break;
-    default:  return c == cls;
+    case 'a':
+        res = isalpha(c);
+        break;
+    case 'c':
+        res = iscntrl(c);
+        break;
+    case 'd':
+        res = isdigit(c);
+        break;
+    case 'l':
+        res = islower(c);
+        break;
+    case 'p':
+        res = ispunct(c);
+        break;
+    case 's':
+        res = isspace(c);
+        break;
+    case 'u':
+        res = isupper(c);
+        break;
+    case 'w':
+        res = isalnum(c);
+        break;
+    case 'x':
+        res = isxdigit(c);
+        break;
+    default:
+        return c == cls;
     }
     return isupper(cls) ? !res : res;
 }
@@ -128,10 +147,8 @@ static const char *endCapture(RegexState *rs, const char *s, const char *r) {
 }
 
 static const char *matchCapture(RegexState *rs, const char *s, int captureNo) {
-    if(captureNo > rs->capturec - 1 ||
-       rs->captures[captureNo].len == CAPTURE_UNFINISHED || 
-       rs->captures[captureNo].len == CAPTURE_POSITION) 
-    {
+    if(captureNo > rs->capturec - 1 || rs->captures[captureNo].len == CAPTURE_UNFINISHED ||
+       rs->captures[captureNo].len == CAPTURE_POSITION) {
         return NULL;
     }
 
@@ -182,7 +199,7 @@ static const char *endClass(RegexState *rs, const char *r) {
                 REG_ERR("Malformed regex (unmatched `[`).");
                 return NULL;
             }
-            if(*r++ == ESCAPE && *r != '\0') r++; // Skip escape
+            if(*r++ == ESCAPE && *r != '\0') r++;  // Skip escape
         } while(*r != ']');
         return r + 1;
     default:
@@ -241,9 +258,8 @@ static const char *match(RegexState *rs, const char *s, const char *r) {
     return NULL;
 }
 
-static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, 
-    size_t len, const char *r, int off)
-{
+static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s, size_t len, const char *r,
+                       int off) {
     rs->vm = vm;
     rs->str = s;
     rs->strEnd = s + len;
@@ -278,15 +294,11 @@ static bool matchRegex(JStarVM *vm, RegexState *rs, const char *s,
     return false;
 }
 
-typedef enum FindRes {
-    FIND_ERR, FIND_MATCH, FIND_NOMATCH
-} FindRes;
+typedef enum FindRes { FIND_ERR, FIND_MATCH, FIND_NOMATCH } FindRes;
 
 static FindRes findAux(JStarVM *vm, RegexState *rs) {
-    if(!jsrCheckString(vm, 1, "str") || 
-       !jsrCheckString(vm, 2, "regex") || 
-       !jsrCheckInt(vm, 3, "off"))
-    {
+    if(!jsrCheckString(vm, 1, "str") || !jsrCheckString(vm, 2, "regex") ||
+       !jsrCheckInt(vm, 3, "off")) {
         return FIND_ERR;
     }
 
@@ -305,7 +317,7 @@ static FindRes findAux(JStarVM *vm, RegexState *rs) {
 }
 
 static bool pushCapture(JStarVM *vm, RegexState *rs, int n) {
-    if(n < 0 || n >= rs->capturec) 
+    if(n < 0 || n >= rs->capturec)
         JSR_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
     if(rs->captures[n].len == CAPTURE_UNFINISHED)
         JSR_RAISE(vm, "RegexException", "Unfinished capture.");

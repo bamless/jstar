@@ -1,13 +1,13 @@
 #include "math.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
-#include <stdbool.h>
 
 #include "object.h"
-#include "vm.h"
 #include "value.h"
+#include "vm.h"
 
 #define BL_PI 3.14159265358979323846
 #define BL_E  2.71828182845904523536

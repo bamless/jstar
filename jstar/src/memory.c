@@ -10,8 +10,8 @@
 #include "vm.h"
 
 #define REACHED_DEFAULT_SZ 16
-#define REACHED_GROW_RATE 2
-#define HEAP_GROW_RATE 2
+#define REACHED_GROW_RATE  2
+#define HEAP_GROW_RATE     2
 
 void *GCallocate(JStarVM *vm, void *ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
@@ -121,7 +121,7 @@ static void freeObject(JStarVM *vm, Obj *o) {
         break;
     }
     case OBJ_USERDATA: {
-        ObjUserdata *udata = (ObjUserdata *) o;
+        ObjUserdata *udata = (ObjUserdata *)o;
         if(udata->finalize) udata->finalize((void *)udata->data);
         GC_FREE_VAR(vm, ObjUserdata, uint8_t, udata->size, udata);
         break;
@@ -386,9 +386,10 @@ void garbageCollect(JStarVM *vm) {
 
 #ifdef DBG_PRINT_GC
     size_t curr = prevAlloc - vm->allocated;
-    printf("Completed GC, prev allocated: %lu, curr allocated "
-           "%lu, freed: %lu bytes of memory, next GC: %lu.\n",
-           prevAlloc, vm->allocated, curr, vm->nextGC);
+    printf(
+        "Completed GC, prev allocated: %lu, curr allocated "
+        "%lu, freed: %lu bytes of memory, next GC: %lu.\n",
+        prevAlloc, vm->allocated, curr, vm->nextGC);
     printf("*--- End  of  GC ---*\n");
 #endif
 }

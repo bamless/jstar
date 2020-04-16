@@ -10,14 +10,11 @@
 
 typedef struct JStarVM JStarVM;
 
-#define GC_ALLOC(vm, size) \
-    GCallocate(vm, NULL, 0, size)
+#define GC_ALLOC(vm, size) GCallocate(vm, NULL, 0, size)
 
-#define GC_FREE(vm, type, obj) \
-    GCallocate(vm, obj, sizeof(type), 0)
+#define GC_FREE(vm, type, obj) GCallocate(vm, obj, sizeof(type), 0)
 
-#define GC_FREEARRAY(vm, type, obj, count) \
-    GCallocate(vm, obj, sizeof(type) * (count), 0)
+#define GC_FREEARRAY(vm, type, obj, count) GCallocate(vm, obj, sizeof(type) * (count), 0)
 
 #define GC_FREE_VAR(vm, type, vartype, count, obj) \
     GCallocate(vm, obj, sizeof(type) + sizeof(vartype) * (count), 0)

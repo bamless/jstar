@@ -5,21 +5,20 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "jsrparse/ast.h"
-#include "jsrparse/parser.h"
-
-#include "import.h"
-#include "memory.h"
-#include "util.h"
-#include "vm.h"
 #include "const.h"
 #include "hashtable.h"
+#include "import.h"
+#include "jsrparse/ast.h"
+#include "jsrparse/parser.h"
+#include "memory.h"
 #include "object.h"
+#include "util.h"
 #include "value.h"
+#include "vm.h"
 
 /**
  * The bulk of the API (jstar.h) implementation.
- * 
+ *
  * JStarBuffer is implemented in object.c
  */
 
@@ -341,7 +340,7 @@ void jsrPushNative(JStarVM *vm, const char *name, JStarNative nat, uint8_t argc)
     push(vm, OBJ_VAL(objNative));
 }
 
-void *jsrPushUserdata(JStarVM *vm, size_t size, void (*finalize)(void*)) {
+void *jsrPushUserdata(JStarVM *vm, size_t size, void (*finalize)(void *)) {
     validateStack(vm);
     ObjUserdata *udata = newUserData(vm, size, finalize);
     push(vm, OBJ_VAL(udata));
@@ -354,8 +353,10 @@ void jsrPop(JStarVM *vm) {
 }
 
 void jsrSetGlobal(JStarVM *vm, const char *mname, const char *name) {
-    assert(vm->module || mname, "Calling jsrSetGlobal outside of Native function requires specifying a module");
-    ObjModule *module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
+    assert(vm->module || mname,
+           "Calling jsrSetGlobal outside of Native function requires specifying a module");
+    ObjModule *module =
+        mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
     hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
@@ -420,8 +421,10 @@ bool jsrGetField(JStarVM *vm, int slot, const char *name) {
 }
 
 bool jsrGetGlobal(JStarVM *vm, const char *mname, const char *name) {
-    assert(vm->module || mname, "Calling jsrGetGlobal outside of Native function requires specifying a module");
-    ObjModule *module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
+    assert(vm->module || mname,
+           "Calling jsrGetGlobal outside of Native function requires specifying a module");
+    ObjModule *module =
+        mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
 
     Value res;
     ObjString *namestr = copyString(vm, name, strlen(name), true);
