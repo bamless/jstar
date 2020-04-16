@@ -310,8 +310,8 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
                 return false;
             }
 
-            vm->sp[-argc - 1] =
-                isInstatiableBuiltin(vm, cls) ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
+            vm->sp[-argc - 1] = isInstatiableBuiltin(vm, cls) ? NULL_VAL
+                                                              : OBJ_VAL(newInstance(vm, cls));
 
             Value ctor;
             if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
@@ -1362,7 +1362,8 @@ bool unwindStack(JStarVM* vm, int depth) {
 
         stRecordFrame(vm, st, frame, vm->frameCount);
 
-        // if current frame has except or ensure handlers retore handler state and exit
+        // if current frame has except or ensure handlers retore handler state
+        // and exit
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerc];

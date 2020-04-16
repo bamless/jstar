@@ -353,10 +353,9 @@ void jsrPop(JStarVM* vm) {
 }
 
 void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    assert(vm->module || mname,
-           "Calling jsrSetGlobal outside of Native function requires specifying a module");
-    ObjModule* module =
-        mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
+    assert(vm->module || mname, "Undefined module");
+    ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
+                              : vm->module;
     hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
@@ -423,8 +422,8 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
     assert(vm->module || mname,
            "Calling jsrGetGlobal outside of Native function requires specifying a module");
-    ObjModule* module =
-        mname ? getModule(vm, copyString(vm, mname, strlen(mname), true)) : vm->module;
+    ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
+                              : vm->module;
 
     Value res;
     ObjString* namestr = copyString(vm, name, strlen(name), true);
