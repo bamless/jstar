@@ -1,7 +1,7 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-extern const char *tokNames[];
+extern const char* tokNames[];
 
 #define IS_ASSIGN(tok)         (tok <= TOK_MOD_EQ && tok >= TOK_EQUAL)
 #define IS_COMPUND_ASSIGN(tok) (tok <= TOK_MOD_EQ && tok > TOK_EQUAL)
@@ -94,7 +94,7 @@ typedef enum {
 
 typedef struct Token {
     TokenType type;
-    const char *lexeme;
+    const char* lexeme;
     int length;
     int line;
 } Token;

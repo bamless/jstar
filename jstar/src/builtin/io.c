@@ -18,10 +18,10 @@
 
 // static helper functions
 
-static bool readline(JStarVM *vm, FILE *file) {
+static bool readline(JStarVM* vm, FILE* file) {
     char buf[512];
 
-    char *ret = fgets(buf, sizeof(buf), file);
+    char* ret = fgets(buf, sizeof(buf), file);
     if(ret == NULL) {
         if(feof(file)) {
             jsrPushNull(vm);
@@ -52,7 +52,7 @@ static bool readline(JStarVM *vm, FILE *file) {
     return true;
 }
 
-static int jsrSeek(FILE *file, long offset, int blWhence) {
+static int jsrSeek(FILE* file, long offset, int blWhence) {
     int whence = 0;
     switch(blWhence) {
     case JSR_SEEK_SET:
@@ -78,8 +78,8 @@ JSR_NATIVE(jsr_File_new) {
         JSR_CHECK(String, 1, "path");
         JSR_CHECK(String, 2, "mode");
 
-        const char *path = jsrGetString(vm, 1);
-        const char *m = jsrGetString(vm, 2);
+        const char* path = jsrGetString(vm, 1);
+        const char* m = jsrGetString(vm, 2);
 
         size_t mlen = strlen(m);
         if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
@@ -87,7 +87,7 @@ JSR_NATIVE(jsr_File_new) {
             JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", m);
         }
 
-        FILE *f = fopen(path, m);
+        FILE* f = fopen(path, m);
         if(f == NULL) {
             if(errno == ENOENT) {
                 JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
@@ -97,7 +97,7 @@ JSR_NATIVE(jsr_File_new) {
         }
 
         // this._handle = f
-        jsrPushHandle(vm, (void *)f);
+        jsrPushHandle(vm, (void*)f);
         jsrSetField(vm, 0, FIELD_FILE_HANDLE);
 
         // this._closed = false
@@ -116,7 +116,7 @@ JSR_NATIVE(jsr_File_new) {
     return true;
 }
 
-static bool checkClosed(JStarVM *vm) {
+static bool checkClosed(JStarVM* vm) {
     if(!jsrGetField(vm, 0, FIELD_FILE_CLOSED)) return false;
     bool closed = jsrGetBoolean(vm, -1);
     if(closed) JSR_RAISE(vm, "IOException", "closed file");
@@ -130,7 +130,7 @@ JSR_NATIVE(jsr_File_seek) {
     JSR_CHECK(Int, 1, "off");
     JSR_CHECK(Int, 2, "whence");
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
     int offset = jsrGetNumber(vm, 1);
     int whence = jsrGetNumber(vm, 2);
 
@@ -151,7 +151,7 @@ JSR_NATIVE(jsr_File_tell) {
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     long off = ftell(f);
     if(off == -1) {
@@ -167,7 +167,7 @@ JSR_NATIVE(jsr_File_rewind) {
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
     rewind(f);
 
     jsrPushNull(vm);
@@ -182,7 +182,7 @@ JSR_NATIVE(jsr_File_read) {
 
     double bytes = jsrGetNumber(vm, 1);
     if(bytes < 0) JSR_RAISE(vm, "InvalidArgException", "bytes must be >= 0");
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     JStarBuffer data;
     jsrBufferInitSz(vm, &data, bytes);
@@ -203,7 +203,7 @@ JSR_NATIVE(jsr_File_readAll) {
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     JStarBuffer data;
     jsrBufferInitSz(vm, &data, 512);
@@ -234,7 +234,7 @@ JSR_NATIVE(jsr_File_readLine) {
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
     if(!readline(vm, f)) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
@@ -248,9 +248,9 @@ JSR_NATIVE(jsr_File_write) {
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
     JSR_CHECK(String, 1, "data");
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
     size_t datalen = jsrGetStringSz(vm, 1);
-    const char *data = jsrGetString(vm, 1);
+    const char* data = jsrGetString(vm, 1);
 
     if(fwrite(data, 1, datalen, f) < datalen) {
         JSR_RAISE(vm, "IOException", strerror(errno));
@@ -265,7 +265,7 @@ JSR_NATIVE(jsr_File_close) {
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     jsrPushBoolean(vm, true);
     jsrSetField(vm, 0, FIELD_FILE_CLOSED);
@@ -283,7 +283,7 @@ JSR_NATIVE(jsr_File_flush) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
     if(fflush(f) == EOF) JSR_RAISE(vm, "IOException", strerror(errno));
     jsrPushNull(vm);
     return true;
@@ -296,7 +296,7 @@ JSR_NATIVE(jsr_PFile_close) {
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
-    FILE *f = (FILE *)jsrGetHandle(vm, -1);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     jsrPushBoolean(vm, true);
     jsrSetField(vm, 0, FIELD_FILE_CLOSED);
@@ -335,14 +335,14 @@ JSR_NATIVE(jsr_rename) {
 JSR_NATIVE(jsr_popen) {
     JSR_CHECK(String, 1, "name");
 
-    const char *pname = jsrGetString(vm, 1);
-    const char *mode = jsrGetString(vm, 2);
+    const char* pname = jsrGetString(vm, 1);
+    const char* mode = jsrGetString(vm, 2);
 
     if(strlen(mode) != 1 || (mode[0] != 'r' && mode[1] != 'w')) {
         JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
     }
 
-    FILE *f = popen(pname, mode);
+    FILE* f = popen(pname, mode);
     if(f == NULL) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
@@ -353,7 +353,7 @@ JSR_NATIVE(jsr_popen) {
     return true;
 }
 
-static bool createStdFile(JStarVM *vm, const char *name, FILE *stdfile) {
+static bool createStdFile(JStarVM* vm, const char* name, FILE* stdfile) {
     if(!jsrGetGlobal(vm, NULL, "File")) return false;
     jsrPushNull(vm);
     jsrPushNull(vm);

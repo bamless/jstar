@@ -8,11 +8,11 @@
 #include "opcode.h"
 #include "value.h"
 
-static uint16_t readShortAt(const uint8_t *code, size_t i) {
+static uint16_t readShortAt(const uint8_t* code, size_t i) {
     return ((uint16_t)code[i] << 8) | code[i + 1];
 }
 
-void disassembleChunk(Chunk *c) {
+void disassembleChunk(Chunk* c) {
     for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {
         disassembleIstr(c, i);
         if(c->code[i] == OP_CLOSURE) {
@@ -22,19 +22,19 @@ void disassembleChunk(Chunk *c) {
     }
 }
 
-static void signedOffsetInstruction(Chunk *c, size_t i) {
+static void signedOffsetInstruction(Chunk* c, size_t i) {
     int16_t off = (int16_t)readShortAt(c->code, i + 1);
     printf("%d (to %lu)", off, (unsigned long)(i + off + 3));
 }
 
-static void constInstruction(Chunk *c, size_t i) {
+static void constInstruction(Chunk* c, size_t i) {
     int op = readShortAt(c->code, i + 1);
     printf("%d (", op);
     printValue(c->consts.arr[op]);
     printf(")");
 }
 
-static void const2Instruction(Chunk *c, size_t i) {
+static void const2Instruction(Chunk* c, size_t i) {
     int arg1 = readShortAt(c->code, i + 1);
     int arg2 = readShortAt(c->code, i + 3);
     printf("%d %d (", arg1, arg2);
@@ -44,7 +44,7 @@ static void const2Instruction(Chunk *c, size_t i) {
     printf(")");
 }
 
-static void invokeInstruction(Chunk *c, size_t i) {
+static void invokeInstruction(Chunk* c, size_t i) {
     int argc = c->code[i + 1];
     int name = readShortAt(c->code, i + 2);
     printf("%d %d (", argc, name);
@@ -52,18 +52,18 @@ static void invokeInstruction(Chunk *c, size_t i) {
     printf(")");
 }
 
-static void unsignedByteInstruction(Chunk *c, size_t i) {
+static void unsignedByteInstruction(Chunk* c, size_t i) {
     printf("%d", c->code[i + 1]);
 }
 
-static void closureInstruction(Chunk *c, size_t i) {
+static void closureInstruction(Chunk* c, size_t i) {
     int op = readShortAt(c->code, i + 1);
 
     printf("%d (", op);
     printValue(c->consts.arr[op]);
     printf(")");
 
-    ObjFunction *fn = AS_FUNC(c->consts.arr[op]);
+    ObjFunction* fn = AS_FUNC(c->consts.arr[op]);
 
     int offset = i + 3;
     for(uint8_t j = 0; j < fn->upvaluec; j++) {
@@ -73,7 +73,7 @@ static void closureInstruction(Chunk *c, size_t i) {
     }
 }
 
-void disassembleIstr(Chunk *c, size_t i) {
+void disassembleIstr(Chunk* c, size_t i) {
     printf("%.4d %s ", (int)i, OpcodeName[c->code[i]]);
 
     switch(c->code[i]) {

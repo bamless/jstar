@@ -4,7 +4,7 @@
 #include "jstar.h"
 
 // J* core libray bootstrap
-void initCoreLibrary(JStarVM *vm);
+void initCoreLibrary(JStarVM* vm);
 
 JSR_NATIVE(jsr_ascii);
 JSR_NATIVE(jsr_char);

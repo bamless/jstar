@@ -7,7 +7,7 @@
 typedef struct JStarVM JStarVM;
 typedef struct Compiler Compiler;
 
-ObjFunction *compile(JStarVM *vm, ObjModule *module, Stmt *s);
-void reachCompilerRoots(JStarVM *vm, Compiler *c);
+ObjFunction* compile(JStarVM* vm, ObjModule* module, Stmt* s);
+void reachCompilerRoots(JStarVM* vm, Compiler* c);
 
 #endif

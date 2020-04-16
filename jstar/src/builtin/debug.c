@@ -10,7 +10,7 @@
 #include "vm.h"
 
 JSR_NATIVE(jsr_printStack) {
-    for(Value *v = vm->stack; v < vm->sp; v++) {
+    for(Value* v = vm->stack; v < vm->sp; v++) {
         printf("[");
         printValue(*v);
         printf("]");
@@ -33,7 +33,7 @@ JSR_NATIVE(jsr_disassemble) {
     }
 
     if(!IS_NATIVE(func)) {
-        Chunk *c = &AS_CLOSURE(func)->fn->chunk;
+        Chunk* c = &AS_CLOSURE(func)->fn->chunk;
         disassembleChunk(c);
     } else {
         printf("Native implementation\n");

@@ -31,12 +31,12 @@
 typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
 typedef struct {
-    const char *name;
+    const char* name;
     JStarNative func;
 } Func;
 
 typedef struct {
-    const char *name;
+    const char* name;
     Func methods[16];
 } Class;
 
@@ -49,8 +49,8 @@ typedef struct {
 } ModuleElem;
 
 typedef struct {
-    const char *name;
-    const char **src;
+    const char* name;
+    const char** src;
     ModuleElem elems[31];
 } Module;
 
@@ -241,7 +241,7 @@ Module builtInModules[] = {
 
 // clang-format on
 
-static Module *getModule(const char *name) {
+static Module* getModule(const char* name) {
     for(int i = 0; builtInModules[i].name != NULL; i++) {
         if(strcmp(name, builtInModules[i].name) == 0) {
             return &builtInModules[i];
@@ -250,9 +250,9 @@ static Module *getModule(const char *name) {
     return NULL;
 }
 
-static Class *getClass(Module *module, const char *name) {
+static Class* getClass(Module* module, const char* name) {
     for(int i = 0;; i++) {
-        ModuleElem *e = &module->elems[i];
+        ModuleElem* e = &module->elems[i];
         if(e->type == TYPE_FUNC && e->function.name == NULL) return NULL;
 
         if(e->type == TYPE_CLASS) {
@@ -263,7 +263,7 @@ static Class *getClass(Module *module, const char *name) {
     }
 }
 
-static JStarNative getNativeMethod(Class *cls, const char *name) {
+static JStarNative getNativeMethod(Class* cls, const char* name) {
     for(int i = 0; cls->methods[i].name != NULL; i++) {
         if(strcmp(cls->methods[i].name, name) == 0) {
             return cls->methods[i].func;
@@ -272,7 +272,7 @@ static JStarNative getNativeMethod(Class *cls, const char *name) {
     return NULL;
 }
 
-static JStarNative getNativeFunc(Module *module, const char *name) {
+static JStarNative getNativeFunc(Module* module, const char* name) {
     for(int i = 0;; i++) {
         if(module->elems[i].type == TYPE_FUNC) {
             if(module->elems[i].function.name == NULL) return NULL;
@@ -284,22 +284,22 @@ static JStarNative getNativeFunc(Module *module, const char *name) {
     }
 }
 
-JStarNative resolveBuiltIn(const char *module, const char *cls, const char *name) {
-    Module *m = getModule(module);
+JStarNative resolveBuiltIn(const char* module, const char* cls, const char* name) {
+    Module* m = getModule(module);
     if(m == NULL) return NULL;
 
     if(cls == NULL) {
         return getNativeFunc(m, name);
     }
 
-    Class *c = getClass(m, cls);
+    Class* c = getClass(m, cls);
     if(c == NULL) return NULL;
 
     return getNativeMethod(c, name);
 }
 
-const char *readBuiltInModule(const char *name) {
-    Module *m = getModule(name);
+const char* readBuiltInModule(const char* name) {
+    Module* m = getModule(name);
     if(m != NULL) {
         return *m->src;
     }

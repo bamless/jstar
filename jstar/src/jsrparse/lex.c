@@ -7,7 +7,7 @@
 #include "jsrparse/token.h"
 
 typedef struct {
-    const char *name;
+    const char* name;
     size_t length;
     TokenType type;
 } Keyword;
@@ -52,25 +52,25 @@ static Keyword keywords[] = {
 
 // clang-format on
 
-static char advance(Lexer *lex) {
+static char advance(Lexer* lex) {
     lex->current++;
     return lex->current[-1];
 }
 
-static char peekChar(Lexer *lex) {
+static char peekChar(Lexer* lex) {
     return *lex->current;
 }
 
-static bool isAtEnd(Lexer *lex) {
+static bool isAtEnd(Lexer* lex) {
     return peekChar(lex) == '\0';
 }
 
-static char peekChar2(Lexer *lex) {
+static char peekChar2(Lexer* lex) {
     if(isAtEnd(lex)) return '\0';
     return lex->current[1];
 }
 
-static bool match(Lexer *lex, char c) {
+static bool match(Lexer* lex, char c) {
     if(isAtEnd(lex)) return false;
     if(peekChar(lex) == c) {
         advance(lex);
@@ -79,7 +79,7 @@ static bool match(Lexer *lex, char c) {
     return false;
 }
 
-void initLexer(Lexer *lex, const char *src) {
+void initLexer(Lexer* lex, const char* src) {
     lex->source = src;
     lex->tokenStart = src;
     lex->current = src;
@@ -94,7 +94,7 @@ void initLexer(Lexer *lex, const char *src) {
     }
 }
 
-static void skipSpacesAndComments(Lexer *lex) {
+static void skipSpacesAndComments(Lexer* lex) {
     while(!isAtEnd(lex)) {
         switch(peekChar(lex)) {
         case '\\':
@@ -140,25 +140,25 @@ static bool isAlphaNum(char c) {
     return isAlpha(c) || isNum(c);
 }
 
-static void makeToken(Lexer *lex, Token *tok, TokenType type) {
+static void makeToken(Lexer* lex, Token* tok, TokenType type) {
     tok->type = type;
     tok->lexeme = lex->tokenStart;
     tok->length = (int)(lex->current - lex->tokenStart);
     tok->line = lex->curr_line;
 }
 
-static void eofToken(Lexer *lex, Token *tok) {
+static void eofToken(Lexer* lex, Token* tok) {
     tok->type = TOK_EOF;
     tok->lexeme = lex->current;
     tok->length = 0;
     tok->line = lex->curr_line;
 }
 
-static void integer(Lexer *lex) {
+static void integer(Lexer* lex) {
     while(isNum(peekChar(lex))) advance(lex);
 }
 
-static void number(Lexer *lex, Token *tok) {
+static void number(Lexer* lex, Token* tok) {
     integer(lex);
 
     if(peekChar(lex) == '.' && isNum(peekChar2(lex))) {
@@ -175,7 +175,7 @@ static void number(Lexer *lex, Token *tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static void hexNumber(Lexer *lex, Token *tok) {
+static void hexNumber(Lexer* lex, Token* tok) {
     while(isHex(peekChar(lex))) advance(lex);
 
     if(match(lex, 'e')) {
@@ -187,7 +187,7 @@ static void hexNumber(Lexer *lex, Token *tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static bool stringBody(Lexer *lex, char end) {
+static bool stringBody(Lexer* lex, char end) {
     while(peekChar(lex) != end && !isAtEnd(lex)) {
         if(peekChar(lex) == '\n') lex->curr_line++;
         if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
@@ -203,7 +203,7 @@ static bool stringBody(Lexer *lex, char end) {
     return true;
 }
 
-static void string(Lexer *lex, char end, Token *tok) {
+static void string(Lexer* lex, char end, Token* tok) {
     if(!stringBody(lex, end)) {
         makeToken(lex, tok, TOK_UNTERMINATED_STR);
         return;
@@ -211,7 +211,7 @@ static void string(Lexer *lex, char end, Token *tok) {
     makeToken(lex, tok, TOK_STRING);
 }
 
-static void command(Lexer *lex, Token *tok) {
+static void command(Lexer* lex, Token* tok) {
     if(!stringBody(lex, '`')) {
         makeToken(lex, tok, TOK_UNTERMINATED_STR);
         return;
@@ -219,14 +219,14 @@ static void command(Lexer *lex, Token *tok) {
     makeToken(lex, tok, TOK_COMMAND);
 }
 
-static void identifier(Lexer *lex, Token *tok) {
+static void identifier(Lexer* lex, Token* tok) {
     while(isAlphaNum(peekChar(lex))) advance(lex);
 
     TokenType type = TOK_IDENTIFIER;
 
     // See if the identifier is a reserved word.
     size_t length = lex->current - lex->tokenStart;
-    for(Keyword *keyword = keywords; keyword->name != NULL; keyword++) {
+    for(Keyword* keyword = keywords; keyword->name != NULL; keyword++) {
         if(length == keyword->length && memcmp(lex->tokenStart, keyword->name, length) == 0) {
             type = keyword->type;
             break;
@@ -236,7 +236,7 @@ static void identifier(Lexer *lex, Token *tok) {
     makeToken(lex, tok, type);
 }
 
-void nextToken(Lexer *lex, Token *tok) {
+void nextToken(Lexer* lex, Token* tok) {
     skipSpacesAndComments(lex);
 
     if(isAtEnd(lex)) {
@@ -383,7 +383,7 @@ void nextToken(Lexer *lex, Token *tok) {
     }
 }
 
-void rewindTo(Lexer *lex, Token *tok) {
+void rewindTo(Lexer* lex, Token* tok) {
     if(tok->lexeme == NULL) return;
     lex->tokenStart = lex->current = tok->lexeme;
     lex->curr_line = tok->line;

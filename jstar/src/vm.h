@@ -20,13 +20,13 @@ typedef struct Handler {
 #define HANDLER_ENSURE OP_SETUP_ENSURE
 #define HANDLER_EXCEPT OP_SETUP_EXCEPT
     uint8_t type;      // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
-    uint8_t *handler;  // The address of the handler code
-    Value *savesp;     // Stack pointer to restore state when handling exceptions
+    uint8_t* handler;  // The address of the handler code
+    Value* savesp;     // Stack pointer to restore state when handling exceptions
 } Handler;
 
 typedef struct Frame {
-    uint8_t *ip;                    // Instruction pointer
-    Value *stack;                   // Base of stack for current frame
+    uint8_t* ip;                    // Instruction pointer
+    Value* stack;                   // Base of stack for current frame
     Value fn;                       // The function associated with the frame (native or closure)
     Handler handlers[HANDLER_MAX];  // Exception handlers
     uint8_t handlerc;               // Exception handlers count
@@ -36,26 +36,26 @@ typedef struct Frame {
 // state needed to execute J* code.
 typedef struct JStarVM {
     // Paths searched for import
-    ObjList *importpaths;
+    ObjList* importpaths;
 
     // Built in classes
-    ObjClass *clsClass;
-    ObjClass *objClass;
-    ObjClass *strClass;
-    ObjClass *boolClass;
-    ObjClass *lstClass;
-    ObjClass *numClass;
-    ObjClass *funClass;
-    ObjClass *modClass;
-    ObjClass *nullClass;
-    ObjClass *stClass;
-    ObjClass *tupClass;
-    ObjClass *excClass;
-    ObjClass *tableClass;
-    ObjClass *udataClass;
+    ObjClass* clsClass;
+    ObjClass* objClass;
+    ObjClass* strClass;
+    ObjClass* boolClass;
+    ObjClass* lstClass;
+    ObjClass* numClass;
+    ObjClass* funClass;
+    ObjClass* modClass;
+    ObjClass* nullClass;
+    ObjClass* stClass;
+    ObjClass* tupClass;
+    ObjClass* excClass;
+    ObjClass* tableClass;
+    ObjClass* udataClass;
 
     // Current VM compiler
-    Compiler *currCompiler;
+    Compiler* currCompiler;
 
     // Constant strings needed by compiler and runtime
     ObjString *ctor, *stacktrace, *next, *iter;
@@ -66,11 +66,11 @@ typedef struct JStarVM {
     ObjString *lt, *le, *gt, *ge, *eq, *neg;
 
     // Script arguments
-    const char **argv;
+    const char** argv;
     int argc;
 
     // The empty tuple (singleton)
-    ObjTuple *emptyTup;
+    ObjTuple* emptyTup;
 
     // loaded modules
     HashTable modules;
@@ -83,60 +83,60 @@ typedef struct JStarVM {
 
     // Frames stack
     int frameSz;
-    Frame *frames;
+    Frame* frames;
     int frameCount;
 
     // Stack used during native function calls
-    Value *apiStack;
+    Value* apiStack;
 
     // Constant string pool, for interned strings
     HashTable strings;
 
     // Linked list of all open upvalues
-    ObjUpvalue *upvalues;
+    ObjUpvalue* upvalues;
 
     // ---- Memory management ----
 
     // Linked list of all allocated objects (used in
     // the sweep phase of GC to free unreached objects)
-    Obj *objects;
+    Obj* objects;
 
     bool disableGC;    // Whether the garbage collector is enabled or disabled
     size_t allocated;  // Bytes currently allocated
     size_t nextGC;     // Bytes to which the next GC will be triggered
 
     // Stack used to recursevely reach all the fields of reached objects
-    Obj **reachedStack;
+    Obj** reachedStack;
     size_t reachedCapacity, reachedCount;
 } JStarVM;
 
-bool runEval(JStarVM *vm, int depth);
+bool runEval(JStarVM* vm, int depth);
 
-bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name);
-bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s);
+bool getFieldFromValue(JStarVM* vm, Value val, ObjString* name);
+bool setFieldOfValue(JStarVM* vm, Value val, ObjString* name, Value s);
 
-bool callValue(JStarVM *vm, Value callee, uint8_t argc);
-bool invokeValue(JStarVM *vm, ObjString *name, uint8_t argc);
+bool callValue(JStarVM* vm, Value callee, uint8_t argc);
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 
-bool unwindStack(JStarVM *vm, int depth);
+bool unwindStack(JStarVM* vm, int depth);
 
-static inline void push(JStarVM *vm, Value v) {
+static inline void push(JStarVM* vm, Value v) {
     *vm->sp++ = v;
 }
 
-static inline Value pop(JStarVM *vm) {
+static inline Value pop(JStarVM* vm) {
     return *--vm->sp;
 }
 
-static inline Value peek(JStarVM *vm) {
+static inline Value peek(JStarVM* vm) {
     return vm->sp[-1];
 }
 
-static inline Value peek2(JStarVM *vm) {
+static inline Value peek2(JStarVM* vm) {
     return vm->sp[-2];
 }
 
-static inline Value peekn(JStarVM *vm, int n) {
+static inline Value peekn(JStarVM* vm, int n) {
     return vm->sp[-(n + 1)];
 }
 
@@ -145,7 +145,7 @@ static inline bool isValTrue(Value val) {
     return !IS_NULL(val);
 }
 
-static inline ObjClass *getClass(JStarVM *vm, Value v) {
+static inline ObjClass* getClass(JStarVM* vm, Value v) {
 #ifdef NAN_TAGGING
     if(IS_NUM(v)) return vm->numClass;
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
@@ -174,8 +174,8 @@ static inline ObjClass *getClass(JStarVM *vm, Value v) {
 #endif
 }
 
-static inline bool isInstance(JStarVM *vm, Value i, ObjClass *cls) {
-    for(ObjClass *c = getClass(vm, i); c != NULL; c = c->superCls) {
+static inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
+    for(ObjClass* c = getClass(vm, i); c != NULL; c = c->superCls) {
         if(c == cls) {
             return true;
         }
@@ -183,7 +183,7 @@ static inline bool isInstance(JStarVM *vm, Value i, ObjClass *cls) {
     return false;
 }
 
-static inline int apiStackIndex(JStarVM *vm, int slot) {
+static inline int apiStackIndex(JStarVM* vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0) return vm->sp + slot - vm->apiStack;
@@ -191,7 +191,7 @@ static inline int apiStackIndex(JStarVM *vm, int slot) {
 }
 
 // Get the value at API stack slot "slot"
-static inline Value apiStackSlot(JStarVM *vm, int slot) {
+static inline Value apiStackSlot(JStarVM* vm, int slot) {
     assert(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     assert(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0) return vm->sp[slot];
