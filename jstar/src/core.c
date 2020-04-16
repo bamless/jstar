@@ -23,8 +23,8 @@
 #include "vm.h"
 
 #ifdef _WIN32
-#    define popen  _popen
-#    define pclose _pclose
+    #define popen  _popen
+    #define pclose _pclose
 #endif
 
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
