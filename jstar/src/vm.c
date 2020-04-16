@@ -348,7 +348,7 @@ static bool invokeMethod(JStarVM *vm, ObjClass *cls, ObjString *name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
-bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc) {
+bool invokeValue(JStarVM *vm, ObjString *name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -482,12 +482,8 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             }
 
             ObjList *list = AS_LIST(operand);
-            double index = AS_NUM(arg);
-
-            if(index < 0 || index >= list->count) {
-                jsrRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
-                return false;
-            }
+            size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
+            if(index == SIZE_MAX) return false;
             
             push(vm, list->arr[(size_t)index]);
             return true;
@@ -499,12 +495,8 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             }
 
             ObjTuple *tuple = AS_TUPLE(operand);
-            double index = AS_NUM(arg);
-
-            if(index < 0 || index >= tuple->size) {
-                jsrRaise(vm, "IndexOutOfBoundException", "Tuple index out of bound: %g.", index);
-                return false;
-            }
+            size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), tuple->size);
+            if(index == SIZE_MAX) return false;
 
             push(vm, tuple->arr[(size_t)index]);
             return true;
@@ -516,13 +508,9 @@ static bool getSubscriptOfValue(JStarVM *vm, Value operand, Value arg) {
             }
 
             ObjString *str = AS_STRING(operand);
-            double index = AS_NUM(arg);
+            size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
+            if(index == SIZE_MAX) return false;
 
-            if(index < 0 || index >= str->length) {
-                jsrRaise(vm, "IndexOutOfBoundException", "String index out of bound: %g.", index);
-                return false;
-            }
-            
             char character = str->data[(size_t)index];
             push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
             return true;
@@ -548,12 +536,8 @@ static bool setSubscriptOfValue(JStarVM *vm, Value operand, Value arg, Value s) 
         }
 
         ObjList *list = AS_LIST(operand);
-        double index = AS_NUM(arg);
-
-        if(index < 0 || index >= list->count) {
-            jsrRaise(vm, "IndexOutOfBoundException", "List index out of bound: %g.", index);
-            return false;
-        }
+        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
+        if(index == SIZE_MAX) return false;
 
         list->arr[(size_t)index] = s;
         push(vm, s);
@@ -942,7 +926,7 @@ bool runEval(JStarVM *vm, int depth) {
         vm->sp[1] = vm->sp[-1];
         vm->sp += 2;
         SAVE_FRAME();
-        bool res = invokeFromValue(vm, vm->iter, 1);
+        bool res = invokeValue(vm, vm->iter, 1);
         LOAD_FRAME();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
@@ -956,7 +940,7 @@ bool runEval(JStarVM *vm, int depth) {
             vm->sp[1] = vm->sp[-1];
             vm->sp += 2;
             SAVE_FRAME();
-            bool res = invokeFromValue(vm, vm->next, 1);
+            bool res = invokeValue(vm, vm->next, 1);
             LOAD_FRAME();
             if(!res) UNWIND_STACK(vm);
         } else {
@@ -1021,7 +1005,7 @@ call:
 invoke:;
         ObjString *name = GET_STRING();
         SAVE_FRAME();
-        bool res = invokeFromValue(vm, name, argc);
+        bool res = invokeValue(vm, name, argc);
         LOAD_FRAME();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();

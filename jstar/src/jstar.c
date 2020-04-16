@@ -90,7 +90,7 @@ EvalResult jsrCallMethod(JStarVM *vm, const char *name, uint8_t argc) {
     size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
-    if(!invokeFromValue(vm, copyString(vm, name, strlen(name), true), argc)) {
+    if(!invokeValue(vm, copyString(vm, name, strlen(name), true), argc)) {
         callError(vm, depth, offsp);
         return VM_RUNTIME_ERR;
     }
@@ -215,12 +215,6 @@ char *jsrReadFile(const char *path) {
 
 static void validateStack(JStarVM *vm) {
     assert((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
-}
-
-static size_t checkIndex(JStarVM *vm, double i, size_t max, const char *name) {
-    if(i >= 0 && i < max) return (size_t)i;
-    jsrRaise(vm, "IndexOutOfBoundException", "%g.", i);
-    return SIZE_MAX;
 }
 
 bool jsrRawEquals(JStarVM *vm, int slot1, int slot2) {
@@ -570,8 +564,14 @@ bool jsrCheckUserdata(JStarVM *vm, int slot, const char *name) {
     return true;
 }
 
+size_t jsrCheckIndexNum(JStarVM *vm, double i, size_t max) {
+    if(i >= 0 && i < max) return (size_t)i;
+    jsrRaise(vm, "IndexOutOfBoundException", "%g.", i);
+    return SIZE_MAX;
+}
+
 size_t jsrCheckIndex(JStarVM *vm, int slot, size_t max, const char *name) {
     if(!jsrCheckInt(vm, slot, name)) return SIZE_MAX;
     double i = jsrGetNumber(vm, slot);
-    return checkIndex(vm, i, max, name);
+    return jsrCheckIndexNum(vm, i, max);
 }

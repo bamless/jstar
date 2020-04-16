@@ -116,7 +116,7 @@ bool getFieldFromValue(JStarVM *vm, Value val, ObjString *name);
 bool setFieldOfValue(JStarVM *vm, Value val, ObjString *name, Value s);
 
 bool callValue(JStarVM *vm, Value callee, uint8_t argc);
-bool invokeFromValue(JStarVM *vm, ObjString *name, uint8_t argc);
+bool invokeValue(JStarVM *vm, ObjString *name, uint8_t argc);
 
 bool unwindStack(JStarVM *vm, int depth);
 
@@ -126,6 +126,18 @@ static inline void push(JStarVM *vm, Value v) {
 
 static inline Value pop(JStarVM *vm) {
     return *--vm->sp;
+}
+
+static inline Value peek(JStarVM *vm) {
+    return vm->sp[-1];
+}
+
+static inline Value peek2(JStarVM *vm) {
+    return vm->sp[-2];
+}
+
+static inline Value peekn(JStarVM *vm, int n) {
+    return vm->sp[-(n + 1)];
 }
 
 static inline bool isValTrue(Value val) {
@@ -169,18 +181,6 @@ static inline bool isInstance(JStarVM *vm, Value i, ObjClass *cls) {
         }
     }
     return false;
-}
-
-static inline Value peek(JStarVM *vm) {
-    return vm->sp[-1];
-}
-
-static inline Value peek2(JStarVM *vm) {
-    return vm->sp[-2];
-}
-
-static inline Value peekn(JStarVM *vm, int n) {
-    return vm->sp[-(n + 1)];
 }
 
 static inline int apiStackIndex(JStarVM *vm, int slot) {
