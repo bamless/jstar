@@ -1,9 +1,9 @@
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
 
-#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "value.h"
 

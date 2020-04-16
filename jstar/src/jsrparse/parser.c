@@ -1,14 +1,15 @@
 #include "jsrparse/parser.h"
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
 #include "jsrparse/linkedlist.h"
 #include "jsrparse/token.h"
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
 
 typedef struct Parser {
     Lexer lex;
@@ -45,7 +46,7 @@ static void error(Parser *p, const char *msg, ...) {
 
         int tokOff = (int)((p->peek.lexeme) - p->lnStart);
         int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
-        
+
         fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
         fprintf(stderr, "    ");
         for(int i = 0; i < tokOff; i++) {
@@ -92,7 +93,7 @@ static Token require(Parser *p, TokenType type) {
         return t;
     }
     error(p, "Expected token `%s`, instead `%s` found.", tokNames[type], tokNames[p->peek.type]);
-    return (Token) {0, NULL, 0, 0};
+    return (Token){0, NULL, 0, 0};
 }
 
 static void synchronize(Parser *p) {
@@ -150,13 +151,13 @@ static bool isConstantLiteral(ExprType type) {
 }
 
 static void requireStmtEnd(Parser *p) {
-    if(!isImplicitEnd(&p->peek)) {                    
+    if(!isImplicitEnd(&p->peek)) {
         if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) {
-            advance(p);                                     
-        } else {                                                
+            advance(p);
+        } else {
             error(p, "Expected token `newline` or `;`.");
-        }   
-    }         
+        }
+    }
 }
 
 //----- Recursive descent parser implementation ------
@@ -201,11 +202,10 @@ Expr *parseExpression(const char *fname, const char *src) {
 //----- Statement parse ------
 static Expr *literal(Parser *p);
 
-static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, 
-    bool *vararg, TokenType open, TokenType close) 
-{
+static void formalArgs(Parser *p, LinkedList **args, LinkedList **defArgs, bool *vararg,
+                       TokenType open, TokenType close) {
     Token arg = {};
-    
+
     require(p, open);
     skipNewLines(p);
 
@@ -277,7 +277,7 @@ static Stmt *parseStmt(Parser *p);
 static Stmt *blockStmt(Parser *p) {
     int line = p->peek.line;
     LinkedList *stmts = NULL;
-    
+
     skipNewLines(p);
     while(!isImplicitEnd(&p->peek)) {
         stmts = addElement(stmts, parseStmt(p));
@@ -286,7 +286,6 @@ static Stmt *blockStmt(Parser *p) {
 
     return newBlockStmt(line, stmts);
 }
-
 
 static Stmt *elifStmt(Parser *p);
 
@@ -343,7 +342,7 @@ static Stmt *whileStmt(Parser *p) {
 
 static Stmt *varDecl(Parser *p) {
     int line = p->peek.line;
-    
+
     bool isUnpack = false;
     LinkedList *identifiers = NULL;
     advance(p);
@@ -359,7 +358,6 @@ static Stmt *varDecl(Parser *p) {
             break;
         }
     } while(match(p, TOK_IDENTIFIER));
-
 
     Expr *init = NULL;
     if(match(p, TOK_EQUAL)) {
@@ -381,9 +379,9 @@ static Stmt *forEach(Parser *p, Stmt *var, int line) {
     skipNewLines(p);
 
     require(p, TOK_DO);
-    
+
     Stmt *body = blockStmt(p);
-    
+
     require(p, TOK_END);
     return newForEach(line, var, e, body);
 }
@@ -397,7 +395,7 @@ static Stmt *forStmt(Parser *p) {
         if(match(p, TOK_VAR)) {
             init = varDecl(p);
             if(match(p, TOK_IN)) {
-               return forEach(p, init, line);
+                return forEach(p, init, line);
             }
         } else {
             Expr *e = expression(p, true);
@@ -676,7 +674,7 @@ static Stmt *parseProgram(Parser *p) {
         skipNewLines(p);
         if(p->panic) synchronize(p);
     }
-    
+
     Token name = {};
     return newFuncDecl(0, false, &name, NULL, NULL, newBlockStmt(0, stmts));
 }
@@ -808,7 +806,7 @@ static Expr *literal(Parser *p) {
             advance(p);
             return newTupleLiteral(line, newExprList(line, NULL));
         }
-     
+
         Expr *e = expression(p, true);
         skipNewLines(p);
         require(p, TOK_RPAREN);
@@ -834,9 +832,8 @@ static Expr *literal(Parser *p) {
 static Expr *postfixExpr(Parser *p) {
     Expr *lit = literal(p);
 
-    while(match(p, TOK_LPAREN) || match(p, TOK_LCURLY) || match(p, TOK_DOT) || 
-          match(p, TOK_LSQUARE))
-    {
+    while(match(p, TOK_LPAREN) || match(p, TOK_LCURLY) || match(p, TOK_DOT) ||
+          match(p, TOK_LSQUARE)) {
         int line = p->peek.line;
         switch(p->peek.type) {
         case TOK_DOT: {
@@ -875,7 +872,7 @@ static Expr *anonymousFunc(Parser *p) {
     if(match(p, TOK_FUN)) {
         int line = p->peek.line;
         require(p, TOK_FUN);
-        
+
         bool vararg = false;
         LinkedList *args = NULL, *defArgs = NULL;
         formalArgs(p, &args, &defArgs, &vararg, TOK_LPAREN, TOK_RPAREN);
@@ -992,9 +989,8 @@ static Expr *additiveExpr(Parser *p) {
 static Expr *relationalExpr(Parser *p) {
     Expr *l = additiveExpr(p);
 
-    while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || 
-          match(p, TOK_LE) || match(p, TOK_IS)) 
-    {
+    while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || match(p, TOK_LE) ||
+          match(p, TOK_IS)) {
         int line = p->peek.line;
         TokenType tokType = p->peek.type;
         advance(p);
@@ -1053,7 +1049,7 @@ static Expr *logicAndExpr(Parser *p) {
     while(match(p, TOK_AND)) {
         int line = p->peek.line;
         advance(p);
-        l = newBinary(line, AND, l,  equalityExpr(p));
+        l = newBinary(line, AND, l, equalityExpr(p));
     }
 
     return l;
@@ -1112,7 +1108,6 @@ static void checkUnpackAssignement(Parser *p, Expr *lvals, TokenType assignToken
     }
 }
 
-
 static Operator assignTokToOperator(TokenType t) {
     switch(t) {
     case TOK_PLUS_EQ:
@@ -1142,7 +1137,7 @@ static Expr *expression(Parser *p, bool parseTuple) {
         TokenType assignToken = p->peek.type;
 
         if(l != NULL) {
-            if(l->type == TUPLE_LIT) 
+            if(l->type == TUPLE_LIT)
                 checkUnpackAssignement(p, l->as.tuple.exprs, assignToken);
             else if(!isLValue(l->type))
                 error(p, "Left hand side of assignment must be an lvalue.");

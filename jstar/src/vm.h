@@ -1,17 +1,17 @@
 #ifndef VM_H
 #define VM_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 #include "compiler.h"
 #include "const.h"
 #include "hashtable.h"
 #include "object.h"
+#include "opcode.h"
 #include "util.h"
 #include "value.h"
-#include "opcode.h"
 
 // This stores the info needed to jump
 // to handler code and to restore the
@@ -19,17 +19,17 @@
 typedef struct Handler {
 #define HANDLER_ENSURE OP_SETUP_ENSURE
 #define HANDLER_EXCEPT OP_SETUP_EXCEPT
-    uint8_t type;     // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
-    uint8_t *handler; // The address of the handler code
-    Value *savesp;    // Stack pointer to restore state when handling exceptions
+    uint8_t type;      // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
+    uint8_t *handler;  // The address of the handler code
+    Value *savesp;     // Stack pointer to restore state when handling exceptions
 } Handler;
 
 typedef struct Frame {
-    uint8_t *ip;                   // Instruction pointer
-    Value *stack;                  // Base of stack for current frame
-    Value fn;                      // The function associated with the frame (native or closure)
-    Handler handlers[HANDLER_MAX]; // Exception handlers
-    uint8_t handlerc;              // Exception handlers count
+    uint8_t *ip;                    // Instruction pointer
+    Value *stack;                   // Base of stack for current frame
+    Value fn;                       // The function associated with the frame (native or closure)
+    Handler handlers[HANDLER_MAX];  // Exception handlers
+    uint8_t handlerc;               // Exception handlers count
 } Frame;
 
 // The J* VM. This struct stores all the
@@ -101,9 +101,9 @@ typedef struct JStarVM {
     // the sweep phase of GC to free unreached objects)
     Obj *objects;
 
-    bool disableGC;   // Whether the garbage collector is enabled or disabled
-    size_t allocated; // Bytes currently allocated
-    size_t nextGC;    // Bytes to which the next GC will be triggered
+    bool disableGC;    // Whether the garbage collector is enabled or disabled
+    size_t allocated;  // Bytes currently allocated
+    size_t nextGC;     // Bytes to which the next GC will be triggered
 
     // Stack used to recursevely reach all the fields of reached objects
     Obj **reachedStack;
@@ -151,7 +151,7 @@ static inline ObjClass *getClass(JStarVM *vm, Value v) {
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
 
     switch(GET_TAG(v)) {
-    case TRUE_TAG: 
+    case TRUE_TAG:
     case FALSE_TAG:
         return vm->boolClass;
     case NULL_TAG:

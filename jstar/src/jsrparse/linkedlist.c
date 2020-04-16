@@ -8,8 +8,7 @@ LinkedList *addElement(LinkedList *lst, void *elem) {
     if(lst == NULL) return node;
 
     LinkedList *curr = lst;
-    while(curr->next != NULL)
-        curr = curr->next;
+    while(curr->next != NULL) curr = curr->next;
 
     curr->next = node;
     return lst;

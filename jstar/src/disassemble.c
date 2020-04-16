@@ -1,8 +1,8 @@
 #include "disassemble.h"
 
-#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "object.h"
 #include "opcode.h"

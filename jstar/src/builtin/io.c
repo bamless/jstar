@@ -1,14 +1,14 @@
 #ifdef _WIN32
-    #define popen _popen
-    #define pclose _pclose
+#    define popen  _popen
+#    define pclose _pclose
 #endif
 
 #include "io.h"
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 
 #include "util.h"
 
@@ -77,15 +77,13 @@ JSR_NATIVE(jsr_File_new) {
     if(jsrIsNull(vm, 3)) {
         JSR_CHECK(String, 1, "path");
         JSR_CHECK(String, 2, "mode");
-        
+
         const char *path = jsrGetString(vm, 1);
         const char *m = jsrGetString(vm, 2);
 
         size_t mlen = strlen(m);
         if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
-          (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || 
-          (mlen > 2 && m[2] != 'b'))
-        {
+           (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
             JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", m);
         }
 
@@ -102,7 +100,7 @@ JSR_NATIVE(jsr_File_new) {
         jsrPushHandle(vm, (void *)f);
         jsrSetField(vm, 0, FIELD_FILE_HANDLE);
 
-        //this._closed = false
+        // this._closed = false
         jsrPushBoolean(vm, false);
         jsrSetField(vm, 0, FIELD_FILE_CLOSED);
     } else if(jsrIsHandle(vm, 3)) {
@@ -206,13 +204,13 @@ JSR_NATIVE(jsr_File_readAll) {
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
 
     FILE *f = (FILE *)jsrGetHandle(vm, -1);
-    
+
     JStarBuffer data;
     jsrBufferInitSz(vm, &data, 512);
 
     for(;;) {
         char buf[512];
-        
+
         size_t read = fread(buf, 1, 512, f);
         if(read < 512) {
             if(feof(f)) {

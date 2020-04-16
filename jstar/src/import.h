@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 #include "jsrparse/ast.h"
-
 #include "object.h"
 #include "vm.h"
 

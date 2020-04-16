@@ -17,17 +17,47 @@ JSTAR_API Identifier *newIdentifier(size_t length, const char *name);
 JSTAR_API bool identifierEquals(Identifier *id1, Identifier *id2);
 
 typedef enum Operator {
-    PLUS, MINUS, MULT, DIV, MOD, EQ, 
-    NEQ, AND, OR, NOT, GT, GE, LT, LE, 
-    IS, LENGTH, STRINGOP
+    PLUS,
+    MINUS,
+    MULT,
+    DIV,
+    MOD,
+    EQ,
+    NEQ,
+    AND,
+    OR,
+    NOT,
+    GT,
+    GE,
+    LT,
+    LE,
+    IS,
+    LENGTH,
+    STRINGOP
 } Operator;
 
 typedef enum ExprType {
-    BINARY, UNARY, ASSIGN, NUM_LIT, BOOL_LIT,
-    STR_LIT, CMD_LIT, VAR_LIT, NULL_LIT, EXPR_LST,
-    CALL_EXPR, EXP_EXPR, SUPER_LIT, ACCESS_EXPR,
-    ARR_LIT, TUPLE_LIT, TABLE_LIT, ARR_ACC,
-    TERNARY, COMP_ASSIGN, ANON_FUNC,
+    BINARY,
+    UNARY,
+    ASSIGN,
+    NUM_LIT,
+    BOOL_LIT,
+    STR_LIT,
+    CMD_LIT,
+    VAR_LIT,
+    NULL_LIT,
+    EXPR_LST,
+    CALL_EXPR,
+    EXP_EXPR,
+    SUPER_LIT,
+    ACCESS_EXPR,
+    ARR_LIT,
+    TUPLE_LIT,
+    TABLE_LIT,
+    ARR_ACC,
+    TERNARY,
+    COMP_ASSIGN,
+    ANON_FUNC,
 } ExprType;
 
 typedef struct Expr Expr;
@@ -82,7 +112,7 @@ struct Expr {
         struct {
             Expr *exprs;
         } tuple;
-        struct{
+        struct {
             Expr *keyVals;
         } table;
         struct {
@@ -102,7 +132,7 @@ struct Expr {
     } as;
 };
 
-JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs, 
+JSTAR_API Expr *newAnonymousFunc(int line, bool vararg, LinkedList *args, LinkedList *defArgs,
                                  Stmt *body);
 JSTAR_API Expr *newAccessExpr(int line, Expr *left, const char *name, size_t length);
 JSTAR_API Expr *newCompoundAssing(int line, Operator op, Expr *lval, Expr *rval);
@@ -128,10 +158,24 @@ JSTAR_API Expr *newNullLiteral(int line);
 JSTAR_API void freeExpr(Expr *e);
 
 typedef enum StmtType {
-    IF, FOR, WHILE, FOREACH, BLOCK, RETURN_STMT,
-    EXPR, VARDECL, FUNCDECL, NATIVEDECL, CLASSDECL,
-    IMPORT, TRY_STMT, EXCEPT_STMT, RAISE_STMT,
-    WITH_STMT, CONTINUE_STMT, BREAK_STMT
+    IF,
+    FOR,
+    WHILE,
+    FOREACH,
+    BLOCK,
+    RETURN_STMT,
+    EXPR,
+    VARDECL,
+    FUNCDECL,
+    NATIVEDECL,
+    CLASSDECL,
+    IMPORT,
+    TRY_STMT,
+    EXCEPT_STMT,
+    RAISE_STMT,
+    WITH_STMT,
+    CONTINUE_STMT,
+    BREAK_STMT
 } StmtType;
 
 struct Stmt {
@@ -210,9 +254,9 @@ struct Stmt {
     } as;
 };
 
-JSTAR_API Stmt *newFuncDecl(int line, bool vararg, Token *name, LinkedList *args, 
+JSTAR_API Stmt *newFuncDecl(int line, bool vararg, Token *name, LinkedList *args,
                             LinkedList *defArgs, Stmt *body);
-JSTAR_API Stmt *newNativeDecl(int line, bool vararg, Token *name, LinkedList *args, 
+JSTAR_API Stmt *newNativeDecl(int line, bool vararg, Token *name, LinkedList *args,
                               LinkedList *defArgs);
 JSTAR_API Stmt *newImportStmt(int line, LinkedList *modules, LinkedList *impNames, Token *as);
 JSTAR_API Stmt *newClassDecl(int line, Token *clsName, Expr *sup, LinkedList *methods);

@@ -23,11 +23,11 @@
 #ifndef JSTAR_H
 #define JSTAR_H
 
-#include "jstarconf.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "jstarconf.h"
 
 /**
  * =========================================================
@@ -56,7 +56,8 @@ JSTAR_API void jsrFreeVM(JStarVM *vm);
 // In case of errors, either VM_SYNTAX_ERR, VM_COMPILE_ERR or VM_RUNTIME_ERR
 // will be returned, and all the errors will be printed to stderr.
 JSTAR_API EvalResult jsrEvaluate(JStarVM *vm, const char *fpath, const char *src);
-JSTAR_API EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *name, const char *src);
+JSTAR_API EvalResult jsrEvaluateModule(JStarVM *vm, const char *fpath, const char *name,
+                                       const char *src);
 
 // Call a function (or method with name "name") that sits on the top of the stack
 // along with its arguments. The state of the stack when calling should be:
@@ -130,16 +131,28 @@ JSTAR_API char *jsrReadFile(const char *path);
 
 // J* native registry, used to associate names to native pointers in native c extension modules.
 typedef struct JStarNativeReg {
-    enum {REG_METHOD, REG_FUNCTION, REG_SENTINEL} type;
+    enum { REG_METHOD, REG_FUNCTION, REG_SENTINEL } type;
     union {
-        struct { const char *cls; const char *name; JStarNative meth; } method;
-        struct { const char *name; JStarNative fun; } function;
+        struct {
+            const char *cls;
+            const char *name;
+            JStarNative meth;
+        } method;
+        struct {
+            const char *name;
+            JStarNative fun;
+        } function;
     } as;
 } JStarNativeReg;
 
-#define JSR_REGFUNC(name, func)      { REG_FUNCTION, { .function = { #name, func } } },
-#define JSR_REGMETH(cls, name, meth) { REG_METHOD, { .method = { #cls, #name, meth } } },
-#define JSR_REGEND                   { REG_SENTINEL, { .function = { NULL, NULL } } }
+#define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
+#define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
+#define JSR_REGEND                     \
+    {                                  \
+        REG_SENTINEL, {                \
+            .function = { NULL, NULL } \
+        }                              \
+    }
 
 // ---- Overloadable operator functions ----
 
@@ -203,7 +216,7 @@ JSTAR_API void jsrPushTuple(JStarVM *vm, size_t size);
 JSTAR_API void jsrPushTable(JStarVM *vm);
 JSTAR_API void jsrPushValue(JStarVM *vm, int slot);
 JSTAR_API void jsrPushNative(JStarVM *vm, const char *name, JStarNative nat, uint8_t argc);
-JSTAR_API void *jsrPushUserdata(JStarVM *vm, size_t size, void (*finalize)(void*));
+JSTAR_API void *jsrPushUserdata(JStarVM *vm, size_t size, void (*finalize)(void *));
 #define jsrDup(vm) jsrPushValue(vm, -1)
 
 // Pop a value from the top of the stack
@@ -220,8 +233,8 @@ JSTAR_API size_t jsrGetStringSz(JStarVM *vm, int slot);
 // and thus is garbage collected. Never use this
 // buffer outside the native where it was retrieved.
 // Also be careful when popping the original ObjString
-// from the stack  while retaining this buffer, because 
-// if a GC occurs and the string is not found to be 
+// from the stack  while retaining this buffer, because
+// if a GC occurs and the string is not found to be
 // reachable it'll be collected.
 JSTAR_API const char *jsrGetString(JStarVM *vm, int slot);
 
@@ -290,7 +303,7 @@ JSTAR_API bool jsrIsTable(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsFunction(JStarVM *vm, int slot);
 JSTAR_API bool jsrIsUserdata(JStarVM *vm, int slot);
 
-// These functions return true if the slot is of the given type, false otherwise 
+// These functions return true if the slot is of the given type, false otherwise
 // leaving a TypeException on top of the stack with a message customized with 'name'
 JSTAR_API bool jsrCheckNumber(JStarVM *vm, int slot, const char *name);
 JSTAR_API bool jsrCheckInt(JStarVM *vm, int slot, const char *name);
@@ -325,7 +338,7 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM *vm, double num, size_t max);
  */
 
 // Dynamic Buffer that holds memory allocated by the J* garbage collector.
-// This memory is owned by J*, but cannot be collected until the buffer 
+// This memory is owned by J*, but cannot be collected until the buffer
 // is pushed on the stack using the jsrBufferPush method.
 // Used for efficient creation of Strings in the native API.
 typedef struct JStarBuffer {

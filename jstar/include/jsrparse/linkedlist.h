@@ -1,9 +1,9 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
-#include "jstarconf.h"
-
 #include <stdlib.h>
+
+#include "jstarconf.h"
 
 typedef struct LinkedList {
     void *elem;

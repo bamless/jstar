@@ -1,16 +1,15 @@
 #include "import.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "jsrparse/parser.h"
 #include "builtin/modules.h"
-
 #include "compiler.h"
 #include "const.h"
 #include "dynload.h"
 #include "hashtable.h"
+#include "jsrparse/parser.h"
 #include "jstar.h"
 #include "memory.h"
 #include "value.h"
@@ -26,7 +25,7 @@ ObjFunction *compileWithModule(JStarVM *vm, ObjString *name, Stmt *program) {
         if(vm->core != NULL) {
             hashTableImportNames(&module->globals, &vm->core->globals);
         }
-        
+
         setModule(vm, name, module);
     }
 
@@ -64,7 +63,7 @@ static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *module
     } else {
         simpleName++;
     }
- 
+
     jsrBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
     jsrBufferAppendstr(modulePath, "/");
     jsrBufferAppendstr(modulePath, DL_PREFIX);
@@ -77,9 +76,9 @@ static void tryNativeLib(JStarVM *vm, JStarBuffer *modulePath, ObjString *module
         jsrBufferAppendstr(modulePath, "jsr_open_");
         jsrBufferAppendstr(modulePath, simpleName);
 
-        typedef JStarNativeReg* (*RegFunc)();
-        RegFunc open_lib = (RegFunc) dynsim(dynlib, modulePath->data);
-        
+        typedef JStarNativeReg *(*RegFunc)();
+        RegFunc open_lib = (RegFunc)dynsim(dynlib, modulePath->data);
+
         if(open_lib == NULL) {
             dynfree(dynlib);
             return;
@@ -97,7 +96,7 @@ static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, con
     if(program == NULL) {
         return false;
     }
-        
+
     ObjFunction *moduleFun = compileWithModule(vm, name, program);
     freeStmt(program);
 
@@ -109,9 +108,7 @@ static bool importWithSource(JStarVM *vm, const char *path, ObjString *name, con
     return true;
 }
 
-typedef enum ImportResult {
-    IMPORT_OK, IMPORT_ERR, IMPORT_NOT_FOUND
-} ImportResult;
+typedef enum ImportResult { IMPORT_OK, IMPORT_ERR, IMPORT_NOT_FOUND } ImportResult;
 
 static ImportResult importFromPath(JStarVM *vm, JStarBuffer *path, ObjString *name) {
     char *source = jsrReadFile(path->data);
@@ -145,17 +142,17 @@ static bool importModuleOrPackage(JStarVM *vm, ObjString *name) {
             }
         }
 
-        size_t moduleStart = fullPath.len; 
+        size_t moduleStart = fullPath.len;
         size_t moduleEnd = moduleStart + name->length;
         jsrBufferAppendstr(&fullPath, name->data);
         jsrBufferReplaceChar(&fullPath, moduleStart, '.', '/');
 
         ImportResult res;
-        
+
         // try to load a package (__package__.bl file in a directory)
         jsrBufferAppendstr(&fullPath, PACKAGE_FILE);
         res = importFromPath(vm, &fullPath, name);
-        
+
         if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
