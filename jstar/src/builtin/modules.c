@@ -7,23 +7,23 @@
 #include "sys.jsr.h"
 
 #ifdef JSTAR_IO
-#    include "io.h"
-#    include "io.jsr.h"
+    #include "io.h"
+    #include "io.jsr.h"
 #endif
 
 #ifdef JSTAR_MATH
-#    include "math.h"
-#    include "math.jsr.h"
+    #include "math.h"
+    #include "math.jsr.h"
 #endif
 
 #ifdef JSTAR_DEBUG
-#    include "debug.h"
-#    include "debug.jsr.h"
+    #include "debug.h"
+    #include "debug.jsr.h"
 #endif
 
 #ifdef JSTAR_RE
-#    include "re.h"
-#    include "re.jsr.h"
+    #include "re.h"
+    #include "re.jsr.h"
 #endif
 
 #include <string.h>

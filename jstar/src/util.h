@@ -6,36 +6,35 @@
 #include <stdio.h>
 
 // Macros for defining an enum with associated string names
-#define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(__ENUM_ENTRY) } NAME
-#define __ENUM_ENTRY(ENTRY)      ENTRY,
+#define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(ENUM_ENTRY) } NAME
+#define ENUM_ENTRY(ENTRY)        ENTRY,
 
-#define DECLARE_TO_STRING(ENUM_NAME) extern const char* __TOK_CONCAT(ENUM_NAME, Name)[]
+#define DECLARE_TO_STRING(ENUM_NAME) extern const char* TOK_CONCAT(ENUM_NAME, Name)[]
 #define DEFINE_TO_STRING(ENUM_NAME, ENUMX) \
-    const char* __TOK_CONCAT(ENUM_NAME, Name)[] = {ENUMX(__TOK_STRINGIFY)}
+    const char* TOK_CONCAT(ENUM_NAME, Name)[] = {ENUMX(TOK_STRINGIFY)}
 
-#define __TOK_STRINGIFY(X) #X,
-#define __TOK_CONCAT(X, Y) X##Y
+#define TOK_STRINGIFY(X) #X,
+#define TOK_CONCAT(X, Y) X##Y
 
 // Returns the aproximated base 10 length of an integer.
 // This macro returns a constant upper bound of the length,
 // as to permit static buffer allocation without worry of
 // overflow.
 #define MAX_STRLEN_FOR_INT_TYPE(t) \
-    (((t)-1 < 0) ? __MAX_STRLEN_FOR_SIGNED_TYPE(t) : __MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
+    (((t)-1 < 0) ? MAX_STRLEN_FOR_SIGNED_TYPE(t) : MAX_STRLEN_FOR_UNSIGNED_TYPE(t))
 
-#define __MAX_STRLEN_FOR_UNSIGNED_TYPE(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
-#define __MAX_STRLEN_FOR_SIGNED_TYPE(t)   (__MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
+#define MAX_STRLEN_FOR_UNSIGNED_TYPE(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
+#define MAX_STRLEN_FOR_SIGNED_TYPE(t)   (MAX_STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
 
 #ifndef NDEBUG
-
-#    define UNREACHABLE()                                                                   \
+    #define UNREACHABLE()                                                                   \
         do {                                                                                \
             fprintf(stderr, "%s[%d]@%s(): reached unreachable code.\n", __FILE__, __LINE__, \
                     __func__);                                                              \
             abort();                                                                        \
         } while(0)
 
-#    define assert(cond, msg)                                                              \
+    #define assert(cond, msg)                                                              \
         do {                                                                               \
             if(!(cond)) {                                                                  \
                 fprintf(stderr, "%s[%d]@%s(): assertion failed: %s\n", __FILE__, __LINE__, \
@@ -43,12 +42,9 @@
                 abort();                                                                   \
             }                                                                              \
         } while(0)
-
 #else
-
-#    define UNREACHABLE()
-#    define assert(cond, msg)
-
+    #define UNREACHABLE()
+    #define assert(cond, msg)
 #endif
 
 // Returns the closest power of two to n, be it 2^x, where 2^x >= n

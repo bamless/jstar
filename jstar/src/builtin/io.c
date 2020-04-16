@@ -1,6 +1,6 @@
 #ifdef _WIN32
-#    define popen  _popen
-#    define pclose _pclose
+    #define popen  _popen
+    #define pclose _pclose
 #endif
 
 #include "io.h"

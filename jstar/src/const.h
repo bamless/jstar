@@ -23,17 +23,17 @@
 #define PACKAGE_FILE "/__package__.jsr"
 
 #ifdef __unix__
-#    define DL_PREFIX "lib"
-#    define DL_SUFFIX ".so"
+    #define DL_PREFIX "lib"
+    #define DL_SUFFIX ".so"
 #elif defined(__APPLE__) && defined(__MACH__)
-#    define DL_PREFIX ""
-#    define DL_SUFFIX ".dylib"
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ".dylib"
 #elif defined(_WIN32)
-#    define DL_PREFIX ""
-#    define DL_SUFFIX ".dll"
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ".dll"
 #else
-#    define DL_PREFIX ""
-#    define DL_SUFFIX ""
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ""
 #endif
 
 #endif

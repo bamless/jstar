@@ -706,7 +706,7 @@ bool runEval(JStarVM* vm, int depth) {
     } while(0)
 
 #ifdef DBG_PRINT_EXEC
-#    define PRINT_DBG_STACK()                        \
+    #define PRINT_DBG_STACK()                        \
         printf("     ");                             \
         for(Value* v = vm->stack; v < vm->sp; v++) { \
             printf("[");                             \
@@ -716,26 +716,26 @@ bool runEval(JStarVM* vm, int depth) {
         printf("$\n");                               \
         disassembleIstr(&fn->chunk, (size_t)(ip - fn->chunk.code));
 #else
-#    define PRINT_DBG_STACK()
+    #define PRINT_DBG_STACK()
 #endif
 
 #ifdef USE_COMPUTED_GOTOS
-// create jumptable
-#    define JMPTARGET(X) &&TARGET_##X,
+    // create jumptable
+    #define JMPTARGET(X) &&TARGET_##X,
     static void* opJmpTable[] = {OPCODE(JMPTARGET)};
 
-#    define TARGET(op) TARGET_##op
-#    define DISPATCH()                            \
+    #define TARGET(op) TARGET_##op
+    #define DISPATCH()                            \
         do {                                      \
             PRINT_DBG_STACK()                     \
             goto* opJmpTable[(op = NEXT_CODE())]; \
         } while(0)
 
-#    define DECODE(op) DISPATCH();
+    #define DECODE(op) DISPATCH();
 #else
-#    define TARGET(op) case op
-#    define DISPATCH() goto decode
-#    define DECODE(op)     \
+    #define TARGET(op) case op
+    #define DISPATCH() goto decode
+    #define DECODE(op)     \
     decode:                \
         PRINT_DBG_STACK(); \
         switch((op = NEXT_CODE()))

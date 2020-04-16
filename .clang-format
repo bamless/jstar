@@ -6,7 +6,7 @@ ColumnLimit: '100'
 IndentWidth: '4'
 MaxEmptyLinesToKeep: '1'
 SpaceBeforeParens: Never
-IndentPPDirectives: AfterHash
+IndentPPDirectives: BeforeHash
 AlignConsecutiveMacros: true
 IndentCaseLabels: false
 
