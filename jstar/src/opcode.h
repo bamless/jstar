@@ -100,7 +100,7 @@
     X(OP_SIGN_BRK)
 
 DEFINE_ENUM(Opcode, OPCODE);
-DECLARE_TO_STRING(Opcode);
+DECLARE_ENUM_STRINGS(Opcode);
 
 int opcodeArgsNumber(Opcode op);
 

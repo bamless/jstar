@@ -58,11 +58,10 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
     const char* rootPath = strrchr(modulePath->data, '/');
     const char* simpleName = strrchr(moduleName->data, '.');
 
-    if(simpleName == NULL) {
+    if(simpleName == NULL)
         simpleName = moduleName->data;
-    } else {
+    else
         simpleName++;
-    }
 
     jsrBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
     jsrBufferAppendstr(modulePath, "/");
@@ -149,7 +148,7 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
 
         ImportResult res;
 
-        // try to load a package (__package__.bl file in a directory)
+        // try to load a package (__package__.jsr file in a directory)
         jsrBufferAppendstr(&fullPath, PACKAGE_FILE);
         res = importFromPath(vm, &fullPath, name);
 
@@ -181,7 +180,6 @@ bool importModule(JStarVM* vm, ObjString* name) {
         return true;
     }
 
-    // check if builtin
     const char* builtinSrc = readBuiltInModule(name->data);
     if(builtinSrc != NULL) {
         return importWithSource(vm, name->data, name, builtinSrc);
@@ -191,21 +189,20 @@ bool importModule(JStarVM* vm, ObjString* name) {
         return false;
     }
 
-    // we loaded the module (or package), set simple name in parent module if any
-    char* nameStart = strrchr(name->data, '.');
-
-    // not a nested module, nothing to do
+    const char* nameStart = strrchr(name->data, '.');
     if(nameStart == NULL) {
+        // not a nested module, nothing to do
         return true;
     }
 
     nameStart++;
-    ObjString* parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
-    push(vm, OBJ_VAL(parentName));
-    ObjString* simpleName = copyString(vm, nameStart, strlen(nameStart), true);
+
+    // set module as a global in its parent
     ObjModule* module = getModule(vm, name);
+    ObjString* parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     ObjModule* parent = getModule(vm, parentName);
+
+    ObjString* simpleName = copyString(vm, nameStart, strlen(nameStart), true);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
-    pop(vm);
     return true;
 }

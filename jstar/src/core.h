@@ -6,6 +6,8 @@
 // J* core libray bootstrap
 void initCoreLibrary(JStarVM* vm);
 
+// J* core module native functions and methods
+
 JSR_NATIVE(jsr_ascii);
 JSR_NATIVE(jsr_char);
 JSR_NATIVE(jsr_eval);

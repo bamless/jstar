@@ -1,5 +1,5 @@
-#ifndef BL_MATH_H
-#define BL_MATH_H
+#ifndef JSR_MATH_H
+#define JSR_MATH_H
 
 #include "jstar.h"
 

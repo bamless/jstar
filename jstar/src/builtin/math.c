@@ -9,8 +9,8 @@
 #include "value.h"
 #include "vm.h"
 
-#define BL_PI 3.14159265358979323846
-#define BL_E  2.71828182845904523536
+#define JSR_PI 3.14159265358979323846
+#define JSR_E  2.71828182845904523536
 
 #define STDLIB_MATH_FUN_X(fun)                        \
     JSR_NATIVE(jsr_##fun) {                           \
@@ -27,11 +27,11 @@
     }
 
 static double deg(double x) {
-    return x * (180. / BL_PI);
+    return x * (180. / JSR_PI);
 }
 
 static double rad(double x) {
-    return x * BL_PI / 180.;
+    return x * JSR_PI / 180.;
 }
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -120,9 +120,9 @@ JSR_NATIVE(jsr_math_init) {
     jsrSetGlobal(vm, NULL, "huge");
     jsrPushNumber(vm, NAN);
     jsrSetGlobal(vm, NULL, "nan");
-    jsrPushNumber(vm, BL_PI);
+    jsrPushNumber(vm, JSR_PI);
     jsrSetGlobal(vm, NULL, "pi");
-    jsrPushNumber(vm, BL_E);
+    jsrPushNumber(vm, JSR_E);
     jsrSetGlobal(vm, NULL, "e");
     jsrPushNull(vm);
     // Init rand seed

@@ -1,6 +1,6 @@
 #include "opcode.h"
 
-DEFINE_TO_STRING(Opcode, OPCODE);
+DEFINE_ENUM_STRINGS(Opcode, OPCODE);
 
 int opcodeArgsNumber(Opcode op) {
     switch(op) {
