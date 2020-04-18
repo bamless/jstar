@@ -3,7 +3,6 @@
 
 #include "ast.h"
 #include "jstarconf.h"
-#include "token.h"
 
 JSTAR_API Stmt* parse(const char* fname, const char* src);
 JSTAR_API Expr* parseExpression(const char* fname, const char* src);
