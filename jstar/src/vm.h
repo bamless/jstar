@@ -8,6 +8,7 @@
 #include "compiler.h"
 #include "const.h"
 #include "hashtable.h"
+#include "jstarconf.h"
 #include "object.h"
 #include "opcode.h"
 #include "util.h"
