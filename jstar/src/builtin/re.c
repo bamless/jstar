@@ -121,9 +121,9 @@ static const char* startCapture(RegexState* rs, const char* s, const char* r) {
         return NULL;
     }
 
-    if(r[1] != ')')
+    if(r[1] != ')') {
         rs->captures[rs->capturec].len = CAPTURE_UNFINISHED;
-    else {
+    } else {
         rs->captures[rs->capturec].len = CAPTURE_POSITION;
         r++;
     }

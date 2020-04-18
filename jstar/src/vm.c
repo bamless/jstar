@@ -641,8 +641,8 @@ bool runEval(JStarVM* vm, int depth) {
     register ObjFunction* fn;
     register uint8_t* ip;
 
-    assert(vm->frameCount != 0, "No frame to evaluate");
-    assert(vm->frameCount >= depth, "Too few frame to evaluate");
+    ASSERT(vm->frameCount != 0, "No frame to evaluate");
+    ASSERT(vm->frameCount >= depth, "Too few frame to evaluate");
 
 #define LOAD_FRAME()                         \
     frame = &vm->frames[vm->frameCount - 1]; \
@@ -1343,12 +1343,12 @@ op_return:
 }
 
 bool unwindStack(JStarVM* vm, int depth) {
-    assert(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
+    ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
     ObjInstance* exception = AS_INSTANCE(peek(vm));
 
     Value stVal = NULL_VAL;
     hashTableGet(&exception->fields, vm->stacktrace, &stVal);
-    assert(IS_STACK_TRACE(stVal), "Exception doesn't have a stacktrace object");
+    ASSERT(IS_STACK_TRACE(stVal), "Exception doesn't have a stacktrace object");
 
     ObjStackTrace* st = AS_STACK_TRACE(stVal);
 

@@ -249,7 +249,7 @@ static void declareVar(Compiler* c, Identifier* id, int line) {
 }
 
 static void markInitialized(Compiler* c, int id) {
-    assert(id >= 0 && id < c->localsCount, "Invalid local variable");
+    ASSERT(id >= 0 && id < c->localsCount, "Invalid local variable");
     c->locals[id].depth = c->depth;
 }
 
@@ -514,16 +514,13 @@ static void compileAnonymousFunc(Compiler* c, Identifier* name, Expr* e) {
     if(name != NULL) {
         f->as.funcDecl.id.length = name->length;
         f->as.funcDecl.id.name = name->name;
-        compileFunction(c, f);
     } else {
-        char funcName[5 + MAX_STRLEN_FOR_INT_TYPE(int) + 1];
+        char funcName[5 + STRLEN_FOR_INT_TYPE(int) + 1];
         sprintf(funcName, ANON_PREFIX "%d", f->line);
-
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;
-
-        compileFunction(c, f);
     }
+    compileFunction(c, f);
 }
 
 static void compileLval(Compiler* c, Expr* e) {
@@ -867,8 +864,8 @@ static void compileVarDecl(Compiler* c, Stmt* s) {
         ExprType initType = s->as.varDecl.init->type;
 
         if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
-            Expr* e = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
-            compileConstUnpackLst(c, decls, e, numDecls);
+            Expr* exprs = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
+            compileConstUnpackLst(c, decls, exprs, numDecls);
         } else {
             compileRval(c, decls[0], init);
             if(s->as.varDecl.isUnpack) {
@@ -1031,7 +1028,6 @@ static void compileForEach(Compiler* c, Stmt* s) {
 
     // declare the variables used for iteration
     int num = 0;
-
     foreach(n, varDecl->as.varDecl.ids) {
         declareVar(c, (Identifier*)n->elem, s->line);
         defineVar(c, (Identifier*)n->elem, s->line);
@@ -1197,7 +1193,6 @@ static void compileImportStatement(Compiler* c, Stmt* s) {
     foreach(n, s->as.importStmt.modules) {
         Identifier* name = (Identifier*)n->elem;
 
-        // create fully qualified name of module
         length += name->length + 1;          // length of current submodule plus a dot
         Identifier module = {length, base};  // name of current submodule
 
@@ -1395,7 +1390,6 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
     }
 
     size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
-    ;
     emitShort(c, 0, 0);
 
     // x = closable

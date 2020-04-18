@@ -99,7 +99,7 @@ EvalResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
 
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
-    assert(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
+    ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
     jsrCallMethod(vm, "printStacktrace", 0);
     jsrPop(vm);
@@ -213,7 +213,7 @@ char* jsrReadFile(const char* path) {
 }
 
 static void validateStack(JStarVM* vm) {
-    assert((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
+    ASSERT((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
 }
 
 bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
@@ -348,12 +348,12 @@ void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
 }
 
 void jsrPop(JStarVM* vm) {
-    assert(vm->sp > vm->apiStack, "Popping past frame boundary");
+    ASSERT(vm->sp > vm->apiStack, "Popping past frame boundary");
     pop(vm);
 }
 
 void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    assert(vm->module || mname, "Undefined module");
+    ASSERT(vm->module || mname, "Undefined module");
     ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
                               : vm->module;
     hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
@@ -361,51 +361,51 @@ void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name) {
 
 void jsrListAppend(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
-    assert(IS_LIST(lst), "Not a list");
+    ASSERT(IS_LIST(lst), "Not a list");
     listAppend(vm, AS_LIST(lst), peek(vm));
 }
 
 void jsrListInsert(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
-    assert(IS_LIST(lstVal), "Not a list");
+    ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    assert(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->count, "Out of bounds");
     listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
 void jsrListRemove(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
-    assert(IS_LIST(lstVal), "Not a list");
+    ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    assert(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->count, "Out of bounds");
     listRemove(vm, lst, (size_t)i);
 }
 
 void jsrListGet(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
-    assert(IS_LIST(lstVal), "Not a list");
+    ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    assert(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->count, "Out of bounds");
     push(vm, lst->arr[i]);
 }
 
 size_t jsrListGetLength(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
-    assert(IS_LIST(lst), "Not a list");
+    ASSERT(IS_LIST(lst), "Not a list");
     return AS_LIST(lst)->count;
 }
 
 void jsrTupleGet(JStarVM* vm, size_t i, int slot) {
     Value tupVal = apiStackSlot(vm, slot);
-    assert(IS_TUPLE(tupVal), "Not a tuple");
+    ASSERT(IS_TUPLE(tupVal), "Not a tuple");
     ObjTuple* tuple = AS_TUPLE(tupVal);
-    assert(i < tuple->size, "Out of bounds");
+    ASSERT(i < tuple->size, "Out of bounds");
     push(vm, tuple->arr[i]);
 }
 
 size_t jsrTupleGetLength(JStarVM* vm, int slot) {
     Value tup = apiStackSlot(vm, slot);
-    assert(IS_TUPLE(tup), "Not a tuple");
+    ASSERT(IS_TUPLE(tup), "Not a tuple");
     return AS_TUPLE(tup)->size;
 }
 
@@ -420,7 +420,7 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    assert(vm->module || mname,
+    ASSERT(vm->module || mname,
            "Calling jsrGetGlobal outside of Native function requires specifying a module");
     ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
                               : vm->module;
