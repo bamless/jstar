@@ -7,8 +7,6 @@
 #include "chunk.h"
 #include "core.h"
 #include "import.h"
-#include "jstar.h"
-#include "jstarconf.h"
 #include "memory.h"
 #include "opcode.h"
 

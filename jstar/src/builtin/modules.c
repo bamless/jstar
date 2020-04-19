@@ -2,7 +2,6 @@
 
 #include "core.h"
 #include "core.jsr.h"
-#include "jstarconf.h"
 #include "sys.h"
 #include "sys.jsr.h"
 
@@ -45,7 +44,7 @@ typedef struct {
     union {
         Func function;
         Class class;
-    };
+    } as;
 } ModuleElem;
 
 typedef struct {
@@ -56,7 +55,7 @@ typedef struct {
 
 // clang-format off
 
-#define ELEMS_END        {TYPE_FUNC, .function = METHODS_END},
+#define ELEMS_END        {TYPE_FUNC, .as = { .function = METHODS_END } },
 #define MODULES_END      {NULL, NULL, { ELEMS_END }}
 #define METHODS_END      {NULL, NULL}
 
@@ -65,11 +64,11 @@ typedef struct {
 
 #define COREMODULE       {"__core__", &core_jsr, {
 
-#define CLASS(name)      { TYPE_CLASS, .class = { #name, {
+#define CLASS(name)      { TYPE_CLASS, .as = { .class = { #name, {
 #define METHOD(name, fn) { #name, fn },
-#define ENDCLASS         METHODS_END } } },
+#define ENDCLASS         METHODS_END } } } },
 
-#define FUNCTION(name, fn) { TYPE_FUNC, .function = { #name, fn } },
+#define FUNCTION(name, fn) { TYPE_FUNC, .as = { .function = { #name, fn } } },
 
 Module builtInModules[] = {
     COREMODULE
@@ -253,11 +252,11 @@ static Module* getModule(const char* name) {
 static Class* getClass(Module* module, const char* name) {
     for(int i = 0;; i++) {
         ModuleElem* e = &module->elems[i];
-        if(e->type == TYPE_FUNC && e->function.name == NULL) return NULL;
+        if(e->type == TYPE_FUNC && e->as.function.name == NULL) return NULL;
 
         if(e->type == TYPE_CLASS) {
-            if(strcmp(module->elems[i].class.name, name) == 0) {
-                return &module->elems[i].class;
+            if(strcmp(module->elems[i].as.class.name, name) == 0) {
+                return &module->elems[i].as.class;
             }
         }
     }
@@ -275,10 +274,10 @@ static JStarNative getNativeMethod(Class* cls, const char* name) {
 static JStarNative getNativeFunc(Module* module, const char* name) {
     for(int i = 0;; i++) {
         if(module->elems[i].type == TYPE_FUNC) {
-            if(module->elems[i].function.name == NULL) return NULL;
+            if(module->elems[i].as.function.name == NULL) return NULL;
 
-            if(strcmp(module->elems[i].function.name, name) == 0) {
-                return module->elems[i].function.func;
+            if(strcmp(module->elems[i].as.function.name, name) == 0) {
+                return module->elems[i].as.function.func;
             }
         }
     }

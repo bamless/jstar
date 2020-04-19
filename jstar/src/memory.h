@@ -4,11 +4,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "object.h"
+#include "jstar.h"
 #include "value.h"
-#include "vm.h"
-
-typedef struct JStarVM JStarVM;
 
 #define GC_ALLOC(vm, size) GCallocate(vm, NULL, 0, size)
 

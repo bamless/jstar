@@ -5,12 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "const.h"
+#include "common.h"
 #include "hashtable.h"
 #include "import.h"
 #include "jsrparse/ast.h"
 #include "jsrparse/parser.h"
-#include "memory.h"
 #include "object.h"
 #include "util.h"
 #include "value.h"

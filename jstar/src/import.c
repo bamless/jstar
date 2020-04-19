@@ -5,14 +5,14 @@
 #include <string.h>
 
 #include "builtin/modules.h"
+#include "common.h"
 #include "compiler.h"
-#include "const.h"
 #include "dynload.h"
 #include "hashtable.h"
 #include "jsrparse/parser.h"
 #include "jstar.h"
-#include "memory.h"
 #include "value.h"
+#include "vm.h"
 
 ObjFunction* compileWithModule(JStarVM* vm, ObjString* name, Stmt* program) {
     ObjModule* module = getModule(vm, name);

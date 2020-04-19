@@ -5,10 +5,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "jstar.h"
 #include "value.h"
-
-typedef struct JStarVM JStarVM;
-typedef struct ObjString ObjString;
 
 typedef struct Entry {
     ObjString* key;
@@ -36,13 +34,10 @@ bool hashTableDel(HashTable* t, ObjString* key);
 void hashTableMerge(HashTable* t, HashTable* o);
 // Similar to merge, but doesn't add entries with a key starting with an underscore.
 void hashTableImportNames(HashTable* t, HashTable* o);
-
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
 ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint32_t hash);
 
 void reachHashTable(JStarVM* vm, HashTable* t);
-
-// Removes all unreached strings in the hashtable
 void removeUnreachedStrings(HashTable* t);
 
 #endif

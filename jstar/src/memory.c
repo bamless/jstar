@@ -7,6 +7,7 @@
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
+#include "object.h"
 #include "vm.h"
 
 #define REACHED_DEFAULT_SZ 16

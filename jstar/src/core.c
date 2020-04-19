@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "builtin/modules.h"
-#include "const.h"
+#include "common.h"
 #include "hashtable.h"
 #include "import.h"
 #include "jsrparse/ast.h"
@@ -427,10 +427,10 @@ JSR_NATIVE(jsr_Function_string) {
 
     char str[256] = {0};
     if(strcmp(modName, JSR_CORE_MODULE) == 0) {
-        snprintf(str, sizeof(str), "<%s %s@%p>", funType, funName, AS_OBJ(vm->apiStack[0]));
+        snprintf(str, sizeof(str), "<%s %s@%p>", funType, funName, (void*)AS_OBJ(vm->apiStack[0]));
     } else {
         snprintf(str, sizeof(str), "<%s %s.%s@%p>", funType, modName, funName,
-                 AS_OBJ(vm->apiStack[0]));
+                 (void*)AS_OBJ(vm->apiStack[0]));
     }
 
     jsrPushString(vm, str);
@@ -442,7 +442,7 @@ JSR_NATIVE(jsr_Function_string) {
 JSR_NATIVE(jsr_Module_string) {
     char str[256];
     ObjModule* m = AS_MODULE(vm->apiStack[0]);
-    snprintf(str, sizeof(str), "<module %s@%p>", m->name->data, m);
+    snprintf(str, sizeof(str), "<module %s@%p>", m->name->data, (void*)m);
     jsrPushString(vm, str);
     return true;
 }
