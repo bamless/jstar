@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "memory.h"
-#include "util.h"
 #include "vm.h"
 
 static Obj* newObj(JStarVM* vm, size_t size, ObjClass* cls, ObjType type) {
@@ -376,7 +375,7 @@ void jsrBufferFree(JStarBuffer* b) {
 // Debug logging functions
 
 #ifdef DBG_PRINT_GC
-DEFINE_TO_STRING(ObjType, OBJTYPE);
+DEFINE_ENUM_STRINGS(ObjType, OBJTYPE);
 #endif
 
 void printObj(Obj* o) {
