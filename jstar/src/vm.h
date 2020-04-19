@@ -5,13 +5,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "common.h"
 #include "compiler.h"
-#include "const.h"
 #include "hashtable.h"
-#include "jstarconf.h"
+#include "jstar.h"
 #include "object.h"
 #include "opcode.h"
-#include "util.h"
 #include "value.h"
 
 // This stores the info needed to jump
@@ -35,7 +34,7 @@ typedef struct Frame {
 
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
-typedef struct JStarVM {
+struct JStarVM {
     // Paths searched for import
     ObjList* importpaths;
 
@@ -109,7 +108,7 @@ typedef struct JStarVM {
     // Stack used to recursevely reach all the fields of reached objects
     Obj** reachedStack;
     size_t reachedCapacity, reachedCount;
-} JStarVM;
+};
 
 bool runEval(JStarVM* vm, int depth);
 

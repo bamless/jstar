@@ -4,8 +4,9 @@
 #include <stdbool.h>
 
 #include "jsrparse/ast.h"
+#include "jstar.h"
 #include "object.h"
-#include "vm.h"
+#include "value.h"
 
 #define MAX_IMPORT_PATH_LEN 2048
 

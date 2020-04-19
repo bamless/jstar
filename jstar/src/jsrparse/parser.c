@@ -204,7 +204,7 @@ static Expr* literal(Parser* p);
 
 static void formalArgs(Parser* p, LinkedList** args, LinkedList** defArgs, bool* vararg,
                        TokenType open, TokenType close) {
-    Token arg = {};
+    Token arg = {0};
 
     require(p, open);
     skipNewLines(p);
@@ -454,7 +454,7 @@ static Stmt* importStmt(Parser* p) {
         advance(p);
     }
 
-    Token asName = {};
+    Token asName = {0};
     LinkedList* importNames = NULL;
 
     if(match(p, TOK_FOR)) {
@@ -675,7 +675,7 @@ static Stmt* parseProgram(Parser* p) {
         if(p->panic) synchronize(p);
     }
 
-    Token name = {};
+    Token name = {0};
     return newFuncDecl(0, false, &name, NULL, NULL, newBlockStmt(0, stmts));
 }
 
@@ -702,7 +702,7 @@ static Expr* expressionLst(Parser* p, TokenType open, TokenType close) {
 
 static Expr* parseSuperLiteral(Parser* p) {
     int line = p->peek.line;
-    Token name = {};
+    Token name = {0};
     advance(p);
 
     if(match(p, TOK_DOT)) {

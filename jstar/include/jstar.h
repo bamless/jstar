@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "jstarconf.h"
+#include "jstarconf.h"  // IWYU pragma: export
 
 /**
  * =========================================================

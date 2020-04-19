@@ -6,6 +6,9 @@
 
 #include "jstarconf.h"
 
+typedef struct Obj Obj;
+typedef struct ObjString ObjString;
+
 /**
  * Here we define the Value type. This is a C type that can store any type
  * used by the J* VM. This closes the gap between the dinamically typed
@@ -23,8 +26,6 @@
  *  - Tagged Union. The classic way to implement such a type. it requires more
  *    than a word of memory to store a single value (tipically 2 words due to padding)
  */
-
-typedef struct Obj Obj;
 
 #ifdef NAN_TAGGING
 
@@ -63,18 +64,16 @@ typedef uint64_t Value;
 #define SIGN_BIT ((uint64_t)1 << 63)
 #define QNAN     ((uint64_t)0x7FFC000000000000)
 
-#define MASK_TAG 3
-
-#define HANDLE_TAG 0
-#define NULL_TAG   1
-#define FALSE_TAG  2
-#define TRUE_TAG   3
+#define MASK_TAG  3
+#define NULL_TAG  1
+#define FALSE_TAG 2
+#define TRUE_TAG  3
 
 #define GET_TAG(val) ((val)&MASK_TAG)
 
-#define IS_HANDLE(val) (((val)&TRUE_VAL) == QNAN)
-#define IS_NUM(val)    (((val)&QNAN) != QNAN)
-#define IS_BOOL(val)   (((val)&FALSE_VAL) == FALSE_VAL)
+#define IS_HANDLE(val) (((val) & (TRUE_VAL)) == QNAN)
+#define IS_NUM(val)    (((val) & (QNAN)) != QNAN)
+#define IS_BOOL(val)   (((val) & (FALSE_VAL)) == FALSE_VAL)
 #define IS_OBJ(val)    (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 #define IS_NULL(val)   ((val) == NULL_VAL)
 
@@ -116,8 +115,6 @@ static inline bool valueEquals(Value v1, Value v2) {
 }
 
 #else
-
-typedef struct Obj Obj;
 
 typedef enum { VAL_NUM, VAL_BOOL, VAL_OBJ, VAL_NULL, VAL_HANDLE } ValueType;
 

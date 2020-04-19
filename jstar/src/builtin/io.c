@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "util.h"
+#include "common.h"
 
 #define JSR_SEEK_SET 0
 #define JSR_SEEK_CUR 1

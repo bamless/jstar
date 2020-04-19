@@ -6,10 +6,13 @@
 #include <stdio.h>
 
 #include "chunk.h"
+#include "common.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "util.h"
 #include "value.h"
+
+struct Frame;
 
 /**
  * Object system of the J* language.
@@ -22,8 +25,6 @@
  * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
  **/
-
-typedef struct Frame Frame;
 
 #ifdef DBG_PRINT_GC
 DECLARE_TO_STRING(ObjType);
@@ -85,32 +86,30 @@ DECLARE_TO_STRING(ObjType);
 
 DEFINE_ENUM(ObjType, OBJTYPE);
 
-struct ObjClass;
-
 // Base class of all the Objects.
 // Defines shared properties of all objects, such as the type and the class
 // field, as well as fields used for garbage collection, such as the reached
 // flag (used to test when an object is reachable, and thus not collectable)
 // and the next pointer, that points to the next object in the global linked
 // list of all allocated objects (set up by the allocator in memory.c).
-typedef struct Obj {
+struct Obj {
     ObjType type;          // The type of the object
     bool reached;          // Flag used to signal that an object is reachable during a GC
     struct ObjClass* cls;  // The class of the Object
     struct Obj* next;      // Next object in the linked list of all allocated objects
-} Obj;
+};
 
 // A J* String. In J* Strings are immutable and can contain arbitrary
 // bytes since we explicitly store the string's length instead of relying on
 // NUL termination. Nevertheless, a NUL byte is appended for ease of use in
 // the C api.
-typedef struct ObjString {
+struct ObjString {
     Obj base;
     size_t length;  // Length of the string
     uint32_t hash;  // The string's hash (gets calculated once at allocation)
     bool interned;  // Whether the string is interned or not
     char* data;     // The actual data of the string (NUL terminated)
-} ObjString;
+};
 
 // Native C extension. It contains the handle to the dynamic library and resolved
 // symbol to a native registry.
@@ -272,7 +271,7 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length, bool intern);
 // ---- Functions for manipulating objects ----
 
 // Dumps a frame in a ObjStackTrace
-void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth);
+void stRecordFrame(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
 
 // ObjList manipulation functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);

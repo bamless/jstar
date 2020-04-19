@@ -7,12 +7,11 @@
 #include <string.h>
 
 #include "chunk.h"
-#include "const.h"
+#include "common.h"
 #include "jsrparse/linkedlist.h"
 #include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
-#include "util.h"
 #include "value.h"
 #include "vm.h"
 
@@ -47,7 +46,7 @@ typedef struct TryExcept {
 
 typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
 
-typedef struct Compiler {
+struct Compiler {
     JStarVM* vm;
     Compiler* prev;
 
@@ -69,7 +68,7 @@ typedef struct Compiler {
 
     int tryDepth;
     TryExcept* tryBlocks;
-} Compiler;
+};
 
 static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s);
 static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s);

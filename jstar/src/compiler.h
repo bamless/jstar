@@ -2,9 +2,9 @@
 #define COMPILER_H
 
 #include "jsrparse/ast.h"
+#include "jstar.h"
 #include "object.h"
 
-typedef struct JStarVM JStarVM;
 typedef struct Compiler Compiler;
 
 ObjFunction* compile(JStarVM* vm, ObjModule* module, Stmt* s);
