@@ -27,7 +27,7 @@ struct Frame;
  **/
 
 #ifdef DBG_PRINT_GC
-DECLARE_TO_STRING(ObjType);
+DECLARE_ENUM_STRINGS(ObjType);
 #endif
 
 // Macros for testing and casting objects
