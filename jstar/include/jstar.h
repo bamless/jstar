@@ -259,7 +259,9 @@ JSTAR_API size_t jsrTupleGetLength(JStarVM* vm, int slot);
 
 // Set the field "name" of the value at "slot" with the value
 // on top of the stack. the value is not popped.
-JSTAR_API void jsrSetField(JStarVM* vm, int slot, const char* name);
+// Returns true in case of success, false otherwise leaving an
+// exception on top of the stack
+JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 
 // Get the field "name" of the value at "slot".
 // Returns true in case of success leaving the result on
