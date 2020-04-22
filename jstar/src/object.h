@@ -250,9 +250,11 @@ typedef struct ObjUserdata {
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
 ObjNative* newNative(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc, JStarNative fn,
-                     uint8_t defaultc);
+                     uint8_t defc, bool vararg);
+
 ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc,
-                         uint8_t defaultc);
+                         uint8_t defc, bool vararg);
+
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method);

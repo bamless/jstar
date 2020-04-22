@@ -23,32 +23,40 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
 }
 
 static void initCallable(Callable* c, ObjModule* module, ObjString* name, uint8_t argc,
-                         Value* defArr, uint8_t defc) {
+                         Value* defArr, uint8_t defc, bool vararg) {
     c->argsCount = argc;
     c->defaultc = defc;
     c->vararg = false;
     c->defaults = defArr;
+    c->vararg = vararg;
     c->module = module;
     c->name = name;
 }
 
+static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
+    if(defaultCount == 0) return NULL;
+    Value* defaultArray = GC_ALLOC(vm, sizeof(Value) * defaultCount);
+    for(int i = 0; i < defaultCount; i++) {
+        defaultArray[i] = NULL_VAL;
+    }
+    return defaultArray;
+}
+
 ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc,
-                         uint8_t defc) {
-    Value* defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
-    memset(defArr, 0, defc * sizeof(Value));
+                         uint8_t defc, bool vararg) {
+    Value* defaults = allocateDefaultArray(vm, defc);
     ObjFunction* f = (ObjFunction*)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
-    initCallable(&f->c, module, name, argc, defArr, defc);
+    initCallable(&f->c, module, name, argc, defaults, defc, vararg);
     f->upvaluec = 0;
     initChunk(&f->chunk);
     return f;
 }
 
 ObjNative* newNative(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc, JStarNative fn,
-                     uint8_t defc) {
-    Value* defArr = defc > 0 ? GC_ALLOC(vm, sizeof(Value) * defc) : NULL;
-    memset(defArr, 0, defc * sizeof(Value));
+                     uint8_t defc, bool vararg) {
+    Value* defaults = allocateDefaultArray(vm, defc);
     ObjNative* n = (ObjNative*)newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
-    initCallable(&n->c, module, name, argc, defArr, defc);
+    initCallable(&n->c, module, name, argc, defaults, defc, vararg);
     n->fn = fn;
     return n;
 }

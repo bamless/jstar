@@ -333,7 +333,7 @@ void jsrPushNative(JStarVM* vm, const char* name, JStarNative nat, uint8_t argc)
 
     ObjString* objName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(objName));
-    ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0);
+    ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0, false);
     pop(vm);
 
     push(vm, OBJ_VAL(objNative));
