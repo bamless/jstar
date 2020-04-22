@@ -202,74 +202,70 @@ Expr* parseExpression(const char* fname, const char* src) {
 //----- Statement parse ------
 static Expr* literal(Parser* p);
 
-static void formalArgs(Parser* p, LinkedList** args, LinkedList** defArgs, bool* vararg,
-                       TokenType open, TokenType close) {
-    Token arg = {0};
+typedef struct {
+    LinkedList* arguments;
+    LinkedList* defaults;
+    bool isVararg;
+} FormalArgs;
+
+static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
+    LinkedList *arguments = NULL, *defaults = NULL;
+    bool isVararg = false;
 
     require(p, open);
     skipNewLines(p);
 
-    // Parse normal arguments
-    while((*args == NULL || match(p, TOK_COMMA)) && !match(p, close)) {
-        if(*args != NULL) {
-            advance(p);
-            skipNewLines(p);
-        }
-
-        if(match(p, TOK_VARARG)) {
-            advance(p);
-            skipNewLines(p);
-            require(p, close);
-            *vararg = true;
-            return;
-        }
-
-        arg = require(p, TOK_IDENTIFIER);
+    while(match(p, TOK_IDENTIFIER)) {
+        Token argument = require(p, TOK_IDENTIFIER);
         skipNewLines(p);
 
         if(match(p, TOK_EQUAL)) {
+            rewindTo(&p->lex, &argument);
+            nextToken(&p->lex, &p->peek);
             break;
         }
 
-        *args = addElement(*args, newIdentifier(arg.length, arg.lexeme));
+        arguments = addElement(arguments, newIdentifier(argument.length, argument.lexeme));
+        skipNewLines(p);
+
+        if(!match(p, close)) {
+            require(p, TOK_COMMA);
+            skipNewLines(p);
+        }
     }
 
-    skipNewLines(p);
+    while(match(p, TOK_IDENTIFIER)) {
+        Token argument = require(p, TOK_IDENTIFIER);
 
-    // Parse arguments with default value
-    while((*defArgs == NULL || match(p, TOK_COMMA)) && !match(p, close)) {
-        if(*defArgs != NULL) {
-            if(match(p, TOK_COMMA)) {
-                advance(p);
-                skipNewLines(p);
-            }
-
-            if(match(p, TOK_VARARG)) {
-                advance(p);
-                skipNewLines(p);
-                require(p, close);
-                *vararg = true;
-                return;
-            }
-
-            arg = require(p, TOK_IDENTIFIER);
-        }
-
+        skipNewLines(p);
         require(p, TOK_EQUAL);
         skipNewLines(p);
 
-        Expr* c = literal(p);
+        Expr* constant = literal(p);
         skipNewLines(p);
 
-        if(c != NULL && !isConstantLiteral(c->type)) {
+        if(constant && !isConstantLiteral(constant->type)) {
             error(p, "Default argument must be a constant");
         }
 
-        *defArgs = addElement(*defArgs, c);
-        *args = addElement(*args, newIdentifier(arg.length, arg.lexeme));
+        arguments = addElement(arguments, newIdentifier(argument.length, argument.lexeme));
+        defaults = addElement(defaults, constant);
+
+        if(!match(p, close)) {
+            require(p, TOK_COMMA);
+            skipNewLines(p);
+        }
+    }
+
+    if(match(p, TOK_VARARG)) {
+        advance(p);
+        skipNewLines(p);
+        isVararg = true;
     }
 
     require(p, close);
+
+    return (FormalArgs){arguments, defaults, isVararg};
 }
 
 static Stmt* parseStmt(Parser* p);
@@ -548,14 +544,11 @@ static Stmt* funcDecl(Parser* p) {
 
     Token fname = require(p, TOK_IDENTIFIER);
 
-    bool vararg = false;
-    LinkedList *args = NULL, *defArgs = NULL;
-    formalArgs(p, &args, &defArgs, &vararg, TOK_LPAREN, TOK_RPAREN);
-
+    FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     Stmt* body = blockStmt(p);
 
     require(p, TOK_END);
-    return newFuncDecl(line, vararg, &fname, args, defArgs, body);
+    return newFuncDecl(line, args.isVararg, &fname, args.arguments, args.defaults, body);
 }
 
 static Stmt* nativeDecl(Parser* p) {
@@ -563,13 +556,10 @@ static Stmt* nativeDecl(Parser* p) {
     advance(p);
 
     Token fname = require(p, TOK_IDENTIFIER);
-
-    bool vararg = false;
-    LinkedList *args = NULL, *defArgs = NULL;
-    formalArgs(p, &args, &defArgs, &vararg, TOK_LPAREN, TOK_RPAREN);
+    FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
 
     requireStmtEnd(p);
-    return newNativeDecl(line, vararg, &fname, args, defArgs);
+    return newNativeDecl(line, args.isVararg, &fname, args.arguments, args.defaults);
 }
 
 static Stmt* classDecl(Parser* p) {
@@ -873,27 +863,23 @@ static Expr* anonymousFunc(Parser* p) {
         int line = p->peek.line;
         require(p, TOK_FUN);
 
-        bool vararg = false;
-        LinkedList *args = NULL, *defArgs = NULL;
-        formalArgs(p, &args, &defArgs, &vararg, TOK_LPAREN, TOK_RPAREN);
-
+        FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
         Stmt* body = blockStmt(p);
 
         require(p, TOK_END);
-        return newAnonymousFunc(line, vararg, args, defArgs, body);
+        return newAnonymousFunc(line, args.isVararg, args.arguments, args.defaults, body);
     }
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
 
-        bool vararg = false;
-        LinkedList *args = NULL, *defArgs = NULL;
-        formalArgs(p, &args, &defArgs, &vararg, TOK_PIPE, TOK_PIPE);
+        FormalArgs args = formalArgs(p, TOK_PIPE, TOK_PIPE);
 
         require(p, TOK_ARROW);
 
         Expr* e = expression(p, false);
         Stmt* body = newBlockStmt(line, addElement(NULL, newReturnStmt(line, e)));
-        return newAnonymousFunc(line, vararg, args, defArgs, body);
+
+        return newAnonymousFunc(line, args.isVararg, args.arguments, args.defaults, body);
     }
     return postfixExpr(p);
 }
