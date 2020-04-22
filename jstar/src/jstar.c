@@ -419,14 +419,13 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    ASSERT(vm->module || mname,
-           "Calling jsrGetGlobal outside of Native function requires specifying a module");
+    ASSERT(vm->module || mname, "No module specified");
     ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
                               : vm->module;
-
     Value res;
     ObjString* namestr = copyString(vm, name, strlen(name), true);
     HashTable* glob = &module->globals;
+
     if(!hashTableGet(glob, namestr, &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
         return false;
