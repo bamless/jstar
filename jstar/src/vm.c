@@ -1322,7 +1322,7 @@ op_return:
     }
 
     TARGET(OP_DUP): {
-        *vm->sp =* (vm->sp - 1);
+        *vm->sp = *(vm->sp - 1);
         vm->sp++;
         DISPATCH();
     }
