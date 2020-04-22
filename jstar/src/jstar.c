@@ -408,9 +408,9 @@ size_t jsrTupleGetLength(JStarVM* vm, int slot) {
     return AS_TUPLE(tup)->size;
 }
 
-void jsrSetField(JStarVM* vm, int slot, const char* name) {
+bool jsrSetField(JStarVM* vm, int slot, const char* name) {
     Value val = apiStackSlot(vm, slot);
-    setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
+    return setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
