@@ -47,7 +47,7 @@ static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative n, c
                       uint8_t argc) {
     ObjString* strName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(strName));
-    ObjNative* native = newNative(vm, m, strName, argc, n, 0);
+    ObjNative* native = newNative(vm, m, strName, argc, n, 0, false);
     pop(vm);
 
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));

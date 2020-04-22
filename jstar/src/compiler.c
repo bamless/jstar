@@ -1085,9 +1085,9 @@ static void compileFunction(Compiler* c, Stmt* s) {
 static void compileNative(Compiler* c, Stmt* s) {
     size_t defaults = listLength(s->as.nativeDecl.defArgs);
     size_t arity = listLength(s->as.nativeDecl.formalArgs);
+    bool vararg = s->as.nativeDecl.isVararg;
 
-    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
-    native->c.vararg = s->as.nativeDecl.isVararg;
+    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
 
     push(c->vm, OBJ_VAL(native));
     addDefaultConsts(c, native->c.defaults, s->as.nativeDecl.defArgs);
@@ -1133,9 +1133,9 @@ static void compileMethods(Compiler* c, Stmt* cls) {
         case NATIVEDECL: {
             size_t defaults = listLength(m->as.nativeDecl.defArgs);
             size_t arity = listLength(m->as.nativeDecl.formalArgs);
+            bool vararg = m->as.nativeDecl.isVararg;
 
-            ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults);
-            n->c.vararg = m->as.nativeDecl.isVararg;
+            ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
 
             push(c->vm, OBJ_VAL(n));
             addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
@@ -1532,9 +1532,9 @@ static void exitFunctionScope(Compiler* c) {
 static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     size_t defaults = listLength(s->as.funcDecl.defArgs);
     size_t arity = listLength(s->as.funcDecl.formalArgs);
+    bool vararg = s->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, NULL, arity, defaults);
-    c->func->c.vararg = s->as.funcDecl.isVararg;
+    c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
     c->funcAST = s;
 
     addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
@@ -1574,9 +1574,9 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
 static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s) {
     size_t defaults = listLength(s->as.funcDecl.defArgs);
     size_t arity = listLength(s->as.funcDecl.formalArgs);
+    bool vararg = s->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, NULL, arity, defaults);
-    c->func->c.vararg = s->as.funcDecl.isVararg;
+    c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
     c->funcAST = s;
 
     // Phony const that will be set to the superclass of the method's class at runtime
