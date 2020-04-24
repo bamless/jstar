@@ -1256,7 +1256,6 @@ op_return:
     TARGET(OP_ENSURE_END): {
         if(!IS_NULL(peek2(vm))) {
             UnwindCause cause = AS_NUM(pop(vm));
-
             switch(cause) {
             case CAUSE_EXCEPT:
                 // continue unwinding

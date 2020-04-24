@@ -812,17 +812,6 @@ static void compileExpr(Compiler* c, Expr* e) {
         emitShort(c, createConst(c, OBJ_VAL(str), e->line), e->line);
         break;
     }
-    case CMD_LIT: {
-        ObjString* cmd = readString(c, e);
-        uint16_t cmdID = createConst(c, OBJ_VAL(cmd), e->line);
-        Identifier exec = syntheticIdentifier("exec");
-        emitBytecode(c, OP_GET_GLOBAL, e->line);
-        emitShort(c, identifierConst(c, &exec, e->line), e->line);
-        emitBytecode(c, OP_GET_CONST, e->line);
-        emitShort(c, cmdID, e->line);
-        emitBytecode(c, OP_CALL_1, e->line);
-        break;
-    }
     case VAR_LIT:
         compileVariable(c, &e->as.var.id, false, e->line);
         break;

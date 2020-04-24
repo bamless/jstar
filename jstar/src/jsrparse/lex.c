@@ -211,14 +211,6 @@ static void string(Lexer* lex, char end, Token* tok) {
     makeToken(lex, tok, TOK_STRING);
 }
 
-static void command(Lexer* lex, Token* tok) {
-    if(!stringBody(lex, '`')) {
-        makeToken(lex, tok, TOK_UNTERMINATED_STR);
-        return;
-    }
-    makeToken(lex, tok, TOK_COMMAND);
-}
-
 static void identifier(Lexer* lex, Token* tok) {
     while(isAlphaNum(peekChar(lex))) advance(lex);
 
@@ -298,9 +290,6 @@ void nextToken(Lexer* lex, Token* tok) {
     case '\'':
     case '"':
         string(lex, c, tok);
-        break;
-    case '`':
-        command(lex, tok);
         break;
     case '.':
         if(peekChar(lex) == '.' && peekChar2(lex) == '.') {
