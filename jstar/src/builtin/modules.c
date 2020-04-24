@@ -121,7 +121,7 @@ Module builtInModules[] = {
         ENDCLASS
         CLASS(String)
             METHOD(new,        jsr_String_new)
-            METHOD(substr,     jsr_String_substr)
+            METHOD(slice,      jsr_String_slice)
             METHOD(charAt,     jsr_String_charAt)
             METHOD(startsWith, jsr_String_startsWith)
             METHOD(endsWith,   jsr_String_endsWith)

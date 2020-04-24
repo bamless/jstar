@@ -6,10 +6,10 @@ native gsub(str, regex, sub, num=0)
 native gmatch(str, regex)
 
 fun igmatch(str, regex)
-    return _GMatch(str, regex)
+    return _IGMatch(str, regex)
 end
 
-class _GMatch
+class _IGMatch
     fun new(s, r)
         this.s, this.r = s, r
         this.off, this.endl = 0, null
@@ -35,7 +35,7 @@ class _GMatch
 
         var nres = #res
         if   nres == 2 then
-            return this.s.substr(b, e)
+            return this.s.slice(b, e)
         elif nres == 3 then
             return res[2]
         else

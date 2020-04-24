@@ -693,15 +693,25 @@ JSR_NATIVE(jsr_String_new) {
     return true;
 }
 
-JSR_NATIVE(jsr_String_substr) {
+JSR_NATIVE(jsr_String_slice) {
     ObjString* str = AS_STRING(vm->apiStack[0]);
+    JSR_CHECK(Int, 1, "from");
 
-    size_t from = jsrCheckIndex(vm, 1, str->length + 1, "from");
+    double fromNum = jsrGetNumber(vm, 1);
+    double toNum;
+    if(jsrIsNull(vm, 2)) {
+        toNum = (double)str->length;
+    } else {
+        JSR_CHECK(Int, 2, "to");
+        toNum = jsrGetNumber(vm, 2);
+    }
+
+    size_t from = jsrCheckIndexNum(vm, fromNum, str->length + 1);
     if(from == SIZE_MAX) return false;
-    size_t to = jsrCheckIndex(vm, 2, str->length + 1, "to");
+    size_t to = jsrCheckIndexNum(vm, toNum, str->length + 1);
     if(to == SIZE_MAX) return false;
 
-    if(from > to) JSR_RAISE(vm, "InvalidArgException", "argument from must be <= to.");
+    if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
 
     size_t len = to - from;
     ObjString* sub = allocateString(vm, len);

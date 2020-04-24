@@ -21,8 +21,8 @@
 #define THIS_STR    "this"
 #define ANON_PREFIX "anon@"
 
-#define EXC_M_ERR        "__err"
-#define EXC_M_STACKTRACE "__stacktrace"
+#define EXC_M_ERR        "_err"
+#define EXC_M_STACKTRACE "_stacktrace"
 
 #define PACKAGE_FILE "/__package__.jsr"
 

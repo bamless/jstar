@@ -27,14 +27,6 @@ class StackTrace end
 class Userdata end
 
 class Iter
-    fun __iter__(i)
-        raise NotImplementedException()
-    end
-
-    fun __next__(i)
-        raise NotImplementedException()
-    end
-
     fun forEach(func)
         for var e in this do func(e) end
     end
@@ -56,33 +48,8 @@ class Iter
     end
 end
 
-class String is Iter
-    native new(...)
-    native substr(from, to)
-    native charAt(idx)
-    native startsWith(prefix, offset=0)
-    native endsWith(suffix)
-    native strip()
-    native chomp()
-    native join(iterable)
-    native __eq__(o)
-    native __len__()
-    native __iter__(iter)
-    native __next__(idx)
-    native __string__()
-    native __hash__()
-end
-
 class Sequence is Iter
     fun new()
-        raise NotImplementedException('Sequence is an abstract class')
-    end
-
-    fun __get__(i)
-        raise NotImplementedException()
-    end
-
-    fun __len__()
         raise NotImplementedException()
     end
 
@@ -119,6 +86,15 @@ class Sequence is Iter
         return count
     end
 
+    fun slice(from, to=null)
+        if !to then to = #this end
+        var res = []
+        for var i = from; i < to; i += 1 do
+            res.add(this[i])
+        end
+        return res
+    end
+
     fun empty()
         return #this == 0
     end
@@ -133,6 +109,7 @@ class Sequence is Iter
         end
 
         var length = #this
+
         if length != #o then
             return false
         end
@@ -142,8 +119,26 @@ class Sequence is Iter
                 return false
             end
         end
+
         return true
     end
+end
+
+class String is Sequence
+    native new(...)
+    native slice(from, to=null)
+    native charAt(idx)
+    native startsWith(prefix, offset=0)
+    native endsWith(suffix)
+    native strip()
+    native chomp()
+    native join(iterable)
+    native __eq__(o)
+    native __len__()
+    native __iter__(iter)
+    native __next__(idx)
+    native __string__()
+    native __hash__()
 end
 
 class List is Sequence
@@ -201,32 +196,6 @@ class List is Sequence
 
     fun sort(comp=null)
         var temp = List(#this, |i| => this[i])
-
-        fun merge(l, m, r)
-            var k, i, j = l, l, m + 1
-
-            while i <= m and j <= r do
-                if comp(this[i], this[j]) <= 0 if comp else this[i] <= this[j] then
-                    temp[k] = this[i]
-                    i += 1
-                else
-                    temp[k] = this[j]
-                    j += 1
-                end
-                k += 1
-            end
-            
-            var size = #this
-            while i < size and i <= m do
-                temp[k] = this[i]
-                i += 1; k += 1
-            end
-
-            for var i = l; i <= r; i += 1 do
-                this[i] = temp[i]
-            end
-        end
-        
         var size = #this - 1
         for var m = 1; m <= size; m *= 2 do
             for var i = 0; i < size; i += 2 * m do
@@ -234,6 +203,31 @@ class List is Sequence
                 if to > size then to = size end
                 merge(from, mid, to)
             end
+        end
+    end
+
+    fun _merge(l, m, r)
+        var k, i, j = l, l, m + 1
+
+        while i <= m and j <= r do
+            if comp(this[i], this[j]) <= 0 if comp else this[i] <= this[j] then
+                temp[k] = this[i]
+                i += 1
+            else
+                temp[k] = this[j]
+                j += 1
+            end
+            k += 1
+        end
+        
+        var size = #this
+        while i < size and i <= m do
+            temp[k] = this[i]
+            i += 1; k += 1
+        end
+
+        for var i = l; i <= r; i += 1 do
+            this[i] = temp[i]
         end
     end
 
@@ -301,6 +295,24 @@ fun reduce(iterable, fn)
     return acc
 end
 
+fun any(iterable, func)
+    for var e in iterable do
+        if func(e) then
+            return true
+        end
+    end
+    return false
+end
+
+fun all(iterable, func)
+    for var e in iterable do
+        if !func(e) then
+            return false
+        end
+    end
+    return true
+end
+
 fun toList(iterable)
     if iterable is Sequence then
         var len = #iterable
@@ -343,61 +355,59 @@ native type(o)
 
 class IReverse is Sequence
     fun new(sequence)
-        this.__sequence = sequence
-        this.__size = #sequence
+        this._sequence = sequence
+        this._size = #sequence
     end
 
     fun __get__(i)
         try
-            return this.__sequence[this.__size - i - 1]
+            return this._sequence[this._size - i - 1]
         except IndexOutOfBoundException e
             raise IndexOutOfBoundException(##i)
         end
     end
 
     fun __len__()
-        return this.__size
+        return this._size
     end
 
     fun __iter__(i)
-        if i == null then
-            return 0 if this.__size > 0 else false
-        end
-        return i + 1 if i < this.__size - 1 else false
+        if i == null then return 0 if this._size > 0 else false end
+        return i + 1 if i < this._size - 1 else false
     end
 
     fun __next__(i)
-        return this.__sequence[this.__size - i - 1]
+        return this._sequence[this._size - i - 1]
     end
 end
 
 class IEnumerate is Iter
     fun new(iter, start=0)
-        this.__iter = iter
-        this.__idx = start
+        this._iter = iter
+        this._idx = start
     end
 
     fun __iter__(i)
-        return this.__iter.__iter__(i)
+        return this._iter.__iter__(i)
     end
 
     fun __next__(i)
-        var ret = this.__idx, this.__iter.__next__(i)
-        this.__idx += 1
+        var ret = this._idx, this._iter.__next__(i)
+        this._idx += 1
         return ret
     end
 end
 
 class IFilter is Iter
     fun new(func, iter)
-        this.__func = func
-        this.__iter = iter
+        this._func = func
+        this._iter = iter
     end
 
     fun __iter__(i)
         var iter = i
-        while iter = this.__iter.__iter__(iter) do
-            if this.__func(this.__iter.__next__(iter)) then
+        while iter = this._iter.__iter__(iter) do
+            if this._func(this._iter.__next__(iter)) then
                 return iter
             end
         end
@@ -405,67 +415,65 @@ class IFilter is Iter
     end
 
     fun __next__(i)
-        return this.__iter.__next__(i)
+        return this._iter.__next__(i)
     end
 end
 
 class IMap is Iter
     fun new(func, iter)
-        this.__func = func
-        this.__iter = iter
+        this._func = func
+        this._iter = iter
     end
 
     fun __iter__(i)
-        return this.__iter.__iter__(i)
+        return this._iter.__iter__(i)
     end
 
     fun __next__(i)
-        return this.__func(this.__iter.__next__(i))
+        return this._func(this._iter.__next__(i))
     end
 end
 
 class IZip is Iter
     fun new(...)
-        if #args == 0 then 
-            raise TypeException("Must provide at least one iterator.")
-        end
-        this.__iters = args
-        this.__result = []
+        if #args == 0 then raise InvalidArgException("Expected at least one iterator") end
+        this._iters = args
+        this._result = []
     end
 
     fun __iter__(tup)
         var i = 0
-        for var iterator in this.__iters do
+        for var iterator in this._iters do
             var res = iterator.__iter__(tup[i] if tup else null)
             if !res then return false end
-            this.__result.add(res)
+            this._result.add(res)
             i += 1
         end
-        var res = Tuple(this.__result)
-        this.__result.clear()
+        var res = Tuple(this._result)
+        this._result.clear()
         return res
     end
 
     fun __next__(tup)
         var i = 0
-        for var iterator in this.__iters do
-            this.__result.add(iterator.__next__(tup[i]))
+        for var iterator in this._iters do
+            this._result.add(iterator.__next__(tup[i]))
             i += 1
         end
-        var res = Tuple(this.__result)
-        this.__result.clear()
+        var res = Tuple(this._result)
+        this._result.clear()
         return res
     end
 end
 
 class Exception
     fun new(err="")
-        this.__err = err
-        this.__stacktrace = null
+        this._err = err
+        this._stacktrace = null
     end
 
     fun err()
-        return this.__err
+        return this._err
     end
 
     native printStacktrace()

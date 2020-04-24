@@ -427,6 +427,8 @@ bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
     HashTable* glob = &module->globals;
 
     if(!hashTableGet(glob, namestr, &res)) {
+        ASSERT(vm->module != vm->core || strcmp(name, "NameException") != 0,
+               "Core module: Trying to get NameException that is not yet defined");
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
         return false;
     }
