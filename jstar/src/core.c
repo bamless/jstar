@@ -304,8 +304,9 @@ JSR_NATIVE(jsr_exec) {
         jsrBufferFree(&data);
         JSR_RAISE(vm, "Exception", strerror(errno));
     } else {
-        pclose(proc);
+        jsrPushNumber(vm, pclose(proc));
         jsrBufferPush(&data);
+        jsrPushTuple(vm, 2);
     }
 
     return true;
