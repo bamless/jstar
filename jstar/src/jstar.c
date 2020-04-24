@@ -15,6 +15,8 @@
 #include "value.h"
 #include "vm.h"
 
+#define MAX_ERR 512
+
 /**
  * The bulk of the API (jstar.h) implementation.
  *
@@ -129,10 +131,11 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
 
     if(err != NULL) {
-        char errStr[512] = {0};
+        char errStr[MAX_ERR];
+
         va_list args;
         va_start(args, err);
-        vsnprintf(errStr, sizeof(errStr) - 1, err, args);
+        vsnprintf(errStr, sizeof(errStr), err, args);
         va_end(args);
 
         jsrPushString(vm, errStr);

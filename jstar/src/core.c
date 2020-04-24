@@ -27,12 +27,13 @@
     #define pclose _pclose
 #endif
 
+#define MAX_OBJ_STR 512
+
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
     ObjString* n = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(n));
     ObjClass* c = newClass(vm, n, sup);
     pop(vm);
-
     hashTablePut(&m->globals, n, OBJ_VAL(c));
     return c;
 }
@@ -49,7 +50,6 @@ static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative n, c
     push(vm, OBJ_VAL(strName));
     ObjNative* native = newNative(vm, m, strName, argc, n, 0, false);
     pop(vm);
-
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
 }
 
@@ -72,9 +72,9 @@ static uint32_t hashNumber(double num) {
 // class Object
 static JSR_NATIVE(jsr_Object_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
-    char str[256];
-    snprintf(str, sizeof(str), "<%s@%p>", o->cls->name->data, (void*)o);
-    jsrPushString(vm, str);
+    char string[MAX_OBJ_STR];
+    snprintf(string, sizeof(string), "<%s@%p>", o->cls->name->data, (void*)o);
+    jsrPushString(vm, string);
     return true;
 }
 
@@ -98,9 +98,9 @@ static JSR_NATIVE(jsr_Class_getName) {
 
 static JSR_NATIVE(jsr_Class_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
-    char str[256];
-    snprintf(str, sizeof(str), "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*)o);
-    jsrPushString(vm, str);
+    char string[MAX_OBJ_STR];
+    snprintf(string, sizeof(string), "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*)o);
+    jsrPushString(vm, string);
     return true;
 }
 // end
@@ -349,9 +349,9 @@ JSR_NATIVE(jsr_Number_isInt) {
 }
 
 JSR_NATIVE(jsr_Number_string) {
-    char str[24];  // enough for .*g with DBL_DIG
-    snprintf(str, sizeof(str), "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
-    jsrPushString(vm, str);
+    char string[24];  // enough for .*g with DBL_DIG
+    snprintf(string, sizeof(string), "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
+    jsrPushString(vm, string);
     return true;
 }
 
@@ -423,28 +423,29 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     }
     default:
+        UNREACHABLE();
         break;
     }
 
-    char str[256] = {0};
+    char string[MAX_OBJ_STR];
     if(strcmp(modName, JSR_CORE_MODULE) == 0) {
-        snprintf(str, sizeof(str), "<%s %s@%p>", funType, funName, (void*)AS_OBJ(vm->apiStack[0]));
+        snprintf(string, sizeof(string), "<%s %s@%p>", funType, funName,
+                 (void*)AS_OBJ(vm->apiStack[0]));
     } else {
-        snprintf(str, sizeof(str), "<%s %s.%s@%p>", funType, modName, funName,
+        snprintf(string, sizeof(string), "<%s %s.%s@%p>", funType, modName, funName,
                  (void*)AS_OBJ(vm->apiStack[0]));
     }
-
-    jsrPushString(vm, str);
+    jsrPushString(vm, string);
     return true;
 }
 // end
 
 // class Module
 JSR_NATIVE(jsr_Module_string) {
-    char str[256];
+    char string[MAX_OBJ_STR];
     ObjModule* m = AS_MODULE(vm->apiStack[0]);
-    snprintf(str, sizeof(str), "<module %s@%p>", m->name->data, (void*)m);
-    jsrPushString(vm, str);
+    snprintf(string, sizeof(string), "<module %s@%p>", m->name->data, (void*)m);
+    jsrPushString(vm, string);
     return true;
 }
 // end
