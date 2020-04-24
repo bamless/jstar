@@ -106,7 +106,7 @@ Module builtInModules[] = {
             METHOD(insert,   jsr_List_insert)
             METHOD(removeAt, jsr_List_removeAt)
             METHOD(clear,    jsr_List_clear)
-            METHOD(subList,  jsr_List_subList)
+            METHOD(slice,    jsr_List_slice)
             METHOD(__len__,  jsr_List_len)
             METHOD(__iter__, jsr_List_iter)
             METHOD(__next__, jsr_List_next)
@@ -117,7 +117,7 @@ Module builtInModules[] = {
             METHOD(__iter__, jsr_Tuple_iter)
             METHOD(__next__, jsr_Tuple_next)
             METHOD(__hash__, jsr_Tuple_hash)
-            METHOD(subTuple, jsr_Tuple_subTuple)
+            METHOD(slice,    jsr_Tuple_slice)
         ENDCLASS
         CLASS(String)
             METHOD(new,        jsr_String_new)
