@@ -8,7 +8,7 @@ if(USE_COMPUTED_GOTOS)
 	endif()
 endif()
 
-# libjstar version
+# libjstar compatibiliy version
 set(LIBJSTAR_VERSION_MAJOR 1)
 set(LIBJSTAR_VERSION_MINOR 0)
 set(LIBJSTAR_VERSION_PATCH 0)
