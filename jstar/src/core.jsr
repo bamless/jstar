@@ -195,18 +195,18 @@ class List is Sequence
     end
 
     fun sort(comp=null)
-        var temp = List(#this, |i| => this[i])
+        var temp = this.slice(0)
         var size = #this - 1
         for var m = 1; m <= size; m *= 2 do
             for var i = 0; i < size; i += 2 * m do
                 var from, mid, to = i, i + m - 1, i + 2 * m - 1
                 if to > size then to = size end
-                merge(from, mid, to)
+                this._merge(from, mid, to, comp, temp)
             end
         end
     end
 
-    fun _merge(l, m, r)
+    fun _merge(l, m, r, comp, temp)
         var k, i, j = l, l, m + 1
 
         while i <= m and j <= r do
