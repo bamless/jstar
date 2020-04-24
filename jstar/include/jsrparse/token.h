@@ -54,7 +54,6 @@ typedef enum {
 
     TOK_IDENTIFIER,
     TOK_STRING,
-    TOK_COMMAND,
     TOK_NUMBER,
 
     TOK_AND,

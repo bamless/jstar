@@ -43,7 +43,6 @@ typedef enum ExprType {
     NUM_LIT,
     BOOL_LIT,
     STR_LIT,
-    CMD_LIT,
     VAR_LIT,
     NULL_LIT,
     EXPR_LST,
@@ -137,7 +136,6 @@ JSTAR_API Expr* newAnonymousFunc(int line, bool vararg, LinkedList* args, Linked
 JSTAR_API Expr* newAccessExpr(int line, Expr* left, const char* name, size_t length);
 JSTAR_API Expr* newCompoundAssing(int line, Operator op, Expr* lval, Expr* rval);
 JSTAR_API Expr* newTernary(int line, Expr* cond, Expr* thenExpr, Expr* elseExpr);
-JSTAR_API Expr* newCmdLiteral(int line, const char* cmd, size_t len);
 JSTAR_API Expr* newVarLiteral(int line, const char* str, size_t len);
 JSTAR_API Expr* newStrLiteral(int line, const char* str, size_t len);
 JSTAR_API Expr* newArrayAccExpr(int line, Expr* left, Expr* index);
