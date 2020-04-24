@@ -146,7 +146,7 @@ class List is Sequence
     native add(e)
     native insert(i, e)
     native removeAt(i)
-    native subList(from, to)
+    native slice(from, to=null)
     native clear()
     native __len__()
     native __iter__(iter)
@@ -238,7 +238,7 @@ end
 
 class Tuple is Sequence
     native new(seq)
-    native subTuple(from, to)
+    native slice(from, to=null)
     native __len__()
     native __iter__(iter)
     native __next__(idx)

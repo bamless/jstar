@@ -17,29 +17,23 @@ class _IGMatch
 
     fun __iter__(_)
         var res = find(this.s, this.r, this.off)
-        if !res then 
-            return null
-        end
+        if !res then return null end
         
         var b, e = res
-
         while e == this.endl and e - b == 0 do
             res = find(this.s, this.r, this.off += 1)
-            if res then
-                return null
-            end
+            if res then return null end
             b, e = res
         end
 
+        var resLen = #res
         this.off = this.endl = e
-
-        var nres = #res
-        if   nres == 2 then
+        if   resLen == 2 then
             return this.s.slice(b, e)
-        elif nres == 3 then
+        elif resLen == 3 then
             return res[2]
         else
-            return res.subTuple(2, nres)
+            return res.slice(2, resLen)
         end
     end
 

@@ -510,12 +510,22 @@ JSR_NATIVE(jsr_List_removeAt) {
     return true;
 }
 
-JSR_NATIVE(jsr_List_subList) {
+JSR_NATIVE(jsr_List_slice) {
     ObjList* list = AS_LIST(vm->apiStack[0]);
+    JSR_CHECK(Int, 1, "from");
 
-    size_t from = jsrCheckIndex(vm, 1, list->count + 1, "from");
+    double fromNum = jsrGetNumber(vm, 1);
+    double toNum;
+    if(jsrIsNull(vm, 2)) {
+        toNum = (double)list->count;
+    } else {
+        JSR_CHECK(Int, 2, "to");
+        toNum = jsrGetNumber(vm, 2);
+    }
+
+    size_t from = jsrCheckIndexNum(vm, fromNum, list->count + 1);
     if(from == SIZE_MAX) return false;
-    size_t to = jsrCheckIndex(vm, 2, list->count + 1, "to");
+    size_t to = jsrCheckIndexNum(vm, toNum, list->count + 1);
     if(to == SIZE_MAX) return false;
 
     if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
@@ -630,15 +640,25 @@ JSR_NATIVE(jsr_Tuple_next) {
     return true;
 }
 
-JSR_NATIVE(jsr_Tuple_subTuple) {
+JSR_NATIVE(jsr_Tuple_slice) {
     ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
+    JSR_CHECK(Int, 1, "from");
 
-    size_t from = jsrCheckIndex(vm, 1, tup->size, "from");
+    double fromNum = jsrGetNumber(vm, 1);
+    double toNum;
+    if(jsrIsNull(vm, 2)) {
+        toNum = (double)tup->size;
+    } else {
+        JSR_CHECK(Int, 2, "to");
+        toNum = jsrGetNumber(vm, 2);
+    }
+
+    size_t from = jsrCheckIndexNum(vm, fromNum, tup->size + 1);
     if(from == SIZE_MAX) return false;
-    size_t to = jsrCheckIndex(vm, 2, tup->size + 1, "to");
+    size_t to = jsrCheckIndexNum(vm, toNum, tup->size + 1);
     if(to == SIZE_MAX) return false;
 
-    if(from >= to) JSR_RAISE(vm, "InvalidArgException", "from must be < to.");
+    if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
 
     size_t numElems = to - from;
     ObjTuple* sub = newTuple(vm, numElems);
