@@ -53,8 +53,9 @@ EvalResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* module,
 }
 
 static EvalResult finishCall(JStarVM* vm, int depth, size_t offSp) {
+    if(vm->frameCount <= depth) return VM_EVAL_SUCCESS;
     // Evaluate frame if present
-    if(vm->frameCount > depth && !runEval(vm, depth)) {
+    if(!runEval(vm, depth)) {
         // Exception was thrown, push it as result
         Value exc = pop(vm);
         vm->sp = vm->stack + offSp;
