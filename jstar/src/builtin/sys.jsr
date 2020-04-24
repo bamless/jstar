@@ -6,7 +6,7 @@ native clock()
 native exit(n=0)
 native getenv(name)
 native gc()
-native getImportPaths()
+native importPaths()
 native platform()
 native time()
 
