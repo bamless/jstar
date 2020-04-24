@@ -378,6 +378,7 @@ static void addDefaultConsts(Compiler* c, Value* defaults, LinkedList* defArgs) 
             defaults[i++] = NULL_VAL;
             break;
         default:
+            UNREACHABLE();
             break;
         }
     }
@@ -1150,6 +1151,7 @@ static void compileMethods(Compiler* c, Stmt* cls) {
             break;
         }
         default:
+            UNREACHABLE();
             break;
         }
     }
@@ -1501,6 +1503,7 @@ static void compileStatement(Compiler* c, Stmt* s) {
         compileLoopExitStmt(c, s);
         break;
     case EXCEPT_STMT:
+    default:
         UNREACHABLE();
         break;
     }

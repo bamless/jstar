@@ -25,7 +25,7 @@ JSR_NATIVE(jsr_exit) {
     exit(jsrGetNumber(vm, 1));
 }
 
-JSR_NATIVE(jsr_getImportPaths) {
+JSR_NATIVE(jsr_importPaths) {
     push(vm, OBJ_VAL(vm->importpaths));
     return true;
 }

@@ -158,14 +158,14 @@ Module builtInModules[] = {
         ENDCLASS
     ENDMODULE
     MODULE(sys)
-        FUNCTION(time,           jsr_time)
-        FUNCTION(exit,           jsr_exit)
-        FUNCTION(getImportPaths, jsr_getImportPaths)
-        FUNCTION(platform,       jsr_platform)
-        FUNCTION(clock,          jsr_clock)
-        FUNCTION(getenv,         jsr_getenv)
-        FUNCTION(gc,             jsr_gc)
-        FUNCTION(init,           jsr_sys_init)
+        FUNCTION(time,        jsr_time)
+        FUNCTION(exit,        jsr_exit)
+        FUNCTION(importPaths, jsr_importPaths)
+        FUNCTION(platform,    jsr_platform)
+        FUNCTION(clock,       jsr_clock)
+        FUNCTION(getenv,      jsr_getenv)
+        FUNCTION(gc,          jsr_gc)
+        FUNCTION(init,        jsr_sys_init)
     ENDMODULE
 #ifdef JSTAR_IO
     MODULE(io)
