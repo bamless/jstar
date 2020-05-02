@@ -58,10 +58,11 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
     const char* rootPath = strrchr(modulePath->data, '/');
     const char* simpleName = strrchr(moduleName->data, '.');
 
-    if(simpleName == NULL)
+    if(simpleName == NULL) {
         simpleName = moduleName->data;
-    else
+    } else {
         simpleName++;
+    }
 
     jsrBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
     jsrBufferAppendstr(modulePath, "/");
@@ -107,7 +108,11 @@ static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, con
     return true;
 }
 
-typedef enum ImportResult { IMPORT_OK, IMPORT_ERR, IMPORT_NOT_FOUND } ImportResult;
+typedef enum ImportResult {
+    IMPORT_OK,
+    IMPORT_ERR,
+    IMPORT_NOT_FOUND,
+} ImportResult;
 
 static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name) {
     char* source = jsrReadFile(path->data);
@@ -201,8 +206,8 @@ bool importModule(JStarVM* vm, ObjString* name) {
     ObjModule* module = getModule(vm, name);
     ObjString* parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
     ObjModule* parent = getModule(vm, parentName);
-
     ObjString* simpleName = copyString(vm, nameStart, strlen(nameStart), true);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
+
     return true;
 }
