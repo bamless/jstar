@@ -281,13 +281,9 @@ end
 
 fun reduce(iterable, fn)
     var acc, iter = null, iterable.__iter__(null)
+    if !iter then return null end
 
-    if iter then
-        acc = iterable.__next__(iter) 
-    else
-        return null
-    end
-    
+    acc = iterable.__next__(iter) 
     while iter = iterable.__iter__(iter) do
         acc = fn(acc, iterable.__next__(iter))
     end
