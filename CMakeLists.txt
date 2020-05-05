@@ -10,6 +10,7 @@ set(JSTAR_VERSION_PATCH 0)
 set(CMAKE_C_STANDARD 99)
 
 # options
+option(JSTAR_INSTALL      "Generate insall targets" ON)
 option(USE_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
 option(NAN_TAGGING        "Use NaN tagging technique to store the VM internal type" ON)
 option(DBG_PRINT_EXEC     "Trace the execution of the VM" OFF)
@@ -28,10 +29,9 @@ configure_file (
 )
 
 # set default build type if not specified
-set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-	message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-	set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+	message(STATUS "Setting build type to 'Release' as none was specified.")
+	set(CMAKE_BUILD_TYPE "Release")
 endif()
 
 # set output directories
@@ -66,16 +66,18 @@ add_subdirectory("jstar")
 
 # ---- install targets ----
 
-# install all build products
-install(TARGETS jstar libjstar libjstar_static
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
-	RUNTIME DESTINATION bin
-)
+if(JSTAR_INSTALL)
+	# install all build products
+	install(TARGETS jstar libjstar libjstar_static
+		LIBRARY DESTINATION lib
+		ARCHIVE DESTINATION lib
+		RUNTIME DESTINATION bin
+	)
 
-# install header files
-install(DIRECTORY
-	"jstar/include/" 
-	DESTINATION include
-	FILES_MATCHING PATTERN "*.h"
-)
+	# install header files
+	install(DIRECTORY
+		"jstar/include/" 
+		DESTINATION include
+		FILES_MATCHING PATTERN "*.h"
+	)
+endif()
