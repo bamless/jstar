@@ -468,7 +468,7 @@ static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* 
 static bool subCall(JStarVM* vm, RegexState* rs, JStarBuffer* b, int funSlot) {
     jsrPushValue(vm, funSlot);
     for(int i = 1; i < rs->capturec; i++) {
-        jsrPushStringSz(vm, rs->captures[i].start, rs->captures[i].len);
+        if(!pushCapture(vm, rs, i)) return false;
     }
     if(jsrCall(vm, rs->capturec - 1) != VM_EVAL_SUCCESS) return false;
     JSR_CHECK(String, -1, "sub() return value");
