@@ -1326,7 +1326,7 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
         if(hasEnsure) {
             emitBytecode(c, OP_POP_HANDLER, 0);
         } else {
-            emitBytecode(c, OP_ENSURE_END, 0);
+            emitBytecode(c, OP_END_TRY, 0);
             exitScope(c);
         }
 
@@ -1336,7 +1336,7 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
     if(hasEnsure) {
         setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
         compileStatements(c, s->as.tryStmt.ensure->as.blockStmt.stmts);
-        emitBytecode(c, OP_ENSURE_END, 0);
+        emitBytecode(c, OP_END_TRY, 0);
         exitScope(c);
     }
 
@@ -1421,7 +1421,7 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
 
     setJumpTo(c, falseJmp, c->func->chunk.count, s->line);
 
-    emitBytecode(c, OP_ENSURE_END, 0);
+    emitBytecode(c, OP_END_TRY, 0);
     exitScope(c);
 
     exitTryBlock(c, s);

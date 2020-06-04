@@ -249,7 +249,7 @@ class Tuple is Sequence
     end
 end
 
-class Table
+class Table is Iter
     native delete(key)
     native clear()
     native contains(key)

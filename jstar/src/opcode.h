@@ -89,7 +89,7 @@
     X(OP_NULL)          \
     X(OP_SETUP_EXCEPT)  \
     X(OP_SETUP_ENSURE)  \
-    X(OP_ENSURE_END)    \
+    X(OP_END_TRY)       \
     X(OP_POP_HANDLER)   \
     X(OP_RAISE)         \
     X(OP_POP)           \
