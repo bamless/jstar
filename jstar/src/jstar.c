@@ -287,6 +287,7 @@ void jsrPushStringSz(JStarVM* vm, const char* string, size_t length) {
     validateStack(vm);
     push(vm, OBJ_VAL(copyString(vm, string, length, false)));
 }
+
 void jsrPushString(JStarVM* vm, const char* string) {
     jsrPushStringSz(vm, string, strlen(string));
 }
@@ -329,17 +330,15 @@ void jsrPushNative(JStarVM* vm, const char* name, JStarNative nat, uint8_t argc)
     validateStack(vm);
 
     ObjModule* mod;
-    if(vm->module) {
+    if(vm->module)
         mod = vm->module;
-    } else {
+    else
         mod = getModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true));
-    }
 
     ObjString* objName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(objName));
     ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0, false);
     pop(vm);
-
     push(vm, OBJ_VAL(objNative));
 }
 
@@ -423,16 +422,14 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    ASSERT(vm->module || mname, "No module specified");
+    ASSERT(vm->module || mname, "Undefined module");
     ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
                               : vm->module;
-    Value res;
     ObjString* namestr = copyString(vm, name, strlen(name), true);
     HashTable* glob = &module->globals;
 
+    Value res;
     if(!hashTableGet(glob, namestr, &res)) {
-        ASSERT(vm->module != vm->core || strcmp(name, "NameException") != 0,
-               "Core module: Trying to get NameException that is not yet defined");
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
         return false;
     }
@@ -442,26 +439,32 @@ bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {
+    ASSERT(IS_USERDATA(apiStackSlot(vm, slot)), "slot is not a Userdatum");
     return (void*)AS_USERDATA(apiStackSlot(vm, slot))->data;
 }
 
 double jsrGetNumber(JStarVM* vm, int slot) {
+    ASSERT(IS_NUM(apiStackSlot(vm, slot)), "slot is not a Number");
     return AS_NUM(apiStackSlot(vm, slot));
 }
 
 const char* jsrGetString(JStarVM* vm, int slot) {
+    ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
     return AS_STRING(apiStackSlot(vm, slot))->data;
 }
 
 size_t jsrGetStringSz(JStarVM* vm, int slot) {
+    ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
     return AS_STRING(apiStackSlot(vm, slot))->length;
 }
 
 bool jsrGetBoolean(JStarVM* vm, int slot) {
+    ASSERT(IS_BOOL(apiStackSlot(vm, slot)), "slot is not a Boolean");
     return AS_BOOL(apiStackSlot(vm, slot));
 }
 
 void* jsrGetHandle(JStarVM* vm, int slot) {
+    ASSERT(IS_HANDLE(apiStackSlot(vm, slot)), "slot is not an Handle");
     return AS_HANDLE(apiStackSlot(vm, slot));
 }
 

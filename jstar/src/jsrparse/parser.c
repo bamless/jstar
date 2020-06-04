@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
 #include "jsrparse/linkedlist.h"
@@ -1108,6 +1109,7 @@ static Operator assignTokToOperator(TokenType t) {
     case TOK_MOD_EQ:
         return MOD;
     default:
+        UNREACHABLE();
         return -1;
     }
 }
