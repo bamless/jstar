@@ -684,13 +684,13 @@ bool runEval(JStarVM* vm, int depth) {
         }                                                     \
     } while(0)
 
-#define RESTORE_HANDLER(h, cause, exc) \
-    do {                               \
-        frame->ip = h->handler;        \
-        vm->sp = h->savesp;            \
-        closeUpvalues(vm, vm->sp - 1); \
-        push(vm, exc);                 \
-        push(vm, NUM_VAL(cause));      \
+#define RESTORE_HANDLER(h, frame, cause, excVal) \
+    do {                                         \
+        frame->ip = h->address;                  \
+        vm->sp = h->savesp;                      \
+        closeUpvalues(vm, vm->sp - 1);           \
+        push(vm, excVal);                        \
+        push(vm, NUM_VAL(cause));                \
     } while(0)
 
 #define UNWIND_STACK(vm)              \
@@ -1044,7 +1044,7 @@ op_return:
         while(frame->handlerc > 0) {
             Handler* h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
-                RESTORE_HANDLER(h, CAUSE_RETURN, ret);
+                RESTORE_HANDLER(h, frame, CAUSE_RETURN, ret);
                 LOAD_FRAME();
                 DISPATCH();
             }
@@ -1245,15 +1245,15 @@ op_return:
 
     TARGET(OP_SETUP_EXCEPT): 
     TARGET(OP_SETUP_ENSURE): {
-        uint16_t handlerOff = NEXT_SHORT();
+        uint16_t offset = NEXT_SHORT();
         Handler* handler = &frame->handlers[frame->handlerc++];
-        handler->handler = ip + handlerOff;
+        handler->address = ip + offset;
         handler->savesp = vm->sp;
         handler->type = op;
         DISPATCH();
     }
     
-    TARGET(OP_ENSURE_END): {
+    TARGET(OP_END_TRY): {
         if(!IS_NULL(peek2(vm))) {
             UnwindCause cause = AS_NUM(pop(vm));
             switch(cause) {
@@ -1359,12 +1359,11 @@ bool unwindStack(JStarVM* vm, int depth) {
 
         stRecordFrame(vm, st, frame, vm->frameCount);
 
-        // if current frame has except or ensure handlers retore handler state
-        // and exit
+        // if current frame has except or ensure handlers restore handler state and exit
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerc];
-            RESTORE_HANDLER(h, CAUSE_EXCEPT, exc);
+            RESTORE_HANDLER(h, frame, CAUSE_EXCEPT, exc);
             return true;
         }
 
