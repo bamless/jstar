@@ -1343,11 +1343,10 @@ bool unwindStack(JStarVM* vm, int depth) {
     ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
     ObjInstance* exception = AS_INSTANCE(peek(vm));
 
-    Value stVal = NULL_VAL;
-    hashTableGet(&exception->fields, vm->stacktrace, &stVal);
-    ASSERT(IS_STACK_TRACE(stVal), "Exception doesn't have a stacktrace object");
-
-    ObjStackTrace* st = AS_STACK_TRACE(stVal);
+    Value stackTraceValue = NULL_VAL;
+    hashTableGet(&exception->fields, vm->stacktrace, &stackTraceValue);
+    ASSERT(IS_STACK_TRACE(stackTraceValue), "Exception doesn't have a stacktrace object");
+    ObjStackTrace* stackTrace = AS_STACK_TRACE(stackTraceValue);
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame* frame = &vm->frames[vm->frameCount - 1];
@@ -1357,7 +1356,7 @@ bool unwindStack(JStarVM* vm, int depth) {
         else
             vm->module = AS_NATIVE(frame->fn)->c.module;
 
-        stRecordFrame(vm, st, frame, vm->frameCount);
+        stRecordFrame(vm, stackTrace, frame, vm->frameCount);
 
         // if current frame has except or ensure handlers restore handler state and exit
         if(frame->handlerc > 0) {
