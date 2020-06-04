@@ -1110,7 +1110,7 @@ static Expr* expression(Parser* p, bool parseTuple) {
     int line = p->peek.line;
     Expr* l = ternaryExpr(p);
 
-    if(parseTuple && match(p, TOK_COMMA)) {
+    if(l && parseTuple && match(p, TOK_COMMA)) {
         l = tupleExpression(p, l);
     }
 
