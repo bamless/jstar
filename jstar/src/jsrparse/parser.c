@@ -44,12 +44,18 @@ static void error(Parser* p, const char* msg, ...) {
     if(p->fname != NULL) {
         fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
 
-        int tokOff = (int)((p->peek.lexeme) - p->lnStart);
+        // correct for escaped newlines
+        const char* actualLnStart = p->lnStart;
+        while((actualLnStart = strchr(actualLnStart, '\n')) && actualLnStart < p->peek.lexeme)
+            p->lnStart = ++actualLnStart;
+
+        int tokCol = (int)((p->peek.lexeme) - p->lnStart);
         int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
 
+        // print source code snippet of the token near the error
         fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
         fprintf(stderr, "    ");
-        for(int i = 0; i < tokOff; i++) {
+        for(int i = 0; i < tokCol; i++) {
             fprintf(stderr, " ");
         }
         fprintf(stderr, "^\n");
@@ -264,7 +270,6 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
     }
 
     require(p, close);
-
     return (FormalArgs){arguments, defaults, isVararg};
 }
 
@@ -349,7 +354,7 @@ static Stmt* varDecl(Parser* p) {
 
         if(match(p, TOK_COMMA)) {
             advance(p);
-            if(!isUnpack) isUnpack = true;
+            isUnpack = true;
         } else {
             break;
         }
@@ -368,17 +373,17 @@ static Stmt* forEach(Parser* p, Stmt* var, int line) {
     if(var->as.varDecl.init != NULL) {
         error(p, "Variable declaration in foreach cannot have initializer.");
     }
+
     advance(p);
     skipNewLines(p);
 
     Expr* e = expression(p, true);
     skipNewLines(p);
-
     require(p, TOK_DO);
 
     Stmt* body = blockStmt(p);
-
     require(p, TOK_END);
+
     return newForEach(line, var, e, body);
 }
 
@@ -419,8 +424,8 @@ static Stmt* forStmt(Parser* p) {
     require(p, TOK_DO);
 
     Stmt* body = blockStmt(p);
-
     require(p, TOK_END);
+
     return newForStmt(line, init, cond, act, body);
 }
 
@@ -515,8 +520,10 @@ static Stmt* tryStmt(Parser* p) {
 static Stmt* raiseStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+
     Expr* exc = expression(p, true);
     requireStmtEnd(p);
+
     return newRaiseStmt(line, exc);
 }
 
@@ -527,8 +534,8 @@ static Stmt* withStmt(Parser* p) {
     Expr* e = expression(p, true);
     Token var = require(p, TOK_IDENTIFIER);
     Stmt* block = blockStmt(p);
-
     require(p, TOK_END);
+
     return newWithStmt(line, e, &var, block);
 }
 
@@ -543,11 +550,10 @@ static Stmt* funcDecl(Parser* p) {
     }
 
     Token fname = require(p, TOK_IDENTIFIER);
-
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     Stmt* body = blockStmt(p);
-
     require(p, TOK_END);
+
     return newFuncDecl(line, args.isVararg, &fname, args.arguments, args.defaults, body);
 }
 
@@ -557,8 +563,8 @@ static Stmt* nativeDecl(Parser* p) {
 
     Token fname = require(p, TOK_IDENTIFIER);
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
-
     requireStmtEnd(p);
+
     return newNativeDecl(line, args.isVararg, &fname, args.arguments, args.defaults);
 }
 
