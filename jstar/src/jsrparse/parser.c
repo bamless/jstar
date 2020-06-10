@@ -289,8 +289,6 @@ static Stmt* blockStmt(Parser* p) {
     return newBlockStmt(line, stmts);
 }
 
-static Stmt* elifStmt(Parser* p);
-
 static Stmt* ifBody(Parser* p, int line) {
     Expr* cond = expression(p, true);
     skipNewLines(p);
@@ -301,21 +299,15 @@ static Stmt* ifBody(Parser* p, int line) {
     Stmt* elseBody = NULL;
 
     if(match(p, TOK_ELIF)) {
-        elseBody = elifStmt(p);
-    }
-
-    if(match(p, TOK_ELSE)) {
+        int line = p->peek.line;
+        advance(p);
+        elseBody = ifBody(p, line);
+    } else if(match(p, TOK_ELSE)) {
         advance(p);
         elseBody = blockStmt(p);
     }
 
     return newIfStmt(line, cond, thenBody, elseBody);
-}
-
-static Stmt* elifStmt(Parser* p) {
-    int line = p->peek.line;
-    require(p, TOK_ELIF);
-    return ifBody(p, line);
 }
 
 static Stmt* ifStmt(Parser* p) {
