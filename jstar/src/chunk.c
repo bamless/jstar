@@ -53,5 +53,6 @@ int addConstant(Chunk* c, Value constant) {
             return i;
         }
     }
+
     return valueArrayAppend(&c->consts, constant);
 }

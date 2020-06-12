@@ -13,7 +13,10 @@
 // Enumeration encoding the cause of the stack
 // unwinding, used during unwinding to correctly
 // handle the execution of except/ensure handlers
-typedef enum UnwindCause { CAUSE_EXCEPT, CAUSE_RETURN } UnwindCause;
+typedef enum UnwindCause {
+    CAUSE_EXCEPT,
+    CAUSE_RETURN,
+} UnwindCause;
 
 static void reset(JStarVM* vm) {
     vm->sp = vm->stack;
@@ -26,9 +29,8 @@ JStarVM* jsrNewVM() {
     JStarVM* vm = calloc(1, sizeof(*vm));
 
     vm->stackSz = STACK_SZ;
-    vm->stack = malloc(sizeof(Value) * STACK_SZ);
-
     vm->frameSz = FRAME_SZ;
+    vm->stack = malloc(sizeof(Value) * STACK_SZ);
     vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
 
     reset(vm);
@@ -69,7 +71,7 @@ JStarVM* jsrNewVM() {
     vm->neg = copyString(vm, "__neg__", 7, true);
 
     // Bootstrap the core module
-    initCoreLibrary(vm);
+    initCoreModule(vm);
 
     // Init main module
     compileWithModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true), NULL);
@@ -87,7 +89,6 @@ void jsrFreeVM(JStarVM* vm) {
 
     free(vm->stack);
     free(vm->frames);
-
     freeHashTable(&vm->strings);
     freeHashTable(&vm->modules);
     freeObjects(vm);

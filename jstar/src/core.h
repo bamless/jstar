@@ -3,8 +3,8 @@
 
 #include "jstar.h"
 
-// J* core libray bootstrap
-void initCoreLibrary(JStarVM* vm);
+// J* core module bootstrap
+void initCoreModule(JStarVM* vm);
 
 // J* core module native functions and methods
 
