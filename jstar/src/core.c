@@ -105,7 +105,7 @@ static JSR_NATIVE(jsr_Class_string) {
 }
 // end
 
-void initCoreLibrary(JStarVM* vm) {
+void initCoreModule(JStarVM* vm) {
     ObjString* name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
 
     push(vm, OBJ_VAL(name));
@@ -205,8 +205,9 @@ JSR_NATIVE(jsr_ascii) {
 JSR_NATIVE(jsr_print) {
     jsrPushValue(vm, 1);
     if(jsrCallMethod(vm, "__string__", 0) != VM_EVAL_SUCCESS) return false;
-    if(!jsrIsString(vm, -1))
+    if(!jsrIsString(vm, -1)) {
         JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+    }
 
     printf("%s", jsrGetString(vm, -1));
     jsrPop(vm);
@@ -257,11 +258,9 @@ JSR_NATIVE(jsr_eval) {
     ObjClosure* closure = newClosure(vm, fn);
     pop(vm);
 
-    push(vm, OBJ_VAL(closure));
-
     EvalResult res;
+    push(vm, OBJ_VAL(closure));
     if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) return false;
-
     pop(vm);
 
     jsrPushNull(vm);
@@ -320,7 +319,6 @@ JSR_NATIVE(jsr_Number_new) {
     }
     if(jsrIsString(vm, 1)) {
         errno = 0;
-
         char* end = NULL;
         const char* nstr = jsrGetString(vm, 1);
         double n = strtod(nstr, &end);

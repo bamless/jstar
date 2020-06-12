@@ -11,6 +11,7 @@
 #define STACK_SZ        FRAME_SZ*(MAX_LOCALS + 1)  // Stack size given frames
 #define INIT_GC         (1024 * 1024 * 10)         // 10MiB - First GC collection point
 #define HANDLER_MAX     10                         // Max number of try-excepts for a frame
+#define INTERN_TRESHOLD 256                        // Under this size a string is always interned
 
 // Compiler constants
 #define MAX_TRY_DEPTH HANDLER_MAX  // Max depth of nested trys
@@ -41,9 +42,8 @@
 #endif
 
 // Macros for defining an enum with associated string names using X macros
-#define DEFINE_ENUM(NAME, ENUMX) typedef enum NAME { ENUMX(ENUM_ENTRY) } NAME
-#define ENUM_ENTRY(ENTRY)        ENTRY,
-
+#define ENUM_ENTRY(ENTRY)                ENTRY,
+#define DEFINE_ENUM(NAME, ENUMX)         typedef enum NAME { ENUMX(ENUM_ENTRY) } NAME
 #define DECLARE_ENUM_STRINGS(NAME)       extern const char* CONCATOK(NAME, Name)[]
 #define DEFINE_ENUM_STRINGS(NAME, ENUMX) const char* CONCATOK(NAME, Name)[] = {ENUMX(STRINGIFY)}
 
@@ -60,7 +60,6 @@
 
 // Activate assertsions and unreachable macros in debug builds
 #ifndef NDEBUG
-
     #include <stdio.h>
 
     #define ASSERT(cond, msg)                                                              \
@@ -78,12 +77,9 @@
                     __func__);                                                              \
             abort();                                                                        \
         } while(0)
-
 #else
-
     #define ASSERT(cond, msg)
     #define UNREACHABLE()
-
 #endif
 
 #endif

@@ -100,25 +100,22 @@ ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
     return upvalue;
 }
 
-ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method) {
+ObjBoundMethod* newBoundMethod(JStarVM* vm, Value bound, Obj* method) {
     ObjBoundMethod* bm = (ObjBoundMethod*)newObj(vm, sizeof(*bm), vm->funClass, OBJ_BOUND_METHOD);
-    bm->bound = b;
+    bm->bound = bound;
     bm->method = method;
     return bm;
 }
 
 ObjTuple* newTuple(JStarVM* vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
-
-    ObjTuple* t =
-        (ObjTuple*)newVarObj(vm, sizeof(*t), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
-    t->size = size;
-
-    for(uint8_t i = 0; i < t->size; i++) {
-        t->arr[i] = NULL_VAL;
+    ObjTuple* tuple =
+        (ObjTuple*)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
+    tuple->size = size;
+    for(uint8_t i = 0; i < tuple->size; i++) {
+        tuple->arr[i] = NULL_VAL;
     }
-
-    return t;
+    return tuple;
 }
 
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*)) {
@@ -196,7 +193,7 @@ void listAppend(JStarVM* vm, ObjList* lst, Value val) {
         growList(vm, lst);
     }
     lst->arr[lst->count++] = val;
-    pop(vm);  // pop val
+    pop(vm);
 }
 
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
@@ -250,7 +247,7 @@ static ObjString* newString(JStarVM* vm, const char* cstring, size_t length) {
 }
 
 ObjString* copyString(JStarVM* vm, const char* str, size_t length, bool intern) {
-    if(intern || length < 256) {
+    if(intern || length < INTERN_TRESHOLD) {
         uint32_t hash = hashString(str, length);
         ObjString* interned = hashTableGetString(&vm->strings, str, length, hash);
         if(interned == NULL) {
