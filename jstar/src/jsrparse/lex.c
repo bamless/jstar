@@ -243,7 +243,6 @@ void nextToken(Lexer* lex, Token* tok) {
         hexNumber(lex, tok);
         return;
     }
-
     if(isNum(c) || (c == '.' && isNum(peekChar(lex)))) {
         number(lex, tok);
         return;
