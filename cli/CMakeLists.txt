@@ -1,9 +1,11 @@
 include_directories(
 	"${PROJECT_SOURCE_DIR}/jstar/include"
-	"thirdparty/linenoise/include"
+    "thirdparty/linenoise/include"
+    "thirdparty/argparse"
 )
 
 add_subdirectory("thirdparty/linenoise")
+add_subdirectory("thirdparty/argparse")
 
 # setup relative rpath on unix and macos
 if(APPLE)
@@ -14,7 +16,7 @@ endif()
 
 # add executable and libjstar dependency
 add_executable(jstar src/cli.c)
-target_link_libraries(jstar libjstar linenoise)
+target_link_libraries(jstar libjstar linenoise argparse)
 
 # add icon to exe on windows
 if(WIN32)
