@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "argparse.h"
 #include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
 #include "jsrparse/parser.h"
@@ -13,6 +14,13 @@
 
 static JStarVM* vm;
 
+// ---- REPL implementation ----
+
+static void printVersion() {
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
+}
+
 // Little hack to enable adding a tab in linenoise
 static void completion(const char* buf, linenoiseCompletions* lc) {
     char indented[1024];
@@ -20,29 +28,30 @@ static void completion(const char* buf, linenoiseCompletions* lc) {
     linenoiseAddCompletion(lc, indented);
 }
 
-static void initImportPaths(const char* path) {
+static void initImportPaths(const char* path, bool ignoreEnv) {
     jsrAddImportPath(vm, path);
+    if(!ignoreEnv) {
+        const char* jstarPath = getenv(JSTARPATH);
+        if(jstarPath == NULL) return;
 
-    const char* jstarPath = getenv(JSTARPATH);
-    if(jstarPath == NULL) return;
+        JStarBuffer buf;
+        jsrBufferInit(vm, &buf);
 
-    JStarBuffer buf;
-    jsrBufferInit(vm, &buf);
-
-    size_t last = 0;
-    size_t pathLen = strlen(jstarPath);
-    for(size_t i = 0; i < pathLen; i++) {
-        if(jstarPath[i] == ':') {
-            jsrBufferAppend(&buf, jstarPath + last, i - last);
-            jsrAddImportPath(vm, buf.data);
-            jsrBufferClear(&buf);
-            last = i + 1;
+        size_t last = 0;
+        size_t pathLen = strlen(jstarPath);
+        for(size_t i = 0; i < pathLen; i++) {
+            if(jstarPath[i] == ':') {
+                jsrBufferAppend(&buf, jstarPath + last, i - last);
+                jsrAddImportPath(vm, buf.data);
+                jsrBufferClear(&buf);
+                last = i + 1;
+            }
         }
-    }
 
-    jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
-    jsrAddImportPath(vm, buf.data);
-    jsrBufferFree(&buf);
+        jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
+        jsrAddImportPath(vm, buf.data);
+        jsrBufferFree(&buf);
+    }
 }
 
 static int countBlocks(const char* line) {
@@ -87,12 +96,10 @@ static void addPrintIfExpr(JStarBuffer* sb) {
     }
 }
 
-static void dorepl() {
+static void dorepl(bool ignoreEnv) {
     linenoiseSetCompletionCallback(completion);
-    printf("J* Version %s\n", JSTAR_VERSION_STRING);
-    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
-
-    initImportPaths("./");
+    initImportPaths("./", ignoreEnv);
+    printVersion();
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
@@ -121,40 +128,106 @@ static void dorepl() {
     linenoiseHistoryFree();
 }
 
-int main(int argc, const char** argv) {
-    vm = jsrNewVM();
+// ---- Script execution ----
 
-    EvalResult res = VM_EVAL_SUCCESS;
-    if(argc == 1) {
-        dorepl();
+static EvalResult execScript(const char* script, int argsCount, const char** args, bool ignoreEnv) {
+    jsrInitCommandLineArgs(vm, argsCount, args);
+
+    // set base import path to script's directory
+    char* directory = strrchr(script, '/');
+    if(directory != NULL) {
+        size_t length = directory - script + 1;
+        char* path = calloc(length + 1, sizeof(char));
+        memcpy(path, script, length);
+        initImportPaths(path, ignoreEnv);
+        free(path);
     } else {
-        // set command line args for use in scripts
-        jsrInitCommandLineArgs(vm, argc - 2, &argv[2]);
-
-        // set base import path to script's directory
-        char* directory = strrchr(argv[1], '/');
-        if(directory != NULL) {
-            size_t length = directory - argv[1] + 1;
-            char* path = calloc(length + 1, sizeof(char));
-            memcpy(path, argv[1], length);
-            initImportPaths(path);
-            free(path);
-        } else {
-            initImportPaths("./");
-        }
-
-        // read file and evaluate
-        char* src = jsrReadFile(argv[1]);
-        if(src == NULL) {
-            fprintf(stderr, "Error reading input file ");
-            perror(argv[1]);
-            exit(EXIT_FAILURE);
-        }
-
-        res = jsrEvaluate(vm, argv[1], src);
-        free(src);
+        initImportPaths("./", ignoreEnv);
     }
 
-    jsrFreeVM(vm);
+    char* src = jsrReadFile(script);
+    if(src == NULL) {
+        fprintf(stderr, "Error reading script ");
+        perror(script);
+        exit(EXIT_FAILURE);
+    }
+
+    EvalResult res = jsrEvaluate(vm, script, src);
+    free(src);
     return res;
+}
+
+// ---- Main function and option parsing ----
+
+typedef struct CLIOpts {
+    const char* script;
+    bool showVersion;
+    bool interactive;
+    bool ignoreEnv;
+    const char* execStmt;
+    const char** args;
+    int argsCount;
+} CLIOpts;
+
+CLIOpts parseArguments(int argc, const char** argv) {
+    CLIOpts opts = {0};
+
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Options"),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", NULL,
+                    0, 0),
+        OPT_STRING('e', "exec", &opts.execStmt,
+                   "Execute the given statement. If 'script' is provided it is executed after this",
+                   NULL, 0, 0),
+        OPT_BOOLEAN('i', "interactive", &opts.interactive,
+                    "Enter the REPL after executing 'script' and/or '-e' statement", NULL, 0, 0),
+        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
+                    "Ignore environment variables such as JSTARPATH", NULL, 0, 0),
+        OPT_END(),
+    };
+
+    static const char* const usage[] = {
+        "jstar [options] [script [arguments]]",
+        NULL,
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
+    argparse_describe(&argparse, "J* a Lightweight Scripting Language", NULL);
+    int nonOptsCount = argparse_parse(&argparse, argc, argv);
+
+    if(nonOptsCount > 0) {
+        opts.script = argv[0];
+    }
+    if(nonOptsCount > 1) {
+        opts.args = &argv[1];
+        opts.argsCount = nonOptsCount - 1;
+    }
+
+    return opts;
+}
+
+int main(int argc, const char** argv) {
+    CLIOpts opts = parseArguments(argc, argv);
+    vm = jsrNewVM();
+
+    if(opts.showVersion) {
+        printVersion();
+        exit(EXIT_SUCCESS);
+    }
+    if(opts.execStmt) {
+        EvalResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
+        if(opts.script && res == VM_EVAL_SUCCESS) {
+            res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
+        }
+        if(!opts.interactive) exit(res);
+    }
+    if(opts.script) {
+        EvalResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
+        if(!opts.interactive) exit(res);
+    }
+
+    dorepl(opts.ignoreEnv);
+    exit(EXIT_SUCCESS);
 }
