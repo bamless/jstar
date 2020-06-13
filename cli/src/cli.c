@@ -223,7 +223,7 @@ int main(int argc, const char** argv) {
         }
         if(!opts.interactive) exit(res);
     }
-    if(opts.script) {
+    if(opts.script && !opts.execStmt) {
         EvalResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         if(!opts.interactive) exit(res);
     }
