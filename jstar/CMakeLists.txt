@@ -52,3 +52,9 @@ set_target_properties(libjstar PROPERTIES
 	VERSION     ${LIBJSTAR_VERSION_STRING}
 	SOVERSION   ${LIBJSTAR_VERSION_MAJOR} 
 )
+
+# Enable link-time optimization if supported
+if(LTOAvailable)
+	set_property(TARGET libjstar PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+	set_property(TARGET libjstar_static PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()

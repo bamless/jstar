@@ -18,6 +18,11 @@ endif()
 add_executable(jstar src/cli.c)
 target_link_libraries(jstar libjstar linenoise argparse)
 
+# Enable link-time optimization if supported
+if(LTOAvailable)
+	set_property(TARGET jstar PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
 # add icon to exe on windows
 if(WIN32)
     target_sources(jstar PRIVATE "${CMAKE_SOURCE_DIR}/util/icon.rc")
