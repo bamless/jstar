@@ -229,5 +229,4 @@ int main(int argc, const char** argv) {
     }
 
     dorepl(opts.ignoreEnv);
-    exit(EXIT_SUCCESS);
 }
