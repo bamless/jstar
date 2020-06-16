@@ -1,4 +1,7 @@
 # J*: A Lightweight Embeddable Scripting Language
+![linux-build](https://github.com/bamless/jstar/workflows/linux-build/badge.svg)
+![windows-build](https://github.com/bamless/jstar/workflows/windows-build/badge.svg)
+![macos-build](https://github.com/bamless/jstar/workflows/macos-build/badge.svg)
 
 <p align="center">
   <img src="./docs/assets/images/JStar350.png" alt="J* Programming Language" title="J* Programming Language">
