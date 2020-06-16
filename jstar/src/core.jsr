@@ -432,7 +432,9 @@ end
 
 class IZip is Iter
     fun new(...)
-        if #args == 0 then raise InvalidArgException("Expected at least one iterator") end
+        if #args == 0 then 
+            raise InvalidArgException("Expected at least one iterator")
+        end
         this._iters = args
         this._result = []
     end
