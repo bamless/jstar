@@ -7,15 +7,21 @@ jobs:
   build:
     runs-on: windows-2019
     steps:
+    
     - uses: actions/checkout@v2
       with:
         submodules: 'recursive'
+    
     - name: configure
       run: |
         mkdir build
         cd build
         cmake .. -DUSE_COMPUTED_GOTOS=OFF
+        
+    - name: Setup MSBuild.exe
+      uses: warrenbuckley/Setup-MSBuild@v1
+    
     - name: build
       run: |
         cd build
-        MSBuild.exe jstar.sln
+        msbuild jstar.sln
