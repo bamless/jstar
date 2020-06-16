@@ -1,0 +1,24 @@
+# This is a basic workflow to help you get started with Actions
+name: windows-build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: install dependencies
+      run: |
+        choco update
+        choco install ninja
+        choco install python
+    - name: configure
+      run: |
+        mkdir build
+        cd build
+        cmake .. -GNinja -DUSE_COMPUTED_GOTOS=OFF
+    - name: build
+      run: |
+        cd build
+        ninja
