@@ -1,10 +1,8 @@
-# J*
+# J*: A Lightweight Embeddable Scripting Language
 
 <p align="center">
   <img src="./docs/assets/images/JStar350.png" alt="J* Programming Language" title="J* Programming Language">
 </p>
-
-A dynamic lightweight scripting language
 
 # How to use
 ## Repl
