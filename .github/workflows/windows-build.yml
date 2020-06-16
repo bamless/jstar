@@ -5,23 +5,17 @@ on: [push]
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2
       with:
-        repository: 'bamless/jstar'
         submodules: 'recursive'
-    - name: install dependencies
-      run: |
-        choco update
-        choco install ninja
-        choco install python
     - name: configure
       run: |
         mkdir build
         cd build
-        cmake .. -GNinja -DUSE_COMPUTED_GOTOS=OFF
+        cmake .. -DUSE_COMPUTED_GOTOS=OFF
     - name: build
       run: |
         cd build
-        ninja
+        MSBuild.exe jstar.sln
