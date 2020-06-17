@@ -7,12 +7,49 @@
   <img src="./docs/assets/images/JStar350.png" alt="J* Programming Language" title="J* Programming Language">
 </p>
 
-# How to use
-## Repl
-If the J* binary is executed without paramenters it will run the interpreter in *repl* mode. Here you can just type a line of code, press enter, and J* will execute it. You can also write multiline code, it will look like this:
+**J\*** is a dynamic embeddable scripting language designed to be as easy as possible to embed into
+another program. It arises from the need of having a modern scripting language with built-in
+support for OOP whilst mantaning simplicity of use and a low memory footprint. It can be viewed as 
+a middle ground between Python, a more complete scripting language with lots of features and 
+libraries, and LUA, a small and compact language that is simple to embed but doesn't  provide OOP 
+functionalities out of the box.  
+J* tries to take the best of both worlds, implementing a fully featured class system while 
+maintaining a small standard library and employing the use of a stack based API for communication 
+among the language and host program, rendering embedding simple.
+
+**J\*** is:
+ - **Small**. The implementation spans only a handful of files and the memory footprint is low
+   thanks to a minimal standard library that provides only essential functionalities.
+ - **Easy to use**. The API is contained in a single header file and employs a stack based approach
+   similar to the one of LUA, freeing the user from the burden of keeping track of language memory.
+ - **Fully OOP**. The language is fully class based. Every entity, from numbers to class instances,
+   is an object in **J\*** and exceptions are used for error reporting.
+ - **Fast**. Low memory footprint and efficient implementation make **J\*** competitive in the class
+   of dynamic scripting languages.
+ - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
+ - **Easily extensible**. The language can be easily extended by creating C functions callable from
+   **J\*** using the API, or by importing [C extensions](https://github.com/bamless/jsocket) 
+   provided as dynamic libraries.
+ - **Highly portable**. The language is implemented in standard C99 and has no dependencies, making
+   it available on almost all platforms that provide a C compiler.
+
+# The **jstar** command line app
+
+Besides the language implementation, a simple executable called `jstar` is provided to start using
+the language without embedding it into another program.  
+If the `jstar` binary is executed without
+arguments it behaves like your usual read-eval-print loop, accepting a line at a time and executing
+it:
+```lua
+J*>> var helloWorld = 'Hello, World!'
+J*>> print(helloWorld)
+Hello, World!
+J*>> _
+```
+You can even write multiline code, it will look like this:
 ```lua
 J*>> for var i = 0; i < 3; i += 1 do
-....   print("Hello World!")
+....   print('Hello World!')
 .... end
 Hello World!
 Hello World!
@@ -21,63 +58,68 @@ J*>> _
 ```
 When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpreter.
 
-## Scripts
-If you want to run a script, just pass its path as the first argument to J*. If you pass more than one argument, all the others will be forwarded to J* as *script arguments*.
-You can then read them from the script this way:
+If you instead want to execute code written in some file, you can pass it as an argument to `jstar`
+and it will be executed. Passing more than one argument causes all but the first to be forwarded to
+the language as **script arguments**. You can then read them from the script this way:
 ```lua
 import sys
 
 if #sys.args > 0 then
-  print(sys.args[0])
+  print('first argument: ', sys.args[0])
 else
-  raise Exception("No args provided")
+  raise Exception('No args provided')
 end
 ```
+The `jstar` executable can also accept various options that modify the behaviour of the command line
+app. To see all of them alongside a description, simply pass the `-h` option to the executable.
 
-For other examples of the language you can look at the **.bl** files in *src/vm/builtin*.
+In addition to being a useful tool to directly use the programming language, the command line app
+is also a good starting point to learn how **J\*** can be embedded in a program, as it uses the API
+to implement all of its functionalities. You can find the code in [**cli/src/cli.c**](https://github.com/bamless/jstar/blob/master/cli/src/cli.c).
 
-# How to build
-The project uses **CMake** for building. Tested compilers include:
-* GCC
-* Clang
-* MSVC
+# Binaries
 
-## Linux
-Install **CMake**, navigate to the root of the project and issue:
+Precompiled binaries are provided for Windows and Linux for every major release. You can find them
+[here](https://github.com/bamless/jstar/releases).
+
+# Compilation
+
+The **J\*** library requires a C99 compiler and CMake (>= 3.9) to be built, and is known to compile 
+on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, clang).
+
+To build the provided **command line app** `jstar`, a C++11 compiler is required as one of its
+dependencies, linenoise-ng, is written in C++.
+
+Additionally, if one wishes to modify the standard library (**.jsr** files in jstar/src/builtin),
+a python interpreter (version >= 3) is required to generate header files from the code (CMake will
+automatically take care of this).
+
+You can clone the latest **J\*** sources using git:
+
 ```
-mkdir build && cd build && cmake ../src && make -j
+git clone --recurse-submodules https://github.com/bamless/jstar.git
 ```
-The J* executable will be created in the **build/bin** folder.
 
-## Windows
+After cloning, use cmake to generate build files for your build system of choice and build the
+target `libjstar`/`libjstar_static` if you only want to generate the language dynamic/static library
+or the `all` target if you want to build both the library and the command line app. On UNIX systems
+this can be simply achieved by entering this in the command line:
 
-#### Using MSVC
+```
+cd jstar; mkdir build; cd build; cmake ..; make -j
+```
 
-Install CMake for windows form [here](https://cmake.org/download/). Create a **build** folder in the root of the project. Open the CMake GUI and select **J*/src** as the input folder and **J*/build** as the output one. Click on **configure**. Once that is done, uncheck the **USE_COMPUTED_GOTOS** option (MSVC doesn't support computed gotos) and then click on **generate**. Project files for visual studio will be created in **build**. Then, simply import the project in visual studio and build the **J*** target.
+Various CMake options are available to switch on or off certain functionalities:
 
-#### Using MinGW-w64
-
-If you want to use **MinGW** for building under windows the process is similar to the one described above for a linux build. I actually reccomend using **Msys2** for building using MinGW: \
-First, you need to install Msys2 from [here](http://www.msys2.org/). Once installed launch the msys2 bash and run `pacman -Syu` to update the pakage databse. If needed, close MSYS2, run it again from Start menu. Update the rest with: `pacman -Su`. Once all is updated, run `pacman -S mingw-w64-x86_64-gcc` for 64 bit, or `pacman -S mingw-w64-i686-gcc` for 32 bit, to install Mingw-w64. Run `pacman -S base-devel` to install the tools needed for the build process (such as cmake, etc...). Once all of that is done, you can build the project exactly like you would on Linux. \
-If you want to use CMD or Powershell instead of the Msys2 bash, you'll need to add \*MinGW inst. path\*/bin to your PATH.
-
-## MacOS
-I don't own a Mac, but since the project is standard c11, building on MacOS with Clang should be identical to building on Linux.
-
-## Development
-
-The project provides 2 build types: **Release** and **Debug**. The default build type is Release, it uses -O3 optimization level and strips all the debug symbols. If you want to debug/develop J* use the Debug build type (cmake -DCMAKE_BUILD_TYPE=debug) that includes debug information and doesn't apply any optimization.
-
-## Compilation options
-
-The project provides some cmake options to enable and disable certain functionalities:
-
-| Variable value   | Description   |
-| :--------------: | :------------ |
-| NAN_TAGGING        | use the NaN tagging technique for storing the VM internal type (decreases the memory occupation of the VM)
-| USE_COMPUTED_GOTOS | use computed gotos to implement the VM eval loop (branch predictor friendly, increases performance). Not all compilers support computed gotos, so if you're using one of them disable this option.
-| DBG_PRINT_EXEC     | trace the execution of instructions of the virtual machine |
-| DBG_STRESS_GC      | stress the garbage collector by calling it on every allocation |
-| DBG_PRINT_GC       | trace the execution of the garbage collector |
-
-The NAN_TAGGING and USE_COMPUTED_GOTOS options are set to ON as default.
+|    Option name     | Default | Description |
+| :----------------: | :-----: | :---------- |
+| NAN_TAGGING        |   ON    | Use the NaN tagging technique for storing the VM internal type. Decrases the memory footprint of the interpreter and increases speed |
+| USE_COMPUTED_GOTOS |   ON    | Use computed gotos to implement the VM eval loop. Branch predictor friendly, increases performance. Not all compilers support computed gotos (MSVC for example), so if you're using one of them disable this option |
+| JSTAR_INSTALL      |   ON    | Generate install targets for the chosen build system. Turn this off if including J* from another CMake project |
+|      JSTAR_IO      |   ON    | Include the 'io' module in the language |
+|     JSTAR_MATH     |   ON    | Include the 'math' module in the language |
+|     JSTAR_DEBUG    |   ON    | Include the 'debug' module in the language |
+|      JSTAR_RE      |   ON    | Include the 're' module in the language |
+| DBG_PRINT_EXEC     |   OFF   | Trace the execution of instructions of the virtual machine |
+| DBG_STRESS_GC      |   OFF   | Stress the garbage collector by calling it on every allocation |
+| DBG_PRINT_GC       |   OFF   | Trace the execution of the garbage collector |

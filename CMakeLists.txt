@@ -66,9 +66,6 @@ elseif(MSVC)
 	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /LTCG")
 endif()
 
-# required programs
-find_package(PythonInterp 3 REQUIRED)
-
 # subprojects
 add_subdirectory("cli")
 add_subdirectory("jstar")
