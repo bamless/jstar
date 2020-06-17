@@ -22,9 +22,10 @@ among the language and host program, rendering embedding simple.
  - **Small**. The implementation spans only a handful of files and the memory footprint is low
    thanks to a minimal standard library that provides only essential functionalities.
  - **Easy to use**. The API is contained in a single header file and employs a stack based approach
-   similar to the one of LUA, freeing the user from the burden of keeping track of language memory.
+   similar to the one of LUA, freeing the user from the burden of keeping track of memory owned by
+   the language.
  - **Fully OOP**. The language is fully class based. Every entity, from numbers to class instances,
-   is an object in **J\*** and exceptions are used for error reporting.
+   is an object in **J\*** and exceptions are used for signaling errors.
  - **Fast**. Low memory footprint and efficient implementation make **J\*** competitive in the class
    of dynamic scripting languages.
  - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
