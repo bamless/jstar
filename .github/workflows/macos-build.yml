@@ -13,7 +13,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=release/jstar
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=build/release/jstar
     - name: build
       run: |
         cd build
@@ -21,7 +21,7 @@ jobs:
     - name: package binaries
       run: |
         cd build
-        mkdir jstar
+        mkdir -p release/jstar
         make install
     - name: upload binaries
       uses: actions/upload-artifact@v2
