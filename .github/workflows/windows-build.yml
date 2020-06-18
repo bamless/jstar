@@ -21,7 +21,7 @@ jobs:
       run: |
         cd build
         msbuild -m jstar.sln
-      - name: package binaries
+    - name: package binaries
       run: |
         cd build
         mkdir -p release/jstar
