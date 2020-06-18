@@ -1,5 +1,5 @@
 // WARNING: this is a file generated automatically by the build process from
-// "D:/Workspace/c/jstar/jstar/src/builtin/sys.jsr". Do not modify.
+// "/home/fabrizio/Workspace/c/jstar/jstar/src/builtin/sys.jsr". Do not modify.
 const char *sys_jsr =
 "import io\n"
 "var args = []\n"

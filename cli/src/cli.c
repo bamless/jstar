@@ -130,7 +130,8 @@ static void dorepl(bool ignoreEnv) {
 
 // ---- Script execution ----
 
-static EvalResult execScript(const char* script, int argsCount, const char** args, bool ignoreEnv) {
+static JStarResult execScript(const char* script, int argsCount, const char** args,
+                              bool ignoreEnv) {
     jsrInitCommandLineArgs(vm, argsCount, args);
 
     // set base import path to script's directory
@@ -152,7 +153,7 @@ static EvalResult execScript(const char* script, int argsCount, const char** arg
         exit(EXIT_FAILURE);
     }
 
-    EvalResult res = jsrEvaluate(vm, script, src);
+    JStarResult res = jsrEvaluate(vm, script, src);
     free(src);
     return res;
 }
@@ -217,14 +218,14 @@ int main(int argc, const char** argv) {
         exit(EXIT_SUCCESS);
     }
     if(opts.execStmt) {
-        EvalResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
-        if(opts.script && res == VM_EVAL_SUCCESS) {
+        JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
+        if(opts.script && res == JSR_EVAL_SUCCESS) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
         if(!opts.interactive) exit(res);
     }
     if(opts.script && !opts.execStmt) {
-        EvalResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
+        JStarResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         if(!opts.interactive) exit(res);
     }
 

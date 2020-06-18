@@ -1,5 +1,5 @@
 // WARNING: this is a file generated automatically by the build process from
-// "D:/Workspace/c/jstar/jstar/src/core.jsr". Do not modify.
+// "/home/fabrizio/Workspace/c/jstar/jstar/src/core.jsr". Do not modify.
 const char *core_jsr =
 "class Number\n"
 "    native new(n)\n"

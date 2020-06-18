@@ -39,11 +39,11 @@
 typedef struct JStarVM JStarVM;
 
 typedef enum {
-    VM_EVAL_SUCCESS,  // The VM successfully executed the code
-    VM_SYNTAX_ERR,    // A syntax error has been encountered in parsing
-    VM_COMPILE_ERR,   // An error has been encountered during compilation
-    VM_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
-} EvalResult;
+    JSR_EVAL_SUCCESS,  // The VM successfully executed the code
+    JSR_SYNTAX_ERR,    // A syntax error has been encountered in parsing
+    JSR_COMPILE_ERR,   // An error has been encountered during compilation
+    JSR_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
+} JStarResult;
 
 // Allocate a new VM with all the state needed for code execution
 JSTAR_API JStarVM* jsrNewVM();
@@ -55,9 +55,9 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 // VM_EVAL_SUCCSESS will be returned if the execution completed normally
 // In case of errors, either VM_SYNTAX_ERR, VM_COMPILE_ERR or VM_RUNTIME_ERR
 // will be returned, and all the errors will be printed to stderr.
-JSTAR_API EvalResult jsrEvaluate(JStarVM* vm, const char* fpath, const char* src);
-JSTAR_API EvalResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* name,
-                                       const char* src);
+JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* fpath, const char* src);
+JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* name,
+                                        const char* src);
 
 // Call a function (or method with name "name") that sits on the top of the stack
 // along with its arguments. The state of the stack when calling should be:
@@ -72,8 +72,8 @@ JSTAR_API EvalResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const cha
 //
 // If an exception has been raised by the code, VM_RUNTIME_ERR will be returned and
 // The exception will be placed on top of the stack as a result.
-JSTAR_API EvalResult jsrCall(JStarVM* vm, uint8_t argc);
-JSTAR_API EvalResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
+JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
+JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
 // Prints the the stack trace of the exception at slot 'slot'
 JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
