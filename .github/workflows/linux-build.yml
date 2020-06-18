@@ -13,8 +13,21 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-9 -DCMAKE_CXX_COMPILER=g++-9
     - name: build
       run: |
         cd build
         make -j
+    - name: package binaries
+      run: |
+        mkdir -p release/jstar
+        mkdir -p release/jstar/bin
+        mkdir -p release/jstar/lib
+        cp build/bin/jstar release/bin
+        cp build/lib/libjstar* relase/lib
+        cp -r jstar/include release/jstar
+    - name: upload binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: jstar-x64-linux
+        path: release/jstar
