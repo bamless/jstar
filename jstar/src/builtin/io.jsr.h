@@ -1,5 +1,4 @@
-// WARNING: this is a file generated automatically by the build process from
-// "/mnt/HDD/Workspace/c/jstar/jstar/src/builtin/io.jsr". Do not modify.
+// WARNING: this is a file generated automatically by the build process. Do not modify.
 const char *io_jsr =
 "class IOException is Exception end\n"
 "class FileNotFoundException is IOException end\n"
