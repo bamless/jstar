@@ -470,7 +470,7 @@ static bool subCall(JStarVM* vm, RegexState* rs, JStarBuffer* b, int funSlot) {
     for(int i = 1; i < rs->capturec; i++) {
         if(!pushCapture(vm, rs, i)) return false;
     }
-    if(jsrCall(vm, rs->capturec - 1) != VM_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, rs->capturec - 1) != JSR_EVAL_SUCCESS) return false;
     JSR_CHECK(String, -1, "sub() return value");
     jsrBufferAppendstr(b, jsrGetString(vm, -1));
     jsrPop(vm);

@@ -15,27 +15,39 @@
 #include "value.h"
 #include "vm.h"
 
-#define MAX_ERR 512
-
 /**
- * The bulk of the API (jstar.h) implementation.
- *
- * JStarBuffer is implemented in object.c
+ * =========================================================
+ *  API - The bulk of the API (jstar.h) implementation.
+ *  JStarVM new and free functions are implemented in vm.c
+ *  JStarBuffer is implemented in object.c
+ * =========================================================
  */
 
-EvalResult jsrEvaluate(JStarVM* vm, const char* fpath, const char* src) {
-    return jsrEvaluateModule(vm, fpath, JSR_MAIN_MODULE, src);
+void jsrPrintErrorCB(const char* file, int line, const char* error) {
+    fprintf(stderr, "File %s [line:%d]:\n", file, line);
+    fprintf(stderr, "%s\n", error);
 }
 
-EvalResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* module, const char* src) {
-    Stmt* program = parse(fpath, src);
-    if(program == NULL) return VM_SYNTAX_ERR;
+void jsrInitConf(JStarConf* conf) {
+    conf->stackSize = STACK_SZ;
+    conf->initGC = INIT_GC;
+    conf->heapGrowRate = HEAP_GROW_RATE;
+    conf->errorCallback = &jsrPrintErrorCB;
+}
+
+JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
+    return jsrEvaluateModule(vm, path, JSR_MAIN_MODULE, src);
+}
+
+JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module, const char* src) {
+    Stmt* program = parse(path, src, vm->errorCallback);
+    if(program == NULL) return JSR_SYNTAX_ERR;
 
     ObjString* name = copyString(vm, module, strlen(module), true);
-    ObjFunction* fn = compileWithModule(vm, name, program);
+    ObjFunction* fn = compileWithModule(vm, path, name, program);
     freeStmt(program);
 
-    if(fn == NULL) return VM_COMPILE_ERR;
+    if(fn == NULL) return JSR_COMPILE_ERR;
 
     push(vm, OBJ_VAL(fn));
     ObjClosure* closure = newClosure(vm, fn);
@@ -43,8 +55,8 @@ EvalResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* module,
 
     push(vm, OBJ_VAL(closure));
 
-    EvalResult res;
-    if((res = jsrCall(vm, 0)) != VM_EVAL_SUCCESS) {
+    JStarResult res;
+    if((res = jsrCall(vm, 0)) != JSR_EVAL_SUCCESS) {
         jsrPrintStacktrace(vm, -1);
     }
 
@@ -52,17 +64,17 @@ EvalResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* module,
     return res;
 }
 
-static EvalResult finishCall(JStarVM* vm, int depth, size_t offSp) {
-    if(vm->frameCount <= depth) return VM_EVAL_SUCCESS;
+static JStarResult finishCall(JStarVM* vm, int depth, size_t offSp) {
+    if(vm->frameCount <= depth) return JSR_EVAL_SUCCESS;
     // Evaluate frame if present
     if(!runEval(vm, depth)) {
         // Exception was thrown, push it as result
         Value exc = pop(vm);
         vm->sp = vm->stack + offSp;
         push(vm, exc);
-        return VM_RUNTIME_ERR;
+        return JSR_RUNTIME_ERR;
     }
-    return VM_EVAL_SUCCESS;
+    return JSR_EVAL_SUCCESS;
 }
 
 static void callError(JStarVM* vm, int depth, size_t offsp) {
@@ -75,25 +87,25 @@ static void callError(JStarVM* vm, int depth, size_t offsp) {
     }
 }
 
-EvalResult jsrCall(JStarVM* vm, uint8_t argc) {
+JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
     size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
         callError(vm, depth, offsp);
-        return VM_RUNTIME_ERR;
+        return JSR_RUNTIME_ERR;
     }
 
     return finishCall(vm, depth, offsp);
 }
 
-EvalResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
+JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
     if(!invokeValue(vm, copyString(vm, name, strlen(name), true), argc)) {
         callError(vm, depth, offsp);
-        return VM_RUNTIME_ERR;
+        return JSR_RUNTIME_ERR;
     }
 
     return finishCall(vm, depth, offsp);
@@ -233,7 +245,7 @@ bool jsrEquals(JStarVM* vm) {
         ObjClass* cls = getClass(vm, peek2(vm));
         Value eq;
         if(hashTableGet(&cls->methods, vm->eq, &eq)) {
-            return jsrCallMethod(vm, "__eq__", 1) == VM_EVAL_SUCCESS;
+            return jsrCallMethod(vm, "__eq__", 1) == JSR_EVAL_SUCCESS;
         } else {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
             return true;
@@ -253,7 +265,7 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
     jsrPushValue(vm, iterable);
     jsrPushValue(vm, res < 0 ? res - 1 : res);
 
-    if(jsrCallMethod(vm, "__iter__", 1) != VM_EVAL_SUCCESS) {
+    if(jsrCallMethod(vm, "__iter__", 1) != JSR_EVAL_SUCCESS) {
         return *err = true;
     }
     if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
@@ -269,7 +281,7 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
 bool jsrNext(JStarVM* vm, int iterable, int res) {
     jsrPushValue(vm, iterable);
     jsrPushValue(vm, res < 0 ? res - 1 : res);
-    if(jsrCallMethod(vm, "__next__", 1) != VM_EVAL_SUCCESS) return false;
+    if(jsrCallMethod(vm, "__next__", 1) != JSR_EVAL_SUCCESS) return false;
     return true;
 }
 

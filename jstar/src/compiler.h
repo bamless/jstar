@@ -7,7 +7,7 @@
 
 typedef struct Compiler Compiler;
 
-ObjFunction* compile(JStarVM* vm, ObjModule* module, Stmt* s);
+ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, Stmt* s);
 void reachCompilerRoots(JStarVM* vm, Compiler* c);
 
 #endif

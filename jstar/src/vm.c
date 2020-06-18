@@ -25,21 +25,23 @@ static void reset(JStarVM* vm) {
     vm->module = NULL;
 }
 
-JStarVM* jsrNewVM() {
+JStarVM* jsrNewVM(JStarConf* conf) {
     JStarVM* vm = calloc(1, sizeof(*vm));
 
-    vm->stackSz = STACK_SZ;
-    vm->frameSz = FRAME_SZ;
-    vm->stack = malloc(sizeof(Value) * STACK_SZ);
-    vm->frames = malloc(sizeof(Frame) * FRAME_SZ);
+    vm->stackSz = roundUp(conf->stackSize, MAX_LOCALS + 1);
+    vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
+    vm->stack = malloc(sizeof(Value) * vm->stackSz);
+    vm->frames = malloc(sizeof(Frame) * vm->frameSz);
+
+    vm->errorCallback = conf->errorCallback;
 
     reset(vm);
-
     initHashTable(&vm->modules);
     initHashTable(&vm->strings);
 
     // init GC
-    vm->nextGC = INIT_GC;
+    vm->nextGC = conf->initGC;
+    vm->heapGrowRate = conf->heapGrowRate;
 
     // Create constants strings
     vm->stacktrace = copyString(vm, EXC_M_STACKTRACE, strlen(EXC_M_STACKTRACE), true);
@@ -74,7 +76,8 @@ JStarVM* jsrNewVM() {
     initCoreModule(vm);
 
     // Init main module
-    compileWithModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true), NULL);
+    ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
+    compileWithModule(vm, "<main>", mainModuleName, NULL);
 
     // This is called after initCoreLibrary in order to correctly assign
     // classes to objects, since classes are created in intCoreLibrary

@@ -10,22 +10,22 @@
 #define FRAME_SZ        100                        // Starting frame size
 #define STACK_SZ        FRAME_SZ*(MAX_LOCALS + 1)  // Stack size given frames
 #define INIT_GC         (1024 * 1024 * 10)         // 10MiB - First GC collection point
+#define HEAP_GROW_RATE  2                          // The heap growing rate
 #define HANDLER_MAX     10                         // Max number of try-excepts for a frame
 #define INTERN_TRESHOLD 256                        // Under this size a string is always interned
 
 // Compiler constants
 #define MAX_TRY_DEPTH HANDLER_MAX  // Max depth of nested trys
 #define MAX_LOCALS    UINT8_MAX    // At most 255 local vars per frame
+#define MAX_ERR       512
 
 // String constants
-#define CTOR_STR    "new"
-#define THIS_STR    "this"
-#define ANON_PREFIX "anon@"
-
+#define CTOR_STR         "new"
+#define THIS_STR         "this"
+#define ANON_PREFIX      "anon@"
 #define EXC_M_ERR        "_err"
 #define EXC_M_STACKTRACE "_stacktrace"
-
-#define PACKAGE_FILE "/__package__.jsr"
+#define PACKAGE_FILE     "/__package__.jsr"
 
 #ifdef __unix__
     #define DL_PREFIX "lib"

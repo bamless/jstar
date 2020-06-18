@@ -15,17 +15,19 @@
 typedef struct Parser {
     Lexer lex;
     Token peek;
-    const char* fname;
+    const char* path;
     TokenType prevType;
     const char* lnStart;
+    ParseErrorCB errorCallback;
     bool panic, hadError;
 } Parser;
 
-static void initParser(Parser* p, const char* fname, const char* src) {
+static void initParser(Parser* p, const char* path, const char* src, ParseErrorCB errorCallback) {
     p->panic = false;
     p->hadError = false;
-    p->fname = fname;
+    p->path = path;
     p->prevType = -1;
+    p->errorCallback = errorCallback;
     initLexer(&p->lex, src);
     nextToken(&p->lex, &p->peek);
     p->lnStart = p->peek.lexeme;
@@ -42,30 +44,33 @@ static void error(Parser* p, const char* msg, ...) {
     if(p->panic) return;
     p->panic = p->hadError = true;
 
-    if(p->fname != NULL) {
-        fprintf(stderr, "File %s [line:%d]:\n", p->fname, p->peek.line);
+    if(p->errorCallback) {
+        char errorMessage[MAX_ERR];
 
         // correct for escaped newlines
         const char* actualLnStart = p->lnStart;
-        while((actualLnStart = strchr(actualLnStart, '\n')) && actualLnStart < p->peek.lexeme)
+        while((actualLnStart = strchr(actualLnStart, '\n')) && actualLnStart < p->peek.lexeme) {
             p->lnStart = ++actualLnStart;
+        }
 
         int tokCol = (int)((p->peek.lexeme) - p->lnStart);
         int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
 
         // print source code snippet of the token near the error
-        fprintf(stderr, "    %.*s\n", lineLen, p->lnStart);
-        fprintf(stderr, "    ");
+        int len = 0;
+        len += snprintf(errorMessage + len, MAX_ERR - len, "    %.*s\n", lineLen, p->lnStart);
+        len += snprintf(errorMessage + len, MAX_ERR - len, "    ");
         for(int i = 0; i < tokCol; i++) {
-            fprintf(stderr, " ");
+            len += snprintf(errorMessage + len, MAX_ERR - len, " ");
         }
-        fprintf(stderr, "^\n");
+        len += snprintf(errorMessage + len, MAX_ERR - len, "^\n");
 
         va_list args;
         va_start(args, msg);
-        vfprintf(stderr, msg, args);
+        vsnprintf(errorMessage + len, MAX_ERR - len, msg, args);
         va_end(args);
-        fprintf(stderr, "\n");
+
+        p->errorCallback(p->path, p->peek.line, errorMessage);
     }
 }
 
@@ -172,9 +177,9 @@ static void requireStmtEnd(Parser* p) {
 static Stmt* parseProgram(Parser* p);
 static Expr* expression(Parser* p, bool tuple);
 
-Stmt* parse(const char* fname, const char* src) {
+Stmt* parse(const char* path, const char* src, ParseErrorCB errorCallback) {
     Parser p;
-    initParser(&p, fname, src);
+    initParser(&p, path, src, errorCallback);
 
     Stmt* program = parseProgram(&p);
     skipNewLines(&p);
@@ -189,9 +194,9 @@ Stmt* parse(const char* fname, const char* src) {
     return program;
 }
 
-Expr* parseExpression(const char* fname, const char* src) {
+Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
     Parser p;
-    initParser(&p, fname, src);
+    initParser(&p, path, src, errorCallback);
 
     Expr* expr = expression(&p, true);
     skipNewLines(&p);
@@ -542,23 +547,23 @@ static Stmt* funcDecl(Parser* p) {
         return NULL;
     }
 
-    Token fname = require(p, TOK_IDENTIFIER);
+    Token funcName = require(p, TOK_IDENTIFIER);
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newFuncDecl(line, args.isVararg, &fname, args.arguments, args.defaults, body);
+    return newFuncDecl(line, args.isVararg, &funcName, args.arguments, args.defaults, body);
 }
 
 static Stmt* nativeDecl(Parser* p) {
     int line = p->peek.line;
     advance(p);
 
-    Token fname = require(p, TOK_IDENTIFIER);
+    Token funcName = require(p, TOK_IDENTIFIER);
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return newNativeDecl(line, args.isVararg, &fname, args.arguments, args.defaults);
+    return newNativeDecl(line, args.isVararg, &funcName, args.arguments, args.defaults);
 }
 
 static Stmt* classDecl(Parser* p) {

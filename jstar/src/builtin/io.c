@@ -349,7 +349,7 @@ JSR_NATIVE(jsr_popen) {
 
     jsrGetGlobal(vm, NULL, "__PFile");
     jsrPushHandle(vm, f);
-    if(jsrCall(vm, 1) != VM_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, 1) != JSR_EVAL_SUCCESS) return false;
     return true;
 }
 
@@ -358,7 +358,7 @@ static bool createStdFile(JStarVM* vm, const char* name, FILE* stdfile) {
     jsrPushNull(vm);
     jsrPushNull(vm);
     jsrPushHandle(vm, stdfile);
-    if(jsrCall(vm, 3) != VM_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, 3) != JSR_EVAL_SUCCESS) return false;
     jsrSetGlobal(vm, NULL, name);
     jsrPop(vm);
     return true;
