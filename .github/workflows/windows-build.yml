@@ -27,7 +27,7 @@ jobs:
         mkdir -p release/jstar/bin
         mkdir -p release/jstar/lib
         cp build/bin/jstar* release/jstar/bin
-        cp build/lib/jstar* relase/jstar/lib
+        cp build/lib/jstar* release/jstar/lib
         cp -r jstar/include release/jstar
         # redist
         cp C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\*\x64\msvcp140.dll release/jstar/bin
