@@ -73,7 +73,7 @@ struct Compiler {
 static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s);
 static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s);
 
-static void initCompiler(Compiler* c, Compiler* prev, FuncType t, int depth, JStarVM* vm) {
+static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, FuncType t, int depth) {
     c->vm = vm;
     c->type = t;
     c->func = NULL;
@@ -97,7 +97,7 @@ static void endCompiler(Compiler* c) {
 
 ObjFunction* compile(JStarVM* vm, ObjModule* module, Stmt* s) {
     Compiler c;
-    initCompiler(&c, NULL, TYPE_FUNC, -1, vm);
+    initCompiler(&c, vm, NULL, TYPE_FUNC, -1);
     ObjFunction* func = function(&c, module, s);
     endCompiler(&c);
     return c.hadError ? NULL : func;
@@ -1057,7 +1057,7 @@ static void compileWhileStatement(Compiler* c, Stmt* s) {
 
 static void compileFunction(Compiler* c, Stmt* s) {
     Compiler compiler;
-    initCompiler(&compiler, c, TYPE_FUNC, c->depth + 1, c->vm);
+    initCompiler(&compiler, c->vm, c, TYPE_FUNC, c->depth + 1);
 
     ObjFunction* func = function(&compiler, c->func->c.module, s);
 
@@ -1102,7 +1102,7 @@ static void compileMethods(Compiler* c, Stmt* cls) {
         Stmt* m = (Stmt*)n->elem;
         switch(m->type) {
         case FUNCDECL: {
-            initCompiler(&methCompiler, c, TYPE_METHOD, c->depth + 1, c->vm);
+            initCompiler(&methCompiler, c->vm, c, TYPE_METHOD, c->depth + 1);
 
             ObjFunction* meth = method(&methCompiler, c->func->c.module, &cls->as.classDecl.id, m);
 

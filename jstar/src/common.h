@@ -10,6 +10,7 @@
 #define FRAME_SZ        100                        // Starting frame size
 #define STACK_SZ        FRAME_SZ*(MAX_LOCALS + 1)  // Stack size given frames
 #define INIT_GC         (1024 * 1024 * 10)         // 10MiB - First GC collection point
+#define HEAP_GROW_RATE  2                          // The heap growing rate
 #define HANDLER_MAX     10                         // Max number of try-excepts for a frame
 #define INTERN_TRESHOLD 256                        // Under this size a string is always interned
 

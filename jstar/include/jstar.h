@@ -38,15 +38,28 @@
 // The J* virtual machine
 typedef struct JStarVM JStarVM;
 
-typedef enum {
+typedef enum JStarResult {
     JSR_EVAL_SUCCESS,  // The VM successfully executed the code
     JSR_SYNTAX_ERR,    // A syntax error has been encountered in parsing
     JSR_COMPILE_ERR,   // An error has been encountered during compilation
     JSR_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } JStarResult;
 
+typedef void (*JStarErrorFun)(JStarVM* vm, JStarResult errorCode, const char* file, int line,
+                              const char* error);
+
+typedef struct JstarConf {
+    size_t stackSize;        // Initial stack size in bytes
+    size_t initGC;           // first GC threshold point
+    int heapGrowRate;        // The rate at which the heap will grow after a succesful GC
+    JStarErrorFun errorFun;  // Error callback
+} JStarConf;
+
+// Initialize configuration with default values
+JSTAR_API void jsrInitConf(JStarConf* conf);
+
 // Allocate a new VM with all the state needed for code execution
-JSTAR_API JStarVM* jsrNewVM();
+JSTAR_API JStarVM* jsrNewVM(JStarConf* conf);
 // Free a previously obtained VM along with all the state
 JSTAR_API void jsrFreeVM(JStarVM* vm);
 
