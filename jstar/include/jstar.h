@@ -45,8 +45,11 @@ typedef enum JStarResult {
     JSR_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } JStarResult;
 
-typedef void (*JStarErrorFun)(JStarVM* vm, JStarResult errorCode, const char* file, int line,
-                              const char* error);
+// J* error function callback
+typedef void (*JStarErrorFun)(const char* file, int line, const char* error);
+
+// Default implementation of error callback that prints the error to stderr
+JSTAR_API void jsrPrintErrorCB(const char* file, int line, const char* error);
 
 typedef struct JstarConf {
     size_t stackSize;        // Initial stack size in bytes
@@ -68,8 +71,8 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 // VM_EVAL_SUCCSESS will be returned if the execution completed normally
 // In case of errors, either VM_SYNTAX_ERR, VM_COMPILE_ERR or VM_RUNTIME_ERR
 // will be returned, and all the errors will be printed to stderr.
-JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* fpath, const char* src);
-JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* name,
+JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src);
+JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* name,
                                         const char* src);
 
 // Call a function (or method with name "name") that sits on the top of the stack

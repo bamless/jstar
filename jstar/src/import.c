@@ -14,7 +14,7 @@
 #include "value.h"
 #include "vm.h"
 
-ObjFunction* compileWithModule(JStarVM* vm, ObjString* name, Stmt* program) {
+ObjFunction* compileWithModule(JStarVM* vm, const char* filename, ObjString* name, Stmt* program) {
     ObjModule* module = getModule(vm, name);
 
     if(module == NULL) {
@@ -30,7 +30,7 @@ ObjFunction* compileWithModule(JStarVM* vm, ObjString* name, Stmt* program) {
     }
 
     if(program != NULL) {
-        ObjFunction* fn = compile(vm, module, program);
+        ObjFunction* fn = compile(vm, filename, module, program);
         return fn;
     }
 
@@ -91,13 +91,13 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
 }
 
 static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
-    Stmt* program = parse(path, source);
+    Stmt* program = parse(path, source, vm->errorFun);
 
     if(program == NULL) {
         return false;
     }
 
-    ObjFunction* moduleFun = compileWithModule(vm, name, program);
+    ObjFunction* moduleFun = compileWithModule(vm, path, name, program);
     freeStmt(program);
 
     if(moduleFun == NULL) {

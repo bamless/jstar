@@ -15,8 +15,6 @@
 #include "value.h"
 #include "vm.h"
 
-#define MAX_ERR 512
-
 /**
  * =========================================================
  *  API - The bulk of the API (jstar.h) implementation.
@@ -25,8 +23,7 @@
  * =========================================================
  */
 
-static void printError(JStarVM* vm, JStarResult errorCode, const char* file, int line,
-                       const char* error) {
+void jsrPrintErrorCB(const char* file, int line, const char* error) {
     fprintf(stderr, "File %s [line:%d]:\n", file, line);
     fprintf(stderr, "%s\n", error);
 }
@@ -35,19 +32,19 @@ void jsrInitConf(JStarConf* conf) {
     conf->stackSize = STACK_SZ;
     conf->initGC = INIT_GC;
     conf->heapGrowRate = HEAP_GROW_RATE;
-    conf->errorFun = &printError;
+    conf->errorFun = &jsrPrintErrorCB;
 }
 
-JStarResult jsrEvaluate(JStarVM* vm, const char* fpath, const char* src) {
-    return jsrEvaluateModule(vm, fpath, JSR_MAIN_MODULE, src);
+JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
+    return jsrEvaluateModule(vm, path, JSR_MAIN_MODULE, src);
 }
 
-JStarResult jsrEvaluateModule(JStarVM* vm, const char* fpath, const char* module, const char* src) {
-    Stmt* program = parse(fpath, src);
+JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module, const char* src) {
+    Stmt* program = parse(path, src, vm->errorFun);
     if(program == NULL) return JSR_SYNTAX_ERR;
 
     ObjString* name = copyString(vm, module, strlen(module), true);
-    ObjFunction* fn = compileWithModule(vm, name, program);
+    ObjFunction* fn = compileWithModule(vm, path, name, program);
     freeStmt(program);
 
     if(fn == NULL) return JSR_COMPILE_ERR;

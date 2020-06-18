@@ -1,5 +1,5 @@
 // WARNING: this is a file generated automatically by the build process from
-// "/home/fabrizio/Workspace/c/jstar/jstar/src/builtin/math.jsr". Do not modify.
+// "/mnt/HDD/Workspace/c/jstar/jstar/src/builtin/math.jsr". Do not modify.
 const char *math_jsr =
 "native abs(x)\n"
 "native acos(x)\n"

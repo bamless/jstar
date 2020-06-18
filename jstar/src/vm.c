@@ -25,10 +25,6 @@ static void reset(JStarVM* vm) {
     vm->module = NULL;
 }
 
-static size_t roundUp(size_t num, size_t multiple) {
-    return ((num + multiple - 1) / multiple) * multiple;
-}
-
 JStarVM* jsrNewVM(JStarConf* conf) {
     JStarVM* vm = calloc(1, sizeof(*vm));
 
@@ -80,8 +76,8 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     initCoreModule(vm);
 
     // Init main module
-    ObjString* mainModule = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
-    compileWithModule(vm, mainModule, NULL);
+    ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
+    compileWithModule(vm, "<main>", mainModuleName, NULL);
 
     // This is called after initCoreLibrary in order to correctly assign
     // classes to objects, since classes are created in intCoreLibrary

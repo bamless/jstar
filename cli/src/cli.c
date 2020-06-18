@@ -88,7 +88,7 @@ static int countBlocks(const char* line) {
 }
 
 static void addPrintIfExpr(JStarBuffer* sb) {
-    Expr* e = parseExpression(NULL, sb->data);
+    Expr* e = parseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
         jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");

@@ -4,7 +4,9 @@
 #include "ast.h"
 #include "jstarconf.h"
 
-JSTAR_API Stmt* parse(const char* fname, const char* src);
-JSTAR_API Expr* parseExpression(const char* fname, const char* src);
+typedef void (*ParseErrorFun)(const char* file, int line, const char* error);
+
+JSTAR_API Stmt* parse(const char* path, const char* src, ParseErrorFun errorFun);
+JSTAR_API Expr* parseExpression(const char* path, const char* src, ParseErrorFun errorFun);
 
 #endif

@@ -1,5 +1,5 @@
 // WARNING: this is a file generated automatically by the build process from
-// "/home/fabrizio/Workspace/c/jstar/jstar/src/builtin/re.jsr". Do not modify.
+// "/mnt/HDD/Workspace/c/jstar/jstar/src/builtin/re.jsr". Do not modify.
 const char *re_jsr =
 "class RegexException is Exception end\n"
 "native match(str, regex, off=0)\n"

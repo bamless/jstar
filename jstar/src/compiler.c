@@ -44,11 +44,16 @@ typedef struct TryExcept {
     struct TryExcept* next;
 } TryExcept;
 
-typedef enum FuncType { TYPE_FUNC, TYPE_METHOD, TYPE_CTOR } FuncType;
+typedef enum FuncType {
+    TYPE_FUNC,
+    TYPE_METHOD,
+    TYPE_CTOR,
+} FuncType;
 
 struct Compiler {
     JStarVM* vm;
     Compiler* prev;
+    const char* filename;
 
     bool hasSuper;
 
@@ -56,11 +61,10 @@ struct Compiler {
 
     FuncType type;
     ObjFunction* func;
-    Stmt* funcAST;
+    Stmt* ast;
 
     uint8_t localsCount;
     Local locals[MAX_LOCALS];
-
     Upvalue upvalues[MAX_LOCALS];
 
     bool hadError;
@@ -73,9 +77,11 @@ struct Compiler {
 static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s);
 static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s);
 
-static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, FuncType t, int depth) {
+static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compiler* prev, FuncType t,
+                         Stmt* ast, int depth) {
     c->vm = vm;
     c->type = t;
+    c->ast = ast;
     c->func = NULL;
     c->prev = prev;
     c->loops = NULL;
@@ -85,6 +91,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, FuncType t, i
     c->hasSuper = false;
     c->hadError = false;
     c->tryBlocks = NULL;
+    c->filename = filename;
     vm->currCompiler = c;
 }
 
@@ -95,21 +102,15 @@ static void endCompiler(Compiler* c) {
     c->vm->currCompiler = c->prev;
 }
 
-ObjFunction* compile(JStarVM* vm, ObjModule* module, Stmt* s) {
-    Compiler c;
-    initCompiler(&c, vm, NULL, TYPE_FUNC, -1);
-    ObjFunction* func = function(&c, module, s);
-    endCompiler(&c);
-    return c.hadError ? NULL : func;
-}
-
 static void error(Compiler* c, int line, const char* format, ...) {
-    fprintf(stderr, "[line:%d] ", line);
+    char errorMessage[MAX_ERR];
     va_list args;
     va_start(args, format);
-    vfprintf(stderr, format, args);
+    vsnprintf(errorMessage, MAX_ERR, format, args);
     va_end(args);
-    fprintf(stderr, "\n");
+
+    JStarVM* vm = c->vm;
+    if(vm->errorFun) vm->errorFun(c->filename, line, errorMessage);
     c->hadError = true;
 }
 
@@ -704,7 +705,7 @@ static void compileSuper(Compiler* c, Expr* e) {
     if(e->as.sup.name.name != NULL) {
         emitShort(c, identifierConst(c, &e->as.sup.name, e->line), e->line);
     } else {
-        emitShort(c, identifierConst(c, &c->funcAST->as.funcDecl.id, e->line), e->line);
+        emitShort(c, identifierConst(c, &c->ast->as.funcDecl.id, e->line), e->line);
     }
 }
 
@@ -1057,7 +1058,7 @@ static void compileWhileStatement(Compiler* c, Stmt* s) {
 
 static void compileFunction(Compiler* c, Stmt* s) {
     Compiler compiler;
-    initCompiler(&compiler, c->vm, c, TYPE_FUNC, c->depth + 1);
+    initCompiler(&compiler, c->vm, c->filename, c, TYPE_FUNC, s, c->depth + 1);
 
     ObjFunction* func = function(&compiler, c->func->c.module, s);
 
@@ -1094,62 +1095,62 @@ static void compileNative(Compiler* c, Stmt* s) {
     emitShort(c, nameConst, s->line);
 }
 
+static void compileMethod(Compiler* c, Stmt* cls, Stmt* m) {
+    Compiler compiler;
+    initCompiler(&compiler, c->vm, c->filename, c, TYPE_METHOD, m, c->depth + 1);
+
+    ObjFunction* meth = method(&compiler, c->func->c.module, &cls->as.classDecl.id, m);
+    emitBytecode(c, OP_CLOSURE, m->line);
+    emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
+
+    for(uint8_t i = 0; i < meth->upvaluec; i++) {
+        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, m->line);
+        emitBytecode(c, compiler.upvalues[i].index, m->line);
+    }
+
+    emitBytecode(c, OP_DEF_METHOD, cls->line);
+    emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
+    endCompiler(&compiler);
+}
+
+static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
+    size_t defaults = listLength(m->as.nativeDecl.defArgs);
+    size_t arity = listLength(m->as.nativeDecl.formalArgs);
+    bool vararg = m->as.nativeDecl.isVararg;
+
+    ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
+    push(c->vm, OBJ_VAL(n));
+    addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
+    pop(c->vm);
+
+    uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
+    uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
+
+    Identifier* classId = &cls->as.classDecl.id;
+    size_t len = classId->length + m->as.nativeDecl.id.length + 1;
+    ObjString* name = allocateString(c->vm, len);
+
+    memcpy(name->data, classId->name, classId->length);
+    name->data[classId->length] = '.';
+    memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name, m->as.nativeDecl.id.length);
+    n->c.name = name;
+
+    emitBytecode(c, OP_NAT_METHOD, cls->line);
+    emitShort(c, id, cls->line);
+    emitShort(c, native, cls->line);
+}
+
 static void compileMethods(Compiler* c, Stmt* cls) {
     LinkedList* methods = cls->as.classDecl.methods;
-
-    Compiler methCompiler;
     foreach(n, methods) {
-        Stmt* m = (Stmt*)n->elem;
-        switch(m->type) {
-        case FUNCDECL: {
-            initCompiler(&methCompiler, c->vm, c, TYPE_METHOD, c->depth + 1);
-
-            ObjFunction* meth = method(&methCompiler, c->func->c.module, &cls->as.classDecl.id, m);
-
-            emitBytecode(c, OP_CLOSURE, m->line);
-            emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
-
-            for(uint8_t i = 0; i < meth->upvaluec; i++) {
-                emitBytecode(c, methCompiler.upvalues[i].isLocal ? 1 : 0, m->line);
-                emitBytecode(c, methCompiler.upvalues[i].index, m->line);
-            }
-
-            emitBytecode(c, OP_DEF_METHOD, cls->line);
-            emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
-
-            endCompiler(&methCompiler);
+        Stmt* method = (Stmt*)n->elem;
+        switch(method->type) {
+        case FUNCDECL:
+            compileMethod(c, cls, method);
             break;
-        }
-        case NATIVEDECL: {
-            size_t defaults = listLength(m->as.nativeDecl.defArgs);
-            size_t arity = listLength(m->as.nativeDecl.formalArgs);
-            bool vararg = m->as.nativeDecl.isVararg;
-
-            ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
-
-            push(c->vm, OBJ_VAL(n));
-            addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
-            pop(c->vm);
-
-            uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
-            uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
-
-            Identifier* classId = &cls->as.classDecl.id;
-            size_t len = classId->length + m->as.nativeDecl.id.length + 1;
-            ObjString* name = allocateString(c->vm, len);
-
-            memcpy(name->data, classId->name, classId->length);
-            name->data[classId->length] = '.';
-            memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name,
-                   m->as.nativeDecl.id.length);
-
-            n->c.name = name;
-
-            emitBytecode(c, OP_NAT_METHOD, cls->line);
-            emitShort(c, id, cls->line);
-            emitShort(c, native, cls->line);
+        case NATIVEDECL:
+            compileNativeMethod(c, cls, method);
             break;
-        }
         default:
             UNREACHABLE();
             break;
@@ -1527,8 +1528,6 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
-    c->funcAST = s;
-
     addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
 
     if(s->as.funcDecl.id.length != 0) {
@@ -1569,7 +1568,6 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
-    c->funcAST = s;
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->chunk, HANDLE_VAL(NULL));
@@ -1624,6 +1622,14 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     exitFunctionScope(c);
 
     return c->func;
+}
+
+ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, Stmt* ast) {
+    Compiler c;
+    initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast, -1);
+    ObjFunction* func = function(&c, module, ast);
+    endCompiler(&c);
+    return c.hadError ? NULL : func;
 }
 
 void reachCompilerRoots(JStarVM* vm, Compiler* c) {

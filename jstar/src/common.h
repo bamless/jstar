@@ -17,16 +17,15 @@
 // Compiler constants
 #define MAX_TRY_DEPTH HANDLER_MAX  // Max depth of nested trys
 #define MAX_LOCALS    UINT8_MAX    // At most 255 local vars per frame
+#define MAX_ERR       512
 
 // String constants
-#define CTOR_STR    "new"
-#define THIS_STR    "this"
-#define ANON_PREFIX "anon@"
-
+#define CTOR_STR         "new"
+#define THIS_STR         "this"
+#define ANON_PREFIX      "anon@"
 #define EXC_M_ERR        "_err"
 #define EXC_M_STACKTRACE "_stacktrace"
-
-#define PACKAGE_FILE "/__package__.jsr"
+#define PACKAGE_FILE     "/__package__.jsr"
 
 #ifdef __unix__
     #define DL_PREFIX "lib"
