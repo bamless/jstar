@@ -88,7 +88,7 @@ static int countBlocks(const char* line) {
 }
 
 static void addPrintIfExpr(JStarBuffer* sb) {
-    Expr* e = parseExpression(NULL, sb->data);
+    Expr* e = parseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
         jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");
@@ -130,7 +130,8 @@ static void dorepl(bool ignoreEnv) {
 
 // ---- Script execution ----
 
-static EvalResult execScript(const char* script, int argsCount, const char** args, bool ignoreEnv) {
+static JStarResult execScript(const char* script, int argsCount, const char** args,
+                              bool ignoreEnv) {
     jsrInitCommandLineArgs(vm, argsCount, args);
 
     // set base import path to script's directory
@@ -152,7 +153,7 @@ static EvalResult execScript(const char* script, int argsCount, const char** arg
         exit(EXIT_FAILURE);
     }
 
-    EvalResult res = jsrEvaluate(vm, script, src);
+    JStarResult res = jsrEvaluate(vm, script, src);
     free(src);
     return res;
 }
@@ -200,6 +201,7 @@ CLIOpts parseArguments(int argc, const char** argv) {
     if(nonOptsCount > 0) {
         opts.script = argv[0];
     }
+
     if(nonOptsCount > 1) {
         opts.args = &argv[1];
         opts.argsCount = nonOptsCount - 1;
@@ -210,23 +212,35 @@ CLIOpts parseArguments(int argc, const char** argv) {
 
 int main(int argc, const char** argv) {
     CLIOpts opts = parseArguments(argc, argv);
-    vm = jsrNewVM();
 
     if(opts.showVersion) {
         printVersion();
         exit(EXIT_SUCCESS);
     }
+
+    JStarConf conf;
+    jsrInitConf(&conf);
+    vm = jsrNewVM(&conf);
+
     if(opts.execStmt) {
-        EvalResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
-        if(opts.script && res == VM_EVAL_SUCCESS) {
+        JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
+        if(opts.script && res == JSR_EVAL_SUCCESS) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
-        if(!opts.interactive) exit(res);
+        if(!opts.interactive) {
+            jsrFreeVM(vm);
+            exit(res);
+        }
     }
+
     if(opts.script && !opts.execStmt) {
-        EvalResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
-        if(!opts.interactive) exit(res);
+        JStarResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
+        if(!opts.interactive) {
+            jsrFreeVM(vm);
+            exit(res);
+        }
     }
 
     dorepl(opts.ignoreEnv);
+    jsrFreeVM(vm);
 }

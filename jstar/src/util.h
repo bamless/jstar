@@ -23,4 +23,8 @@ static inline uint32_t hashString(const char* str, size_t length) {
     return hash;
 }
 
+static inline size_t roundUp(size_t num, size_t multiple) {
+    return ((num + multiple - 1) / multiple) * multiple;
+}
+
 #endif

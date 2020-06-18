@@ -95,6 +95,9 @@ struct JStarVM {
     // Linked list of all open upvalues
     ObjUpvalue* upvalues;
 
+    // Callback function to report errors
+    JStarErrorCB errorCallback;
+
     // ---- Memory management ----
 
     // Linked list of all allocated objects (used in
@@ -104,6 +107,7 @@ struct JStarVM {
     bool disableGC;    // Whether the garbage collector is enabled or disabled
     size_t allocated;  // Bytes currently allocated
     size_t nextGC;     // Bytes to which the next GC will be triggered
+    int heapGrowRate;  // Rate at which the heaap will grow after a GC
 
     // Stack used to recursevely reach all the fields of reached objects
     Obj** reachedStack;

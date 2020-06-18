@@ -383,7 +383,7 @@ void garbageCollect(JStarVM* vm) {
     vm->reachedCapacity = 0;
     vm->reachedCount = 0;
 
-    vm->nextGC = vm->allocated * HEAP_GROW_RATE;
+    vm->nextGC = vm->allocated * vm->heapGrowRate;
 
 #ifdef DBG_PRINT_GC
     size_t curr = prevAlloc - vm->allocated;
