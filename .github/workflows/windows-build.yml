@@ -14,28 +14,21 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_COMPUTED_GOTOS=OFF
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_COMPUTED_GOTOS=OFF -DCMAKE_INSTALL_PREFIX=release/jstar
     - name: Setup MSBuild.exe
       uses: warrenbuckley/Setup-MSBuild@v1
     - name: build
       run: |
         cd build
         msbuild -m jstar.sln
-    - name: package binaries
+      - name: package binaries
       run: |
-        mkdir -p release/jstar
-        mkdir -p release/jstar/bin
-        mkdir -p release/jstar/lib
-        cp build/bin/jstar* release/jstar/bin
-        cp build/lib/jstar* release/jstar/lib
-        cp -r jstar/include release/jstar
-        # redist
-        cp C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\*\x64\msvcp140.dll release/jstar/bin
-        cp C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\*\x64\vcruntime140.dll release/jstar/bin
-        cp C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\*\x64\vcruntime140_1.dll release/jstar/bin
+        cd build
+        mkdir jstar
+        msbuild INSTALL.vcxproj
     - name: upload binaries
       uses: actions/upload-artifact@v2
       with:
         name: jstar-x64-windows
-        path: release/jstar
+        path: build/release/jstar
 
