@@ -32,7 +32,7 @@ void jsrInitConf(JStarConf* conf) {
     conf->stackSize = STACK_SZ;
     conf->initGC = INIT_GC;
     conf->heapGrowRate = HEAP_GROW_RATE;
-    conf->errorFun = &jsrPrintErrorCB;
+    conf->errorCallback = &jsrPrintErrorCB;
 }
 
 JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
@@ -40,7 +40,7 @@ JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
 }
 
 JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module, const char* src) {
-    Stmt* program = parse(path, src, vm->errorFun);
+    Stmt* program = parse(path, src, vm->errorCallback);
     if(program == NULL) return JSR_SYNTAX_ERR;
 
     ObjString* name = copyString(vm, module, strlen(module), true);

@@ -242,7 +242,7 @@ JSR_NATIVE(jsr_eval) {
     else
         mod = AS_NATIVE(prevFrame->fn)->c.module;
 
-    Stmt* program = parse("<eval>", jsrGetString(vm, 1), vm->errorFun);
+    Stmt* program = parse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }

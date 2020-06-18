@@ -96,7 +96,7 @@ struct JStarVM {
     ObjUpvalue* upvalues;
 
     // Callback function to report errors
-    JStarErrorFun errorFun;
+    JStarErrorCB errorCallback;
 
     // ---- Memory management ----
 

@@ -110,7 +110,7 @@ static void error(Compiler* c, int line, const char* format, ...) {
     va_end(args);
 
     JStarVM* vm = c->vm;
-    if(vm->errorFun) vm->errorFun(c->filename, line, errorMessage);
+    if(vm->errorCallback) vm->errorCallback(c->filename, line, errorMessage);
     c->hadError = true;
 }
 

@@ -33,7 +33,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     vm->stack = malloc(sizeof(Value) * vm->stackSz);
     vm->frames = malloc(sizeof(Frame) * vm->frameSz);
 
-    vm->errorFun = conf->errorFun;
+    vm->errorCallback = conf->errorCallback;
 
     reset(vm);
     initHashTable(&vm->modules);

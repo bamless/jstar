@@ -91,7 +91,7 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
 }
 
 static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
-    Stmt* program = parse(path, source, vm->errorFun);
+    Stmt* program = parse(path, source, vm->errorCallback);
 
     if(program == NULL) {
         return false;

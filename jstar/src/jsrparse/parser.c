@@ -18,16 +18,16 @@ typedef struct Parser {
     const char* path;
     TokenType prevType;
     const char* lnStart;
-    ParseErrorFun errorFun;
+    ParseErrorCB errorCallback;
     bool panic, hadError;
 } Parser;
 
-static void initParser(Parser* p, const char* path, const char* src, ParseErrorFun errorFun) {
+static void initParser(Parser* p, const char* path, const char* src, ParseErrorCB errorCallback) {
     p->panic = false;
     p->hadError = false;
     p->path = path;
     p->prevType = -1;
-    p->errorFun = errorFun;
+    p->errorCallback = errorCallback;
     initLexer(&p->lex, src);
     nextToken(&p->lex, &p->peek);
     p->lnStart = p->peek.lexeme;
@@ -44,7 +44,7 @@ static void error(Parser* p, const char* msg, ...) {
     if(p->panic) return;
     p->panic = p->hadError = true;
 
-    if(p->errorFun) {
+    if(p->errorCallback) {
         char errorMessage[MAX_ERR];
 
         // correct for escaped newlines
@@ -70,7 +70,7 @@ static void error(Parser* p, const char* msg, ...) {
         vsnprintf(errorMessage + len, MAX_ERR - len, msg, args);
         va_end(args);
 
-        p->errorFun(p->path, p->peek.line, errorMessage);
+        p->errorCallback(p->path, p->peek.line, errorMessage);
     }
 }
 
@@ -177,9 +177,9 @@ static void requireStmtEnd(Parser* p) {
 static Stmt* parseProgram(Parser* p);
 static Expr* expression(Parser* p, bool tuple);
 
-Stmt* parse(const char* path, const char* src, ParseErrorFun errorFun) {
+Stmt* parse(const char* path, const char* src, ParseErrorCB errorCallback) {
     Parser p;
-    initParser(&p, path, src, errorFun);
+    initParser(&p, path, src, errorCallback);
 
     Stmt* program = parseProgram(&p);
     skipNewLines(&p);
@@ -194,9 +194,9 @@ Stmt* parse(const char* path, const char* src, ParseErrorFun errorFun) {
     return program;
 }
 
-Expr* parseExpression(const char* path, const char* src, ParseErrorFun errorFun) {
+Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
     Parser p;
-    initParser(&p, path, src, errorFun);
+    initParser(&p, path, src, errorCallback);
 
     Expr* expr = expression(&p, true);
     skipNewLines(&p);

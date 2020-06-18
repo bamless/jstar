@@ -46,16 +46,16 @@ typedef enum JStarResult {
 } JStarResult;
 
 // J* error function callback
-typedef void (*JStarErrorFun)(const char* file, int line, const char* error);
+typedef void (*JStarErrorCB)(const char* file, int line, const char* error);
 
 // Default implementation of error callback that prints the error to stderr
 JSTAR_API void jsrPrintErrorCB(const char* file, int line, const char* error);
 
 typedef struct JstarConf {
-    size_t stackSize;        // Initial stack size in bytes
-    size_t initGC;           // first GC threshold point
-    int heapGrowRate;        // The rate at which the heap will grow after a succesful GC
-    JStarErrorFun errorFun;  // Error callback
+    size_t stackSize;            // Initial stack size in bytes
+    size_t initGC;               // first GC threshold point
+    int heapGrowRate;            // The rate at which the heap will grow after a succesful GC
+    JStarErrorCB errorCallback;  // Error callback
 } JStarConf;
 
 // Initialize configuration with default values
