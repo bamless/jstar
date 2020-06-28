@@ -130,6 +130,11 @@ static void dorepl(bool ignoreEnv) {
 
 // ---- Script execution ----
 
+static void exitFree(int code) {
+    jsrFreeVM(vm);
+    exit(code);
+}
+
 static JStarResult execScript(const char* script, int argsCount, const char** args,
                               bool ignoreEnv) {
     jsrInitCommandLineArgs(vm, argsCount, args);
@@ -150,7 +155,7 @@ static JStarResult execScript(const char* script, int argsCount, const char** ar
     if(src == NULL) {
         fprintf(stderr, "Error reading script ");
         perror(script);
-        exit(EXIT_FAILURE);
+        exitFree(EXIT_FAILURE);
     }
 
     JStarResult res = jsrEvaluate(vm, script, src);
@@ -211,36 +216,30 @@ CLIOpts parseArguments(int argc, const char** argv) {
 }
 
 int main(int argc, const char** argv) {
+    JStarConf conf;
+    jsrInitConf(&conf);
+    vm = jsrNewVM(&conf);
+
     CLIOpts opts = parseArguments(argc, argv);
 
     if(opts.showVersion) {
         printVersion();
-        exit(EXIT_SUCCESS);
+        exitFree(EXIT_SUCCESS);
     }
-
-    JStarConf conf;
-    jsrInitConf(&conf);
-    vm = jsrNewVM(&conf);
 
     if(opts.execStmt) {
         JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
         if(opts.script && res == JSR_EVAL_SUCCESS) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
-        if(!opts.interactive) {
-            jsrFreeVM(vm);
-            exit(res);
-        }
+        if(!opts.interactive) exitFree(res);
     }
 
     if(opts.script && !opts.execStmt) {
         JStarResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
-        if(!opts.interactive) {
-            jsrFreeVM(vm);
-            exit(res);
-        }
+        if(!opts.interactive) exitFree(res);
     }
 
     dorepl(opts.ignoreEnv);
-    jsrFreeVM(vm);
+    exitFree(EXIT_SUCCESS);
 }
