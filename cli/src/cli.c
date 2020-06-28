@@ -14,6 +14,17 @@
 
 static JStarVM* vm;
 
+static void initVM() {
+    JStarConf conf;
+    jsrInitConf(&conf);
+    vm = jsrNewVM(&conf);
+}
+
+static void exitFree(int code) {
+    jsrFreeVM(vm);
+    exit(code);
+}
+
 // ---- REPL implementation ----
 
 static void printVersion() {
@@ -96,7 +107,7 @@ static void addPrintIfExpr(JStarBuffer* sb) {
     }
 }
 
-static void dorepl(bool ignoreEnv) {
+static void doRepl(bool ignoreEnv) {
     linenoiseSetCompletionCallback(completion);
     initImportPaths("./", ignoreEnv);
     printVersion();
@@ -129,11 +140,6 @@ static void dorepl(bool ignoreEnv) {
 }
 
 // ---- Script execution ----
-
-static void exitFree(int code) {
-    jsrFreeVM(vm);
-    exit(code);
-}
 
 static JStarResult execScript(const char* script, int argsCount, const char** args,
                               bool ignoreEnv) {
@@ -175,7 +181,7 @@ typedef struct CLIOpts {
     int argsCount;
 } CLIOpts;
 
-CLIOpts parseArguments(int argc, const char** argv) {
+static CLIOpts parseArguments(int argc, const char** argv) {
     CLIOpts opts = {0};
 
     struct argparse_option options[] = {
@@ -216,10 +222,7 @@ CLIOpts parseArguments(int argc, const char** argv) {
 }
 
 int main(int argc, const char** argv) {
-    JStarConf conf;
-    jsrInitConf(&conf);
-    vm = jsrNewVM(&conf);
-
+    initVM();
     CLIOpts opts = parseArguments(argc, argv);
 
     if(opts.showVersion) {
@@ -240,6 +243,6 @@ int main(int argc, const char** argv) {
         if(!opts.interactive) exitFree(res);
     }
 
-    dorepl(opts.ignoreEnv);
+    doRepl(opts.ignoreEnv);
     exitFree(EXIT_SUCCESS);
 }
