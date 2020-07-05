@@ -79,15 +79,15 @@ JSR_NATIVE(jsr_File_new) {
         JSR_CHECK(String, 2, "mode");
 
         const char* path = jsrGetString(vm, 1);
-        const char* m = jsrGetString(vm, 2);
+        const char* mode = jsrGetString(vm, 2);
 
-        size_t mlen = strlen(m);
-        if(mlen > 3 || (m[0] != 'r' && m[0] != 'w' && m[0] != 'a') ||
-           (mlen > 1 && (m[1] != 'b' && m[1] != '+')) || (mlen > 2 && m[2] != 'b')) {
-            JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", m);
+        size_t modeLen = strlen(mode);
+        if(modeLen > 3 || (mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') ||
+           (modeLen > 1 && (mode[1] != 'b' && mode[1] != '+')) || (modeLen > 2 && mode[2] != 'b')) {
+            JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
         }
 
-        FILE* f = fopen(path, m);
+        FILE* f = fopen(path, mode);
         if(f == NULL) {
             if(errno == ENOENT) {
                 JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
@@ -369,7 +369,6 @@ JSR_NATIVE(jsr_io_init) {
     if(!createStdFile(vm, "stdout", stdout)) return false;
     if(!createStdFile(vm, "stderr", stderr)) return false;
     if(!createStdFile(vm, "stdin", stdin)) return false;
-
     jsrPushNull(vm);
     return true;
 }

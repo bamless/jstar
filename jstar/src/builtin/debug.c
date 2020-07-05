@@ -16,7 +16,6 @@ JSR_NATIVE(jsr_printStack) {
         printf("]");
     }
     printf("$\n");
-
     jsrPushNull(vm);
     return true;
 }

@@ -72,7 +72,6 @@ JSR_NATIVE(jsr_sys_init) {
             jsrPop(vm);
         }
     }
-
     jsrPushNull(vm);
     return true;
 }
