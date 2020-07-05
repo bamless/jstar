@@ -127,6 +127,7 @@ static const char* startCapture(RegexState* rs, const char* s, const char* r) {
         rs->captures[rs->capturec].len = CAPTURE_POSITION;
         r++;
     }
+
     rs->captures[rs->capturec].start = s;
     rs->capturec++;
 
@@ -134,6 +135,7 @@ static const char* startCapture(RegexState* rs, const char* s, const char* r) {
     if((res = match(rs, s, r + 1)) == NULL) {
         rs->capturec--;
     }
+
     return res;
 }
 
@@ -157,6 +159,7 @@ static const char* matchCapture(RegexState* rs, const char* s, int captureNo) {
     if((size_t)(rs->strEnd - s) < captureLen || memcmp(s, capture, captureLen) != 0) {
         return NULL;
     }
+
     return s + captureLen;
 }
 

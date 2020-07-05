@@ -108,6 +108,7 @@ static JSR_NATIVE(jsr_Class_string) {
 void initCoreModule(JStarVM* vm) {
     ObjString* name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
 
+    // Create and register core module
     push(vm, OBJ_VAL(name));
     ObjModule* core = newModule(vm, name);
     setModule(vm, core->name, core);
@@ -130,8 +131,10 @@ void initCoreModule(JStarVM* vm) {
     defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
+    // Execute core module code
     jsrEvaluateModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
 
+    // Cache builtin class objects in VM struct
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
     vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
     vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
@@ -144,7 +147,6 @@ void initCoreModule(JStarVM* vm) {
     vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
     vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
     vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
-
     core->base.cls = vm->modClass;
 
     // Patch up the class field of any string or function that was allocated
