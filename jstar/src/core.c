@@ -413,10 +413,11 @@ JSR_NATIVE(jsr_Function_string) {
         ObjBoundMethod* m = AS_BOUND_METHOD(vm->apiStack[0]);
 
         Callable* c;
-        if(m->method->type == OBJ_CLOSURE)
+        if(m->method->type == OBJ_CLOSURE) {
             c = &((ObjClosure*)m->method)->fn->c;
-        else
+        } else {
             c = &((ObjNative*)m->method)->c;
+        }
 
         funName = c->name->data;
         modName = c->module->name->data;

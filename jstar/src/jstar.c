@@ -424,13 +424,13 @@ size_t jsrTupleGetLength(JStarVM* vm, int slot) {
 }
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
-    Value val = apiStackSlot(vm, slot);
-    return setFieldOfValue(vm, val, copyString(vm, name, strlen(name), true), peek(vm));
+    push(vm, apiStackSlot(vm, slot));
+    return setFieldOfValue(vm, copyString(vm, name, strlen(name), true));
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
-    Value val = apiStackSlot(vm, slot);
-    return getFieldFromValue(vm, val, copyString(vm, name, strlen(name), true));
+    push(vm, apiStackSlot(vm, slot));
+    return getFieldFromValue(vm, copyString(vm, name, strlen(name), true));
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {

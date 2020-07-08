@@ -462,10 +462,11 @@ void printObj(Obj* o) {
         ObjBoundMethod* b = (ObjBoundMethod*)o;
 
         char* name;
-        if(b->method->type == OBJ_FUNCTION)
-            name = ((ObjFunction*)b->method)->c.name->data;
-        else
+        if(b->method->type == OBJ_CLOSURE) {
+            name = ((ObjClosure*)b->method)->fn->c.name->data;
+        } else {
             name = ((ObjNative*)b->method)->c.name->data;
+        }
 
         printf("<bound method ");
         printValue(b->bound);

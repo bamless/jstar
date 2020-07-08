@@ -6,6 +6,7 @@
 #include "builtin/modules.h"
 #include "chunk.h"
 #include "core.h"
+#include "disassemble.h"
 #include "import.h"
 #include "memory.h"
 #include "opcode.h"
@@ -352,10 +353,10 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
+            Value f;
             ObjInstance* inst = AS_INSTANCE(val);
 
             // Check if field shadows a method
-            Value f;
             if(hashTableGet(&inst->fields, name, &f)) {
                 return callValue(vm, f, argc);
             }
@@ -363,9 +364,9 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
             return invokeMethod(vm, inst->base.cls, name, argc);
         }
         case OBJ_MODULE: {
+            Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            Value func;
             // check if method shadows a function in the module
             if(hashTableGet(&vm->modClass->methods, name, &func)) {
                 return callValue(vm, func, argc);
@@ -391,42 +392,51 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     return invokeMethod(vm, cls, name, argc);
 }
 
-bool getFieldFromValue(JStarVM* vm, Value val, ObjString* name) {
+static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
+    Value v;
+    if(!hashTableGet(&cls->methods, name, &v)) {
+        return false;
+    }
+
+    ObjBoundMethod* boundMeth = newBoundMethod(vm, peek(vm), AS_OBJ(v));
+    pop(vm);
+
+    push(vm, OBJ_VAL(boundMeth));
+    return true;
+}
+
+bool getFieldFromValue(JStarVM* vm, ObjString* name) {
+    Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
-            ObjInstance* inst = AS_INSTANCE(val);
-
             Value v;
+            ObjInstance* inst = AS_INSTANCE(val);
             if(!hashTableGet(&inst->fields, name, &v)) {
-                // if we didnt find a field try to return bound method
-                if(!hashTableGet(&inst->base.cls->methods, name, &v)) {
+                if(!bindMethod(vm, inst->base.cls, name)) {
                     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
                              inst->base.cls->name->data, name->data);
                     return false;
                 }
-                push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
                 return true;
             }
-
+            pop(vm);
             push(vm, v);
             return true;
         }
         case OBJ_MODULE: {
-            ObjModule* mod = AS_MODULE(val);
-
             Value v;
+            ObjModule* mod = AS_MODULE(val);
             if(!hashTableGet(&mod->globals, name, &v)) {
                 // if we didnt find a global name try to return bound method
-                if(!hashTableGet(&mod->base.cls->methods, name, &v)) {
+                if(!bindMethod(vm, mod->base.cls, name)) {
                     jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
                              name->data, mod->name->data);
                     return false;
                 }
-                push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
                 return true;
             }
-
+            pop(vm);
             push(vm, v);
             return true;
         }
@@ -435,29 +445,27 @@ bool getFieldFromValue(JStarVM* vm, Value val, ObjString* name) {
         }
     }
 
-    Value v;
     ObjClass* cls = getClass(vm, val);
-    if(!hashTableGet(&cls->methods, name, &v)) {
+    if(!bindMethod(vm, cls, name)) {
         jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
                  name->data);
         return false;
     }
-
-    push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(v))));
     return true;
 }
 
-bool setFieldOfValue(JStarVM* vm, Value val, ObjString* name, Value s) {
+bool setFieldOfValue(JStarVM* vm, ObjString* name) {
+    Value val = pop(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
-            hashTablePut(&inst->fields, name, s);
+            hashTablePut(&inst->fields, name, peek(vm));
             return true;
         }
         case OBJ_MODULE: {
             ObjModule* mod = AS_MODULE(val);
-            hashTablePut(&mod->globals, name, s);
+            hashTablePut(&mod->globals, name, peek(vm));
             return true;
         }
         default:
@@ -471,8 +479,10 @@ bool setFieldOfValue(JStarVM* vm, Value val, ObjString* name, Value s) {
     return false;
 }
 
-static bool getSubscriptOfValue(JStarVM* vm, Value operand, Value arg) {
-    if(IS_OBJ(operand)) {
+static bool getSubscriptOfValue(JStarVM* vm) {
+    if(IS_OBJ(peek2(vm))) {
+        Value arg = peek(vm), operand = peek2(vm);
+
         switch(OBJ_TYPE(operand)) {
         case OBJ_LIST: {
             if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
@@ -484,6 +494,8 @@ static bool getSubscriptOfValue(JStarVM* vm, Value operand, Value arg) {
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
             if(index == SIZE_MAX) return false;
 
+            pop(vm);
+            pop(vm);
             push(vm, list->arr[index]);
             return true;
         }
@@ -497,6 +509,8 @@ static bool getSubscriptOfValue(JStarVM* vm, Value operand, Value arg) {
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), tuple->size);
             if(index == SIZE_MAX) return false;
 
+            pop(vm);
+            pop(vm);
             push(vm, tuple->arr[index]);
             return true;
         }
@@ -509,8 +523,10 @@ static bool getSubscriptOfValue(JStarVM* vm, Value operand, Value arg) {
             ObjString* str = AS_STRING(operand);
             size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
             if(index == SIZE_MAX) return false;
-
             char character = str->data[index];
+
+            pop(vm);
+            pop(vm);
             push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
             return true;
         }
@@ -519,16 +535,16 @@ static bool getSubscriptOfValue(JStarVM* vm, Value operand, Value arg) {
         }
     }
 
-    push(vm, operand);
-    push(vm, arg);
-    if(!invokeMethod(vm, getClass(vm, operand), vm->get, 1)) {
+    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->get, 1)) {
         return false;
     }
     return true;
 }
 
-static bool setSubscriptOfValue(JStarVM* vm, Value operand, Value arg, Value s) {
-    if(IS_LIST(operand)) {
+static bool setSubscriptOfValue(JStarVM* vm) {
+    if(IS_LIST(peek(vm))) {
+        Value operand = pop(vm), arg = pop(vm), val = peek(vm);
+
         if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
             jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
             return false;
@@ -538,14 +554,14 @@ static bool setSubscriptOfValue(JStarVM* vm, Value operand, Value arg, Value s) 
         size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
         if(index == SIZE_MAX) return false;
 
-        list->arr[index] = s;
-        push(vm, s);
+        list->arr[index] = val;
         return true;
     }
 
-    push(vm, operand);
-    push(vm, arg);
-    push(vm, s);
+    // swap the operand with the value to preparare function call
+    Value operand = peek(vm);
+    vm->sp[-1] = vm->sp[-3];
+    vm->sp[-3] = operand;
     if(!invokeMethod(vm, getClass(vm, operand), vm->set, 2)) {
         return false;
     }
@@ -869,34 +885,30 @@ bool runEval(JStarVM* vm, int depth) {
     }
 
     TARGET(OP_SUBSCR_GET): {
-        Value arg = pop(vm), operand = pop(vm);
         SAVE_FRAME();
-        bool res = getSubscriptOfValue(vm, operand, arg);
+        bool res = getSubscriptOfValue(vm);
         LOAD_FRAME();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
     TARGET(OP_SUBSCR_SET): {
-        Value arg = pop(vm), operand = pop(vm), s = pop(vm);
         SAVE_FRAME();
-        bool res = setSubscriptOfValue(vm, operand, arg, s);
+        bool res = setSubscriptOfValue(vm);
         LOAD_FRAME();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
     TARGET(OP_GET_FIELD): {
-        Value v = pop(vm);
-        if(!getFieldFromValue(vm, v, GET_STRING())) {
+        if(!getFieldFromValue(vm, GET_STRING())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
     }
 
     TARGET(OP_SET_FIELD): {
-        Value v = pop(vm);
-        if(!setFieldOfValue(vm, v, GET_STRING(), peek(vm))) {
+        if(!setFieldOfValue(vm, GET_STRING())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1038,6 +1050,18 @@ sup_invoke:;
         bool res = invokeMethod(vm, sup, name, argc);
         LOAD_FRAME();
         if(!res) UNWIND_STACK(vm);
+        DISPATCH();
+    }
+
+    TARGET(OP_SUPER_BIND): {
+        ObjString* name = GET_STRING();
+        // The superclass is stored as a const in the function itself
+        ObjClass* cls = AS_CLASS(fn->chunk.consts.arr[0]);
+        if(!bindMethod(vm, cls, name)) {
+            jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+                     name->data);
+            UNWIND_STACK(vm);
+        }
         DISPATCH();
     }
 
