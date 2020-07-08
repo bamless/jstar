@@ -107,6 +107,7 @@ void disassembleIstr(Chunk* c, size_t i) {
     case OP_SUPER_8:
     case OP_SUPER_9:
     case OP_SUPER_10:
+    case OP_SUPER_BIND:
     case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:

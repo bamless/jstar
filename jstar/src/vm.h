@@ -116,8 +116,8 @@ struct JStarVM {
 
 bool runEval(JStarVM* vm, int depth);
 
-bool getFieldFromValue(JStarVM* vm, Value val, ObjString* name);
-bool setFieldOfValue(JStarVM* vm, Value val, ObjString* name, Value s);
+bool getFieldFromValue(JStarVM* vm, ObjString* name);
+bool setFieldOfValue(JStarVM* vm, ObjString* name);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);

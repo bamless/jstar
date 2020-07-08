@@ -536,8 +536,8 @@ static void compileLval(Compiler* c, Expr* e) {
         break;
     }
     case ARR_ACC: {
-        compileExpr(c, e->as.arrayAccess.left);
         compileExpr(c, e->as.arrayAccess.index);
+        compileExpr(c, e->as.arrayAccess.left);
         emitBytecode(c, OP_SUBSCR_SET, e->line);
         break;
     }
@@ -685,27 +685,31 @@ static void compileSuper(Compiler* c, Expr* e) {
     emitBytecode(c, OP_GET_LOCAL, e->line);
     emitBytecode(c, 0, e->line);
 
-    int argc = 0;
-    foreach(n, e->as.sup.args->as.list.lst) {
-        compileExpr(c, (Expr*)n->elem);
-        argc++;
-    }
+    uint16_t nameConst = e->as.sup.name.name ? identifierConst(c, &e->as.sup.name, e->line)
+                                             : identifierConst(c, &c->ast->as.funcDecl.id, e->line);
 
-    if(argc >= UINT8_MAX) {
-        error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
-    }
+    if(e->as.sup.args != NULL) {
+        int argc = 0;
+        foreach(n, e->as.sup.args->as.list.lst) {
+            compileExpr(c, (Expr*)n->elem);
+            argc++;
+        }
 
-    if(argc <= 10) {
-        emitBytecode(c, OP_SUPER_0 + argc, e->line);
+        if(argc >= UINT8_MAX) {
+            error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
+        }
+
+        if(argc <= 10) {
+            emitBytecode(c, OP_SUPER_0 + argc, e->line);
+        } else {
+            emitBytecode(c, OP_SUPER, e->line);
+            emitBytecode(c, argc, e->line);
+        }
+
+        emitShort(c, nameConst, e->line);
     } else {
-        emitBytecode(c, OP_SUPER, e->line);
-        emitBytecode(c, argc, e->line);
-    }
-
-    if(e->as.sup.name.name != NULL) {
-        emitShort(c, identifierConst(c, &e->as.sup.name, e->line), e->line);
-    } else {
-        emitShort(c, identifierConst(c, &c->ast->as.funcDecl.id, e->line), e->line);
+        emitBytecode(c, OP_SUPER_BIND, e->line);
+        emitShort(c, nameConst, e->line);
     }
 }
 

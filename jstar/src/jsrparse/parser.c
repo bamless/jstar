@@ -588,11 +588,11 @@ static Stmt* classDecl(Parser* p) {
             methods = addElement(methods, nativeDecl(p));
         } else {
             Stmt* fun = funcDecl(p);
-            if(fun == NULL) {
+            if(fun != NULL) {
+                methods = addElement(methods, fun);
+            } else {
                 error(p, "Expected function or native delcaration.");
                 advance(p);
-            } else {
-                methods = addElement(methods, fun);
             }
         }
         skipNewLines(p);
@@ -694,20 +694,6 @@ static Expr* expressionLst(Parser* p, TokenType open, TokenType close) {
     return newExprList(line, exprs);
 }
 
-static Expr* parseSuperLiteral(Parser* p) {
-    int line = p->peek.line;
-    Token name = {0};
-    advance(p);
-
-    if(match(p, TOK_DOT)) {
-        advance(p);
-        name = require(p, TOK_IDENTIFIER);
-    }
-
-    Expr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-    return newSuperLiteral(line, &name, args);
-}
-
 static Expr* parseTableLiteral(Parser* p) {
     int line = p->peek.line;
     advance(p);
@@ -745,6 +731,27 @@ static Expr* parseTableLiteral(Parser* p) {
 
     require(p, TOK_RCURLY);
     return newTableLiteral(line, newExprList(line, keyVals));
+}
+
+static Expr* parseSuperLiteral(Parser* p) {
+    int line = p->peek.line;
+    advance(p);
+
+    Token name = {0};
+    Expr* args = NULL;
+
+    if(match(p, TOK_DOT)) {
+        advance(p);
+        name = require(p, TOK_IDENTIFIER);
+    }
+
+    if(match(p, TOK_LPAREN)) {
+        args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+    } else if(match(p, TOK_LCURLY)) {
+        args = newExprList(line, addElement(NULL, parseTableLiteral(p)));
+    }
+
+    return newSuperLiteral(line, &name, args);
 }
 
 static Expr* literal(Parser* p) {

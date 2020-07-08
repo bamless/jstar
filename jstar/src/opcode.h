@@ -58,6 +58,7 @@
     X(OP_SUPER_8)       \
     X(OP_SUPER_9)       \
     X(OP_SUPER_10)      \
+    X(OP_SUPER_BIND)    \
     X(OP_JUMP)          \
     X(OP_JUMPT)         \
     X(OP_JUMPF)         \
