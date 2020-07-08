@@ -33,7 +33,6 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
     vm->stack = malloc(sizeof(Value) * vm->stackSz);
     vm->frames = malloc(sizeof(Frame) * vm->frameSz);
-
     vm->errorCallback = conf->errorCallback;
 
     reset(vm);
