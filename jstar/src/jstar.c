@@ -341,15 +341,16 @@ void jsrPushValue(JStarVM* vm, int slot) {
 void jsrPushNative(JStarVM* vm, const char* name, JStarNative nat, uint8_t argc) {
     validateStack(vm);
 
-    ObjModule* mod;
-    if(vm->module)
-        mod = vm->module;
-    else
-        mod = getModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true));
+    ObjModule* module;
+    if(vm->module) {
+        module = vm->module;
+    } else {
+        module = getModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true));
+    }
 
     ObjString* objName = copyString(vm, name, strlen(name), true);
     push(vm, OBJ_VAL(objName));
-    ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0, false);
+    ObjNative* objNative = newNative(vm, module, objName, argc, nat, 0, false);
     pop(vm);
     push(vm, OBJ_VAL(objNative));
 }
@@ -368,8 +369,14 @@ void jsrPop(JStarVM* vm) {
 
 void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name) {
     ASSERT(vm->module || mname, "Undefined module");
-    ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
-                              : vm->module;
+
+    ObjModule* module;
+    if(mname) {
+        module = getModule(vm, copyString(vm, mname, strlen(mname), true));
+    } else {
+        module = vm->module;
+    }
+
     hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
@@ -435,12 +442,17 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 
 bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
     ASSERT(vm->module || mname, "Undefined module");
-    ObjModule* module = mname ? getModule(vm, copyString(vm, mname, strlen(mname), true))
-                              : vm->module;
-    ObjString* namestr = copyString(vm, name, strlen(name), true);
-    HashTable* glob = &module->globals;
+
+    ObjModule* module;
+    if(mname) {
+        module = getModule(vm, copyString(vm, mname, strlen(mname), true));
+    } else {
+        module = vm->module;
+    }
 
     Value res;
+    ObjString* namestr = copyString(vm, name, strlen(name), true);
+    HashTable* glob = &module->globals;
     if(!hashTableGet(glob, namestr, &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
         return false;

@@ -96,9 +96,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compile
 }
 
 static void endCompiler(Compiler* c) {
-    if(c->prev != NULL) {
-        c->prev->hadError |= c->hadError;
-    }
+    if(c->prev != NULL) c->prev->hadError |= c->hadError;
     c->vm->currCompiler = c->prev;
 }
 
