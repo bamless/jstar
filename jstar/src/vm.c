@@ -110,10 +110,8 @@ static Frame* getFrame(JStarVM* vm, Callable* c) {
     }
 
     Frame* callFrame = &vm->frames[vm->frameCount++];
-    callFrame->stack = vm->sp - (c->argsCount + 1);
+    callFrame->stack = vm->sp - (c->argsCount + 1) - (int)c->vararg;
     callFrame->handlerc = 0;
-    if(c->vararg) callFrame->stack--;
-
     return callFrame;
 }
 
