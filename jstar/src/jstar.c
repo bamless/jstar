@@ -11,7 +11,6 @@
 #include "jsrparse/ast.h"
 #include "jsrparse/parser.h"
 #include "object.h"
-#include "util.h"
 #include "value.h"
 #include "vm.h"
 

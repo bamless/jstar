@@ -173,6 +173,10 @@ static inline bool valueEquals(Value v1, Value v2) {
 
 #endif
 
+// -----------------------------------------------------------------------------
+// VALUE ARRAY
+// -----------------------------------------------------------------------------
+
 #define VAL_ARR_DEF_SZ   8
 #define VAL_ARR_GROW_FAC 2
 

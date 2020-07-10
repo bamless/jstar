@@ -29,11 +29,9 @@
 
 #include "jstarconf.h"  // IWYU pragma: export
 
-/**
- * =========================================================
- *  J* VM entry points
- * =========================================================
- */
+// -----------------------------------------------------------------------------
+// J* VM ENTRY POINTS
+// -----------------------------------------------------------------------------
 
 // The J* virtual machine
 typedef struct JStarVM JStarVM;
@@ -107,13 +105,9 @@ JSTAR_API void jsrRaiseException(JStarVM* vm, int slot);
 // If "cls" cannot be found in current module a NameException is raised instead.
 JSTAR_API void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...);
 
-/**
- * =========================================================
- *  Native function API
- * =========================================================
- */
-
-// ---- Utility functions and definitions ----
+// -----------------------------------------------------------------------------
+// UTILITY FUNCTIONS AND DEFINITIONS
+// -----------------------------------------------------------------------------
 
 // The minimum reserved space for the stack when calling a native function
 #define JSTAR_MIN_NATIVE_STACK_SZ 20
@@ -143,7 +137,9 @@ typedef bool (*JStarNative)(JStarVM* vm);
 // On error returns NULL and sets errno to the appropriate error.
 JSTAR_API char* jsrReadFile(const char* path);
 
-// ---- Registry to register native functions ----
+// -----------------------------------------------------------------------------
+// NATIVE REGISTRY
+// -----------------------------------------------------------------------------
 
 // J* native registry, used to associate names to native pointers in native c extension modules.
 typedef struct JStarNativeReg {
@@ -170,7 +166,9 @@ typedef struct JStarNativeReg {
         }                              \
     }
 
-// ---- Overloadable operator functions ----
+// -----------------------------------------------------------------------------
+// OVERLOADABLE OPERATOR API
+// -----------------------------------------------------------------------------
 
 // Check if two objects are the same (doesn't call __eq__ overload)
 JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
@@ -188,7 +186,9 @@ JSTAR_API bool jsrEquals(JStarVM* vm);
 // Check if a value is of a certain class.
 JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
 
-// ---- Iterable protocol functions ----
+// -----------------------------------------------------------------------------
+// ITERATOR PROTOCOL API
+// -----------------------------------------------------------------------------
 
 // `iterable` is the slot in which the iterable object is sitting and `res` is the slot of the
 // result of the last jsrIter call or, if first time calling jsrIter, a slot containing null.
@@ -217,7 +217,9 @@ JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
         jsrPop(vm);                              \
     }
 
-// ---- C to J* value converting functions ----
+// -----------------------------------------------------------------------------
+// C TO J* CONVERTING FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // The converted value is left on the top of the stack
 JSTAR_API void jsrPushNumber(JStarVM* vm, double number);
@@ -238,7 +240,9 @@ JSTAR_API void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*
 // Pop a value from the top of the stack
 JSTAR_API void jsrPop(JStarVM* vm);
 
-// ---- J* to C values converter functions ----
+// -----------------------------------------------------------------------------
+// J* TO C CONVERTING FUNCTIONS
+// -----------------------------------------------------------------------------
 
 JSTAR_API double jsrGetNumber(JStarVM* vm, int slot);
 JSTAR_API bool jsrGetBoolean(JStarVM* vm, int slot);
@@ -254,7 +258,9 @@ JSTAR_API size_t jsrGetStringSz(JStarVM* vm, int slot);
 // reachable it'll be collected.
 JSTAR_API const char* jsrGetString(JStarVM* vm, int slot);
 
-// ---- List manipulation functions ----
+// -----------------------------------------------------------------------------
+// LIST MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // These functions do not perfrom bounds checking,
 // use jsrCeckIndex first if needed.
@@ -264,14 +270,18 @@ JSTAR_API void jsrListRemove(JStarVM* vm, size_t i, int slot);
 JSTAR_API void jsrListGet(JStarVM* vm, size_t i, int slot);
 JSTAR_API size_t jsrListGetLength(JStarVM* vm, int slot);
 
-// ---- Tuple manipulation functions ----
+// -----------------------------------------------------------------------------
+// TUPLE MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // These functions do not perfrom bounds checking,
 // use jsrCeckIndex first if needed.
 JSTAR_API void jsrTupleGet(JStarVM* vm, size_t i, int slot);
 JSTAR_API size_t jsrTupleGetLength(JStarVM* vm, int slot);
 
-// ---- Object instances manipulation functions ----
+// -----------------------------------------------------------------------------
+// INSTANCE MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // Set the field "name" of the value at "slot" with the value
 // on top of the stack. the value is not popped.
@@ -285,7 +295,9 @@ JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 // on top of the stack.
 JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 
-// ---- Modules manipulation functions ----
+// -----------------------------------------------------------------------------
+// MODULE MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // Set the global "name" of the module "mname" with the value
 // on top of the stack. the value is not popped.
@@ -301,11 +313,15 @@ JSTAR_API void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name);
 // used module will be the current one.
 JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name);
 
-// ---- Userdata manipulation functions ----
+// -----------------------------------------------------------------------------
+// USERDATA MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 JSTAR_API void* jsrGetUserdata(JStarVM* vm, int slot);
 
-// ---- J* type checking functions ----
+// -----------------------------------------------------------------------------
+// TYPE CHECKING FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // These functions return true if the slot is of the given type, false otherwise
 JSTAR_API bool jsrIsNumber(JStarVM* vm, int slot);
@@ -349,11 +365,9 @@ JSTAR_API size_t jsrCheckIndex(JStarVM* vm, int slot, size_t max, const char* na
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 
-/**
- * =========================================================
- *  Buffer creation and manipulation functions
- * =========================================================
- */
+// -----------------------------------------------------------------------------
+// JSTARBUFFER API
+// -----------------------------------------------------------------------------
 
 // Dynamic Buffer that holds memory allocated by the J* garbage collector.
 // This memory is owned by J*, but cannot be collected until the buffer
