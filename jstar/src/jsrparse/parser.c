@@ -33,7 +33,9 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
     p->lnStart = p->peek.lexeme;
 }
 
-//----- Utility functions ------
+// -----------------------------------------------------------------------------
+// UTILITY FUNCTIONS
+// -----------------------------------------------------------------------------
 
 static char* strchrnul(const char* str, char c) {
     char* ret;
@@ -172,7 +174,9 @@ static void requireStmtEnd(Parser* p) {
     }
 }
 
-//----- Recursive descent parser implementation ------
+// -----------------------------------------------------------------------------
+// PARSER IMPLEMENTATION
+// -----------------------------------------------------------------------------
 
 static Stmt* parseProgram(Parser* p);
 static Expr* expression(Parser* p, bool tuple);
@@ -211,7 +215,10 @@ Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallb
     return expr;
 }
 
-//----- Statement parse ------
+// -----------------------------------------------------------------------------
+// STATEMENTS PARSE
+// -----------------------------------------------------------------------------
+
 static Expr* literal(Parser* p);
 
 typedef struct {
@@ -673,7 +680,9 @@ static Stmt* parseProgram(Parser* p) {
     return newFuncDecl(0, false, &name, NULL, NULL, newBlockStmt(0, stmts));
 }
 
-//----- Expressions parse ------
+// -----------------------------------------------------------------------------
+// EXPRESSIONS PARSE
+// -----------------------------------------------------------------------------
 
 static Expr* expressionLst(Parser* p, TokenType open, TokenType close) {
     int line = p->peek.line;

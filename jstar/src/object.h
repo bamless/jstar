@@ -9,7 +9,6 @@
 #include "common.h"
 #include "hashtable.h"
 #include "jstar.h"
-#include "util.h"
 #include "value.h"
 
 struct Frame;
@@ -20,7 +19,7 @@ struct Frame;
  * first field in their declaration. This permits the casting of any pointer to
  * to Obj* and back, implementing a sort of manual polymorphism.
  *
- * In addition to objects' definitions, this files define macros for testing and
+ * In addition to objects' definitions, this file defineS macros for testing and
  * casting Obj* pointers.
  * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
@@ -30,7 +29,10 @@ struct Frame;
 DECLARE_ENUM_STRINGS(ObjType);
 #endif
 
-// Macros for testing and casting objects
+// -----------------------------------------------------------------------------
+// OBJECT TESTNG AND CASTING MACROS
+// -----------------------------------------------------------------------------
+
 #define OBJ_TYPE(o) (AS_OBJ(o)->type)
 
 #define IS_BOUND_METHOD(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_BOUND_METHOD)
@@ -64,6 +66,10 @@ DECLARE_ENUM_STRINGS(ObjType);
 #define STRING_GET_HASH(s) (s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
 #define STRING_EQUALS(s1, s2) \
     (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data) == 0)
+
+// -----------------------------------------------------------------------------
+// OBJECT DEFINITONS
+// -----------------------------------------------------------------------------
 
 // These types are used internally by the object system and are
 // Never exposed to the user, to whom all values behave like
@@ -245,16 +251,17 @@ typedef struct ObjUserdata {
     uint8_t data[];           // The data
 } ObjUserdata;
 
-// ---- Functions for allocating objects ----
+// -----------------------------------------------------------------------------
+// OBJECT ALLOCATION FUNCTIONS
+// -----------------------------------------------------------------------------
+
 // These functions use GCallocate to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
 ObjNative* newNative(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc, JStarNative fn,
                      uint8_t defc, bool vararg);
-
 ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc,
                          uint8_t defc, bool vararg);
-
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method);
@@ -270,7 +277,9 @@ ObjTable* newTable(JStarVM* vm);
 ObjString* allocateString(JStarVM* vm, size_t length);
 ObjString* copyString(JStarVM* vm, const char* str, size_t length, bool intern);
 
-// ---- Functions for manipulating objects ----
+// -----------------------------------------------------------------------------
+// OBJECT MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // Dumps a frame in a ObjStackTrace
 void stRecordFrame(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
@@ -283,7 +292,9 @@ void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 // Convert a JStarBuffer to an ObjString
 ObjString* jsrBufferToString(JStarBuffer* b);
 
-// ---- Debug functions ----
+// -----------------------------------------------------------------------------
+// DEBUG FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // Prints an Obj in a human readable form
 void printObj(Obj* o);
