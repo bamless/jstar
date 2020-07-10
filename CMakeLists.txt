@@ -3,8 +3,8 @@ project(jstar)
 
 # version
 set(JSTAR_VERSION_MAJOR 1)
-set(JSTAR_VERSION_MINOR 1)
-set(JSTAR_VERSION_PATCH 3)
+set(JSTAR_VERSION_MINOR 2)
+set(JSTAR_VERSION_PATCH 0)
 
 # set the c standard
 set(CMAKE_C_STANDARD 99)
