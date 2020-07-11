@@ -355,7 +355,7 @@ void garbageCollect(JStarVM* vm) {
 
     // reach elements on the frame stack
     for(int i = 0; i < vm->frameCount; i++) {
-        reachValue(vm, vm->frames[i].fn);
+        reachObject(vm, vm->frames[i].fn);
     }
 
     // reach open upvalues

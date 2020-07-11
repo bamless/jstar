@@ -152,15 +152,24 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     record->moduleName = NULL;
 
     Callable* c = NULL;
-    if(IS_CLOSURE(f->fn)) {
-        ObjClosure* closure = AS_CLOSURE(f->fn);
+    switch(f->fn->type) {
+    case OBJ_CLOSURE: {
+        ObjClosure* closure = (ObjClosure*)f->fn;
         c = &closure->fn->c;
         Chunk* chunk = &closure->fn->chunk;
         size_t op = f->ip - chunk->code - 1;
         record->line = getBytecodeSrcLine(chunk, op);
-    } else {
-        c = &AS_NATIVE(f->fn)->c;
+        break;
+    }
+    case OBJ_NATIVE: {
+        ObjNative* native = (ObjNative*)f->fn;
+        c = &native->c;
         record->line = -1;
+        break;
+    }
+    default:
+        UNREACHABLE();
+        break;
     }
 
     record->moduleName = c->module->name;
@@ -188,19 +197,20 @@ static void growList(JStarVM* vm, ObjList* lst) {
 
 void listAppend(JStarVM* vm, ObjList* lst, Value val) {
     // if the list get resized a GC may kick in, so push val as root
-    push(vm, val);
     if(lst->count + 1 > lst->size) {
+        push(vm, val);
         growList(vm, lst);
+        pop(vm);
     }
     lst->arr[lst->count++] = val;
-    pop(vm);
 }
 
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
     // if the list get resized a GC may kick in, so push val as root
-    push(vm, val);
     if(lst->count + 1 > lst->size) {
+        push(vm, val);
         growList(vm, lst);
+        pop(vm);
     }
 
     Value* arr = lst->arr;
@@ -209,7 +219,6 @@ void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
     }
     arr[index] = val;
     lst->count++;
-    pop(vm);
 }
 
 void listRemove(JStarVM* vm, ObjList* lst, size_t index) {

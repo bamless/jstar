@@ -27,7 +27,7 @@ typedef struct Handler {
 typedef struct Frame {
     uint8_t* ip;                    // Instruction pointer
     Value* stack;                   // Base of stack for current frame
-    Value fn;                       // The function associated with the frame (native or closure)
+    Obj* fn;                        // Function associated with the frame (ObjClosure or ObjNative)
     Handler handlers[HANDLER_MAX];  // Exception handlers
     uint8_t handlerc;               // Exception handlers count
 } Frame;
