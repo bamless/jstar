@@ -14,7 +14,7 @@
 
 static JStarVM* vm;
 
-static void initVM() {
+static void initVM(void) {
     JStarConf conf;
     jsrInitConf(&conf);
     vm = jsrNewVM(&conf);
@@ -27,7 +27,7 @@ static void exitFree(int code) {
 
 // ---- REPL implementation ----
 
-static void printVersion() {
+static void printVersion(void) {
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }

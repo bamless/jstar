@@ -117,13 +117,13 @@ static Frame* getFrame(JStarVM* vm, Callable* c) {
 
 static void appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = getFrame(vm, &closure->fn->c);
-    callFrame->fn = OBJ_VAL(closure);
+    callFrame->fn = (Obj*)closure;
     callFrame->ip = closure->fn->chunk.code;
 }
 
 static void appendNativeFrame(JStarVM* vm, ObjNative* native) {
     Frame* callFrame = getFrame(vm, &native->c);
-    callFrame->fn = OBJ_VAL(native);
+    callFrame->fn = (Obj*)native;
     callFrame->ip = NULL;
 }
 
@@ -662,7 +662,7 @@ bool runEval(JStarVM* vm, int depth) {
 #define LOAD_FRAME()                         \
     frame = &vm->frames[vm->frameCount - 1]; \
     frameStack = frame->stack;               \
-    closure = AS_CLOSURE(frame->fn);         \
+    closure = (ObjClosure*)frame->fn;        \
     fn = closure->fn;                        \
     ip = frame->ip;
 
@@ -1170,7 +1170,7 @@ op_return:
             if(isLocal) {
                 c->upvalues[i] = captureUpvalue(vm, frame->stack + index);
             } else {
-                c->upvalues[i] = AS_CLOSURE(frame->fn)->upvalues[index];
+                c->upvalues[i] = ((ObjClosure*)frame->fn)->upvalues[index];
             }
         }
         DISPATCH();
@@ -1376,10 +1376,17 @@ bool unwindStack(JStarVM* vm, int depth) {
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame* frame = &vm->frames[vm->frameCount - 1];
 
-        if(IS_CLOSURE(frame->fn))
-            vm->module = AS_CLOSURE(frame->fn)->fn->c.module;
-        else
-            vm->module = AS_NATIVE(frame->fn)->c.module;
+        switch(frame->fn->type) {
+        case OBJ_CLOSURE:
+            vm->module = ((ObjClosure*)frame->fn)->fn->c.module;
+            break;
+        case OBJ_NATIVE:
+            vm->module = ((ObjNative*)frame->fn)->c.module;
+            break;
+        default:
+            UNREACHABLE();
+            break;
+        }
 
         stRecordFrame(vm, stackTrace, frame, vm->frameCount);
 
