@@ -14,7 +14,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_COMPUTED_GOTOS=OFF -DCMAKE_INSTALL_PREFIX=release/jstar
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DJSTAR_COMPUTED_GOTOS=OFF -DCMAKE_INSTALL_PREFIX=release/jstar
     - name: Setup MSBuild.exe
       uses: warrenbuckley/Setup-MSBuild@v1
     - name: build
