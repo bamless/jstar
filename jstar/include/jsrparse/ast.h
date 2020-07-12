@@ -131,7 +131,7 @@ struct Expr {
     } as;
 };
 
-JSTAR_API Expr* newAnonymousFunc(int line, bool vararg, LinkedList* args, LinkedList* defArgs,
+JSTAR_API Expr* newAnonymousFunc(int line, LinkedList* args, LinkedList* defArgs, bool vararg,
                                  Stmt* body);
 JSTAR_API Expr* newAccessExpr(int line, Expr* left, const char* name, size_t length);
 JSTAR_API Expr* newCompoundAssing(int line, Operator op, Expr* lval, Expr* rval);
@@ -252,10 +252,10 @@ struct Stmt {
     } as;
 };
 
-JSTAR_API Stmt* newFuncDecl(int line, bool vararg, Token* name, LinkedList* args,
-                            LinkedList* defArgs, Stmt* body);
-JSTAR_API Stmt* newNativeDecl(int line, bool vararg, Token* name, LinkedList* args,
-                              LinkedList* defArgs);
+JSTAR_API Stmt* newFuncDecl(int line, Token* name, LinkedList* args, LinkedList* defArgs,
+                            bool vararg, Stmt* body);
+JSTAR_API Stmt* newNativeDecl(int line, Token* name, LinkedList* args, LinkedList* defArgs,
+                              bool vararg);
 JSTAR_API Stmt* newImportStmt(int line, LinkedList* modules, LinkedList* impNames, Token* as);
 JSTAR_API Stmt* newClassDecl(int line, Token* clsName, Expr* sup, LinkedList* methods);
 JSTAR_API Stmt* newWithStmt(int line, Expr* e, Token* varName, Stmt* block);
