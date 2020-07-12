@@ -20,15 +20,15 @@ jobs:
     - name: build
       run: |
         cd build
-        msbuild -m jstar.sln
+        msbuild -t:Build -p:Configuration=Release -m jstar.sln
     - name: package binaries
       run: |
         cd build
         mkdir -p release/jstar
-        msbuild INSTALL.vcxproj
+        msbuild -p:Configuration=Release INSTALL.vcxproj
     - name: upload binaries
       uses: actions/upload-artifact@v2
       with:
         name: jstar-x64-windows
         path: build/release/jstar
-
+        
