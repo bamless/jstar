@@ -559,7 +559,7 @@ static Stmt* funcDecl(Parser* p) {
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newFuncDecl(line, args.isVararg, &funcName, args.arguments, args.defaults, body);
+    return newFuncDecl(line, &funcName, args.arguments, args.defaults, args.isVararg, body);
 }
 
 static Stmt* nativeDecl(Parser* p) {
@@ -570,7 +570,7 @@ static Stmt* nativeDecl(Parser* p) {
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return newNativeDecl(line, args.isVararg, &funcName, args.arguments, args.defaults);
+    return newNativeDecl(line, &funcName, args.arguments, args.defaults, args.isVararg);
 }
 
 static Stmt* classDecl(Parser* p) {
@@ -677,7 +677,7 @@ static Stmt* parseProgram(Parser* p) {
     }
 
     Token name = {0};
-    return newFuncDecl(0, false, &name, NULL, NULL, newBlockStmt(0, stmts));
+    return newFuncDecl(0, &name, NULL, NULL, false, newBlockStmt(0, stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -882,7 +882,7 @@ static Expr* anonymousFunc(Parser* p) {
         Stmt* body = blockStmt(p);
 
         require(p, TOK_END);
-        return newAnonymousFunc(line, args.isVararg, args.arguments, args.defaults, body);
+        return newAnonymousFunc(line, args.arguments, args.defaults, args.isVararg, body);
     }
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
@@ -894,7 +894,7 @@ static Expr* anonymousFunc(Parser* p) {
         Expr* e = expression(p, false);
         Stmt* body = newBlockStmt(line, addElement(NULL, newReturnStmt(line, e)));
 
-        return newAnonymousFunc(line, args.isVararg, args.arguments, args.defaults, body);
+        return newAnonymousFunc(line, args.arguments, args.defaults, args.isVararg, body);
     }
     return postfixExpr(p);
 }
