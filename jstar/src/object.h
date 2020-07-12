@@ -25,7 +25,7 @@ struct Frame;
  * should be tested before casting.
  **/
 
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
 DECLARE_ENUM_STRINGS(ObjType);
 #endif
 

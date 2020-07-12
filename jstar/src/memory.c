@@ -17,7 +17,7 @@
 void* GCallocate(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
     if(size > oldsize && !vm->disableGC) {
-#ifdef DBG_STRESS_GC
+#ifdef JSTAR_DBG_STRESS_GC
         garbageCollect(vm);
 #endif
         if(vm->allocated > vm->nextGC) {
@@ -137,7 +137,7 @@ void freeObjects(JStarVM* vm) {
             Obj* u = *head;
             *head = u->next;
 
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
             printf("GC_FREE: unreached object %p type: %s\n", (void*)u, ObjTypeName[u->type]);
 #endif
 
@@ -168,7 +168,7 @@ static void addReachedObject(JStarVM* vm, Obj* o) {
 void reachObject(JStarVM* vm, Obj* o) {
     if(o == NULL || o->reached) return;
 
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
     printf("REACHED: Object %p type: %s repr: ", (void*)o, ObjTypeName[o->type]);
     printObj(o);
     printf("\n");
@@ -189,7 +189,7 @@ static void reachValueArray(JStarVM* vm, ValueArray* a) {
 }
 
 static void recursevelyReach(JStarVM* vm, Obj* o) {
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
     printf("Recursevely exploring object %p...\n", (void*)o);
 #endif
 
@@ -291,7 +291,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
 }
 
 void garbageCollect(JStarVM* vm) {
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
     size_t prevAlloc = vm->allocated;
     puts("*--- Starting GC ---*");
 #endif
@@ -385,7 +385,7 @@ void garbageCollect(JStarVM* vm) {
 
     vm->nextGC = vm->allocated * vm->heapGrowRate;
 
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
     size_t curr = prevAlloc - vm->allocated;
     printf(
         "Completed GC, prev allocated: %lu, curr allocated "
