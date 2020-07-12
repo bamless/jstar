@@ -113,15 +113,15 @@ cd jstar; mkdir build; cd build; cmake ..; make -j
 
 Various CMake options are available to switch on or off certain functionalities:
 
-|    Option name     | Default | Description |
-| :----------------: | :-----: | :---------- |
-| NAN_TAGGING        |   ON    | Use the NaN tagging technique for storing the VM internal type. Decrases the memory footprint of the interpreter and increases speed |
-| USE_COMPUTED_GOTOS |   ON    | Use computed gotos to implement the VM eval loop. Branch predictor friendly, increases performance. Not all compilers support computed gotos (MSVC for example), so if you're using one of them disable this option |
-| JSTAR_INSTALL      |   ON    | Generate install targets for the chosen build system. Turn this off if including J* from another CMake project |
-|      JSTAR_IO      |   ON    | Include the 'io' module in the language |
-|     JSTAR_MATH     |   ON    | Include the 'math' module in the language |
-|     JSTAR_DEBUG    |   ON    | Include the 'debug' module in the language |
-|      JSTAR_RE      |   ON    | Include the 're' module in the language |
-| DBG_PRINT_EXEC     |   OFF   | Trace the execution of instructions of the virtual machine |
-| DBG_STRESS_GC      |   OFF   | Stress the garbage collector by calling it on every allocation |
-| DBG_PRINT_GC       |   OFF   | Trace the execution of the garbage collector |
+|    Option name       | Default | Description |
+| :------------------: | :-----: | :---------- |
+| JSTAR_NAN_TAGGING    |   ON    | Use the NaN tagging technique for storing the VM internal type. Decrases the memory footprint of the interpreter and increases speed |
+| JSTAR_COMPUTED_GOTOS |   ON    | Use computed gotos to implement the VM eval loop. Branch predictor friendly, increases performance. Not all compilers support computed gotos (MSVC for example), so if you're using one of them disable this option |
+|   JSTAR_INSTALL      |   ON    | Generate install targets for the chosen build system. Turn this off if including J* from another CMake project |
+|       JSTAR_IO       |   ON    | Include the 'io' module in the language |
+|      JSTAR_MATH      |   ON    | Include the 'math' module in the language |
+|      JSTAR_DEBUG     |   ON    | Include the 'debug' module in the language |
+|       JSTAR_RE       |   ON    | Include the 're' module in the language |
+| JSTAR_DBG_PRINT_EXEC |   OFF   | Trace the execution of instructions of the virtual machine |
+| JSTAR_DBG_STRESS_GC  |   OFF   | Stress the garbage collector by calling it on every allocation |
+| JSTAR_DBG_PRINT_GC   |   OFF   | Trace the execution of the garbage collector |
