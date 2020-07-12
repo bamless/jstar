@@ -27,7 +27,7 @@ typedef struct ObjString ObjString;
  *    than a word of memory to store a single value (tipically 2 words due to padding)
  */
 
-#ifdef NAN_TAGGING
+#ifdef JSTAR_NAN_TAGGING
 
 /**
  * NaN Tagging technique. Instead of using a Tagged union (see below) for

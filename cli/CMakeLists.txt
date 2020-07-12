@@ -1,5 +1,5 @@
 include_directories(
-	"${PROJECT_SOURCE_DIR}/jstar/include"
+    "${PROJECT_SOURCE_DIR}/jstar/include"
     "thirdparty/linenoise/include"
     "thirdparty/argparse"
 )
@@ -19,8 +19,8 @@ add_executable(jstar src/cli.c)
 target_link_libraries(jstar libjstar linenoise argparse)
 
 # Enable link-time optimization if supported
-if(LTOAvailable)
-	set_property(TARGET jstar PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+if(LTO)
+    set_property(TARGET jstar PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 # add icon to exe on windows

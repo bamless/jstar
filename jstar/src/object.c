@@ -388,7 +388,7 @@ void jsrBufferFree(JStarBuffer* b) {
 
 // Debug logging functions
 
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
 DEFINE_ENUM_STRINGS(ObjType, OBJTYPE);
 #endif
 

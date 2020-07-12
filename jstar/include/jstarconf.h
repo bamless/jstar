@@ -2,9 +2,9 @@
 #define JSTARCONF_H
 
 // Version
-#define JSTAR_VERSION_MAJOR  1
-#define JSTAR_VERSION_MINOR  2
-#define JSTAR_VERSION_PATCH  0
+#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR @
+#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR @
+#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH @
 #define JSTAR_VERSION_STRING "1.2.0"
 
 // Increasing version number, used for range checking
@@ -16,11 +16,11 @@
 #define JSTAR_PLATFORM "Linux"
 
 // Options
-#define USE_COMPUTED_GOTOS
-#define NAN_TAGGING
-/* #undef DBG_PRINT_EXEC */
-/* #undef DBG_PRINT_GC */
-/* #undef DBG_STRESS_GC */
+#define JSTAR_COMPUTED_GOTOS
+#define JSTAR_NAN_TAGGING
+/* #undef JSTAR_DBG_PRINT_EXEC */
+/* #undef JSTAR_DBG_PRINT_GC */
+/* #undef JSTAR_DBG_STRESS_GC */
 
 #define JSTAR_IO
 #define JSTAR_MATH

@@ -150,7 +150,7 @@ static inline bool isValTrue(Value val) {
 }
 
 static inline ObjClass* getClass(JStarVM* vm, Value v) {
-#ifdef NAN_TAGGING
+#ifdef JSTAR_NAN_TAGGING
     if(IS_NUM(v)) return vm->numClass;
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
 

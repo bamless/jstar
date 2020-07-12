@@ -96,7 +96,7 @@ void jsrFreeVM(JStarVM* vm) {
     freeHashTable(&vm->modules);
     freeObjects(vm);
 
-#ifdef DBG_PRINT_GC
+#ifdef JSTAR_DBG_PRINT_GC
     printf("Allocated at exit: %lu bytes.\n", vm->allocated);
 #endif
 
@@ -720,7 +720,7 @@ bool runEval(JStarVM* vm, int depth) {
         DISPATCH();                   \
     } while(0)
 
-#ifdef DBG_PRINT_EXEC
+#ifdef JSTAR_DBG_PRINT_EXEC
     #define PRINT_DBG_STACK()                        \
         printf("     ");                             \
         for(Value* v = vm->stack; v < vm->sp; v++) { \
@@ -734,7 +734,7 @@ bool runEval(JStarVM* vm, int depth) {
     #define PRINT_DBG_STACK()
 #endif
 
-#ifdef USE_COMPUTED_GOTOS
+#ifdef JSTAR_COMPUTED_GOTOS
     // create jumptable
     #define JMPTARGET(X) &&TARGET_##X,
     static void* opJmpTable[] = {OPCODE(JMPTARGET)};
