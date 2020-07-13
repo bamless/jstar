@@ -35,7 +35,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Check for link time optimization support
-if(NOT (${CMAKE_BUILD_TYPE} STREQUAL "Debug"))
+if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     include(CheckIPOSupported)
     check_ipo_supported(RESULT LTO)
     if(LTO)
