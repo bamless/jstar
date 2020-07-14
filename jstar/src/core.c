@@ -371,10 +371,8 @@ JSR_NATIVE(jsr_Number_hash) {
 
 // class Boolean
 JSR_NATIVE(jsr_Boolean_new) {
-    if((jsrIsBoolean(vm, 1) && !jsrGetBoolean(vm, 1)) || jsrIsNull(vm, 1))
-        jsrPushBoolean(vm, false);
-    else
-        jsrPushBoolean(vm, true);
+    Value v = vm->apiStack[1];
+    jsrPushBoolean(vm, isValTrue(v));
     return true;
 }
 
