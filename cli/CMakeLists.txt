@@ -20,7 +20,7 @@ target_link_libraries(jstar libjstar linenoise argparse)
 
 # Enable link-time optimization if supported
 if(LTO)
-    set_property(TARGET jstar PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 # add icon to exe on windows
