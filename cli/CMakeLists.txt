@@ -25,5 +25,5 @@ endif()
 
 # add icon to exe on windows
 if(WIN32)
-    target_sources(jstar PRIVATE "${CMAKE_SOURCE_DIR}/util/icon.rc")
+    target_sources(jstar PRIVATE "${PROJECT_SOURCE_DIR}/util/icon.rc")
 endif()

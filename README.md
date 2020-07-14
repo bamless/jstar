@@ -99,7 +99,7 @@ automatically take care of this).
 You can clone the latest **J\*** sources using git:
 
 ```
-git clone --recurse-submodules https://github.com/bamless/jstar.git
+git clone https://github.com/bamless/jstar.git
 ```
 
 After cloning, use cmake to generate build files for your build system of choice and build the
