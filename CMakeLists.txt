@@ -24,8 +24,8 @@ option(JSTAR_RE    "Include the 're' module in the language" ON)
 
 # setup option.h
 configure_file (
-    "${CMAKE_SOURCE_DIR}/jstar/include/jstarconf.h.in"
-    "${CMAKE_SOURCE_DIR}/jstar/include/jstarconf.h"
+    "${PROJECT_SOURCE_DIR}/jstar/include/jstarconf.h.in"
+    "${PROJECT_SOURCE_DIR}/jstar/include/jstarconf.h"
 )
 
 # set default build type if not specified
@@ -39,7 +39,7 @@ if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     include(CheckIPOSupported)
     check_ipo_supported(RESULT LTO)
     if(LTO)
-        message(STATUS "Link-time optimization enabled")
+        message(STATUS "J* link-time optimization enabled")
     endif()
 endif()
 
