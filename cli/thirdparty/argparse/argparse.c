@@ -248,7 +248,7 @@ int argparse_parse(struct argparse *self, int argc, const char **argv) {
     }
 
 end:
-    memmove(self->out + self->cpidx, self->argv, self->argc * sizeof(*self->out));
+    memmove((char **)self->out + self->cpidx, self->argv, self->argc * sizeof(*self->out));
     self->out[self->cpidx + self->argc] = NULL;
 
     return self->cpidx + self->argc;

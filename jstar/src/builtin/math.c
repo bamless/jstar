@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include "math.h"
 
 #include <math.h>
@@ -33,6 +35,13 @@ static double deg(double x) {
 static double rad(double x) {
     return x * JSR_PI / 180.;
 }
+
+#ifdef max
+    #undef max
+#endif
+#ifdef min
+    #undef min
+#endif
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
