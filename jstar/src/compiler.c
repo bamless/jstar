@@ -316,11 +316,17 @@ static ObjString* readString(Compiler* c, Expr* e) {
     const char* str = e->as.string.str;
 
     for(size_t i = 0; i < e->as.string.length; i++) {
-        char c = str[i];
-        if(c == '\\') {
+        char character = str[i];
+        if(character == '\\') {
             switch(str[i + 1]) {
             case '0':
                 jsrBufferAppendChar(&sb, '\0');
+                break;
+            case '\'':
+                jsrBufferAppendChar(&sb, '\'');
+                break;
+            case '"':
+                jsrBufferAppendChar(&sb, '"');
                 break;
             case 'a':
                 jsrBufferAppendChar(&sb, '\a');
@@ -343,16 +349,13 @@ static ObjString* readString(Compiler* c, Expr* e) {
             case 'v':
                 jsrBufferAppendChar(&sb, '\v');
                 break;
-            case 'e':
-                jsrBufferAppendChar(&sb, '\e');
-                break;
             default:
-                jsrBufferAppendChar(&sb, str[i + 1]);
+                error(c, e->line, "Invalid escape character '%c'", str[i + 1]);
                 break;
             }
             i++;
         } else {
-            jsrBufferAppendChar(&sb, c);
+            jsrBufferAppendChar(&sb, character);
         }
     }
 

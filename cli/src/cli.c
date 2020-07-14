@@ -176,7 +176,7 @@ typedef struct CLIOpts {
     bool showVersion;
     bool interactive;
     bool ignoreEnv;
-    const char* execStmt;
+    char* execStmt;
     const char** args;
     int argsCount;
 } CLIOpts;
