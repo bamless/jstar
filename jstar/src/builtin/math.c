@@ -1,5 +1,3 @@
-#define NOMINMAX
-
 #include "math.h"
 
 #include <math.h>
