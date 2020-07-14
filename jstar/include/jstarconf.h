@@ -2,9 +2,9 @@
 #define JSTARCONF_H
 
 // Version
-#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR @
-#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR @
-#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH @
+#define JSTAR_VERSION_MAJOR  1
+#define JSTAR_VERSION_MINOR  2
+#define JSTAR_VERSION_PATCH  0
 #define JSTAR_VERSION_STRING "1.2.0"
 
 // Increasing version number, used for range checking
@@ -12,7 +12,7 @@
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
 
 // compiler and platform on which this J* binary was compiled
-#define JSTAR_COMPILER "Clang 10.0.0"
+#define JSTAR_COMPILER "GNU 10.1.0"
 #define JSTAR_PLATFORM "Linux"
 
 // Options
