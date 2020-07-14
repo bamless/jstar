@@ -47,6 +47,7 @@ set_target_properties(libjstar_static PROPERTIES
 #shared library
 add_library(libjstar  SHARED ${SOURCES} ${JSTAR_HEADERS})
 target_link_libraries(libjstar ${EXTRA_LIBS})
+set_target_properties(jstar PROPERTIES PDB_NAME "libjstar")
 set_target_properties(libjstar PROPERTIES 
     OUTPUT_NAME "jstar"
     VERSION     ${LIBJSTAR_VERSION_STRING}
@@ -55,6 +56,6 @@ set_target_properties(libjstar PROPERTIES
 
 # Enable link-time optimization if supported
 if(LTO)
-    set_property(TARGET libjstar PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    set_property(TARGET libjstar_static PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(libjstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(libjstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
