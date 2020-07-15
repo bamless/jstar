@@ -74,9 +74,6 @@ struct Compiler {
     TryExcept* tryBlocks;
 };
 
-static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s);
-static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s);
-
 static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compiler* prev, FuncType t,
                          Stmt* ast, int depth) {
     c->vm = vm;
@@ -99,6 +96,10 @@ static void endCompiler(Compiler* c) {
     if(c->prev != NULL) c->prev->hadError |= c->hadError;
     c->vm->currCompiler = c->prev;
 }
+
+// -----------------------------------------------------------------------------
+// UTILITY FUNCTIONS
+// -----------------------------------------------------------------------------
 
 static void error(Compiler* c, int line, const char* format, ...) {
     char errorMessage[MAX_ERR];
@@ -149,6 +150,14 @@ static void discardScope(Compiler* c, int depth) {
     while(localsCount > 0 && c->locals[localsCount - 1].depth > depth) {
         discardLocal(c, &c->locals[--localsCount]);
     }
+}
+
+static void enterFunctionScope(Compiler* c) {
+    c->depth++;
+}
+
+static void exitFunctionScope(Compiler* c) {
+    c->depth--;
 }
 
 static uint16_t createConst(Compiler* c, Value constant, int line) {
@@ -310,6 +319,20 @@ static void callMethod(Compiler* c, const char* name, int args) {
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
+static void enterTryBlock(Compiler* c, TryExcept* tryExc, Stmt* try) {
+    tryExc->depth = c->depth;
+    tryExc->next = c->tryBlocks;
+    c->tryBlocks = tryExc;
+    if(try->as.tryStmt.ensure != NULL) c->tryDepth++;
+    if(try->as.tryStmt.excs != NULL) c->tryDepth++;
+}
+
+static void exitTryBlock(Compiler* c, Stmt* try) {
+    c->tryBlocks = c->tryBlocks->next;
+    if(try->as.tryStmt.ensure != NULL) c->tryDepth--;
+    if(try->as.tryStmt.excs != NULL) c->tryDepth--;
+}
+
 static ObjString* readString(Compiler* c, Expr* e) {
     JStarBuffer sb;
     jsrBufferInit(c->vm, &sb);
@@ -385,6 +408,10 @@ static void addDefaultConsts(Compiler* c, Value* defaults, LinkedList* defArgs) 
         }
     }
 }
+
+// -----------------------------------------------------------------------------
+// EXPRESSION COMPILE
+// -----------------------------------------------------------------------------
 
 static void compileExpr(Compiler* c, Expr* e);
 
@@ -686,8 +713,12 @@ static void compileSuper(Compiler* c, Expr* e) {
     emitBytecode(c, OP_GET_LOCAL, e->line);
     emitBytecode(c, 0, e->line);
 
-    uint16_t nameConst = e->as.sup.name.name ? identifierConst(c, &e->as.sup.name, e->line)
-                                             : identifierConst(c, &c->ast->as.funcDecl.id, e->line);
+    uint16_t nameConst;
+    if(e->as.sup.name.name) {
+        nameConst = identifierConst(c, &e->as.sup.name, e->line);
+    } else {
+        nameConst = identifierConst(c, &c->ast->as.funcDecl.id, e->line);
+    }
 
     if(e->as.sup.args != NULL) {
         int argc = 0;
@@ -843,6 +874,16 @@ static void compileExpr(Compiler* c, Expr* e) {
     }
 }
 
+// -----------------------------------------------------------------------------
+// STATEMENT COMPILE
+// -----------------------------------------------------------------------------
+
+static void compileStatement(Compiler* c, Stmt* s);
+
+static void compileStatements(Compiler* c, LinkedList* stmts) {
+    foreach(n, stmts) { compileStatement(c, (Stmt*)n->elem); }
+}
+
 static void compileVarDecl(Compiler* c, Stmt* s) {
     int numDecls = 0;
     Identifier* decls[MAX_LOCALS];
@@ -884,10 +925,7 @@ static void compileVarDecl(Compiler* c, Stmt* s) {
     }
 }
 
-static void compileStatement(Compiler* c, Stmt* s);
-static void compileStatements(Compiler* c, LinkedList* stmts);
-
-static void compileReturn(Compiler* c, Stmt* s) {
+static void compileReturnStatement(Compiler* c, Stmt* s) {
     if(c->prev == NULL) {
         error(c, s->line, "Cannot use return in global scope.");
     }
@@ -1061,125 +1099,6 @@ static void compileWhileStatement(Compiler* c, Stmt* s) {
     endLoop(c);
 }
 
-static void compileFunction(Compiler* c, Stmt* s) {
-    Compiler compiler;
-    initCompiler(&compiler, c->vm, c->filename, c, TYPE_FUNC, s, c->depth + 1);
-
-    ObjFunction* func = function(&compiler, c->func->c.module, s);
-
-    emitBytecode(c, OP_CLOSURE, s->line);
-    emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
-
-    for(uint8_t i = 0; i < func->upvaluec; i++) {
-        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, s->line);
-        emitBytecode(c, compiler.upvalues[i].index, s->line);
-    }
-
-    endCompiler(&compiler);
-}
-
-static void compileNative(Compiler* c, Stmt* s) {
-    size_t defaults = listLength(s->as.nativeDecl.defArgs);
-    size_t arity = listLength(s->as.nativeDecl.formalArgs);
-    bool vararg = s->as.nativeDecl.isVararg;
-
-    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
-
-    push(c->vm, OBJ_VAL(native));
-    addDefaultConsts(c, native->c.defaults, s->as.nativeDecl.defArgs);
-    pop(c->vm);
-
-    uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
-    uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
-    native->c.name = AS_STRING(c->func->chunk.consts.arr[nameConst]);
-
-    emitBytecode(c, OP_GET_CONST, s->line);
-    emitShort(c, nativeConst, s->line);
-
-    emitBytecode(c, OP_NATIVE, s->line);
-    emitShort(c, nameConst, s->line);
-}
-
-static void compileMethod(Compiler* c, Stmt* cls, Stmt* m) {
-    Compiler compiler;
-    initCompiler(&compiler, c->vm, c->filename, c, TYPE_METHOD, m, c->depth + 1);
-
-    ObjFunction* meth = method(&compiler, c->func->c.module, &cls->as.classDecl.id, m);
-    emitBytecode(c, OP_CLOSURE, m->line);
-    emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
-
-    for(uint8_t i = 0; i < meth->upvaluec; i++) {
-        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, m->line);
-        emitBytecode(c, compiler.upvalues[i].index, m->line);
-    }
-
-    emitBytecode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
-    endCompiler(&compiler);
-}
-
-static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
-    size_t defaults = listLength(m->as.nativeDecl.defArgs);
-    size_t arity = listLength(m->as.nativeDecl.formalArgs);
-    bool vararg = m->as.nativeDecl.isVararg;
-
-    ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
-    push(c->vm, OBJ_VAL(n));
-    addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
-    pop(c->vm);
-
-    uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
-    uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
-
-    Identifier* classId = &cls->as.classDecl.id;
-    size_t len = classId->length + m->as.nativeDecl.id.length + 1;
-    ObjString* name = allocateString(c->vm, len);
-
-    memcpy(name->data, classId->name, classId->length);
-    name->data[classId->length] = '.';
-    memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name, m->as.nativeDecl.id.length);
-    n->c.name = name;
-
-    emitBytecode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, id, cls->line);
-    emitShort(c, native, cls->line);
-}
-
-static void compileMethods(Compiler* c, Stmt* cls) {
-    LinkedList* methods = cls->as.classDecl.methods;
-    foreach(n, methods) {
-        Stmt* method = (Stmt*)n->elem;
-        switch(method->type) {
-        case FUNCDECL:
-            compileMethod(c, cls, method);
-            break;
-        case NATIVEDECL:
-            compileNativeMethod(c, cls, method);
-            break;
-        default:
-            UNREACHABLE();
-            break;
-        }
-    }
-}
-
-static void compileClass(Compiler* c, Stmt* s) {
-    declareVar(c, &s->as.classDecl.id, s->line);
-
-    bool isSubClass = s->as.classDecl.sup != NULL;
-    if(isSubClass) {
-        compileExpr(c, s->as.classDecl.sup);
-        emitBytecode(c, OP_NEW_SUBCLASS, s->line);
-    } else {
-        emitBytecode(c, OP_NEW_CLASS, s->line);
-    }
-
-    emitShort(c, identifierConst(c, &s->as.classDecl.id, s->line), s->line);
-    compileMethods(c, s);
-
-    defineVar(c, &s->as.classDecl.id, s->line);
-}
-
 static void compileImportStatement(Compiler* c, Stmt* s) {
     const char* base = ((Identifier*)s->as.importStmt.modules->elem)->name;
 
@@ -1259,20 +1178,6 @@ static void compileExcepts(Compiler* c, LinkedList* excs) {
         compileExcepts(c, excs->next);
         setJumpTo(c, exitJmp, c->func->chunk.count, exc->line);
     }
-}
-
-static void enterTryBlock(Compiler* c, TryExcept* tryExc, Stmt* try) {
-    tryExc->depth = c->depth;
-    tryExc->next = c->tryBlocks;
-    c->tryBlocks = tryExc;
-    if(try->as.tryStmt.ensure != NULL) c->tryDepth++;
-    if(try->as.tryStmt.excs != NULL) c->tryDepth++;
-}
-
-static void exitTryBlock(Compiler* c, Stmt* try) {
-    c->tryBlocks = c->tryBlocks->next;
-    if(try->as.tryStmt.ensure != NULL) c->tryDepth--;
-    if(try->as.tryStmt.excs != NULL) c->tryDepth--;
 }
 
 static void compileTryExcept(Compiler* c, Stmt* s) {
@@ -1450,83 +1355,6 @@ static void compileLoopExitStmt(Compiler* c, Stmt* s) {
     emitShort(c, 0, 0);
 }
 
-static void compileStatement(Compiler* c, Stmt* s) {
-    switch(s->type) {
-    case IF:
-        compileIfStatement(c, s);
-        break;
-    case FOR:
-        compileForStatement(c, s);
-        break;
-    case FOREACH:
-        compileForEach(c, s);
-        break;
-    case WHILE:
-        compileWhileStatement(c, s);
-        break;
-    case BLOCK:
-        enterScope(c);
-        compileStatements(c, s->as.blockStmt.stmts);
-        exitScope(c);
-        break;
-    case RETURN_STMT:
-        compileReturn(c, s);
-        break;
-    case EXPR:
-        compileExpr(c, s->as.exprStmt);
-        emitBytecode(c, OP_POP, 0);
-        break;
-    case VARDECL:
-        compileVarDecl(c, s);
-        break;
-    case FUNCDECL:
-        declareVar(c, &s->as.funcDecl.id, s->line);
-        compileFunction(c, s);
-        defineVar(c, &s->as.funcDecl.id, s->line);
-        break;
-    case NATIVEDECL:
-        declareVar(c, &s->as.funcDecl.id, s->line);
-        compileNative(c, s);
-        defineVar(c, &s->as.funcDecl.id, s->line);
-        break;
-    case CLASSDECL:
-        compileClass(c, s);
-        break;
-    case IMPORT:
-        compileImportStatement(c, s);
-        break;
-    case TRY_STMT:
-        compileTryExcept(c, s);
-        break;
-    case RAISE_STMT:
-        compileRaiseStmt(c, s);
-        break;
-    case WITH_STMT:
-        compileWithStatement(c, s);
-        break;
-    case CONTINUE_STMT:
-    case BREAK_STMT:
-        compileLoopExitStmt(c, s);
-        break;
-    case EXCEPT_STMT:
-    default:
-        UNREACHABLE();
-        break;
-    }
-}
-
-static void compileStatements(Compiler* c, LinkedList* stmts) {
-    foreach(n, stmts) { compileStatement(c, (Stmt*)n->elem); }
-}
-
-static void enterFunctionScope(Compiler* c) {
-    c->depth++;
-}
-
-static void exitFunctionScope(Compiler* c) {
-    c->depth--;
-}
-
 static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     size_t defaults = listLength(s->as.funcDecl.defArgs);
     size_t arity = listLength(s->as.funcDecl.formalArgs);
@@ -1628,6 +1456,194 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
 
     return c->func;
 }
+
+static void compileFunction(Compiler* c, Stmt* s) {
+    Compiler compiler;
+    initCompiler(&compiler, c->vm, c->filename, c, TYPE_FUNC, s, c->depth + 1);
+
+    ObjFunction* func = function(&compiler, c->func->c.module, s);
+
+    emitBytecode(c, OP_CLOSURE, s->line);
+    emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
+
+    for(uint8_t i = 0; i < func->upvaluec; i++) {
+        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, s->line);
+        emitBytecode(c, compiler.upvalues[i].index, s->line);
+    }
+
+    endCompiler(&compiler);
+}
+
+static void compileNative(Compiler* c, Stmt* s) {
+    size_t defaults = listLength(s->as.nativeDecl.defArgs);
+    size_t arity = listLength(s->as.nativeDecl.formalArgs);
+    bool vararg = s->as.nativeDecl.isVararg;
+
+    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
+
+    push(c->vm, OBJ_VAL(native));
+    addDefaultConsts(c, native->c.defaults, s->as.nativeDecl.defArgs);
+    pop(c->vm);
+
+    uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
+    uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
+    native->c.name = AS_STRING(c->func->chunk.consts.arr[nameConst]);
+
+    emitBytecode(c, OP_GET_CONST, s->line);
+    emitShort(c, nativeConst, s->line);
+
+    emitBytecode(c, OP_NATIVE, s->line);
+    emitShort(c, nameConst, s->line);
+}
+
+static void compileMethod(Compiler* c, Stmt* cls, Stmt* m) {
+    Compiler compiler;
+    initCompiler(&compiler, c->vm, c->filename, c, TYPE_METHOD, m, c->depth + 1);
+
+    ObjFunction* meth = method(&compiler, c->func->c.module, &cls->as.classDecl.id, m);
+    emitBytecode(c, OP_CLOSURE, m->line);
+    emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
+
+    for(uint8_t i = 0; i < meth->upvaluec; i++) {
+        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, m->line);
+        emitBytecode(c, compiler.upvalues[i].index, m->line);
+    }
+
+    emitBytecode(c, OP_DEF_METHOD, cls->line);
+    emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
+    endCompiler(&compiler);
+}
+
+static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
+    size_t defaults = listLength(m->as.nativeDecl.defArgs);
+    size_t arity = listLength(m->as.nativeDecl.formalArgs);
+    bool vararg = m->as.nativeDecl.isVararg;
+
+    ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
+    push(c->vm, OBJ_VAL(n));
+    addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
+    pop(c->vm);
+
+    uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
+    uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
+
+    Identifier* classId = &cls->as.classDecl.id;
+    size_t len = classId->length + m->as.nativeDecl.id.length + 1;
+    ObjString* name = allocateString(c->vm, len);
+
+    memcpy(name->data, classId->name, classId->length);
+    name->data[classId->length] = '.';
+    memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name, m->as.nativeDecl.id.length);
+    n->c.name = name;
+
+    emitBytecode(c, OP_NAT_METHOD, cls->line);
+    emitShort(c, id, cls->line);
+    emitShort(c, native, cls->line);
+}
+
+static void compileMethods(Compiler* c, Stmt* cls) {
+    LinkedList* methods = cls->as.classDecl.methods;
+    foreach(n, methods) {
+        Stmt* method = (Stmt*)n->elem;
+        switch(method->type) {
+        case FUNCDECL:
+            compileMethod(c, cls, method);
+            break;
+        case NATIVEDECL:
+            compileNativeMethod(c, cls, method);
+            break;
+        default:
+            UNREACHABLE();
+            break;
+        }
+    }
+}
+
+static void compileClass(Compiler* c, Stmt* s) {
+    declareVar(c, &s->as.classDecl.id, s->line);
+
+    bool isSubClass = s->as.classDecl.sup != NULL;
+    if(isSubClass) {
+        compileExpr(c, s->as.classDecl.sup);
+        emitBytecode(c, OP_NEW_SUBCLASS, s->line);
+    } else {
+        emitBytecode(c, OP_NEW_CLASS, s->line);
+    }
+
+    emitShort(c, identifierConst(c, &s->as.classDecl.id, s->line), s->line);
+    compileMethods(c, s);
+
+    defineVar(c, &s->as.classDecl.id, s->line);
+}
+
+static void compileStatement(Compiler* c, Stmt* s) {
+    switch(s->type) {
+    case IF:
+        compileIfStatement(c, s);
+        break;
+    case FOR:
+        compileForStatement(c, s);
+        break;
+    case FOREACH:
+        compileForEach(c, s);
+        break;
+    case WHILE:
+        compileWhileStatement(c, s);
+        break;
+    case BLOCK:
+        enterScope(c);
+        compileStatements(c, s->as.blockStmt.stmts);
+        exitScope(c);
+        break;
+    case RETURN_STMT:
+        compileReturnStatement(c, s);
+        break;
+    case IMPORT:
+        compileImportStatement(c, s);
+        break;
+    case TRY_STMT:
+        compileTryExcept(c, s);
+        break;
+    case RAISE_STMT:
+        compileRaiseStmt(c, s);
+        break;
+    case WITH_STMT:
+        compileWithStatement(c, s);
+        break;
+    case CONTINUE_STMT:
+    case BREAK_STMT:
+        compileLoopExitStmt(c, s);
+        break;
+    case EXPR:
+        compileExpr(c, s->as.exprStmt);
+        emitBytecode(c, OP_POP, 0);
+        break;
+    case VARDECL:
+        compileVarDecl(c, s);
+        break;
+    case FUNCDECL:
+        declareVar(c, &s->as.funcDecl.id, s->line);
+        compileFunction(c, s);
+        defineVar(c, &s->as.funcDecl.id, s->line);
+        break;
+    case NATIVEDECL:
+        declareVar(c, &s->as.funcDecl.id, s->line);
+        compileNative(c, s);
+        defineVar(c, &s->as.funcDecl.id, s->line);
+        break;
+    case CLASSDECL:
+        compileClass(c, s);
+        break;
+    case EXCEPT_STMT:
+    default:
+        UNREACHABLE();
+        break;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// API
+// -----------------------------------------------------------------------------
 
 ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, Stmt* ast) {
     Compiler c;
