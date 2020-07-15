@@ -5,13 +5,9 @@ native find(str, regex, off=0)
 native gsub(str, regex, sub, num=0)
 native gmatch(str, regex)
 
-fun igmatch(str, regex)
-    return _IGMatch(str, regex)
-end
-
-class _IGMatch
-    fun new(s, r)
-        this.s, this.r = s, r
+class igmatch
+    fun new(str, regex)
+        this.s, this.r = str, regex
         this.off, this.endl = 0, null
     end
 
@@ -39,5 +35,23 @@ class _IGMatch
 
     fun __next__(match)
         return match
+    end
+end
+
+class fmt
+    fun new(variables)
+        this._variables = variables
+    end
+
+    fun _format(match, variable)
+        var variables = this._variables
+        return ##variables[variable] if variables.contains(variable) else match
+    end
+
+    fun __rmod__(format)
+        if !(format is String) then 
+            raise TypeException("Cannot format a " + type(format).getName())
+        end
+        return gsub(format, "(${(%w+)})", this._format)
     end
 end

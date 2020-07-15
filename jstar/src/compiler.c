@@ -348,6 +348,9 @@ static ObjString* readString(Compiler* c, Expr* e) {
             case '\'':
                 jsrBufferAppendChar(&sb, '\'');
                 break;
+            case '\\':
+                jsrBufferAppendChar(&sb, '\\');
+                break;
             case '"':
                 jsrBufferAppendChar(&sb, '"');
                 break;
@@ -540,16 +543,17 @@ static void compileFunction(Compiler* c, Stmt* s);
 
 static void compileAnonymousFunc(Compiler* c, Identifier* name, Expr* e) {
     Stmt* f = e->as.anonFunc.func;
-    if(name != NULL) {
-        f->as.funcDecl.id.length = name->length;
-        f->as.funcDecl.id.name = name->name;
-    } else {
+    if(name == NULL) {
         char funcName[5 + STRLEN_FOR_INT_TYPE(int) + 1];
         sprintf(funcName, ANON_PREFIX "%d", f->line);
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;
+        compileFunction(c, f);
+    } else {
+        f->as.funcDecl.id.length = name->length;
+        f->as.funcDecl.id.name = name->name;
+        compileFunction(c, f);
     }
-    compileFunction(c, f);
 }
 
 static void compileLval(Compiler* c, Expr* e) {
