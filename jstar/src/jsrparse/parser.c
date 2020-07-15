@@ -175,50 +175,10 @@ static void requireStmtEnd(Parser* p) {
 }
 
 // -----------------------------------------------------------------------------
-// PARSER IMPLEMENTATION
-// -----------------------------------------------------------------------------
-
-static Stmt* parseProgram(Parser* p);
-static Expr* expression(Parser* p, bool tuple);
-
-Stmt* parse(const char* path, const char* src, ParseErrorCB errorCallback) {
-    Parser p;
-    initParser(&p, path, src, errorCallback);
-
-    Stmt* program = parseProgram(&p);
-    skipNewLines(&p);
-
-    if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
-
-    if(p.hadError) {
-        freeStmt(program);
-        return NULL;
-    }
-
-    return program;
-}
-
-Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
-    Parser p;
-    initParser(&p, path, src, errorCallback);
-
-    Expr* expr = expression(&p, true);
-    skipNewLines(&p);
-
-    if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
-
-    if(p.hadError) {
-        freeExpr(expr);
-        return NULL;
-    }
-
-    return expr;
-}
-
-// -----------------------------------------------------------------------------
 // STATEMENTS PARSE
 // -----------------------------------------------------------------------------
 
+static Expr* expression(Parser* p, bool tuple);
 static Expr* literal(Parser* p);
 
 typedef struct {
@@ -1156,4 +1116,42 @@ static Expr* expression(Parser* p, bool parseTuple) {
     }
 
     return l;
+}
+
+// -----------------------------------------------------------------------------
+// API
+// -----------------------------------------------------------------------------
+
+Stmt* parse(const char* path, const char* src, ParseErrorCB errorCallback) {
+    Parser p;
+    initParser(&p, path, src, errorCallback);
+
+    Stmt* program = parseProgram(&p);
+    skipNewLines(&p);
+
+    if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
+
+    if(p.hadError) {
+        freeStmt(program);
+        return NULL;
+    }
+
+    return program;
+}
+
+Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
+    Parser p;
+    initParser(&p, path, src, errorCallback);
+
+    Expr* expr = expression(&p, true);
+    skipNewLines(&p);
+
+    if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
+
+    if(p.hadError) {
+        freeExpr(expr);
+        return NULL;
+    }
+
+    return expr;
 }
