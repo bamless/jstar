@@ -138,7 +138,7 @@ void freeObjects(JStarVM* vm) {
             *head = u->next;
 
 #ifdef JSTAR_DBG_PRINT_GC
-            printf("GC_FREE: unreached object %p type: %s\n", (void*)u, ObjTypeName[u->type]);
+            printf("GC_FREE: unreached object %p type: %s\n", (void*)u, ObjTypeNames[u->type]);
 #endif
 
             freeObject(vm, u);
@@ -169,7 +169,7 @@ void reachObject(JStarVM* vm, Obj* o) {
     if(o == NULL || o->reached) return;
 
 #ifdef JSTAR_DBG_PRINT_GC
-    printf("REACHED: Object %p type: %s repr: ", (void*)o, ObjTypeName[o->type]);
+    printf("REACHED: Object %p type: %s repr: ", (void*)o, ObjTypeNames[o->type]);
     printObj(o);
     printf("\n");
 #endif

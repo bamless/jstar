@@ -51,18 +51,6 @@
 #endif
 
 // -----------------------------------------------------------------------------
-// X-MACROS FOR DEFINING ENUMS WITH ASSOCIATED STRINGS
-// -----------------------------------------------------------------------------
-
-#define ENUM_ENTRY(ENTRY)                ENTRY,
-#define DEFINE_ENUM(NAME, ENUMX)         typedef enum NAME { ENUMX(ENUM_ENTRY) } NAME
-#define DECLARE_ENUM_STRINGS(NAME)       extern const char* CONCATOK(NAME, Name)[]
-#define DEFINE_ENUM_STRINGS(NAME, ENUMX) const char* CONCATOK(NAME, Name)[] = {ENUMX(STRINGIFY)}
-
-#define STRINGIFY(X)   #X,
-#define CONCATOK(X, Y) X##Y
-
-// -----------------------------------------------------------------------------
 // MACROS TO COMPUTE BASE 10 LENGHT OF INTEGERS
 // -----------------------------------------------------------------------------
 

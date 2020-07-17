@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +26,9 @@ static void exitFree(int code) {
     exit(code);
 }
 
-// ---- REPL implementation ----
+// -----------------------------------------------------------------------------
+// REPL
+// -----------------------------------------------------------------------------
 
 static void printVersion(void) {
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
@@ -139,7 +142,9 @@ static void doRepl(bool ignoreEnv) {
     linenoiseHistoryFree();
 }
 
-// ---- Script execution ----
+// -----------------------------------------------------------------------------
+// SCRIPT EXECUTION
+// -----------------------------------------------------------------------------
 
 static JStarResult execScript(const char* script, int argsCount, const char** args,
                               bool ignoreEnv) {
@@ -169,7 +174,9 @@ static JStarResult execScript(const char* script, int argsCount, const char** ar
     return res;
 }
 
-// ---- Main function and option parsing ----
+// -----------------------------------------------------------------------------
+// MAIN FUNCTION AND ARGUMENT PARSE
+// -----------------------------------------------------------------------------
 
 typedef struct CLIOpts {
     const char* script;

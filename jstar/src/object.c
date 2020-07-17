@@ -389,7 +389,11 @@ void jsrBufferFree(JStarBuffer* b) {
 // Debug logging functions
 
 #ifdef JSTAR_DBG_PRINT_GC
-DEFINE_ENUM_STRINGS(ObjType, OBJTYPE);
+const char* ObjTypeNames[] = {
+    #define ENUM_STRING(elem) #elem,
+    OBJTYPE(ENUM_STRING)
+    #undef ENUM_STRING
+};
 #endif
 
 void printObj(Obj* o) {
