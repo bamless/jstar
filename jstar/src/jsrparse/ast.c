@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "jsrparse/linkedlist.h"
-#include "jsrparse/token.h"
 
 Identifier* newIdentifier(size_t length, const char* name) {
     Identifier* id = malloc(sizeof(*id));
@@ -98,7 +97,7 @@ Expr* newTableLiteral(int line, Expr* keyVals) {
 
 Expr* newExprList(int line, LinkedList* exprs) {
     Expr* e = newExpr(line, EXPR_LST);
-    e->as.list.lst = exprs;
+    e->as.list = exprs;
     return e;
 }
 
@@ -188,7 +187,7 @@ void freeExpr(Expr* e) {
         freeExpr(e->as.table.keyVals);
         break;
     case EXPR_LST: {
-        LinkedList* head = e->as.list.lst;
+        LinkedList* head = e->as.list;
         while(head != NULL) {
             LinkedList* f = head;
             head = head->next;

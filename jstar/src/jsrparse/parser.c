@@ -10,7 +10,6 @@
 #include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
 #include "jsrparse/linkedlist.h"
-#include "jsrparse/token.h"
 
 typedef struct Parser {
     Lexer lex;
@@ -1060,7 +1059,7 @@ static Expr* tupleExpression(Parser* p, Expr* first) {
 }
 
 static void checkUnpackAssignement(Parser* p, Expr* lvals, TokenType assignToken) {
-    foreach(n, lvals->as.list.lst) {
+    foreach(n, lvals->as.list) {
         if(!isLValue(((Expr*)n->elem)->type)) {
             error(p, "Left hand side of assignment must be an lvalue.");
         }

@@ -588,7 +588,7 @@ static void compileRval(Compiler* c, Identifier* boundName, Expr* e) {
 
 static void compileConstUnpackLst(Compiler* c, Identifier** boundNames, Expr* exprs, int num) {
     int i = 0;
-    foreach(n, exprs->as.list.lst) {
+    foreach(n, exprs->as.list) {
         compileRval(c, boundNames ? boundNames[i] : NULL, (Expr*)n->elem);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
@@ -603,7 +603,7 @@ static void compileUnpackAssign(Compiler* c, Expr* e) {
     Expr* lvals[UINT8_MAX];
 
     Expr* tuple = e->as.assign.lval;
-    foreach(n, tuple->as.tuple.exprs->as.list.lst) {
+    foreach(n, tuple->as.tuple.exprs->as.list) {
         if(assignments == UINT8_MAX) {
             error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
             break;
@@ -687,7 +687,7 @@ static void compileCallExpr(Compiler* c, Expr* e) {
     }
 
     int argc = 0;
-    foreach(n, e->as.call.args->as.list.lst) {
+    foreach(n, e->as.call.args->as.list) {
         compileExpr(c, (Expr*)n->elem);
         argc++;
     }
@@ -726,7 +726,7 @@ static void compileSuper(Compiler* c, Expr* e) {
 
     if(e->as.sup.args != NULL) {
         int argc = 0;
-        foreach(n, e->as.sup.args->as.list.lst) {
+        foreach(n, e->as.sup.args->as.list) {
             compileExpr(c, (Expr*)n->elem);
             argc++;
         }
@@ -769,7 +769,7 @@ static void compileExpExpr(Compiler* c, Expr* e) {
 
 static void compileArrayLit(Compiler* c, Expr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
-    LinkedList* exprs = e->as.array.exprs->as.list.lst;
+    LinkedList* exprs = e->as.array.exprs->as.list;
     foreach(n, exprs) {
         compileExpr(c, (Expr*)n->elem);
         emitBytecode(c, OP_APPEND_LIST, e->line);
@@ -778,7 +778,7 @@ static void compileArrayLit(Compiler* c, Expr* e) {
 
 static void compileTupleLit(Compiler* c, Expr* e) {
     int numElems = 0;
-    foreach(n, e->as.tuple.exprs->as.list.lst) {
+    foreach(n, e->as.tuple.exprs->as.list) {
         compileExpr(c, (Expr*)n->elem);
         numElems++;
     }
@@ -790,7 +790,7 @@ static void compileTupleLit(Compiler* c, Expr* e) {
 static void compileTableLit(Compiler* c, Expr* e) {
     emitBytecode(c, OP_NEW_TABLE, e->line);
 
-    LinkedList* head = e->as.table.keyVals->as.list.lst;
+    LinkedList* head = e->as.table.keyVals->as.list;
     while(head) {
         Expr* key = (Expr*)head->elem;
         Expr* val = (Expr*)head->next->elem;
@@ -838,7 +838,7 @@ static void compileExpr(Compiler* c, Expr* e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST:
-        foreach(n, e->as.list.lst) { compileExpr(c, (Expr*)n->elem); }
+        foreach(n, e->as.list) { compileExpr(c, (Expr*)n->elem); }
         break;
     case NUM_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);

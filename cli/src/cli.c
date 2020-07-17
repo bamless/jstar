@@ -7,7 +7,6 @@
 #include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
 #include "jsrparse/parser.h"
-#include "jsrparse/token.h"
 #include "jstar.h"
 #include "linenoise.h"
 
