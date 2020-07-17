@@ -81,6 +81,6 @@ if(JSTAR_INSTALL)
     install(DIRECTORY
         "jstar/include/" 
         DESTINATION include
-        FILES_MATCHING PATTERN "*.h"
+        PATTERN "*.h.in" EXCLUDE
     )
 endif()

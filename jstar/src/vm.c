@@ -6,7 +6,6 @@
 #include "builtin/modules.h"
 #include "chunk.h"
 #include "core.h"
-#include "disassemble.h"
 #include "import.h"
 #include "memory.h"
 #include "opcode.h"
@@ -46,7 +45,6 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     // Create constants strings
     vm->stacktrace = copyString(vm, EXC_M_STACKTRACE, strlen(EXC_M_STACKTRACE), true);
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
-
     vm->next = copyString(vm, "__next__", 8, true);
     vm->iter = copyString(vm, "__iter__", 8, true);
 
@@ -57,6 +55,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     vm->mod = copyString(vm, "__mod__", 7, true);
     vm->get = copyString(vm, "__get__", 7, true);
     vm->set = copyString(vm, "__set__", 7, true);
+    vm->neg = copyString(vm, "__neg__", 7, true);
 
     vm->radd = copyString(vm, "__radd__", 8, true);
     vm->rsub = copyString(vm, "__rsub__", 8, true);
@@ -69,8 +68,6 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     vm->gt = copyString(vm, "__gt__", 6, true);
     vm->ge = copyString(vm, "__ge__", 6, true);
     vm->eq = copyString(vm, "__eq__", 6, true);
-
-    vm->neg = copyString(vm, "__neg__", 7, true);
 
     // Bootstrap the core module
     initCoreModule(vm);
@@ -736,8 +733,10 @@ bool runEval(JStarVM* vm, int depth) {
 
 #ifdef JSTAR_COMPUTED_GOTOS
     // create jumptable
-    #define JMPTARGET(X) &&TARGET_##X,
-    static void* opJmpTable[] = {OPCODE(JMPTARGET)};
+    static void* opJmpTable[] = {
+    #define OPCODE(opcode, _) &&TARGET_##opcode,
+    #include "opcode.def"
+    };
 
     #define TARGET(op) TARGET_##op
     #define DISPATCH()                            \

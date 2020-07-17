@@ -26,7 +26,7 @@ struct Frame;
  **/
 
 #ifdef JSTAR_DBG_PRINT_GC
-DECLARE_ENUM_STRINGS(ObjType);
+extern const char* ObjTypeNames[];
 #endif
 
 // -----------------------------------------------------------------------------
@@ -71,9 +71,11 @@ DECLARE_ENUM_STRINGS(ObjType);
 // OBJECT DEFINITONS
 // -----------------------------------------------------------------------------
 
-// These types are used internally by the object system and are
-// Never exposed to the user, to whom all values behave like
-// class instances
+// Object type.
+// These types are used internally by the object system and are never
+// exposed to the user, to whom all values behave like class instances.
+// The enum is defined using X-macros in order to automatically generate
+// string names of enum constats (see ObjTypeNames array in object.c)
 #define OBJTYPE(X)      \
     X(OBJ_STRING)       \
     X(OBJ_NATIVE)       \
@@ -90,7 +92,11 @@ DECLARE_ENUM_STRINGS(ObjType);
     X(OBJ_TABLE)        \
     X(OBJ_USERDATA)
 
-DEFINE_ENUM(ObjType, OBJTYPE);
+typedef enum ObjType {
+#define ENUM_ELEM(elem) elem,
+    OBJTYPE(ENUM_ELEM)
+#undef ENUM_ELEM
+} ObjType;
 
 // Base class of all the Objects.
 // Defines shared properties of all objects, such as the type and the class

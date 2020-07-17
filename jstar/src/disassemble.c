@@ -8,6 +8,12 @@
 #include "opcode.h"
 #include "value.h"
 
+// Create string names of opcodes
+static const char* OpcodeNames[] = {
+#define OPCODE(opcode, _) #opcode,
+#include "opcode.def"
+};
+
 static uint16_t readShortAt(const uint8_t* code, size_t i) {
     return ((uint16_t)code[i] << 8) | code[i + 1];
 }
@@ -74,7 +80,7 @@ static void closureInstruction(Chunk* c, size_t i) {
 }
 
 void disassembleIstr(Chunk* c, size_t i) {
-    printf("%.4d %s ", (int)i, OpcodeName[c->code[i]]);
+    printf("%.4d %s ", (int)i, OpcodeNames[c->code[i]]);
 
     switch(c->code[i]) {
     case OP_NATIVE:

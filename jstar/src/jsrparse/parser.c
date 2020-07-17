@@ -106,7 +106,8 @@ static Token require(Parser* p, TokenType type) {
         advance(p);
         return t;
     }
-    error(p, "Expected token `%s`, instead `%s` found.", tokNames[type], tokNames[p->peek.type]);
+    error(p, "Expected token `%s`, instead `%s` found.", TokenNames[type],
+          TokenNames[p->peek.type]);
     return (Token){0, NULL, 0, 0};
 }
 

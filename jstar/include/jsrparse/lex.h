@@ -13,7 +13,6 @@ typedef struct Lexer {
 
 JSTAR_API void initLexer(Lexer* lex, const char* src);
 JSTAR_API void nextToken(Lexer* lex, Token* tok);
-
 JSTAR_API void rewindTo(Lexer* lex, Token* tok);
 
 #endif
