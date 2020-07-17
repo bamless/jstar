@@ -86,7 +86,7 @@ void initLexer(Lexer* lex, const char* src) {
     lex->source = src;
     lex->tokenStart = src;
     lex->current = src;
-    lex->curr_line = 1;
+    lex->currLine = 1;
 
     // skip shabang if present
     if(peekChar(lex) == '#' && peekChar2(lex) == '!') {
@@ -102,7 +102,7 @@ static void skipSpacesAndComments(Lexer* lex) {
         switch(peekChar(lex)) {
         case '\\':
             if(peekChar2(lex) == '\n') {
-                lex->curr_line++;
+                lex->currLine++;
                 advance(lex);
                 advance(lex);
             } else {
@@ -147,14 +147,14 @@ static void makeToken(Lexer* lex, Token* tok, TokenType type) {
     tok->type = type;
     tok->lexeme = lex->tokenStart;
     tok->length = (int)(lex->current - lex->tokenStart);
-    tok->line = lex->curr_line;
+    tok->line = lex->currLine;
 }
 
 static void eofToken(Lexer* lex, Token* tok) {
     tok->type = TOK_EOF;
     tok->lexeme = lex->current;
     tok->length = 0;
-    tok->line = lex->curr_line;
+    tok->line = lex->currLine;
 }
 
 static void integer(Lexer* lex) {
@@ -192,7 +192,7 @@ static void hexNumber(Lexer* lex, Token* tok) {
 
 static bool stringBody(Lexer* lex, char end) {
     while(peekChar(lex) != end && !isAtEnd(lex)) {
-        if(peekChar(lex) == '\n') lex->curr_line++;
+        if(peekChar(lex) == '\n') lex->currLine++;
         if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
         advance(lex);
     }
@@ -366,7 +366,7 @@ void nextToken(Lexer* lex, Token* tok) {
         break;
     case '\n':
         makeToken(lex, tok, TOK_NEWLINE);
-        lex->curr_line++;
+        lex->currLine++;
         break;
     default:
         makeToken(lex, tok, TOK_ERR);
@@ -377,5 +377,5 @@ void nextToken(Lexer* lex, Token* tok) {
 void rewindTo(Lexer* lex, Token* tok) {
     if(tok->lexeme == NULL) return;
     lex->tokenStart = lex->current = tok->lexeme;
-    lex->curr_line = tok->line;
+    lex->currLine = tok->line;
 }

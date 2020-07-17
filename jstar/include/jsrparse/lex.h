@@ -3,10 +3,10 @@
 
 #include "jstarconf.h"
 
-extern const char* TokenNames[];
-
 #define IS_COMPUND_ASSIGN(tok) (tok <= TOK_MOD_EQ && tok > TOK_EQUAL)
 #define IS_ASSIGN(tok)         (tok <= TOK_MOD_EQ && tok >= TOK_EQUAL)
+
+extern const char* TokenNames[];
 
 typedef enum TokenType {
 #define TOKEN(tok, _) tok,
@@ -24,7 +24,7 @@ typedef struct Lexer {
     const char* source;
     const char* tokenStart;
     const char* current;
-    int curr_line;
+    int currLine;
 } Lexer;
 
 JSTAR_API void initLexer(Lexer* lex, const char* src);
