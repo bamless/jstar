@@ -5,8 +5,8 @@
 #include <stdlib.h>
 
 #include "jstarconf.h"
+#include "lex.h"
 #include "linkedlist.h"
-#include "token.h"
 
 typedef struct Identifier {
     size_t length;
@@ -89,9 +89,6 @@ struct Expr {
             Identifier id;
         } var;
         struct {
-            LinkedList* lst;
-        } list;
-        struct {
             Expr *callee, *args;
         } call;
         struct {
@@ -128,6 +125,7 @@ struct Expr {
         } sup;
         double num;
         bool boolean;
+        LinkedList* list;
     } as;
 };
 

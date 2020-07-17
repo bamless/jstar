@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "jsrparse/token.h"
+const char* TokenNames[] = {
+#define TOKEN(tok, name) name,
+#include "jsrparse/token.def"
+};
 
 typedef struct {
     const char* name;
