@@ -12,7 +12,6 @@
 
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE  2
-#define HEAP_GROW_RATE     2
 
 void* GCallocate(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
