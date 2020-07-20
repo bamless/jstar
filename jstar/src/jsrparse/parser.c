@@ -970,7 +970,9 @@ static Expr* tupleExpression(Parser* p, Expr* first) {
 
     while(match(p, TOK_COMMA)) {
         advance(p);
-        if(match(p, TOK_RPAREN) || isStatementEnd(&p->peek)) break;
+        if(match(p, TOK_RPAREN) || isStatementEnd(&p->peek) || IS_ASSIGN(p->peek.type)) {
+            break;
+        }
         exprs = addElement(exprs, ternaryExpr(p));
     }
 
