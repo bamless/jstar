@@ -8,6 +8,7 @@
 
 #include "chunk.h"
 #include "common.h"
+#include "jsrparse/lex.h"
 #include "jsrparse/linkedlist.h"
 #include "jstar.h"
 #include "memory.h"
@@ -422,40 +423,40 @@ static void compileBinaryExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.binary.left);
     compileExpr(c, e->as.binary.right);
     switch(e->as.binary.op) {
-    case PLUS:
+    case TOK_PLUS:
         emitBytecode(c, OP_ADD, e->line);
         break;
-    case MINUS:
+    case TOK_MINUS:
         emitBytecode(c, OP_SUB, e->line);
         break;
-    case MULT:
+    case TOK_MULT:
         emitBytecode(c, OP_MUL, e->line);
         break;
-    case DIV:
+    case TOK_DIV:
         emitBytecode(c, OP_DIV, e->line);
         break;
-    case MOD:
+    case TOK_MOD:
         emitBytecode(c, OP_MOD, e->line);
         break;
-    case EQ:
+    case TOK_EQUAL_EQUAL:
         emitBytecode(c, OP_EQ, e->line);
         break;
-    case GT:
+    case TOK_GT:
         emitBytecode(c, OP_GT, e->line);
         break;
-    case GE:
+    case TOK_GE:
         emitBytecode(c, OP_GE, e->line);
         break;
-    case LT:
+    case TOK_LT:
         emitBytecode(c, OP_LT, e->line);
         break;
-    case LE:
+    case TOK_LE:
         emitBytecode(c, OP_LE, e->line);
         break;
-    case IS:
+    case TOK_IS:
         emitBytecode(c, OP_IS, e->line);
         break;
-    case NEQ:
+    case TOK_BANG_EQ:
         emitBytecode(c, OP_EQ, e->line);
         emitBytecode(c, OP_NOT, e->line);
         break;
@@ -469,7 +470,7 @@ static void compileLogicExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.binary.left);
     emitBytecode(c, OP_DUP, e->line);
 
-    uint8_t jmp = e->as.binary.op == AND ? OP_JUMPF : OP_JUMPT;
+    uint8_t jmp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
     size_t scJmp = emitBytecode(c, jmp, 0);
     emitShort(c, 0, 0);
 
@@ -482,16 +483,16 @@ static void compileLogicExpr(Compiler* c, Expr* e) {
 static void compileUnaryExpr(Compiler* c, Expr* e) {
     compileExpr(c, e->as.unary.operand);
     switch(e->as.unary.op) {
-    case MINUS:
+    case TOK_MINUS:
         emitBytecode(c, OP_NEG, e->line);
         break;
-    case NOT:
+    case TOK_BANG:
         emitBytecode(c, OP_NOT, e->line);
         break;
-    case LENGTH:
+    case TOK_HASH:
         callMethod(c, "__len__", 0);
         break;
-    case STRINGOP:
+    case TOK_HASH_HASH:
         callMethod(c, "__string__", 0);
         break;
     default:
@@ -659,7 +660,7 @@ static void compileAssignExpr(Compiler* c, Expr* e) {
 }
 
 static void compileCompundAssign(Compiler* c, Expr* e) {
-    Operator op = e->as.compound.op;
+    TokenType op = e->as.compound.op;
     Expr* l = e->as.compound.lval;
     Expr* r = e->as.compound.rval;
 
@@ -814,7 +815,7 @@ static void compileExpr(Compiler* c, Expr* e) {
         compileCompundAssign(c, e);
         break;
     case BINARY:
-        if(e->as.binary.op == AND || e->as.binary.op == OR)
+        if(e->as.binary.op == TOK_AND || e->as.binary.op == TOK_OR)
             compileLogicExpr(c, e);
         else
             compileBinaryExpr(c, e);
