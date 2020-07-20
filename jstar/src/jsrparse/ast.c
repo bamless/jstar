@@ -24,7 +24,7 @@ static Expr* newExpr(int line, ExprType type) {
     return e;
 }
 
-Expr* newBinary(int line, Operator op, Expr* l, Expr* r) {
+Expr* newBinary(int line, TokenType op, Expr* l, Expr* r) {
     Expr* e = newExpr(line, BINARY);
     e->as.binary.op = op;
     e->as.binary.left = l;
@@ -39,7 +39,7 @@ Expr* newAssign(int line, Expr* lval, Expr* rval) {
     return e;
 }
 
-Expr* newUnary(int line, Operator op, Expr* operand) {
+Expr* newUnary(int line, TokenType op, Expr* operand) {
     Expr* e = newExpr(line, UNARY);
     e->as.unary.op = op;
     e->as.unary.operand = operand;
@@ -138,7 +138,7 @@ Expr* newTernary(int line, Expr* cond, Expr* thenExpr, Expr* elseExpr) {
     return e;
 }
 
-Expr* newCompoundAssing(int line, Operator op, Expr* lval, Expr* rval) {
+Expr* newCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval) {
     Expr* e = newExpr(line, COMP_ASSIGN);
     e->as.compound.op = op;
     e->as.compound.lval = lval;

@@ -79,18 +79,21 @@ static bool match(Parser* p, TokenType type) {
     return p->peek.type == type;
 }
 
-static void advance(Parser* p) {
-    p->prevType = p->peek.type;
+static Token advance(Parser* p) {
+    Token prev = p->peek;
     nextToken(&p->lex, &p->peek);
 
-    if(p->prevType == TOK_NEWLINE) {
+    if(prev.type == TOK_NEWLINE) {
         p->lnStart = p->peek.lexeme;
     }
 
     while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
         error(p, p->peek.type == TOK_ERR ? "Invalid token." : "Unterminated string.");
+        prev = p->peek;
         nextToken(&p->lex, &p->peek);
     }
+
+    return prev;
 }
 
 static void skipNewLines(Parser* p) {
@@ -101,10 +104,9 @@ static void skipNewLines(Parser* p) {
 
 static Token require(Parser* p, TokenType type) {
     if(match(p, type)) {
-        Token t = p->peek;
-        advance(p);
-        return t;
+        return advance(p);
     }
+
     error(p, "Expected token `%s`, instead `%s` found.", TokenNames[type],
           TokenNames[p->peek.type]);
     return (Token){0, NULL, 0, 0};
@@ -308,10 +310,10 @@ static Stmt* whileStmt(Parser* p) {
 
 static Stmt* varDecl(Parser* p) {
     int line = p->peek.line;
+    advance(p);
 
     bool isUnpack = false;
     LinkedList* identifiers = NULL;
-    advance(p);
 
     do {
         Token id = require(p, TOK_IDENTIFIER);
@@ -846,14 +848,12 @@ static Expr* anonymousFunc(Parser* p) {
     }
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
-
         FormalArgs args = formalArgs(p, TOK_PIPE, TOK_PIPE);
 
         require(p, TOK_ARROW);
 
         Expr* e = expression(p, false);
         Stmt* body = newBlockStmt(line, addElement(NULL, newReturnStmt(line, e)));
-
         return newAnonymousFunc(line, args.arguments, args.defaults, args.isVararg, body);
     }
     return postfixExpr(p);
@@ -876,23 +876,11 @@ static Expr* powExpr(Parser* p) {
 }
 
 static Expr* unaryExpr(Parser* p) {
-    int line = p->peek.line;
-    if(match(p, TOK_BANG)) {
-        advance(p);
-        return newUnary(line, NOT, unaryExpr(p));
+    if(match(p, TOK_BANG) || match(p, TOK_MINUS) || match(p, TOK_HASH) || match(p, TOK_HASH_HASH)) {
+        Token op = advance(p);
+        return newUnary(op.line, op.type, unaryExpr(p));
     }
-    if(match(p, TOK_MINUS)) {
-        advance(p);
-        return newUnary(line, MINUS, unaryExpr(p));
-    }
-    if(match(p, TOK_HASH)) {
-        advance(p);
-        return newUnary(line, LENGTH, unaryExpr(p));
-    }
-    if(match(p, TOK_HASH_HASH)) {
-        advance(p);
-        return newUnary(line, STRINGOP, unaryExpr(p));
-    }
+
     return powExpr(p);
 }
 
@@ -900,24 +888,8 @@ static Expr* multiplicativeExpr(Parser* p) {
     Expr* l = unaryExpr(p);
 
     while(match(p, TOK_MULT) || match(p, TOK_DIV) || match(p, TOK_MOD)) {
-        int line = p->peek.line;
-        TokenType tokType = p->peek.type;
-        advance(p);
-
-        Expr* r = unaryExpr(p);
-        switch(tokType) {
-        case TOK_MULT:
-            l = newBinary(line, MULT, l, r);
-            break;
-        case TOK_DIV:
-            l = newBinary(line, DIV, l, r);
-            break;
-        case TOK_MOD:
-            l = newBinary(line, MOD, l, r);
-            break;
-        default:
-            break;
-        }
+        Token op = advance(p);
+        l = newBinary(op.line, op.type, l, unaryExpr(p));
     }
 
     return l;
@@ -927,21 +899,8 @@ static Expr* additiveExpr(Parser* p) {
     Expr* l = multiplicativeExpr(p);
 
     while(match(p, TOK_PLUS) || match(p, TOK_MINUS)) {
-        int line = p->peek.line;
-        TokenType tokType = p->peek.type;
-        advance(p);
-
-        Expr* r = multiplicativeExpr(p);
-        switch(tokType) {
-        case TOK_PLUS:
-            l = newBinary(line, PLUS, l, r);
-            break;
-        case TOK_MINUS:
-            l = newBinary(line, MINUS, l, r);
-            break;
-        default:
-            break;
-        }
+        Token op = advance(p);
+        l = newBinary(op.line, op.type, l, multiplicativeExpr(p));
     }
 
     return l;
@@ -952,29 +911,8 @@ static Expr* relationalExpr(Parser* p) {
 
     while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || match(p, TOK_LE) ||
           match(p, TOK_IS)) {
-        int line = p->peek.line;
-        TokenType tokType = p->peek.type;
-        advance(p);
-
-        Expr* r = additiveExpr(p);
-        switch(tokType) {
-        case TOK_GT:
-            l = newBinary(line, GT, l, r);
-            break;
-        case TOK_GE:
-            l = newBinary(line, GE, l, r);
-            break;
-        case TOK_LT:
-            l = newBinary(line, LT, l, r);
-            break;
-        case TOK_LE:
-            l = newBinary(line, LE, l, r);
-            break;
-        case TOK_IS:
-            l = newBinary(line, IS, l, r);
-        default:
-            break;
-        }
+        Token op = advance(p);
+        l = newBinary(op.line, op.type, l, additiveExpr(p));
     }
 
     return l;
@@ -984,21 +922,8 @@ static Expr* equalityExpr(Parser* p) {
     Expr* l = relationalExpr(p);
 
     while(match(p, TOK_EQUAL_EQUAL) || match(p, TOK_BANG_EQ)) {
-        int line = p->peek.line;
-        TokenType tokType = p->peek.type;
-        advance(p);
-
-        Expr* r = relationalExpr(p);
-        switch(tokType) {
-        case TOK_EQUAL_EQUAL:
-            l = newBinary(line, EQ, l, r);
-            break;
-        case TOK_BANG_EQ:
-            l = newBinary(line, NEQ, l, r);
-            break;
-        default:
-            break;
-        }
+        Token op = advance(p);
+        return newBinary(op.line, op.type, l, relationalExpr(p));
     }
 
     return l;
@@ -1008,9 +933,8 @@ static Expr* logicAndExpr(Parser* p) {
     Expr* l = equalityExpr(p);
 
     while(match(p, TOK_AND)) {
-        int line = p->peek.line;
-        advance(p);
-        l = newBinary(line, AND, l, equalityExpr(p));
+        Token op = advance(p);
+        l = newBinary(op.line, op.type, l, equalityExpr(p));
     }
 
     return l;
@@ -1020,9 +944,8 @@ static Expr* logicOrExpr(Parser* p) {
     Expr* l = logicAndExpr(p);
 
     while(match(p, TOK_OR)) {
-        int line = p->peek.line;
-        advance(p);
-        l = newBinary(line, OR, l, logicAndExpr(p));
+        Token op = advance(p);
+        l = newBinary(op.line, op.type, l, logicAndExpr(p));
     }
 
     return l;
@@ -1049,9 +972,7 @@ static Expr* tupleExpression(Parser* p, Expr* first) {
 
     while(match(p, TOK_COMMA)) {
         advance(p);
-        if(match(p, TOK_RPAREN) || isStatementEnd(&p->peek)) {
-            break;
-        }
+        if(match(p, TOK_RPAREN) || isStatementEnd(&p->peek)) break;
         exprs = addElement(exprs, ternaryExpr(p));
     }
 
@@ -1069,18 +990,18 @@ static void checkUnpackAssignement(Parser* p, Expr* lvals, TokenType assignToken
     }
 }
 
-static Operator assignTokToOperator(TokenType t) {
+static TokenType compundToAssign(TokenType t) {
     switch(t) {
     case TOK_PLUS_EQ:
-        return PLUS;
+        return TOK_PLUS;
     case TOK_MINUS_EQ:
-        return MINUS;
+        return TOK_MINUS;
     case TOK_DIV_EQ:
-        return DIV;
+        return TOK_DIV;
     case TOK_MULT_EQ:
-        return MULT;
+        return TOK_MULT;
     case TOK_MOD_EQ:
-        return MOD;
+        return TOK_MOD;
     default:
         UNREACHABLE();
         return -1;
@@ -1088,7 +1009,6 @@ static Operator assignTokToOperator(TokenType t) {
 }
 
 static Expr* expression(Parser* p, bool parseTuple) {
-    int line = p->peek.line;
     Expr* l = ternaryExpr(p);
 
     if(l && parseTuple && match(p, TOK_COMMA)) {
@@ -1096,22 +1016,19 @@ static Expr* expression(Parser* p, bool parseTuple) {
     }
 
     if(IS_ASSIGN(p->peek.type)) {
-        TokenType assignToken = p->peek.type;
-
-        if(l != NULL) {
-            if(l->type == TUPLE_LIT)
-                checkUnpackAssignement(p, l->as.tuple.exprs, assignToken);
-            else if(!isLValue(l->type))
-                error(p, "Left hand side of assignment must be an lvalue.");
+        if(l && l->type == TUPLE_LIT) {
+            checkUnpackAssignement(p, l->as.tuple.exprs, p->peek.type);
+        } else if(l && !isLValue(l->type)) {
+            error(p, "Left hand side of assignment must be an lvalue.");
         }
 
-        advance(p);
+        Token assign = advance(p);
         Expr* r = expression(p, true);
 
-        if(IS_COMPUND_ASSIGN(assignToken)) {
-            l = newCompoundAssing(line, assignTokToOperator(assignToken), l, r);
+        if(IS_COMPUND_ASSIGN(assign.type)) {
+            l = newCompoundAssing(assign.line, compundToAssign(assign.type), l, r);
         } else {
-            l = newAssign(line, l, r);
+            l = newAssign(assign.line, l, r);
         }
     }
 

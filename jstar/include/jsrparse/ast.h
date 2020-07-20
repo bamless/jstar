@@ -16,26 +16,6 @@ typedef struct Identifier {
 JSTAR_API Identifier* newIdentifier(size_t length, const char* name);
 JSTAR_API bool identifierEquals(Identifier* id1, Identifier* id2);
 
-typedef enum Operator {
-    PLUS,
-    MINUS,
-    MULT,
-    DIV,
-    MOD,
-    EQ,
-    NEQ,
-    AND,
-    OR,
-    NOT,
-    GT,
-    GE,
-    LT,
-    LE,
-    IS,
-    LENGTH,
-    STRINGOP
-} Operator;
-
 typedef enum ExprType {
     BINARY,
     UNARY,
@@ -67,18 +47,18 @@ struct Expr {
     ExprType type;
     union {
         struct {
-            Operator op;
+            TokenType op;
             Expr *left, *right;
         } binary;
         struct {
-            Operator op;
+            TokenType op;
             Expr* operand;
         } unary;
         struct {
             Expr *lval, *rval;
         } assign;
         struct {
-            Operator op;
+            TokenType op;
             Expr *lval, *rval;
         } compound;
         struct {
@@ -132,15 +112,15 @@ struct Expr {
 JSTAR_API Expr* newAnonymousFunc(int line, LinkedList* args, LinkedList* defArgs, bool vararg,
                                  Stmt* body);
 JSTAR_API Expr* newAccessExpr(int line, Expr* left, const char* name, size_t length);
-JSTAR_API Expr* newCompoundAssing(int line, Operator op, Expr* lval, Expr* rval);
+JSTAR_API Expr* newCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval);
 JSTAR_API Expr* newTernary(int line, Expr* cond, Expr* thenExpr, Expr* elseExpr);
 JSTAR_API Expr* newVarLiteral(int line, const char* str, size_t len);
 JSTAR_API Expr* newStrLiteral(int line, const char* str, size_t len);
 JSTAR_API Expr* newArrayAccExpr(int line, Expr* left, Expr* index);
-JSTAR_API Expr* newBinary(int line, Operator op, Expr* l, Expr* r);
+JSTAR_API Expr* newBinary(int line, TokenType op, Expr* l, Expr* r);
 JSTAR_API Expr* newSuperLiteral(int line, Token* name, Expr* args);
 JSTAR_API Expr* newCallExpr(int line, Expr* callee, Expr* args);
-JSTAR_API Expr* newUnary(int line, Operator op, Expr* operand);
+JSTAR_API Expr* newUnary(int line, TokenType op, Expr* operand);
 JSTAR_API Expr* newAssign(int line, Expr* lval, Expr* rval);
 JSTAR_API Expr* newExpExpr(int line, Expr* base, Expr* exp);
 JSTAR_API Expr* newTableLiteral(int line, Expr* keyVals);
