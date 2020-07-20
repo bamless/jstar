@@ -95,7 +95,7 @@ static Token advance(Parser* p) {
 }
 
 static void skipNewLines(Parser* p) {
-    while(p->peek.type == TOK_NEWLINE) {
+    while(match(p, TOK_NEWLINE)) {
         advance(p);
     }
 }
@@ -195,7 +195,7 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
     skipNewLines(p);
 
     while(match(p, TOK_IDENTIFIER)) {
-        Token argument = require(p, TOK_IDENTIFIER);
+        Token argument = advance(p);
         skipNewLines(p);
 
         if(match(p, TOK_EQUAL)) {
@@ -214,7 +214,7 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
     }
 
     while(match(p, TOK_IDENTIFIER)) {
-        Token argument = require(p, TOK_IDENTIFIER);
+        Token argument = advance(p);
 
         skipNewLines(p);
         require(p, TOK_EQUAL);
@@ -428,7 +428,7 @@ static Stmt* importStmt(Parser* p) {
         skipNewLines(p);
 
         if(match(p, TOK_MULT)) {
-            Token all = require(p, TOK_MULT);
+            Token all = advance(p);
             importNames = addElement(importNames, newIdentifier(all.length, all.lexeme));
         } else {
             for(;;) {
@@ -506,7 +506,7 @@ static Stmt* withStmt(Parser* p) {
 
 static Stmt* funcDecl(Parser* p) {
     int line = p->peek.line;
-    Token fun = require(p, TOK_FUN);
+    Token fun = advance(p);
 
     if(!match(p, TOK_IDENTIFIER)) {
         rewindTo(&p->lex, &fun);
@@ -802,7 +802,7 @@ static Expr* postfixExpr(Parser* p) {
         int line = p->peek.line;
         switch(p->peek.type) {
         case TOK_DOT: {
-            require(p, TOK_DOT);
+            advance(p);
             Token attr = require(p, TOK_IDENTIFIER);
             lit = newAccessExpr(line, lit, attr.lexeme, attr.length);
             break;
