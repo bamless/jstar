@@ -15,7 +15,6 @@ typedef struct Parser {
     Lexer lex;
     Token peek;
     const char* path;
-    TokenType prevType;
     const char* lnStart;
     ParseErrorCB errorCallback;
     bool panic, hadError;
@@ -25,7 +24,6 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
     p->panic = false;
     p->hadError = false;
     p->path = path;
-    p->prevType = -1;
     p->errorCallback = errorCallback;
     initLexer(&p->lex, src);
     nextToken(&p->lex, &p->peek);
