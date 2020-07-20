@@ -156,6 +156,14 @@ static bool isStatementEnd(Token* tok) {
     return isImplicitEnd(tok) || tok->type == TOK_NEWLINE || tok->type == TOK_SEMICOLON;
 }
 
+static bool isExpressionStart(Token* tok) {
+    TokenType t = tok->type;
+    return t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||
+           t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN ||
+           t == TOK_LSQUARE || t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN || t == TOK_HASH ||
+           t == TOK_HASH_HASH || t == TOK_LCURLY;
+}
+
 static bool isLValue(ExprType type) {
     return type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC;
 }
@@ -970,9 +978,7 @@ static Expr* tupleExpression(Parser* p, Expr* first) {
 
     while(match(p, TOK_COMMA)) {
         advance(p);
-        if(match(p, TOK_RPAREN) || isStatementEnd(&p->peek) || IS_ASSIGN(p->peek.type)) {
-            break;
-        }
+        if(!isExpressionStart(&p->peek)) break;
         exprs = addElement(exprs, ternaryExpr(p));
     }
 
