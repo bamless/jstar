@@ -198,9 +198,9 @@ bool importModule(JStarVM* vm, ObjString* name) {
     if(nameStart == NULL) {
         // not a nested module, nothing to do
         return true;
+    } else {
+        nameStart++;
     }
-
-    nameStart++;
 
     // set module as a global in its parent
     ObjModule* module = getModule(vm, name);

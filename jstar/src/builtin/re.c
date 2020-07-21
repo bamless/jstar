@@ -70,21 +70,21 @@ static bool matchClass(char c, char cls) {
     return isupper(cls) ? !res : res;
 }
 
-static bool matchCustomClass(char c, const char* r, const char* er) {
+static bool matchCustomClass(char c, const char* regex, const char* clsEnd) {
     bool ret = true;
-    if(r[1] == '^') {
+    if(regex[1] == '^') {
         ret = false;
-        r++;
+        regex++;
     }
 
-    while(++r < er) {
-        if(*r == ESCAPE) {
-            r++;
-            if(matchClass(c, *r)) return ret;
-        } else if(r[1] == '-' && r + 2 < er) {
-            r += 2;
-            if(*(r - 2) <= c && c <= *r) return ret;
-        } else if(*r == c) {
+    while(++regex < clsEnd) {
+        if(*regex == ESCAPE) {
+            regex++;
+            if(matchClass(c, *regex)) return ret;
+        } else if(regex[1] == '-' && regex + 2 < clsEnd) {
+            regex += 2;
+            if(*(regex - 2) <= c && c <= *regex) return ret;
+        } else if(*regex == c) {
             return ret;
         }
     }
@@ -92,16 +92,16 @@ static bool matchCustomClass(char c, const char* r, const char* er) {
     return !ret;
 }
 
-static bool matchClassOrChar(char matchChar, const char* r, const char* er) {
-    switch(*r) {
+static bool matchClassOrChar(char c, const char* regex, const char* clsEnd) {
+    switch(*regex) {
     case '.':
         return true;
     case ESCAPE:
-        return matchClass(matchChar, r[1]);
+        return matchClass(c, regex[1]);
     case '[':
-        return matchCustomClass(matchChar, r, er - 1);
+        return matchCustomClass(c, regex, clsEnd - 1);
     default:
-        return matchChar == *r;
+        return c == *regex;
     }
 }
 
@@ -113,42 +113,44 @@ static int captureToClose(RegexState* rs) {
     return -1;
 }
 
-static const char* match(RegexState* rs, const char* s, const char* r);
+static const char* match(RegexState* rs, const char* str, const char* regex);
 
-static const char* startCapture(RegexState* rs, const char* s, const char* r) {
+static const char* startCapture(RegexState* rs, const char* str, const char* regex) {
     if(rs->capturec >= MAX_CAPTURES) {
         REG_ERR("Max capture number exceeded (%d).", MAX_CAPTURES);
         return NULL;
     }
 
-    if(r[1] != ')') {
+    if(regex[1] != ')') {
         rs->captures[rs->capturec].len = CAPTURE_UNFINISHED;
     } else {
         rs->captures[rs->capturec].len = CAPTURE_POSITION;
-        r++;
+        regex++;
     }
 
-    rs->captures[rs->capturec].start = s;
+    rs->captures[rs->capturec].start = str;
     rs->capturec++;
 
     const char* res;
-    if((res = match(rs, s, r + 1)) == NULL) {
+    if((res = match(rs, str, regex + 1)) == NULL) {
         rs->capturec--;
     }
 
     return res;
 }
 
-static const char* endCapture(RegexState* rs, const char* s, const char* r) {
+static const char* endCapture(RegexState* rs, const char* str, const char* regex) {
     int i = captureToClose(rs);
     if(i == -1) return NULL;
-    rs->captures[i].len = s - rs->captures[i].start;
+    rs->captures[i].len = str - rs->captures[i].start;
     const char* res;
-    if((res = match(rs, s, r + 1)) == NULL) rs->captures[i].len = CAPTURE_UNFINISHED;
+    if((res = match(rs, str, regex + 1)) == NULL) {
+        rs->captures[i].len = CAPTURE_UNFINISHED;
+    }
     return res;
 }
 
-static const char* matchCapture(RegexState* rs, const char* s, int captureNo) {
+static const char* matchCapture(RegexState* rs, const char* str, int captureNo) {
     if(captureNo > rs->capturec - 1 || rs->captures[captureNo].len == CAPTURE_UNFINISHED ||
        rs->captures[captureNo].len == CAPTURE_POSITION) {
         return NULL;
@@ -156,22 +158,23 @@ static const char* matchCapture(RegexState* rs, const char* s, int captureNo) {
 
     const char* capture = rs->captures[captureNo].start;
     size_t captureLen = rs->captures[captureNo].len;
-    if((size_t)(rs->strEnd - s) < captureLen || memcmp(s, capture, captureLen) != 0) {
+    if((size_t)(rs->strEnd - str) < captureLen || memcmp(str, capture, captureLen) != 0) {
         return NULL;
     }
 
-    return s + captureLen;
+    return str + captureLen;
 }
 
-static const char* greedyMatch(RegexState* rs, const char* s, const char* r, const char* er) {
+static const char* greedyMatch(RegexState* rs, const char* str, const char* regex,
+                               const char* clsEnd) {
     ptrdiff_t i = 0;
-    while(s[i] != '\0' && matchClassOrChar(s[i], r, er)) {
+    while(str[i] != '\0' && matchClassOrChar(str[i], regex, clsEnd)) {
         i++;
     }
 
     while(i >= 0) {
         const char* res;
-        if((res = match(rs, s + i, er + 1)) != NULL) return res;
+        if((res = match(rs, str + i, clsEnd + 1)) != NULL) return res;
         if(rs->err) return NULL;
         i--;
     }
@@ -179,81 +182,81 @@ static const char* greedyMatch(RegexState* rs, const char* s, const char* r, con
     return NULL;
 }
 
-static const char* lazyMatch(RegexState* rs, const char* s, const char* r, const char* er) {
+static const char* lazyMatch(RegexState* rs, const char* str, const char* regex,
+                             const char* clsEnd) {
     do {
         const char* res;
-        if((res = match(rs, s, er + 1)) != NULL) return res;
+        if((res = match(rs, str, clsEnd + 1)) != NULL) return res;
         if(rs->err) return NULL;
-    } while(*s != '\0' && matchClassOrChar(*s++, r, er));
+    } while(*str != '\0' && matchClassOrChar(*str++, regex, clsEnd));
     return NULL;
 }
 
-static const char* endClass(RegexState* rs, const char* r) {
-    switch(*r++) {
+static const char* endClass(RegexState* rs, const char* regex) {
+    switch(*regex++) {
     case ESCAPE:
-        if(*r == '\0') {
+        if(*regex == '\0') {
             REG_ERR("Malformed regex (ends with `%c`).", ESCAPE);
             return NULL;
         }
-        return r + 1;
+        return regex + 1;
     case '[':
         do {
-            if(*r == '\0') {
+            if(*regex == '\0') {
                 REG_ERR("Malformed regex (unmatched `[`).");
                 return NULL;
             }
-            if(*r++ == ESCAPE && *r != '\0') r++;  // Skip escape
-        } while(*r != ']');
-        return r + 1;
+            if(*regex++ == ESCAPE && *regex != '\0') regex++;  // Skip escape
+        } while(*regex != ']');
+        return regex + 1;
     default:
-        return r;
+        return regex;
     }
 }
 
-static const char* match(RegexState* rs, const char* s, const char* r) {
-    switch(*r) {
+static const char* match(RegexState* rs, const char* str, const char* regex) {
+    switch(*regex) {
     case '(':
-        return startCapture(rs, s, r);
+        return startCapture(rs, str, regex);
     case ')':
-        return endCapture(rs, s, r);
+        return endCapture(rs, str, regex);
     case '$':
-        if(r[1] == '\0') return *s == '\0' ? s : NULL;
+        if(regex[1] == '\0') return *str == '\0' ? str : NULL;
         goto def;
     case ESCAPE:
-        if(isdigit(r[1])) {
+        if(isdigit(regex[1])) {
             int len = 1;
-            while(isdigit(r[len])) {
+            while(isdigit(regex[len])) {
                 len++;
             }
-            int capture = strtol(r + 1, NULL, 10);
-            s = matchCapture(rs, s, capture);
-            if(s == NULL) return NULL;
-            return match(rs, s, r + len);
+            int capture = strtol(regex + 1, NULL, 10);
+            str = matchCapture(rs, str, capture);
+            if(str == NULL) return NULL;
+            return match(rs, str, regex + len);
         }
         goto def;
     case '\0':
-        return s;
+        return str;
     default:
     def : {
-        const char* er = endClass(rs, r);
-        if(er == NULL) return NULL;
+        const char* clsEnd = endClass(rs, regex);
+        if(clsEnd == NULL) return NULL;
 
-        bool isMatch = *s != '\0' && matchClassOrChar(*s, r, er);
-        switch(*er) {
+        bool isMatch = *str != '\0' && matchClassOrChar(*str, regex, clsEnd);
+        switch(*clsEnd) {
         case '?': {
             const char* res;
-            if(isMatch && (res = match(rs, s + 1, er + 1)) != NULL) return res;
-            return match(rs, s, er + 1);
+            if(isMatch && (res = match(rs, str + 1, clsEnd + 1)) != NULL) return res;
+            return match(rs, str, clsEnd + 1);
         }
         case '+':
-            return isMatch ? greedyMatch(rs, s + 1, r, er) : NULL;
+            return isMatch ? greedyMatch(rs, str + 1, regex, clsEnd) : NULL;
         case '*':
-            return greedyMatch(rs, s, r, er);
+            return greedyMatch(rs, str, regex, clsEnd);
         case '-':
-            return lazyMatch(rs, s, r, er);
-        default: {
-            return isMatch ? match(rs, s + 1, er) : NULL;
-        }
+            return lazyMatch(rs, str, regex, clsEnd);
+        default:
+            return isMatch ? match(rs, str + 1, clsEnd) : NULL;
         }
     }
     }
@@ -261,24 +264,30 @@ static const char* match(RegexState* rs, const char* s, const char* r) {
     return NULL;
 }
 
-static bool matchRegex(JStarVM* vm, RegexState* rs, const char* s, size_t len, const char* r,
+static bool matchRegex(JStarVM* vm, RegexState* rs, const char* str, size_t len, const char* regex,
                        int off) {
     rs->vm = vm;
-    rs->str = s;
-    rs->strEnd = s + len;
+    rs->str = str;
+    rs->strEnd = str + len;
     rs->err = false;
     rs->capturec = 1;
-    rs->captures[0].start = s;
+    rs->captures[0].start = str;
     rs->captures[0].len = CAPTURE_UNFINISHED;
 
+    // negative offset start from end of string
     if(off < 0) off += len;
-    if(off < 0 || (size_t)off > len) return false;
-    s += off;
 
-    if(*r == '^') {
+    // validate offset
+    if(off < 0 || (size_t)off > len) {
+        return false;
+    }
+
+    str += off;
+
+    if(*regex == '^') {
         const char* res;
-        if((res = match(rs, s, r + 1)) != NULL) {
-            rs->captures[0].len = res - s;
+        if((res = match(rs, str, regex + 1)) != NULL) {
+            rs->captures[0].len = res - str;
             return true;
         }
         return false;
@@ -286,18 +295,22 @@ static bool matchRegex(JStarVM* vm, RegexState* rs, const char* s, size_t len, c
 
     do {
         const char* res;
-        if((res = match(rs, s, r)) != NULL) {
-            rs->captures[0].start = s;
-            rs->captures[0].len = res - s;
+        if((res = match(rs, str, regex)) != NULL) {
+            rs->captures[0].start = str;
+            rs->captures[0].len = res - str;
             return true;
         }
         if(rs->err) return false;
-    } while(*s++ != '\0');
+    } while(*str++ != '\0');
 
     return false;
 }
 
-typedef enum FindRes { FIND_ERR, FIND_MATCH, FIND_NOMATCH } FindRes;
+typedef enum FindRes {
+    FIND_ERR,
+    FIND_MATCH,
+    FIND_NOMATCH,
+} FindRes;
 
 static FindRes findAux(JStarVM* vm, RegexState* rs) {
     if(!jsrCheckString(vm, 1, "str") || !jsrCheckString(vm, 2, "regex") ||
@@ -421,11 +434,8 @@ JSR_NATIVE(jsr_re_gmatch) {
             jsrPop(vm);
         }
 
-        ptrdiff_t offSinceLast;
-        if(lastmatch != NULL)
-            offSinceLast = rs.captures[0].start - lastmatch;
-        else
-            offSinceLast = rs.captures[0].start - str;
+        ptrdiff_t offSinceLast = lastmatch ? rs.captures[0].start - lastmatch
+                                           : rs.captures[0].start - str;
 
         // increment by the number of chars since last match plus the length of current match
         off += offSinceLast + rs.captures[0].len;
@@ -500,7 +510,6 @@ JSR_NATIVE(jsr_re_gsub) {
     int numsub = 0;
     size_t off = 0;
     const char* lastmatch = NULL;
-
     while(off <= len) {
         if(num > 0 && numsub > num - 1) break;
 
