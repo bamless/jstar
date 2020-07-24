@@ -6,7 +6,7 @@
 
 #include "jstarconf.h"
 #include "lex.h"
-#include "linkedlist.h"
+#include "vector.h"
 
 typedef struct Identifier {
     size_t length;
@@ -105,12 +105,11 @@ struct Expr {
         } sup;
         double num;
         bool boolean;
-        LinkedList* list;
+        Vector list;
     } as;
 };
 
-JSTAR_API Expr* newAnonymousFunc(int line, LinkedList* args, LinkedList* defArgs, bool vararg,
-                                 Stmt* body);
+JSTAR_API Expr* newAnonymousFunc(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body);
 JSTAR_API Expr* newAccessExpr(int line, Expr* left, const char* name, size_t length);
 JSTAR_API Expr* newCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval);
 JSTAR_API Expr* newTernary(int line, Expr* cond, Expr* thenExpr, Expr* elseExpr);
@@ -124,7 +123,7 @@ JSTAR_API Expr* newUnary(int line, TokenType op, Expr* operand);
 JSTAR_API Expr* newAssign(int line, Expr* lval, Expr* rval);
 JSTAR_API Expr* newExpExpr(int line, Expr* base, Expr* exp);
 JSTAR_API Expr* newTableLiteral(int line, Expr* keyVals);
-JSTAR_API Expr* newExprList(int line, LinkedList* exprs);
+JSTAR_API Expr* newExprList(int line, Vector* exprs);
 JSTAR_API Expr* newBoolLiteral(int line, bool boolean);
 JSTAR_API Expr* newTupleLiteral(int line, Expr* exprs);
 JSTAR_API Expr* newArrLiteral(int line, Expr* exprs);
@@ -180,37 +179,37 @@ struct Stmt {
             Expr* e;
         } returnStmt;
         struct {
-            LinkedList* stmts;
+            Vector stmts;
         } blockStmt;
         struct {
             bool isUnpack;
-            LinkedList* ids;
+            Vector ids;
             Expr* init;
         } varDecl;
         struct {
             Identifier id;
-            LinkedList *formalArgs, *defArgs;
+            Vector formalArgs, defArgs;
             bool isVararg;
             Stmt* body;
         } funcDecl;
         struct {
             Identifier id;
-            LinkedList *formalArgs, *defArgs;
+            Vector formalArgs, defArgs;
             bool isVararg;
         } nativeDecl;
         struct {
             Identifier id;
             Expr* sup;
-            LinkedList* methods;
+            Vector methods;
         } classDecl;
         struct {
-            LinkedList* modules;
+            Vector modules;
             Identifier as;
-            LinkedList* impNames;
+            Vector impNames;
         } importStmt;
         struct {
             Stmt* block;
-            LinkedList* excs;
+            Vector excs;
             Stmt* ensure;
         } tryStmt;
         struct {
@@ -230,21 +229,20 @@ struct Stmt {
     } as;
 };
 
-JSTAR_API Stmt* newFuncDecl(int line, Token* name, LinkedList* args, LinkedList* defArgs,
-                            bool vararg, Stmt* body);
-JSTAR_API Stmt* newNativeDecl(int line, Token* name, LinkedList* args, LinkedList* defArgs,
-                              bool vararg);
-JSTAR_API Stmt* newImportStmt(int line, LinkedList* modules, LinkedList* impNames, Token* as);
-JSTAR_API Stmt* newClassDecl(int line, Token* clsName, Expr* sup, LinkedList* methods);
+JSTAR_API Stmt* newFuncDecl(int line, Token* name, Vector* args, Vector* defArgs, bool vararg,
+                            Stmt* body);
+JSTAR_API Stmt* newNativeDecl(int line, Token* name, Vector* args, Vector* defArgs, bool vararg);
+JSTAR_API Stmt* newImportStmt(int line, Vector* modules, Vector* impNames, Token* as);
+JSTAR_API Stmt* newClassDecl(int line, Token* clsName, Expr* sup, Vector* methods);
 JSTAR_API Stmt* newWithStmt(int line, Expr* e, Token* varName, Stmt* block);
 JSTAR_API Stmt* newExceptStmt(int line, Expr* cls, Token* varName, Stmt* block);
 JSTAR_API Stmt* newForStmt(int line, Stmt* init, Expr* cond, Expr* act, Stmt* body);
-JSTAR_API Stmt* newVarDecl(int line, bool isUnpack, LinkedList* ids, Expr* init);
-JSTAR_API Stmt* newTryStmt(int line, Stmt* blck, LinkedList* excs, Stmt* ensure);
+JSTAR_API Stmt* newVarDecl(int line, bool isUnpack, Vector* ids, Expr* init);
+JSTAR_API Stmt* newTryStmt(int line, Stmt* blck, Vector* excs, Stmt* ensure);
 JSTAR_API Stmt* newIfStmt(int line, Expr* cond, Stmt* thenStmt, Stmt* elseStmt);
 JSTAR_API Stmt* newForEach(int line, Stmt* varDecl, Expr* iter, Stmt* body);
 JSTAR_API Stmt* newWhileStmt(int line, Expr* cond, Stmt* body);
-JSTAR_API Stmt* newBlockStmt(int line, LinkedList* list);
+JSTAR_API Stmt* newBlockStmt(int line, Vector* list);
 JSTAR_API Stmt* newReturnStmt(int line, Expr* e);
 JSTAR_API Stmt* newRaiseStmt(int line, Expr* e);
 JSTAR_API Stmt* newExprStmt(int line, Expr* e);
