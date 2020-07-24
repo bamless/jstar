@@ -251,4 +251,3 @@ int main(int argc, const char** argv) {
 
     doRepl(opts.ignoreEnv);
     exitFree(EXIT_SUCCESS);
-}

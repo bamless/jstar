@@ -4,6 +4,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define vecForeach(elem, vec)                                                            \
+    for(size_t __cont = 1, __i = 0; __cont && __i < (vec).size; __cont = !__cont, __i++) \
+        for(elem = vecIterator(&(vec), __i); __cont; __cont = !__cont)
+
 typedef struct Vector {
     size_t size, capacity;
     void** data;
