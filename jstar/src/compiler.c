@@ -325,13 +325,13 @@ static void enterTryBlock(Compiler* c, TryExcept* tryExc, Stmt* try) {
     tryExc->next = c->tryBlocks;
     c->tryBlocks = tryExc;
     if(try->as.tryStmt.ensure != NULL) c->tryDepth++;
-    if(try->as.tryStmt.excs != NULL) c->tryDepth++;
+    if(!vecEmpty(&try->as.tryStmt.excs)) c->tryDepth++;
 }
 
 static void exitTryBlock(Compiler* c, Stmt* try) {
     c->tryBlocks = c->tryBlocks->next;
     if(try->as.tryStmt.ensure != NULL) c->tryDepth--;
-    if(try->as.tryStmt.excs != NULL) c->tryDepth--;
+    if(!vecEmpty(&try->as.tryStmt.excs)) c->tryDepth--;
 }
 
 static ObjString* readString(Compiler* c, Expr* e) {
@@ -589,8 +589,8 @@ static void compileRval(Compiler* c, Identifier* boundName, Expr* e) {
 
 static void compileConstUnpackLst(Compiler* c, Identifier** boundNames, Expr* exprs, int num) {
     int i = 0;
-    foreach(n, exprs->as.list) {
-        compileRval(c, boundNames ? boundNames[i] : NULL, (Expr*)n->elem);
+    vecForeach(Expr(**e), exprs->as.list) {
+        compileRval(c, boundNames ? boundNames[i] : NULL, *e);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
@@ -600,32 +600,28 @@ static void compileConstUnpackLst(Compiler* c, Identifier** boundNames, Expr* ex
 
 // Compile an unpack assignment of the form: a, b, ..., z = ...
 static void compileUnpackAssign(Compiler* c, Expr* e) {
-    int assignments = 0;
-    Expr* lvals[UINT8_MAX];
-
     Expr* tuple = e->as.assign.lval;
-    foreach(n, tuple->as.tuple.exprs->as.list) {
-        if(assignments == UINT8_MAX) {
-            error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
-            break;
-        }
-        lvals[assignments++] = (Expr*)n->elem;
+    size_t tupleSize = vecSize(&tuple->as.tuple.exprs->as.list);
+
+    if(tupleSize >= UINT8_MAX) {
+        error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
     }
 
     Expr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
         Expr* lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
-        compileConstUnpackLst(c, NULL, lst, assignments);
+        compileConstUnpackLst(c, NULL, lst, tupleSize);
     } else {
-        compileRval(c, NULL, e->as.assign.rval);
+        compileRval(c, NULL, rval);
         emitBytecode(c, OP_UNPACK, e->line);
-        emitBytecode(c, (uint8_t)assignments, e->line);
+        emitBytecode(c, (uint8_t)tupleSize, e->line);
     }
 
     // compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
-    for(int n = assignments - 1; n >= 0; n--) {
-        compileLval(c, lvals[n]);
+    for(int n = tupleSize - 1; n >= 0; n--) {
+        Expr* lval = vecGet(&tuple->as.tuple.exprs->as.list, n);
+        compileLval(c, lval);
         if(n != 0) emitBytecode(c, OP_POP, e->line);
     }
 }

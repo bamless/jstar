@@ -9,7 +9,7 @@
 #include "common.h"
 #include "jsrparse/ast.h"
 #include "jsrparse/lex.h"
-#include "jsrparse/linkedlist.h"
+#include "jsrparse/vector.h"
 
 typedef struct Parser {
     Lexer lex;
@@ -190,14 +190,15 @@ static Expr* expression(Parser* p, bool tuple);
 static Expr* literal(Parser* p);
 
 typedef struct {
-    LinkedList* arguments;
-    LinkedList* defaults;
+    Vector arguments;
+    Vector defaults;
     bool isVararg;
 } FormalArgs;
 
 static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
-    LinkedList *arguments = NULL, *defaults = NULL;
-    bool isVararg = false;
+    FormalArgs args;
+    args.arguments = vecNew();
+    args.defaults = vecNew();
 
     require(p, open);
     skipNewLines(p);
@@ -211,8 +212,7 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
             nextToken(&p->lex, &p->peek);
             break;
         }
-
-        arguments = addElement(arguments, newIdentifier(argument.length, argument.lexeme));
+        vecPush(&args.arguments, newIdentifier(argument.length, argument.lexeme));
         skipNewLines(p);
 
         if(!match(p, close)) {
@@ -235,8 +235,8 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
             error(p, "Default argument must be a constant");
         }
 
-        arguments = addElement(arguments, newIdentifier(argument.length, argument.lexeme));
-        defaults = addElement(defaults, constant);
+        vecPush(&args.arguments, newIdentifier(argument.length, argument.lexeme));
+        vecPush(&args.defaults, constant);
 
         if(!match(p, close)) {
             require(p, TOK_COMMA);
@@ -247,26 +247,26 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
     if(match(p, TOK_VARARG)) {
         advance(p);
         skipNewLines(p);
-        isVararg = true;
+        args.isVararg = true;
     }
 
     require(p, close);
-    return (FormalArgs){arguments, defaults, isVararg};
+    return args;
 }
 
 static Stmt* parseStmt(Parser* p);
 
 static Stmt* blockStmt(Parser* p) {
     int line = p->peek.line;
-    LinkedList* stmts = NULL;
-
     skipNewLines(p);
+
+    Vector stmts = vecNew();
     while(!isImplicitEnd(&p->peek)) {
-        stmts = addElement(stmts, parseStmt(p));
+        vecPush(&stmts, parseStmt(p));
         skipNewLines(p);
     }
 
-    return newBlockStmt(line, stmts);
+    return newBlockStmt(line, &stmts);
 }
 
 static Stmt* ifBody(Parser* p, int line) {
@@ -319,11 +319,11 @@ static Stmt* varDecl(Parser* p) {
     advance(p);
 
     bool isUnpack = false;
-    LinkedList* identifiers = NULL;
+    Vector identifiers = vecNew();
 
     do {
         Token id = require(p, TOK_IDENTIFIER);
-        identifiers = addElement(identifiers, newIdentifier(id.length, id.lexeme));
+        vecPush(&identifiers, newIdentifier(id.length, id.lexeme));
 
         if(match(p, TOK_COMMA)) {
             advance(p);
@@ -339,7 +339,7 @@ static Stmt* varDecl(Parser* p) {
         init = expression(p, true);
     }
 
-    return newVarDecl(line, isUnpack, identifiers, init);
+    return newVarDecl(line, isUnpack, &identifiers, init);
 }
 
 static Stmt* forEach(Parser* p, Stmt* var, int line) {
@@ -419,17 +419,17 @@ static Stmt* importStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
 
-    LinkedList* modules = NULL;
+    Vector modules = vecNew();
 
     for(;;) {
         Token name = require(p, TOK_IDENTIFIER);
-        modules = addElement(modules, newIdentifier(name.length, name.lexeme));
+        vecPush(&modules, newIdentifier(name.length, name.lexeme));
         if(!match(p, TOK_DOT)) break;
         advance(p);
     }
 
     Token asName = {0};
-    LinkedList* importNames = NULL;
+    Vector importNames = vecNew();
 
     if(match(p, TOK_FOR)) {
         advance(p);
@@ -437,11 +437,11 @@ static Stmt* importStmt(Parser* p) {
 
         if(match(p, TOK_MULT)) {
             Token all = advance(p);
-            importNames = addElement(importNames, newIdentifier(all.length, all.lexeme));
+            vecPush(&importNames, newIdentifier(all.length, all.lexeme));
         } else {
             for(;;) {
                 Token name = require(p, TOK_IDENTIFIER);
-                importNames = addElement(importNames, newIdentifier(name.length, name.lexeme));
+                vecPush(&importNames, newIdentifier(name.length, name.lexeme));
                 if(!match(p, TOK_COMMA)) break;
                 advance(p);
                 skipNewLines(p);
@@ -454,7 +454,7 @@ static Stmt* importStmt(Parser* p) {
     }
 
     requireStmtEnd(p);
-    return newImportStmt(line, modules, importNames, &asName);
+    return newImportStmt(line, &modules, &importNames, &asName);
 }
 
 static Stmt* tryStmt(Parser* p) {
@@ -462,7 +462,7 @@ static Stmt* tryStmt(Parser* p) {
     advance(p);
 
     Stmt* tryBlock = blockStmt(p);
-    LinkedList* excs = NULL;
+    Vector excs = vecNew();
     Stmt* ensure = NULL;
 
     if(match(p, TOK_EXCEPT)) {
@@ -473,7 +473,7 @@ static Stmt* tryStmt(Parser* p) {
             Expr* cls = expression(p, true);
             Token var = require(p, TOK_IDENTIFIER);
             Stmt* block = blockStmt(p);
-            excs = addElement(excs, newExceptStmt(excLine, cls, &var, block));
+            vecPush(&excs, newExceptStmt(excLine, cls, &var, block));
         }
     }
 
@@ -482,12 +482,12 @@ static Stmt* tryStmt(Parser* p) {
         ensure = blockStmt(p);
     }
 
-    if(!excs && !ensure) {
+    if(vecEmpty(&excs) && !ensure) {
         error(p, "Expected except or ensure clause");
     }
 
     require(p, TOK_END);
-    return newTryStmt(line, tryBlock, excs, ensure);
+    return newTryStmt(line, tryBlock, &excs, ensure);
 }
 
 static Stmt* raiseStmt(Parser* p) {
@@ -527,7 +527,7 @@ static Stmt* funcDecl(Parser* p) {
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newFuncDecl(line, &funcName, args.arguments, args.defaults, args.isVararg, body);
+    return newFuncDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg, body);
 }
 
 static Stmt* nativeDecl(Parser* p) {
@@ -538,7 +538,7 @@ static Stmt* nativeDecl(Parser* p) {
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return newNativeDecl(line, &funcName, args.arguments, args.defaults, args.isVararg);
+    return newNativeDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg);
 }
 
 static Stmt* classDecl(Parser* p) {
@@ -557,14 +557,14 @@ static Stmt* classDecl(Parser* p) {
 
     skipNewLines(p);
 
-    LinkedList* methods = NULL;
+    Vector methods = vecNew();
     while(!match(p, TOK_END) && !match(p, TOK_EOF)) {
         if(match(p, TOK_NAT)) {
-            methods = addElement(methods, nativeDecl(p));
+            vecPush(&methods, nativeDecl(p));
         } else {
             Stmt* fun = funcDecl(p);
             if(fun != NULL) {
-                methods = addElement(methods, fun);
+                vecPush(&methods, fun);
             } else {
                 error(p, "Expected function or native delcaration.");
                 advance(p);
@@ -575,7 +575,7 @@ static Stmt* classDecl(Parser* p) {
     }
 
     require(p, TOK_END);
-    return newClassDecl(line, &clsName, sup, methods);
+    return newClassDecl(line, &clsName, sup, &methods);
 }
 
 static Stmt* parseStmt(Parser* p) {
@@ -635,17 +635,17 @@ static Stmt* parseStmt(Parser* p) {
 }
 
 static Stmt* parseProgram(Parser* p) {
-    LinkedList* stmts = NULL;
-
     skipNewLines(p);
+
+    Vector stmts = vecNew();
     while(!match(p, TOK_EOF)) {
-        stmts = addElement(stmts, parseStmt(p));
+        vecPush(&stmts, parseStmt(p));
         skipNewLines(p);
         if(p->panic) synchronize(p);
     }
 
     Token name = {0};
-    return newFuncDecl(0, &name, NULL, NULL, false, newBlockStmt(0, stmts));
+    return newFuncDecl(0, &name, NULL, NULL, false, newBlockStmt(0, &stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -654,13 +654,12 @@ static Stmt* parseProgram(Parser* p) {
 
 static Expr* expressionLst(Parser* p, TokenType open, TokenType close) {
     int line = p->peek.line;
-    LinkedList* exprs = NULL;
-
     require(p, open);
     skipNewLines(p);
 
+    Vector exprs = vecNew();
     while(!match(p, close)) {
-        exprs = addElement(exprs, expression(p, false));
+        vecPush(&exprs, expression(p, false));
         skipNewLines(p);
         if(!match(p, TOK_COMMA)) break;
         advance(p);
@@ -668,7 +667,7 @@ static Expr* expressionLst(Parser* p, TokenType open, TokenType close) {
     }
 
     require(p, close);
-    return newExprList(line, exprs);
+    return newExprList(line, &exprs);
 }
 
 static Expr* parseTableLiteral(Parser* p) {
@@ -676,7 +675,7 @@ static Expr* parseTableLiteral(Parser* p) {
     advance(p);
     skipNewLines(p);
 
-    LinkedList* keyVals = NULL;
+    Vector keyVals = vecNew();
     while(!match(p, TOK_RCURLY)) {
         Expr* key;
         if(match(p, TOK_DOT)) {
@@ -697,8 +696,8 @@ static Expr* parseTableLiteral(Parser* p) {
 
         if(p->hadError) break;
 
-        keyVals = addElement(keyVals, key);
-        keyVals = addElement(keyVals, val);
+        vecPush(&keyVals, key);
+        vecPush(&keyVals, val);
 
         if(!match(p, TOK_RCURLY)) {
             require(p, TOK_COMMA);
@@ -707,7 +706,7 @@ static Expr* parseTableLiteral(Parser* p) {
     }
 
     require(p, TOK_RCURLY);
-    return newTableLiteral(line, newExprList(line, keyVals));
+    return newTableLiteral(line, newExprList(line, &keyVals));
 }
 
 static Expr* parseSuperLiteral(Parser* p) {
@@ -725,7 +724,9 @@ static Expr* parseSuperLiteral(Parser* p) {
     if(match(p, TOK_LPAREN)) {
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
     } else if(match(p, TOK_LCURLY)) {
-        args = newExprList(line, addElement(NULL, parseTableLiteral(p)));
+        Vector tableCallArgs = vecNew();
+        vecPush(&tableCallArgs, parseTableLiteral(p));
+        args = newExprList(line, &tableCallArgs);
     }
 
     return newSuperLiteral(line, &name, args);
@@ -816,8 +817,9 @@ static Expr* postfixExpr(Parser* p) {
             break;
         }
         case TOK_LCURLY: {
-            Expr* table = literal(p);
-            Expr* args = newExprList(line, addElement(NULL, table));
+            Vector tableCallArgs = vecNew();
+            vecPush(&tableCallArgs, parseTableLiteral(p));
+            Expr* args = newExprList(line, &tableCallArgs);
             lit = newCallExpr(line, lit, args);
             break;
         }
@@ -848,9 +850,9 @@ static Expr* anonymousFunc(Parser* p) {
 
         FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
         Stmt* body = blockStmt(p);
-
         require(p, TOK_END);
-        return newAnonymousFunc(line, args.arguments, args.defaults, args.isVararg, body);
+
+        return newAnonymousFunc(line, &args.arguments, &args.defaults, args.isVararg, body);
     }
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
@@ -859,8 +861,11 @@ static Expr* anonymousFunc(Parser* p) {
         require(p, TOK_ARROW);
 
         Expr* e = expression(p, false);
-        Stmt* body = newBlockStmt(line, addElement(NULL, newReturnStmt(line, e)));
-        return newAnonymousFunc(line, args.arguments, args.defaults, args.isVararg, body);
+        Vector anonFuncStmts = vecNew();
+        vecPush(&anonFuncStmts, newReturnStmt(line, e));
+        Stmt* body = newBlockStmt(line, &anonFuncStmts);
+
+        return newAnonymousFunc(line, &args.arguments, &args.defaults, args.isVararg, body);
     }
     return postfixExpr(p);
 }
@@ -974,24 +979,27 @@ static Expr* ternaryExpr(Parser* p) {
 
 static Expr* tupleExpression(Parser* p, Expr* first) {
     int line = p->peek.line;
-    LinkedList* exprs = addElement(NULL, first);
+
+    Vector exprs = vecNew();
+    vecPush(&exprs, first);
 
     while(match(p, TOK_COMMA)) {
         advance(p);
         if(!isExpressionStart(&p->peek)) break;
-        exprs = addElement(exprs, ternaryExpr(p));
+        vecPush(&exprs, ternaryExpr(p));
     }
 
-    return newTupleLiteral(line, newExprList(line, exprs));
+    return newTupleLiteral(line, newExprList(line, &exprs));
 }
 
 static void checkUnpackAssignement(Parser* p, Expr* lvals, TokenType assignToken) {
-    foreach(n, lvals->as.list) {
-        if(!isLValue(((Expr*)n->elem)->type)) {
+    vecForeach(Expr(**it), lvals->as.list) {
+        Expr* expr = *it;
+        if(!isLValue(expr->type)) {
             error(p, "Left hand side of assignment must be an lvalue.");
         }
         if(assignToken != TOK_EQUAL) {
-            error(p, "Unpack cannot use compund assignement.");
+            error(p, "Unpack cannot use compound assignement.");
         }
     }
 }
