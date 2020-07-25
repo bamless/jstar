@@ -196,7 +196,7 @@ typedef struct {
 } FormalArgs;
 
 static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
-    FormalArgs args;
+    FormalArgs args = {0};
     args.arguments = vecNew();
     args.defaults = vecNew();
 
@@ -645,7 +645,8 @@ static Stmt* parseProgram(Parser* p) {
     }
 
     Token name = {0};
-    return newFuncDecl(0, &name, NULL, NULL, false, newBlockStmt(0, &stmts));
+    Vector empty = vecNew();
+    return newFuncDecl(0, &name, &empty, &empty, false, newBlockStmt(0, &stmts));
 }
 
 // -----------------------------------------------------------------------------
