@@ -9,7 +9,6 @@
 #include "chunk.h"
 #include "common.h"
 #include "jsrparse/lex.h"
-#include "jsrparse/linkedlist.h"
 #include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
