@@ -2,8 +2,6 @@
 
 #include <string.h>
 
-#include "jsrparse/linkedlist.h"
-
 Identifier* newIdentifier(size_t length, const char* name) {
     Identifier* id = malloc(sizeof(*id));
     id->length = length;
@@ -95,9 +93,9 @@ Expr* newTableLiteral(int line, Expr* keyVals) {
     return t;
 }
 
-Expr* newExprList(int line, LinkedList* exprs) {
+Expr* newExprList(int line, Vector* exprs) {
     Expr* e = newExpr(line, EXPR_LST);
-    e->as.list = exprs;
+    e->as.list = vecMove(exprs);
     return e;
 }
 
@@ -146,10 +144,9 @@ Expr* newCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval) {
     return e;
 }
 
-Expr* newAnonymousFunc(int line, LinkedList* args, LinkedList* defArgs, bool vararg, Stmt* body) {
+Expr* newAnonymousFunc(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body) {
     Expr* e = newExpr(line, ANON_FUNC);
-    // Empty name
-    Token name = {0};
+    Token name = {0};  // Empty name
     e->as.anonFunc.func = newFuncDecl(line, &name, args, defArgs, vararg, body);
     return e;
 }
@@ -187,13 +184,12 @@ void freeExpr(Expr* e) {
         freeExpr(e->as.table.keyVals);
         break;
     case EXPR_LST: {
-        LinkedList* head = e->as.list;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            freeExpr(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Expr** expr, e->as.list) { 
+            freeExpr(*expr); 
         }
+        // clang-format on
+        vecFree(&e->as.list);
         break;
     }
     case CALL_EXPR:
@@ -242,34 +238,33 @@ static Stmt* newStmt(int line, StmtType type) {
     return s;
 }
 
-Stmt* newFuncDecl(int line, Token* name, LinkedList* args, LinkedList* defArgs, bool vararg,
-                  Stmt* body) {
+Stmt* newFuncDecl(int line, Token* name, Vector* args, Vector* defArgs, bool vararg, Stmt* body) {
     Stmt* f = newStmt(line, FUNCDECL);
     f->as.funcDecl.id.name = name->lexeme;
     f->as.funcDecl.id.length = name->length;
-    f->as.funcDecl.formalArgs = args;
-    f->as.funcDecl.defArgs = defArgs;
+    f->as.funcDecl.formalArgs = vecMove(args);
+    f->as.funcDecl.defArgs = vecMove(defArgs);
     f->as.funcDecl.isVararg = vararg;
     f->as.funcDecl.body = body;
     return f;
 }
 
-Stmt* newNativeDecl(int line, Token* name, LinkedList* args, LinkedList* defArgs, bool vararg) {
+Stmt* newNativeDecl(int line, Token* name, Vector* args, Vector* defArgs, bool vararg) {
     Stmt* n = newStmt(line, NATIVEDECL);
     n->as.nativeDecl.id.name = name->lexeme;
     n->as.nativeDecl.id.length = name->length;
-    n->as.nativeDecl.formalArgs = args;
+    n->as.nativeDecl.formalArgs = vecMove(args);
     n->as.nativeDecl.isVararg = vararg;
-    n->as.nativeDecl.defArgs = defArgs;
+    n->as.nativeDecl.defArgs = vecMove(defArgs);
     return n;
 }
 
-Stmt* newClassDecl(int line, Token* clsName, Expr* sup, LinkedList* methods) {
+Stmt* newClassDecl(int line, Token* clsName, Expr* sup, Vector* methods) {
     Stmt* c = newStmt(line, CLASSDECL);
     c->as.classDecl.sup = sup;
     c->as.classDecl.id.name = clsName->lexeme;
     c->as.classDecl.id.length = clsName->length;
-    c->as.classDecl.methods = methods;
+    c->as.classDecl.methods = vecMove(methods);
     return c;
 }
 
@@ -299,9 +294,9 @@ Stmt* newForEach(int line, Stmt* var, Expr* iter, Stmt* body) {
     return s;
 }
 
-Stmt* newVarDecl(int line, bool isUnpack, LinkedList* ids, Expr* init) {
+Stmt* newVarDecl(int line, bool isUnpack, Vector* ids, Expr* init) {
     Stmt* s = newStmt(line, VARDECL);
-    s->as.varDecl.ids = ids;
+    s->as.varDecl.ids = vecMove(ids);
     s->as.varDecl.isUnpack = isUnpack;
     s->as.varDecl.init = init;
     return s;
@@ -328,16 +323,16 @@ Stmt* newIfStmt(int line, Expr* cond, Stmt* thenStmt, Stmt* elseStmt) {
     return s;
 }
 
-Stmt* newBlockStmt(int line, LinkedList* list) {
+Stmt* newBlockStmt(int line, Vector* list) {
     Stmt* s = newStmt(line, BLOCK);
-    s->as.blockStmt.stmts = list;
+    s->as.blockStmt.stmts = vecMove(list);
     return s;
 }
 
-Stmt* newImportStmt(int line, LinkedList* modules, LinkedList* impNames, Token* as) {
+Stmt* newImportStmt(int line, Vector* modules, Vector* impNames, Token* as) {
     Stmt* s = newStmt(line, IMPORT);
-    s->as.importStmt.modules = modules;
-    s->as.importStmt.impNames = impNames;
+    s->as.importStmt.modules = vecMove(modules);
+    s->as.importStmt.impNames = vecMove(impNames);
     s->as.importStmt.as.name = as->lexeme;
     s->as.importStmt.as.length = as->length;
     return s;
@@ -349,10 +344,10 @@ Stmt* newExprStmt(int line, Expr* e) {
     return s;
 }
 
-Stmt* newTryStmt(int line, Stmt* blck, LinkedList* excs, Stmt* ensure) {
+Stmt* newTryStmt(int line, Stmt* blck, Vector* excs, Stmt* ensure) {
     Stmt* s = newStmt(line, TRY_STMT);
     s->as.tryStmt.block = blck;
-    s->as.tryStmt.excs = excs;
+    s->as.tryStmt.excs = vecMove(excs);
     s->as.tryStmt.ensure = ensure;
     return s;
 }
@@ -415,86 +410,70 @@ void freeStmt(Stmt* s) {
         freeExpr(s->as.exprStmt);
         break;
     case BLOCK: {
-        LinkedList* head = s->as.blockStmt.stmts;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            freeStmt(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Stmt** stmt, s->as.blockStmt.stmts) {
+            freeStmt(*stmt);
         }
+        // clang-format on
+        vecFree(&s->as.blockStmt.stmts);
         break;
     }
     case FUNCDECL: {
-        LinkedList* head = s->as.funcDecl.formalArgs;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            free(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Identifier** id, s->as.funcDecl.formalArgs) {
+            free(*id);
         }
-
-        head = s->as.funcDecl.defArgs;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            freeExpr(f->elem);
-            free(f);
+        vecForeach(Expr** e, s->as.funcDecl.defArgs) {
+            freeExpr(*e);
         }
-
+        // clang-format on
+        vecFree(&s->as.funcDecl.formalArgs);
+        vecFree(&s->as.funcDecl.defArgs);
         freeStmt(s->as.funcDecl.body);
         break;
     }
     case NATIVEDECL: {
-        LinkedList* head = s->as.nativeDecl.formalArgs;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            free(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Identifier** id, s->as.nativeDecl.formalArgs) {
+            free(*id);
         }
-
-        head = s->as.nativeDecl.defArgs;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            freeExpr(f->elem);
-            free(f);
+        vecForeach(Expr** e, s->as.nativeDecl.defArgs) {
+            freeExpr(*e);
         }
+        // clang-format on
+        vecFree(&s->as.nativeDecl.formalArgs);
+        vecFree(&s->as.nativeDecl.defArgs);
         break;
     }
     case CLASSDECL: {
         freeExpr(s->as.classDecl.sup);
-        LinkedList* head = s->as.classDecl.methods;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            freeStmt((Stmt*)f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Stmt** stmt, s->as.classDecl.methods) {
+            freeStmt(*stmt);
         }
+        // clang-format on
+        vecFree(&s->as.classDecl.methods);
         break;
     }
     case VARDECL: {
         freeExpr(s->as.varDecl.init);
-        LinkedList* head = s->as.varDecl.ids;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            free(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Identifier** id, s->as.varDecl.ids) {
+            free(*id);
         }
+        // clang-format on
+        vecFree(&s->as.varDecl.ids);
         break;
     }
     case TRY_STMT:
         freeStmt(s->as.tryStmt.block);
         freeStmt(s->as.tryStmt.ensure);
-
-        LinkedList* head = s->as.tryStmt.excs;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            freeStmt(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Stmt** stmt, s->as.tryStmt.excs) {
+            freeStmt(*stmt);
         }
+        // clang-format on
+        vecFree(&s->as.tryStmt.excs);
         break;
     case EXCEPT_STMT:
         freeExpr(s->as.excStmt.cls);
@@ -508,21 +487,16 @@ void freeStmt(Stmt* s) {
         freeStmt(s->as.withStmt.block);
         break;
     case IMPORT: {
-        LinkedList* head = s->as.importStmt.modules;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            free(f->elem);
-            free(f);
+        // clang-format off
+        vecForeach(Identifier** id, s->as.importStmt.modules) {
+            free(*id);
         }
-
-        head = s->as.importStmt.impNames;
-        while(head != NULL) {
-            LinkedList* f = head;
-            head = head->next;
-            free(f->elem);
-            free(f);
+        vecForeach(Identifier** id, s->as.importStmt.impNames) {
+            free(*id);
         }
+        // clang-format on
+        vecFree(&s->as.importStmt.modules);
+        vecFree(&s->as.importStmt.impNames);
         break;
     }
     case CONTINUE_STMT:
