@@ -9,7 +9,6 @@
 #include "chunk.h"
 #include "common.h"
 #include "jsrparse/lex.h"
-#include "jsrparse/linkedlist.h"
 #include "jstar.h"
 #include "memory.h"
 #include "opcode.h"
@@ -320,18 +319,16 @@ static void callMethod(Compiler* c, const char* name, int args) {
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
-static void enterTryBlock(Compiler* c, TryExcept* tryExc, Stmt* try) {
+static void enterTryBlock(Compiler* c, TryExcept* tryExc, int numHandlers) {
     tryExc->depth = c->depth;
     tryExc->next = c->tryBlocks;
     c->tryBlocks = tryExc;
-    if(try->as.tryStmt.ensure != NULL) c->tryDepth++;
-    if(try->as.tryStmt.excs != NULL) c->tryDepth++;
+    c->tryDepth += numHandlers;
 }
 
-static void exitTryBlock(Compiler* c, Stmt* try) {
+static void exitTryBlock(Compiler* c, int numHandlers) {
     c->tryBlocks = c->tryBlocks->next;
-    if(try->as.tryStmt.ensure != NULL) c->tryDepth--;
-    if(try->as.tryStmt.excs != NULL) c->tryDepth--;
+    c->tryDepth -= numHandlers;
 }
 
 static ObjString* readString(Compiler* c, Expr* e) {
@@ -389,10 +386,10 @@ static ObjString* readString(Compiler* c, Expr* e) {
     return jsrBufferToString(&sb);
 }
 
-static void addDefaultConsts(Compiler* c, Value* defaults, LinkedList* defArgs) {
+static void addDefaultConsts(Compiler* c, Value* defaults, Vector* defArgs) {
     int i = 0;
-    foreach(n, defArgs) {
-        Expr* e = (Expr*)n->elem;
+    vecForeach(Expr(**it), *defArgs) {
+        Expr* e = *it;
         switch(e->type) {
         case NUM_LIT:
             defaults[i++] = NUM_VAL(e->as.num);
@@ -587,10 +584,11 @@ static void compileRval(Compiler* c, Identifier* boundName, Expr* e) {
         compileExpr(c, e);
 }
 
-static void compileConstUnpackLst(Compiler* c, Identifier** boundNames, Expr* exprs, int num) {
+static void compileConstUnpackLst(Compiler* c, Vector* boundNames, Expr* exprs, int num) {
     int i = 0;
-    foreach(n, exprs->as.list) {
-        compileRval(c, boundNames ? boundNames[i] : NULL, (Expr*)n->elem);
+    vecForeach(Expr(**e), exprs->as.list) {
+        Identifier* boundName = boundNames ? vecGet(boundNames, i) : NULL;
+        compileRval(c, boundName, *e);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
@@ -600,32 +598,28 @@ static void compileConstUnpackLst(Compiler* c, Identifier** boundNames, Expr* ex
 
 // Compile an unpack assignment of the form: a, b, ..., z = ...
 static void compileUnpackAssign(Compiler* c, Expr* e) {
-    int assignments = 0;
-    Expr* lvals[UINT8_MAX];
+    Expr* tupleExprs = e->as.assign.lval->as.tuple.exprs;
+    size_t tupleSize = vecSize(&tupleExprs->as.list);
 
-    Expr* tuple = e->as.assign.lval;
-    foreach(n, tuple->as.tuple.exprs->as.list) {
-        if(assignments == UINT8_MAX) {
-            error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
-            break;
-        }
-        lvals[assignments++] = (Expr*)n->elem;
+    if(tupleSize >= UINT8_MAX) {
+        error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
     }
 
     Expr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
         Expr* lst = rval->type == ARR_LIT ? rval->as.array.exprs : rval->as.tuple.exprs;
-        compileConstUnpackLst(c, NULL, lst, assignments);
+        compileConstUnpackLst(c, NULL, lst, tupleSize);
     } else {
-        compileRval(c, NULL, e->as.assign.rval);
+        compileRval(c, NULL, rval);
         emitBytecode(c, OP_UNPACK, e->line);
-        emitBytecode(c, (uint8_t)assignments, e->line);
+        emitBytecode(c, (uint8_t)tupleSize, e->line);
     }
 
     // compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
-    for(int n = assignments - 1; n >= 0; n--) {
-        compileLval(c, lvals[n]);
+    for(int n = tupleSize - 1; n >= 0; n--) {
+        Expr* lval = vecGet(&tupleExprs->as.list, n);
+        compileLval(c, lval);
         if(n != 0) emitBytecode(c, OP_POP, e->line);
     }
 }
@@ -687,21 +681,22 @@ static void compileCallExpr(Compiler* c, Expr* e) {
         compileExpr(c, callee);
     }
 
-    int argc = 0;
-    foreach(n, e->as.call.args->as.list) {
-        compileExpr(c, (Expr*)n->elem);
-        argc++;
+    Expr* argsList = e->as.call.args;
+    vecForeach(Expr(**it), argsList->as.list) {
+        // Compile argument list
+        compileExpr(c, *it);
     }
 
-    if(argc >= UINT8_MAX) {
+    size_t argsCount = vecSize(&argsList->as.list);
+    if(argsCount >= UINT8_MAX) {
         error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
     }
 
-    if(argc <= 10) {
-        emitBytecode(c, callInline + argc, e->line);
+    if(argsCount <= 10) {
+        emitBytecode(c, callInline + argsCount, e->line);
     } else {
         emitBytecode(c, callCode, e->line);
-        emitBytecode(c, argc, e->line);
+        emitBytecode(c, argsCount, e->line);
     }
 
     if(isMethod) {
@@ -726,21 +721,22 @@ static void compileSuper(Compiler* c, Expr* e) {
     }
 
     if(e->as.sup.args != NULL) {
-        int argc = 0;
-        foreach(n, e->as.sup.args->as.list) {
-            compileExpr(c, (Expr*)n->elem);
-            argc++;
+        Expr* argsList = e->as.sup.args;
+        vecForeach(Expr(**it), argsList->as.list) {
+            // Compile argument list
+            compileExpr(c, *it);
         }
 
-        if(argc >= UINT8_MAX) {
+        size_t argsCount = vecSize(&argsList->as.list);
+        if(argsCount >= UINT8_MAX) {
             error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
         }
 
-        if(argc <= 10) {
-            emitBytecode(c, OP_SUPER_0 + argc, e->line);
+        if(argsCount <= 10) {
+            emitBytecode(c, OP_SUPER_0 + argsCount, e->line);
         } else {
             emitBytecode(c, OP_SUPER, e->line);
-            emitBytecode(c, argc, e->line);
+            emitBytecode(c, argsCount, e->line);
         }
 
         emitShort(c, nameConst, e->line);
@@ -770,31 +766,30 @@ static void compileExpExpr(Compiler* c, Expr* e) {
 
 static void compileArrayLit(Compiler* c, Expr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
-    LinkedList* exprs = e->as.array.exprs->as.list;
-    foreach(n, exprs) {
-        compileExpr(c, (Expr*)n->elem);
+    vecForeach(Expr(**it), e->as.array.exprs->as.list) {
+        compileExpr(c, *it);
         emitBytecode(c, OP_APPEND_LIST, e->line);
     }
 }
 
 static void compileTupleLit(Compiler* c, Expr* e) {
-    int numElems = 0;
-    foreach(n, e->as.tuple.exprs->as.list) {
-        compileExpr(c, (Expr*)n->elem);
-        numElems++;
+    vecForeach(Expr(**it), e->as.tuple.exprs->as.list) {
+        // Compile tuple
+        compileExpr(c, *it);
     }
-    if(numElems >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
+    size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
+    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
     emitBytecode(c, OP_NEW_TUPLE, e->line);
-    emitBytecode(c, numElems, e->line);
+    emitBytecode(c, tupleSize, e->line);
 }
 
 static void compileTableLit(Compiler* c, Expr* e) {
     emitBytecode(c, OP_NEW_TABLE, e->line);
 
-    LinkedList* head = e->as.table.keyVals->as.list;
-    while(head) {
-        Expr* key = (Expr*)head->elem;
-        Expr* val = (Expr*)head->next->elem;
+    Expr* keyVals = e->as.table.keyVals;
+    for(Expr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list);) {
+        Expr* key = *it;
+        Expr* val = *(it + 1);
 
         emitBytecode(c, OP_DUP, e->line);
         compileExpr(c, key);
@@ -802,7 +797,7 @@ static void compileTableLit(Compiler* c, Expr* e) {
         callMethod(c, "__set__", 2);
         emitBytecode(c, OP_POP, e->line);
 
-        head = head->next->next;
+        it += 2;
     }
 }
 
@@ -839,7 +834,7 @@ static void compileExpr(Compiler* c, Expr* e) {
         compileExpExpr(c, e);
         break;
     case EXPR_LST:
-        foreach(n, e->as.list) { compileExpr(c, (Expr*)n->elem); }
+        vecForeach(Expr(**it), e->as.list) { compileExpr(c, *it); }
         break;
     case NUM_LIT:
         emitBytecode(c, OP_GET_CONST, e->line);
@@ -885,30 +880,26 @@ static void compileExpr(Compiler* c, Expr* e) {
 
 static void compileStatement(Compiler* c, Stmt* s);
 
-static void compileStatements(Compiler* c, LinkedList* stmts) {
-    foreach(n, stmts) { compileStatement(c, (Stmt*)n->elem); }
+static void compileStatements(Compiler* c, Vector* stmts) {
+    vecForeach(Stmt(**it), *stmts) { compileStatement(c, *it); }
 }
 
 static void compileVarDecl(Compiler* c, Stmt* s) {
-    int numDecls = 0;
-    Identifier* decls[MAX_LOCALS];
-
-    foreach(n, s->as.varDecl.ids) {
-        if(numDecls == MAX_LOCALS) break;
-        Identifier* name = (Identifier*)n->elem;
+    vecForeach(Identifier(**it), s->as.varDecl.ids) {
+        Identifier* name = *it;
         declareVar(c, name, s->line);
-        decls[numDecls++] = name;
     }
 
+    int numDecls = vecSize(&s->as.varDecl.ids);
     if(s->as.varDecl.init != NULL) {
         Expr* init = s->as.varDecl.init;
         ExprType initType = s->as.varDecl.init->type;
 
         if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
             Expr* exprs = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
-            compileConstUnpackLst(c, decls, exprs, numDecls);
+            compileConstUnpackLst(c, &s->as.varDecl.ids, exprs, numDecls);
         } else {
-            compileRval(c, decls[0], init);
+            compileRval(c, vecGet(&s->as.varDecl.ids, 0), init);
             if(s->as.varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)numDecls, s->line);
@@ -923,10 +914,11 @@ static void compileVarDecl(Compiler* c, Stmt* s) {
     // define in reverse order in order to assign correct
     // values to variables in case of a const unpack
     for(int i = numDecls - 1; i >= 0; i--) {
-        if(c->depth == 0)
-            defineVar(c, decls[i], s->line);
-        else
+        if(c->depth == 0) {
+            defineVar(c, vecGet(&s->as.varDecl.ids, i), s->line);
+        } else {
             markInitialized(c, c->localsCount - i - 1);
+        }
     }
 }
 
@@ -1064,20 +1056,19 @@ static void compileForEach(Compiler* c, Stmt* s) {
     Stmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    // declare the variables used for iteration
-    int num = 0;
-    foreach(n, varDecl->as.varDecl.ids) {
-        declareVar(c, (Identifier*)n->elem, s->line);
-        defineVar(c, (Identifier*)n->elem, s->line);
-        num++;
+    vecForeach(Identifier(**id), varDecl->as.varDecl.ids) {
+        declareVar(c, *id, s->line);
+        defineVar(c, *id, s->line);
     }
 
+    int num = vecSize(&varDecl->as.varDecl.ids);
     if(varDecl->as.varDecl.isUnpack) {
         emitBytecode(c, OP_UNPACK, s->line);
         emitBytecode(c, (uint8_t)num, s->line);
     }
 
-    compileStatements(c, s->as.forEach.body->as.blockStmt.stmts);
+    Stmt* body = s->as.forEach.body;
+    compileStatements(c, &body->as.blockStmt.stmts);
 
     exitScope(c);
 
@@ -1105,36 +1096,38 @@ static void compileWhileStatement(Compiler* c, Stmt* s) {
 }
 
 static void compileImportStatement(Compiler* c, Stmt* s) {
-    const char* base = ((Identifier*)s->as.importStmt.modules->elem)->name;
+    Vector* modules = &s->as.importStmt.modules;
+    Vector* impNames = &s->as.importStmt.impNames;
+    const char* base = ((Identifier*)vecGet(modules, 0))->name;
 
     // import module (if nested module, import all from outer to inner)
-    uint16_t nameConst;
+    uint16_t nameConst = 0;
     int length = -1;
-    foreach(n, s->as.importStmt.modules) {
-        Identifier* name = (Identifier*)n->elem;
+    vecForeach(Identifier(**it), *modules) {
+        Identifier* name = *it;
 
         length += name->length + 1;          // length of current submodule plus a dot
         Identifier module = {length, base};  // name of current submodule
 
-        if(n == s->as.importStmt.modules && s->as.importStmt.impNames == NULL &&
-           s->as.importStmt.as.name == NULL) {
+        if(vecIteratorIndex(modules, it) == 0 && vecEmpty(impNames) && !s->as.importStmt.as.name) {
             emitBytecode(c, OP_IMPORT, s->line);
         } else {
             emitBytecode(c, OP_IMPORT_FROM, s->line);
         }
+
         nameConst = identifierConst(c, &module, s->line);
         emitShort(c, nameConst, s->line);
 
-        if(n->next != NULL) {
+        if(vecIteratorIndex(modules, it) != vecSize(modules) - 1) {
             emitBytecode(c, OP_POP, s->line);
         }
     }
 
-    if(s->as.importStmt.impNames != NULL) {
-        foreach(n, s->as.importStmt.impNames) {
+    if(!vecEmpty(impNames)) {
+        vecForeach(Identifier(**it), *impNames) {
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, nameConst, s->line);
-            emitShort(c, identifierConst(c, (Identifier*)n->elem, s->line), s->line);
+            emitShort(c, identifierConst(c, *it, s->line), s->line);
         }
     } else if(s->as.importStmt.as.name != NULL) {
         // set last import as an import as
@@ -1146,8 +1139,9 @@ static void compileImportStatement(Compiler* c, Stmt* s) {
     emitBytecode(c, OP_POP, s->line);
 }
 
-static void compileExcepts(Compiler* c, LinkedList* excs) {
-    Stmt* exc = (Stmt*)excs->elem;
+static void compileExcepts(Compiler* c, Vector* excs, int n) {
+    Stmt* exc = vecGet(excs, n);
+    bool last = n == (int)(vecSize(excs) - 1);
 
     Identifier exception = syntheticIdentifier(".exception");
     compileVariable(c, &exception, false, exc->line);
@@ -1163,7 +1157,8 @@ static void compileExcepts(Compiler* c, LinkedList* excs) {
     declareVar(c, &exc->as.excStmt.var, exc->line);
     defineVar(c, &exc->as.excStmt.var, exc->line);
 
-    compileStatements(c, exc->as.excStmt.block->as.blockStmt.stmts);
+    Stmt* excBody = exc->as.excStmt.block;
+    compileStatements(c, &excBody->as.blockStmt.stmts);
 
     emitBytecode(c, OP_NULL, exc->line);
     compileVariable(c, &exception, true, exc->line);
@@ -1172,29 +1167,30 @@ static void compileExcepts(Compiler* c, LinkedList* excs) {
     exitScope(c);
 
     size_t exitJmp = 0;
-    if(excs->next != NULL) {
+    if(!last) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
     setJumpTo(c, falseJmp, c->func->chunk.count, exc->line);
 
-    if(excs->next != NULL) {
-        compileExcepts(c, excs->next);
+    if(!last) {
+        compileExcepts(c, excs, n + 1);
         setJumpTo(c, exitJmp, c->func->chunk.count, exc->line);
     }
 }
 
 static void compileTryExcept(Compiler* c, Stmt* s) {
+    bool hasExcept = !vecEmpty(&s->as.tryStmt.excs);
+    bool hasEnsure = s->as.tryStmt.ensure != NULL;
+
     TryExcept tryBlock;
-    enterTryBlock(c, &tryBlock, s);
+    int numHandlers = (int)hasExcept + (int)hasEnsure;
+    enterTryBlock(c, &tryBlock, numHandlers);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
         error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
     }
-
-    bool hasExcept = s->as.tryStmt.excs != NULL;
-    bool hasEnsure = s->as.tryStmt.ensure != NULL;
 
     size_t excSetup = 0;
     size_t ensSetup = 0;
@@ -1237,7 +1233,7 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
 
         setJumpTo(c, excSetup, c->func->chunk.count, s->line);
 
-        compileExcepts(c, s->as.tryStmt.excs);
+        compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
             emitBytecode(c, OP_POP_HANDLER, 0);
@@ -1251,12 +1247,12 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
 
     if(hasEnsure) {
         setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
-        compileStatements(c, s->as.tryStmt.ensure->as.blockStmt.stmts);
+        compileStatements(c, &s->as.tryStmt.ensure->as.blockStmt.stmts);
         emitBytecode(c, OP_END_TRY, 0);
         exitScope(c);
     }
 
-    exitTryBlock(c, s);
+    exitTryBlock(c, numHandlers);
 }
 
 static void compileRaiseStmt(Compiler* c, Stmt* s) {
@@ -1289,7 +1285,7 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
 
     // try
     TryExcept tryBlock;
-    enterTryBlock(c, &tryBlock, s);
+    enterTryBlock(c, &tryBlock, 1);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
         error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
@@ -1340,7 +1336,7 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
     emitBytecode(c, OP_END_TRY, 0);
     exitScope(c);
 
-    exitTryBlock(c, s);
+    exitTryBlock(c, 1);
     exitScope(c);
 }
 
@@ -1361,12 +1357,12 @@ static void compileLoopExitStmt(Compiler* c, Stmt* s) {
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
-    size_t defaults = listLength(s->as.funcDecl.defArgs);
-    size_t arity = listLength(s->as.funcDecl.formalArgs);
+    size_t defaults = vecSize(&s->as.funcDecl.defArgs);
+    size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
-    addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
+    addDefaultConsts(c, c->func->c.defaults, &s->as.funcDecl.defArgs);
 
     if(s->as.funcDecl.id.length != 0) {
         c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length, true);
@@ -1379,9 +1375,9 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     Identifier id = syntheticIdentifier("");
     addLocal(c, &id, s->line);
 
-    foreach(n, s->as.funcDecl.formalArgs) {
-        declareVar(c, (Identifier*)n->elem, s->line);
-        defineVar(c, (Identifier*)n->elem, s->line);
+    vecForeach(Identifier(**it), s->as.funcDecl.formalArgs) {
+        declareVar(c, *it, s->line);
+        defineVar(c, *it, s->line);
     }
 
     if(s->as.funcDecl.isVararg) {
@@ -1390,7 +1386,8 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
         defineVar(c, &args, s->line);
     }
 
-    compileStatements(c, s->as.funcDecl.body->as.blockStmt.stmts);
+    Stmt* body = s->as.funcDecl.body;
+    compileStatements(c, &body->as.blockStmt.stmts);
 
     emitBytecode(c, OP_NULL, 0);
     emitBytecode(c, OP_RETURN, 0);
@@ -1401,15 +1398,15 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
 }
 
 static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s) {
-    size_t defaults = listLength(s->as.funcDecl.defArgs);
-    size_t arity = listLength(s->as.funcDecl.formalArgs);
+    size_t defaults = vecSize(&s->as.funcDecl.defArgs);
+    size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->chunk, HANDLE_VAL(NULL));
-    addDefaultConsts(c, c->func->c.defaults, s->as.funcDecl.defArgs);
+    addDefaultConsts(c, c->func->c.defaults, &s->as.funcDecl.defArgs);
 
     // create new method name by concatenating the class name to it
     size_t length = classId->length + s->as.funcDecl.id.length + 1;
@@ -1435,9 +1432,9 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
 
     // define and declare arguments
 
-    foreach(n, s->as.funcDecl.formalArgs) {
-        declareVar(c, (Identifier*)n->elem, s->line);
-        defineVar(c, (Identifier*)n->elem, s->line);
+    vecForeach(Identifier(**it), s->as.funcDecl.formalArgs) {
+        declareVar(c, *it, s->line);
+        defineVar(c, *it, s->line);
     }
 
     if(s->as.funcDecl.isVararg) {
@@ -1446,7 +1443,8 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
         defineVar(c, &args, s->line);
     }
 
-    compileStatements(c, s->as.funcDecl.body->as.blockStmt.stmts);
+    Stmt* body = s->as.funcDecl.body;
+    compileStatements(c, &body->as.blockStmt.stmts);
 
     // if in constructor return the instance
     if(c->type == TYPE_CTOR) {
@@ -1480,14 +1478,14 @@ static void compileFunction(Compiler* c, Stmt* s) {
 }
 
 static void compileNative(Compiler* c, Stmt* s) {
-    size_t defaults = listLength(s->as.nativeDecl.defArgs);
-    size_t arity = listLength(s->as.nativeDecl.formalArgs);
+    size_t defaults = vecSize(&s->as.nativeDecl.defArgs);
+    size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
     bool vararg = s->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
 
     push(c->vm, OBJ_VAL(native));
-    addDefaultConsts(c, native->c.defaults, s->as.nativeDecl.defArgs);
+    addDefaultConsts(c, native->c.defaults, &s->as.nativeDecl.defArgs);
     pop(c->vm);
 
     uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
@@ -1520,13 +1518,13 @@ static void compileMethod(Compiler* c, Stmt* cls, Stmt* m) {
 }
 
 static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
-    size_t defaults = listLength(m->as.nativeDecl.defArgs);
-    size_t arity = listLength(m->as.nativeDecl.formalArgs);
+    size_t defaults = vecSize(&m->as.nativeDecl.defArgs);
+    size_t arity = vecSize(&m->as.nativeDecl.formalArgs);
     bool vararg = m->as.nativeDecl.isVararg;
 
     ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
     push(c->vm, OBJ_VAL(n));
-    addDefaultConsts(c, n->c.defaults, m->as.nativeDecl.defArgs);
+    addDefaultConsts(c, n->c.defaults, &m->as.nativeDecl.defArgs);
     pop(c->vm);
 
     uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
@@ -1547,9 +1545,8 @@ static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
 }
 
 static void compileMethods(Compiler* c, Stmt* cls) {
-    LinkedList* methods = cls->as.classDecl.methods;
-    foreach(n, methods) {
-        Stmt* method = (Stmt*)n->elem;
+    vecForeach(Stmt(**it), cls->as.classDecl.methods) {
+        Stmt* method = *it;
         switch(method->type) {
         case FUNCDECL:
             compileMethod(c, cls, method);
@@ -1597,7 +1594,7 @@ static void compileStatement(Compiler* c, Stmt* s) {
         break;
     case BLOCK:
         enterScope(c);
-        compileStatements(c, s->as.blockStmt.stmts);
+        compileStatements(c, &s->as.blockStmt.stmts);
         exitScope(c);
         break;
     case RETURN_STMT:
