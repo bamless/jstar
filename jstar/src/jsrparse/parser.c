@@ -197,8 +197,6 @@ typedef struct {
 
 static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
     FormalArgs args = {0};
-    args.arguments = vecNew();
-    args.defaults = vecNew();
 
     require(p, open);
     skipNewLines(p);
@@ -644,9 +642,7 @@ static Stmt* parseProgram(Parser* p) {
         if(p->panic) synchronize(p);
     }
 
-    Token name = {0};
-    Vector empty = vecNew();
-    return newFuncDecl(0, &name, &empty, &empty, false, newBlockStmt(0, &stmts));
+    return newFuncDecl(0, &(Token){0}, &(Vector){0}, &(Vector){0}, false, newBlockStmt(0, &stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -779,7 +775,7 @@ static Expr* literal(Parser* p) {
 
         if(match(p, TOK_RPAREN)) {
             advance(p);
-            return newTupleLiteral(line, newExprList(line, NULL));
+            return newTupleLiteral(line, newExprList(line, &(Vector){0}));
         }
 
         Expr* e = expression(p, true);
