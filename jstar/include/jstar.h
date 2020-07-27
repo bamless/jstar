@@ -233,8 +233,10 @@ JSTAR_API void jsrPushList(JStarVM* vm);
 JSTAR_API void jsrPushTuple(JStarVM* vm, size_t size);
 JSTAR_API void jsrPushTable(JStarVM* vm);
 JSTAR_API void jsrPushValue(JStarVM* vm, int slot);
-JSTAR_API void jsrPushNative(JStarVM* vm, const char* name, JStarNative nat, uint8_t argc);
 JSTAR_API void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*));
+JSTAR_API void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
+                             uint8_t argc);
+
 #define jsrDup(vm) jsrPushValue(vm, -1)
 
 // Pop a value from the top of the stack
@@ -301,17 +303,23 @@ JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 
 // Set the global "name" of the module "mname" with the value
 // on top of the stack. the value is not popped.
-// If calling from inside a native mname can be NULL, and the
-// used module will be the current one.
-JSTAR_API void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name);
+// If calling inside a native function module can be NULL, and
+// the used module will be the current one
+JSTAR_API void jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
 
 // Get the global "name" of the module "mname".
 // Returns true in case of success leaving the result on the
 // top of the stack, false otherwise leaving an exception on
 // top of the stack.
-// If calling from inside a native mname can be NULL, and the
-// used module will be the current one.
-JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name);
+// If calling inside a native function module can be NULL, and
+// the used module will be the current one
+JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
+
+// -----------------------------------------------------------------------------
+// CLASS MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
+
+JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 
 // -----------------------------------------------------------------------------
 // USERDATA MANIPULATION FUNCTIONS

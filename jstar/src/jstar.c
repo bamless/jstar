@@ -337,23 +337,6 @@ void jsrPushValue(JStarVM* vm, int slot) {
     push(vm, apiStackSlot(vm, slot));
 }
 
-void jsrPushNative(JStarVM* vm, const char* name, JStarNative nat, uint8_t argc) {
-    validateStack(vm);
-
-    ObjModule* module;
-    if(vm->module) {
-        module = vm->module;
-    } else {
-        module = getModule(vm, copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true));
-    }
-
-    ObjString* objName = copyString(vm, name, strlen(name), true);
-    push(vm, OBJ_VAL(objName));
-    ObjNative* objNative = newNative(vm, module, objName, argc, nat, 0, false);
-    pop(vm);
-    push(vm, OBJ_VAL(objNative));
-}
-
 void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
     validateStack(vm);
     ObjUserdata* udata = newUserData(vm, size, finalize);
@@ -361,22 +344,28 @@ void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
     return (void*)udata->data;
 }
 
+void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
+                   uint8_t argc) {
+    validateStack(vm);
+    ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module), true));
+    ASSERT(mod, "Module doesn't exist");
+    ObjString* objName = copyString(vm, name, strlen(name), true);
+    push(vm, OBJ_VAL(objName));
+    ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0, false);
+    pop(vm);
+    push(vm, OBJ_VAL(objNative));
+}
+
 void jsrPop(JStarVM* vm) {
     ASSERT(vm->sp > vm->apiStack, "Popping past frame boundary");
     pop(vm);
 }
 
-void jsrSetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    ASSERT(vm->module || mname, "Undefined module");
-
-    ObjModule* module;
-    if(mname) {
-        module = getModule(vm, copyString(vm, mname, strlen(mname), true));
-    } else {
-        module = vm->module;
-    }
-
-    hashTablePut(&module->globals, copyString(vm, name, strlen(name), true), peek(vm));
+void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
+    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module), true))
+                            : vm->module;
+    ASSERT(mod, "Module doesn't exist");
+    hashTablePut(&mod->globals, copyString(vm, name, strlen(name), true), peek(vm));
 }
 
 void jsrListAppend(JStarVM* vm, int slot) {
@@ -439,26 +428,28 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     return getFieldFromValue(vm, copyString(vm, name, strlen(name), true));
 }
 
-bool jsrGetGlobal(JStarVM* vm, const char* mname, const char* name) {
-    ASSERT(vm->module || mname, "Undefined module");
-
-    ObjModule* module;
-    if(mname) {
-        module = getModule(vm, copyString(vm, mname, strlen(mname), true));
-    } else {
-        module = vm->module;
-    }
+bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
+    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module), true))
+                            : vm->module;
+    ASSERT(mod, "Module doesn't exist");
 
     Value res;
-    ObjString* namestr = copyString(vm, name, strlen(name), true);
-    HashTable* glob = &module->globals;
-    if(!hashTableGet(glob, namestr, &res)) {
-        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mname);
+    ObjString* nameStr = copyString(vm, name, strlen(name), true);
+    if(!hashTableGet(&mod->globals, nameStr, &res)) {
+        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
         return false;
     }
 
     push(vm, res);
     return true;
+}
+
+void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
+    Value cls = apiStackSlot(vm, clsSlot);
+    Value nat = apiStackSlot(vm, natSlot);
+    ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
+    ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
+    hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->c.name, nat);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {
