@@ -361,6 +361,10 @@ void jsrPop(JStarVM* vm) {
     pop(vm);
 }
 
+int jsrTop(JStarVM* vm) {
+    return apiStackIndex(vm, -1);
+}
+
 void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module), true))
                             : vm->module;

@@ -241,6 +241,8 @@ JSTAR_API void jsrPushNative(JStarVM* vm, const char* module, const char* name, 
 
 // Pop a value from the top of the stack
 JSTAR_API void jsrPop(JStarVM* vm);
+// The the top-most used api stack slot
+JSTAR_API int jsrTop(JStarVM* vm);
 
 // -----------------------------------------------------------------------------
 // J* TO C CONVERTING FUNCTIONS
