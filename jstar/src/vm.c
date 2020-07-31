@@ -307,8 +307,8 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
                 return false;
             }
 
-            vm->sp[-argc - 1] = isInstatiableBuiltin(vm, cls) ? NULL_VAL
-                                                              : OBJ_VAL(newInstance(vm, cls));
+            bool builtin = isInstatiableBuiltin(vm, cls);
+            vm->sp[-argc - 1] = builtin ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
 
             Value ctor;
             if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
@@ -374,14 +374,11 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
 
             return callValue(vm, func, argc);
         }
-        default: {
-            Obj* o = AS_OBJ(val);
-            return invokeMethod(vm, o->cls, name, argc);
-        }
+        default:
+            break;
         }
     }
 
-    // if builtin type get the class and try to invoke
     ObjClass* cls = getClass(vm, val);
     return invokeMethod(vm, cls, name, argc);
 }
@@ -407,6 +404,7 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
             Value v;
             ObjInstance* inst = AS_INSTANCE(val);
             if(!hashTableGet(&inst->fields, name, &v)) {
+                // no field, try to bind method
                 if(!bindMethod(vm, inst->base.cls, name)) {
                     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
                              inst->base.cls->name->data, name->data);
@@ -556,6 +554,7 @@ static bool setSubscriptOfValue(JStarVM* vm) {
     Value operand = peek(vm);
     vm->sp[-1] = vm->sp[-3];
     vm->sp[-3] = operand;
+
     if(!invokeMethod(vm, getClass(vm, operand), vm->set, 2)) {
         return false;
     }
@@ -596,14 +595,18 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     Value* arr = NULL;
 
     switch(o->type) {
-    case OBJ_TUPLE:
-        arr = ((ObjTuple*)o)->arr;
-        size = ((ObjTuple*)o)->size;
+    case OBJ_TUPLE: {
+        ObjTuple* tup = (ObjTuple*)o;
+        arr = tup->arr;
+        size = tup->size;
         break;
-    case OBJ_LIST:
-        arr = ((ObjList*)o)->arr;
-        size = ((ObjList*)o)->count;
+    }
+    case OBJ_LIST: {
+        ObjList* lst = (ObjList*)o;
+        arr = lst->arr;
+        size = lst->count;
         break;
+    }
     default:
         UNREACHABLE();
         break;
