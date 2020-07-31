@@ -593,11 +593,6 @@ static Stmt* parseStmt(Parser* p) {
         return whileStmt(p);
     case TOK_RETURN:
         return returnStmt(p);
-    case TOK_BEGIN:
-        require(p, TOK_BEGIN);
-        Stmt* block = blockStmt(p);
-        require(p, TOK_END);
-        return block;
     case TOK_IMPORT:
         return importStmt(p);
     case TOK_TRY:
@@ -606,6 +601,10 @@ static Stmt* parseStmt(Parser* p) {
         return raiseStmt(p);
     case TOK_WITH:
         return withStmt(p);
+    case TOK_CLASS:
+        return classDecl(p);
+    case TOK_NAT:
+        return nativeDecl(p);
     case TOK_CONTINUE:
         advance(p);
         requireStmtEnd(p);
@@ -614,10 +613,12 @@ static Stmt* parseStmt(Parser* p) {
         advance(p);
         requireStmtEnd(p);
         return newBreakStmt(line);
-    case TOK_CLASS:
-        return classDecl(p);
-    case TOK_NAT:
-        return nativeDecl(p);
+    case TOK_BEGIN: {
+        require(p, TOK_BEGIN);
+        Stmt* block = blockStmt(p);
+        require(p, TOK_END);
+        return block;
+    }
     case TOK_VAR: {
         Stmt* var = varDecl(p);
         requireStmtEnd(p);
