@@ -77,6 +77,13 @@ static bool match(Parser* p, TokenType type) {
     return p->peek.type == type;
 }
 
+static bool matchAny(Parser* p, TokenType* tokens, int count) {
+    for(int i = 0; i < count; i++) {
+        if(match(p, tokens[i])) return true;
+    }
+    return false;
+}
+
 static Token advance(Parser* p) {
     Token prev = p->peek;
     nextToken(&p->lex, &p->peek);
@@ -739,12 +746,6 @@ static Expr* literal(Parser* p) {
         advance(p);
         return e;
     }
-    case TOK_TRUE:
-    case TOK_FALSE: {
-        Expr* e = newBoolLiteral(line, tok->type == TOK_TRUE);
-        advance(p);
-        return e;
-    }
     case TOK_IDENTIFIER: {
         Expr* e = newVarLiteral(line, tok->lexeme, tok->length);
         advance(p);
@@ -755,19 +756,9 @@ static Expr* literal(Parser* p) {
         advance(p);
         return e;
     }
-    case TOK_NULL: {
-        advance(p);
-        return newNullLiteral(line);
-    }
     case TOK_LSQUARE: {
         Expr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
         return newArrLiteral(line, exprs);
-    }
-    case TOK_SUPER: {
-        return parseSuperLiteral(p);
-    }
-    case TOK_LCURLY: {
-        return parseTableLiteral(p);
     }
     case TOK_LPAREN: {
         advance(p);
@@ -783,6 +774,16 @@ static Expr* literal(Parser* p) {
         require(p, TOK_RPAREN);
         return e;
     }
+    case TOK_TRUE:
+        return advance(p), newBoolLiteral(line, true);
+    case TOK_FALSE:
+        return advance(p), newBoolLiteral(line, false);
+    case TOK_NULL:
+        return advance(p), newNullLiteral(line);
+    case TOK_SUPER:
+        return parseSuperLiteral(p);
+    case TOK_LCURLY:
+        return parseTableLiteral(p);
     case TOK_UNTERMINATED_STR:
         error(p, "Unterminated String.");
         advance(p);
@@ -803,8 +804,8 @@ static Expr* literal(Parser* p) {
 static Expr* postfixExpr(Parser* p) {
     Expr* lit = literal(p);
 
-    while(match(p, TOK_LPAREN) || match(p, TOK_LCURLY) || match(p, TOK_DOT) ||
-          match(p, TOK_LSQUARE)) {
+    TokenType tokens[] = {TOK_LPAREN, TOK_LCURLY, TOK_DOT, TOK_LSQUARE};
+    while(matchAny(p, tokens, sizeof(tokens) / sizeof(TokenType))) {
         int line = p->peek.line;
         switch(p->peek.type) {
         case TOK_DOT: {
@@ -884,7 +885,9 @@ static Expr* powExpr(Parser* p) {
 }
 
 static Expr* unaryExpr(Parser* p) {
-    if(match(p, TOK_BANG) || match(p, TOK_MINUS) || match(p, TOK_HASH) || match(p, TOK_HASH_HASH)) {
+    TokenType tokens[] = {TOK_BANG, TOK_MINUS, TOK_HASH, TOK_HASH_HASH};
+
+    if(matchAny(p, tokens, sizeof(tokens) / sizeof(TokenType))) {
         Token op = advance(p);
         return newUnary(op.line, op.type, unaryExpr(p));
     }
@@ -892,71 +895,46 @@ static Expr* unaryExpr(Parser* p) {
     return powExpr(p);
 }
 
-static Expr* multiplicativeExpr(Parser* p) {
-    Expr* l = unaryExpr(p);
+static Expr* parseBinary(Parser* p, TokenType* tokens, int count, Expr* (*operand)(Parser*)) {
+    Expr* l = (*operand)(p);
 
-    while(match(p, TOK_MULT) || match(p, TOK_DIV) || match(p, TOK_MOD)) {
+    while(matchAny(p, tokens, count)) {
         Token op = advance(p);
-        l = newBinary(op.line, op.type, l, unaryExpr(p));
+        Expr* r = (*operand)(p);
+        l = newBinary(op.line, op.type, l, r);
     }
 
     return l;
+}
+
+static Expr* multiplicativeExpr(Parser* p) {
+    TokenType tokens[] = {TOK_MULT, TOK_DIV, TOK_MOD};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(TokenType), unaryExpr);
 }
 
 static Expr* additiveExpr(Parser* p) {
-    Expr* l = multiplicativeExpr(p);
-
-    while(match(p, TOK_PLUS) || match(p, TOK_MINUS)) {
-        Token op = advance(p);
-        l = newBinary(op.line, op.type, l, multiplicativeExpr(p));
-    }
-
-    return l;
+    TokenType tokens[] = {TOK_PLUS, TOK_MINUS};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(TokenType), multiplicativeExpr);
 }
 
 static Expr* relationalExpr(Parser* p) {
-    Expr* l = additiveExpr(p);
-
-    while(match(p, TOK_GT) || match(p, TOK_GE) || match(p, TOK_LT) || match(p, TOK_LE) ||
-          match(p, TOK_IS)) {
-        Token op = advance(p);
-        l = newBinary(op.line, op.type, l, additiveExpr(p));
-    }
-
-    return l;
+    TokenType tokens[] = {TOK_GT, TOK_GE, TOK_LT, TOK_LE, TOK_IS};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(TokenType), additiveExpr);
 }
 
 static Expr* equalityExpr(Parser* p) {
-    Expr* l = relationalExpr(p);
-
-    while(match(p, TOK_EQUAL_EQUAL) || match(p, TOK_BANG_EQ)) {
-        Token op = advance(p);
-        return newBinary(op.line, op.type, l, relationalExpr(p));
-    }
-
-    return l;
+    TokenType tokens[] = {TOK_EQUAL_EQUAL, TOK_BANG_EQ};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(TokenType), relationalExpr);
 }
 
 static Expr* logicAndExpr(Parser* p) {
-    Expr* l = equalityExpr(p);
-
-    while(match(p, TOK_AND)) {
-        Token op = advance(p);
-        l = newBinary(op.line, op.type, l, equalityExpr(p));
-    }
-
-    return l;
+    TokenType tokens[] = {TOK_AND};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(TokenType), equalityExpr);
 }
 
 static Expr* logicOrExpr(Parser* p) {
-    Expr* l = logicAndExpr(p);
-
-    while(match(p, TOK_OR)) {
-        Token op = advance(p);
-        l = newBinary(op.line, op.type, l, logicAndExpr(p));
-    }
-
-    return l;
+    TokenType tokens[] = {TOK_OR};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(TokenType), logicAndExpr);
 }
 
 static Expr* ternaryExpr(Parser* p) {
