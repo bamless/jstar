@@ -470,16 +470,14 @@ static Stmt* tryStmt(Parser* p) {
     Vector excs = vecNew();
     Stmt* ensure = NULL;
 
-    if(match(p, TOK_EXCEPT)) {
-        while(match(p, TOK_EXCEPT)) {
-            int excLine = p->peek.line;
-            advance(p);
+    while(match(p, TOK_EXCEPT)) {
+        int excLine = p->peek.line;
+        advance(p);
 
-            Expr* cls = expression(p, true);
-            Token var = require(p, TOK_IDENTIFIER);
-            Stmt* block = blockStmt(p);
-            vecPush(&excs, newExceptStmt(excLine, cls, &var, block));
-        }
+        Expr* cls = expression(p, true);
+        Token var = require(p, TOK_IDENTIFIER);
+        Stmt* block = blockStmt(p);
+        vecPush(&excs, newExceptStmt(excLine, cls, &var, block));
     }
 
     if(match(p, TOK_ENSURE)) {
