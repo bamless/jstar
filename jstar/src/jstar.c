@@ -243,7 +243,7 @@ bool jsrEquals(JStarVM* vm) {
     } else {
         ObjClass* cls = getClass(vm, peek2(vm));
         Value eq;
-        if(hashTableGet(&cls->methods, vm->eq, &eq)) {
+        if(hashTableGet(&cls->methods, vm->overloads[EQ_OVERLOAD], &eq)) {
             return jsrCallMethod(vm, "__eq__", 1) == JSR_EVAL_SUCCESS;
         } else {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));

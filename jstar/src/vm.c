@@ -18,66 +18,67 @@ typedef enum UnwindCause {
     CAUSE_RETURN,
 } UnwindCause;
 
-static void reset(JStarVM* vm) {
+// -----------------------------------------------------------------------------
+// VM INITIALIZATION AND DESTRUCTION
+// -----------------------------------------------------------------------------
+
+static void resetStackState(JStarVM* vm) {
     vm->sp = vm->stack;
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
     vm->module = NULL;
 }
 
-JStarVM* jsrNewVM(JStarConf* conf) {
-    JStarVM* vm = calloc(1, sizeof(*vm));
-
-    vm->stackSz = roundUp(conf->stackSize, MAX_LOCALS + 1);
-    vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
-    vm->stack = malloc(sizeof(Value) * vm->stackSz);
-    vm->frames = malloc(sizeof(Frame) * vm->frameSz);
-    vm->errorCallback = conf->errorCallback;
-
-    reset(vm);
-    initHashTable(&vm->modules);
-    initHashTable(&vm->strings);
-
-    // init GC
-    vm->nextGC = conf->initGC;
-    vm->heapGrowRate = conf->heapGrowRate;
-
-    // Create constants strings
+static void initConstStrings(JStarVM* vm) {
+    // Constant strings needed by the runtime
     vm->stacktrace = copyString(vm, EXC_M_STACKTRACE, strlen(EXC_M_STACKTRACE), true);
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
     vm->next = copyString(vm, "__next__", 8, true);
     vm->iter = copyString(vm, "__iter__", 8, true);
 
-    vm->add = copyString(vm, "__add__", 7, true);
-    vm->sub = copyString(vm, "__sub__", 7, true);
-    vm->mul = copyString(vm, "__mul__", 7, true);
-    vm->div = copyString(vm, "__div__", 7, true);
-    vm->mod = copyString(vm, "__mod__", 7, true);
-    vm->get = copyString(vm, "__get__", 7, true);
-    vm->set = copyString(vm, "__set__", 7, true);
-    vm->neg = copyString(vm, "__neg__", 7, true);
+    // Method names of overloadable operators
+    static const char* overloads[OVERLOAD_SENTIEL] = {
+        "__add__",  "__sub__",  "__mul__",  "__div__",  "__mod__", "__radd__",
+        "__rsub__", "__rmul__", "__rdiv__", "__rmod__", "__get__", "__set__",
+        "__eq__",   "__lt__",   "__le__",   "__gt__",   "__ge__",  "__neg__"};
 
-    vm->radd = copyString(vm, "__radd__", 8, true);
-    vm->rsub = copyString(vm, "__rsub__", 8, true);
-    vm->rmul = copyString(vm, "__rmul__", 8, true);
-    vm->rdiv = copyString(vm, "__rdiv__", 8, true);
-    vm->rmod = copyString(vm, "__rmod__", 8, true);
+    for(int i = 0; i < OVERLOAD_SENTIEL; i++) {
+        vm->overloads[i] = copyString(vm, overloads[i], strlen(overloads[i]), true);
+    }
+}
 
-    vm->lt = copyString(vm, "__lt__", 6, true);
-    vm->le = copyString(vm, "__le__", 6, true);
-    vm->gt = copyString(vm, "__gt__", 6, true);
-    vm->ge = copyString(vm, "__ge__", 6, true);
-    vm->eq = copyString(vm, "__eq__", 6, true);
-
-    // Bootstrap the core module
-    initCoreModule(vm);
-
-    // Init main module
+static void initMainModule(JStarVM* vm) {
     ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
     compileWithModule(vm, "<main>", mainModuleName, NULL);
+}
 
-    // This is called after initCoreLibrary in order to correctly assign
-    // classes to objects, since classes are created in intCoreLibrary
+JStarVM* jsrNewVM(JStarConf* conf) {
+    JStarVM* vm = calloc(1, sizeof(*vm));
+
+    vm->errorCallback = conf->errorCallback;
+
+    // VM program stack
+    vm->stackSz = roundUp(conf->stackSize, MAX_LOCALS + 1);
+    vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
+    vm->stack = malloc(sizeof(Value) * vm->stackSz);
+    vm->frames = malloc(sizeof(Frame) * vm->frameSz);
+    resetStackState(vm);
+
+    // GC Values
+    vm->nextGC = conf->initGC;
+    vm->heapGrowRate = conf->heapGrowRate;
+
+    initHashTable(&vm->modules);
+    initHashTable(&vm->strings);
+
+    initConstStrings(vm);
+
+    initCoreModule(vm);  // Core module bootstrap
+    initMainModule(vm);  // Create empty main module
+
+    // Create J* objects needed by the runtime. This is called after initCoreLibrary in order to
+    // correctly assign a Class reference to the objects, since built-in classes are created during
+    // the core module initialization
     vm->importpaths = newList(vm, 8);
     vm->emptyTup = newTuple(vm, 0);
 
@@ -85,7 +86,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
 }
 
 void jsrFreeVM(JStarVM* vm) {
-    reset(vm);
+    resetStackState(vm);
 
     free(vm->stack);
     free(vm->frames);
@@ -99,6 +100,10 @@ void jsrFreeVM(JStarVM* vm) {
 
     free(vm);
 }
+
+// -----------------------------------------------------------------------------
+// VM IMPLEMENTATION
+// -----------------------------------------------------------------------------
 
 static Frame* getFrame(JStarVM* vm, Callable* c) {
     if(vm->frameCount + 1 == vm->frameSz) {
@@ -192,38 +197,37 @@ static void packVarargs(JStarVM* vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static void raiseArgsExc(JStarVM* vm, Callable* function, int expected, int supplied,
-                         const char* quantity) {
+static void argumentError(JStarVM* vm, Callable* c, int expected, int supplied,
+                          const char* quantity) {
     jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.",
-             function->module->name->data, function->name->data, quantity, expected, supplied);
+             c->module->name->data, c->name->data, quantity, expected, supplied);
 }
 
 static bool adjustArguments(JStarVM* vm, Callable* c, uint8_t argc) {
-    if(c->defaultc != 0) {
-        uint8_t most = c->argsCount, least = most - c->defaultc;
+    uint8_t most = c->argsCount, least = most - c->defaultc;
 
-        if((!c->vararg && argc > most) || argc < least) {
-            bool tooMany = argc > most;
-            raiseArgsExc(vm, c, tooMany ? most : least, argc, tooMany ? "at most" : "at least");
-            return false;
-        }
-
-        // push remaining args taking the default value
-        for(uint8_t i = argc - least; i < c->defaultc; i++) {
-            push(vm, c->defaults[i]);
-        }
-
-        if(c->vararg) packVarargs(vm, argc > most ? argc - most : 0);
-    } else if(c->vararg) {
-        if(argc < c->argsCount) {
-            raiseArgsExc(vm, c, c->argsCount, argc, "at least");
-            return false;
-        }
-        packVarargs(vm, argc - c->argsCount);
-    } else if(c->argsCount != argc) {
-        raiseArgsExc(vm, c, c->argsCount, argc, "exactly");
+    if(!c->vararg && most == least && argc != c->argsCount) {
+        argumentError(vm, c, c->argsCount, argc, "exactly");
         return false;
     }
+    if(!c->vararg && argc > most) {
+        argumentError(vm, c, most, argc, "at most");
+        return false;
+    }
+    if(argc < least) {
+        argumentError(vm, c, least, argc, "at least");
+        return false;
+    }
+
+    // push remaining args taking the default value
+    for(uint8_t i = argc - least; i < c->defaultc; i++) {
+        push(vm, c->defaults[i]);
+    }
+
+    if(c->vararg) {
+        packVarargs(vm, argc > most ? argc - most : 0);
+    }
+
     return true;
 }
 
@@ -527,7 +531,7 @@ static bool getSubscriptOfValue(JStarVM* vm) {
         }
     }
 
-    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->get, 1)) {
+    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->overloads[GET_OVERLOAD], 1)) {
         return false;
     }
     return true;
@@ -555,7 +559,7 @@ static bool setSubscriptOfValue(JStarVM* vm) {
     vm->sp[-1] = vm->sp[-3];
     vm->sp[-3] = operand;
 
-    if(!invokeMethod(vm, getClass(vm, operand), vm->set, 2)) {
+    if(!invokeMethod(vm, getClass(vm, operand), vm->overloads[SET_OVERLOAD], 2)) {
         return false;
     }
     return true;
@@ -569,21 +573,21 @@ static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
     return str;
 }
 
-static bool callBinaryOverload(JStarVM* vm, ObjString* name, ObjString* reverse) {
+static bool callBinaryOverload(JStarVM* vm, Overload overload, Overload reverse) {
     Value op;
     ObjClass* cls = getClass(vm, peek2(vm));
-    if(hashTableGet(&cls->methods, name, &op)) {
+    if(hashTableGet(&cls->methods, vm->overloads[overload], &op)) {
         return callValue(vm, op, 1);
     }
 
-    if(reverse) {
+    if(reverse != OVERLOAD_SENTIEL) {
         // swap callee and arg
         Value b = peek(vm);
         vm->sp[-1] = vm->sp[-2];
         vm->sp[-2] = b;
 
         ObjClass* cls2 = getClass(vm, peek2(vm));
-        if(hashTableGet(&cls2->methods, reverse, &op)) {
+        if(hashTableGet(&cls2->methods, vm->overloads[reverse], &op)) {
             return callValue(vm, op, 1);
         }
     }
@@ -648,6 +652,10 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     }
     return NULL;
 }
+
+// -----------------------------------------------------------------------------
+// EVAL LOOP
+// -----------------------------------------------------------------------------
 
 bool runEval(JStarVM* vm, int depth) {
     register Frame* frame;
@@ -776,23 +784,23 @@ bool runEval(JStarVM* vm, int depth) {
             pop(vm);
             push(vm, OBJ_VAL(conc));
         } else {
-            BINARY_OVERLOAD(+, vm->add, vm->radd);
+            BINARY_OVERLOAD(+, ADD_OVERLOAD, RADD_OVERLOAD);
         }
         DISPATCH();
     }
 
     TARGET(OP_SUB): { 
-        BINARY(NUM_VAL, -, vm->sub, vm->rsub);
+        BINARY(NUM_VAL, -, SUB_OVERLOAD, RSUB_OVERLOAD);
         DISPATCH();
     }
 
     TARGET(OP_MUL): {
-        BINARY(NUM_VAL, *, vm->mul, vm->rmul);
+        BINARY(NUM_VAL, *, MUL_OVERLOAD, RMUL_OVERLOAD);
         DISPATCH();
     }
 
     TARGET(OP_DIV): {
-        BINARY(NUM_VAL, /, vm->div, vm->rdiv);
+        BINARY(NUM_VAL, /, DIV_OVERLOAD, RDIV_OVERLOAD);
         DISPATCH();
     }
     
@@ -802,7 +810,7 @@ bool runEval(JStarVM* vm, int depth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(fmod(a, b)));
         } else {
-            BINARY_OVERLOAD(%, vm->mod, vm->rmod);
+            BINARY_OVERLOAD(%, MOD_OVERLOAD, RMOD_OVERLOAD);
         }
         DISPATCH();
     }
@@ -824,7 +832,7 @@ bool runEval(JStarVM* vm, int depth) {
         } else {
             ObjClass* cls = getClass(vm, peek(vm));
             SAVE_FRAME();
-            bool res = invokeMethod(vm, cls, vm->neg, 0);
+            bool res = invokeMethod(vm, cls, vm->overloads[NEG_OVERLOAD], 0);
             LOAD_FRAME();
             if(!res) UNWIND_STACK(vm);
         }
@@ -832,22 +840,22 @@ bool runEval(JStarVM* vm, int depth) {
     }
 
     TARGET(OP_LT): {
-        BINARY(BOOL_VAL, <,  vm->lt, NULL);
+        BINARY(BOOL_VAL, <, LT_OVERLOAD, OVERLOAD_SENTIEL);
         DISPATCH();
     }
 
     TARGET(OP_LE): {
-        BINARY(BOOL_VAL, <=, vm->le, NULL);
+        BINARY(BOOL_VAL, <=, LE_OVERLOAD, OVERLOAD_SENTIEL);
         DISPATCH();
     }
 
     TARGET(OP_GT): {
-        BINARY(BOOL_VAL, >, vm->gt, NULL);
+        BINARY(BOOL_VAL, >, GT_OVERLOAD, OVERLOAD_SENTIEL);
         DISPATCH();
     }
 
     TARGET(OP_GE): {
-        BINARY(BOOL_VAL, >=, vm->ge, NULL);
+        BINARY(BOOL_VAL, >=, GE_OVERLOAD, OVERLOAD_SENTIEL);
         DISPATCH();
     }
 
@@ -857,7 +865,7 @@ bool runEval(JStarVM* vm, int depth) {
         } else {
             Value eq;
             ObjClass* cls = getClass(vm, peek2(vm));
-            if(hashTableGet(&cls->methods, vm->eq, &eq)) {
+            if(hashTableGet(&cls->methods, vm->overloads[EQ_OVERLOAD], &eq)) {
                 SAVE_FRAME();
                 bool res = callValue(vm, eq, 1);
                 LOAD_FRAME();

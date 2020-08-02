@@ -317,32 +317,16 @@ void garbageCollect(JStarVM* vm) {
     reachObject(vm, (Obj*)vm->tableClass);
     reachObject(vm, (Obj*)vm->udataClass);
 
-    reachObject(vm, (Obj*)vm->add);
-    reachObject(vm, (Obj*)vm->mul);
-    reachObject(vm, (Obj*)vm->div);
-    reachObject(vm, (Obj*)vm->mod);
-    reachObject(vm, (Obj*)vm->get);
-    reachObject(vm, (Obj*)vm->set);
-
-    reachObject(vm, (Obj*)vm->radd);
-    reachObject(vm, (Obj*)vm->rsub);
-    reachObject(vm, (Obj*)vm->rmul);
-    reachObject(vm, (Obj*)vm->rdiv);
-    reachObject(vm, (Obj*)vm->rmod);
-
-    reachObject(vm, (Obj*)vm->lt);
-    reachObject(vm, (Obj*)vm->le);
-    reachObject(vm, (Obj*)vm->gt);
-    reachObject(vm, (Obj*)vm->ge);
-    reachObject(vm, (Obj*)vm->eq);
-
-    reachObject(vm, (Obj*)vm->neg);
-
     reachObject(vm, (Obj*)vm->ctor);
     reachObject(vm, (Obj*)vm->stacktrace);
-    reachObject(vm, (Obj*)vm->emptyTup);
     reachObject(vm, (Obj*)vm->next);
     reachObject(vm, (Obj*)vm->iter);
+
+    for(int i = 0; i < OVERLOAD_SENTIEL; i++) {
+        reachObject(vm, (Obj*)vm->overloads[i]);
+    }
+
+    reachObject(vm, (Obj*)vm->emptyTup);
 
     // reach loaded modules
     reachHashTable(vm, &vm->modules);

@@ -14,7 +14,7 @@
 #include "value.h"
 #include "vm.h"
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* filename, ObjString* name, Stmt* program) {
+ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name, Stmt* program) {
     ObjModule* module = getModule(vm, name);
 
     if(module == NULL) {
@@ -30,7 +30,7 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* filename, ObjString* nam
     }
 
     if(program != NULL) {
-        ObjFunction* fn = compile(vm, filename, module, program);
+        ObjFunction* fn = compile(vm, fileName, module, program);
         return fn;
     }
 

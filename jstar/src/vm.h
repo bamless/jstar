@@ -32,6 +32,36 @@ typedef struct Frame {
     uint8_t handlerc;               // Exception handlers count
 } Frame;
 
+typedef enum Overload {
+    // Binary overloads
+    ADD_OVERLOAD,
+    SUB_OVERLOAD,
+    MUL_OVERLOAD,
+    DIV_OVERLOAD,
+    MOD_OVERLOAD,
+
+    // Reverse binary overloads
+    RADD_OVERLOAD,
+    RSUB_OVERLOAD,
+    RMUL_OVERLOAD,
+    RDIV_OVERLOAD,
+    RMOD_OVERLOAD,
+
+    // Subscript overloads
+    GET_OVERLOAD,
+    SET_OVERLOAD,
+
+    // Comparison and ordering overloads
+    EQ_OVERLOAD,
+    LT_OVERLOAD,
+    LE_OVERLOAD,
+    GT_OVERLOAD,
+    GE_OVERLOAD,
+    NEG_OVERLOAD,
+
+    OVERLOAD_SENTIEL
+} Overload;
+
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
 struct JStarVM {
@@ -60,10 +90,8 @@ struct JStarVM {
     // Constant strings needed by compiler and runtime
     ObjString *ctor, *stacktrace, *next, *iter;
 
-    // Names of overloadable operator's methods
-    ObjString *add, *sub, *mul, *div, *mod, *get, *set;
-    ObjString *radd, *rsub, *rmul, *rdiv, *rmod;
-    ObjString *lt, *le, *gt, *ge, *eq, *neg;
+    // Method names of overloadable operators
+    ObjString* overloads[OVERLOAD_SENTIEL];
 
     // Script arguments
     const char** argv;
@@ -72,9 +100,10 @@ struct JStarVM {
     // The empty tuple (singleton)
     ObjTuple* emptyTup;
 
-    // loaded modules
+    // Loaded modules
     HashTable modules;
-    // current module and core module
+
+    // Current module and core module
     ObjModule *module, *core;
 
     // VM program stack and stack pointer
