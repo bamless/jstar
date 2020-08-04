@@ -4,8 +4,9 @@
 #include <string.h>
 
 #include "builtin/modules.h"
-#include "chunk.h"
+#include "code.h"
 #include "core.h"
+#include "disassemble.h"
 #include "import.h"
 #include "memory.h"
 #include "opcode.h"
@@ -22,7 +23,7 @@ typedef enum UnwindCause {
 // VM INITIALIZATION AND DESTRUCTION
 // -----------------------------------------------------------------------------
 
-static void resetStackState(JStarVM* vm) {
+static void resetStack(JStarVM* vm) {
     vm->sp = vm->stack;
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
@@ -31,7 +32,7 @@ static void resetStackState(JStarVM* vm) {
 
 static void initConstStrings(JStarVM* vm) {
     // Constant strings needed by the runtime
-    vm->stacktrace = copyString(vm, EXC_M_STACKTRACE, strlen(EXC_M_STACKTRACE), true);
+    vm->stacktrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE), true);
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
     vm->next = copyString(vm, "__next__", 8, true);
     vm->iter = copyString(vm, "__iter__", 8, true);
@@ -62,7 +63,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
     vm->stack = malloc(sizeof(Value) * vm->stackSz);
     vm->frames = malloc(sizeof(Frame) * vm->frameSz);
-    resetStackState(vm);
+    resetStack(vm);
 
     // GC Values
     vm->nextGC = conf->initGC;
@@ -76,9 +77,9 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     initCoreModule(vm);  // Core module bootstrap
     initMainModule(vm);  // Create empty main module
 
-    // Create J* objects needed by the runtime. This is called after initCoreLibrary in order to
-    // correctly assign a Class reference to the objects, since built-in classes are created during
-    // the core module initialization
+    // Create J* objects needed by the runtime. This is called after initCoreLibrary in order
+    // to correctly assign a Class reference to the objects, since built-in classes are created
+    // during the core module initialization
     vm->importpaths = newList(vm, 8);
     vm->emptyTup = newTuple(vm, 0);
 
@@ -86,7 +87,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
 }
 
 void jsrFreeVM(JStarVM* vm) {
-    resetStackState(vm);
+    resetStack(vm);
 
     free(vm->stack);
     free(vm->frames);
@@ -120,7 +121,7 @@ static Frame* getFrame(JStarVM* vm, Callable* c) {
 static void appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = getFrame(vm, &closure->fn->c);
     callFrame->fn = (Obj*)closure;
-    callFrame->ip = closure->fn->chunk.code;
+    callFrame->ip = closure->fn->code.bytecode;
 }
 
 static void appendNativeFrame(JStarVM* vm, ObjNative* native) {
@@ -679,7 +680,7 @@ bool runEval(JStarVM* vm, int depth) {
 #define NEXT_CODE()  (*ip++)
 #define NEXT_SHORT() (ip += 2, ((uint16_t)ip[-2] << 8) | ip[-1])
 
-#define GET_CONST()  (fn->chunk.consts.arr[NEXT_SHORT()])
+#define GET_CONST()  (fn->code.consts.arr[NEXT_SHORT()])
 #define GET_STRING() (AS_STRING(GET_CONST()))
 
 #define BINARY(type, op, overload, reverse)         \
@@ -737,7 +738,7 @@ bool runEval(JStarVM* vm, int depth) {
             printf("]");                             \
         }                                            \
         printf("$\n");                               \
-        disassembleIstr(&fn->chunk, (size_t)(ip - fn->chunk.code));
+        disassembleIstr(&fn->code, (size_t)(ip - fn->code.bytecode));
 #else
     #define PRINT_DBG_STACK()
 #endif
@@ -1052,7 +1053,7 @@ invoke:;
 sup_invoke:;
         ObjString* name = GET_STRING();
         // The superclass is stored as a const in the function itself
-        ObjClass* sup = AS_CLASS(fn->chunk.consts.arr[0]);
+        ObjClass* sup = AS_CLASS(fn->code.consts.arr[0]);
         SAVE_FRAME();
         bool res = invokeMethod(vm, sup, name, argc);
         LOAD_FRAME();
@@ -1063,7 +1064,7 @@ sup_invoke:;
     TARGET(OP_SUPER_BIND): {
         ObjString* name = GET_STRING();
         // The superclass is stored as a const in the function itself
-        ObjClass* cls = AS_CLASS(fn->chunk.consts.arr[0]);
+        ObjClass* cls = AS_CLASS(fn->code.consts.arr[0]);
         if(!bindMethod(vm, cls, name)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
                      name->data);
@@ -1221,7 +1222,7 @@ op_return:
         ObjClass* cls = AS_CLASS(peek2(vm));
         ObjString* methodName = GET_STRING();
         // Set the superclass as a const in the function
-        AS_CLOSURE(peek(vm))->fn->chunk.consts.arr[0] = OBJ_VAL(cls->superCls);
+        AS_CLOSURE(peek(vm))->fn->code.consts.arr[0] = OBJ_VAL(cls->superCls);
         hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }

@@ -1434,7 +1434,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
     // print the exception instance information
     Value v;
-    bool found = hashTableGet(&exc->fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), &v);
+    bool found = hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR), true), &v);
 
     if(found && IS_STRING(v) && AS_STRING(v)->length > 0) {
         fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);

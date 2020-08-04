@@ -3,9 +3,9 @@
 
 #include <stddef.h>
 
-#include "chunk.h"
+#include "code.h"
 
-void disassembleChunk(Chunk* c);
-void disassembleIstr(Chunk* c, size_t istr);
+void disassembleCode(Code* c);
+void disassembleIstr(Code* c, size_t istr);
 
 #endif

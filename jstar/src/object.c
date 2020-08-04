@@ -47,7 +47,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_
     ObjFunction* f = (ObjFunction*)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
     initCallable(&f->c, module, name, argc, defaults, defc, vararg);
     f->upvaluec = 0;
-    initChunk(&f->chunk);
+    initCode(&f->code);
     return f;
 }
 
@@ -156,9 +156,9 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)f->fn;
         c = &closure->fn->c;
-        Chunk* chunk = &closure->fn->chunk;
-        size_t op = f->ip - chunk->code - 1;
-        record->line = getBytecodeSrcLine(chunk, op);
+        Code* code = &closure->fn->code;
+        size_t op = f->ip - code->bytecode - 1;
+        record->line = getBytecodeSrcLine(code, op);
         break;
     }
     case OBJ_NATIVE: {

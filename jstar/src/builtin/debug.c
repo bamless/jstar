@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "chunk.h"
+#include "code.h"
 #include "disassemble.h"
 #include "object.h"
 #include "value.h"
@@ -32,8 +32,8 @@ JSR_NATIVE(jsr_disassemble) {
     }
 
     if(!IS_NATIVE(func)) {
-        Chunk* c = &AS_CLOSURE(func)->fn->chunk;
-        disassembleChunk(c);
+        Code* c = &AS_CLOSURE(func)->fn->code;
+        disassembleCode(c);
     } else {
         printf("Native implementation\n");
     }

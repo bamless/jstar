@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "chunk.h"
+#include "code.h"
 #include "common.h"
 #include "hashtable.h"
 #include "jstar.h"
@@ -151,7 +151,7 @@ typedef struct {
 typedef struct ObjFunction {
     Obj base;
     Callable c;
-    Chunk chunk;       // The actual code chunk containing bytecodes
+    Code code;         // The actual code chunk containing bytecodes
     uint8_t upvaluec;  // The number of upvalues the function closes over
 } ObjFunction;
 

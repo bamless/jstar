@@ -152,7 +152,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
         jsrPushString(vm, errStr);
         HashTable* fields = &excInst->fields;
-        hashTablePut(fields, copyString(vm, EXC_M_ERR, strlen(EXC_M_ERR), true), pop(vm));
+        hashTablePut(fields, copyString(vm, EXC_ERR, strlen(EXC_ERR), true), pop(vm));
     }
 }
 

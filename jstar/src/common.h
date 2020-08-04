@@ -29,12 +29,12 @@
 // STRING CONSTANTS
 // -----------------------------------------------------------------------------
 
-#define CTOR_STR         "new"
-#define THIS_STR         "this"
-#define ANON_PREFIX      "anon:"
-#define EXC_M_ERR        "_err"
-#define EXC_M_STACKTRACE "_stacktrace"
-#define PACKAGE_FILE     "/__package__.jsr"
+#define CTOR_STR     "new"
+#define THIS_STR     "this"
+#define ANON_PREFIX  "anon:"
+#define EXC_ERR      "_err"
+#define EXC_TRACE    "_stacktrace"
+#define PACKAGE_FILE "/__package__.jsr"
 
 #ifdef __unix__
     #define DL_PREFIX "lib"
@@ -54,10 +54,9 @@
 // MACROS TO COMPUTE BASE 10 LENGHT OF INTEGERS
 // -----------------------------------------------------------------------------
 
-#define STRLEN_FOR_INT_TYPE(t) \
-    (((t)-1 < 0) ? STRLEN_FOR_SIGNED_TYPE(t) : STRLEN_FOR_UNSIGNED_TYPE(t))
-#define STRLEN_FOR_UNSIGNED_TYPE(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
-#define STRLEN_FOR_SIGNED_TYPE(t)   (STRLEN_FOR_UNSIGNED_TYPE(t) + 1)
+#define STRLEN_FOR_INT(t)      (((t)-1 < 0) ? STRLEN_FOR_SIGNED(t) : STRLEN_FOR_UNSIGNED(t))
+#define STRLEN_FOR_SIGNED(t)   (STRLEN_FOR_UNSIGNED(t) + 1)
+#define STRLEN_FOR_UNSIGNED(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
 
 // -----------------------------------------------------------------------------
 // DEBUG ASSERTIONS AND UNREACHEABLE

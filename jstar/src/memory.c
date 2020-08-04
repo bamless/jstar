@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "chunk.h"
+#include "code.h"
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
@@ -54,7 +54,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
-        freeChunk(&f->chunk);
+        freeCode(&f->code);
         GC_FREEARRAY(vm, Value, f->c.defaults, f->c.defaultc);
         GC_FREE(vm, ObjFunction, f);
         break;
@@ -208,7 +208,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjFunction* func = (ObjFunction*)o;
         reachObject(vm, (Obj*)func->c.name);
         reachObject(vm, (Obj*)func->c.module);
-        reachValueArray(vm, &func->chunk.consts);
+        reachValueArray(vm, &func->code.consts);
         for(uint8_t i = 0; i < func->c.defaultc; i++) {
             reachValue(vm, func->c.defaults[i]);
         }

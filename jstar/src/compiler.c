@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "chunk.h"
+#include "code.h"
 #include "common.h"
 #include "jsrparse/lex.h"
 #include "jstar.h"
@@ -114,10 +114,10 @@ static void error(Compiler* c, int line, const char* format, ...) {
 }
 
 static size_t emitBytecode(Compiler* c, uint8_t b, int line) {
-    if(line == 0 && c->func->chunk.linesCount > 0) {
-        line = c->func->chunk.lines[c->func->chunk.linesCount - 1];
+    if(line == 0 && c->func->code.linesCount > 0) {
+        line = c->func->code.lines[c->func->code.linesCount - 1];
     }
-    return writeByte(&c->func->chunk, b, line);
+    return writeByte(&c->func->code, b, line);
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
@@ -161,7 +161,7 @@ static void exitFunctionScope(Compiler* c) {
 }
 
 static uint16_t createConst(Compiler* c, Value constant, int line) {
-    int index = addConstant(&c->func->chunk, constant);
+    int index = addConstant(&c->func->code, constant);
     if(index == -1) {
         const char* name = c->func->c.name == NULL ? "<main>" : c->func->c.name->data;
         error(c, line, "too many constants in function %s", name);
@@ -270,13 +270,13 @@ static void defineVar(Compiler* c, Identifier* id, int line) {
 }
 
 static size_t emitJumpTo(Compiler* c, int jmpOpcode, size_t target, int line) {
-    int32_t offset = target - (c->func->chunk.count + 3);
+    int32_t offset = target - (c->func->code.count + 3);
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
     emitBytecode(c, jmpOpcode, 0);
     emitShort(c, (uint16_t)offset, 0);
-    return c->func->chunk.count - 2;
+    return c->func->code.count - 2;
 }
 
 static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
@@ -284,23 +284,23 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
-    Chunk* chunk = &c->func->chunk;
-    chunk->code[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
-    chunk->code[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
+    Code* code = &c->func->code;
+    code->bytecode[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
+    code->bytecode[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
 }
 
 static void startLoop(Compiler* c, Loop* loop) {
     loop->depth = c->depth;
-    loop->start = c->func->chunk.count;
+    loop->start = c->func->code.count;
     loop->next = c->loops;
     c->loops = loop;
 }
 
 static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t brk) {
-    for(size_t i = start; i < c->func->chunk.count; i++) {
-        Opcode code = c->func->chunk.code[i];
+    for(size_t i = start; i < c->func->code.count; i++) {
+        Opcode code = c->func->code.bytecode[i];
         if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
-            c->func->chunk.code[i] = OP_JUMP;
+            c->func->code.bytecode[i] = OP_JUMP;
             setJumpTo(c, i, code == OP_SIGN_CONT ? cont : brk, 0);
             code = OP_JUMP;
         }
@@ -309,7 +309,7 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t br
 }
 
 static void endLoop(Compiler* c) {
-    patchLoopExitStmts(c, c->loops->start, c->loops->start, c->func->chunk.count);
+    patchLoopExitStmts(c, c->loops->start, c->loops->start, c->func->code.count);
     c->loops = c->loops->next;
 }
 
@@ -468,13 +468,13 @@ static void compileLogicExpr(Compiler* c, Expr* e) {
     emitBytecode(c, OP_DUP, e->line);
 
     uint8_t jmp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
-    size_t scJmp = emitBytecode(c, jmp, 0);
+    size_t shortCircuit = emitBytecode(c, jmp, 0);
     emitShort(c, 0, 0);
 
     emitBytecode(c, OP_POP, e->line);
     compileExpr(c, e->as.binary.right);
 
-    setJumpTo(c, scJmp, c->func->chunk.count, e->line);
+    setJumpTo(c, shortCircuit, c->func->code.count, e->line);
 }
 
 static void compileUnaryExpr(Compiler* c, Expr* e) {
@@ -508,10 +508,10 @@ static void compileTernaryExpr(Compiler* c, Expr* e) {
     size_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
     emitShort(c, 0, 0);
 
-    setJumpTo(c, falseJmp, c->func->chunk.count, e->line);
+    setJumpTo(c, falseJmp, c->func->code.count, e->line);
     compileExpr(c, e->as.ternary.elseExpr);
 
-    setJumpTo(c, exitJmp, c->func->chunk.count, e->line);
+    setJumpTo(c, exitJmp, c->func->code.count, e->line);
 }
 
 static void compileVariable(Compiler* c, Identifier* id, bool set, int line) {
@@ -542,7 +542,7 @@ static void compileFunction(Compiler* c, Stmt* s);
 static void compileAnonymousFunc(Compiler* c, Identifier* name, Expr* e) {
     Stmt* f = e->as.anonFunc.func;
     if(name == NULL) {
-        char funcName[5 + STRLEN_FOR_INT_TYPE(int) + 1];
+        char funcName[5 + STRLEN_FOR_INT(int) + 1];
         sprintf(funcName, ANON_PREFIX "%d", f->line);
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;
@@ -810,10 +810,11 @@ static void compileExpr(Compiler* c, Expr* e) {
         compileCompundAssign(c, e);
         break;
     case BINARY:
-        if(e->as.binary.op == TOK_AND || e->as.binary.op == TOK_OR)
+        if(e->as.binary.op == TOK_AND || e->as.binary.op == TOK_OR) {
             compileLogicExpr(c, e);
-        else
+        } else {
             compileBinaryExpr(c, e);
+        }
         break;
     case UNARY:
         compileUnaryExpr(c, e);
@@ -958,12 +959,12 @@ static void compileIfStatement(Compiler* c, Stmt* s) {
     }
 
     // set the false jump to the 'else' branch (or to exit if not present)
-    setJumpTo(c, falseJmp, c->func->chunk.count, s->line);
+    setJumpTo(c, falseJmp, c->func->code.count, s->line);
 
     // If present compile 'else' branch and set the exit jump to 'else' end
     if(s->as.ifStmt.elseStmt != NULL) {
         compileStatement(c, s->as.ifStmt.elseStmt);
-        setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+        setJumpTo(c, exitJmp, c->func->code.count, s->line);
     }
 }
 
@@ -988,7 +989,7 @@ static void compileForStatement(Compiler* c, Stmt* s) {
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
         emitBytecode(c, OP_POP, 0);
-        setJumpTo(c, firstJmp, c->func->chunk.count, s->line);
+        setJumpTo(c, firstJmp, c->func->code.count, s->line);
     }
 
     // condition
@@ -1007,7 +1008,7 @@ static void compileForStatement(Compiler* c, Stmt* s) {
 
     // set the exit jump
     if(s->as.forStmt.cond != NULL) {
-        setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+        setJumpTo(c, exitJmp, c->func->code.count, s->line);
     }
 
     endLoop(c);
@@ -1073,7 +1074,7 @@ static void compileForEach(Compiler* c, Stmt* s) {
     exitScope(c);
 
     emitJumpTo(c, OP_JUMP, l.start, 0);
-    setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+    setJumpTo(c, exitJmp, c->func->code.count, s->line);
 
     endLoop(c);
     exitScope(c);
@@ -1090,7 +1091,7 @@ static void compileWhileStatement(Compiler* c, Stmt* s) {
     compileStatement(c, s->as.whileStmt.body);
 
     emitJumpTo(c, OP_JUMP, l.start, 0);
-    setJumpTo(c, exitJmp, c->func->chunk.count, s->line);
+    setJumpTo(c, exitJmp, c->func->code.count, s->line);
 
     endLoop(c);
 }
@@ -1131,7 +1132,7 @@ static void compileImportStatement(Compiler* c, Stmt* s) {
         }
     } else if(s->as.importStmt.as.name != NULL) {
         // set last import as an import as
-        c->func->chunk.code[c->func->chunk.count - 3] = OP_IMPORT_AS;
+        c->func->code.bytecode[c->func->code.count - 3] = OP_IMPORT_AS;
         // emit the as name
         emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
     }
@@ -1172,11 +1173,11 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, c->func->chunk.count, exc->line);
+    setJumpTo(c, falseJmp, c->func->code.count, exc->line);
 
     if(!last) {
         compileExcepts(c, excs, n + 1);
-        setJumpTo(c, exitJmp, c->func->chunk.count, exc->line);
+        setJumpTo(c, exitJmp, c->func->code.count, exc->line);
     }
 }
 
@@ -1231,7 +1232,7 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
         size_t excJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
-        setJumpTo(c, excSetup, c->func->chunk.count, s->line);
+        setJumpTo(c, excSetup, c->func->code.count, s->line);
 
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
@@ -1242,11 +1243,11 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
             exitScope(c);
         }
 
-        setJumpTo(c, excJmp, c->func->chunk.count, 0);
+        setJumpTo(c, excJmp, c->func->code.count, 0);
     }
 
     if(hasEnsure) {
-        setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
+        setJumpTo(c, ensSetup, c->func->code.count, s->line);
         compileStatements(c, &s->as.tryStmt.ensure->as.blockStmt.stmts);
         emitBytecode(c, OP_END_TRY, 0);
         exitScope(c);
@@ -1320,7 +1321,7 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
     declareVar(c, &cause, 0);
     defineVar(c, &cause, 0);
 
-    setJumpTo(c, ensSetup, c->func->chunk.count, s->line);
+    setJumpTo(c, ensSetup, c->func->code.count, s->line);
 
     // if x then x.close() end
     compileVariable(c, &s->as.withStmt.var, false, s->line);
@@ -1331,7 +1332,7 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
     callMethod(c, "close", 0);
     emitBytecode(c, OP_POP, s->line);
 
-    setJumpTo(c, falseJmp, c->func->chunk.count, s->line);
+    setJumpTo(c, falseJmp, c->func->code.count, s->line);
 
     emitBytecode(c, OP_END_TRY, 0);
     exitScope(c);
@@ -1405,7 +1406,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
 
     // Phony const that will be set to the superclass of the method's class at runtime
-    addConstant(&c->func->chunk, HANDLE_VAL(NULL));
+    addConstant(&c->func->code, HANDLE_VAL(NULL));
     addDefaultConsts(c, c->func->c.defaults, &s->as.funcDecl.defArgs);
 
     // create new method name by concatenating the class name to it
@@ -1490,7 +1491,7 @@ static void compileNative(Compiler* c, Stmt* s) {
 
     uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
     uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
-    native->c.name = AS_STRING(c->func->chunk.consts.arr[nameConst]);
+    native->c.name = AS_STRING(c->func->code.consts.arr[nameConst]);
 
     emitBytecode(c, OP_GET_CONST, s->line);
     emitShort(c, nativeConst, s->line);

@@ -18,31 +18,31 @@ static uint16_t readShortAt(const uint8_t* code, size_t i) {
     return ((uint16_t)code[i] << 8) | code[i + 1];
 }
 
-void disassembleChunk(Chunk* c) {
-    for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->code[i]) + 1) {
+void disassembleCode(Code* c) {
+    for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->bytecode[i]) + 1) {
         disassembleIstr(c, i);
-        if(c->code[i] == OP_CLOSURE) {
-            Value func = c->consts.arr[readShortAt(c->code, i + 1)];
+        if(c->bytecode[i] == OP_CLOSURE) {
+            Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
             i += (AS_FUNC(func)->upvaluec + 1) * 2;
         }
     }
 }
 
-static void signedOffsetInstruction(Chunk* c, size_t i) {
-    int16_t off = (int16_t)readShortAt(c->code, i + 1);
+static void signedOffsetInstruction(Code* c, size_t i) {
+    int16_t off = (int16_t)readShortAt(c->bytecode, i + 1);
     printf("%d (to %lu)", off, (unsigned long)(i + off + 3));
 }
 
-static void constInstruction(Chunk* c, size_t i) {
-    int op = readShortAt(c->code, i + 1);
+static void constInstruction(Code* c, size_t i) {
+    int op = readShortAt(c->bytecode, i + 1);
     printf("%d (", op);
     printValue(c->consts.arr[op]);
     printf(")");
 }
 
-static void const2Instruction(Chunk* c, size_t i) {
-    int arg1 = readShortAt(c->code, i + 1);
-    int arg2 = readShortAt(c->code, i + 3);
+static void const2Instruction(Code* c, size_t i) {
+    int arg1 = readShortAt(c->bytecode, i + 1);
+    int arg2 = readShortAt(c->bytecode, i + 3);
     printf("%d %d (", arg1, arg2);
     printValue(c->consts.arr[arg1]);
     printf(", ");
@@ -50,20 +50,20 @@ static void const2Instruction(Chunk* c, size_t i) {
     printf(")");
 }
 
-static void invokeInstruction(Chunk* c, size_t i) {
-    int argc = c->code[i + 1];
-    int name = readShortAt(c->code, i + 2);
+static void invokeInstruction(Code* c, size_t i) {
+    int argc = c->bytecode[i + 1];
+    int name = readShortAt(c->bytecode, i + 2);
     printf("%d %d (", argc, name);
     printValue(c->consts.arr[name]);
     printf(")");
 }
 
-static void unsignedByteInstruction(Chunk* c, size_t i) {
-    printf("%d", c->code[i + 1]);
+static void unsignedByteInstruction(Code* c, size_t i) {
+    printf("%d", c->bytecode[i + 1]);
 }
 
-static void closureInstruction(Chunk* c, size_t i) {
-    int op = readShortAt(c->code, i + 1);
+static void closureInstruction(Code* c, size_t i) {
+    int op = readShortAt(c->bytecode, i + 1);
 
     printf("%d (", op);
     printValue(c->consts.arr[op]);
@@ -73,16 +73,16 @@ static void closureInstruction(Chunk* c, size_t i) {
 
     int offset = i + 3;
     for(uint8_t j = 0; j < fn->upvaluec; j++) {
-        bool isLocal = c->code[offset++];
-        int index = c->code[offset++];
+        bool isLocal = c->bytecode[offset++];
+        int index = c->bytecode[offset++];
         printf("\n%04d              | %s %d", offset - 2, isLocal ? "local" : "upvalue", index);
     }
 }
 
-void disassembleIstr(Chunk* c, size_t i) {
-    printf("%.4d %s ", (int)i, OpcodeNames[c->code[i]]);
+void disassembleIstr(Code* c, size_t i) {
+    printf("%.4d %s ", (int)i, OpcodeNames[c->bytecode[i]]);
 
-    switch(c->code[i]) {
+    switch(c->bytecode[i]) {
     case OP_NATIVE:
     case OP_IMPORT:
     case OP_IMPORT_FROM:
