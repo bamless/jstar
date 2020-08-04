@@ -174,9 +174,13 @@ static Identifier syntheticIdentifier(const char* name) {
     return (Identifier){strlen(name), name};
 }
 
-static uint16_t identifierConst(Compiler* c, Identifier* id, int line) {
-    ObjString* idStr = copyString(c->vm, id->name, id->length, true);
+static uint16_t stringConst(Compiler* c, const char* str, size_t length, int line) {
+    ObjString* idStr = copyString(c->vm, str, length, true);
     return createConst(c, OBJ_VAL(idStr), line);
+}
+
+static uint16_t identifierConst(Compiler* c, Identifier* id, int line) {
+    return stringConst(c, id->name, id->length, line);
 }
 
 static void addLocal(Compiler* c, Identifier* id, int line) {
@@ -1099,45 +1103,43 @@ static void compileWhileStatement(Compiler* c, Stmt* s) {
 static void compileImportStatement(Compiler* c, Stmt* s) {
     Vector* modules = &s->as.importStmt.modules;
     Vector* impNames = &s->as.importStmt.impNames;
-    const char* base = ((Identifier*)vecGet(modules, 0))->name;
+    bool isImportFor = vecSize(impNames);
+    bool isImportAs = s->as.importStmt.as.name != NULL;
 
-    // import module (if nested module, import all from outer to inner)
-    uint16_t nameConst = 0;
-    int length = -1;
-    vecForeach(Identifier(**it), *modules) {
-        Identifier* name = *it;
+    JStarBuffer moduleName;
+    jsrBufferInit(c->vm, &moduleName);
 
-        length += name->length + 1;          // length of current submodule plus a dot
-        Identifier module = {length, base};  // name of current submodule
+    for(size_t i = 0; i < vecSize(modules); i++) {
+        Identifier* name = (Identifier*)vecGet(modules, i);
 
-        if(vecIteratorIndex(modules, it) == 0 && vecEmpty(impNames) && !s->as.importStmt.as.name) {
+        if(i != 0) jsrBufferAppendChar(&moduleName, '.');
+        jsrBufferAppend(&moduleName, name->name, name->length);
+
+        if(i == 0 && !isImportAs && !isImportFor) {
             emitBytecode(c, OP_IMPORT, s->line);
         } else {
             emitBytecode(c, OP_IMPORT_FROM, s->line);
         }
 
-        nameConst = identifierConst(c, &module, s->line);
-        emitShort(c, nameConst, s->line);
-
-        if(vecIteratorIndex(modules, it) != vecSize(modules) - 1) {
-            emitBytecode(c, OP_POP, s->line);
-        }
+        emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
+        if(i != vecSize(modules) - 1) emitBytecode(c, OP_POP, s->line);
     }
 
-    if(!vecEmpty(impNames)) {
+    if(isImportFor) {
+        uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.len, s->line);
         vecForeach(Identifier(**it), *impNames) {
             emitBytecode(c, OP_IMPORT_NAME, s->line);
-            emitShort(c, nameConst, s->line);
+            emitShort(c, moduleNameConst, s->line);
             emitShort(c, identifierConst(c, *it, s->line), s->line);
         }
-    } else if(s->as.importStmt.as.name != NULL) {
+    } else if(isImportAs) {
         // set last import as an import as
         c->func->code.bytecode[c->func->code.count - 3] = OP_IMPORT_AS;
-        // emit the as name
         emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
     }
 
     emitBytecode(c, OP_POP, s->line);
+    jsrBufferFree(&moduleName);
 }
 
 static void compileExcepts(Compiler* c, Vector* excs, int n) {
