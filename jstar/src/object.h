@@ -137,7 +137,7 @@ typedef struct ObjModule {
     NativeExt natives;  // Natives registered in this module
 } ObjModule;
 
-// Fields shared by all callable objects (functions and natives)
+// Fields shared by all function objects (ObjFunction/ObjNative)
 typedef struct {
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -145,12 +145,12 @@ typedef struct {
     Value* defaults;    // Array of default arguments (NULL if no defaults)
     ObjModule* module;  // The module of the function
     ObjString* name;    // The name of the function
-} Callable;
+} FnCommon;
 
 // A compiled J* function
 typedef struct ObjFunction {
     Obj base;
-    Callable c;
+    FnCommon c;
     Code code;         // The actual code chunk containing bytecodes
     uint8_t upvaluec;  // The number of upvalues the function closes over
 } ObjFunction;
@@ -158,7 +158,7 @@ typedef struct ObjFunction {
 // A C function callable from J*
 typedef struct ObjNative {
     Obj base;
-    Callable c;
+    FnCommon c;
     JStarNative fn;  // The C function that gets called
 } ObjNative;
 

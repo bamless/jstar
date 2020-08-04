@@ -106,7 +106,7 @@ void jsrFreeVM(JStarVM* vm) {
 // VM IMPLEMENTATION
 // -----------------------------------------------------------------------------
 
-static Frame* getFrame(JStarVM* vm, Callable* c) {
+static Frame* getFrame(JStarVM* vm, FnCommon* c) {
     if(vm->frameCount + 1 == vm->frameSz) {
         vm->frameSz *= 2;
         vm->frames = realloc(vm->frames, sizeof(Frame) * vm->frameSz);
@@ -198,13 +198,13 @@ static void packVarargs(JStarVM* vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static void argumentError(JStarVM* vm, Callable* c, int expected, int supplied,
+static void argumentError(JStarVM* vm, FnCommon* c, int expected, int supplied,
                           const char* quantity) {
     jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.",
              c->module->name->data, c->name->data, quantity, expected, supplied);
 }
 
-static bool adjustArguments(JStarVM* vm, Callable* c, uint8_t argc) {
+static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
     uint8_t most = c->argsCount, least = most - c->defaultc;
 
     if(!c->vararg && most == least && argc != c->argsCount) {

@@ -418,15 +418,15 @@ JSR_NATIVE(jsr_Function_string) {
         funType = "bound method";
         ObjBoundMethod* m = AS_BOUND_METHOD(vm->apiStack[0]);
 
-        Callable* c;
         if(m->method->type == OBJ_CLOSURE) {
-            c = &((ObjClosure*)m->method)->fn->c;
+            ObjFunction* fn = ((ObjClosure*)m->method)->fn;
+            funName = fn->c.name->data;
+            modName = fn->c.module->name->data;
         } else {
-            c = &((ObjNative*)m->method)->c;
+            ObjNative* nat = (ObjNative*)m->method;
+            funName = nat->c.name->data;
+            modName = nat->c.module->name->data;
         }
-
-        funName = c->name->data;
-        modName = c->module->name->data;
         break;
     }
     default:

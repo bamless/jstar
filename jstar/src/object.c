@@ -21,15 +21,14 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initCallable(Callable* c, ObjModule* module, ObjString* name, uint8_t argc,
-                         Value* defArr, uint8_t defc, bool vararg) {
-    c->argsCount = argc;
-    c->defaultc = defc;
-    c->vararg = false;
-    c->defaults = defArr;
-    c->vararg = vararg;
-    c->module = module;
+static void initCommon(FnCommon* c, ObjModule* module, ObjString* name, uint8_t argc,
+                       Value* defaults, uint8_t defaultc, bool vararg) {
     c->name = name;
+    c->module = module;
+    c->argsCount = argc;
+    c->defaults = defaults;
+    c->defaultc = defaultc;
+    c->vararg = vararg;
 }
 
 static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
@@ -45,7 +44,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_
                          uint8_t defc, bool vararg) {
     Value* defaults = allocateDefaultArray(vm, defc);
     ObjFunction* f = (ObjFunction*)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
-    initCallable(&f->c, module, name, argc, defaults, defc, vararg);
+    initCommon(&f->c, module, name, argc, defaults, defc, vararg);
     f->upvaluec = 0;
     initCode(&f->code);
     return f;
@@ -55,7 +54,7 @@ ObjNative* newNative(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t ar
                      uint8_t defc, bool vararg) {
     Value* defaults = allocateDefaultArray(vm, defc);
     ObjNative* n = (ObjNative*)newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
-    initCallable(&n->c, module, name, argc, defaults, defc, vararg);
+    initCommon(&n->c, module, name, argc, defaults, defc, vararg);
     n->fn = fn;
     return n;
 }
@@ -151,20 +150,21 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     record->funcName = NULL;
     record->moduleName = NULL;
 
-    Callable* c = NULL;
     switch(f->fn->type) {
     case OBJ_CLOSURE: {
-        ObjClosure* closure = (ObjClosure*)f->fn;
-        c = &closure->fn->c;
-        Code* code = &closure->fn->code;
+        ObjFunction* fn = ((ObjClosure*)f->fn)->fn;
+        Code* code = &fn->code;
         size_t op = f->ip - code->bytecode - 1;
         record->line = getBytecodeSrcLine(code, op);
+        record->moduleName = fn->c.module->name;
+        record->funcName = fn->c.name;
         break;
     }
     case OBJ_NATIVE: {
-        ObjNative* native = (ObjNative*)f->fn;
-        c = &native->c;
+        ObjNative* nat = (ObjNative*)f->fn;
         record->line = -1;
+        record->moduleName = nat->c.module->name;
+        record->funcName = nat->c.name;
         break;
     }
     default:
@@ -172,8 +172,9 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         break;
     }
 
-    record->moduleName = c->module->name;
-    record->funcName = c->name ? c->name : copyString(vm, "<main>", 6, true);
+    if(!record->funcName) {
+        record->funcName = copyString(vm, "<main>", 6, true);
+    }
 }
 
 #define LIST_DEF_SZ    8
