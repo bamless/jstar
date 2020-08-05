@@ -15,7 +15,7 @@ typedef struct Parser {
     Lexer lex;
     Token peek;
     const char* path;
-    const char* lnStart;
+    const char* lineStart;
     ParseErrorCB errorCallback;
     bool panic, hadError;
 } Parser;
@@ -27,7 +27,7 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
     p->errorCallback = errorCallback;
     initLexer(&p->lex, src);
     nextToken(&p->lex, &p->peek);
-    p->lnStart = p->peek.lexeme;
+    p->lineStart = p->peek.lexeme;
 }
 
 // -----------------------------------------------------------------------------
@@ -47,17 +47,17 @@ static void error(Parser* p, const char* msg, ...) {
         char errorMessage[MAX_ERR];
 
         // correct for escaped newlines
-        const char* actualLnStart = p->lnStart;
+        const char* actualLnStart = p->lineStart;
         while((actualLnStart = strchr(actualLnStart, '\n')) && actualLnStart < p->peek.lexeme) {
-            p->lnStart = ++actualLnStart;
+            p->lineStart = ++actualLnStart;
         }
 
-        int tokCol = (int)((p->peek.lexeme) - p->lnStart);
-        int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lnStart);
+        int tokCol = (int)((p->peek.lexeme) - p->lineStart);
+        int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lineStart);
 
         // print source code snippet of the token near the error
         int len = 0;
-        len += snprintf(errorMessage + len, MAX_ERR - len, "    %.*s\n", lineLen, p->lnStart);
+        len += snprintf(errorMessage + len, MAX_ERR - len, "    %.*s\n", lineLen, p->lineStart);
         len += snprintf(errorMessage + len, MAX_ERR - len, "    ");
         for(int i = 0; i < tokCol; i++) {
             len += snprintf(errorMessage + len, MAX_ERR - len, " ");
@@ -89,7 +89,7 @@ static Token advance(Parser* p) {
     nextToken(&p->lex, &p->peek);
 
     if(prev.type == TOK_NEWLINE) {
-        p->lnStart = p->peek.lexeme;
+        p->lineStart = p->peek.lexeme;
     }
 
     while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
