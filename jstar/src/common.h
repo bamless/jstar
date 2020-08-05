@@ -34,7 +34,7 @@
 #define ANON_PREFIX  "anon:"
 #define EXC_ERR      "_err"
 #define EXC_TRACE    "_stacktrace"
-#define PACKAGE_FILE "/__package__.jsr"
+#define PACKAGE_FILE "__package__.jsr"
 
 #ifdef __unix__
     #define DL_PREFIX "lib"

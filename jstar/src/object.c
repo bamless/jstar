@@ -328,6 +328,34 @@ void jsrBufferAppendstr(JStarBuffer* b, const char* str) {
     jsrBufferAppend(b, str, strlen(str));
 }
 
+void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap) {
+    size_t availableSpace = b->size - b->len;
+
+    va_list cpy;
+    va_copy(cpy, ap);
+    size_t written = vsnprintf(&b->data[b->len], availableSpace, fmt, cpy);
+    va_end(cpy);
+
+    // Not enough space, need to grow and retry
+    if(written >= availableSpace) {
+        jsrBufGrow(b, written + 1);
+        availableSpace = b->size - b->len;
+        va_copy(cpy, ap);
+        written = vsnprintf(&b->data[b->len], availableSpace, fmt, cpy);
+        ASSERT(written < availableSpace, "Buffer still to small");
+        va_end(cpy);
+    }
+
+    b->len += written;
+}
+
+void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    jsrBufferAppendvf(b, fmt, ap);
+    va_end(ap);
+}
+
 void jsrBufferTrunc(JStarBuffer* b, size_t len) {
     if(len >= b->len) return;
     b->len = len;

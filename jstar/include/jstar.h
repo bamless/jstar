@@ -23,6 +23,7 @@
 #ifndef JSTAR_H
 #define JSTAR_H
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -394,6 +395,8 @@ JSTAR_API void jsrBufferInit(JStarVM* vm, JStarBuffer* b);
 JSTAR_API void jsrBufferInitSz(JStarVM* vm, JStarBuffer* b, size_t size);
 JSTAR_API void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len);
 JSTAR_API void jsrBufferAppendstr(JStarBuffer* b, const char* str);
+JSTAR_API void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap);
+JSTAR_API void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...);
 JSTAR_API void jsrBufferTrunc(JStarBuffer* b, size_t len);
 JSTAR_API void jsrBufferCut(JStarBuffer* b, size_t len);
 JSTAR_API void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r);

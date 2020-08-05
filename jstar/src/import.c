@@ -64,17 +64,14 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
         simpleName++;
     }
 
-    jsrBufferTrunc(modulePath, (int)(rootPath - modulePath->data));
-    jsrBufferAppendstr(modulePath, "/");
-    jsrBufferAppendstr(modulePath, DL_PREFIX);
-    jsrBufferAppendstr(modulePath, simpleName);
-    jsrBufferAppendstr(modulePath, DL_SUFFIX);
+    jsrBufferTrunc(modulePath, rootPath - modulePath->data);
+    jsrBufferAppendf(modulePath, "/" DL_PREFIX "%s" DL_SUFFIX, simpleName);
 
     void* dynlib = dynload(modulePath->data);
     if(dynlib != NULL) {
+        // Reuse modulepath to create open function name
         jsrBufferClear(modulePath);
-        jsrBufferAppendstr(modulePath, "jsr_open_");
-        jsrBufferAppendstr(modulePath, simpleName);
+        jsrBufferAppendf(modulePath, "jsr_open_%s", simpleName);
 
         typedef JStarNativeReg* (*RegFunc)(void);
         RegFunc getNativeReg = (RegFunc)dynsim(dynlib, modulePath->data);
@@ -154,7 +151,7 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         ImportResult res;
 
         // try to load a package (__package__.jsr file in a directory)
-        jsrBufferAppendstr(&fullPath, PACKAGE_FILE);
+        jsrBufferAppendstr(&fullPath, "/" PACKAGE_FILE);
         res = importFromPath(vm, &fullPath, name);
 
         if(res != IMPORT_NOT_FOUND) {
