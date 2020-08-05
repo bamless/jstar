@@ -574,24 +574,28 @@ static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
     return str;
 }
 
-static bool callBinaryOverload(JStarVM* vm, Overload overload, Overload reverse) {
-    Value op;
-    ObjClass* cls = getClass(vm, peek2(vm));
-    if(hashTableGet(&cls->methods, vm->overloads[overload], &op)) {
-        return callValue(vm, op, 1);
+static bool callBinaryOverload(JStarVM* vm, const char* op, Overload overload, Overload reverse) {
+    Value method;
+    ObjClass* cls1 = getClass(vm, peek2(vm));
+    ObjClass* cls2 = getClass(vm, peek(vm));
+
+    if(hashTableGet(&cls1->methods, vm->overloads[overload], &method)) {
+        return callValue(vm, method, 1);
     }
 
     if(reverse != OVERLOAD_SENTINEL) {
         // swap callee and arg
-        Value b = peek(vm);
+        Value tmp = peek(vm);
         vm->sp[-1] = vm->sp[-2];
-        vm->sp[-2] = b;
+        vm->sp[-2] = tmp;
 
-        ObjClass* cls2 = getClass(vm, peek2(vm));
-        if(hashTableGet(&cls2->methods, vm->overloads[reverse], &op)) {
-            return callValue(vm, op, 1);
+        if(hashTableGet(&cls2->methods, vm->overloads[reverse], &method)) {
+            return callValue(vm, method, 1);
         }
     }
+
+    jsrRaise(vm, "TypeException", "Operator %s not defined for types %s, %s", op, cls1->name->data,
+             cls2->name->data);
     return false;
 }
 
@@ -694,20 +698,12 @@ bool runEval(JStarVM* vm, int depth) {
         }                                           \
     } while(0)
 
-#define BINARY_OVERLOAD(op, overload, reverse)                \
-    do {                                                      \
-        SAVE_FRAME();                                         \
-        bool res = callBinaryOverload(vm, overload, reverse); \
-        LOAD_FRAME();                                         \
-        if(!res) {                                            \
-            ObjString* t1 = getClass(vm, peek(vm))->name;     \
-            ObjString* t2 = getClass(vm, peek2(vm))->name;    \
-            jsrRaise(vm, "TypeException",                     \
-                     "Operator %s not defined "               \
-                     "for types %s, %s",                      \
-                     #op, t1->data, t2->data);                \
-            UNWIND_STACK(vm);                                 \
-        }                                                     \
+#define BINARY_OVERLOAD(op, overload, reverse)                     \
+    do {                                                           \
+        SAVE_FRAME();                                              \
+        bool res = callBinaryOverload(vm, #op, overload, reverse); \
+        LOAD_FRAME();                                              \
+        if(!res) UNWIND_STACK(vm);                                 \
     } while(0)
 
 #define RESTORE_HANDLER(h, frame, cause, excVal) \
@@ -864,14 +860,7 @@ bool runEval(JStarVM* vm, int depth) {
         if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
         } else {
-            Value eq;
-            ObjClass* cls = getClass(vm, peek2(vm));
-            if(hashTableGet(&cls->methods, vm->overloads[EQ_OVERLOAD], &eq)) {
-                SAVE_FRAME();
-                bool res = callValue(vm, eq, 1);
-                LOAD_FRAME();
-                if(!res) UNWIND_STACK(vm);
-            }
+            BINARY_OVERLOAD(==, EQ_OVERLOAD, OVERLOAD_SENTINEL);
         }
         DISPATCH();
     }
