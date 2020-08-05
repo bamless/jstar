@@ -322,7 +322,7 @@ void garbageCollect(JStarVM* vm) {
     reachObject(vm, (Obj*)vm->next);
     reachObject(vm, (Obj*)vm->iter);
 
-    for(int i = 0; i < OVERLOAD_SENTIEL; i++) {
+    for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
         reachObject(vm, (Obj*)vm->overloads[i]);
     }
 

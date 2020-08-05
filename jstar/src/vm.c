@@ -38,12 +38,12 @@ static void initConstStrings(JStarVM* vm) {
     vm->iter = copyString(vm, "__iter__", 8, true);
 
     // Method names of overloadable operators
-    static const char* overloads[OVERLOAD_SENTIEL] = {
+    static const char* overloads[OVERLOAD_SENTINEL] = {
         "__add__",  "__sub__",  "__mul__",  "__div__",  "__mod__", "__radd__",
         "__rsub__", "__rmul__", "__rdiv__", "__rmod__", "__get__", "__set__",
         "__eq__",   "__lt__",   "__le__",   "__gt__",   "__ge__",  "__neg__"};
 
-    for(int i = 0; i < OVERLOAD_SENTIEL; i++) {
+    for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
         vm->overloads[i] = copyString(vm, overloads[i], strlen(overloads[i]), true);
     }
 }
@@ -581,7 +581,7 @@ static bool callBinaryOverload(JStarVM* vm, Overload overload, Overload reverse)
         return callValue(vm, op, 1);
     }
 
-    if(reverse != OVERLOAD_SENTIEL) {
+    if(reverse != OVERLOAD_SENTINEL) {
         // swap callee and arg
         Value b = peek(vm);
         vm->sp[-1] = vm->sp[-2];
@@ -841,22 +841,22 @@ bool runEval(JStarVM* vm, int depth) {
     }
 
     TARGET(OP_LT): {
-        BINARY(BOOL_VAL, <, LT_OVERLOAD, OVERLOAD_SENTIEL);
+        BINARY(BOOL_VAL, <, LT_OVERLOAD, OVERLOAD_SENTINEL);
         DISPATCH();
     }
 
     TARGET(OP_LE): {
-        BINARY(BOOL_VAL, <=, LE_OVERLOAD, OVERLOAD_SENTIEL);
+        BINARY(BOOL_VAL, <=, LE_OVERLOAD, OVERLOAD_SENTINEL);
         DISPATCH();
     }
 
     TARGET(OP_GT): {
-        BINARY(BOOL_VAL, >, GT_OVERLOAD, OVERLOAD_SENTIEL);
+        BINARY(BOOL_VAL, >, GT_OVERLOAD, OVERLOAD_SENTINEL);
         DISPATCH();
     }
 
     TARGET(OP_GE): {
-        BINARY(BOOL_VAL, >=, GE_OVERLOAD, OVERLOAD_SENTIEL);
+        BINARY(BOOL_VAL, >=, GE_OVERLOAD, OVERLOAD_SENTINEL);
         DISPATCH();
     }
 

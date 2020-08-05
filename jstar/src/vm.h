@@ -59,7 +59,7 @@ typedef enum Overload {
     GE_OVERLOAD,
     NEG_OVERLOAD,
 
-    OVERLOAD_SENTIEL
+    OVERLOAD_SENTINEL
 } Overload;
 
 // The J* VM. This struct stores all the
@@ -91,7 +91,7 @@ struct JStarVM {
     ObjString *ctor, *stacktrace, *next, *iter;
 
     // Method names of overloadable operators
-    ObjString* overloads[OVERLOAD_SENTIEL];
+    ObjString* overloads[OVERLOAD_SENTINEL];
 
     // Script arguments
     const char** argv;
