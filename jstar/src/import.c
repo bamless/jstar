@@ -76,17 +76,17 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
         jsrBufferAppendstr(modulePath, "jsr_open_");
         jsrBufferAppendstr(modulePath, simpleName);
 
-        typedef JStarNativeReg* (*RegFunc)();
-        RegFunc open_lib = (RegFunc)dynsim(dynlib, modulePath->data);
+        typedef JStarNativeReg* (*RegFunc)(void);
+        RegFunc getNativeReg = (RegFunc)dynsim(dynlib, modulePath->data);
 
-        if(open_lib == NULL) {
+        if(getNativeReg == NULL) {
             dynfree(dynlib);
             return;
         }
 
         ObjModule* m = getModule(vm, moduleName);
         m->natives.dynlib = dynlib;
-        m->natives.registry = (*open_lib)();
+        m->natives.registry = (*getNativeReg)();
     }
 }
 
@@ -123,12 +123,12 @@ static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* na
     bool imported = importWithSource(vm, path->data, name, source);
     free(source);
 
-    if(imported) {
-        tryNativeLib(vm, path, name);
-        return IMPORT_OK;
-    } else {
+    if(!imported) {
         return IMPORT_ERR;
     }
+
+    tryNativeLib(vm, path, name);
+    return IMPORT_OK;
 }
 
 static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
@@ -179,6 +179,23 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
     return false;
 }
 
+static void setModuleInParent(JStarVM* vm, ObjString* name) {
+    const char* simpleNameStart = strrchr(name->data, '.');
+
+    // Not a nested module, doesn't have a parent
+    if(!simpleNameStart) {
+        return;
+    }
+
+    // Set the module's "simple name" (the name after last dot) as a global in its parent
+    simpleNameStart++;
+    ObjString* parentName = copyString(vm, name->data, simpleNameStart - name->data - 1, true);
+    ObjModule* parent = getModule(vm, parentName);
+    ObjString* simpleName = copyString(vm, simpleNameStart, strlen(simpleNameStart), true);
+    ObjModule* module = getModule(vm, name);
+    hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
+}
+
 bool importModule(JStarVM* vm, ObjString* name) {
     if(hashTableContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);
@@ -194,20 +211,6 @@ bool importModule(JStarVM* vm, ObjString* name) {
         return false;
     }
 
-    const char* nameStart = strrchr(name->data, '.');
-    if(nameStart == NULL) {
-        // not a nested module, nothing to do
-        return true;
-    } else {
-        nameStart++;
-    }
-
-    // set module as a global in its parent
-    ObjModule* module = getModule(vm, name);
-    ObjString* parentName = copyString(vm, name->data, nameStart - 1 - name->data, true);
-    ObjModule* parent = getModule(vm, parentName);
-    ObjString* simpleName = copyString(vm, nameStart, strlen(nameStart), true);
-    hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
-
+    setModuleInParent(vm, name);
     return true;
 }
