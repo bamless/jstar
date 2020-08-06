@@ -898,10 +898,9 @@ static void compileVarDecl(Compiler* c, Stmt* s) {
     int numDecls = vecSize(&s->as.varDecl.ids);
     if(s->as.varDecl.init != NULL) {
         Expr* init = s->as.varDecl.init;
-        ExprType initType = s->as.varDecl.init->type;
 
-        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
-            Expr* exprs = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
+        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
+            Expr* exprs = init->type == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
             compileConstUnpackLst(c, &s->as.varDecl.ids, exprs, numDecls);
         } else {
             compileRval(c, vecGet(&s->as.varDecl.ids, 0), init);
@@ -945,27 +944,21 @@ static void compileReturnStatement(Compiler* c, Stmt* s) {
 }
 
 static void compileIfStatement(Compiler* c, Stmt* s) {
-    // compile the condition
     compileExpr(c, s->as.ifStmt.cond);
 
-    // emit the jump istr for false condtion with dummy address
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
-    // compile 'then' branch
     compileStatement(c, s->as.ifStmt.thenStmt);
 
-    // if the 'if' has an 'else' emit istruction to jump over the 'else' branch
     size_t exitJmp = 0;
     if(s->as.ifStmt.elseStmt != NULL) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
-    // set the false jump to the 'else' branch (or to exit if not present)
     setJumpTo(c, falseJmp, c->func->code.count, s->line);
 
-    // If present compile 'else' branch and set the exit jump to 'else' end
     if(s->as.ifStmt.elseStmt != NULL) {
         compileStatement(c, s->as.ifStmt.elseStmt);
         setJumpTo(c, exitJmp, c->func->code.count, s->line);
@@ -975,7 +968,6 @@ static void compileIfStatement(Compiler* c, Stmt* s) {
 static void compileForStatement(Compiler* c, Stmt* s) {
     enterScope(c);
 
-    // init
     if(s->as.forStmt.init != NULL) {
         compileStatement(c, s->as.forStmt.init);
     }
@@ -989,14 +981,12 @@ static void compileForStatement(Compiler* c, Stmt* s) {
     Loop l;
     startLoop(c, &l);
 
-    // act
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
         emitBytecode(c, OP_POP, 0);
         setJumpTo(c, firstJmp, c->func->code.count, s->line);
     }
 
-    // condition
     size_t exitJmp = 0;
     if(s->as.forStmt.cond != NULL) {
         compileExpr(c, s->as.forStmt.cond);
@@ -1004,13 +994,9 @@ static void compileForStatement(Compiler* c, Stmt* s) {
         emitShort(c, 0, 0);
     }
 
-    // body
     compileStatement(c, s->as.forStmt.body);
-
-    // jump back to for start
     emitJumpTo(c, OP_JUMP, l.start, 0);
 
-    // set the exit jump
     if(s->as.forStmt.cond != NULL) {
         setJumpTo(c, exitJmp, c->func->code.count, s->line);
     }
@@ -1109,28 +1095,35 @@ static void compileImportStatement(Compiler* c, Stmt* s) {
     JStarBuffer moduleName;
     jsrBufferInit(c->vm, &moduleName);
 
-    for(size_t i = 0; i < vecSize(modules); i++) {
-        Identifier* name = (Identifier*)vecGet(modules, i);
+    // compile topmost import
+    Identifier* moduleId = (Identifier*)vecGet(modules, 0);
+    jsrBufferAppend(&moduleName, moduleId->name, moduleId->length);
+    if(!isImportAs && !isImportFor) {
+        emitBytecode(c, OP_IMPORT, s->line);
+    } else {
+        emitBytecode(c, OP_IMPORT_FROM, s->line);
+    }
+    emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
 
-        if(i != 0) jsrBufferAppendChar(&moduleName, '.');
-        jsrBufferAppend(&moduleName, name->name, name->length);
+    // compile submodule imports
+    for(size_t i = 1; i < vecSize(modules); i++) {
+        // pop previous import result
+        emitBytecode(c, OP_POP, s->line);
 
-        if(i == 0 && !isImportAs && !isImportFor) {
-            emitBytecode(c, OP_IMPORT, s->line);
-        } else {
-            emitBytecode(c, OP_IMPORT_FROM, s->line);
-        }
+        Identifier* subModuleId = (Identifier*)vecGet(modules, i);
+        jsrBufferAppendf(&moduleName, ".%.*s", subModuleId->length, subModuleId->name);
 
+        emitBytecode(c, OP_IMPORT_FROM, s->line);
         emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
-        if(i != vecSize(modules) - 1) emitBytecode(c, OP_POP, s->line);
     }
 
     if(isImportFor) {
         uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.len, s->line);
         vecForeach(Identifier(**it), *impNames) {
+            Identifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, moduleNameConst, s->line);
-            emitShort(c, identifierConst(c, *it, s->line), s->line);
+            emitShort(c, identifierConst(c, name, s->line), s->line);
         }
     } else if(isImportAs) {
         // set last import as an import as
