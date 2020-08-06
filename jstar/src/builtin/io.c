@@ -19,7 +19,7 @@
 // static helper functions
 
 static bool readline(JStarVM* vm, FILE* file) {
-    char buf[512];
+    char buf[4096];
 
     char* ret = fgets(buf, sizeof(buf), file);
     if(ret == NULL) {
@@ -35,7 +35,7 @@ static bool readline(JStarVM* vm, FILE* file) {
     jsrBufferInit(vm, &data);
     jsrBufferAppendstr(&data, buf);
 
-    while(strchr(buf, '\n') == NULL) {
+    while(strrchr(buf, '\n') == NULL) {
         ret = fgets(buf, sizeof(buf), file);
         if(ret == NULL) {
             if(feof(file)) {
@@ -209,10 +209,10 @@ JSR_NATIVE(jsr_File_readAll) {
     jsrBufferInitSz(vm, &data, 512);
 
     for(;;) {
-        char buf[512];
+        char buf[4096];
 
-        size_t read = fread(buf, 1, 512, f);
-        if(read < 512) {
+        size_t read = fread(buf, 1, sizeof(buf), f);
+        if(read < sizeof(buf)) {
             if(feof(f)) {
                 jsrBufferAppend(&data, buf, read);
                 break;
