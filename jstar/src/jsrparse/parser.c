@@ -39,6 +39,19 @@ static char* strchrnul(const char* str, char c) {
     return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
 }
 
+static int vstrncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, va_list ap) {
+    size_t bufSize = pos >= maxLen ? 0 : maxLen - pos;
+    return vsnprintf(buf + pos, bufSize, fmt, ap);
+}
+
+static int strncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int written = vstrncatf(buf, pos, maxLen, fmt, ap);
+    va_end(ap);
+    return written;
+}
+
 static void error(Parser* p, const char* msg, ...) {
     if(p->panic) return;
     p->panic = p->hadError = true;
@@ -52,22 +65,23 @@ static void error(Parser* p, const char* msg, ...) {
             p->lineStart = ++actualLnStart;
         }
 
-        int tokCol = (int)((p->peek.lexeme) - p->lineStart);
-        int lineLen = (int)(strchrnul(p->peek.lexeme, '\n') - p->lineStart);
+        int tokCol = p->peek.lexeme - p->lineStart;
+        int lineLen = strchrnul(p->peek.lexeme, '\n') - p->lineStart;
 
         // print source code snippet of the token near the error
-        int len = 0;
-        len += snprintf(errorMessage + len, MAX_ERR - len, "    %.*s\n", lineLen, p->lineStart);
-        len += snprintf(errorMessage + len, MAX_ERR - len, "    ");
+        int pos = 0;
+        pos += strncatf(errorMessage, pos, MAX_ERR, "    %.*s\n", lineLen, p->lineStart);
+        pos += strncatf(errorMessage, pos, MAX_ERR, "    ");
         for(int i = 0; i < tokCol; i++) {
-            len += snprintf(errorMessage + len, MAX_ERR - len, " ");
+            pos += strncatf(errorMessage, pos, MAX_ERR, " ");
         }
-        len += snprintf(errorMessage + len, MAX_ERR - len, "^\n");
+        pos += strncatf(errorMessage, pos, MAX_ERR, "^\n");
 
-        va_list args;
-        va_start(args, msg);
-        vsnprintf(errorMessage + len, MAX_ERR - len, msg, args);
-        va_end(args);
+        // Print error message
+        va_list ap;
+        va_start(ap, msg);
+        vstrncatf(errorMessage, pos, MAX_ERR, msg, ap);
+        va_end(ap);
 
         p->errorCallback(p->path, p->peek.line, errorMessage);
     }
