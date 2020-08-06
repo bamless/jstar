@@ -131,6 +131,14 @@ static Token require(Parser* p, TokenType type) {
     return (Token){0, NULL, 0, 0};
 }
 
+static Token peekSecondToken(Parser* p) {
+    Token prevTok = advance(p);
+    Token secondTok = p->peek;
+    rewindTo(&p->lex, &prevTok);
+    advance(p);
+    return secondTok;
+}
+
 static void synchronize(Parser* p) {
     p->panic = false;
     while(!match(p, TOK_EOF)) {
@@ -531,13 +539,7 @@ static Stmt* withStmt(Parser* p) {
 
 static Stmt* funcDecl(Parser* p) {
     int line = p->peek.line;
-    Token fun = advance(p);
-
-    if(!match(p, TOK_IDENTIFIER)) {
-        rewindTo(&p->lex, &fun);
-        nextToken(&p->lex, &p->peek);
-        return NULL;
-    }
+    advance(p);
 
     Token funcName = require(p, TOK_IDENTIFIER);
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
@@ -576,16 +578,17 @@ static Stmt* classDecl(Parser* p) {
 
     Vector methods = vecNew();
     while(!match(p, TOK_END) && !match(p, TOK_EOF)) {
-        if(match(p, TOK_NAT)) {
+        switch(p->peek.type) {
+        case TOK_NAT:
             vecPush(&methods, nativeDecl(p));
-        } else {
-            Stmt* fun = funcDecl(p);
-            if(fun != NULL) {
-                vecPush(&methods, fun);
-            } else {
-                error(p, "Expected function or native delcaration.");
-                advance(p);
-            }
+            break;
+        case TOK_FUN:
+            vecPush(&methods, funcDecl(p));
+            break;
+        default:
+            error(p, "Expected function or native delcaration.");
+            advance(p);
+            break;
         }
         skipNewLines(p);
         if(p->panic) classSynchronize(p);
@@ -639,8 +642,10 @@ static Stmt* parseStmt(Parser* p) {
         return var;
     }
     case TOK_FUN: {
-        Stmt* func = funcDecl(p);
-        if(func != NULL) return func;
+        // The grammar is not strictly LL(1), so peek a second token to decide
+        if(peekSecondToken(p).type == TOK_IDENTIFIER) {
+            return funcDecl(p);
+        }
         break;
     }
     default:
