@@ -41,20 +41,20 @@ static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
 }
 
 ObjFunction* newFunction(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc,
-                         uint8_t defc, bool vararg) {
-    Value* defaults = allocateDefaultArray(vm, defc);
+                         uint8_t defCount, bool vararg) {
+    Value* defaults = allocateDefaultArray(vm, defCount);
     ObjFunction* f = (ObjFunction*)newObj(vm, sizeof(*f), vm->funClass, OBJ_FUNCTION);
-    initCommon(&f->c, module, name, argc, defaults, defc, vararg);
+    initCommon(&f->c, module, name, argc, defaults, defCount, vararg);
     f->upvaluec = 0;
     initCode(&f->code);
     return f;
 }
 
 ObjNative* newNative(JStarVM* vm, ObjModule* module, ObjString* name, uint8_t argc, JStarNative fn,
-                     uint8_t defc, bool vararg) {
-    Value* defaults = allocateDefaultArray(vm, defc);
+                     uint8_t defCount, bool vararg) {
+    Value* defaults = allocateDefaultArray(vm, defCount);
     ObjNative* n = (ObjNative*)newObj(vm, sizeof(*n), vm->funClass, OBJ_NATIVE);
-    initCommon(&n->c, module, name, argc, defaults, defc, vararg);
+    initCommon(&n->c, module, name, argc, defaults, defCount, vararg);
     n->fn = fn;
     return n;
 }

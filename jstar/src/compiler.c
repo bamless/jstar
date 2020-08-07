@@ -392,22 +392,22 @@ static ObjString* readString(Compiler* c, Expr* e) {
     return stringConst;
 }
 
-static void addDefaultConsts(Compiler* c, Value* defaults, Vector* defArgs) {
+static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defArgs) {
     int i = 0;
     vecForeach(Expr(**it), *defArgs) {
         Expr* e = *it;
         switch(e->type) {
         case NUM_LIT:
-            defaults[i++] = NUM_VAL(e->as.num);
+            fn->defaults[i++] = NUM_VAL(e->as.num);
             break;
         case BOOL_LIT:
-            defaults[i++] = BOOL_VAL(e->as.boolean);
+            fn->defaults[i++] = BOOL_VAL(e->as.boolean);
             break;
         case STR_LIT:
-            defaults[i++] = OBJ_VAL(readString(c, e));
+            fn->defaults[i++] = OBJ_VAL(readString(c, e));
             break;
         case NULL_LIT:
-            defaults[i++] = NULL_VAL;
+            fn->defaults[i++] = NULL_VAL;
             break;
         default:
             UNREACHABLE();
@@ -1360,7 +1360,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
-    addDefaultConsts(c, c->func->c.defaults, &s->as.funcDecl.defArgs);
+    addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
 
     if(s->as.funcDecl.id.length != 0) {
         c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
@@ -1391,25 +1391,26 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     return c->func;
 }
 
+static ObjString* createMethodName(Compiler* c, Identifier* classId, Identifier* methodId) {
+    size_t length = classId->length + methodId->length + 1;
+    ObjString* name = allocateString(c->vm, length);
+    memcpy(name->data, classId->name, classId->length);
+    name->data[classId->length] = '.';
+    memcpy(name->data + classId->length + 1, methodId->name, methodId->length);
+    return name;
+}
+
 static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, Stmt* s) {
-    size_t defaults = vecSize(&s->as.funcDecl.defArgs);
+    size_t defCount = vecSize(&s->as.funcDecl.defArgs);
     size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
+    c->func = newFunction(c->vm, module, NULL, arity, defCount, vararg);
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->code, HANDLE_VAL(NULL));
-    addDefaultConsts(c, c->func->c.defaults, &s->as.funcDecl.defArgs);
-
-    // create new method name by concatenating the class name to it
-    size_t length = classId->length + s->as.funcDecl.id.length + 1;
-    ObjString* name = allocateString(c->vm, length);
-
-    memcpy(name->data, classId->name, classId->length);
-    name->data[classId->length] = '.';
-    memcpy(name->data + classId->length + 1, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
-    c->func->c.name = name;
+    addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
+    c->func->c.name = createMethodName(c, classId, &s->as.funcDecl.id);
 
     // if in costructor change the type
     Identifier ctor = syntheticIdentifier(CTOR_STR);
@@ -1423,7 +1424,6 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     defineVar(c, &thisId, s->line);
 
     // define and declare arguments
-
     vecForeach(Identifier(**it), s->as.funcDecl.formalArgs) {
         declareVar(c, *it, s->line);
         defineVar(c, *it, s->line);
@@ -1470,22 +1470,23 @@ static void compileFunction(Compiler* c, Stmt* s) {
 }
 
 static void compileNative(Compiler* c, Stmt* s) {
-    size_t defaults = vecSize(&s->as.nativeDecl.defArgs);
+    size_t defCount = vecSize(&s->as.nativeDecl.defArgs);
     size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
     bool vararg = s->as.nativeDecl.isVararg;
 
-    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
+    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defCount, vararg);
 
+    // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
-    addDefaultConsts(c, native->c.defaults, &s->as.nativeDecl.defArgs);
-    pop(c->vm);
 
-    uint16_t nativeConst = createConst(c, OBJ_VAL(native), s->line);
+    addFunctionDefaults(c, &native->c, &s->as.nativeDecl.defArgs);
     uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
     native->c.name = AS_STRING(c->func->code.consts.arr[nameConst]);
 
+    pop(c->vm);
+
     emitBytecode(c, OP_GET_CONST, s->line);
-    emitShort(c, nativeConst, s->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), s->line), s->line);
 
     emitBytecode(c, OP_NATIVE, s->line);
     emitShort(c, nameConst, s->line);
@@ -1517,26 +1518,20 @@ static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
     size_t arity = vecSize(&m->as.nativeDecl.formalArgs);
     bool vararg = m->as.nativeDecl.isVararg;
 
-    ObjNative* n = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
-    push(c->vm, OBJ_VAL(n));
-    addDefaultConsts(c, n->c.defaults, &m->as.nativeDecl.defArgs);
+    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
+
+    // push as root in case of GC
+    push(c->vm, OBJ_VAL(native));
+
+    addFunctionDefaults(c, &native->c, &m->as.nativeDecl.defArgs);
+    uint16_t idConst = identifierConst(c, &m->as.nativeDecl.id, m->line);
+    native->c.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
+
     pop(c->vm);
 
-    uint16_t native = createConst(c, OBJ_VAL(n), cls->line);
-    uint16_t id = identifierConst(c, &m->as.nativeDecl.id, m->line);
-
-    Identifier* classId = &cls->as.classDecl.id;
-    size_t len = classId->length + m->as.nativeDecl.id.length + 1;
-    ObjString* name = allocateString(c->vm, len);
-
-    memcpy(name->data, classId->name, classId->length);
-    name->data[classId->length] = '.';
-    memcpy(name->data + classId->length + 1, m->as.nativeDecl.id.name, m->as.nativeDecl.id.length);
-    n->c.name = name;
-
     emitBytecode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, id, cls->line);
-    emitShort(c, native, cls->line);
+    emitShort(c, idConst, cls->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
 }
 
 static void compileMethods(Compiler* c, Stmt* cls) {
