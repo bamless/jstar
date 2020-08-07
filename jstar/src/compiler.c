@@ -387,7 +387,9 @@ static ObjString* readString(Compiler* c, Expr* e) {
         }
     }
 
-    return jsrBufferToString(&sb);
+    ObjString* stringConst = copyString(c->vm, sb.data, sb.len, true);
+    jsrBufferFree(&sb);
+    return stringConst;
 }
 
 static void addDefaultConsts(Compiler* c, Value* defaults, Vector* defArgs) {
