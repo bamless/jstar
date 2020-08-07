@@ -15,7 +15,6 @@
 #define INIT_GC         (1024 * 1024 * 10)             // 10MiB - First GC collection point
 #define HEAP_GROW_RATE  2                              // The heap growing rate
 #define HANDLER_MAX     10                             // Max number of try-excepts for a frame
-#define INTERN_TRESHOLD 256                            // String internment treshold
 
 // -----------------------------------------------------------------------------
 // COMPILER CONSTANTS
