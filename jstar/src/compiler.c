@@ -852,10 +852,9 @@ static void compileExpr(Compiler* c, Expr* e) {
     case BOOL_LIT:
         emitValueConst(c, BOOL_VAL(e->as.boolean), e->line);
         break;
-    case STR_LIT: {
+    case STR_LIT:
         emitValueConst(c, OBJ_VAL(readString(c, e)), e->line);
         break;
-    }
     case VAR_LIT:
         compileVariable(c, &e->as.var.id, false, e->line);
         break;
