@@ -805,20 +805,25 @@ static void compileTableLit(Compiler* c, Expr* e) {
     }
 }
 
+static void emitValueConst(Compiler* c, Value val, int line) {
+    emitBytecode(c, OP_GET_CONST, line);
+    emitShort(c, createConst(c, val, line), line);
+}
+
 static void compileExpr(Compiler* c, Expr* e) {
     switch(e->type) {
-    case ASSIGN:
-        compileAssignExpr(c, e);
-        break;
-    case COMP_ASSIGN:
-        compileCompundAssign(c, e);
-        break;
     case BINARY:
         if(e->as.binary.op == TOK_AND || e->as.binary.op == TOK_OR) {
             compileLogicExpr(c, e);
         } else {
             compileBinaryExpr(c, e);
         }
+        break;
+    case ASSIGN:
+        compileAssignExpr(c, e);
+        break;
+    case COMP_ASSIGN:
+        compileCompundAssign(c, e);
         break;
     case UNARY:
         compileUnaryExpr(c, e);
@@ -842,17 +847,13 @@ static void compileExpr(Compiler* c, Expr* e) {
         vecForeach(Expr(**it), e->as.list) { compileExpr(c, *it); }
         break;
     case NUM_LIT:
-        emitBytecode(c, OP_GET_CONST, e->line);
-        emitShort(c, createConst(c, NUM_VAL(e->as.num), e->line), e->line);
+        emitValueConst(c, NUM_VAL(e->as.num), e->line);
         break;
     case BOOL_LIT:
-        emitBytecode(c, OP_GET_CONST, e->line);
-        emitShort(c, createConst(c, BOOL_VAL(e->as.boolean), e->line), e->line);
+        emitValueConst(c, BOOL_VAL(e->as.boolean), e->line);
         break;
     case STR_LIT: {
-        ObjString* str = readString(c, e);
-        emitBytecode(c, OP_GET_CONST, e->line);
-        emitShort(c, createConst(c, OBJ_VAL(str), e->line), e->line);
+        emitValueConst(c, OBJ_VAL(readString(c, e)), e->line);
         break;
     }
     case VAR_LIT:
