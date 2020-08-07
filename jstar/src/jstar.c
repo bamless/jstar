@@ -236,18 +236,26 @@ bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
     return valueEquals(v1, v2);
 }
 
-bool jsrEquals(JStarVM* vm) {
-    if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
-        push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
-        return true;
+bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
+    Value v1 = apiStackSlot(vm, slot1);
+    Value v2 = apiStackSlot(vm, slot2);
+    if(IS_NUM(v1) || IS_NULL(v2) || IS_BOOL(v2)) {
+        return valueEquals(v1, v2);
     } else {
-        ObjClass* cls = getClass(vm, peek2(vm));
-        Value eq;
-        if(hashTableGet(&cls->methods, vm->overloads[EQ_OVERLOAD], &eq)) {
-            return jsrCallMethod(vm, "__eq__", 1) == JSR_EVAL_SUCCESS;
+        Value eqOverload;
+        ObjClass* cls = getClass(vm, v1);
+        if(hashTableGet(&cls->methods, vm->overloads[EQ_OVERLOAD], &eqOverload)) {
+            push(vm, v1);
+            push(vm, v2);
+            JStarResult res = jsrCallMethod(vm, "__eq__", 1);
+            if(res == JSR_EVAL_SUCCESS) {
+                return isValTrue(pop(vm));
+            } else {
+                pop(vm);
+                return false;
+            }
         } else {
-            push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
-            return true;
+            return valueEquals(v1, v2);
         }
     }
 }

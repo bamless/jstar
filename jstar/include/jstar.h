@@ -171,18 +171,11 @@ typedef struct JStarNativeReg {
 // OVERLOADABLE OPERATOR API
 // -----------------------------------------------------------------------------
 
-// Check if two objects are the same (doesn't call __eq__ overload)
+// Check if two objects are the same. Doesn't call __eq__ overload.
 JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
 
-// Check if two J* values are equal.
-// As this function may call the __eq__ method, it behaves like
-// jsrCall, i.e. the two values should be on the top of the stack
-// when calling, and the result will be left on the top of the
-// stack popping the two values.
-// This function will return true if the execution was successful,
-// And false if an exception was raised, leaving the result or
-// the exception on top of the stack repectively.
-JSTAR_API bool jsrEquals(JStarVM* vm);
+// Check if two J* values are equal. May call the __eq__ overload.
+JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
 
 // Check if a value is of a certain class.
 JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
