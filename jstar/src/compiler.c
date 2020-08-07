@@ -75,15 +75,15 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compiler* prev, FuncType t,
-                         Stmt* ast, int depth) {
+                         Stmt* ast) {
     c->vm = vm;
     c->type = t;
     c->ast = ast;
+    c->depth = 0;
     c->func = NULL;
     c->prev = prev;
     c->loops = NULL;
     c->tryDepth = 0;
-    c->depth = depth;
     c->localsCount = 0;
     c->hasSuper = false;
     c->hadError = false;
@@ -898,10 +898,9 @@ static void compileVarDecl(Compiler* c, Stmt* s) {
     int numDecls = vecSize(&s->as.varDecl.ids);
     if(s->as.varDecl.init != NULL) {
         Expr* init = s->as.varDecl.init;
-        ExprType initType = s->as.varDecl.init->type;
 
-        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(initType)) {
-            Expr* exprs = initType == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
+        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
+            Expr* exprs = init->type == ARR_LIT ? init->as.array.exprs : init->as.tuple.exprs;
             compileConstUnpackLst(c, &s->as.varDecl.ids, exprs, numDecls);
         } else {
             compileRval(c, vecGet(&s->as.varDecl.ids, 0), init);
@@ -945,27 +944,21 @@ static void compileReturnStatement(Compiler* c, Stmt* s) {
 }
 
 static void compileIfStatement(Compiler* c, Stmt* s) {
-    // compile the condition
     compileExpr(c, s->as.ifStmt.cond);
 
-    // emit the jump istr for false condtion with dummy address
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
-    // compile 'then' branch
     compileStatement(c, s->as.ifStmt.thenStmt);
 
-    // if the 'if' has an 'else' emit istruction to jump over the 'else' branch
     size_t exitJmp = 0;
     if(s->as.ifStmt.elseStmt != NULL) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
-    // set the false jump to the 'else' branch (or to exit if not present)
     setJumpTo(c, falseJmp, c->func->code.count, s->line);
 
-    // If present compile 'else' branch and set the exit jump to 'else' end
     if(s->as.ifStmt.elseStmt != NULL) {
         compileStatement(c, s->as.ifStmt.elseStmt);
         setJumpTo(c, exitJmp, c->func->code.count, s->line);
@@ -975,7 +968,6 @@ static void compileIfStatement(Compiler* c, Stmt* s) {
 static void compileForStatement(Compiler* c, Stmt* s) {
     enterScope(c);
 
-    // init
     if(s->as.forStmt.init != NULL) {
         compileStatement(c, s->as.forStmt.init);
     }
@@ -989,14 +981,12 @@ static void compileForStatement(Compiler* c, Stmt* s) {
     Loop l;
     startLoop(c, &l);
 
-    // act
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
         emitBytecode(c, OP_POP, 0);
         setJumpTo(c, firstJmp, c->func->code.count, s->line);
     }
 
-    // condition
     size_t exitJmp = 0;
     if(s->as.forStmt.cond != NULL) {
         compileExpr(c, s->as.forStmt.cond);
@@ -1004,13 +994,9 @@ static void compileForStatement(Compiler* c, Stmt* s) {
         emitShort(c, 0, 0);
     }
 
-    // body
     compileStatement(c, s->as.forStmt.body);
-
-    // jump back to for start
     emitJumpTo(c, OP_JUMP, l.start, 0);
 
-    // set the exit jump
     if(s->as.forStmt.cond != NULL) {
         setJumpTo(c, exitJmp, c->func->code.count, s->line);
     }
@@ -1109,28 +1095,35 @@ static void compileImportStatement(Compiler* c, Stmt* s) {
     JStarBuffer moduleName;
     jsrBufferInit(c->vm, &moduleName);
 
-    for(size_t i = 0; i < vecSize(modules); i++) {
-        Identifier* name = (Identifier*)vecGet(modules, i);
+    // compile topmost import
+    Identifier* moduleId = (Identifier*)vecGet(modules, 0);
+    jsrBufferAppend(&moduleName, moduleId->name, moduleId->length);
+    if(!isImportAs && !isImportFor) {
+        emitBytecode(c, OP_IMPORT, s->line);
+    } else {
+        emitBytecode(c, OP_IMPORT_FROM, s->line);
+    }
+    emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
 
-        if(i != 0) jsrBufferAppendChar(&moduleName, '.');
-        jsrBufferAppend(&moduleName, name->name, name->length);
+    // compile submodule imports
+    for(size_t i = 1; i < vecSize(modules); i++) {
+        // pop previous import result
+        emitBytecode(c, OP_POP, s->line);
 
-        if(i == 0 && !isImportAs && !isImportFor) {
-            emitBytecode(c, OP_IMPORT, s->line);
-        } else {
-            emitBytecode(c, OP_IMPORT_FROM, s->line);
-        }
+        Identifier* subModuleId = (Identifier*)vecGet(modules, i);
+        jsrBufferAppendf(&moduleName, ".%.*s", subModuleId->length, subModuleId->name);
 
+        emitBytecode(c, OP_IMPORT_FROM, s->line);
         emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
-        if(i != vecSize(modules) - 1) emitBytecode(c, OP_POP, s->line);
     }
 
     if(isImportFor) {
         uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.len, s->line);
         vecForeach(Identifier(**it), *impNames) {
+            Identifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, moduleNameConst, s->line);
-            emitShort(c, identifierConst(c, *it, s->line), s->line);
+            emitShort(c, identifierConst(c, name, s->line), s->line);
         }
     } else if(isImportAs) {
         // set last import as an import as
@@ -1371,8 +1364,6 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
         c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length, true);
     }
 
-    enterFunctionScope(c);
-
     // add phony variable for function receiver (in the case of functions the
     // receiver is the function itself but it ins't accessible)
     Identifier id = syntheticIdentifier("");
@@ -1394,8 +1385,6 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
 
     emitBytecode(c, OP_NULL, 0);
     emitBytecode(c, OP_RETURN, 0);
-
-    exitFunctionScope(c);
 
     return c->func;
 }
@@ -1425,8 +1414,6 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     if(identifierEquals(&s->as.funcDecl.id, &ctor)) {
         c->type = TYPE_CTOR;
     }
-
-    enterFunctionScope(c);
 
     // add `this` for method receiver (the object from which was called)
     Identifier thisId = syntheticIdentifier(THIS_STR);
@@ -1458,26 +1445,26 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     }
     emitBytecode(c, OP_RETURN, 0);
 
-    exitFunctionScope(c);
-
     return c->func;
 }
 
 static void compileFunction(Compiler* c, Stmt* s) {
-    Compiler compiler;
-    initCompiler(&compiler, c->vm, c->filename, c, TYPE_FUNC, s, c->depth + 1);
+    Compiler funCompiler;
+    initCompiler(&funCompiler, c->vm, c->filename, c, TYPE_FUNC, s);
 
-    ObjFunction* func = function(&compiler, c->func->c.module, s);
+    enterFunctionScope(&funCompiler);
+    ObjFunction* func = function(&funCompiler, c->func->c.module, s);
+    exitFunctionScope(&funCompiler);
 
     emitBytecode(c, OP_CLOSURE, s->line);
     emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
 
     for(uint8_t i = 0; i < func->upvaluec; i++) {
-        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, s->line);
-        emitBytecode(c, compiler.upvalues[i].index, s->line);
+        emitBytecode(c, funCompiler.upvalues[i].isLocal ? 1 : 0, s->line);
+        emitBytecode(c, funCompiler.upvalues[i].index, s->line);
     }
 
-    endCompiler(&compiler);
+    endCompiler(&funCompiler);
 }
 
 static void compileNative(Compiler* c, Stmt* s) {
@@ -1503,21 +1490,24 @@ static void compileNative(Compiler* c, Stmt* s) {
 }
 
 static void compileMethod(Compiler* c, Stmt* cls, Stmt* m) {
-    Compiler compiler;
-    initCompiler(&compiler, c->vm, c->filename, c, TYPE_METHOD, m, c->depth + 1);
+    Compiler methodCompiler;
+    initCompiler(&methodCompiler, c->vm, c->filename, c, TYPE_METHOD, m);
 
-    ObjFunction* meth = method(&compiler, c->func->c.module, &cls->as.classDecl.id, m);
+    enterFunctionScope(&methodCompiler);
+    ObjFunction* meth = method(&methodCompiler, c->func->c.module, &cls->as.classDecl.id, m);
+    exitFunctionScope(&methodCompiler);
+
     emitBytecode(c, OP_CLOSURE, m->line);
     emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
 
     for(uint8_t i = 0; i < meth->upvaluec; i++) {
-        emitBytecode(c, compiler.upvalues[i].isLocal ? 1 : 0, m->line);
-        emitBytecode(c, compiler.upvalues[i].index, m->line);
+        emitBytecode(c, methodCompiler.upvalues[i].isLocal ? 1 : 0, m->line);
+        emitBytecode(c, methodCompiler.upvalues[i].index, m->line);
     }
 
     emitBytecode(c, OP_DEF_METHOD, cls->line);
     emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
-    endCompiler(&compiler);
+    endCompiler(&methodCompiler);
 }
 
 static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
@@ -1652,7 +1642,7 @@ static void compileStatement(Compiler* c, Stmt* s) {
 
 ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, Stmt* ast) {
     Compiler c;
-    initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast, -1);
+    initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast);
     ObjFunction* func = function(&c, module, ast);
     endCompiler(&c);
     return c.hadError ? NULL : func;
