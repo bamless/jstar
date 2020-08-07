@@ -173,7 +173,7 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     }
 
     if(!record->funcName) {
-        record->funcName = copyString(vm, "<main>", 6, true);
+        record->funcName = copyString(vm, "<main>", 6);
     }
 }
 
@@ -250,25 +250,17 @@ ObjString* allocateString(JStarVM* vm, size_t length) {
     return str;
 }
 
-static ObjString* newString(JStarVM* vm, const char* cstring, size_t length) {
-    ObjString* str = allocateString(vm, length);
-    memcpy(str->data, cstring, length);
-    return str;
-}
-
-ObjString* copyString(JStarVM* vm, const char* str, size_t length, bool intern) {
-    if(intern || length < INTERN_TRESHOLD) {
-        uint32_t hash = hashString(str, length);
-        ObjString* interned = hashTableGetString(&vm->strings, str, length, hash);
-        if(interned == NULL) {
-            interned = newString(vm, str, length);
-            interned->hash = hash;
-            interned->interned = true;
-            hashTablePut(&vm->strings, interned, NULL_VAL);
-        }
-        return interned;
+ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
+    uint32_t hash = hashString(str, length);
+    ObjString* internedString = hashTableGetString(&vm->strings, str, length, hash);
+    if(internedString == NULL) {
+        internedString = allocateString(vm, length);
+        memcpy(internedString->data, str, length);
+        internedString->hash = hash;
+        internedString->interned = true;
+        hashTablePut(&vm->strings, internedString, NULL_VAL);
     }
-    return newString(vm, str, length);
+    return internedString;
 }
 
 /**

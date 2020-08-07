@@ -32,10 +32,10 @@ static void resetStack(JStarVM* vm) {
 
 static void initConstStrings(JStarVM* vm) {
     // Constant strings needed by the runtime
-    vm->stacktrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE), true);
-    vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR), true);
-    vm->next = copyString(vm, "__next__", 8, true);
-    vm->iter = copyString(vm, "__iter__", 8, true);
+    vm->stacktrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
+    vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
+    vm->next = copyString(vm, "__next__", 8);
+    vm->iter = copyString(vm, "__iter__", 8);
 
     // Method names of overloadable operators
     static const char* overloads[OVERLOAD_SENTINEL] = {
@@ -44,12 +44,12 @@ static void initConstStrings(JStarVM* vm) {
         "__eq__",   "__lt__",   "__le__",   "__gt__",   "__ge__",  "__neg__"};
 
     for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
-        vm->overloads[i] = copyString(vm, overloads[i], strlen(overloads[i]), true);
+        vm->overloads[i] = copyString(vm, overloads[i], strlen(overloads[i]));
     }
 }
 
 static void initMainModule(JStarVM* vm) {
-    ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE), true);
+    ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
     compileWithModule(vm, "<main>", mainModuleName, NULL);
 }
 
@@ -524,7 +524,7 @@ static bool getSubscriptOfValue(JStarVM* vm) {
 
             pop(vm);
             pop(vm);
-            push(vm, OBJ_VAL(copyString(vm, &character, 1, true)));
+            push(vm, OBJ_VAL(copyString(vm, &character, 1)));
             return true;
         }
         default:

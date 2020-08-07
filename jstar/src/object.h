@@ -281,7 +281,7 @@ ObjStackTrace* newStackTrace(JStarVM* vm);
 ObjTable* newTable(JStarVM* vm);
 
 ObjString* allocateString(JStarVM* vm, size_t length);
-ObjString* copyString(JStarVM* vm, const char* str, size_t length, bool intern);
+ObjString* copyString(JStarVM* vm, const char* str, size_t length);
 
 // -----------------------------------------------------------------------------
 // OBJECT MANIPULATION FUNCTIONS

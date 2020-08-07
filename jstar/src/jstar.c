@@ -42,7 +42,7 @@ JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module,
     Stmt* program = parse(path, src, vm->errorCallback);
     if(program == NULL) return JSR_SYNTAX_ERR;
 
-    ObjString* name = copyString(vm, module, strlen(module), true);
+    ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = compileWithModule(vm, path, name, program);
     freeStmt(program);
 
@@ -102,7 +102,7 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     size_t offsp = vm->sp - vm->stack - argc - 1;
     int depth = vm->frameCount;
 
-    if(!invokeValue(vm, copyString(vm, name, strlen(name), true), argc)) {
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
         callError(vm, depth, offsp);
         return JSR_RUNTIME_ERR;
     }
@@ -152,7 +152,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
         jsrPushString(vm, errStr);
         HashTable* fields = &excInst->fields;
-        hashTablePut(fields, copyString(vm, EXC_ERR, strlen(EXC_ERR), true), pop(vm));
+        hashTablePut(fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), pop(vm));
     }
 }
 
@@ -162,7 +162,7 @@ void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
 }
 
 void jsrAddImportPath(JStarVM* vm, const char* path) {
-    listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path), false)));
+    listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path))));
 }
 
 void jsrEnsureStack(JStarVM* vm, size_t needed) {
@@ -296,7 +296,7 @@ void jsrPushBoolean(JStarVM* vm, bool boolean) {
 
 void jsrPushStringSz(JStarVM* vm, const char* string, size_t length) {
     validateStack(vm);
-    push(vm, OBJ_VAL(copyString(vm, string, length, false)));
+    push(vm, OBJ_VAL(copyString(vm, string, length)));
 }
 
 void jsrPushString(JStarVM* vm, const char* string) {
@@ -347,9 +347,9 @@ void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
 void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
                    uint8_t argc) {
     validateStack(vm);
-    ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module), true));
+    ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module)));
     ASSERT(mod, "Module doesn't exist");
-    ObjString* objName = copyString(vm, name, strlen(name), true);
+    ObjString* objName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(objName));
     ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0, false);
     pop(vm);
@@ -366,10 +366,9 @@ int jsrTop(JStarVM* vm) {
 }
 
 void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
-    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module), true))
-                            : vm->module;
+    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
     ASSERT(mod, "Module doesn't exist");
-    hashTablePut(&mod->globals, copyString(vm, name, strlen(name), true), peek(vm));
+    hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
 }
 
 void jsrListAppend(JStarVM* vm, int slot) {
@@ -424,21 +423,20 @@ size_t jsrTupleGetLength(JStarVM* vm, int slot) {
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return setFieldOfValue(vm, copyString(vm, name, strlen(name), true));
+    return setFieldOfValue(vm, copyString(vm, name, strlen(name)));
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return getFieldFromValue(vm, copyString(vm, name, strlen(name), true));
+    return getFieldFromValue(vm, copyString(vm, name, strlen(name)));
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
-    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module), true))
-                            : vm->module;
+    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
     ASSERT(mod, "Module doesn't exist");
 
     Value res;
-    ObjString* nameStr = copyString(vm, name, strlen(name), true);
+    ObjString* nameStr = copyString(vm, name, strlen(name));
     if(!hashTableGet(&mod->globals, nameStr, &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
         return false;

@@ -30,7 +30,7 @@
 #define MAX_OBJ_STR 512
 
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
-    ObjString* n = copyString(vm, name, strlen(name), true);
+    ObjString* n = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(n));
     ObjClass* c = newClass(vm, n, sup);
     pop(vm);
@@ -40,13 +40,13 @@ static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const cha
 
 static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
-    hashTableGet(&m->globals, copyString(vm, name, strlen(name), true), &v);
+    hashTableGet(&m->globals, copyString(vm, name, strlen(name)), &v);
     return v;
 }
 
 static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative n, const char* name,
                       uint8_t argc) {
-    ObjString* strName = copyString(vm, name, strlen(name), true);
+    ObjString* strName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(strName));
     ObjNative* native = newNative(vm, m, strName, argc, n, 0, false);
     pop(vm);
@@ -106,7 +106,7 @@ static JSR_NATIVE(jsr_Class_string) {
 // end
 
 void initCoreModule(JStarVM* vm) {
-    ObjString* name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE), true);
+    ObjString* name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
 
     // Create and register core module
     push(vm, OBJ_VAL(name));
@@ -1434,7 +1434,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
     // print the exception instance information
     Value v;
-    bool found = hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR), true), &v);
+    bool found = hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &v);
 
     if(found && IS_STRING(v) && AS_STRING(v)->length > 0) {
         fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);

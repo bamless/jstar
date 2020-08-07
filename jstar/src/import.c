@@ -40,7 +40,7 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* nam
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
     push(vm, OBJ_VAL(module));
     push(vm, OBJ_VAL(name));
-    hashTablePut(&module->globals, copyString(vm, "__name__", 8, true), OBJ_VAL(name));
+    hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
     pop(vm);
     pop(vm);
     hashTablePut(&vm->modules, name, OBJ_VAL(module));
@@ -186,9 +186,9 @@ static void setModuleInParent(JStarVM* vm, ObjString* name) {
 
     // Set the module's "simple name" (the name after last dot) as a global in its parent
     simpleNameStart++;
-    ObjString* parentName = copyString(vm, name->data, simpleNameStart - name->data - 1, true);
+    ObjString* parentName = copyString(vm, name->data, simpleNameStart - name->data - 1);
     ObjModule* parent = getModule(vm, parentName);
-    ObjString* simpleName = copyString(vm, simpleNameStart, strlen(simpleNameStart), true);
+    ObjString* simpleName = copyString(vm, simpleNameStart, strlen(simpleNameStart));
     ObjModule* module = getModule(vm, name);
     hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
 }

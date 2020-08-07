@@ -175,7 +175,7 @@ static Identifier syntheticIdentifier(const char* name) {
 }
 
 static uint16_t stringConst(Compiler* c, const char* str, size_t length, int line) {
-    ObjString* idStr = copyString(c->vm, str, length, true);
+    ObjString* idStr = copyString(c->vm, str, length);
     return createConst(c, OBJ_VAL(idStr), line);
 }
 
@@ -387,7 +387,7 @@ static ObjString* readString(Compiler* c, Expr* e) {
         }
     }
 
-    ObjString* stringConst = copyString(c->vm, sb.data, sb.len, true);
+    ObjString* stringConst = copyString(c->vm, sb.data, sb.len);
     jsrBufferFree(&sb);
     return stringConst;
 }
@@ -1363,7 +1363,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     addDefaultConsts(c, c->func->c.defaults, &s->as.funcDecl.defArgs);
 
     if(s->as.funcDecl.id.length != 0) {
-        c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length, true);
+        c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
     }
 
     // add phony variable for function receiver (in the case of functions the
