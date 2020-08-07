@@ -45,7 +45,7 @@ Vector vecCopy(const Vector* vec) {
 }
 
 void vecCopyAssign(Vector* dest, const Vector* src) {
-    if(dest->data) free(dest->data);
+    free(dest->data);
     reset(dest);
     vecReserve(dest, src->size);
     memcpy(dest->data, src->data, sizeof(void*) * src->size);
@@ -65,7 +65,7 @@ void vecMoveAssign(Vector* dest, Vector* src) {
 }
 
 void vecFree(Vector* vec) {
-    if(vec->data) free(vec->data);
+    free(vec->data);
     reset(vec);
 }
 
