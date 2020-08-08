@@ -555,6 +555,97 @@ JSR_NATIVE(jsr_List_clear) {
     return true;
 }
 
+typedef struct {
+    JStarVM* vm;
+    Value *list, *tmp;
+    int64_t length;
+    Value comparator;
+} MergeState;
+
+// Compare two values, calling the appropriate functions depending on the types
+static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool* out) {
+    if(!IS_NULL(comparator)) {
+        push(vm, comparator);
+        push(vm, a);
+        push(vm, b);
+        if(jsrCall(vm, 2) != JSR_EVAL_SUCCESS) return false;
+
+        if(!IS_NUM(peek(vm))) {
+            JSR_RAISE(vm, "TypeException", "`comparator` didn't return a Number, got %s",
+                      getClass(vm, peek(vm))->name->data);
+        }
+
+        *out = AS_NUM(pop(vm)) <= 0;
+    } else if(IS_NUM(a) && IS_NUM(b)) {
+        *out = AS_NUM(a) <= AS_NUM(b);
+    } else {
+        push(vm, a);
+        push(vm, b);
+        if(jsrCallMethod(vm, "__le__", 1) != JSR_EVAL_SUCCESS) return false;
+        *out = isValTrue(pop(vm));
+    }
+    return true;
+}
+
+// Merge two ordered sublists [left:mid] [mid + 1 : right]
+static bool merge(MergeState* state, int64_t left, int64_t mid, int64_t right) {
+    Value* list = state->list;
+    Value* tmp = state->tmp;
+    int64_t length = state->length;
+    Value comparator = state->comparator;
+
+    int64_t k = left, i = left, j = mid + 1;
+    while(i <= mid && j <= right) {
+        bool isLessEq = false;
+        if(!lessEqCompare(state->vm, list[i], list[j], comparator, &isLessEq)) {
+            return false;
+        }
+
+        if(isLessEq) {
+            tmp[k++] = list[i++];
+        } else {
+            tmp[k++] = list[j++];
+        }
+    }
+
+    while(i < length && i <= mid) {
+        tmp[k++] = list[i++];
+    }
+
+    for(int64_t i = left; i <= right; i++) {
+        list[i] = tmp[i];
+    }
+
+    return true;
+}
+
+// Iterative bottom-up mergesort
+static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
+    Value* tmp = malloc(sizeof(Value) * length);
+    memcpy(tmp, list, sizeof(Value) * length);
+    MergeState state = {vm, list, tmp, length, comp};
+
+    int64_t high = length - 1;
+    for(int64_t blk = 1; blk <= high; blk *= 2) {
+        for(int64_t i = 0; i < high; i += 2 * blk) {
+            int64_t left = i, mid = i + blk - 1, right = i + 2 * blk - 1;
+            if(right > high) right = high;
+            if(!merge(&state, left, mid, right)) return false;
+        }
+    }
+
+    free(tmp);
+    return true;
+}
+
+JSR_NATIVE(jsr_List_sort) {
+    ObjList* list = AS_LIST(vm->apiStack[0]);
+    Value comp = vm->apiStack[1];
+    if(!mergeSort(vm, list->arr, list->count, comp)) return false;
+    jsrPushNull(vm);
+    return true;
+}
+
 JSR_NATIVE(jsr_List_iter) {
     ObjList* lst = AS_LIST(vm->apiStack[0]);
 

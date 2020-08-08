@@ -48,8 +48,9 @@ JSR_NATIVE(jsr_List_add);
 JSR_NATIVE(jsr_List_insert);
 JSR_NATIVE(jsr_List_len);
 JSR_NATIVE(jsr_List_removeAt);
-JSR_NATIVE(jsr_List_clear);
 JSR_NATIVE(jsr_List_slice);
+JSR_NATIVE(jsr_List_clear);
+JSR_NATIVE(jsr_List_sort);
 JSR_NATIVE(jsr_List_iter);
 JSR_NATIVE(jsr_List_next);
 // end

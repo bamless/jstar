@@ -148,6 +148,7 @@ class List is Sequence
     native removeAt(i)
     native slice(from, to=null)
     native clear()
+    native sort(comparator=null)
     native __len__()
     native __iter__(iter)
     native __next__(idx)
@@ -194,43 +195,6 @@ class List is Sequence
         return this.removeAt(#this - 1)
     end
 
-    fun sort(comp=null)
-        var temp = this.slice(0)
-        var size = #this - 1
-        for var m = 1; m <= size; m *= 2 do
-            for var i = 0; i < size; i += 2 * m do
-                var from, mid, to = i, i + m - 1, i + 2 * m - 1
-                if to > size then to = size end
-                this._merge(from, mid, to, comp, temp)
-            end
-        end
-    end
-
-    fun _merge(l, m, r, comp, temp)
-        var k, i, j = l, l, m + 1
-
-        while i <= m and j <= r do
-            if comp(this[i], this[j]) <= 0 if comp else this[i] <= this[j] then
-                temp[k] = this[i]
-                i += 1
-            else
-                temp[k] = this[j]
-                j += 1
-            end
-            k += 1
-        end
-        
-        var size = #this
-        while i < size and i <= m do
-            temp[k] = this[i]
-            i += 1; k += 1
-        end
-
-        for var i = l; i <= r; i += 1 do
-            this[i] = temp[i]
-        end
-    end
-
     fun __string__()
         return "[" + ", ".join(this) + "]"
     end
@@ -273,9 +237,9 @@ fun assert(cond, msg="assertion failed")
     if !cond then raise AssertException(msg) end
 end
 
-fun sorted(iterable, comp=null)
+fun sorted(iterable, comparator=null)
     var lst = toList(iterable)
-    lst.sort(comp)
+    lst.sort(comparator)
     return lst
 end
 
