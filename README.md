@@ -1,7 +1,7 @@
 # J*: A Lightweight Embeddable Scripting Language
 
 <p align="center">
-  <img src="./docs/assets/images/JStar350.png" alt="J* Programming Language" title="J* Programming Language">
+  <img src="https://bamless.github.io/jstar/assets/images/jstar350.png" alt="J* Programming Language" title="J* Programming Language">
 </p>
 
 ![linux-build](https://github.com/bamless/jstar/workflows/linux-build/badge.svg)
