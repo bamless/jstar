@@ -298,10 +298,11 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
         case OBJ_BOUND_METHOD: {
             ObjBoundMethod* m = AS_BOUND_METHOD(callee);
             vm->sp[-argc - 1] = m->bound;
-            if(m->method->type == OBJ_CLOSURE)
+            if(m->method->type == OBJ_CLOSURE) {
                 return callFunction(vm, (ObjClosure*)m->method, argc);
-            else
+            } else {
                 return callNative(vm, (ObjNative*)m->method, argc);
+            }
         }
         case OBJ_CLASS: {
             ObjClass* cls = AS_CLASS(callee);
