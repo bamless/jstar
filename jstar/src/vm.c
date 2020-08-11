@@ -41,7 +41,8 @@ static void initConstStrings(JStarVM* vm) {
     static const char* overloads[OVERLOAD_SENTINEL] = {
         "__add__",  "__sub__",  "__mul__",  "__div__",  "__mod__", "__radd__",
         "__rsub__", "__rmul__", "__rdiv__", "__rmod__", "__get__", "__set__",
-        "__eq__",   "__lt__",   "__le__",   "__gt__",   "__ge__",  "__neg__"};
+        "__eq__",   "__lt__",   "__le__",   "__gt__",   "__ge__",  "__neg__",
+    };
 
     for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
         vm->overloads[i] = copyString(vm, overloads[i], strlen(overloads[i]));
