@@ -104,8 +104,8 @@ git clone https://github.com/bamless/jstar.git
 
 After cloning, use cmake to generate build files for your build system of choice and build the
 target `libjstar`/`libjstar_static` if you only want to generate the language dynamic/static library
-or the `all` target if you want to build both the library and the command line app. On UNIX systems
-this can be simply achieved by entering this in the command line:
+, or the `all` target if you want to build both the library and the command line app. On UNIX 
+systems this can be simply achieved by entering this in the command line:
 
 ```
 cd jstar; mkdir build; cd build; cmake ..; make -j
