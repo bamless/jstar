@@ -103,23 +103,21 @@ class Sequence is Iter
         return IReverse(this)
     end
 
-    fun __eq__(o)
-        if type(o) != type(this) then
+    fun __eq__(other)
+        if type(other) != type(this) then
             return false 
         end
 
-        var length = #this
-
-        if length != #o then
+        var length
+        if (length = #this) != #other then
             return false
         end
 
         for var i = 0; i < length; i += 1 do
-            if this[i] != o[i] then
+            if this[i] != other[i] then
                 return false
             end
         end
-
         return true
     end
 end
@@ -150,6 +148,7 @@ class List is Sequence
     native clear()
     native sort(comparator=null)
     native __len__()
+    native __eq__(other)
     native __iter__(iter)
     native __next__(idx)
 
@@ -204,6 +203,7 @@ class Tuple is Sequence
     native new(seq)
     native slice(from, to=null)
     native __len__()
+    native __eq__(other)
     native __iter__(iter)
     native __next__(idx)
     native __hash__()

@@ -69,6 +69,17 @@ static uint32_t hashNumber(double num) {
     return (uint32_t)hash64(c.r);
 }
 
+static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t size, bool* out) {
+    *out = true;
+    for(size_t i = 0; i < size; i++) {
+        push(vm, v1[i]);
+        push(vm, v2[i]);
+        if(jsrCallMethod(vm, "__eq__", 1) != JSR_EVAL_SUCCESS) return false;
+        if(!(*out = isValTrue(pop(vm)))) return true;
+    }
+    return true;
+}
+
 // class Object
 static JSR_NATIVE(jsr_Object_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
@@ -508,6 +519,28 @@ JSR_NATIVE(jsr_List_len) {
     return true;
 }
 
+JSR_NATIVE(jsr_List_eq) {
+    ObjList* lst = AS_LIST(vm->apiStack[0]);
+
+    if(!IS_LIST(vm->apiStack[1])) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    ObjList* other = AS_LIST(vm->apiStack[1]);
+
+    if(other->count != lst->count) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    bool res = false;
+    if(!compareValues(vm, lst->arr, other->arr, lst->count, &res)) return false;
+
+    jsrPushBoolean(vm, res);
+    return true;
+}
+
 JSR_NATIVE(jsr_List_removeAt) {
     ObjList* l = AS_LIST(vm->apiStack[0]);
     size_t index = jsrCheckIndex(vm, 1, l->count, "i");
@@ -702,6 +735,28 @@ JSR_NATIVE(jsr_Tuple_new) {
 
 JSR_NATIVE(jsr_Tuple_len) {
     push(vm, NUM_VAL(AS_TUPLE(vm->apiStack[0])->size));
+    return true;
+}
+
+JSR_NATIVE(jsr_Tuple_eq) {
+    ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
+
+    if(!IS_TUPLE(vm->apiStack[1])) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    ObjTuple* other = AS_TUPLE(vm->apiStack[1]);
+
+    if(other->size != tup->size) {
+        jsrPushBoolean(vm, false);
+        return true;
+    }
+
+    bool res = false;
+    if(!compareValues(vm, tup->arr, other->arr, tup->size, &res)) return false;
+
+    jsrPushBoolean(vm, res);
     return true;
 }
 
