@@ -264,17 +264,12 @@ end
 fun toList(iterable)
     if iterable is Sequence then
         var len = #iterable
-        var list = List(len)
-        for var i = 0; i < len; i += 1 do
-            list[i] = iterable[i]
-        end
+        var list = List(len, |i| => iterable[i])
         return list
     end
 
     var list = []
-    for var e in iterable do
-        list.add(e)
-    end
+    list.addAll(iterable)
     return list
 end
 
