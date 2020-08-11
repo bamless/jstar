@@ -51,11 +51,11 @@ J*>> _
 You can even write multiline code, it will look like this:
 ```lua
 J*>> for var i = 0; i < 3; i += 1 do
-....   print('Hello World!')
+....   print('Hello, World!')
 .... end
-Hello World!
-Hello World!
-Hello World!
+Hello, World!
+Hello, World!
+Hello, World!
 J*>> _
 ```
 When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpreter.
@@ -67,7 +67,7 @@ the language as **script arguments**. You can then read them from the script thi
 import sys
 
 if #sys.args > 0 then
-  print('first argument: ', sys.args[0])
+  print('First argument: ', sys.args[0])
 else
   raise Exception('No args provided')
 end
