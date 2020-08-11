@@ -1,6 +1,7 @@
 #include "jsrparse/vector.h"
 
 #include <memory.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "common.h"

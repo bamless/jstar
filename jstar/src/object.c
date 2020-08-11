@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "memory.h"
+#include "gc.h"
 #include "vm.h"
 
 static Obj* newObj(JStarVM* vm, size_t size, ObjClass* cls, ObjType type) {
@@ -401,7 +401,7 @@ void jsrBufferPush(JStarBuffer* b) {
 
 void jsrBufferFree(JStarBuffer* b) {
     if(b->data == NULL) return;
-    GC_FREEARRAY(b->vm, char, b->data, b->size);
+    GC_FREE_ARRAY(b->vm, char, b->data, b->size);
     b->data = NULL;
     b->vm = NULL;
     b->len = b->size = 0;

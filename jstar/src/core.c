@@ -13,11 +13,11 @@
 
 #include "builtin/modules.h"
 #include "common.h"
+#include "gc.h"
 #include "hashtable.h"
 #include "import.h"
 #include "jsrparse/ast.h"
 #include "jsrparse/parser.h"
-#include "memory.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"
@@ -1107,7 +1107,7 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
             dest->val = e->val;
             t->numEntries++, t->count++;
         }
-        GC_FREEARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
+        GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
     }
     t->entries = newEntries;
     t->sizeMask = newSize - 1;

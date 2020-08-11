@@ -1,4 +1,4 @@
-#include "memory.h"
+#include "gc.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -42,20 +42,20 @@ static void freeObject(JStarVM* vm, Obj* o) {
     switch(o->type) {
     case OBJ_STRING: {
         ObjString* s = (ObjString*)o;
-        GC_FREEARRAY(vm, char, s->data, s->length + 1);
+        GC_FREE_ARRAY(vm, char, s->data, s->length + 1);
         GC_FREE(vm, ObjString, s);
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        GC_FREEARRAY(vm, Value, n->c.defaults, n->c.defaultc);
+        GC_FREE_ARRAY(vm, Value, n->c.defaults, n->c.defaultc);
         GC_FREE(vm, ObjNative, n);
         break;
     }
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
         freeCode(&f->code);
-        GC_FREEARRAY(vm, Value, f->c.defaults, f->c.defaultc);
+        GC_FREE_ARRAY(vm, Value, f->c.defaults, f->c.defaultc);
         GC_FREE(vm, ObjFunction, f);
         break;
     }
@@ -85,7 +85,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_LIST: {
         ObjList* l = (ObjList*)o;
-        GC_FREEARRAY(vm, Value, l->arr, l->size);
+        GC_FREE_ARRAY(vm, Value, l->arr, l->size);
         GC_FREE(vm, ObjList, l);
         break;
     }
@@ -97,7 +97,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_TABLE: {
         ObjTable* t = (ObjTable*)o;
         if(t->entries != NULL) {
-            GC_FREEARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
+            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
         }
         GC_FREE(vm, ObjTable, t);
         break;
@@ -105,7 +105,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_STACK_TRACE: {
         ObjStackTrace* st = (ObjStackTrace*)o;
         if(st->records != NULL) {
-            GC_FREEARRAY(vm, FrameRecord, st->records, st->recordSize);
+            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordSize);
         }
         GC_FREE(vm, ObjStackTrace, st);
         break;

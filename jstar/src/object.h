@@ -103,7 +103,7 @@ typedef enum ObjType {
 // field, as well as fields used for garbage collection, such as the reached
 // flag (used to test when an object is reachable, and thus not collectable)
 // and the next pointer, that points to the next object in the global linked
-// list of all allocated objects (set up by the allocator in memory.c).
+// list of all allocated objects (set up by the allocator in gc.c).
 struct Obj {
     ObjType type;          // The type of the object
     bool reached;          // Flag used to signal that an object is reachable during a GC

@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "memory.h"
+#include "gc.h"
 #include "object.h"
 
 #define MAX_LOAD_FACTOR  0.75

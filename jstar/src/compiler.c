@@ -8,9 +8,9 @@
 
 #include "code.h"
 #include "common.h"
+#include "gc.h"
 #include "jsrparse/lex.h"
 #include "jstar.h"
-#include "memory.h"
 #include "opcode.h"
 #include "value.h"
 #include "vm.h"

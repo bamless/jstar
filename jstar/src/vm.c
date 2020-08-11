@@ -7,8 +7,8 @@
 #include "code.h"
 #include "core.h"
 #include "disassemble.h"
+#include "gc.h"
 #include "import.h"
-#include "memory.h"
 #include "opcode.h"
 
 // Enumeration encoding the cause of the stack

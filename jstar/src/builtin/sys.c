@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "memory.h"
+#include "gc.h"
 #include "value.h"
 #include "vm.h"
 
