@@ -14,6 +14,17 @@
 
 static JStarVM* vm;
 
+typedef struct CLIOpts {
+    const char* script;
+    bool showVersion;
+    bool skipVersion;
+    bool interactive;
+    bool ignoreEnv;
+    char* execStmt;
+    const char** args;
+    int argsCount;
+} CLIOpts;
+
 static void initVM(void) {
     JStarConf conf;
     jsrInitConf(&conf);
@@ -109,10 +120,10 @@ static void addPrintIfExpr(JStarBuffer* sb) {
     }
 }
 
-static void doRepl(bool ignoreEnv) {
+static void doRepl(CLIOpts* opts) {
+    if(!opts->skipVersion) printVersion();
     linenoiseSetCompletionCallback(completion);
-    initImportPaths("./", ignoreEnv);
-    printVersion();
+    initImportPaths("./", opts->ignoreEnv);
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
@@ -177,16 +188,6 @@ static JStarResult execScript(const char* script, int argsCount, const char** ar
 // MAIN FUNCTION AND ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
-typedef struct CLIOpts {
-    const char* script;
-    bool showVersion;
-    bool interactive;
-    bool ignoreEnv;
-    char* execStmt;
-    const char** args;
-    int argsCount;
-} CLIOpts;
-
 static CLIOpts parseArguments(int argc, const char** argv) {
     CLIOpts opts = {0};
 
@@ -195,6 +196,8 @@ static CLIOpts parseArguments(int argc, const char** argv) {
         OPT_GROUP("Options"),
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", NULL,
                     0, 0),
+        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
+                    "Don't print version information when entering REPL mode", NULL, 0, 0),
         OPT_STRING('e', "exec", &opts.execStmt,
                    "Execute the given statement. If 'script' is provided it is executed after this",
                    NULL, 0, 0),
@@ -218,23 +221,21 @@ static CLIOpts parseArguments(int argc, const char** argv) {
     if(nonOptsCount > 0) {
         opts.script = argv[0];
     }
-
     if(nonOptsCount > 1) {
         opts.args = &argv[1];
         opts.argsCount = nonOptsCount - 1;
     }
-
     return opts;
 }
 
 int main(int argc, const char** argv) {
-    initVM();
     CLIOpts opts = parseArguments(argc, argv);
-
     if(opts.showVersion) {
         printVersion();
         exitFree(EXIT_SUCCESS);
     }
+
+    initVM();
 
     if(opts.execStmt) {
         JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
@@ -249,6 +250,6 @@ int main(int argc, const char** argv) {
         if(!opts.interactive) exitFree(res);
     }
 
-    doRepl(opts.ignoreEnv);
+    doRepl(&opts);
     exitFree(EXIT_SUCCESS);
 }
