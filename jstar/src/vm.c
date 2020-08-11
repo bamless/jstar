@@ -476,57 +476,119 @@ bool setFieldOfValue(JStarVM* vm, ObjString* name) {
     return false;
 }
 
+static bool checkSliceIndex(JStarVM* vm, ObjTuple* slice, size_t size, size_t* low, size_t* high) {
+    if(slice->size != 2) JSR_RAISE(vm, "TypeException", "Slice index must have two elements.");
+    if(!IS_INT(slice->arr[0]) || !IS_INT(slice->arr[1])) {
+        JSR_RAISE(vm, "TypeException", "Slice index must be two integers.");
+    }
+
+    size_t a = jsrCheckIndexNum(vm, AS_NUM(slice->arr[0]), size + 1);
+    if(a == SIZE_MAX) return false;
+    size_t b = jsrCheckIndexNum(vm, AS_NUM(slice->arr[1]), size + 1);
+    if(b == SIZE_MAX) return false;
+
+    if(a > b) {
+        JSR_RAISE(vm, "InvalidArgException",
+                  "Invalid slice indices (%g, %g), first one must be <= than second",
+                  AS_NUM(slice->arr[0]), AS_NUM(slice->arr[1]));
+    }
+
+    *low = a, *high = b;
+    return true;
+}
+
+static bool getListSubscript(JStarVM* vm) {
+    ObjList* lst = AS_LIST(peek2(vm));
+    Value arg = peek(vm);
+
+    if(IS_INT(arg)) {
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->count);
+        if(idx == SIZE_MAX) return false;
+
+        pop(vm), pop(vm);
+        push(vm, lst->arr[idx]);
+        return true;
+    }
+    if(IS_TUPLE(arg)) {
+        size_t low = 0, high = 0;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->count, &low, &high)) return false;
+
+        ObjList* ret = newList(vm, high - low);
+        ret->count = high - low;
+        for(size_t i = low; i < high; i++) {
+            ret->arr[i - low] = lst->arr[i];
+        }
+
+        pop(vm), pop(vm);
+        push(vm, OBJ_VAL(ret));
+        return true;
+    }
+    JSR_RAISE(vm, "TypeException", "Index of List subscript must be an integer or a Tuple");
+}
+
+static bool getTupleSubscript(JStarVM* vm) {
+    ObjTuple* tup = AS_TUPLE(peek2(vm));
+    Value arg = peek(vm);
+
+    if(IS_INT(arg)) {
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), tup->size);
+        if(idx == SIZE_MAX) return false;
+
+        pop(vm), pop(vm);
+        push(vm, tup->arr[idx]);
+        return true;
+    }
+    if(IS_TUPLE(arg)) {
+        size_t low = 0, high = 0;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), tup->size, &low, &high)) return false;
+
+        ObjTuple* ret = newTuple(vm, high - low);
+        for(size_t i = low; i < high; i++) {
+            ret->arr[i - low] = tup->arr[i];
+        }
+
+        pop(vm), pop(vm);
+        push(vm, OBJ_VAL(ret));
+        return true;
+    }
+    JSR_RAISE(vm, "TypeException", "Index of Tuple subscript must be an integer or a Tuple");
+}
+
+static bool getStringSubscript(JStarVM* vm) {
+    ObjString* str = AS_STRING(peek2(vm));
+    Value arg = peek(vm);
+
+    if(IS_INT(arg)) {
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
+        if(idx == SIZE_MAX) return false;
+        ObjString* ret = copyString(vm, str->data + idx, 1);
+
+        pop(vm), pop(vm);
+        push(vm, OBJ_VAL(ret));
+        return true;
+    }
+    if(IS_TUPLE(arg)) {
+        size_t low = 0, high = 0;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), str->length, &low, &high)) return false;
+        ObjString* ret = copyString(vm, str->data + low, high - low);
+
+        pop(vm), pop(vm);
+        push(vm, OBJ_VAL(ret));
+        return true;
+    }
+    JSR_RAISE(vm, "TypeException", "Index of String subscript must be an integer or a Tuple");
+}
+
 static bool getSubscriptOfValue(JStarVM* vm) {
     if(IS_OBJ(peek2(vm))) {
-        Value arg = peek(vm), operand = peek2(vm);
-
+        Value operand = peek2(vm);
         switch(OBJ_TYPE(operand)) {
-        case OBJ_LIST: {
-            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-                jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
-                return false;
-            }
-
-            ObjList* list = AS_LIST(operand);
-            size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
-            if(index == SIZE_MAX) return false;
-
-            pop(vm);
-            pop(vm);
-            push(vm, list->arr[index]);
-            return true;
-        }
-        case OBJ_TUPLE: {
-            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-                jsrRaise(vm, "TypeException", "Index of Tuple subscript must be an integer.");
-                return false;
-            }
-
-            ObjTuple* tuple = AS_TUPLE(operand);
-            size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), tuple->size);
-            if(index == SIZE_MAX) return false;
-
-            pop(vm);
-            pop(vm);
-            push(vm, tuple->arr[index]);
-            return true;
-        }
-        case OBJ_STRING: {
-            if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-                jsrRaise(vm, "TypeException", "Index of String subscript must be an integer.");
-                return false;
-            }
-
-            ObjString* str = AS_STRING(operand);
-            size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
-            if(index == SIZE_MAX) return false;
-            char character = str->data[index];
-
-            pop(vm);
-            pop(vm);
-            push(vm, OBJ_VAL(copyString(vm, &character, 1)));
-            return true;
-        }
+        case OBJ_LIST:
+            return getListSubscript(vm);
+        case OBJ_TUPLE:
+            return getTupleSubscript(vm);
+        case OBJ_STRING:
+            return getStringSubscript(vm);
         default:
             break;
         }
@@ -600,8 +662,8 @@ static bool callBinaryOverload(JStarVM* vm, const char* op, Overload overload, O
 }
 
 static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
-    size_t size = 0;
     Value* arr = NULL;
+    size_t size = 0;
 
     switch(o->type) {
     case OBJ_TUPLE: {
@@ -777,8 +839,7 @@ bool runEval(JStarVM* vm, int depth) {
             push(vm, NUM_VAL(a + b));
         } else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
             ObjString* conc = stringConcatenate(vm, AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
-            pop(vm);
-            pop(vm);
+            pop(vm), pop(vm);
             push(vm, OBJ_VAL(conc));
         } else {
             BINARY_OVERLOAD(+, ADD_OVERLOAD, RADD_OVERLOAD);

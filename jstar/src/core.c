@@ -552,36 +552,6 @@ JSR_NATIVE(jsr_List_removeAt) {
     return true;
 }
 
-JSR_NATIVE(jsr_List_slice) {
-    ObjList* list = AS_LIST(vm->apiStack[0]);
-    JSR_CHECK(Int, 1, "from");
-
-    double fromNum = jsrGetNumber(vm, 1);
-    double toNum;
-    if(jsrIsNull(vm, 2)) {
-        toNum = (double)list->count;
-    } else {
-        JSR_CHECK(Int, 2, "to");
-        toNum = jsrGetNumber(vm, 2);
-    }
-
-    size_t from = jsrCheckIndexNum(vm, fromNum, list->count + 1);
-    if(from == SIZE_MAX) return false;
-    size_t to = jsrCheckIndexNum(vm, toNum, list->count + 1);
-    if(to == SIZE_MAX) return false;
-
-    if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
-
-    size_t numElems = to - from;
-    ObjList* subList = newList(vm, numElems < 16 ? 16 : numElems);
-
-    memcpy(subList->arr, list->arr + from, numElems * sizeof(Value));
-    subList->count = numElems;
-
-    push(vm, OBJ_VAL(subList));
-    return true;
-}
-
 JSR_NATIVE(jsr_List_clear) {
     AS_LIST(vm->apiStack[0])->count = 0;
     jsrPushNull(vm);
@@ -795,35 +765,6 @@ JSR_NATIVE(jsr_Tuple_next) {
     return true;
 }
 
-JSR_NATIVE(jsr_Tuple_slice) {
-    ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
-    JSR_CHECK(Int, 1, "from");
-
-    double fromNum = jsrGetNumber(vm, 1);
-    double toNum;
-    if(jsrIsNull(vm, 2)) {
-        toNum = (double)tup->size;
-    } else {
-        JSR_CHECK(Int, 2, "to");
-        toNum = jsrGetNumber(vm, 2);
-    }
-
-    size_t from = jsrCheckIndexNum(vm, fromNum, tup->size + 1);
-    if(from == SIZE_MAX) return false;
-    size_t to = jsrCheckIndexNum(vm, toNum, tup->size + 1);
-    if(to == SIZE_MAX) return false;
-
-    if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
-
-    size_t numElems = to - from;
-    ObjTuple* sub = newTuple(vm, numElems);
-
-    memcpy(sub->arr, tup->arr + from, numElems * sizeof(Value));
-
-    push(vm, OBJ_VAL(sub));
-    return true;
-}
-
 JSR_NATIVE(jsr_Tuple_hash) {
     ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
@@ -865,34 +806,6 @@ JSR_NATIVE(jsr_String_new) {
         jsrBufferFree(&string));
 
     jsrBufferPush(&string);
-    return true;
-}
-
-JSR_NATIVE(jsr_String_slice) {
-    ObjString* str = AS_STRING(vm->apiStack[0]);
-    JSR_CHECK(Int, 1, "from");
-
-    double fromNum = jsrGetNumber(vm, 1);
-    double toNum;
-    if(jsrIsNull(vm, 2)) {
-        toNum = (double)str->length;
-    } else {
-        JSR_CHECK(Int, 2, "to");
-        toNum = jsrGetNumber(vm, 2);
-    }
-
-    size_t from = jsrCheckIndexNum(vm, fromNum, str->length + 1);
-    if(from == SIZE_MAX) return false;
-    size_t to = jsrCheckIndexNum(vm, toNum, str->length + 1);
-    if(to == SIZE_MAX) return false;
-
-    if(from > to) JSR_RAISE(vm, "InvalidArgException", "from must be <= to.");
-
-    size_t len = to - from;
-    ObjString* sub = allocateString(vm, len);
-    memcpy(sub->data, str->data + from, len);
-
-    push(vm, OBJ_VAL(sub));
     return true;
 }
 

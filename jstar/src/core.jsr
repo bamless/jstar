@@ -86,15 +86,6 @@ class Sequence is Iter
         return count
     end
 
-    fun slice(from, to=null)
-        if !to then to = #this end
-        var res = []
-        for var i = from; i < to; i += 1 do
-            res.add(this[i])
-        end
-        return res
-    end
-
     fun empty()
         return #this == 0
     end
@@ -124,7 +115,6 @@ end
 
 class String is Sequence
     native new(...)
-    native slice(from, to=null)
     native charAt(idx)
     native startsWith(prefix, offset=0)
     native endsWith(suffix)
@@ -144,7 +134,6 @@ class List is Sequence
     native add(e)
     native insert(i, e)
     native removeAt(i)
-    native slice(from, to=null)
     native clear()
     native sort(comparator=null)
     native __len__()
@@ -201,7 +190,6 @@ end
 
 class Tuple is Sequence
     native new(seq)
-    native slice(from, to=null)
     native __len__()
     native __eq__(other)
     native __iter__(iter)

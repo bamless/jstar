@@ -47,7 +47,6 @@ JSR_NATIVE(jsr_List_new);
 JSR_NATIVE(jsr_List_add);
 JSR_NATIVE(jsr_List_insert);
 JSR_NATIVE(jsr_List_removeAt);
-JSR_NATIVE(jsr_List_slice);
 JSR_NATIVE(jsr_List_clear);
 JSR_NATIVE(jsr_List_sort);
 JSR_NATIVE(jsr_List_len);
@@ -58,7 +57,6 @@ JSR_NATIVE(jsr_List_next);
 
 // class Tuple
 JSR_NATIVE(jsr_Tuple_new);
-JSR_NATIVE(jsr_Tuple_slice);
 JSR_NATIVE(jsr_Tuple_len);
 JSR_NATIVE(jsr_Tuple_eq);
 JSR_NATIVE(jsr_Tuple_iter);
@@ -68,7 +66,6 @@ JSR_NATIVE(jsr_Tuple_hash);
 
 // class String
 JSR_NATIVE(jsr_String_new);
-JSR_NATIVE(jsr_String_slice);
 JSR_NATIVE(jsr_String_charAt);
 JSR_NATIVE(jsr_String_startsWith);
 JSR_NATIVE(jsr_String_endsWith);
