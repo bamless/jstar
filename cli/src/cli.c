@@ -232,7 +232,7 @@ int main(int argc, const char** argv) {
     CLIOpts opts = parseArguments(argc, argv);
     if(opts.showVersion) {
         printVersion();
-        exitFree(EXIT_SUCCESS);
+        exit(EXIT_SUCCESS);
     }
 
     initVM();
