@@ -22,12 +22,12 @@
 #include "value.h"
 #include "vm.h"
 
+#define MAX_OBJ_STR 512
+
 #ifdef _WIN32
     #define popen  _popen
     #define pclose _pclose
 #endif
-
-#define MAX_OBJ_STR 512
 
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
     ObjString* n = copyString(vm, name, strlen(name));
@@ -1049,8 +1049,8 @@ JSR_NATIVE(jsr_String_next) {
 
 // class Table
 #define MAX_LOAD_FACTOR  0.75
-#define GROW_FACTOR      2
 #define INITIAL_CAPACITY 8
+#define GROW_FACTOR      2
 
 static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
     if(IS_STRING(key)) {
@@ -1075,35 +1075,15 @@ static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
 }
 
 static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
-    if(IS_STRING(k1)) {
-        if(!IS_STRING(k2)) {
-            *eq = false;
-            return true;
-        }
-        *eq = STRING_EQUALS(AS_STRING(k1), AS_STRING(k2));
-        return true;
-    }
-    if(IS_NUM(k1)) {
-        if(!IS_NUM(k2)) {
-            *eq = false;
-            return true;
-        }
-        *eq = AS_NUM(k1) == AS_NUM(k2);
-        return true;
-    }
-    if(IS_BOOL(k1)) {
-        if(!IS_BOOL(k2)) {
-            *eq = false;
-            return true;
-        }
-        *eq = AS_BOOL(k1) == AS_BOOL(k2);
+    if(IS_STRING(k1) || IS_NUM(k1) || IS_BOOL(k1)) {
+        *eq = valueEquals(k1, k2);
         return true;
     }
 
     push(vm, k1);
     push(vm, k2);
     if(jsrCallMethod(vm, "__eq__", 1) != JSR_EVAL_SUCCESS) return false;
-    *eq = isValTrue(*--vm->sp);
+    *eq = isValTrue(pop(vm));
     return true;
 }
 
