@@ -292,8 +292,8 @@ native char(c)
 native eval(source)
 native exec(cmd)
 native int(n)
-native system(cmd)
 native print(s, ...)
+native system(cmd)
 native type(o)
 
 class IReverse is Sequence
