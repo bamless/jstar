@@ -280,11 +280,10 @@ static bool matchRegex(JStarVM* vm, RegexState* rs, const char* str, size_t len,
     // negative offset start from end of string
     if(off < 0) off += len;
 
-    // validate offset
+    // validate and set offset
     if(off < 0 || (size_t)off > len) {
         return false;
     }
-
     str += off;
 
     if(*regex == '^') {

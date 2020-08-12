@@ -250,19 +250,13 @@ JSR_NATIVE(jsr_eval) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
 
-    ObjModule* mod = NULL;
     Obj* prevFn = vm->frames[vm->frameCount - 2].fn;
 
-    switch(prevFn->type) {
-    case OBJ_CLOSURE:
+    ObjModule* mod = NULL;
+    if(prevFn->type == OBJ_CLOSURE) {
         mod = ((ObjClosure*)prevFn)->fn->c.module;
-        break;
-    case OBJ_NATIVE:
+    } else {
         mod = ((ObjNative*)prevFn)->c.module;
-        break;
-    default:
-        UNREACHABLE();
-        break;
     }
 
     Stmt* program = parse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
@@ -281,9 +275,8 @@ JSR_NATIVE(jsr_eval) {
     ObjClosure* closure = newClosure(vm, fn);
     pop(vm);
 
-    JStarResult res;
     push(vm, OBJ_VAL(closure));
-    if((res = jsrCall(vm, 0)) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, 0) != JSR_EVAL_SUCCESS) return false;
     pop(vm);
 
     jsrPushNull(vm);
