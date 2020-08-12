@@ -735,7 +735,7 @@ bool runEval(JStarVM* vm, int depth) {
     ASSERT(vm->frameCount != 0, "No frame to evaluate");
     ASSERT(vm->frameCount >= depth, "Too few frame to evaluate");
 
-#define LOAD_FRAME()                             \
+#define LOAD_STATE()                             \
     do {                                         \
         frame = &vm->frames[vm->frameCount - 1]; \
         frameStack = frame->stack;               \
@@ -744,7 +744,7 @@ bool runEval(JStarVM* vm, int depth) {
         ip = frame->ip;                          \
     } while(0)
 
-#define SAVE_FRAME() frame->ip = ip;
+#define SAVE_STATE() (frame->ip = ip)
 
 #define NEXT_CODE()  (*ip++)
 #define NEXT_SHORT() (ip += 2, ((uint16_t)ip[-2] << 8) | ip[-1])
@@ -765,9 +765,9 @@ bool runEval(JStarVM* vm, int depth) {
 
 #define BINARY_OVERLOAD(op, overload, reverse)                     \
     do {                                                           \
-        SAVE_FRAME();                                              \
+        SAVE_STATE();                                              \
         bool res = callBinaryOverload(vm, #op, overload, reverse); \
-        LOAD_FRAME();                                              \
+        LOAD_STATE();                                              \
         if(!res) UNWIND_STACK(vm);                                 \
     } while(0)
 
@@ -782,11 +782,11 @@ bool runEval(JStarVM* vm, int depth) {
 
 #define UNWIND_STACK(vm)              \
     do {                              \
-        SAVE_FRAME()                  \
+        SAVE_STATE();                 \
         if(!unwindStack(vm, depth)) { \
             return false;             \
         }                             \
-        LOAD_FRAME();                 \
+        LOAD_STATE();                 \
         DISPATCH();                   \
     } while(0)
 
@@ -830,7 +830,7 @@ bool runEval(JStarVM* vm, int depth) {
 
     // clang-format off
 
-    LOAD_FRAME();
+    LOAD_STATE();
 
     uint8_t op;
     DECODE(op) {
@@ -892,9 +892,9 @@ bool runEval(JStarVM* vm, int depth) {
             push(vm, NUM_VAL(-AS_NUM(pop(vm))));
         } else {
             ObjClass* cls = getClass(vm, peek(vm));
-            SAVE_FRAME();
+            SAVE_STATE();
             bool res = invokeMethod(vm, cls, vm->overloads[NEG_OVERLOAD], 0);
-            LOAD_FRAME();
+            LOAD_STATE();
             if(!res) UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -946,17 +946,17 @@ bool runEval(JStarVM* vm, int depth) {
     }
 
     TARGET(OP_SUBSCR_GET): {
-        SAVE_FRAME();
+        SAVE_STATE();
         bool res = getSubscriptOfValue(vm);
-        LOAD_FRAME();
+        LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
     TARGET(OP_SUBSCR_SET): {
-        SAVE_FRAME();
+        SAVE_STATE();
         bool res = setSubscriptOfValue(vm);
-        LOAD_FRAME();
+        LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
@@ -997,9 +997,9 @@ bool runEval(JStarVM* vm, int depth) {
         vm->sp[0] = vm->sp[-2];
         vm->sp[1] = vm->sp[-1];
         vm->sp += 2;
-        SAVE_FRAME();
+        SAVE_STATE();
         bool res = invokeValue(vm, vm->iter, 1);
-        LOAD_FRAME();
+        LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
@@ -1011,9 +1011,9 @@ bool runEval(JStarVM* vm, int depth) {
             vm->sp[0] = vm->sp[-2];
             vm->sp[1] = vm->sp[-1];
             vm->sp += 2;
-            SAVE_FRAME();
+            SAVE_STATE();
             bool res = invokeValue(vm, vm->next, 1);
-            LOAD_FRAME();
+            LOAD_STATE();
             if(!res) UNWIND_STACK(vm);
         } else {
             ip += off;
@@ -1047,9 +1047,9 @@ bool runEval(JStarVM* vm, int depth) {
         argc = NEXT_CODE();
 
 call:
-        SAVE_FRAME();
+        SAVE_STATE();
         bool res = callValue(vm, peekn(vm, argc), argc);
-        LOAD_FRAME();
+        LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
@@ -1076,9 +1076,9 @@ call:
 
 invoke:;
         ObjString* name = GET_STRING();
-        SAVE_FRAME();
+        SAVE_STATE();
         bool res = invokeValue(vm, name, argc);
-        LOAD_FRAME();
+        LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
@@ -1107,9 +1107,9 @@ sup_invoke:;
         ObjString* name = GET_STRING();
         // The superclass is stored as a const in the function itself
         ObjClass* sup = AS_CLASS(fn->code.consts.arr[0]);
-        SAVE_FRAME();
+        SAVE_STATE();
         bool res = invokeMethod(vm, sup, name, argc);
-        LOAD_FRAME();
+        LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
@@ -1134,7 +1134,7 @@ op_return:
             Handler* h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
                 RESTORE_HANDLER(h, frame, CAUSE_RETURN, ret);
-                LOAD_FRAME();
+                LOAD_STATE();
                 DISPATCH();
             }
         }
@@ -1147,7 +1147,7 @@ op_return:
             return true;
         }
 
-        LOAD_FRAME();
+        LOAD_STATE();
         vm->module = fn->c.module;
         DISPATCH();
     }
@@ -1172,11 +1172,11 @@ op_return:
 
         //call the module's main if first time import
         if(!valueEquals(peek(vm), NULL_VAL)) {
-            SAVE_FRAME();
+            SAVE_STATE();
             ObjClosure* c = newClosure(vm, AS_FUNC(peek(vm)));
             vm->sp[-1] = OBJ_VAL(c); 
             callFunction(vm, c, 0);
-            LOAD_FRAME();
+            LOAD_STATE();
         }
         DISPATCH();
     }
