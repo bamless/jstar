@@ -26,8 +26,7 @@ typedef struct CLIOpts {
 } CLIOpts;
 
 static void initVM(void) {
-    JStarConf conf;
-    jsrInitConf(&conf);
+    JStarConf conf = jsrGetConf();
     vm = jsrNewVM(&conf);
 }
 

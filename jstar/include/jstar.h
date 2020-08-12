@@ -59,8 +59,8 @@ typedef struct JstarConf {
     JStarErrorCB errorCallback;  // Error callback
 } JStarConf;
 
-// Initialize configuration with default values
-JSTAR_API void jsrInitConf(JStarConf* conf);
+// Retuns a JStarConf initialized with default values
+JSTAR_API JStarConf jsrGetConf();
 
 // Allocate a new VM with all the state needed for code execution
 JSTAR_API JStarVM* jsrNewVM(JStarConf* conf);

@@ -27,11 +27,13 @@ void jsrPrintErrorCB(const char* file, int line, const char* error) {
     fprintf(stderr, "%s\n", error);
 }
 
-void jsrInitConf(JStarConf* conf) {
-    conf->stackSize = STACK_SZ;
-    conf->initGC = INIT_GC;
-    conf->heapGrowRate = HEAP_GROW_RATE;
-    conf->errorCallback = &jsrPrintErrorCB;
+JStarConf jsrGetConf() {
+    JStarConf conf;
+    conf.stackSize = STACK_SZ;
+    conf.initGC = INIT_GC;
+    conf.heapGrowRate = HEAP_GROW_RATE;
+    conf.errorCallback = &jsrPrintErrorCB;
+    return conf;
 }
 
 JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
