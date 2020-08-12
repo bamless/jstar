@@ -279,13 +279,12 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     }
 
     Value ret = pop(vm);
-
     vm->frameCount--;
     vm->sp = vm->apiStack;
     vm->module = oldModule;
     vm->apiStack = vm->stack + apiStackOff;
-
     push(vm, ret);
+
     return true;
 }
 
