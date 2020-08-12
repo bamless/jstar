@@ -635,7 +635,10 @@ static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
         for(int64_t i = 0; i < high; i += 2 * blk) {
             int64_t left = i, mid = i + blk - 1, right = i + 2 * blk - 1;
             if(right > high) right = high;
-            if(!merge(&state, left, mid, right)) return false;
+            if(!merge(&state, left, mid, right)) {
+                free(tmp);
+                return false;
+            }
         }
     }
 
