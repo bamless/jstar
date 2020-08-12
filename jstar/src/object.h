@@ -23,7 +23,7 @@ struct Frame;
  * casting Obj* pointers.
  * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
- **/
+ */
 
 #ifdef JSTAR_DBG_PRINT_GC
 extern const char* ObjTypeNames[];

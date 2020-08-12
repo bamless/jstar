@@ -204,7 +204,7 @@ static const char* endClass(RegexState* rs, const char* regex) {
                 REG_ERR("Malformed regex (unmatched `[`).");
                 return NULL;
             }
-            if(*regex++ == '%' && *regex != '\0') regex++;  // Skip '%'
+            if(*regex++ == '%' && *regex != '\0') regex++;
         } while(*regex != ']');
         return regex + 1;
     default:
