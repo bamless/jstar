@@ -545,8 +545,8 @@ static void compileVariable(Compiler* c, Identifier* id, bool set, int line) {
 
 static void compileFunction(Compiler* c, Stmt* s);
 
-static void compileAnonymousFunc(Compiler* c, Identifier* name, Expr* e) {
-    Stmt* f = e->as.anonFunc.func;
+static void compileFunLiteral(Compiler* c, Identifier* name, Expr* e) {
+    Stmt* f = e->as.funLit.func;
     if(name == NULL) {
         char funcName[5 + STRLEN_FOR_INT(int) + 1];
         sprintf(funcName, ANON_PREFIX "%d", f->line);
@@ -584,8 +584,8 @@ static void compileLval(Compiler* c, Expr* e) {
 }
 
 static void compileRval(Compiler* c, Identifier* boundName, Expr* e) {
-    if(e->type == ANON_FUNC)
-        compileAnonymousFunc(c, boundName, e);
+    if(e->type == FUN_LIT)
+        compileFunLiteral(c, boundName, e);
     else
         compileExpr(c, e);
 }
@@ -875,8 +875,8 @@ static void compileExpr(Compiler* c, Expr* e) {
     case SUPER_LIT:
         compileSuper(c, e);
         break;
-    case ANON_FUNC:
-        compileAnonymousFunc(c, NULL, e);
+    case FUN_LIT:
+        compileFunLiteral(c, NULL, e);
         break;
     }
 }

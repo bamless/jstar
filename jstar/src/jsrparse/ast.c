@@ -144,10 +144,10 @@ Expr* newCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval) {
     return e;
 }
 
-Expr* newAnonymousFunc(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body) {
-    Expr* e = newExpr(line, ANON_FUNC);
+Expr* newFunLit(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body) {
+    Expr* e = newExpr(line, FUN_LIT);
     Token name = {0};  // Empty name
-    e->as.anonFunc.func = newFuncDecl(line, &name, args, defArgs, vararg, body);
+    e->as.funLit.func = newFuncDecl(line, &name, args, defArgs, vararg, body);
     return e;
 }
 
@@ -212,8 +212,8 @@ void freeExpr(Expr* e) {
         freeExpr(e->as.compound.lval);
         freeExpr(e->as.compound.rval);
         break;
-    case ANON_FUNC:
-        freeStmt(e->as.anonFunc.func);
+    case FUN_LIT:
+        freeStmt(e->as.funLit.func);
         break;
     case EXP_EXPR:
         freeExpr(e->as.exponent.base);

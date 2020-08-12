@@ -36,7 +36,7 @@ typedef enum ExprType {
     ARR_ACC,
     TERNARY,
     COMP_ASSIGN,
-    ANON_FUNC,
+    FUN_LIT,
 } ExprType;
 
 typedef struct Expr Expr;
@@ -98,7 +98,7 @@ struct Expr {
         } ternary;
         struct {
             Stmt* func;
-        } anonFunc;
+        } funLit;
         struct {
             Identifier name;
             Expr* args;
@@ -109,7 +109,7 @@ struct Expr {
     } as;
 };
 
-JSTAR_API Expr* newAnonymousFunc(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body);
+JSTAR_API Expr* newFunLit(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body);
 JSTAR_API Expr* newAccessExpr(int line, Expr* left, const char* name, size_t length);
 JSTAR_API Expr* newCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval);
 JSTAR_API Expr* newTernary(int line, Expr* cond, Expr* thenExpr, Expr* elseExpr);

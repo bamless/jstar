@@ -943,7 +943,7 @@ static Expr* ternaryExpr(Parser* p) {
     return expr;
 }
 
-static Expr* anonymousFunc(Parser* p) {
+static Expr* funLiteral(Parser* p) {
     if(match(p, TOK_FUN)) {
         int line = p->peek.line;
         require(p, TOK_FUN);
@@ -952,7 +952,7 @@ static Expr* anonymousFunc(Parser* p) {
         Stmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        return newAnonymousFunc(line, &args.arguments, &args.defaults, args.isVararg, body);
+        return newFunLit(line, &args.arguments, &args.defaults, args.isVararg, body);
     }
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
@@ -965,14 +965,14 @@ static Expr* anonymousFunc(Parser* p) {
         vecPush(&anonFuncStmts, newReturnStmt(line, e));
         Stmt* body = newBlockStmt(line, &anonFuncStmts);
 
-        return newAnonymousFunc(line, &args.arguments, &args.defaults, args.isVararg, body);
+        return newFunLit(line, &args.arguments, &args.defaults, args.isVararg, body);
     }
     return ternaryExpr(p);
 }
 
-static Expr* tupleExpression(Parser* p) {
+static Expr* tupleLiteral(Parser* p) {
     int line = p->peek.line;
-    Expr* e = anonymousFunc(p);
+    Expr* e = funLiteral(p);
 
     if(match(p, TOK_COMMA)) {
         Vector exprs = vecNew();
@@ -981,7 +981,7 @@ static Expr* tupleExpression(Parser* p) {
         while(match(p, TOK_COMMA)) {
             advance(p);
             if(!isExpressionStart(&p->peek)) break;
-            vecPush(&exprs, anonymousFunc(p));
+            vecPush(&exprs, funLiteral(p));
         }
 
         e = newTupleLiteral(line, newExprList(line, &exprs));
@@ -1021,7 +1021,7 @@ static TokenType compundToAssign(TokenType t) {
     }
 }
 static Expr* expression(Parser* p, bool parseTuple) {
-    Expr* l = parseTuple ? tupleExpression(p) : anonymousFunc(p);
+    Expr* l = parseTuple ? tupleLiteral(p) : funLiteral(p);
 
     if(IS_ASSIGN(p->peek.type)) {
         if(l && l->type == TUPLE_LIT) {
