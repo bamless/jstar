@@ -175,6 +175,24 @@ static void classSynchronize(Parser* p) {
     }
 }
 
+static TokenType compundToAssign(TokenType t) {
+    switch(t) {
+    case TOK_PLUS_EQ:
+        return TOK_PLUS;
+    case TOK_MINUS_EQ:
+        return TOK_MINUS;
+    case TOK_DIV_EQ:
+        return TOK_DIV;
+    case TOK_MULT_EQ:
+        return TOK_MULT;
+    case TOK_MOD_EQ:
+        return TOK_MOD;
+    default:
+        UNREACHABLE();
+        return -1;
+    }
+}
+
 static bool isImplicitEnd(Token* tok) {
     TokenType t = tok->type;
     return t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE ||
@@ -193,12 +211,25 @@ static bool isExpressionStart(Token* tok) {
            t == TOK_HASH_HASH || t == TOK_LCURLY;
 }
 
+static bool isConstantLiteral(ExprType type) {
+    return type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT;
+}
+
 static bool isLValue(ExprType type) {
     return type == VAR_LIT || type == ACCESS_EXPR || type == ARR_ACC;
 }
 
-static bool isConstantLiteral(ExprType type) {
-    return type == NUM_LIT || type == BOOL_LIT || type == STR_LIT || type == NULL_LIT;
+static void checkUnpackAssignement(Parser* p, Expr* lvals, TokenType assignToken) {
+    vecForeach(Expr(**it), lvals->as.list) {
+        Expr* expr = *it;
+        if(!expr) continue;
+        if(!isLValue(expr->type)) {
+            error(p, "Left hand side of assignment must be an lvalue.");
+        }
+        if(assignToken != TOK_EQUAL) {
+            error(p, "Unpack cannot use compound assignement.");
+        }
+    }
 }
 
 static void requireStmtEnd(Parser* p) {
@@ -990,36 +1021,6 @@ static Expr* tupleLiteral(Parser* p) {
     return e;
 }
 
-static void checkUnpackAssignement(Parser* p, Expr* lvals, TokenType assignToken) {
-    vecForeach(Expr(**it), lvals->as.list) {
-        Expr* expr = *it;
-        if(!expr) continue;
-        if(!isLValue(expr->type)) {
-            error(p, "Left hand side of assignment must be an lvalue.");
-        }
-        if(assignToken != TOK_EQUAL) {
-            error(p, "Unpack cannot use compound assignement.");
-        }
-    }
-}
-
-static TokenType compundToAssign(TokenType t) {
-    switch(t) {
-    case TOK_PLUS_EQ:
-        return TOK_PLUS;
-    case TOK_MINUS_EQ:
-        return TOK_MINUS;
-    case TOK_DIV_EQ:
-        return TOK_DIV;
-    case TOK_MULT_EQ:
-        return TOK_MULT;
-    case TOK_MOD_EQ:
-        return TOK_MOD;
-    default:
-        UNREACHABLE();
-        return -1;
-    }
-}
 static Expr* expression(Parser* p, bool parseTuple) {
     Expr* l = parseTuple ? tupleLiteral(p) : funLiteral(p);
 
