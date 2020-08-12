@@ -173,10 +173,11 @@ static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
     if(upvalue != NULL && upvalue->addr == addr) return upvalue;
 
     ObjUpvalue* createdUpvalue = newUpvalue(vm, addr);
-    if(prev == NULL)
+    if(prev == NULL) {
         vm->upvalues = createdUpvalue;
-    else
+    } else {
         prev->next = createdUpvalue;
+    }
 
     createdUpvalue->next = upvalue;
     return createdUpvalue;

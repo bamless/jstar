@@ -336,15 +336,18 @@ static FindRes findAux(JStarVM* vm, RegexState* rs) {
 }
 
 static bool pushCapture(JStarVM* vm, RegexState* rs, int n) {
-    if(n < 0 || n >= rs->capturec)
+    if(n < 0 || n >= rs->capturec) {
         JSR_RAISE(vm, "RegexException", "Invalid capture index (%d).", n);
-    if(rs->captures[n].len == CAPTURE_UNFINISHED)
+    }
+    if(rs->captures[n].len == CAPTURE_UNFINISHED) {
         JSR_RAISE(vm, "RegexException", "Unfinished capture.");
+    }
 
-    if(rs->captures[n].len == CAPTURE_POSITION)
+    if(rs->captures[n].len == CAPTURE_POSITION) {
         jsrPushNumber(vm, rs->captures[n].start - rs->str);
-    else
+    } else {
         jsrPushStringSz(vm, rs->captures[n].start, rs->captures[n].len);
+    }
 
     return true;
 }
