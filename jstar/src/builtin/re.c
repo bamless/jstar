@@ -14,8 +14,6 @@
 #define CAPTURE_UNFINISHED -1
 #define CAPTURE_POSITION   -2
 
-#define ESCAPE '%'
-
 #define REG_ERR(error, ...)                                       \
     do {                                                          \
         rs->err = true;                                           \
@@ -78,7 +76,7 @@ static bool matchCustomClass(char c, const char* regex, const char* clsEnd) {
     }
 
     while(++regex < clsEnd) {
-        if(*regex == ESCAPE) {
+        if(*regex == '%') {
             regex++;
             if(matchClass(c, *regex)) return ret;
         } else if(regex[1] == '-' && regex + 2 < clsEnd) {
@@ -96,7 +94,7 @@ static bool matchClassOrChar(char c, const char* regex, const char* clsEnd) {
     switch(*regex) {
     case '.':
         return true;
-    case ESCAPE:
+    case '%':
         return matchClass(c, regex[1]);
     case '[':
         return matchCustomClass(c, regex, clsEnd - 1);
@@ -194,9 +192,9 @@ static const char* lazyMatch(RegexState* rs, const char* str, const char* regex,
 
 static const char* endClass(RegexState* rs, const char* regex) {
     switch(*regex++) {
-    case ESCAPE:
+    case '%':
         if(*regex == '\0') {
-            REG_ERR("Malformed regex (ends with `%c`).", ESCAPE);
+            REG_ERR("Malformed regex (ends with `%c`).", '%');
             return NULL;
         }
         return regex + 1;
@@ -206,7 +204,7 @@ static const char* endClass(RegexState* rs, const char* regex) {
                 REG_ERR("Malformed regex (unmatched `[`).");
                 return NULL;
             }
-            if(*regex++ == ESCAPE && *regex != '\0') regex++;  // Skip escape
+            if(*regex++ == '%' && *regex != '\0') regex++;  // Skip '%'
         } while(*regex != ']');
         return regex + 1;
     default:
@@ -223,7 +221,7 @@ static const char* match(RegexState* rs, const char* str, const char* regex) {
     case '$':
         if(regex[1] == '\0') return *str == '\0' ? str : NULL;
         goto def;
-    case ESCAPE:
+    case '%':
         if(isdigit(regex[1])) {
             int len = 1;
             while(isdigit(regex[len])) {
@@ -448,10 +446,10 @@ JSR_NATIVE(jsr_re_gmatch) {
 static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* sub) {
     for(; *sub != '\0'; sub++) {
         switch(*sub) {
-        case ESCAPE:
+        case '%':
             sub++;
             if(*sub == '\0') {
-                jsrRaise(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
+                jsrRaise(vm, "RegexException", "Invalid sub string (ends with %c)", '%');
                 return false;
             }
 
