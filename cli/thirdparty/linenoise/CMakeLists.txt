@@ -38,9 +38,9 @@ elseif(MSVC)
            CMAKE_CXX_FLAGS_MINSIZEREL
            CMAKE_CXX_FLAGS_RELWITHDEBINFO)
     if (flag_var MATCHES "DEBUG")
-      set(${flag_var} "${${flag_var}} /MTd")
+      set(${flag_var} "${${flag_var}}")
     else ()
-      set(${flag_var} "${${flag_var}} /MT")
+      set(${flag_var} "${${flag_var}}")
     endif ()
   endforeach()
   # https://msdn.microsoft.com/en-us/library/aa267384%28VS.60%29.aspx
