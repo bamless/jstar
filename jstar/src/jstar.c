@@ -357,11 +357,15 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
     validateStack(vm);
     ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module)));
     ASSERT(mod, "Module doesn't exist");
-    ObjString* objName = copyString(vm, name, strlen(name));
-    push(vm, OBJ_VAL(objName));
-    ObjNative* objNative = newNative(vm, mod, objName, argc, nat, 0, false);
+
+    ObjString* nativeName = copyString(vm, name, strlen(name));
+    push(vm, OBJ_VAL(nativeName));
+    ObjNative* native = newNative(vm, mod, argc, 0, false);
+    native->c.name = nativeName;
+    native->fn = nat;
     pop(vm);
-    push(vm, OBJ_VAL(objNative));
+
+    push(vm, OBJ_VAL(native));
 }
 
 void jsrPop(JStarVM* vm) {

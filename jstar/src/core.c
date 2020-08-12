@@ -44,11 +44,13 @@ static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     return v;
 }
 
-static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative n, const char* name,
+static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative nat, const char* name,
                       uint8_t argc) {
     ObjString* strName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(strName));
-    ObjNative* native = newNative(vm, m, strName, argc, n, 0, false);
+    ObjNative* native = newNative(vm, m, argc, 0, false);
+    native->c.name = strName;
+    native->fn = nat;
     pop(vm);
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
 }

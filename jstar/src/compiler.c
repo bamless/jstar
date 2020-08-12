@@ -1359,7 +1359,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, Stmt* s) {
     size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, NULL, arity, defaults, vararg);
+    c->func = newFunction(c->vm, module, arity, defaults, vararg);
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
 
     if(s->as.funcDecl.id.length != 0) {
@@ -1405,7 +1405,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
     size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, NULL, arity, defCount, vararg);
+    c->func = newFunction(c->vm, module, arity, defCount, vararg);
 
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->code, HANDLE_VAL(NULL));
@@ -1474,7 +1474,7 @@ static void compileNative(Compiler* c, Stmt* s) {
     size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
     bool vararg = s->as.nativeDecl.isVararg;
 
-    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defCount, vararg);
+    ObjNative* native = newNative(c->vm, c->func->c.module, arity, defCount, vararg);
 
     // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
@@ -1518,7 +1518,7 @@ static void compileNativeMethod(Compiler* c, Stmt* cls, Stmt* m) {
     size_t arity = vecSize(&m->as.nativeDecl.formalArgs);
     bool vararg = m->as.nativeDecl.isVararg;
 
-    ObjNative* native = newNative(c->vm, c->func->c.module, NULL, arity, NULL, defaults, vararg);
+    ObjNative* native = newNative(c->vm, c->func->c.module, arity, defaults, vararg);
 
     // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
