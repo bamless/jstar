@@ -21,8 +21,8 @@
 static bool readline(JStarVM* vm, FILE* file) {
     char buf[4096];
 
-    char* ret = fgets(buf, sizeof(buf), file);
-    if(ret == NULL) {
+    char* line = fgets(buf, sizeof(buf), file);
+    if(line == NULL) {
         if(feof(file)) {
             jsrPushNull(vm);
             return true;
@@ -36,8 +36,8 @@ static bool readline(JStarVM* vm, FILE* file) {
     jsrBufferAppendstr(&data, buf);
 
     while(strrchr(buf, '\n') == NULL) {
-        ret = fgets(buf, sizeof(buf), file);
-        if(ret == NULL) {
+        line = fgets(buf, sizeof(buf), file);
+        if(line == NULL) {
             if(feof(file)) {
                 break;
             } else {
@@ -52,9 +52,9 @@ static bool readline(JStarVM* vm, FILE* file) {
     return true;
 }
 
-static int jsrSeek(FILE* file, long offset, int blWhence) {
+static int jsrSeek(FILE* file, long offset, int jsrWhence) {
     int whence = 0;
-    switch(blWhence) {
+    switch(jsrWhence) {
     case JSR_SEEK_SET:
         whence = SEEK_SET;
         break;
@@ -71,8 +71,7 @@ static int jsrSeek(FILE* file, long offset, int blWhence) {
     return fseek(file, offset, whence);
 }
 
-// class File {
-
+// class File
 JSR_NATIVE(jsr_File_new) {
     if(jsrIsNull(vm, 3)) {
         JSR_CHECK(String, 1, "path");
@@ -90,9 +89,9 @@ JSR_NATIVE(jsr_File_new) {
         FILE* f = fopen(path, mode);
         if(f == NULL) {
             if(errno == ENOENT) {
-                JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`.", path);
+                JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`", path);
             } else {
-                JSR_RAISE(vm, "IOException", strerror(errno));
+                JSR_RAISE(vm, "IOException", "%s: %s", path, strerror(errno));
             }
         }
 
@@ -208,21 +207,19 @@ JSR_NATIVE(jsr_File_readAll) {
     JStarBuffer data;
     jsrBufferInitSz(vm, &data, 512);
 
-    for(;;) {
-        char buf[4096];
-
-        size_t read = fread(buf, 1, sizeof(buf), f);
-        if(read < sizeof(buf)) {
-            if(feof(f)) {
-                jsrBufferAppend(&data, buf, read);
-                break;
-            } else {
-                jsrBufferFree(&data);
-                JSR_RAISE(vm, "IOException", strerror(errno));
-            }
-        }
-
+    size_t read;
+    char buf[4096];
+    while((read = fread(buf, 1, sizeof(buf), f)) == sizeof(buf)) {
         jsrBufferAppend(&data, buf, read);
+    }
+
+    if(feof(f) && read > 0) {
+        jsrBufferAppend(&data, buf, read);
+    }
+
+    if(ferror(f)) {
+        jsrBufferFree(&data);
+        JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
     jsrBufferPush(&data);
@@ -288,9 +285,9 @@ JSR_NATIVE(jsr_File_flush) {
     jsrPushNull(vm);
     return true;
 }
-// } class File
+// end
 
-// class __PFile {
+// class __PFile
 JSR_NATIVE(jsr_PFile_close) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
@@ -309,14 +306,14 @@ JSR_NATIVE(jsr_PFile_close) {
     jsrPushNumber(vm, ret);
     return true;
 }
-// }
+// end
 
-// functions
+// Functions
 
 JSR_NATIVE(jsr_remove) {
     JSR_CHECK(String, 1, "path");
     if(remove(jsrGetString(vm, 1)) == -1) {
-        JSR_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", "%s: %s", jsrGetString(vm, 1), strerror(errno));
     }
     jsrPushNull(vm);
     return true;
@@ -326,7 +323,7 @@ JSR_NATIVE(jsr_rename) {
     JSR_CHECK(String, 1, "oldpath");
     JSR_CHECK(String, 2, "newpath");
     if(rename(jsrGetString(vm, 1), jsrGetString(vm, 2)) == -1) {
-        JSR_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", "%s: %s", jsrGetString(vm, 1), strerror(errno));
     }
     jsrPushNull(vm);
     return true;
@@ -344,7 +341,7 @@ JSR_NATIVE(jsr_popen) {
 
     FILE* f = popen(pname, mode);
     if(f == NULL) {
-        JSR_RAISE(vm, "IOException", strerror(errno));
+        JSR_RAISE(vm, "IOException", "%s: %s", pname, strerror(errno));
     }
 
     jsrGetGlobal(vm, NULL, "__PFile");
