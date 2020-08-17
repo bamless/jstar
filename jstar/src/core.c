@@ -967,10 +967,8 @@ JSR_NATIVE(jsr_String_mod) {
                 jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
                 jsrPop(vm);
 
-                // skip the format specifier. break in case the string is over
-                if((ptr = end + 1) >= formatEnd) {
-                    break;
-                }
+                ptr = end;  // skip the format specifier
+                continue;
             }
         }
         jsrBufferAppend(&buf, ptr, 1);
