@@ -936,6 +936,50 @@ JSR_NATIVE(jsr_String_join) {
     return true;
 }
 
+JSR_NATIVE(jsr_String_mod) {
+    JSR_CHECK(Tuple, 1, "args");
+    const char* format = jsrGetString(vm, 0);
+    const char* formatEnd = format + jsrGetStringSz(vm, 0);
+    ObjTuple* args = AS_TUPLE(vm->apiStack[1]);
+
+    JStarBuffer buf;
+    jsrBufferInit(vm, &buf);
+
+    for(const char* ptr = format; ptr < formatEnd; ptr++) {
+        if(*ptr == '{' && isdigit(ptr[1])) {
+            char* end;
+            int n = strtol(ptr + 1, &end, 10);
+            if(end != ptr + 1 && *end == '}') {
+                size_t idx = jsrCheckIndexNum(vm, n, args->size);
+                if(idx == SIZE_MAX) {
+                    jsrBufferFree(&buf);
+                    return false;
+                }
+                push(vm, args->arr[idx]);
+                if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) {
+                    jsrBufferFree(&buf);
+                    return false;
+                }
+                if(!jsrIsString(vm, -1)) {
+                    jsrBufferFree(&buf);
+                    JSR_RAISE(vm, "TypeException", "__string__ didn't return a String.");
+                }
+                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
+                jsrPop(vm);
+
+                // skip the format specifier. break in case the string is over
+                if((ptr = end + 1) >= formatEnd) {
+                    break;
+                }
+            }
+        }
+        jsrBufferAppend(&buf, ptr, 1);
+    }
+
+    jsrBufferPush(&buf);
+    return true;
+}
+
 JSR_NATIVE(jsr_String_len) {
     jsrPushNumber(vm, jsrGetStringSz(vm, 0));
     return true;

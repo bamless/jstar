@@ -72,6 +72,7 @@ JSR_NATIVE(jsr_String_endsWith);
 JSR_NATIVE(jsr_String_strip);
 JSR_NATIVE(jsr_String_chomp);
 JSR_NATIVE(jsr_String_join);
+JSR_NATIVE(jsr_String_mod);
 JSR_NATIVE(jsr_String_len);
 JSR_NATIVE(jsr_String_string);
 JSR_NATIVE(jsr_String_hash);

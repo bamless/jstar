@@ -37,21 +37,3 @@ class igmatch
         return match
     end
 end
-
-class fmt
-    fun new(variables)
-        this._variables = variables
-    end
-
-    fun _format(match, variable)
-        var variables = this._variables
-        return ##variables[variable] if variables.contains(variable) else match
-    end
-
-    fun __rmod__(format)
-        if !(format is String) then 
-            raise TypeException("Cannot format a " + type(format).getName())
-        end
-        return gsub(format, "(${(%w+)})", this._format)
-    end
-end

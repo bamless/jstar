@@ -102,6 +102,7 @@ const char *core_jsr =
 "    native strip()\n"
 "    native chomp()\n"
 "    native join(iterable)\n"
+"    native __mod__(args)\n"
 "    native __eq__(o)\n"
 "    native __len__()\n"
 "    native __iter__(iter)\n"

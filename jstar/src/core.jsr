@@ -121,6 +121,7 @@ class String is Sequence
     native strip()
     native chomp()
     native join(iterable)
+    native __mod__(args)
     native __eq__(o)
     native __len__()
     native __iter__(iter)
