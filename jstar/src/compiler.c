@@ -548,7 +548,7 @@ static void compileFunction(Compiler* c, Stmt* s);
 static void compileFunLiteral(Compiler* c, Identifier* name, Expr* e) {
     Stmt* f = e->as.funLit.func;
     if(name == NULL) {
-        char funcName[5 + STRLEN_FOR_INT(int) + 1];
+        char funcName[sizeof(ANON_PREFIX) + STRLEN_FOR_INT(int) + 1];
         sprintf(funcName, ANON_PREFIX "%d", f->line);
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;
@@ -584,10 +584,11 @@ static void compileLval(Compiler* c, Expr* e) {
 }
 
 static void compileRval(Compiler* c, Identifier* boundName, Expr* e) {
-    if(e->type == FUN_LIT)
+    if(e->type == FUN_LIT) {
         compileFunLiteral(c, boundName, e);
-    else
+    } else {
         compileExpr(c, e);
+    }
 }
 
 static void compileConstUnpackLst(Compiler* c, Vector* boundNames, Expr* exprs, int num) {
