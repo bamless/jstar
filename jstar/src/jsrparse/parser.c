@@ -133,6 +133,7 @@ static Token require(Parser* p, TokenType type) {
 
 static Token peekSecondToken(Parser* p) {
     Token prevTok = advance(p);
+    skipNewLines(p);
     Token secondTok = p->peek;
     rewindTo(&p->lex, &prevTok);
     advance(p);
@@ -270,6 +271,7 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
             nextToken(&p->lex, &p->peek);
             break;
         }
+
         vecPush(&args.arguments, newIdentifier(argument.length, argument.lexeme));
         skipNewLines(p);
 
@@ -339,6 +341,7 @@ static Stmt* ifBody(Parser* p, int line) {
     if(match(p, TOK_ELIF)) {
         int line = p->peek.line;
         advance(p);
+        skipNewLines(p);
         elseBody = ifBody(p, line);
     } else if(match(p, TOK_ELSE)) {
         advance(p);
@@ -351,6 +354,7 @@ static Stmt* ifBody(Parser* p, int line) {
 static Stmt* ifStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Stmt* ifStmt = ifBody(p, line);
     require(p, TOK_END);
@@ -361,6 +365,7 @@ static Stmt* ifStmt(Parser* p) {
 static Stmt* whileStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Expr* cond = expression(p, true);
     skipNewLines(p);
@@ -375,6 +380,7 @@ static Stmt* whileStmt(Parser* p) {
 static Stmt* varDecl(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     bool isUnpack = false;
     Vector identifiers = vecNew();
@@ -394,6 +400,7 @@ static Stmt* varDecl(Parser* p) {
     Expr* init = NULL;
     if(match(p, TOK_EQUAL)) {
         advance(p);
+        skipNewLines(p);
         init = expression(p, true);
     }
 
@@ -410,8 +417,8 @@ static Stmt* forEach(Parser* p, Stmt* var, int line) {
 
     Expr* e = expression(p, true);
     skipNewLines(p);
-    require(p, TOK_DO);
 
+    require(p, TOK_DO);
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
@@ -421,19 +428,19 @@ static Stmt* forEach(Parser* p, Stmt* var, int line) {
 static Stmt* forStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Stmt* init = NULL;
     if(!match(p, TOK_SEMICOLON)) {
         if(match(p, TOK_VAR)) {
             init = varDecl(p);
+            skipNewLines(p);
             if(match(p, TOK_IN)) {
                 return forEach(p, init, line);
             }
         } else {
             Expr* e = expression(p, true);
-            if(e != NULL) {
-                init = newExprStmt(e->line, e);
-            }
+            if(e != NULL) init = newExprStmt(e->line, e);
         }
     }
 
@@ -476,6 +483,7 @@ static Stmt* returnStmt(Parser* p) {
 static Stmt* importStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Vector modules = vecNew();
 
@@ -484,6 +492,7 @@ static Stmt* importStmt(Parser* p) {
         vecPush(&modules, newIdentifier(name.length, name.lexeme));
         if(!match(p, TOK_DOT)) break;
         advance(p);
+        skipNewLines(p);
     }
 
     Token asName = {0};
@@ -526,9 +535,13 @@ static Stmt* tryStmt(Parser* p) {
     while(match(p, TOK_EXCEPT)) {
         int excLine = p->peek.line;
         advance(p);
+        skipNewLines(p);
 
         Expr* cls = expression(p, true);
+        skipNewLines(p);
+
         Token var = require(p, TOK_IDENTIFIER);
+
         Stmt* block = blockStmt(p);
         vecPush(&excs, newExceptStmt(excLine, cls, &var, block));
     }
@@ -549,6 +562,7 @@ static Stmt* tryStmt(Parser* p) {
 static Stmt* raiseStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Expr* exc = expression(p, true);
     requireStmtEnd(p);
@@ -559,8 +573,11 @@ static Stmt* raiseStmt(Parser* p) {
 static Stmt* withStmt(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Expr* e = expression(p, true);
+    skipNewLines(p);
+
     Token var = require(p, TOK_IDENTIFIER);
     Stmt* block = blockStmt(p);
     require(p, TOK_END);
@@ -571,8 +588,11 @@ static Stmt* withStmt(Parser* p) {
 static Stmt* funcDecl(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Token funcName = require(p, TOK_IDENTIFIER);
+    skipNewLines(p);
+
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
@@ -583,8 +603,11 @@ static Stmt* funcDecl(Parser* p) {
 static Stmt* nativeDecl(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Token funcName = require(p, TOK_IDENTIFIER);
+    skipNewLines(p);
+
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
@@ -594,14 +617,19 @@ static Stmt* nativeDecl(Parser* p) {
 static Stmt* classDecl(Parser* p) {
     int line = p->peek.line;
     advance(p);
+    skipNewLines(p);
 
     Token clsName = require(p, TOK_IDENTIFIER);
-    Expr* sup = NULL;
+    skipNewLines(p);
 
+    Expr* sup = NULL;
     if(match(p, TOK_IS)) {
         advance(p);
+        skipNewLines(p);
+
         sup = expression(p, true);
         skipNewLines(p);
+
         if(p->panic) classSynchronize(p);
     }
 
@@ -771,6 +799,7 @@ static Expr* parseSuperLiteral(Parser* p) {
 
     if(match(p, TOK_DOT)) {
         advance(p);
+        skipNewLines(p);
         name = require(p, TOK_IDENTIFIER);
     }
 
@@ -819,6 +848,7 @@ static Expr* literal(Parser* p) {
         }
 
         Expr* e = expression(p, true);
+
         skipNewLines(p);
         require(p, TOK_RPAREN);
         return e;
@@ -859,6 +889,7 @@ static Expr* postfixExpr(Parser* p) {
         switch(p->peek.type) {
         case TOK_DOT: {
             advance(p);
+            skipNewLines(p);
             Token attr = require(p, TOK_IDENTIFIER);
             lit = newAccessExpr(line, lit, attr.lexeme, attr.length);
             break;
@@ -879,6 +910,7 @@ static Expr* postfixExpr(Parser* p) {
             require(p, TOK_LSQUARE);
             skipNewLines(p);
             lit = newArrayAccExpr(line, lit, expression(p, true));
+            skipNewLines(p);
             require(p, TOK_RSQUARE);
             break;
         }
@@ -896,11 +928,10 @@ static Expr* powExpr(Parser* p) {
     Expr* base = postfixExpr(p);
 
     while(match(p, TOK_POW)) {
-        int line = p->peek.line;
-        advance(p);
-
+        Token powOp = advance(p);
+        skipNewLines(p);
         Expr* exp = unaryExpr(p);
-        base = newExpExpr(line, base, exp);
+        base = newExpExpr(powOp.line, base, exp);
     }
 
     return base;
@@ -911,6 +942,7 @@ static Expr* unaryExpr(Parser* p) {
 
     if(matchAny(p, tokens, sizeof(tokens) / sizeof(TokenType))) {
         Token op = advance(p);
+        skipNewLines(p);
         return newUnary(op.line, op.type, unaryExpr(p));
     }
 
@@ -922,6 +954,7 @@ static Expr* parseBinary(Parser* p, TokenType* tokens, int count, Expr* (*operan
 
     while(matchAny(p, tokens, count)) {
         Token op = advance(p);
+        skipNewLines(p);
         Expr* r = (*operand)(p);
         l = newBinary(op.line, op.type, l, r);
     }
@@ -965,8 +998,13 @@ static Expr* ternaryExpr(Parser* p) {
 
     if(match(p, TOK_IF)) {
         advance(p);
+        skipNewLines(p);
+
         Expr* cond = ternaryExpr(p);
+
         require(p, TOK_ELSE);
+        skipNewLines(p);
+
         Expr* elseExpr = ternaryExpr(p);
         return newTernary(line, cond, expr, elseExpr);
     }
@@ -978,6 +1016,7 @@ static Expr* funLiteral(Parser* p) {
     if(match(p, TOK_FUN)) {
         int line = p->peek.line;
         require(p, TOK_FUN);
+        skipNewLines(p);
 
         FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
         Stmt* body = blockStmt(p);
@@ -988,8 +1027,10 @@ static Expr* funLiteral(Parser* p) {
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
         FormalArgs args = formalArgs(p, TOK_PIPE, TOK_PIPE);
+        skipNewLines(p);
 
         require(p, TOK_ARROW);
+        skipNewLines(p);
 
         Expr* e = expression(p, false);
         Vector anonFuncStmts = vecNew();
@@ -1032,6 +1073,8 @@ static Expr* expression(Parser* p, bool parseTuple) {
         }
 
         Token assign = advance(p);
+        skipNewLines(p);
+
         Expr* r = expression(p, true);
 
         if(IS_COMPUND_ASSIGN(assign.type)) {
