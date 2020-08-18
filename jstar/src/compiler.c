@@ -209,7 +209,7 @@ static int resolveVariable(Compiler* c, Identifier* id, bool inFunc, int line) {
 }
 
 static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
-    uint8_t upvalueCount = c->func->upvaluec;
+    uint8_t upvalueCount = c->func->upvalueCount;
     for(uint8_t i = 0; i < upvalueCount; i++) {
         Upvalue* upval = &c->upvalues[i];
         if(upval->index == index && upval->isLocal == local) {
@@ -217,14 +217,14 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
         }
     }
 
-    if(c->func->upvaluec == MAX_LOCALS) {
+    if(c->func->upvalueCount == MAX_LOCALS) {
         error(c, line, "Too many upvalues in function %s.", c->func->c.name->data);
         return -1;
     }
 
-    c->upvalues[c->func->upvaluec].isLocal = local;
-    c->upvalues[c->func->upvaluec].index = index;
-    return c->func->upvaluec++;
+    c->upvalues[c->func->upvalueCount].isLocal = local;
+    c->upvalues[c->func->upvalueCount].index = index;
+    return c->func->upvalueCount++;
 }
 
 static int resolveUpvalue(Compiler* c, Identifier* id, int line) {
@@ -1462,7 +1462,7 @@ static void compileFunction(Compiler* c, Stmt* s) {
     emitBytecode(c, OP_CLOSURE, s->line);
     emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
 
-    for(uint8_t i = 0; i < func->upvaluec; i++) {
+    for(uint8_t i = 0; i < func->upvalueCount; i++) {
         emitBytecode(c, funCompiler.upvalues[i].isLocal ? 1 : 0, s->line);
         emitBytecode(c, funCompiler.upvalues[i].index, s->line);
     }
@@ -1504,7 +1504,7 @@ static void compileMethod(Compiler* c, Stmt* cls, Stmt* m) {
     emitBytecode(c, OP_CLOSURE, m->line);
     emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
 
-    for(uint8_t i = 0; i < meth->upvaluec; i++) {
+    for(uint8_t i = 0; i < meth->upvalueCount; i++) {
         emitBytecode(c, methodCompiler.upvalues[i].isLocal ? 1 : 0, m->line);
         emitBytecode(c, methodCompiler.upvalues[i].index, m->line);
     }

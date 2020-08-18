@@ -45,7 +45,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* module, uint8_t argc, uint8_t d
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
     initCommon(&fun->c, module, argc, defaults, defCount, varg);
-    fun->upvaluec = 0;
+    fun->upvalueCount = 0;
     initCode(&fun->code);
     return fun;
 }
@@ -72,10 +72,10 @@ ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
 }
 
 ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
-    ObjClosure* c = (ObjClosure*)newVarObj(vm, sizeof(*c), sizeof(ObjUpvalue*), fn->upvaluec,
+    ObjClosure* c = (ObjClosure*)newVarObj(vm, sizeof(*c), sizeof(ObjUpvalue*), fn->upvalueCount,
                                            vm->funClass, OBJ_CLOSURE);
-    memset(c->upvalues, 0, sizeof(ObjUpvalue*) * fn->upvaluec);
-    c->upvalueCount = fn->upvaluec;
+    memset(c->upvalues, 0, sizeof(ObjUpvalue*) * fn->upvalueCount);
+    c->upvalueCount = fn->upvalueCount;
     c->fn = fn;
     return c;
 }

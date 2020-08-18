@@ -151,8 +151,8 @@ typedef struct {
 // A compiled J* function
 typedef struct ObjFunction {
     FnCommon c;
-    Code code;         // The actual code chunk containing bytecodes
-    uint8_t upvaluec;  // The number of upvalues the function closes over
+    Code code;             // The actual code chunk containing bytecodes
+    uint8_t upvalueCount;  // The number of upvalues the function closes over
 } ObjFunction;
 
 // A C function callable from J*

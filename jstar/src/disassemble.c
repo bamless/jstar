@@ -23,7 +23,7 @@ void disassembleCode(Code* c) {
         disassembleIstr(c, i);
         if(c->bytecode[i] == OP_CLOSURE) {
             Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
-            i += (AS_FUNC(func)->upvaluec + 1) * 2;
+            i += (AS_FUNC(func)->upvalueCount + 1) * 2;
         }
     }
 }
@@ -72,7 +72,7 @@ static void closureInstruction(Code* c, size_t i) {
     ObjFunction* fn = AS_FUNC(c->consts.arr[op]);
 
     int offset = i + 3;
-    for(uint8_t j = 0; j < fn->upvaluec; j++) {
+    for(uint8_t j = 0; j < fn->upvalueCount; j++) {
         bool isLocal = c->bytecode[offset++];
         int index = c->bytecode[offset++];
         printf("\n%04d              | %s %d", offset - 2, isLocal ? "local" : "upvalue", index);

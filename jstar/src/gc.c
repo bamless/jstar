@@ -265,7 +265,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)o;
         reachObject(vm, (Obj*)closure->fn);
-        for(uint8_t i = 0; i < closure->fn->upvaluec; i++) {
+        for(uint8_t i = 0; i < closure->upvalueCount; i++) {
             reachObject(vm, (Obj*)closure->upvalues[i]);
         }
         break;

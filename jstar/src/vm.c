@@ -1230,7 +1230,7 @@ op_return:
     TARGET(OP_CLOSURE): {
         ObjClosure* c = newClosure(vm, AS_FUNC(GET_CONST()));
         push(vm, OBJ_VAL(c));
-        for(uint8_t i = 0; i < c->fn->upvaluec; i++) {
+        for(uint8_t i = 0; i < c->upvalueCount; i++) {
             uint8_t isLocal = NEXT_CODE();
             uint8_t index = NEXT_CODE();
             if(isLocal) {
