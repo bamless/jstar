@@ -21,9 +21,11 @@ typedef struct Handler {
 #define HANDLER_EXCEPT OP_SETUP_EXCEPT
     uint8_t type;      // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
     uint8_t* address;  // The address of the handler code
-    Value* savesp;     // Stack pointer to restore state when handling exceptions
+    Value* savesp;     // Stack pointer to restore before executing the code at `address`
 } Handler;
 
+// Stackframe of a function executing in
+// the virtual machine
 typedef struct Frame {
     uint8_t* ip;                    // Instruction pointer
     Value* stack;                   // Base of stack for current frame
@@ -32,6 +34,8 @@ typedef struct Frame {
     uint8_t handlerc;               // Exception handlers count
 } Frame;
 
+// Enum representing the various overloadable
+// operators of the language
 typedef enum Overload {
     // Binary overloads
     ADD_OVERLOAD,
@@ -39,18 +43,15 @@ typedef enum Overload {
     MUL_OVERLOAD,
     DIV_OVERLOAD,
     MOD_OVERLOAD,
-
     // Reverse binary overloads
     RADD_OVERLOAD,
     RSUB_OVERLOAD,
     RMUL_OVERLOAD,
     RDIV_OVERLOAD,
     RMOD_OVERLOAD,
-
     // Subscript overloads
     GET_OVERLOAD,
     SET_OVERLOAD,
-
     // Comparison and ordering overloads
     EQ_OVERLOAD,
     LT_OVERLOAD,
@@ -58,7 +59,7 @@ typedef enum Overload {
     GT_OVERLOAD,
     GE_OVERLOAD,
     NEG_OVERLOAD,
-
+    // Sentinel
     OVERLOAD_SENTINEL
 } Overload;
 
@@ -84,18 +85,12 @@ struct JStarVM {
     ObjClass* tableClass;
     ObjClass* udataClass;
 
-    // Current VM compiler
+    // Current VM compiler (if any)
     Compiler* currCompiler;
 
     // Constant strings needed by compiler and runtime
     ObjString *ctor, *stacktrace, *next, *iter;
-
-    // Method names of overloadable operators
     ObjString* overloads[OVERLOAD_SENTINEL];
-
-    // Script arguments
-    const char** argv;
-    int argc;
 
     // The empty tuple (singleton)
     ObjTuple* emptyTup;
@@ -110,10 +105,9 @@ struct JStarVM {
     size_t stackSz;
     Value *stack, *sp;
 
-    // Frames stack
-    int frameSz;
+    // Frame stack
     Frame* frames;
-    int frameCount;
+    int frameSz, frameCount;
 
     // Stack used during native function calls
     Value* apiStack;
@@ -127,6 +121,10 @@ struct JStarVM {
     // Callback function to report errors
     JStarErrorCB errorCallback;
 
+    // Script arguments, see module `sys` for arg initialization
+    const char** argv;
+    int argc;
+
     // ---- Memory management ----
 
     // Linked list of all allocated objects (used in
@@ -135,8 +133,8 @@ struct JStarVM {
 
     bool disableGC;    // Whether the garbage collector is enabled or disabled
     size_t allocated;  // Bytes currently allocated
-    size_t nextGC;     // Bytes to which the next GC will be triggered
-    int heapGrowRate;  // Rate at which the heaap will grow after a GC
+    size_t nextGC;     // Bytes at which the next GC will be triggered
+    int heapGrowRate;  // Rate at which the heap will grow after a GC
 
     // Stack used to recursevely reach all the fields of reached objects
     Obj** reachedStack;

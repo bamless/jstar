@@ -11,13 +11,15 @@
 #include "import.h"
 #include "opcode.h"
 
-// Enumeration encoding the cause of the stack
-// unwinding, used during unwinding to correctly
-// handle the execution of except/ensure handlers
-typedef enum UnwindCause {
-    CAUSE_EXCEPT,
-    CAUSE_RETURN,
-} UnwindCause;
+// Method names of overloadable operators
+static const char* overloadNames[OVERLOAD_SENTINEL] = {
+    [ADD_OVERLOAD] = "__add__",   [SUB_OVERLOAD] = "__sub__",   [MUL_OVERLOAD] = "__mul__",
+    [DIV_OVERLOAD] = "__div__",   [MOD_OVERLOAD] = "__mod__",   [RADD_OVERLOAD] = "__radd__",
+    [RSUB_OVERLOAD] = "__rsub__", [RMUL_OVERLOAD] = "__rmul__", [RDIV_OVERLOAD] = "__rdiv__",
+    [RMOD_OVERLOAD] = "__rmod__", [GET_OVERLOAD] = "__get__",   [SET_OVERLOAD] = "__set__",
+    [EQ_OVERLOAD] = "__eq__",     [LT_OVERLOAD] = "__lt__",     [LE_OVERLOAD] = "__le__",
+    [GT_OVERLOAD] = "__gt__",     [GE_OVERLOAD] = "__ge__",     [NEG_OVERLOAD] = "__neg__",
+};
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
@@ -31,21 +33,13 @@ static void resetStack(JStarVM* vm) {
 }
 
 static void initConstStrings(JStarVM* vm) {
-    // Constant strings needed by the runtime
     vm->stacktrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
     vm->next = copyString(vm, "__next__", 8);
     vm->iter = copyString(vm, "__iter__", 8);
 
-    // Method names of overloadable operators
-    static const char* overloads[OVERLOAD_SENTINEL] = {
-        "__add__",  "__sub__",  "__mul__",  "__div__",  "__mod__", "__radd__",
-        "__rsub__", "__rmul__", "__rdiv__", "__rmod__", "__get__", "__set__",
-        "__eq__",   "__lt__",   "__le__",   "__gt__",   "__ge__",  "__neg__",
-    };
-
     for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
-        vm->overloads[i] = copyString(vm, overloads[i], strlen(overloads[i]));
+        vm->overloads[i] = copyString(vm, overloadNames[i], strlen(overloadNames[i]));
     }
 }
 
@@ -56,7 +50,6 @@ static void initMainModule(JStarVM* vm) {
 
 JStarVM* jsrNewVM(JStarConf* conf) {
     JStarVM* vm = calloc(1, sizeof(*vm));
-
     vm->errorCallback = conf->errorCallback;
 
     // VM program stack
@@ -70,6 +63,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     vm->nextGC = conf->initGC;
     vm->heapGrowRate = conf->heapGrowRate;
 
+    // Module and String caches
     initHashTable(&vm->modules);
     initHashTable(&vm->strings);
 
@@ -148,6 +142,12 @@ static bool isBuiltinClass(JStarVM* vm, ObjClass* cls) {
 
 static bool isInt(double n) {
     return trunc(n) == n;
+}
+
+static void swapValues(Value* valueArray, int a, int b) {
+    Value tmp = valueArray[a];
+    valueArray[a] = valueArray[b];
+    valueArray[b] = tmp;
 }
 
 static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
@@ -491,7 +491,7 @@ static bool checkSliceIndex(JStarVM* vm, ObjTuple* slice, size_t size, size_t* l
 
     if(a > b) {
         JSR_RAISE(vm, "InvalidArgException",
-                  "Invalid slice indices (%g, %g), first one must be <= than second",
+                  "Invalid slice indices (%g, %g), first must be <= than second",
                   AS_NUM(slice->arr[0]), AS_NUM(slice->arr[1]));
     }
 
@@ -619,12 +619,9 @@ static bool setSubscriptOfValue(JStarVM* vm) {
         return true;
     }
 
-    // swap the operand with the value to preparare function call
-    Value operand = peek(vm);
-    vm->sp[-1] = vm->sp[-3];
-    vm->sp[-3] = operand;
-
-    if(!invokeMethod(vm, getClass(vm, operand), vm->overloads[SET_OVERLOAD], 2)) {
+    // swap the operand with value to prepare function call
+    swapValues(vm->sp, -1, -3);
+    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->overloads[SET_OVERLOAD], 2)) {
         return false;
     }
     return true;
@@ -648,11 +645,7 @@ static bool callBinaryOverload(JStarVM* vm, const char* op, Overload overload, O
     }
 
     if(reverse != OVERLOAD_SENTINEL) {
-        // swap callee and arg
-        Value tmp = peek(vm);
-        vm->sp[-1] = vm->sp[-2];
-        vm->sp[-2] = tmp;
-
+        swapValues(vm->sp, -1, -2);
         if(hashTableGet(&cls2->methods, vm->overloads[reverse], &method)) {
             return callValue(vm, method, 1);
         }
@@ -725,6 +718,14 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 // -----------------------------------------------------------------------------
 // EVAL LOOP
 // -----------------------------------------------------------------------------
+
+// Enumeration encoding the cause of the stack unwinding,
+// used during unwinding to correctly handle the execution
+// of except/ensure handlers on return and exception
+typedef enum UnwindCause {
+    CAUSE_EXCEPT,
+    CAUSE_RETURN,
+} UnwindCause;
 
 bool runEval(JStarVM* vm, int depth) {
     register Frame* frame;
