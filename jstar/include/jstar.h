@@ -70,7 +70,7 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 // Evaluate J* code in the context of module (or __main__ in jsrEvaluate)
 // as top level <main> function.
 // VM_EVAL_SUCCSESS will be returned if the execution completed normally
-// In case of errors, either VM_SYNTAX_ERR, VM_COMPILE_ERR or VM_RUNTIME_ERR
+// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR or JSR_RUNTIME_ERR
 // will be returned, and all the errors will be printed to stderr.
 JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src);
 JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* name,
@@ -87,7 +87,7 @@ JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const cha
 // on the top of the stack in the place of "callee", popping all arguments:
 //  ... [result] $top [arg1][arg2] ... [argn] popped
 //
-// If an exception has been raised by the code, VM_RUNTIME_ERR will be returned and
+// If an exception has been raised by the code, JSR_RUNTIME_ERR will be returned and
 // The exception will be placed on top of the stack as a result.
 JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
