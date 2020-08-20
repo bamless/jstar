@@ -164,7 +164,7 @@ static uint16_t createConst(Compiler* c, Value constant, int line) {
     int index = addConstant(&c->func->code, constant);
     if(index == -1) {
         const char* name = c->func->c.name == NULL ? "<main>" : c->func->c.name->data;
-        error(c, line, "too many constants in function %s", name);
+        error(c, line, "Too many constants in function %s.", name);
         return 0;
     }
     return (uint16_t)index;
@@ -378,7 +378,7 @@ static ObjString* readString(Compiler* c, Expr* e) {
                 jsrBufferAppendChar(&sb, '\v');
                 break;
             default:
-                error(c, e->line, "Invalid escape character '%c'", str[i + 1]);
+                error(c, e->line, "Invalid escape character `%c`.", str[i + 1]);
                 break;
             }
             i++;
@@ -713,7 +713,7 @@ static void compileCallExpr(Compiler* c, Expr* e) {
 
 static void compileSuper(Compiler* c, Expr* e) {
     if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
-        error(c, e->line, "Can only use `super` in method call");
+        error(c, e->line, "Can only use `super` in method call.");
         return;
     }
 
@@ -1188,7 +1188,7 @@ static void compileTryExcept(Compiler* c, Stmt* s) {
     enterTryBlock(c, &tryBlock, numHandlers);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
+        error(c, s->line, "Exceeded max number of nested try blocks: %d.", MAX_TRY_DEPTH);
     }
 
     size_t excSetup = 0;
@@ -1287,7 +1287,7 @@ static void compileWithStatement(Compiler* c, Stmt* s) {
     enterTryBlock(c, &tryBlock, 1);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks (%d)", MAX_TRY_DEPTH);
+        error(c, s->line, "Exceeded max number of nested try blocks: %d.", MAX_TRY_DEPTH);
     }
 
     size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
@@ -1343,11 +1343,11 @@ static void compileLoopExitStmt(Compiler* c, Stmt* s) {
     bool isBreak = s->type == BREAK_STMT;
 
     if(c->loops == NULL) {
-        error(c, s->line, "cannot use %s outside loop.", isBreak ? "break" : "continue");
+        error(c, s->line, "Cannot use %s outside loop.", isBreak ? "break" : "continue");
         return;
     }
     if(c->tryDepth != 0 && c->tryBlocks->depth >= c->loops->depth) {
-        error(c, s->line, "cannot use %s across a try except.", isBreak ? "break" : "continue");
+        error(c, s->line, "Cannot use %s across a try except.", isBreak ? "break" : "continue");
     }
 
     discardScope(c, c->loops->depth);

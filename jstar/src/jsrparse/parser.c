@@ -221,14 +221,15 @@ static bool isLValue(ExprType type) {
 }
 
 static void checkUnpackAssignement(Parser* p, Expr* lvals, TokenType assignToken) {
+    if(assignToken != TOK_EQUAL) {
+        error(p, "Unpack cannot use compound assignement.");
+        return;
+    }
+
     vecForeach(Expr(**it), lvals->as.list) {
         Expr* expr = *it;
-        if(!expr) continue;
-        if(!isLValue(expr->type)) {
-            error(p, "Left hand side of assignment must be an lvalue.");
-        }
-        if(assignToken != TOK_EQUAL) {
-            error(p, "Unpack cannot use compound assignement.");
+        if(expr && !isLValue(expr->type)) {
+            error(p, "Left hand side of unpack assignment must be composed of lvalues.");
         }
     }
 }
