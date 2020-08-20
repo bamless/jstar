@@ -2,14 +2,14 @@
 
 #include <string.h>
 
-Identifier* jsrIdentifier(size_t length, const char* name) {
-    Identifier* id = malloc(sizeof(*id));
+JStarIdentifier* jsrNewIdentifier(size_t length, const char* name) {
+    JStarIdentifier* id = malloc(sizeof(*id));
     id->length = length;
     id->name = name;
     return id;
 }
 
-bool jsrIdentifierEq(Identifier* id1, Identifier* id2) {
+bool jsrIdentifierEq(JStarIdentifier* id1, JStarIdentifier* id2) {
     return id1->length == id2->length && (memcmp(id1->name, id2->name, id1->length) == 0);
 }
 
@@ -17,211 +17,211 @@ bool jsrIdentifierEq(Identifier* id1, Identifier* id2) {
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-static Expr* newExpr(int line, ExprType type) {
-    Expr* e = malloc(sizeof(*e));
+static JStarExpr* newExpr(int line, JStarExprType type) {
+    JStarExpr* e = malloc(sizeof(*e));
     e->line = line;
     e->type = type;
     return e;
 }
 
-Expr* jsrBinary(int line, TokenType op, Expr* l, Expr* r) {
-    Expr* e = newExpr(line, BINARY);
+JStarExpr* jsrBinaryExpr(int line, JStarTokType op, JStarExpr* l, JStarExpr* r) {
+    JStarExpr* e = newExpr(line, JSR_BINARY);
     e->as.binary.op = op;
     e->as.binary.left = l;
     e->as.binary.right = r;
     return e;
 }
 
-Expr* jsrAssign(int line, Expr* lval, Expr* rval) {
-    Expr* e = newExpr(line, ASSIGN);
+JStarExpr* jsrAssignExpr(int line, JStarExpr* lval, JStarExpr* rval) {
+    JStarExpr* e = newExpr(line, JSR_ASSIGN);
     e->as.assign.lval = lval;
     e->as.assign.rval = rval;
     return e;
 }
 
-Expr* jsrUnary(int line, TokenType op, Expr* operand) {
-    Expr* e = newExpr(line, UNARY);
+JStarExpr* jsrUnaryExpr(int line, JStarTokType op, JStarExpr* operand) {
+    JStarExpr* e = newExpr(line, JSR_UNARY);
     e->as.unary.op = op;
     e->as.unary.operand = operand;
     return e;
 }
 
-Expr* jsrNullLiteral(int line) {
-    Expr* e = newExpr(line, NULL_LIT);
+JStarExpr* jsrNullLiteral(int line) {
+    JStarExpr* e = newExpr(line, JSR_NULL);
     return e;
 }
 
-Expr* jsrNumLiteral(int line, double num) {
-    Expr* e = newExpr(line, NUM_LIT);
+JStarExpr* jsrNumLiteral(int line, double num) {
+    JStarExpr* e = newExpr(line, JSR_NUMBER);
     e->as.num = num;
     return e;
 }
 
-Expr* jsrBoolLiteral(int line, bool boolean) {
-    Expr* e = newExpr(line, BOOL_LIT);
+JStarExpr* jsrBoolLiteral(int line, bool boolean) {
+    JStarExpr* e = newExpr(line, JSR_BOOL);
     e->as.boolean = boolean;
     return e;
 }
 
-Expr* jsrStrLiteral(int line, const char* str, size_t len) {
-    Expr* e = newExpr(line, STR_LIT);
+JStarExpr* jsrStrLiteral(int line, const char* str, size_t len) {
+    JStarExpr* e = newExpr(line, JSR_STRING);
     e->as.string.str = str;
     e->as.string.length = len;
     return e;
 }
 
-Expr* jsrVarLiteral(int line, const char* var, size_t len) {
-    Expr* e = newExpr(line, VAR_LIT);
+JStarExpr* jsrVarLiteral(int line, const char* var, size_t len) {
+    JStarExpr* e = newExpr(line, JSR_VAR);
     e->as.var.id.name = var;
     e->as.var.id.length = len;
     return e;
 }
 
-Expr* jsrArrLiteral(int line, Expr* exprs) {
-    Expr* a = newExpr(line, ARR_LIT);
+JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs) {
+    JStarExpr* a = newExpr(line, JSR_ARRAY);
     a->as.array.exprs = exprs;
     return a;
 }
 
-Expr* jsrTupleLiteral(int line, Expr* exprs) {
-    Expr* a = newExpr(line, TUPLE_LIT);
+JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs) {
+    JStarExpr* a = newExpr(line, JSR_TUPLE);
     a->as.tuple.exprs = exprs;
     return a;
 }
 
-Expr* jsrTableLiteral(int line, Expr* keyVals) {
-    Expr* t = newExpr(line, TABLE_LIT);
+JStarExpr* jsrTableLiteral(int line, JStarExpr* keyVals) {
+    JStarExpr* t = newExpr(line, JSR_TABLE);
     t->as.table.keyVals = keyVals;
     return t;
 }
 
-Expr* jsrExprList(int line, Vector* exprs) {
-    Expr* e = newExpr(line, EXPR_LST);
+JStarExpr* jsrExprList(int line, Vector* exprs) {
+    JStarExpr* e = newExpr(line, JSR_EXPR_LST);
     e->as.list = vecMove(exprs);
     return e;
 }
 
-Expr* jsrCallExpr(int line, Expr* callee, Expr* args) {
-    Expr* e = newExpr(line, CALL_EXPR);
+JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args) {
+    JStarExpr* e = newExpr(line, JSR_CALL);
     e->as.call.callee = callee;
     e->as.call.args = args;
     return e;
 }
 
-Expr* jsrExpExpr(int line, Expr* base, Expr* exp) {
-    Expr* e = newExpr(line, EXP_EXPR);
-    e->as.exponent.base = base;
-    e->as.exponent.exp = exp;
+JStarExpr* jsrPowExpr(int line, JStarExpr* base, JStarExpr* exp) {
+    JStarExpr* e = newExpr(line, JSR_POWER);
+    e->as.pow.base = base;
+    e->as.pow.exp = exp;
     return e;
 }
 
-Expr* jsrAccessExpr(int line, Expr* left, const char* name, size_t length) {
-    Expr* e = newExpr(line, ACCESS_EXPR);
+JStarExpr* jsrAccessExpr(int line, JStarExpr* left, const char* name, size_t length) {
+    JStarExpr* e = newExpr(line, JSR_ACCESS);
     e->as.access.left = left;
     e->as.access.id.name = name;
     e->as.access.id.length = length;
     return e;
 }
 
-Expr* jsrArrayAccExpr(int line, Expr* left, Expr* index) {
-    Expr* e = newExpr(line, ARR_ACC);
+JStarExpr* jsrArrayAccExpr(int line, JStarExpr* left, JStarExpr* index) {
+    JStarExpr* e = newExpr(line, JSR_ARR_ACCESS);
     e->as.arrayAccess.left = left;
     e->as.arrayAccess.index = index;
     return e;
 }
 
-Expr* jsrTernary(int line, Expr* cond, Expr* thenExpr, Expr* elseExpr) {
-    Expr* e = newExpr(line, TERNARY);
+JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr, JStarExpr* elseExpr) {
+    JStarExpr* e = newExpr(line, JSR_TERNARY);
     e->as.ternary.cond = cond;
     e->as.ternary.thenExpr = thenExpr;
     e->as.ternary.elseExpr = elseExpr;
     return e;
 }
 
-Expr* jsrCompoundAssing(int line, TokenType op, Expr* lval, Expr* rval) {
-    Expr* e = newExpr(line, COMP_ASSIGN);
+JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval) {
+    JStarExpr* e = newExpr(line, JSR_COMPUND_ASS);
     e->as.compound.op = op;
     e->as.compound.lval = lval;
     e->as.compound.rval = rval;
     return e;
 }
 
-Expr* jsrFunLit(int line, Vector* args, Vector* defArgs, bool vararg, Stmt* body) {
-    Expr* e = newExpr(line, FUN_LIT);
-    Token name = {0};  // Empty name
+JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool vararg, JStarStmt* body) {
+    JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
+    JStarTok name = {0};  // Empty name
     e->as.funLit.func = jsrFuncDecl(line, &name, args, defArgs, vararg, body);
     return e;
 }
 
-Expr* jsrSuperLiteral(int line, Token* name, Expr* args) {
-    Expr* e = newExpr(line, SUPER_LIT);
+JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args) {
+    JStarExpr* e = newExpr(line, JSR_SUPER);
     e->as.sup.name.name = name->lexeme;
     e->as.sup.name.length = name->length;
     e->as.sup.args = args;
     return e;
 }
 
-void jsrExprFree(Expr* e) {
+void jsrExprFree(JStarExpr* e) {
     if(e == NULL) return;
 
     switch(e->type) {
-    case BINARY:
+    case JSR_BINARY:
         jsrExprFree(e->as.binary.left);
         jsrExprFree(e->as.binary.right);
         break;
-    case UNARY:
+    case JSR_UNARY:
         jsrExprFree(e->as.unary.operand);
         break;
-    case ASSIGN:
+    case JSR_ASSIGN:
         jsrExprFree(e->as.assign.lval);
         jsrExprFree(e->as.assign.rval);
         break;
-    case ARR_LIT:
+    case JSR_ARRAY:
         jsrExprFree(e->as.array.exprs);
         break;
-    case TUPLE_LIT:
+    case JSR_TUPLE:
         jsrExprFree(e->as.tuple.exprs);
         break;
-    case TABLE_LIT:
+    case JSR_TABLE:
         jsrExprFree(e->as.table.keyVals);
         break;
-    case EXPR_LST: {
+    case JSR_EXPR_LST: {
         // clang-format off
-        vecForeach(Expr** expr, e->as.list) { 
+        vecForeach(JStarExpr** expr, e->as.list) { 
             jsrExprFree(*expr); 
         }
         // clang-format on
         vecFree(&e->as.list);
         break;
     }
-    case CALL_EXPR:
+    case JSR_CALL:
         jsrExprFree(e->as.call.callee);
         jsrExprFree(e->as.call.args);
         break;
-    case ACCESS_EXPR:
+    case JSR_ACCESS:
         jsrExprFree(e->as.access.left);
         break;
-    case ARR_ACC:
+    case JSR_ARR_ACCESS:
         jsrExprFree(e->as.arrayAccess.left);
         jsrExprFree(e->as.arrayAccess.index);
         break;
-    case TERNARY:
+    case JSR_TERNARY:
         jsrExprFree(e->as.ternary.cond);
         jsrExprFree(e->as.ternary.thenExpr);
         jsrExprFree(e->as.ternary.elseExpr);
         break;
-    case COMP_ASSIGN:
+    case JSR_COMPUND_ASS:
         jsrExprFree(e->as.compound.lval);
         jsrExprFree(e->as.compound.rval);
         break;
-    case FUN_LIT:
+    case JSR_FUNC_LIT:
         jsrStmtFree(e->as.funLit.func);
         break;
-    case EXP_EXPR:
-        jsrExprFree(e->as.exponent.base);
-        jsrExprFree(e->as.exponent.exp);
+    case JSR_POWER:
+        jsrExprFree(e->as.pow.base);
+        jsrExprFree(e->as.pow.exp);
         break;
-    case SUPER_LIT:
+    case JSR_SUPER:
         jsrExprFree(e->as.sup.args);
         break;
     default:
@@ -235,15 +235,15 @@ void jsrExprFree(Expr* e) {
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-static Stmt* newStmt(int line, StmtType type) {
-    Stmt* s = malloc(sizeof(*s));
+static JStarStmt* newStmt(int line, StmtType type) {
+    JStarStmt* s = malloc(sizeof(*s));
     s->line = line;
     s->type = type;
     return s;
 }
 
-Stmt* jsrFuncDecl(int line, Token* name, Vector* args, Vector* defArgs, bool vararg, Stmt* body) {
-    Stmt* f = newStmt(line, FUNCDECL);
+JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg, JStarStmt* body) {
+    JStarStmt* f = newStmt(line, JSR_FUNCDECL);
     f->as.funcDecl.id.name = name->lexeme;
     f->as.funcDecl.id.length = name->length;
     f->as.funcDecl.formalArgs = vecMove(args);
@@ -253,8 +253,8 @@ Stmt* jsrFuncDecl(int line, Token* name, Vector* args, Vector* defArgs, bool var
     return f;
 }
 
-Stmt* jsrNativeDecl(int line, Token* name, Vector* args, Vector* defArgs, bool vararg) {
-    Stmt* n = newStmt(line, NATIVEDECL);
+JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg) {
+    JStarStmt* n = newStmt(line, JSR_NATIVEDECL);
     n->as.nativeDecl.id.name = name->lexeme;
     n->as.nativeDecl.id.length = name->length;
     n->as.nativeDecl.formalArgs = vecMove(args);
@@ -263,8 +263,8 @@ Stmt* jsrNativeDecl(int line, Token* name, Vector* args, Vector* defArgs, bool v
     return n;
 }
 
-Stmt* jsrClassDecl(int line, Token* clsName, Expr* sup, Vector* methods) {
-    Stmt* c = newStmt(line, CLASSDECL);
+JStarStmt* jsrClassDecl(int line, JStarTok* clsName, JStarExpr* sup, Vector* methods) {
+    JStarStmt* c = newStmt(line, JSR_CLASSDECL);
     c->as.classDecl.sup = sup;
     c->as.classDecl.id.name = clsName->lexeme;
     c->as.classDecl.id.length = clsName->length;
@@ -272,8 +272,8 @@ Stmt* jsrClassDecl(int line, Token* clsName, Expr* sup, Vector* methods) {
     return c;
 }
 
-Stmt* jsrWithStmt(int line, Expr* e, Token* varName, Stmt* block) {
-    Stmt* w = newStmt(line, WITH_STMT);
+JStarStmt* jsrWithStmt(int line, JStarExpr* e, JStarTok* varName, JStarStmt* block) {
+    JStarStmt* w = newStmt(line, JSR_WITH);
     w->as.withStmt.e = e;
     w->as.withStmt.var.name = varName->lexeme;
     w->as.withStmt.var.length = varName->length;
@@ -281,8 +281,8 @@ Stmt* jsrWithStmt(int line, Expr* e, Token* varName, Stmt* block) {
     return w;
 }
 
-Stmt* jsrForStmt(int line, Stmt* init, Expr* cond, Expr* act, Stmt* body) {
-    Stmt* s = newStmt(line, FOR);
+JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act, JStarStmt* body) {
+    JStarStmt* s = newStmt(line, JSR_FOR);
     s->as.forStmt.init = init;
     s->as.forStmt.cond = cond;
     s->as.forStmt.act = act;
@@ -290,51 +290,51 @@ Stmt* jsrForStmt(int line, Stmt* init, Expr* cond, Expr* act, Stmt* body) {
     return s;
 }
 
-Stmt* jsrForEach(int line, Stmt* var, Expr* iter, Stmt* body) {
-    Stmt* s = newStmt(line, FOREACH);
+JStarStmt* jsrForEachStmt(int line, JStarStmt* var, JStarExpr* iter, JStarStmt* body) {
+    JStarStmt* s = newStmt(line, JSR_FOREACH);
     s->as.forEach.var = var;
     s->as.forEach.iterable = iter;
     s->as.forEach.body = body;
     return s;
 }
 
-Stmt* jsrVarDecl(int line, bool isUnpack, Vector* ids, Expr* init) {
-    Stmt* s = newStmt(line, VARDECL);
+JStarStmt* jsrVarDecl(int line, bool isUnpack, Vector* ids, JStarExpr* init) {
+    JStarStmt* s = newStmt(line, JSR_VARDECL);
     s->as.varDecl.ids = vecMove(ids);
     s->as.varDecl.isUnpack = isUnpack;
     s->as.varDecl.init = init;
     return s;
 }
 
-Stmt* jsrWhileStmt(int line, Expr* cond, Stmt* body) {
-    Stmt* s = newStmt(line, WHILE);
+JStarStmt* jsrWhileStmt(int line, JStarExpr* cond, JStarStmt* body) {
+    JStarStmt* s = newStmt(line, JSR_WHILE);
     s->as.whileStmt.cond = cond;
     s->as.whileStmt.body = body;
     return s;
 }
 
-Stmt* jsrReturnStmt(int line, Expr* e) {
-    Stmt* s = newStmt(line, RETURN_STMT);
+JStarStmt* jsrReturnStmt(int line, JStarExpr* e) {
+    JStarStmt* s = newStmt(line, JSR_RETURN);
     s->as.returnStmt.e = e;
     return s;
 }
 
-Stmt* jsrIfStmt(int line, Expr* cond, Stmt* thenStmt, Stmt* elseStmt) {
-    Stmt* s = newStmt(line, IF);
+JStarStmt* jsrIfStmt(int line, JStarExpr* cond, JStarStmt* thenStmt, JStarStmt* elseStmt) {
+    JStarStmt* s = newStmt(line, JSR_IF);
     s->as.ifStmt.cond = cond;
     s->as.ifStmt.thenStmt = thenStmt;
     s->as.ifStmt.elseStmt = elseStmt;
     return s;
 }
 
-Stmt* jsrBlockStmt(int line, Vector* list) {
-    Stmt* s = newStmt(line, BLOCK);
+JStarStmt* jsrBlockStmt(int line, Vector* list) {
+    JStarStmt* s = newStmt(line, JSR_BLOCK);
     s->as.blockStmt.stmts = vecMove(list);
     return s;
 }
 
-Stmt* jsrImportStmt(int line, Vector* modules, Vector* impNames, Token* as) {
-    Stmt* s = newStmt(line, IMPORT);
+JStarStmt* jsrImportStmt(int line, Vector* modules, Vector* impNames, JStarTok* as) {
+    JStarStmt* s = newStmt(line, JSR_IMPORT);
     s->as.importStmt.modules = vecMove(modules);
     s->as.importStmt.impNames = vecMove(impNames);
     s->as.importStmt.as.name = as->lexeme;
@@ -342,22 +342,22 @@ Stmt* jsrImportStmt(int line, Vector* modules, Vector* impNames, Token* as) {
     return s;
 }
 
-Stmt* jsrExprStmt(int line, Expr* e) {
-    Stmt* s = newStmt(line, EXPR);
+JStarStmt* jsrExprStmt(int line, JStarExpr* e) {
+    JStarStmt* s = newStmt(line, JSR_EXPR_STMT);
     s->as.exprStmt = e;
     return s;
 }
 
-Stmt* jsrTryStmt(int line, Stmt* blck, Vector* excs, Stmt* ensure) {
-    Stmt* s = newStmt(line, TRY_STMT);
+JStarStmt* jsrTryStmt(int line, JStarStmt* blck, Vector* excs, JStarStmt* ensure) {
+    JStarStmt* s = newStmt(line, JSR_TRY);
     s->as.tryStmt.block = blck;
     s->as.tryStmt.excs = vecMove(excs);
     s->as.tryStmt.ensure = ensure;
     return s;
 }
 
-Stmt* jsrExceptStmt(int line, Expr* cls, Token* varName, Stmt* block) {
-    Stmt* s = newStmt(line, EXCEPT_STMT);
+JStarStmt* jsrExceptStmt(int line, JStarExpr* cls, JStarTok* varName, JStarStmt* block) {
+    JStarStmt* s = newStmt(line, JSR_EXCEPT);
     s->as.excStmt.block = block;
     s->as.excStmt.cls = cls;
     s->as.excStmt.var.length = varName->length;
@@ -365,69 +365,69 @@ Stmt* jsrExceptStmt(int line, Expr* cls, Token* varName, Stmt* block) {
     return s;
 }
 
-Stmt* jsrRaiseStmt(int line, Expr* e) {
-    Stmt* s = newStmt(line, RAISE_STMT);
+JStarStmt* jsrRaiseStmt(int line, JStarExpr* e) {
+    JStarStmt* s = newStmt(line, JSR_RAISE);
     s->as.raiseStmt.exc = e;
     return s;
 }
 
-Stmt* jsrContinueStmt(int line) {
-    Stmt* s = newStmt(line, CONTINUE_STMT);
+JStarStmt* jsrContinueStmt(int line) {
+    JStarStmt* s = newStmt(line, JSR_CONTINUE);
     s->as.exprStmt = NULL;
     return s;
 }
 
-Stmt* jsrBreakStmt(int line) {
-    Stmt* s = newStmt(line, BREAK_STMT);
+JStarStmt* jsrBreakStmt(int line) {
+    JStarStmt* s = newStmt(line, JSR_BREAK);
     s->as.exprStmt = NULL;
     return s;
 }
 
-void jsrStmtFree(Stmt* s) {
+void jsrStmtFree(JStarStmt* s) {
     if(s == NULL) return;
 
     switch(s->type) {
-    case IF:
+    case JSR_IF:
         jsrExprFree(s->as.ifStmt.cond);
         jsrStmtFree(s->as.ifStmt.thenStmt);
         jsrStmtFree(s->as.ifStmt.elseStmt);
         break;
-    case FOR:
+    case JSR_FOR:
         jsrStmtFree(s->as.forStmt.init);
         jsrExprFree(s->as.forStmt.cond);
         jsrExprFree(s->as.forStmt.act);
         jsrStmtFree(s->as.forStmt.body);
         break;
-    case FOREACH:
+    case JSR_FOREACH:
         jsrStmtFree(s->as.forEach.var);
         jsrExprFree(s->as.forEach.iterable);
         jsrStmtFree(s->as.forEach.body);
         break;
-    case WHILE:
+    case JSR_WHILE:
         jsrExprFree(s->as.whileStmt.cond);
         jsrStmtFree(s->as.whileStmt.body);
         break;
-    case RETURN_STMT:
+    case JSR_RETURN:
         jsrExprFree(s->as.returnStmt.e);
         break;
-    case EXPR:
+    case JSR_EXPR_STMT:
         jsrExprFree(s->as.exprStmt);
         break;
-    case BLOCK: {
+    case JSR_BLOCK: {
         // clang-format off
-        vecForeach(Stmt** stmt, s->as.blockStmt.stmts) {
+        vecForeach(JStarStmt** stmt, s->as.blockStmt.stmts) {
             jsrStmtFree(*stmt);
         }
         // clang-format on
         vecFree(&s->as.blockStmt.stmts);
         break;
     }
-    case FUNCDECL: {
+    case JSR_FUNCDECL: {
         // clang-format off
-        vecForeach(Identifier** id, s->as.funcDecl.formalArgs) {
+        vecForeach(JStarIdentifier** id, s->as.funcDecl.formalArgs) {
             free(*id);
         }
-        vecForeach(Expr** e, s->as.funcDecl.defArgs) {
+        vecForeach(JStarExpr** e, s->as.funcDecl.defArgs) {
             jsrExprFree(*e);
         }
         // clang-format on
@@ -436,12 +436,12 @@ void jsrStmtFree(Stmt* s) {
         jsrStmtFree(s->as.funcDecl.body);
         break;
     }
-    case NATIVEDECL: {
+    case JSR_NATIVEDECL: {
         // clang-format off
-        vecForeach(Identifier** id, s->as.nativeDecl.formalArgs) {
+        vecForeach(JStarIdentifier** id, s->as.nativeDecl.formalArgs) {
             free(*id);
         }
-        vecForeach(Expr** e, s->as.nativeDecl.defArgs) {
+        vecForeach(JStarExpr** e, s->as.nativeDecl.defArgs) {
             jsrExprFree(*e);
         }
         // clang-format on
@@ -449,53 +449,53 @@ void jsrStmtFree(Stmt* s) {
         vecFree(&s->as.nativeDecl.defArgs);
         break;
     }
-    case CLASSDECL: {
+    case JSR_CLASSDECL: {
         jsrExprFree(s->as.classDecl.sup);
         // clang-format off
-        vecForeach(Stmt** stmt, s->as.classDecl.methods) {
+        vecForeach(JStarStmt** stmt, s->as.classDecl.methods) {
             jsrStmtFree(*stmt);
         }
         // clang-format on
         vecFree(&s->as.classDecl.methods);
         break;
     }
-    case VARDECL: {
+    case JSR_VARDECL: {
         jsrExprFree(s->as.varDecl.init);
         // clang-format off
-        vecForeach(Identifier** id, s->as.varDecl.ids) {
+        vecForeach(JStarIdentifier** id, s->as.varDecl.ids) {
             free(*id);
         }
         // clang-format on
         vecFree(&s->as.varDecl.ids);
         break;
     }
-    case TRY_STMT:
+    case JSR_TRY:
         jsrStmtFree(s->as.tryStmt.block);
         jsrStmtFree(s->as.tryStmt.ensure);
         // clang-format off
-        vecForeach(Stmt** stmt, s->as.tryStmt.excs) {
+        vecForeach(JStarStmt** stmt, s->as.tryStmt.excs) {
             jsrStmtFree(*stmt);
         }
         // clang-format on
         vecFree(&s->as.tryStmt.excs);
         break;
-    case EXCEPT_STMT:
+    case JSR_EXCEPT:
         jsrExprFree(s->as.excStmt.cls);
         jsrStmtFree(s->as.excStmt.block);
         break;
-    case RAISE_STMT:
+    case JSR_RAISE:
         jsrExprFree(s->as.raiseStmt.exc);
         break;
-    case WITH_STMT:
+    case JSR_WITH:
         jsrExprFree(s->as.withStmt.e);
         jsrStmtFree(s->as.withStmt.block);
         break;
-    case IMPORT: {
+    case JSR_IMPORT: {
         // clang-format off
-        vecForeach(Identifier** id, s->as.importStmt.modules) {
+        vecForeach(JStarIdentifier** id, s->as.importStmt.modules) {
             free(*id);
         }
-        vecForeach(Identifier** id, s->as.importStmt.impNames) {
+        vecForeach(JStarIdentifier** id, s->as.importStmt.impNames) {
             free(*id);
         }
         // clang-format on
@@ -503,8 +503,8 @@ void jsrStmtFree(Stmt* s) {
         vecFree(&s->as.importStmt.impNames);
         break;
     }
-    case CONTINUE_STMT:
-    case BREAK_STMT:
+    case JSR_CONTINUE:
+    case JSR_BREAK:
         break;
     }
 

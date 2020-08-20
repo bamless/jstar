@@ -41,7 +41,7 @@ JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
 }
 
 JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module, const char* src) {
-    Stmt* program = jsrParse(path, src, vm->errorCallback);
+    JStarStmt* program = jsrParse(path, src, vm->errorCallback);
     if(program == NULL) return JSR_SYNTAX_ERR;
 
     ObjString* name = copyString(vm, module, strlen(module));

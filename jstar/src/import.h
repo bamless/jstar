@@ -8,7 +8,7 @@
 #include "parse/ast.h"
 #include "value.h"
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name, Stmt* program);
+ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name, JStarStmt* program);
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module);
 ObjModule* getModule(JStarVM* vm, ObjString* name);
 bool importModule(JStarVM* vm, ObjString* name);

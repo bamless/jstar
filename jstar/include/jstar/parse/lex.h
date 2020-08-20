@@ -3,32 +3,29 @@
 
 #include "../jstarconf.h"
 
-#define IS_COMPUND_ASSIGN(tok) (tok <= TOK_MOD_EQ && tok > TOK_EQUAL)
-#define IS_ASSIGN(tok)         (tok <= TOK_MOD_EQ && tok >= TOK_EQUAL)
+JSTAR_API extern const char* JStarTokName[];
 
-extern const char* TokenNames[];
-
-typedef enum TokenType {
+typedef enum JStarTokType {
 #define TOKEN(tok, _) tok,
 #include "token.def"
-} TokenType;
+} JStarTokType;
 
-typedef struct Token {
-    TokenType type;
+typedef struct JStarTok {
+    JStarTokType type;
     const char* lexeme;
     int length;
     int line;
-} Token;
+} JStarTok;
 
-typedef struct Lexer {
+typedef struct JStarLex {
     const char* source;
     const char* tokenStart;
     const char* current;
     int currLine;
-} Lexer;
+} JStarLex;
 
-JSTAR_API void jsrInitLexer(Lexer* lex, const char* src);
-JSTAR_API void jsrNextToken(Lexer* lex, Token* tok);
-JSTAR_API void jsrLexRewind(Lexer* lex, Token* tok);
+JSTAR_API void jsrInitLexer(JStarLex* lex, const char* src);
+JSTAR_API void jsrNextToken(JStarLex* lex, JStarTok* tok);
+JSTAR_API void jsrLexRewind(JStarLex* lex, JStarTok* tok);
 
 #endif

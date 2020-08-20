@@ -78,8 +78,8 @@ static void initImportPaths(const char* path, bool ignoreEnv) {
 }
 
 static int countBlocks(const char* line) {
-    Lexer lex;
-    Token tok;
+    JStarLex lex;
+    JStarTok tok;
 
     jsrInitLexer(&lex, line);
     jsrNextToken(&lex, &tok);
@@ -113,7 +113,7 @@ static int countBlocks(const char* line) {
 }
 
 static void addPrintIfExpr(JStarBuffer* sb) {
-    Expr* e = jsrParseExpression("<repl>", sb->data, NULL);
+    JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
         jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");

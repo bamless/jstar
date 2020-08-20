@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-const char* TokenNames[] = {
+const char* JStarTokName[] = {
 #define TOKEN(tok, name) name,
 #include "parse/token.def"
 };
@@ -12,7 +12,7 @@ const char* TokenNames[] = {
 typedef struct {
     const char* name;
     size_t length;
-    TokenType type;
+    JStarTokType type;
 } Keyword;
 
 // clang-format off
@@ -55,25 +55,25 @@ static Keyword keywords[] = {
 
 // clang-format on
 
-static char advance(Lexer* lex) {
+static char advance(JStarLex* lex) {
     lex->current++;
     return lex->current[-1];
 }
 
-static char peekChar(Lexer* lex) {
+static char peekChar(JStarLex* lex) {
     return *lex->current;
 }
 
-static bool isAtEnd(Lexer* lex) {
+static bool isAtEnd(JStarLex* lex) {
     return peekChar(lex) == '\0';
 }
 
-static char peekChar2(Lexer* lex) {
+static char peekChar2(JStarLex* lex) {
     if(isAtEnd(lex)) return '\0';
     return lex->current[1];
 }
 
-static bool match(Lexer* lex, char c) {
+static bool match(JStarLex* lex, char c) {
     if(isAtEnd(lex)) return false;
     if(peekChar(lex) == c) {
         advance(lex);
@@ -82,7 +82,7 @@ static bool match(Lexer* lex, char c) {
     return false;
 }
 
-void jsrInitLexer(Lexer* lex, const char* src) {
+void jsrInitLexer(JStarLex* lex, const char* src) {
     lex->source = src;
     lex->tokenStart = src;
     lex->current = src;
@@ -97,7 +97,7 @@ void jsrInitLexer(Lexer* lex, const char* src) {
     }
 }
 
-static void skipSpacesAndComments(Lexer* lex) {
+static void skipSpacesAndComments(JStarLex* lex) {
     while(!isAtEnd(lex)) {
         switch(peekChar(lex)) {
         case '\\':
@@ -143,25 +143,25 @@ static bool isAlphaNum(char c) {
     return isAlpha(c) || isNum(c);
 }
 
-static void makeToken(Lexer* lex, Token* tok, TokenType type) {
+static void makeToken(JStarLex* lex, JStarTok* tok, JStarTokType type) {
     tok->type = type;
     tok->lexeme = lex->tokenStart;
     tok->length = (int)(lex->current - lex->tokenStart);
     tok->line = lex->currLine;
 }
 
-static void eofToken(Lexer* lex, Token* tok) {
+static void eofToken(JStarLex* lex, JStarTok* tok) {
     tok->type = TOK_EOF;
     tok->lexeme = lex->current;
     tok->length = 0;
     tok->line = lex->currLine;
 }
 
-static void integer(Lexer* lex) {
+static void integer(JStarLex* lex) {
     while(isNum(peekChar(lex))) advance(lex);
 }
 
-static void number(Lexer* lex, Token* tok) {
+static void number(JStarLex* lex, JStarTok* tok) {
     integer(lex);
 
     if(peekChar(lex) == '.' && isNum(peekChar2(lex))) {
@@ -178,7 +178,7 @@ static void number(Lexer* lex, Token* tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static void hexNumber(Lexer* lex, Token* tok) {
+static void hexNumber(JStarLex* lex, JStarTok* tok) {
     while(isHex(peekChar(lex))) advance(lex);
 
     if(match(lex, 'e')) {
@@ -190,7 +190,7 @@ static void hexNumber(Lexer* lex, Token* tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static bool stringBody(Lexer* lex, char end) {
+static bool stringBody(JStarLex* lex, char end) {
     while(peekChar(lex) != end && !isAtEnd(lex)) {
         if(peekChar(lex) == '\n') lex->currLine++;
         if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
@@ -206,7 +206,7 @@ static bool stringBody(Lexer* lex, char end) {
     return true;
 }
 
-static void string(Lexer* lex, char end, Token* tok) {
+static void string(JStarLex* lex, char end, JStarTok* tok) {
     if(!stringBody(lex, end)) {
         makeToken(lex, tok, TOK_UNTERMINATED_STR);
         return;
@@ -214,10 +214,10 @@ static void string(Lexer* lex, char end, Token* tok) {
     makeToken(lex, tok, TOK_STRING);
 }
 
-static void identifier(Lexer* lex, Token* tok) {
+static void identifier(JStarLex* lex, JStarTok* tok) {
     while(isAlphaNum(peekChar(lex))) advance(lex);
 
-    TokenType type = TOK_IDENTIFIER;
+    JStarTokType type = TOK_IDENTIFIER;
 
     // See if the identifier is a reserved word.
     size_t length = lex->current - lex->tokenStart;
@@ -231,7 +231,7 @@ static void identifier(Lexer* lex, Token* tok) {
     makeToken(lex, tok, type);
 }
 
-void jsrNextToken(Lexer* lex, Token* tok) {
+void jsrNextToken(JStarLex* lex, JStarTok* tok) {
     skipSpacesAndComments(lex);
 
     if(isAtEnd(lex)) {
@@ -374,7 +374,7 @@ void jsrNextToken(Lexer* lex, Token* tok) {
     }
 }
 
-void jsrLexRewind(Lexer* lex, Token* tok) {
+void jsrLexRewind(JStarLex* lex, JStarTok* tok) {
     if(tok->lexeme == NULL) return;
     lex->tokenStart = lex->current = tok->lexeme;
     lex->currLine = tok->line;
