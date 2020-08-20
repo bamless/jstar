@@ -81,8 +81,8 @@ static int countBlocks(const char* line) {
     Lexer lex;
     Token tok;
 
-    initLexer(&lex, line);
-    nextToken(&lex, &tok);
+    jsrInitLexer(&lex, line);
+    jsrNextToken(&lex, &tok);
 
     int depth = 0;
     while(tok.type != TOK_EOF && tok.type != TOK_NEWLINE) {
@@ -107,17 +107,17 @@ static int countBlocks(const char* line) {
         default:
             break;
         }
-        nextToken(&lex, &tok);
+        jsrNextToken(&lex, &tok);
     }
     return depth;
 }
 
 static void addPrintIfExpr(JStarBuffer* sb) {
-    Expr* e = parseExpression("<repl>", sb->data, NULL);
+    Expr* e = jsrParseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
         jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");
-        freeExpr(e);
+        jsrExprFree(e);
     }
 }
 

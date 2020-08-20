@@ -27,8 +27,8 @@ typedef struct Lexer {
     int currLine;
 } Lexer;
 
-JSTAR_API void initLexer(Lexer* lex, const char* src);
-JSTAR_API void nextToken(Lexer* lex, Token* tok);
-JSTAR_API void rewindTo(Lexer* lex, Token* tok);
+JSTAR_API void jsrInitLexer(Lexer* lex, const char* src);
+JSTAR_API void jsrNextToken(Lexer* lex, Token* tok);
+JSTAR_API void jsrLexRewind(Lexer* lex, Token* tok);
 
 #endif

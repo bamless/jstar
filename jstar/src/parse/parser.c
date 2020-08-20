@@ -27,8 +27,8 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
     p->hadError = false;
     p->path = path;
     p->errorCallback = errorCallback;
-    initLexer(&p->lex, src);
-    nextToken(&p->lex, &p->peek);
+    jsrInitLexer(&p->lex, src);
+    jsrNextToken(&p->lex, &p->peek);
     p->lineStart = p->peek.lexeme;
 }
 
@@ -128,7 +128,7 @@ static bool matchAny(Parser* p, TokenType* tokens, int count) {
 
 static Token advance(Parser* p) {
     Token prev = p->peek;
-    nextToken(&p->lex, &p->peek);
+    jsrNextToken(&p->lex, &p->peek);
 
     if(prev.type == TOK_NEWLINE) {
         p->lineStart = p->peek.lexeme;
@@ -137,7 +137,7 @@ static Token advance(Parser* p) {
     while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
         error(p, p->peek.type == TOK_ERR ? "Invalid token." : "Unterminated string.");
         prev = p->peek;
-        nextToken(&p->lex, &p->peek);
+        jsrNextToken(&p->lex, &p->peek);
     }
 
     return prev;
@@ -163,7 +163,7 @@ static Token peekSecondToken(Parser* p) {
     Token prevTok = advance(p);
     skipNewLines(p);
     Token secondTok = p->peek;
-    rewindTo(&p->lex, &prevTok);
+    jsrLexRewind(&p->lex, &prevTok);
     advance(p);
     return secondTok;
 }
@@ -296,12 +296,12 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
         skipNewLines(p);
 
         if(match(p, TOK_EQUAL)) {
-            rewindTo(&p->lex, &argument);
-            nextToken(&p->lex, &p->peek);
+            jsrLexRewind(&p->lex, &argument);
+            jsrNextToken(&p->lex, &p->peek);
             break;
         }
 
-        vecPush(&args.arguments, newIdentifier(argument.length, argument.lexeme));
+        vecPush(&args.arguments, jsrIdentifier(argument.length, argument.lexeme));
         skipNewLines(p);
 
         if(!match(p, close)) {
@@ -324,7 +324,7 @@ static FormalArgs formalArgs(Parser* p, TokenType open, TokenType close) {
             error(p, "Default argument must be a constant");
         }
 
-        vecPush(&args.arguments, newIdentifier(argument.length, argument.lexeme));
+        vecPush(&args.arguments, jsrIdentifier(argument.length, argument.lexeme));
         vecPush(&args.defaults, constant);
 
         if(!match(p, close)) {
@@ -355,7 +355,7 @@ static Stmt* blockStmt(Parser* p) {
         skipNewLines(p);
     }
 
-    return newBlockStmt(line, &stmts);
+    return jsrBlockStmt(line, &stmts);
 }
 
 static Stmt* ifBody(Parser* p, int line) {
@@ -377,7 +377,7 @@ static Stmt* ifBody(Parser* p, int line) {
         elseBody = blockStmt(p);
     }
 
-    return newIfStmt(line, cond, thenBody, elseBody);
+    return jsrIfStmt(line, cond, thenBody, elseBody);
 }
 
 static Stmt* ifStmt(Parser* p) {
@@ -403,7 +403,7 @@ static Stmt* whileStmt(Parser* p) {
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newWhileStmt(line, cond, body);
+    return jsrWhileStmt(line, cond, body);
 }
 
 static Stmt* varDecl(Parser* p) {
@@ -416,7 +416,7 @@ static Stmt* varDecl(Parser* p) {
 
     do {
         Token id = require(p, TOK_IDENTIFIER);
-        vecPush(&identifiers, newIdentifier(id.length, id.lexeme));
+        vecPush(&identifiers, jsrIdentifier(id.length, id.lexeme));
 
         if(match(p, TOK_COMMA)) {
             advance(p);
@@ -433,7 +433,7 @@ static Stmt* varDecl(Parser* p) {
         init = expression(p, true);
     }
 
-    return newVarDecl(line, isUnpack, &identifiers, init);
+    return jsrVarDecl(line, isUnpack, &identifiers, init);
 }
 
 static Stmt* forEach(Parser* p, Stmt* var, int line) {
@@ -451,7 +451,7 @@ static Stmt* forEach(Parser* p, Stmt* var, int line) {
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newForEach(line, var, e, body);
+    return jsrForEach(line, var, e, body);
 }
 
 static Stmt* forStmt(Parser* p) {
@@ -469,7 +469,7 @@ static Stmt* forStmt(Parser* p) {
             }
         } else {
             Expr* e = expression(p, true);
-            if(e != NULL) init = newExprStmt(e->line, e);
+            if(e != NULL) init = jsrExprStmt(e->line, e);
         }
     }
 
@@ -493,7 +493,7 @@ static Stmt* forStmt(Parser* p) {
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newForStmt(line, init, cond, act, body);
+    return jsrForStmt(line, init, cond, act, body);
 }
 
 static Stmt* returnStmt(Parser* p) {
@@ -506,7 +506,7 @@ static Stmt* returnStmt(Parser* p) {
     }
 
     requireStmtEnd(p);
-    return newReturnStmt(line, e);
+    return jsrReturnStmt(line, e);
 }
 
 static Stmt* importStmt(Parser* p) {
@@ -518,7 +518,7 @@ static Stmt* importStmt(Parser* p) {
 
     for(;;) {
         Token name = require(p, TOK_IDENTIFIER);
-        vecPush(&modules, newIdentifier(name.length, name.lexeme));
+        vecPush(&modules, jsrIdentifier(name.length, name.lexeme));
         if(!match(p, TOK_DOT)) break;
         advance(p);
         skipNewLines(p);
@@ -533,11 +533,11 @@ static Stmt* importStmt(Parser* p) {
 
         if(match(p, TOK_MULT)) {
             Token all = advance(p);
-            vecPush(&importNames, newIdentifier(all.length, all.lexeme));
+            vecPush(&importNames, jsrIdentifier(all.length, all.lexeme));
         } else {
             for(;;) {
                 Token name = require(p, TOK_IDENTIFIER);
-                vecPush(&importNames, newIdentifier(name.length, name.lexeme));
+                vecPush(&importNames, jsrIdentifier(name.length, name.lexeme));
                 if(!match(p, TOK_COMMA)) break;
                 advance(p);
                 skipNewLines(p);
@@ -550,7 +550,7 @@ static Stmt* importStmt(Parser* p) {
     }
 
     requireStmtEnd(p);
-    return newImportStmt(line, &modules, &importNames, &asName);
+    return jsrImportStmt(line, &modules, &importNames, &asName);
 }
 
 static Stmt* tryStmt(Parser* p) {
@@ -572,7 +572,7 @@ static Stmt* tryStmt(Parser* p) {
         Token var = require(p, TOK_IDENTIFIER);
 
         Stmt* block = blockStmt(p);
-        vecPush(&excs, newExceptStmt(excLine, cls, &var, block));
+        vecPush(&excs, jsrExceptStmt(excLine, cls, &var, block));
     }
 
     if(match(p, TOK_ENSURE)) {
@@ -585,7 +585,7 @@ static Stmt* tryStmt(Parser* p) {
     }
 
     require(p, TOK_END);
-    return newTryStmt(line, tryBlock, &excs, ensure);
+    return jsrTryStmt(line, tryBlock, &excs, ensure);
 }
 
 static Stmt* raiseStmt(Parser* p) {
@@ -596,7 +596,7 @@ static Stmt* raiseStmt(Parser* p) {
     Expr* exc = expression(p, true);
     requireStmtEnd(p);
 
-    return newRaiseStmt(line, exc);
+    return jsrRaiseStmt(line, exc);
 }
 
 static Stmt* withStmt(Parser* p) {
@@ -611,7 +611,7 @@ static Stmt* withStmt(Parser* p) {
     Stmt* block = blockStmt(p);
     require(p, TOK_END);
 
-    return newWithStmt(line, e, &var, block);
+    return jsrWithStmt(line, e, &var, block);
 }
 
 static Stmt* funcDecl(Parser* p) {
@@ -626,7 +626,7 @@ static Stmt* funcDecl(Parser* p) {
     Stmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return newFuncDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg, body);
+    return jsrFuncDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg, body);
 }
 
 static Stmt* nativeDecl(Parser* p) {
@@ -640,7 +640,7 @@ static Stmt* nativeDecl(Parser* p) {
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return newNativeDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg);
+    return jsrNativeDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg);
 }
 
 static Stmt* classDecl(Parser* p) {
@@ -683,7 +683,7 @@ static Stmt* classDecl(Parser* p) {
     }
 
     require(p, TOK_END);
-    return newClassDecl(line, &clsName, sup, &methods);
+    return jsrClassDecl(line, &clsName, sup, &methods);
 }
 
 static Stmt* parseStmt(Parser* p) {
@@ -713,11 +713,11 @@ static Stmt* parseStmt(Parser* p) {
     case TOK_CONTINUE:
         advance(p);
         requireStmtEnd(p);
-        return newContinueStmt(line);
+        return jsrContinueStmt(line);
     case TOK_BREAK:
         advance(p);
         requireStmtEnd(p);
-        return newBreakStmt(line);
+        return jsrBreakStmt(line);
     case TOK_BEGIN: {
         require(p, TOK_BEGIN);
         Stmt* block = blockStmt(p);
@@ -742,7 +742,7 @@ static Stmt* parseStmt(Parser* p) {
 
     Expr* e = expression(p, true);
     requireStmtEnd(p);
-    return newExprStmt(line, e);
+    return jsrExprStmt(line, e);
 }
 
 static Stmt* parseProgram(Parser* p) {
@@ -755,7 +755,7 @@ static Stmt* parseProgram(Parser* p) {
         if(p->panic) synchronize(p);
     }
 
-    return newFuncDecl(0, &(Token){0}, &(Vector){0}, &(Vector){0}, false, newBlockStmt(0, &stmts));
+    return jsrFuncDecl(0, &(Token){0}, &(Vector){0}, &(Vector){0}, false, jsrBlockStmt(0, &stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -777,7 +777,7 @@ static Expr* expressionLst(Parser* p, TokenType open, TokenType close) {
     }
 
     require(p, close);
-    return newExprList(line, &exprs);
+    return jsrExprList(line, &exprs);
 }
 
 static Expr* parseTableLiteral(Parser* p) {
@@ -792,7 +792,7 @@ static Expr* parseTableLiteral(Parser* p) {
             advance(p);
             skipNewLines(p);
             Token id = require(p, TOK_IDENTIFIER);
-            key = newStrLiteral(id.line, id.lexeme, id.length);
+            key = jsrStrLiteral(id.line, id.lexeme, id.length);
         } else {
             key = expression(p, false);
         }
@@ -816,7 +816,7 @@ static Expr* parseTableLiteral(Parser* p) {
     }
 
     require(p, TOK_RCURLY);
-    return newTableLiteral(line, newExprList(line, &keyVals));
+    return jsrTableLiteral(line, jsrExprList(line, &keyVals));
 }
 
 static Expr* parseSuperLiteral(Parser* p) {
@@ -837,10 +837,10 @@ static Expr* parseSuperLiteral(Parser* p) {
     } else if(match(p, TOK_LCURLY)) {
         Vector tableCallArgs = vecNew();
         vecPush(&tableCallArgs, parseTableLiteral(p));
-        args = newExprList(line, &tableCallArgs);
+        args = jsrExprList(line, &tableCallArgs);
     }
 
-    return newSuperLiteral(line, &name, args);
+    return jsrSuperLiteral(line, &name, args);
 }
 
 static Expr* literal(Parser* p) {
@@ -849,23 +849,23 @@ static Expr* literal(Parser* p) {
 
     switch(tok->type) {
     case TOK_NUMBER: {
-        Expr* e = newNumLiteral(line, strtod(tok->lexeme, NULL));
+        Expr* e = jsrNumLiteral(line, strtod(tok->lexeme, NULL));
         advance(p);
         return e;
     }
     case TOK_IDENTIFIER: {
-        Expr* e = newVarLiteral(line, tok->lexeme, tok->length);
+        Expr* e = jsrVarLiteral(line, tok->lexeme, tok->length);
         advance(p);
         return e;
     }
     case TOK_STRING: {
-        Expr* e = newStrLiteral(line, tok->lexeme + 1, tok->length - 2);
+        Expr* e = jsrStrLiteral(line, tok->lexeme + 1, tok->length - 2);
         advance(p);
         return e;
     }
     case TOK_LSQUARE: {
         Expr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-        return newArrLiteral(line, exprs);
+        return jsrArrLiteral(line, exprs);
     }
     case TOK_LPAREN: {
         advance(p);
@@ -873,7 +873,7 @@ static Expr* literal(Parser* p) {
 
         if(match(p, TOK_RPAREN)) {
             advance(p);
-            return newTupleLiteral(line, newExprList(line, &(Vector){0}));
+            return jsrTupleLiteral(line, jsrExprList(line, &(Vector){0}));
         }
 
         Expr* e = expression(p, true);
@@ -883,11 +883,11 @@ static Expr* literal(Parser* p) {
         return e;
     }
     case TOK_TRUE:
-        return advance(p), newBoolLiteral(line, true);
+        return advance(p), jsrBoolLiteral(line, true);
     case TOK_FALSE:
-        return advance(p), newBoolLiteral(line, false);
+        return advance(p), jsrBoolLiteral(line, false);
     case TOK_NULL:
-        return advance(p), newNullLiteral(line);
+        return advance(p), jsrNullLiteral(line);
     case TOK_SUPER:
         return parseSuperLiteral(p);
     case TOK_LCURLY:
@@ -920,25 +920,25 @@ static Expr* postfixExpr(Parser* p) {
             advance(p);
             skipNewLines(p);
             Token attr = require(p, TOK_IDENTIFIER);
-            lit = newAccessExpr(line, lit, attr.lexeme, attr.length);
+            lit = jsrAccessExpr(line, lit, attr.lexeme, attr.length);
             break;
         }
         case TOK_LCURLY: {
             Vector tableCallArgs = vecNew();
             vecPush(&tableCallArgs, parseTableLiteral(p));
-            Expr* args = newExprList(line, &tableCallArgs);
-            lit = newCallExpr(line, lit, args);
+            Expr* args = jsrExprList(line, &tableCallArgs);
+            lit = jsrCallExpr(line, lit, args);
             break;
         }
         case TOK_LPAREN: {
             Expr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-            lit = newCallExpr(line, lit, args);
+            lit = jsrCallExpr(line, lit, args);
             break;
         }
         case TOK_LSQUARE: {
             require(p, TOK_LSQUARE);
             skipNewLines(p);
-            lit = newArrayAccExpr(line, lit, expression(p, true));
+            lit = jsrArrayAccExpr(line, lit, expression(p, true));
             skipNewLines(p);
             require(p, TOK_RSQUARE);
             break;
@@ -960,7 +960,7 @@ static Expr* powExpr(Parser* p) {
         Token powOp = advance(p);
         skipNewLines(p);
         Expr* exp = unaryExpr(p);
-        base = newExpExpr(powOp.line, base, exp);
+        base = jsrExpExpr(powOp.line, base, exp);
     }
 
     return base;
@@ -972,7 +972,7 @@ static Expr* unaryExpr(Parser* p) {
     if(matchAny(p, tokens, sizeof(tokens) / sizeof(TokenType))) {
         Token op = advance(p);
         skipNewLines(p);
-        return newUnary(op.line, op.type, unaryExpr(p));
+        return jsrUnary(op.line, op.type, unaryExpr(p));
     }
 
     return powExpr(p);
@@ -985,7 +985,7 @@ static Expr* parseBinary(Parser* p, TokenType* tokens, int count, Expr* (*operan
         Token op = advance(p);
         skipNewLines(p);
         Expr* r = (*operand)(p);
-        l = newBinary(op.line, op.type, l, r);
+        l = jsrBinary(op.line, op.type, l, r);
     }
 
     return l;
@@ -1035,7 +1035,7 @@ static Expr* ternaryExpr(Parser* p) {
         skipNewLines(p);
 
         Expr* elseExpr = ternaryExpr(p);
-        return newTernary(line, cond, expr, elseExpr);
+        return jsrTernary(line, cond, expr, elseExpr);
     }
 
     return expr;
@@ -1051,7 +1051,7 @@ static Expr* funLiteral(Parser* p) {
         Stmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        return newFunLit(line, &args.arguments, &args.defaults, args.isVararg, body);
+        return jsrFunLit(line, &args.arguments, &args.defaults, args.isVararg, body);
     }
     if(match(p, TOK_PIPE)) {
         int line = p->peek.line;
@@ -1063,10 +1063,10 @@ static Expr* funLiteral(Parser* p) {
 
         Expr* e = expression(p, false);
         Vector anonFuncStmts = vecNew();
-        vecPush(&anonFuncStmts, newReturnStmt(line, e));
-        Stmt* body = newBlockStmt(line, &anonFuncStmts);
+        vecPush(&anonFuncStmts, jsrReturnStmt(line, e));
+        Stmt* body = jsrBlockStmt(line, &anonFuncStmts);
 
-        return newFunLit(line, &args.arguments, &args.defaults, args.isVararg, body);
+        return jsrFunLit(line, &args.arguments, &args.defaults, args.isVararg, body);
     }
     return ternaryExpr(p);
 }
@@ -1085,7 +1085,7 @@ static Expr* tupleLiteral(Parser* p) {
             vecPush(&exprs, funLiteral(p));
         }
 
-        e = newTupleLiteral(line, newExprList(line, &exprs));
+        e = jsrTupleLiteral(line, jsrExprList(line, &exprs));
     }
 
     return e;
@@ -1107,9 +1107,9 @@ static Expr* expression(Parser* p, bool parseTuple) {
         Expr* r = expression(p, true);
 
         if(IS_COMPUND_ASSIGN(assign.type)) {
-            l = newCompoundAssing(assign.line, compundToAssign(assign.type), l, r);
+            l = jsrCompoundAssing(assign.line, compundToAssign(assign.type), l, r);
         } else {
-            l = newAssign(assign.line, l, r);
+            l = jsrAssign(assign.line, l, r);
         }
     }
 
@@ -1120,7 +1120,7 @@ static Expr* expression(Parser* p, bool parseTuple) {
 // API
 // -----------------------------------------------------------------------------
 
-Stmt* parse(const char* path, const char* src, ParseErrorCB errorCallback) {
+Stmt* jsrParse(const char* path, const char* src, ParseErrorCB errorCallback) {
     Parser p;
     initParser(&p, path, src, errorCallback);
 
@@ -1130,14 +1130,14 @@ Stmt* parse(const char* path, const char* src, ParseErrorCB errorCallback) {
     if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
 
     if(p.hadError) {
-        freeStmt(program);
+        jsrStmtFree(program);
         return NULL;
     }
 
     return program;
 }
 
-Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
+Expr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
     Parser p;
     initParser(&p, path, src, errorCallback);
 
@@ -1147,7 +1147,7 @@ Expr* parseExpression(const char* path, const char* src, ParseErrorCB errorCallb
     if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
 
     if(p.hadError) {
-        freeExpr(expr);
+        jsrExprFree(expr);
         return NULL;
     }
 

@@ -45,14 +45,19 @@ set_target_properties(libjstar_static PROPERTIES
 )
 
 #shared library
-add_library(libjstar  SHARED ${SOURCES} ${JSTAR_HEADERS})
+add_library(libjstar SHARED ${SOURCES} ${JSTAR_HEADERS})
 target_link_libraries(libjstar ${EXTRA_LIBS})
+
+set_target_properties(libjstar PROPERTIES C_VISIBILITY_PRESET hidden)
+include(GenerateExportHeader)
+generate_export_header(libjstar)
 set_target_properties(jstar PROPERTIES PDB_NAME "libjstar")
 set_target_properties(libjstar PROPERTIES 
     OUTPUT_NAME "jstar"
     VERSION     ${LIBJSTAR_VERSION_STRING}
     SOVERSION   ${LIBJSTAR_VERSION_MAJOR} 
 )
+
 
 # Enable link-time optimization if supported
 if(LTO)

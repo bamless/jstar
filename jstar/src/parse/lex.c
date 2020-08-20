@@ -82,7 +82,7 @@ static bool match(Lexer* lex, char c) {
     return false;
 }
 
-void initLexer(Lexer* lex, const char* src) {
+void jsrInitLexer(Lexer* lex, const char* src) {
     lex->source = src;
     lex->tokenStart = src;
     lex->current = src;
@@ -231,7 +231,7 @@ static void identifier(Lexer* lex, Token* tok) {
     makeToken(lex, tok, type);
 }
 
-void nextToken(Lexer* lex, Token* tok) {
+void jsrNextToken(Lexer* lex, Token* tok) {
     skipSpacesAndComments(lex);
 
     if(isAtEnd(lex)) {
@@ -374,7 +374,7 @@ void nextToken(Lexer* lex, Token* tok) {
     }
 }
 
-void rewindTo(Lexer* lex, Token* tok) {
+void jsrLexRewind(Lexer* lex, Token* tok) {
     if(tok->lexeme == NULL) return;
     lex->tokenStart = lex->current = tok->lexeme;
     lex->currLine = tok->line;

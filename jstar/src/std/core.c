@@ -258,13 +258,13 @@ JSR_NATIVE(jsr_eval) {
         mod = ((ObjNative*)prevFn)->c.module;
     }
 
-    Stmt* program = parse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
+    Stmt* program = jsrParse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
     ObjFunction* fn = compileWithModule(vm, "<eval>", mod->name, program);
-    freeStmt(program);
+    jsrStmtFree(program);
 
     if(fn == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");

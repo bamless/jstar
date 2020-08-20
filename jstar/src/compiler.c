@@ -204,7 +204,7 @@ static void addLocal(Compiler* c, Identifier* id, int line) {
 
 static int resolveVariable(Compiler* c, Identifier* id, bool inFunc, int line) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
-        if(identifierEquals(&c->locals[i].id, id)) {
+        if(jsrIdentifierEq(&c->locals[i].id, id)) {
             if(inFunc && c->locals[i].depth == -1) {
                 error(c, line, "Cannot read local variable in its own initializer.");
                 return 0;
@@ -258,7 +258,7 @@ static void declareVar(Compiler* c, Identifier* id, int line) {
 
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
-        if(identifierEquals(&c->locals[i].id, id)) {
+        if(jsrIdentifierEq(&c->locals[i].id, id)) {
             error(c, line, "Variable `%.*s` already declared.", id->length, id->name);
         }
     }
@@ -1422,7 +1422,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, Identifier* classId, 
 
     // if in costructor change the type
     Identifier ctor = syntheticIdentifier(CTOR_STR);
-    if(identifierEquals(&s->as.funcDecl.id, &ctor)) {
+    if(jsrIdentifierEq(&s->as.funcDecl.id, &ctor)) {
         c->type = TYPE_CTOR;
     }
 
