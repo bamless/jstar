@@ -33,7 +33,7 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
 }
 
 // -----------------------------------------------------------------------------
-// UTILITY FUNCTIONS
+// ERROR REPORTING FUNCTIONS
 // -----------------------------------------------------------------------------
 
 static char* strchrnul(const char* str, char c) {
@@ -110,6 +110,10 @@ static void error(Parser* p, const char* msg, ...) {
         p->errorCallback(p->path, p->peek.line, error);
     }
 }
+
+// -----------------------------------------------------------------------------
+// UTILITY FUNCTIONS
+// -----------------------------------------------------------------------------
 
 static bool match(Parser* p, TokenType type) {
     return p->peek.type == type;
