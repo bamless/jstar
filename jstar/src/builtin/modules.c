@@ -156,6 +156,7 @@ Module builtInModules[] = {
         ENDCLASS
         CLASS(Exception)
             METHOD(printStacktrace, jsr_Exception_printStacktrace)
+            METHOD(getStacktrace,   jsr_Exception_getStacktrace)
         ENDCLASS
     ENDMODULE
     MODULE(sys)

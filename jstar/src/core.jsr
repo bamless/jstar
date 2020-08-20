@@ -423,6 +423,7 @@ class Exception
     end
 
     native printStacktrace()
+    native getStacktrace()
 end
 
 class TypeException is Exception end

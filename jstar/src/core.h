@@ -103,6 +103,7 @@ JSR_NATIVE(jsr_Enum_name);
 
 // class Exception
 JSR_NATIVE(jsr_Exception_printStacktrace);
+JSR_NATIVE(jsr_Exception_getStacktrace);
 // end
 
 #endif

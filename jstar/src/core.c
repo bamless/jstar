@@ -1490,9 +1490,8 @@ JSR_NATIVE(jsr_Enum_name) {
 
 // class Exception
 JSR_NATIVE(jsr_Exception_printStacktrace) {
-    ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
-
     Value stval = NULL_VAL;
+    ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
     hashTableGet(&exc->fields, vm->stacktrace, &stval);
 
     if(!IS_STACK_TRACE(stval)) {
@@ -1515,17 +1514,55 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
         }
     }
 
-    // print the exception instance information
-    Value v;
-    bool found = hashTableGet(&exc->fields, vm->excError, &v);
+    Value err;
+    bool found = hashTableGet(&exc->fields, vm->excError, &err);
 
-    if(found && IS_STRING(v) && AS_STRING(v)->length > 0) {
-        fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);
-    } else {
+    if(found && IS_STRING(err) && AS_STRING(err)->length > 0)
+        fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(err)->data);
+    else
         fprintf(stderr, "%s\n", exc->base.cls->name->data);
-    }
 
     jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_Exception_getStacktrace) {
+    Value stval = NULL_VAL;
+    ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
+    hashTableGet(&exc->fields, vm->stacktrace, &stval);
+
+    if(!IS_STACK_TRACE(stval)) {
+        jsrPushString(vm, "");
+        return true;
+    }
+
+    JStarBuffer string;
+    jsrBufferInitSz(vm, &string, 64);
+    ObjStackTrace* st = AS_STACK_TRACE(stval);
+
+    if(st->recordCount > 0) {
+        jsrBufferAppendf(&string, "Traceback (most recent call last):\n");
+        for(int i = st->recordCount - 1; i >= 0; i--) {
+            FrameRecord* record = &st->records[i];
+            jsrBufferAppendstr(&string, "    ");
+            if(record->line >= 0)
+                jsrBufferAppendf(&string, "[line %d]", record->line);
+            else
+                jsrBufferAppend(&string, "[line ?]", record->line);
+            jsrBufferAppendf(&string, " module %s in %s\n", record->moduleName->data,
+                             record->funcName->data);
+        }
+    }
+
+    Value err;
+    bool found = hashTableGet(&exc->fields, vm->excError, &err);
+
+    if(found && IS_STRING(err) && AS_STRING(err)->length > 0)
+        jsrBufferAppendf(&string, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);
+    else
+        jsrBufferAppendf(&string, "%s", exc->base.cls->name->data);
+
+    jsrBufferPush(&string);
     return true;
 }
 // end

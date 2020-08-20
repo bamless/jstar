@@ -362,6 +362,7 @@ const char *core_jsr =
 "        return this._err\n"
 "    end\n"
 "    native printStacktrace()\n"
+"    native getStacktrace()\n"
 "end\n"
 "class TypeException is Exception end\n"
 "class NameException is Exception end\n"

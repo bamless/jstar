@@ -46,10 +46,12 @@ typedef enum JStarResult {
     JSR_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
 } JStarResult;
 
-// J* error function callback
+// J* error function callback. Called when syntax or compilation errors are encountered.
+// 'file' is the path of the file that caused the error, 'line' the line where the error occurred,
+// and 'error' is a descriptive message of the error.
 typedef void (*JStarErrorCB)(const char* file, int line, const char* error);
 
-// Default implementation of error callback that prints the error to stderr
+// Default implementation of error callback that prints all errors to stderr
 JSTAR_API void jsrPrintErrorCB(const char* file, int line, const char* error);
 
 typedef struct JstarConf {
@@ -69,31 +71,38 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 
 // Evaluate J* code in the context of module (or __main__ in jsrEvaluate)
 // as top level <main> function.
-// VM_EVAL_SUCCSESS will be returned if the execution completed normally
-// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR or JSR_RUNTIME_ERR
-// will be returned, and all the errors will be printed to stderr.
+// VM_EVAL_SUCCSESS will be returned if the execution completed normally.
+// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR or JSR_RUNTIME_ERR will be returned.
+// In case of JSR_RUNTIME_ERR the stacktrace of the Exception will be printed to stderr, all other
+// errors forward the message to the error callback
 JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src);
 JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* name,
                                         const char* src);
 
 // Call a function (or method with name "name") that sits on the top of the stack
 // along with its arguments. The state of the stack when calling should be:
-//  ... [callee][arg1][arg2]...[argn] $top
+//  ... [callable][arg1][arg2]...[argn] $top
 //         |       |______________|
 //         |                |
-// function/instance  the args of the function/method
+// callable object the args of the function/method
 //
 // In case of success VM_EVAL_SUCCSESS will be returned, and the result will be placed
-// on the top of the stack in the place of "callee", popping all arguments:
-//  ... [result] $top [arg1][arg2] ... [argn] popped
+// on the top of the stack in the place of the callable object, popping all arguments:
+//  ... [result] $top [arg1][arg2] ... [argn] <-- arguments are popped
 //
 // If an exception has been raised by the code, JSR_RUNTIME_ERR will be returned and
 // The exception will be placed on top of the stack as a result.
 JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
-// Prints the the stack trace of the exception at slot 'slot'
+// Prints the the stacktrace of the exception at slot 'slot'. If the value at 'slot' is not an
+// Exception, or is a non-yet-raised Exception, it doesn't print anything ad returns successfully
 JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
+// Get the stacktrace of the exception at 'slot' and leaves it on top of the stack.
+// The stacktrace is a formatted String containing the traceback and the exception error.
+// If the value at slot is not an Exception, or is a non-yet-raised Exception, it places
+// An empty String on top of the stack and returns succesfully
+JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
 // Init the sys.args list with a list of arguments (usually main arguments)
 JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
 // Add a path to be searched during module imports
