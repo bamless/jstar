@@ -24,8 +24,8 @@ option(JSTAR_RE    "Include the 're' module in the language" ON)
 
 # setup option.h
 configure_file (
-    "${PROJECT_SOURCE_DIR}/jstar/include/jstarconf.h.in"
-    "${PROJECT_SOURCE_DIR}/jstar/include/jstarconf.h"
+    "${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h.in"
+    "${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h"
 )
 
 # set default build type if not specified

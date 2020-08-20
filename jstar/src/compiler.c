@@ -9,9 +9,9 @@
 #include "code.h"
 #include "common.h"
 #include "gc.h"
-#include "jsrparse/lex.h"
 #include "jstar.h"
 #include "opcode.h"
+#include "parse/lex.h"
 #include "value.h"
 #include "vm.h"
 

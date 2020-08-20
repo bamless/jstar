@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "jstarconf.h"
+#include "../jstarconf.h"
 
 #define vecForeach(elem, vec)                                                            \
     for(size_t __cont = 1, __i = 0; __cont && __i < (vec).size; __cont = !__cont, __i++) \

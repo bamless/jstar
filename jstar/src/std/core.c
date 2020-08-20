@@ -15,10 +15,10 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
-#include "jsrparse/ast.h"
-#include "jsrparse/parser.h"
 #include "modules.h"
 #include "object.h"
+#include "parse/ast.h"
+#include "parse/parser.h"
 #include "value.h"
 #include "vm.h"
 

@@ -1,4 +1,4 @@
-#include "jsrparse/lex.h"
+#include "parse/lex.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -6,7 +6,7 @@
 
 const char* TokenNames[] = {
 #define TOKEN(tok, name) name,
-#include "jsrparse/token.def"
+#include "parse/token.def"
 };
 
 typedef struct {

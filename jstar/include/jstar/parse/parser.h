@@ -1,8 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include "../jstarconf.h"
 #include "ast.h"
-#include "jstarconf.h"
 
 typedef void (*ParseErrorCB)(const char* file, int line, const char* error);
 

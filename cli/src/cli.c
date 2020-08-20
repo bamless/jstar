@@ -4,10 +4,10 @@
 #include <string.h>
 
 #include "argparse.h"
-#include "jsrparse/ast.h"
-#include "jsrparse/lex.h"
-#include "jsrparse/parser.h"
-#include "jstar.h"
+#include "jstar/jstar.h"
+#include "jstar/parse/ast.h"
+#include "jstar/parse/lex.h"
+#include "jstar/parse/parser.h"
 #include "linenoise.h"
 
 #define JSTARPATH "JSTARPATH"

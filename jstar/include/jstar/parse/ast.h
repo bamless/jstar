@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "jstarconf.h"
+#include "../jstarconf.h"
 #include "lex.h"
 #include "vector.h"
 

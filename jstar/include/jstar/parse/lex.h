@@ -1,7 +1,7 @@
 #ifndef LEX_H
 #define LEX_H
 
-#include "jstarconf.h"
+#include "../jstarconf.h"
 
 #define IS_COMPUND_ASSIGN(tok) (tok <= TOK_MOD_EQ && tok > TOK_EQUAL)
 #define IS_ASSIGN(tok)         (tok <= TOK_MOD_EQ && tok >= TOK_EQUAL)

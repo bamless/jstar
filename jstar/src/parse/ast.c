@@ -1,4 +1,4 @@
-#include "jsrparse/ast.h"
+#include "parse/ast.h"
 
 #include <string.h>
 

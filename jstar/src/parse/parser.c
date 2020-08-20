@@ -1,4 +1,4 @@
-#include "jsrparse/parser.h"
+#include "parse/parser.h"
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -7,9 +7,9 @@
 #include <string.h>
 
 #include "common.h"
-#include "jsrparse/ast.h"
-#include "jsrparse/lex.h"
-#include "jsrparse/vector.h"
+#include "parse/ast.h"
+#include "parse/lex.h"
+#include "parse/vector.h"
 
 #define MAX_ERR_SIZE 512
 

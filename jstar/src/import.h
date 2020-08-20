@@ -3,9 +3,9 @@
 
 #include <stdbool.h>
 
-#include "jsrparse/ast.h"
 #include "jstar.h"
 #include "object.h"
+#include "parse/ast.h"
 #include "value.h"
 
 ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name, Stmt* program);
