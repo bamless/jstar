@@ -145,16 +145,16 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
 
     if(err != NULL) {
-        char errStr[MAX_ERR];
+        JStarBuffer error;
+        jsrBufferInitSz(vm, &error, 64);
 
         va_list args;
         va_start(args, err);
-        vsnprintf(errStr, sizeof(errStr), err, args);
+        jsrBufferAppendvf(&error, err, args);
         va_end(args);
 
-        jsrPushString(vm, errStr);
-        HashTable* fields = &excInst->fields;
-        hashTablePut(fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), pop(vm));
+        ObjString* errorString = jsrBufferToString(&error);
+        hashTablePut(&excInst->fields, vm->excError, OBJ_VAL(errorString));
     }
 }
 

@@ -261,23 +261,26 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
     return internedString;
 }
 
-/**
- * =========================================================
- *  API - JStarBuffer function implementation
- * =========================================================
- */
+// -----------------------------------------------------------------------------
+// API - JStarBuffer function implementation
+// -----------------------------------------------------------------------------
 
 ObjString* jsrBufferToString(JStarBuffer* b) {
     char* data = GCallocate(b->vm, b->data, b->size, b->len + 1);
     data[b->len] = '\0';
+
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
     s->interned = false;
     s->length = b->len;
     s->data = data;
     s->hash = 0;
+
+    // Reset JStarBuffer
     b->data = NULL;
     b->vm = NULL;
-    b->len = b->size = 0;
+    b->size = 0;
+    b->len = 0;
+
     return s;
 }
 

@@ -11,6 +11,8 @@
 #include "jsrparse/lex.h"
 #include "jsrparse/vector.h"
 
+#define MAX_ERR_SIZE 512
+
 typedef struct Parser {
     Lexer lex;
     Token peek;
@@ -40,8 +42,8 @@ static char* strchrnul(const char* str, char c) {
 }
 
 static int vstrncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, va_list ap) {
-    size_t bufSize = pos >= maxLen ? 0 : maxLen - pos;
-    return vsnprintf(buf + pos, bufSize, fmt, ap);
+    size_t bufLen = pos >= maxLen ? 0 : maxLen - pos;
+    return vsnprintf(buf + pos, bufLen, fmt, ap);
 }
 
 static int strncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, ...) {
@@ -52,38 +54,60 @@ static int strncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, ...) 
     return written;
 }
 
+static int printSourceSnippet(char* buf, const char* line, size_t lineLen, int coloumn) {
+    int pos = 0;
+    pos += strncatf(buf, pos, MAX_ERR_SIZE, "    %.*s\n", lineLen, line);
+    pos += strncatf(buf, pos, MAX_ERR_SIZE, "    ");
+    for(int i = 0; i < coloumn; i++) {
+        pos += strncatf(buf, pos, MAX_ERR_SIZE, " ");
+    }
+    pos += strncatf(buf, pos, MAX_ERR_SIZE, "^\n");
+    return pos;
+}
+
+const char* correctEscapedNewlines(const char* line, const char* errorTokLexeme) {
+    const char* newline = line;
+    while((newline = strchr(newline, '\n')) && newline < errorTokLexeme) {
+        line = ++newline;
+    }
+    return line;
+}
+
 static void error(Parser* p, const char* msg, ...) {
     if(p->panic) return;
     p->panic = p->hadError = true;
 
     if(p->errorCallback) {
-        char errorMessage[MAX_ERR];
+        Token* errorTok = &p->peek;
+        char error[MAX_ERR_SIZE];
 
-        // correct for escaped newlines
-        const char* actualLnStart = p->lineStart;
-        while((actualLnStart = strchr(actualLnStart, '\n')) && actualLnStart < p->peek.lexeme) {
-            p->lineStart = ++actualLnStart;
-        }
+        p->lineStart = correctEscapedNewlines(p->lineStart, errorTok->lexeme);
+        int tokenCol = errorTok->lexeme - p->lineStart;
+        int lineLen = strchrnul(errorTok->lexeme, '\n') - p->lineStart;
 
-        int tokCol = p->peek.lexeme - p->lineStart;
-        int lineLen = strchrnul(p->peek.lexeme, '\n') - p->lineStart;
-
-        // print source code snippet of the token near the error
-        int pos = 0;
-        pos += strncatf(errorMessage, pos, MAX_ERR, "    %.*s\n", lineLen, p->lineStart);
-        pos += strncatf(errorMessage, pos, MAX_ERR, "    ");
-        for(int i = 0; i < tokCol; i++) {
-            pos += strncatf(errorMessage, pos, MAX_ERR, " ");
-        }
-        pos += strncatf(errorMessage, pos, MAX_ERR, "^\n");
-
-        // Print error message
+        // print error message with source snippet
+        int pos = printSourceSnippet(error, p->lineStart, lineLen, tokenCol);
         va_list ap;
         va_start(ap, msg);
-        vstrncatf(errorMessage, pos, MAX_ERR, msg, ap);
+        pos += vstrncatf(error, pos, MAX_ERR_SIZE, msg, ap);
         va_end(ap);
 
-        p->errorCallback(p->path, p->peek.line, errorMessage);
+        // Error message was too long, retry without source snippet
+        if(pos >= MAX_ERR_SIZE) {
+            pos = 0;
+            const char* tokenStr = TokenNames[errorTok->type];
+            pos += strncatf(error, pos, MAX_ERR_SIZE, "[col:%d] Near `%s`: ", tokenCol, tokenStr);
+
+            va_list ap;
+            va_start(ap, msg);
+            pos += vstrncatf(error, pos, MAX_ERR_SIZE, msg, ap);
+            va_end(ap);
+
+            // TODO: use growable buffer to print error?
+            ASSERT(pos < MAX_ERR_SIZE, "Error message was truncated");
+        }
+
+        p->errorCallback(p->path, p->peek.line, error);
     }
 }
 

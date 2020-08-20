@@ -102,15 +102,22 @@ static void endCompiler(Compiler* c) {
 // -----------------------------------------------------------------------------
 
 static void error(Compiler* c, int line, const char* format, ...) {
-    char errorMessage[MAX_ERR];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(errorMessage, MAX_ERR, format, args);
-    va_end(args);
-
     JStarVM* vm = c->vm;
-    if(vm->errorCallback) vm->errorCallback(c->filename, line, errorMessage);
     c->hadError = true;
+
+    if(vm->errorCallback) {
+        JStarBuffer error;
+        jsrBufferInitSz(c->vm, &error, 64);
+
+        va_list args;
+        va_start(args, format);
+        jsrBufferAppendvf(&error, format, args);
+        va_end(args);
+
+        vm->errorCallback(c->filename, line, error.data);
+
+        jsrBufferFree(&error);
+    }
 }
 
 static size_t emitBytecode(Compiler* c, uint8_t b, int line) {

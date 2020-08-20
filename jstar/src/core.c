@@ -22,8 +22,6 @@
 #include "value.h"
 #include "vm.h"
 
-#define MAX_OBJ_STR 512
-
 #ifdef _WIN32
     #define popen  _popen
     #define pclose _pclose
@@ -85,9 +83,10 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
 // class Object
 static JSR_NATIVE(jsr_Object_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
-    char string[MAX_OBJ_STR];
-    snprintf(string, sizeof(string), "<%s@%p>", o->cls->name->data, (void*)o);
-    jsrPushString(vm, string);
+    JStarBuffer str;
+    jsrBufferInit(vm, &str);
+    jsrBufferAppendf(&str, "<%s@%p>", o->cls->name->data, (void*)o);
+    jsrBufferPush(&str);
     return true;
 }
 
@@ -111,9 +110,10 @@ static JSR_NATIVE(jsr_Class_getName) {
 
 static JSR_NATIVE(jsr_Class_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
-    char string[MAX_OBJ_STR];
-    snprintf(string, sizeof(string), "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*)o);
-    jsrPushString(vm, string);
+    JStarBuffer str;
+    jsrBufferInit(vm, &str);
+    jsrBufferAppendf(&str, "<Class %s@%p>", ((ObjClass*)o)->name->data, (void*)o);
+    jsrBufferPush(&str);
     return true;
 }
 // end
@@ -196,7 +196,6 @@ JSR_NATIVE(jsr_int) {
         jsrPushNumber(vm, n);
         return true;
     }
-
     JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
 }
 
@@ -440,25 +439,30 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     }
 
-    char string[MAX_OBJ_STR];
-    if(strcmp(modName, JSR_CORE_MODULE) == 0) {
-        snprintf(string, sizeof(string), "<%s %s@%p>", funType, funName,
-                 (void*)AS_OBJ(vm->apiStack[0]));
+    JStarBuffer str;
+    jsrBufferInit(vm, &str);
+
+    bool isCoreModule = strcmp(modName, JSR_CORE_MODULE) == 0;
+    Obj* o = AS_OBJ(vm->apiStack[0]);
+
+    if(isCoreModule) {
+        jsrBufferAppendf(&str, "<%s %s@%p>", funType, funName, (void*)o);
     } else {
-        snprintf(string, sizeof(string), "<%s %s.%s@%p>", funType, modName, funName,
-                 (void*)AS_OBJ(vm->apiStack[0]));
+        jsrBufferAppendf(&str, "<%s %s.%s@%p>", funType, modName, funName, (void*)o);
     }
-    jsrPushString(vm, string);
+
+    jsrBufferPush(&str);
     return true;
 }
 // end
 
 // class Module
 JSR_NATIVE(jsr_Module_string) {
-    char string[MAX_OBJ_STR];
     ObjModule* m = AS_MODULE(vm->apiStack[0]);
-    snprintf(string, sizeof(string), "<module %s@%p>", m->name->data, (void*)m);
-    jsrPushString(vm, string);
+    JStarBuffer str;
+    jsrBufferInit(vm, &str);
+    jsrBufferAppendf(&str, "<module %s@%p>", m->name->data, (void*)m);
+    jsrBufferPush(&str);
     return true;
 }
 // end
@@ -1513,7 +1517,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
     // print the exception instance information
     Value v;
-    bool found = hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &v);
+    bool found = hashTableGet(&exc->fields, vm->excError, &v);
 
     if(found && IS_STRING(v) && AS_STRING(v)->length > 0) {
         fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(v)->data);

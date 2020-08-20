@@ -22,7 +22,6 @@
 
 #define MAX_TRY_DEPTH HANDLER_MAX  // Max depth of nested trys
 #define MAX_LOCALS    UINT8_MAX    // At most 255 local vars per frame
-#define MAX_ERR       512
 
 // -----------------------------------------------------------------------------
 // STRING CONSTANTS

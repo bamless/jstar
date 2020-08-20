@@ -317,8 +317,10 @@ void garbageCollect(JStarVM* vm) {
     reachObject(vm, (Obj*)vm->tableClass);
     reachObject(vm, (Obj*)vm->udataClass);
 
-    reachObject(vm, (Obj*)vm->ctor);
+    // reach constant strings
     reachObject(vm, (Obj*)vm->stacktrace);
+    reachObject(vm, (Obj*)vm->excError);
+    reachObject(vm, (Obj*)vm->ctor);
     reachObject(vm, (Obj*)vm->next);
     reachObject(vm, (Obj*)vm->iter);
 
@@ -326,6 +328,7 @@ void garbageCollect(JStarVM* vm) {
         reachObject(vm, (Obj*)vm->overloads[i]);
     }
 
+    // reach empty Tuple singleton
     reachObject(vm, (Obj*)vm->emptyTup);
 
     // reach loaded modules
@@ -349,15 +352,13 @@ void garbageCollect(JStarVM* vm) {
     // reach the compiler objects
     reachCompilerRoots(vm, vm->currCompiler);
 
-    // recursevely reach objs held by other reached objs
+    // recursevely reach objects held by other reached objects
     while(vm->reachedCount != 0) {
         recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
     }
 
-    // remove unused strings
+    // free unreached objects
     removeUnreachedStrings(&vm->strings);
-
-    // free the garbage
     freeObjects(vm);
 
     // free the reached objects stack
