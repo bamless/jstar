@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtin/modules.h"
 #include "common.h"
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
 #include "jsrparse/parser.h"
 #include "jstar.h"
+#include "std/modules.h"
 #include "value.h"
 #include "vm.h"
 

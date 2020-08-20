@@ -11,13 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtin/modules.h"
 #include "common.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
 #include "jsrparse/ast.h"
 #include "jsrparse/parser.h"
+#include "modules.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"

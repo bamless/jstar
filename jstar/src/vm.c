@@ -3,13 +3,13 @@
 #include <math.h>
 #include <string.h>
 
-#include "builtin/modules.h"
 #include "code.h"
-#include "core.h"
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
 #include "opcode.h"
+#include "std/core.h"
+#include "std/modules.h"
 
 // Method names of overloadable operators
 static const char* overloadNames[OVERLOAD_SENTINEL] = {
