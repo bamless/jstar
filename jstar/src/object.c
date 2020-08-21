@@ -1,8 +1,10 @@
 #include "object.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "common.h"
 #include "gc.h"
 #include "vm.h"
 

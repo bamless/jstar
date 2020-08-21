@@ -12,6 +12,7 @@
 #include "jstar.h"
 #include "opcode.h"
 #include "parse/lex.h"
+#include "parse/vector.h"
 #include "value.h"
 #include "vm.h"
 

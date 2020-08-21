@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "code.h"
-#include "disassemble.h"
 #include "gc.h"
 #include "import.h"
 #include "opcode.h"

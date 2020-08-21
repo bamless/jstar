@@ -242,7 +242,8 @@ static JStarStmt* newStmt(int line, StmtType type) {
     return s;
 }
 
-JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg, JStarStmt* body) {
+JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg,
+                       JStarStmt* body) {
     JStarStmt* f = newStmt(line, JSR_FUNCDECL);
     f->as.funcDecl.id.name = name->lexeme;
     f->as.funcDecl.id.length = name->length;
