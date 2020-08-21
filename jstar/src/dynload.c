@@ -1,5 +1,7 @@
 #include "dynload.h"
 
+#include "jstarconf.h"
+
 #if defined(JSTAR_POSIX)
     #include <dlfcn.h>
 #elif defined(JSTAR_WINDOWS)
