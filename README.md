@@ -118,6 +118,7 @@ Various CMake options are available to switch on or off certain functionalities:
 | JSTAR_NAN_TAGGING    |   ON    | Use the NaN tagging technique for storing the VM internal type. Decrases the memory footprint of the interpreter and increases speed |
 | JSTAR_COMPUTED_GOTOS |   ON    | Use computed gotos to implement the VM eval loop. Branch predictor friendly, increases performance. Not all compilers support computed gotos (MSVC for example), so if you're using one of them disable this option |
 |   JSTAR_INSTALL      |   ON    | Generate install targets for the chosen build system. Turn this off if including J* from another CMake project |
+|       JSTAR_SYS      |   ON    | Include the 'sys' module in the language |
 |       JSTAR_IO       |   ON    | Include the 'io' module in the language |
 |      JSTAR_MATH      |   ON    | Include the 'math' module in the language |
 |      JSTAR_DEBUG     |   ON    | Include the 'debug' module in the language |
