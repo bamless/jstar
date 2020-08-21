@@ -22,11 +22,37 @@
 /* #undef JSTAR_DBG_PRINT_GC */
 /* #undef JSTAR_DBG_STRESS_GC */
 
+#define JSTAR_SYS
 #define JSTAR_IO
 #define JSTAR_MATH
 #define JSTAR_DEBUG
 #define JSTAR_RE
 
+// Platform detection
+#if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
+    #define JSTAR_WINDOWS
+#elif defined(__linux__)
+    #define JSTAR_LINUX
+    #define JSTAR_POSIX
+#elif defined(__ANDROID__)
+    #define JSTAR_ANDROID
+    #define JSTAR_POSIX
+#elif defined(__FreeBSD__)
+    #define JSTAR_FREEBSD
+    #define JSTAR_POSIX
+#elif defined(__APPLE__) || defined(__MACH__)
+	#include <TargetConditionals.h>
+
+	#if TARGET_OS_IPHONE == 1
+		#define JSTAR_IOS
+	#elif TARGET_OS_MAC == 1
+        #define JSTAR_MACOS
+	#endif
+    
+    #define JSTAR_POSIX
+#endif
+
+// Macro for symbol exporting
 #ifndef JSTAR_STATIC
     #if defined(_WIN32) && defined(_MSC_VER)
         #if defined(libjstar_EXPORTS)

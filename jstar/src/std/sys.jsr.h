@@ -1,16 +1,11 @@
 // WARNING: this is a file generated automatically by the build process. Do not modify.
 const char *sys_jsr =
-"import io\n"
-"var args = []\n"
 "native clock()\n"
+"native exec(cmd)\n"
 "native exit(n=0)\n"
 "native getenv(name)\n"
-"native gc()\n"
-"native importPaths()\n"
+"native isPosix()\n"
 "native platform()\n"
+"native system(cmd)\n"
 "native time()\n"
-"begin\n"
-"    native init()\n"
-"    init()\n"
-"end\n"
 ;

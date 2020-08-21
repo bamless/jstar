@@ -317,6 +317,9 @@ void garbageCollect(JStarVM* vm) {
     reachObject(vm, (Obj*)vm->tableClass);
     reachObject(vm, (Obj*)vm->udataClass);
 
+    // reach script argument llist
+    reachObject(vm, (Obj*)vm->argv);
+
     // reach constant strings
     reachObject(vm, (Obj*)vm->stacktrace);
     reachObject(vm, (Obj*)vm->excError);

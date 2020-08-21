@@ -25,11 +25,11 @@ class igmatch
         var resLen = #res
         this.off = this.endl = e
         if   resLen == 2 then
-            return this.s.slice(b, e)
+            return this.s[b, e]
         elif resLen == 3 then
             return res[2]
         else
-            return res.slice(2, resLen)
+            return res[2, resLen]
         end
     end
 

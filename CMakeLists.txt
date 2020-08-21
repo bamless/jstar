@@ -17,6 +17,7 @@ option(JSTAR_DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
 option(JSTAR_DBG_PRINT_GC   "Trace the execution of the garbage collector" OFF)
 option(JSTAR_DBG_STRESS_GC  "Stress the garbage collector by calling it on every allocation" OFF)
 
+option(JSTAR_SYS   "Include the 'sys' module in the language" ON)
 option(JSTAR_IO    "Include the 'io' module in the language" ON)
 option(JSTAR_MATH  "Include the 'math' module in the language" ON)
 option(JSTAR_DEBUG "Include the 'debug' module in the language" ON)

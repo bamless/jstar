@@ -22,11 +22,6 @@
 #include "value.h"
 #include "vm.h"
 
-#ifdef _WIN32
-    #define popen  _popen
-    #define pclose _pclose
-#endif
-
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
     ObjString* n = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(n));
@@ -118,14 +113,33 @@ static JSR_NATIVE(jsr_Class_string) {
 }
 // end
 
-void initCoreModule(JStarVM* vm) {
-    ObjString* name = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
+// Patch up the class field of any string or function that was allocated
+// before the creation of their corresponding class object
+static void patchClassRefs(JStarVM* vm) {
+    for(Obj* o = vm->objects; o != NULL; o = o->next) {
+        if(o->type == OBJ_STRING) {
+            o->cls = vm->strClass;
+        } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
+            o->cls = vm->funClass;
+        }
+    }
+}
 
+static void createArgvList(JStarVM* vm) {
+    vm->argv = newList(vm, 0);
+    ObjString* argvName = copyString(vm, ARGV_STR, strlen(ARGV_STR));
+    hashTablePut(&vm->core->globals, argvName, OBJ_VAL(vm->argv));
+}
+
+void initCoreModule(JStarVM* vm) {
     // Create and register core module
-    push(vm, OBJ_VAL(name));
-    ObjModule* core = newModule(vm, name);
+    ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
+    push(vm, OBJ_VAL(coreModName));
+
+    ObjModule* core = newModule(vm, coreModName);
     setModule(vm, core->name, core);
     vm->core = core;
+
     pop(vm);
 
     // Setup the class object. It will be the class of every other class
@@ -147,7 +161,7 @@ void initCoreModule(JStarVM* vm) {
     // Execute core module code
     jsrEvaluateModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
 
-    // Cache builtin class objects in VM struct
+    // Cache builtin class objects in JStarVM
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
     vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
     vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
@@ -162,15 +176,9 @@ void initCoreModule(JStarVM* vm) {
     vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
     core->base.cls = vm->modClass;
 
-    // Patch up the class field of any string or function that was allocated
-    // before the creation of their corresponding class object
-    for(Obj* o = vm->objects; o != NULL; o = o->next) {
-        if(o->type == OBJ_STRING) {
-            o->cls = vm->strClass;
-        } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
-            o->cls = vm->funClass;
-        }
-    }
+    // Call these after builtin class caching above, as they make use of those fields
+    patchClassRefs(vm);
+    createArgvList(vm);
 }
 
 JSR_NATIVE(jsr_int) {
@@ -206,6 +214,17 @@ JSR_NATIVE(jsr_char) {
         JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
     int c = str[0];
     jsrPushNumber(vm, (double)c);
+    return true;
+}
+
+JSR_NATIVE(jsr_garbageCollect) {
+    garbageCollect(vm);
+    jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_importPaths) {
+    push(vm, OBJ_VAL(vm->importpaths));
     return true;
 }
 
@@ -284,45 +303,6 @@ JSR_NATIVE(jsr_eval) {
 
 JSR_NATIVE(jsr_type) {
     push(vm, OBJ_VAL(getClass(vm, peek(vm))));
-    return true;
-}
-
-JSR_NATIVE(jsr_system) {
-    const char* cmd = NULL;
-    if(!jsrIsNull(vm, 1)) {
-        JSR_CHECK(String, 1, "cmd");
-        cmd = jsrGetString(vm, 1);
-    }
-    jsrPushNumber(vm, system(cmd));
-    return true;
-}
-
-JSR_NATIVE(jsr_exec) {
-    JSR_CHECK(String, 1, "cmd");
-
-    FILE* proc = popen(jsrGetString(vm, 1), "r");
-    if(proc == NULL) {
-        JSR_RAISE(vm, "Exception", strerror(errno));
-    }
-
-    JStarBuffer data;
-    jsrBufferInit(vm, &data);
-
-    char buf[512];
-    while(fgets(buf, 512, proc) != NULL) {
-        jsrBufferAppendstr(&data, buf);
-    }
-
-    if(ferror(proc)) {
-        pclose(proc);
-        jsrBufferFree(&data);
-        JSR_RAISE(vm, "Exception", strerror(errno));
-    } else {
-        jsrPushNumber(vm, pclose(proc));
-        jsrBufferPush(&data);
-        jsrPushTuple(vm, 2);
-    }
-
     return true;
 }
 

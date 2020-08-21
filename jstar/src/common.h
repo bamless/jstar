@@ -30,6 +30,7 @@
 #define CTOR_STR     "new"
 #define THIS_STR     "this"
 #define ANON_PREFIX  "anon:"
+#define ARGV_STR     "argv"
 #define EXC_ERR      "_err"
 #define EXC_TRACE    "_stacktrace"
 #define PACKAGE_FILE "__package__.jsr"

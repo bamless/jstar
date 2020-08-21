@@ -85,6 +85,9 @@ struct JStarVM {
     ObjClass* tableClass;
     ObjClass* udataClass;
 
+    // Script arguments
+    ObjList* argv;
+
     // Current VM compiler (if any)
     Compiler* currCompiler;
 
@@ -120,10 +123,6 @@ struct JStarVM {
 
     // Callback function to report errors
     JStarErrorCB errorCallback;
-
-    // Script arguments, see module `sys` for arg initialization
-    const char** argv;
-    int argc;
 
     // ---- Memory management ----
 

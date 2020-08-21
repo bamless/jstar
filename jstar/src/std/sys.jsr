@@ -1,16 +1,8 @@
-import io
-
-var args = []
-
 native clock()
+native exec(cmd)
 native exit(n=0)
 native getenv(name)
-native gc()
-native importPaths()
+native isPosix()
 native platform()
+native system(cmd)
 native time()
-
-begin
-    native init()
-    init()
-end

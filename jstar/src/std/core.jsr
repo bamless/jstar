@@ -291,10 +291,10 @@ end
 native ascii(num)
 native char(c)
 native eval(source)
-native exec(cmd)
+native garbageCollect()
+native importPaths()
 native int(n)
 native print(s, ...)
-native system(cmd)
 native type(o)
 
 class IReverse is Sequence

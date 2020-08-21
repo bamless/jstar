@@ -75,7 +75,7 @@ JStarVM* jsrNewVM(JStarConf* conf) {
     // Create J* objects needed by the runtime. This is called after initCoreLibrary in order
     // to correctly assign a Class reference to the objects, since built-in classes are created
     // during the core module initialization
-    vm->importpaths = newList(vm, 8);
+    vm->importpaths = newList(vm, 0);
     vm->emptyTup = newTuple(vm, 0);
 
     return vm;

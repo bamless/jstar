@@ -1,8 +1,3 @@
-#ifdef _WIN32
-    #define popen  _popen
-    #define pclose _pclose
-#endif
-
 #include "io.h"
 
 #include <errno.h>
@@ -11,6 +6,14 @@
 #include <string.h>
 
 #include "common.h"
+
+#if defined(JSTAR_POSIX)
+    #define USE_POPEN
+#elif defined(JSTAR_WINDOWS)
+    #define USE_POPEN
+    #define popen  _popen
+    #define pclose _pclose
+#endif
 
 #define JSR_SEEK_SET 0
 #define JSR_SEEK_CUR 1
@@ -289,6 +292,7 @@ JSR_NATIVE(jsr_File_flush) {
 
 // class __PFile
 JSR_NATIVE(jsr_PFile_close) {
+#ifdef USE_POPEN
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
@@ -305,6 +309,9 @@ JSR_NATIVE(jsr_PFile_close) {
 
     jsrPushNumber(vm, ret);
     return true;
+#else
+    JSR_RAISE(vm, "NotImplementedException", "`__PFile.close` not supported on current system.");
+#endif
 }
 // end
 
@@ -330,6 +337,7 @@ JSR_NATIVE(jsr_rename) {
 }
 
 JSR_NATIVE(jsr_popen) {
+#ifdef USE_POPEN
     JSR_CHECK(String, 1, "name");
 
     const char* pname = jsrGetString(vm, 1);
@@ -348,6 +356,9 @@ JSR_NATIVE(jsr_popen) {
     jsrPushHandle(vm, f);
     if(jsrCall(vm, 1) != JSR_EVAL_SUCCESS) return false;
     return true;
+#else
+    JSR_RAISE(vm, "NotImplementedException", "`popen` not supported on current system.");
+#endif
 }
 
 static bool createStdFile(JStarVM* vm, const char* name, FILE* stdfile) {

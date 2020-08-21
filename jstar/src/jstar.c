@@ -167,8 +167,14 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 }
 
 void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
-    vm->argc = argc;
-    vm->argv = argv;
+    ObjList* argvList = vm->argv;
+    argvList->count = 0;
+    for(int i = 0; i < argc; i++) {
+        Value arg = OBJ_VAL(copyString(vm, argv[i], strlen(argv[i])));
+        push(vm, arg);
+        listAppend(vm, argvList, arg);
+        pop(vm);
+    }
 }
 
 void jsrAddImportPath(JStarVM* vm, const char* path) {

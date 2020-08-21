@@ -66,10 +66,8 @@ If you instead want to execute code written in some file, you can pass it as an 
 and it will be executed. Passing more than one argument causes all but the first to be forwarded to
 the language as **script arguments**. You can then read them from the script this way:
 ```lua
-import sys
-
-if #sys.args > 0 then
-  print('First argument: ', sys.args[0])
+if #argv > 0 then
+  print('First argument: ', argv[0])
 else
   raise Exception('No args provided')
 end

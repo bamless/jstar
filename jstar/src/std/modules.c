@@ -2,8 +2,11 @@
 
 #include "core.h"
 #include "core.jsr.h"
-#include "sys.h"
-#include "sys.jsr.h"
+
+#ifdef JSTAR_SYS
+    #include "sys.h"
+    #include "sys.jsr.h"
+#endif
 
 #ifdef JSTAR_IO
     #include "io.h"
@@ -72,14 +75,14 @@ typedef struct {
 
 Module builtInModules[] = {
     COREMODULE
-        FUNCTION(ascii,  jsr_ascii)
-        FUNCTION(char,   jsr_char)
-        FUNCTION(eval,   jsr_eval)
-        FUNCTION(exec,   jsr_exec)
-        FUNCTION(int,    jsr_int)
-        FUNCTION(print,  jsr_print)
-        FUNCTION(system, jsr_system)
-        FUNCTION(type,   jsr_type)
+        FUNCTION(ascii,          jsr_ascii)
+        FUNCTION(char,           jsr_char)
+        FUNCTION(eval,           jsr_eval)
+        FUNCTION(int,            jsr_int)
+        FUNCTION(print,          jsr_print)
+        FUNCTION(type,           jsr_type)
+        FUNCTION(garbageCollect, jsr_garbageCollect)
+        FUNCTION(importPaths, jsr_importPaths)
         CLASS(Number)
             METHOD(new,        jsr_Number_new)
             METHOD(isInt,      jsr_Number_isInt)
@@ -159,16 +162,18 @@ Module builtInModules[] = {
             METHOD(getStacktrace,   jsr_Exception_getStacktrace)
         ENDCLASS
     ENDMODULE
+#ifdef JSTAR_SYS
     MODULE(sys)
         FUNCTION(time,        jsr_time)
         FUNCTION(exit,        jsr_exit)
-        FUNCTION(importPaths, jsr_importPaths)
+        FUNCTION(exec,        jsr_exec)
         FUNCTION(platform,    jsr_platform)
         FUNCTION(clock,       jsr_clock)
         FUNCTION(getenv,      jsr_getenv)
-        FUNCTION(gc,          jsr_gc)
-        FUNCTION(init,        jsr_sys_init)
+        FUNCTION(system,      jsr_system)
+        FUNCTION(isPosix,     jsr_isPosix)
     ENDMODULE
+#endif
 #ifdef JSTAR_IO
     MODULE(io)
         CLASS(File)

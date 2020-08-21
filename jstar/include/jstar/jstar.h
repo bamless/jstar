@@ -211,6 +211,7 @@ JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
 #define JSR_FOREACH(iter, code, cleanup)         \
     {                                            \
         bool _err = false;                       \
+        jsrEnsureStack(vm, 2);                   \
         jsrPushNull(vm);                         \
         while(jsrIter(vm, iter, -1, &_err)) {    \
             if(_err || !jsrNext(vm, iter, -1)) { \
