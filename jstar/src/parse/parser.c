@@ -284,7 +284,7 @@ static void requireStmtEnd(Parser* p) {
 // STATEMENTS PARSE
 // -----------------------------------------------------------------------------
 
-static JStarExpr* expression(Parser* p, bool tuple);
+static JStarExpr* expression(Parser* p, bool parseTuple);
 static JStarExpr* literal(Parser* p);
 
 typedef struct {
@@ -1115,7 +1115,7 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
         JStarTok assignToken = advance(p);
         skipNewLines(p);
 
-        JStarExpr* r = expression(p, true);
+        JStarExpr* r = expression(p, parseTuple);
 
         if(isCompoundAssign(&assignToken)) {
             l = jsrCompundAssExpr(assignToken.line, compundToAssign(assignToken.type), l, r);
