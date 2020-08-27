@@ -1,7 +1,7 @@
 # J*: A Lightweight Embeddable Scripting Language
 
 <p align="center">
-  <img src="https://jstar-lang.github.io/jstar/assets/images/jstar350.png" alt="J* Programming Language" title="J* Programming Language">
+  <img src="https://jstar-lang.github.io/docs/assets/images/jstar350.png" alt="J* Programming Language" title="J* Programming Language">
 </p>
 
 ![linux-build](https://github.com/bamless/jstar/workflows/linux-build/badge.svg)
@@ -26,8 +26,6 @@ among the language and host program, rendering embedding simple.
    the language.
  - **Fully object oriented**. Every entity, from numbers to class instances, is an object in **J\***
    and exceptions are used for signaling errors.
- - **Familiar**. The language sticks with a syntax similar to LUA, with only a few modifications and
-   improvements.
  - **Fast**. Low memory footprint and efficient implementation make **J\*** competitive in the class
    of dynamic scripting languages.
  - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
@@ -36,6 +34,8 @@ among the language and host program, rendering embedding simple.
    provided as dynamic libraries.
  - **Highly portable**. The language is implemented in standard C99 and has no dependencies, making
    it available on almost all platforms that provide a C compiler.
+
+To get a feel of the language, [try it in your browser](https://jstar-lang.github.io/docs/demo)!
 
 # The **jstar** command line app
 
