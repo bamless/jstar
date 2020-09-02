@@ -198,7 +198,7 @@ static CLIOpts parseArguments(int argc, const char** argv) {
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", NULL,
                     0, 0),
         OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
-                    "Don't print version information when entering REPL mode", NULL, 0, 0),
+                    "Don't print version information when entering the REPL", NULL, 0, 0),
         OPT_STRING('e', "exec", &opts.execStmt,
                    "Execute the given statement. If 'script' is provided it is executed after this",
                    NULL, 0, 0),
@@ -231,22 +231,20 @@ static CLIOpts parseArguments(int argc, const char** argv) {
 
 int main(int argc, const char** argv) {
     CLIOpts opts = parseArguments(argc, argv);
+    initVM();
+
     if(opts.showVersion) {
         printVersion();
-        exit(EXIT_SUCCESS);
+        exitFree(EXIT_SUCCESS);
     }
-
-    initVM();
 
     if(opts.execStmt) {
         JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
-        if(opts.script && res == JSR_EVAL_SUCCESS) {
+        if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
         if(!opts.interactive) exitFree(res);
-    }
-
-    if(opts.script && !opts.execStmt) {
+    } else if(opts.script) {
         JStarResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         if(!opts.interactive) exitFree(res);
     }
