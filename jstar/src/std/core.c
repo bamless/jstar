@@ -920,11 +920,25 @@ JSR_NATIVE(jsr_String_join) {
     return true;
 }
 
+static bool getFmtArgument(JStarVM* vm, Value args, size_t i, Value* out) {
+    if(IS_TUPLE(args)) {
+        ObjTuple* argsTuple = AS_TUPLE(args);
+        size_t idx = jsrCheckIndexNum(vm, i, argsTuple->size);
+        if(idx == SIZE_MAX) return false;
+        *out = argsTuple->arr[i];
+        return true;
+    } else {
+        size_t idx = jsrCheckIndexNum(vm, i, 1);
+        if(idx == SIZE_MAX) return false;
+        *out = args;
+        return true;
+    }
+}
+
 JSR_NATIVE(jsr_String_mod) {
-    JSR_CHECK(Tuple, 1, "args");
+    Value fmtArgs = vm->apiStack[1];
     const char* format = jsrGetString(vm, 0);
     const char* formatEnd = format + jsrGetStringSz(vm, 0);
-    ObjTuple* args = AS_TUPLE(vm->apiStack[1]);
 
     JStarBuffer buf;
     jsrBufferInit(vm, &buf);
@@ -934,20 +948,24 @@ JSR_NATIVE(jsr_String_mod) {
             char* end;
             int n = strtol(ptr + 1, &end, 10);
             if(end != ptr + 1 && *end == '}') {
-                size_t idx = jsrCheckIndexNum(vm, n, args->size);
-                if(idx == SIZE_MAX) {
+                Value fmtArg;
+                if(!getFmtArgument(vm, fmtArgs, n, &fmtArg)) {
                     jsrBufferFree(&buf);
                     return false;
                 }
-                push(vm, args->arr[idx]);
+                push(vm, fmtArg);
+
                 if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) {
                     jsrBufferFree(&buf);
                     return false;
                 }
+
                 if(!jsrIsString(vm, -1)) {
                     jsrBufferFree(&buf);
-                    JSR_RAISE(vm, "TypeException", "__string__ didn't return a String.");
+                    JSR_RAISE(vm, "TypeException", "%s.__string__() didn't return a String.",
+                              getClass(vm, fmtArg)->name->data);
                 }
+
                 jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
                 jsrPop(vm);
 
