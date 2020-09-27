@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
 #include "compiler.h"
+#include "const.h"
 #include "dynload.h"
 #include "hashtable.h"
 #include "jstar.h"
@@ -14,7 +14,8 @@
 #include "value.h"
 #include "vm.h"
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name, JStarStmt* program) {
+ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name,
+                               JStarStmt* program) {
     ObjModule* module = getModule(vm, name);
 
     if(module == NULL) {

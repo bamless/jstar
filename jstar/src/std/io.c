@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common.h"
+#include "util.h"
 
 #if defined(JSTAR_POSIX)
     #define USE_POPEN

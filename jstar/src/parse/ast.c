@@ -2,6 +2,9 @@
 
 #include <string.h>
 
+#include "parse/lex.h"
+#include "parse/vector.h"
+
 JStarIdentifier* jsrNewIdentifier(size_t length, const char* name) {
     JStarIdentifier* id = malloc(sizeof(*id));
     id->length = length;

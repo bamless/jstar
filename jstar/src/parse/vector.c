@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
+#include "util.h"
 
 #define VEC_GROW_FACTOR 2
 #define VEC_INIT_SIZE   1

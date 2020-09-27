@@ -5,12 +5,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common.h"
+#include "const.h"
 #include "hashtable.h"
 #include "import.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
+#include "util.h"
 #include "value.h"
 #include "vm.h"
 

@@ -5,12 +5,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "compiler.h"
+#include "const.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "object.h"
 #include "opcode.h"
+#include "util.h"
 #include "value.h"
 
 // This stores the info needed to jump

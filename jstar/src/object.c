@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common.h"
 #include "gc.h"
+#include "util.h"
 #include "vm.h"
 
 static Obj* newObj(JStarVM* vm, size_t size, ObjClass* cls, ObjType type) {

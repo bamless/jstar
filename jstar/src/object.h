@@ -6,9 +6,9 @@
 #include <stdio.h>
 
 #include "code.h"
-#include "common.h"
 #include "hashtable.h"
 #include "jstar.h"
+#include "util.h"
 #include "value.h"
 
 struct Frame;

@@ -6,10 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
 #include "parse/ast.h"
 #include "parse/lex.h"
 #include "parse/vector.h"
+#include "util.h"
 
 #define MAX_ERR_SIZE 512
 

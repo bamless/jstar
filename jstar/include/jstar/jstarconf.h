@@ -44,7 +44,7 @@
 	#include <TargetConditionals.h>
 
 	#if TARGET_OS_IPHONE == 1
-		#define JSTAR_IOS
+	    #define JSTAR_IOS
 	#elif TARGET_OS_MAC == 1
         #define JSTAR_MACOS
 	#endif

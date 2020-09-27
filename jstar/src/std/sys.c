@@ -6,10 +6,6 @@
 #include <string.h>
 #include <time.h>
 
-#include "gc.h"
-#include "value.h"
-#include "vm.h"
-
 #if defined(JSTAR_POSIX)
     #define USE_POPEN
     #include <stdio.h>

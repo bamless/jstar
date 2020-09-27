@@ -7,12 +7,13 @@
 #include <string.h>
 
 #include "code.h"
-#include "common.h"
+#include "const.h"
 #include "gc.h"
 #include "jstar.h"
 #include "opcode.h"
 #include "parse/lex.h"
 #include "parse/vector.h"
+#include "util.h"
 #include "value.h"
 #include "vm.h"
 
