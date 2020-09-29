@@ -1,4 +1,5 @@
 {
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}/${buildKit}",
     "editor.formatOnSave": true,
     "files.associations": {
