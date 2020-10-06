@@ -142,7 +142,7 @@ typedef struct {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
-    uint8_t defaultc;   // Number of default args of the function (0 if none)
+    uint8_t defCount;   // Number of default args of the function (0 if none)
     Value* defaults;    // Array of default arguments (NULL if no defaults)
     ObjModule* module;  // The module of the function
     ObjString* name;    // The name of the function

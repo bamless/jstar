@@ -1,5 +1,7 @@
 #include "code.h"
 
+#include <stdbool.h>
+
 #define CODE_DEF_SIZE  8
 #define CODE_GROW_FACT 2
 
@@ -33,11 +35,19 @@ static void growLines(Code* c) {
     c->lines = realloc(c->lines, c->linesSize * sizeof(int));
 }
 
-size_t writeByte(Code* c, uint8_t b, int line) {
-    if(c->count + 1 > c->size) {
+static bool shouldGrow(const Code* c) {
+    return c->count + 1 > c->size;
+}
+
+static void ensureCapacity(Code* c) {
+    if(shouldGrow(c)) {
         growCode(c);
         growLines(c);
     }
+}
+
+size_t writeByte(Code* c, uint8_t b, int line) {
+    ensureCapacity(c);
     c->bytecode[c->count] = b;
     c->lines[c->linesCount++] = line;
     return c->count++;

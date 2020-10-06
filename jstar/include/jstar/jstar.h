@@ -65,7 +65,7 @@ typedef struct JstarConf {
 JSTAR_API JStarConf jsrGetConf();
 
 // Allocate a new VM with all the state needed for code execution
-JSTAR_API JStarVM* jsrNewVM(JStarConf* conf);
+JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
 // Free a previously obtained VM along with all the state
 JSTAR_API void jsrFreeVM(JStarVM* vm);
 

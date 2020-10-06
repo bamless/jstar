@@ -48,14 +48,14 @@ static void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        GC_FREE_ARRAY(vm, Value, n->c.defaults, n->c.defaultc);
+        GC_FREE_ARRAY(vm, Value, n->c.defaults, n->c.defCount);
         GC_FREE(vm, ObjNative, n);
         break;
     }
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
         freeCode(&f->code);
-        GC_FREE_ARRAY(vm, Value, f->c.defaults, f->c.defaultc);
+        GC_FREE_ARRAY(vm, Value, f->c.defaults, f->c.defCount);
         GC_FREE(vm, ObjFunction, f);
         break;
     }
@@ -199,7 +199,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjNative* n = (ObjNative*)o;
         reachObject(vm, (Obj*)n->c.name);
         reachObject(vm, (Obj*)n->c.module);
-        for(uint8_t i = 0; i < n->c.defaultc; i++) {
+        for(uint8_t i = 0; i < n->c.defCount; i++) {
             reachValue(vm, n->c.defaults[i]);
         }
         break;
@@ -209,7 +209,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)func->c.name);
         reachObject(vm, (Obj*)func->c.module);
         reachValueArray(vm, &func->code.consts);
-        for(uint8_t i = 0; i < func->c.defaultc; i++) {
+        for(uint8_t i = 0; i < func->c.defCount; i++) {
             reachValue(vm, func->c.defaults[i]);
         }
         break;

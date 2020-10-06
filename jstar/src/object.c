@@ -24,12 +24,12 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
 }
 
 static void initCommon(FnCommon* c, ObjModule* module, uint8_t argc, Value* defaults,
-                       uint8_t defaultc, bool varg) {
+                       uint8_t defCount, bool varg) {
     c->name = NULL;
     c->module = module;
     c->argsCount = argc;
     c->defaults = defaults;
-    c->defaultc = defaultc;
+    c->defCount = defCount;
     c->vararg = varg;
 }
 
@@ -267,26 +267,21 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
 // API - JStarBuffer function implementation
 // -----------------------------------------------------------------------------
 
+#define JSR_BUF_DEFAULT_SIZE 16
+
 ObjString* jsrBufferToString(JStarBuffer* b) {
     char* data = GCallocate(b->vm, b->data, b->size, b->len + 1);
-    data[b->len] = '\0';
-
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
     s->interned = false;
     s->length = b->len;
     s->data = data;
     s->hash = 0;
+    s->data[s->length] = '\0';
 
     // Reset JStarBuffer
-    b->data = NULL;
-    b->vm = NULL;
-    b->size = 0;
-    b->len = 0;
-
+    memset(b, 0, sizeof(JStarBuffer));
     return s;
 }
-
-#define BUF_DEF_SZ 16
 
 static void jsrBufGrow(JStarBuffer* b, size_t len) {
     size_t newSize = b->size;
@@ -299,11 +294,11 @@ static void jsrBufGrow(JStarBuffer* b, size_t len) {
 }
 
 void jsrBufferInit(JStarVM* vm, JStarBuffer* b) {
-    jsrBufferInitSz(vm, b, BUF_DEF_SZ);
+    jsrBufferInitSz(vm, b, JSR_BUF_DEFAULT_SIZE);
 }
 
 void jsrBufferInitSz(JStarVM* vm, JStarBuffer* b, size_t size) {
-    if(size < BUF_DEF_SZ) size = BUF_DEF_SZ;
+    if(size < JSR_BUF_DEFAULT_SIZE) size = JSR_BUF_DEFAULT_SIZE;
     b->vm = vm;
     b->size = size;
     b->len = 0;
@@ -405,9 +400,7 @@ void jsrBufferPush(JStarBuffer* b) {
 void jsrBufferFree(JStarBuffer* b) {
     if(b->data == NULL) return;
     GC_FREE_ARRAY(b->vm, char, b->data, b->size);
-    b->data = NULL;
-    b->vm = NULL;
-    b->len = b->size = 0;
+    memset(b, 0, sizeof(JStarBuffer));
 }
 
 // Debug logging functions

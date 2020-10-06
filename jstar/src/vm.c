@@ -48,7 +48,7 @@ static void initMainModule(JStarVM* vm) {
     compileWithModule(vm, "<main>", mainModuleName, NULL);
 }
 
-JStarVM* jsrNewVM(JStarConf* conf) {
+JStarVM* jsrNewVM(const JStarConf* conf) {
     JStarVM* vm = calloc(1, sizeof(*vm));
     vm->errorCallback = conf->errorCallback;
 
@@ -207,7 +207,7 @@ static void argumentError(JStarVM* vm, FnCommon* c, int expected, int supplied,
 }
 
 static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
-    uint8_t most = c->argsCount, least = most - c->defaultc;
+    uint8_t most = c->argsCount, least = most - c->defCount;
 
     if(!c->vararg && most == least && argc != c->argsCount) {
         argumentError(vm, c, c->argsCount, argc, "exactly");
@@ -223,7 +223,7 @@ static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
     }
 
     // push remaining args taking the default value
-    for(uint8_t i = argc - least; i < c->defaultc; i++) {
+    for(uint8_t i = argc - least; i < c->defCount; i++) {
         push(vm, c->defaults[i]);
     }
 
