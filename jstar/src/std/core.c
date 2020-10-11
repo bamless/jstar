@@ -363,10 +363,7 @@ JSR_NATIVE(jsr_Boolean_new) {
 }
 
 JSR_NATIVE(jsr_Boolean_string) {
-    if(jsrGetBoolean(vm, 0))
-        jsrPushString(vm, "true");
-    else
-        jsrPushString(vm, "false");
+    jsrPushString(vm, AS_BOOL(vm->apiStack[0]) ? "true" : "false");
     return true;
 }
 
@@ -385,36 +382,28 @@ JSR_NATIVE(jsr_Null_string) {
 
 // class Function
 JSR_NATIVE(jsr_Function_string) {
-    const char* funType = NULL;
-    const char* funName = NULL;
-    const char* modName = NULL;
+    const char* fnType = NULL;
+    FnCommon* fn = NULL;
 
-    switch(OBJ_TYPE(vm->apiStack[0])) {
+    Obj* obj = AS_OBJ(vm->apiStack[0]);
+    switch(obj->type) {
     case OBJ_CLOSURE:
-        funType = "function";
-        funName = AS_CLOSURE(vm->apiStack[0])->fn->c.name->data;
-        modName = AS_CLOSURE(vm->apiStack[0])->fn->c.module->name->data;
+        fnType = "function";
+        fn = &AS_CLOSURE(vm->apiStack[0])->fn->c;
         break;
     case OBJ_NATIVE:
-        funType = "native";
-        funName = AS_NATIVE(vm->apiStack[0])->c.name->data;
-        modName = AS_NATIVE(vm->apiStack[0])->c.module->name->data;
+        fnType = "native";
+        fn = &AS_NATIVE(vm->apiStack[0])->c;
         break;
-    case OBJ_BOUND_METHOD: {
-        funType = "bound method";
-        ObjBoundMethod* m = AS_BOUND_METHOD(vm->apiStack[0]);
-
-        if(m->method->type == OBJ_CLOSURE) {
-            ObjFunction* fn = ((ObjClosure*)m->method)->fn;
-            funName = fn->c.name->data;
-            modName = fn->c.module->name->data;
+    case OBJ_BOUND_METHOD:
+        fnType = "bound method";
+        ObjBoundMethod* b = AS_BOUND_METHOD(vm->apiStack[0]);
+        if(b->method->type == OBJ_CLOSURE) {
+            fn = &((ObjClosure*)b->method)->fn->c;
         } else {
-            ObjNative* nat = (ObjNative*)m->method;
-            funName = nat->c.name->data;
-            modName = nat->c.module->name->data;
+            fn = &((ObjNative*)b->method)->c;
         }
         break;
-    }
     default:
         UNREACHABLE();
         break;
@@ -423,13 +412,14 @@ JSR_NATIVE(jsr_Function_string) {
     JStarBuffer str;
     jsrBufferInit(vm, &str);
 
-    bool isCoreModule = strcmp(modName, JSR_CORE_MODULE) == 0;
-    Obj* o = AS_OBJ(vm->apiStack[0]);
+    void* objPtr = (void*)obj;
+    bool isCoreModule = strcmp(fn->module->name->data, JSR_CORE_MODULE) == 0;
 
     if(isCoreModule) {
-        jsrBufferAppendf(&str, "<%s %s@%p>", funType, funName, (void*)o);
+        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, fn->name->data, objPtr);
     } else {
-        jsrBufferAppendf(&str, "<%s %s.%s@%p>", funType, modName, funName, (void*)o);
+        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, fn->module->name->data, fn->name->data,
+                         objPtr);
     }
 
     jsrBufferPush(&str);
