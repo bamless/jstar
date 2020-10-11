@@ -34,6 +34,9 @@ static double rad(double x) {
     return x * JSR_PI / 180.;
 }
 
+// The MSVC stdlib.h header file seem to define `min` and `max` no matter which compilation options
+// or define I try to use, so we need to undefine them manually.
+// Nice work Microsoft for distributing non-standard compliant header files with your compiler...
 #ifdef max
     #undef max
 #endif
