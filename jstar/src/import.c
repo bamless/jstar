@@ -18,7 +18,6 @@ static void setModuleInParent(JStarVM* vm, ObjModule* module) {
     ObjString* name = module->name;
     const char* lastDot = strrchr(name->data, '.');
     if(lastDot) {
-        // Set the module's "simple name" (the name after last dot) as a global in its parent
         const char* simpleNameStart = lastDot + 1;
 
         ObjString* parentName = copyString(vm, name->data, simpleNameStart - name->data - 1);
