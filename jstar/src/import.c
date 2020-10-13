@@ -14,6 +14,22 @@
 #include "value.h"
 #include "vm.h"
 
+static void setModuleInParent(JStarVM* vm, ObjModule* module) {
+    ObjString* name = module->name;
+    const char* lastDot = strrchr(name->data, '.');
+    if(lastDot) {
+        // Set the module's "simple name" (the name after last dot) as a global in its parent
+        const char* simpleNameStart = lastDot + 1;
+
+        ObjString* parentName = copyString(vm, name->data, simpleNameStart - name->data - 1);
+        ObjModule* parent = getModule(vm, parentName);
+        ASSERT(parent, "Submodule parent could not be found.");
+
+        ObjString* simpleName = copyString(vm, simpleNameStart, strlen(simpleNameStart));
+        hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
+    }
+}
+
 ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name,
                                JStarStmt* program) {
     ObjModule* module = getModule(vm, name);
@@ -28,6 +44,7 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* nam
         }
 
         setModule(vm, name, module);
+        setModuleInParent(vm, module);
     }
 
     if(program != NULL) {
@@ -56,16 +73,11 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
 }
 
 static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
-    const char* rootPath = strrchr(modulePath->data, '/');
-    const char* simpleName = strrchr(moduleName->data, '.');
+    const char* moduleDir = strrchr(modulePath->data, '/');
+    const char* lastDot = strrchr(moduleName->data, '.');
+    const char* simpleName = lastDot ? lastDot + 1 : moduleName->data;
 
-    if(simpleName == NULL) {
-        simpleName = moduleName->data;
-    } else {
-        simpleName++;
-    }
-
-    jsrBufferTrunc(modulePath, rootPath - modulePath->data);
+    jsrBufferTrunc(modulePath, moduleDir - modulePath->data);
     jsrBufferAppendf(modulePath, "/" DL_PREFIX "%s" DL_SUFFIX, simpleName);
 
     void* dynlib = dynload(modulePath->data);
@@ -103,6 +115,8 @@ static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, con
     }
 
     push(vm, OBJ_VAL(moduleFun));
+    vm->sp[-1] = OBJ_VAL(newClosure(vm, moduleFun));
+
     return true;
 }
 
@@ -177,23 +191,6 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
     return false;
 }
 
-static void setModuleInParent(JStarVM* vm, ObjString* name) {
-    const char* simpleNameStart = strrchr(name->data, '.');
-
-    // Not a nested module, doesn't have a parent
-    if(!simpleNameStart) {
-        return;
-    }
-
-    // Set the module's "simple name" (the name after last dot) as a global in its parent
-    simpleNameStart++;
-    ObjString* parentName = copyString(vm, name->data, simpleNameStart - name->data - 1);
-    ObjModule* parent = getModule(vm, parentName);
-    ObjString* simpleName = copyString(vm, simpleNameStart, strlen(simpleNameStart));
-    ObjModule* module = getModule(vm, name);
-    hashTablePut(&parent->globals, simpleName, OBJ_VAL(module));
-}
-
 bool importModule(JStarVM* vm, ObjString* name) {
     if(hashTableContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);
@@ -209,6 +206,5 @@ bool importModule(JStarVM* vm, ObjString* name) {
         return false;
     }
 
-    setModuleInParent(vm, name);
     return true;
 }

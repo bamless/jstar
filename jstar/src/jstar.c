@@ -52,10 +52,7 @@ JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module,
     if(fn == NULL) return JSR_COMPILE_ERR;
 
     push(vm, OBJ_VAL(fn));
-    ObjClosure* closure = newClosure(vm, fn);
-    pop(vm);
-
-    push(vm, OBJ_VAL(closure));
+    vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
     JStarResult res;
     if((res = jsrCall(vm, 0)) != JSR_EVAL_SUCCESS) {

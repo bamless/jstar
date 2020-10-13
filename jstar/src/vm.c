@@ -1175,9 +1175,7 @@ op_return:
         //call the module's main if first time import
         if(!valueEquals(peek(vm), NULL_VAL)) {
             SAVE_STATE();
-            ObjClosure* c = newClosure(vm, AS_FUNC(peek(vm)));
-            vm->sp[-1] = OBJ_VAL(c); 
-            callFunction(vm, c, 0);
+            callFunction(vm, AS_CLOSURE(peek(vm)), 0);
             LOAD_STATE();
         }
         DISPATCH();

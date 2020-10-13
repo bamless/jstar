@@ -41,13 +41,13 @@
     #define JSTAR_FREEBSD
     #define JSTAR_POSIX
 #elif defined(__APPLE__) || defined(__MACH__)
-    #include <TargetConditionals.h>
+	#include <TargetConditionals.h>
 
-    #if TARGET_OS_IPHONE == 1
+	#if TARGET_OS_IPHONE == 1
         #define JSTAR_IOS
-    #elif TARGET_OS_MAC == 1
+	#elif TARGET_OS_MAC == 1
         #define JSTAR_MACOS
-    #endif
+	#endif
 
     #define JSTAR_POSIX
 #endif
