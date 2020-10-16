@@ -792,6 +792,15 @@ bool runEval(JStarVM* vm, int depth) {
         DISPATCH();                   \
     } while(0)
 
+#define CHECK_EVAL_BREAK(vm)                      \
+    do {                                          \
+        if(vm->evalBreak) {                       \
+            vm->evalBreak = 0;                    \
+            jsrRaise(vm, "ProgramInterrupt", ""); \
+            UNWIND_STACK(vm);                     \
+        }                                         \
+    } while(0)
+
 #ifdef JSTAR_DBG_PRINT_EXEC
     #define PRINT_DBG_STACK()                        \
         printf("     ");                             \
@@ -852,7 +861,7 @@ bool runEval(JStarVM* vm, int depth) {
         DISPATCH();
     }
 
-    TARGET(OP_SUB): { 
+    TARGET(OP_SUB): {
         BINARY(NUM_VAL, -, SUB_OVERLOAD, RSUB_OVERLOAD);
         DISPATCH();
     }
@@ -978,6 +987,7 @@ bool runEval(JStarVM* vm, int depth) {
     }
 
     TARGET(OP_JUMP): {
+        CHECK_EVAL_BREAK(vm);
         int16_t off = NEXT_SHORT();
         ip += off;
         DISPATCH();
@@ -1151,6 +1161,8 @@ op_return:
 
         LOAD_STATE();
         vm->module = fn->c.module;
+
+        CHECK_EVAL_BREAK(vm);
         DISPATCH();
     }
 

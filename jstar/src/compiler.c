@@ -287,8 +287,8 @@ static size_t emitJumpTo(Compiler* c, int jmpOpcode, size_t target, int line) {
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
-    emitBytecode(c, jmpOpcode, 0);
-    emitShort(c, (uint16_t)offset, 0);
+    emitBytecode(c, jmpOpcode, line);
+    emitShort(c, (uint16_t)offset, line);
     return c->func->code.count - 2;
 }
 
@@ -987,7 +987,7 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
 
     size_t firstJmp = 0;
     if(s->as.forStmt.act != NULL) {
-        firstJmp = emitBytecode(c, OP_JUMP, s->line);
+        firstJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
@@ -997,7 +997,7 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
         emitBytecode(c, OP_POP, 0);
-        setJumpTo(c, firstJmp, c->func->code.count, s->line);
+        setJumpTo(c, firstJmp, c->func->code.count, 0);
     }
 
     size_t exitJmp = 0;
@@ -1008,10 +1008,10 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
     }
 
     compileStatement(c, s->as.forStmt.body);
-    emitJumpTo(c, OP_JUMP, l.start, 0);
+    emitJumpTo(c, OP_JUMP, l.start, s->line);
 
     if(s->as.forStmt.cond != NULL) {
-        setJumpTo(c, exitJmp, c->func->code.count, s->line);
+        setJumpTo(c, exitJmp, c->func->code.count, 0);
     }
 
     endLoop(c);
@@ -1076,7 +1076,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
 
     exitScope(c);
 
-    emitJumpTo(c, OP_JUMP, l.start, 0);
+    emitJumpTo(c, OP_JUMP, l.start, s->line);
     setJumpTo(c, exitJmp, c->func->code.count, s->line);
 
     endLoop(c);
@@ -1093,7 +1093,7 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
 
     compileStatement(c, s->as.whileStmt.body);
 
-    emitJumpTo(c, OP_JUMP, l.start, 0);
+    emitJumpTo(c, OP_JUMP, l.start, s->line);
     setJumpTo(c, exitJmp, c->func->code.count, s->line);
 
     endLoop(c);

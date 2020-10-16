@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,9 +26,15 @@ typedef struct CLIOpts {
     int argsCount;
 } CLIOpts;
 
+static void breakEval(int signal) {
+    printf("Keyboard signal received!\n");
+    jsrEvalBreak(vm);
+}
+
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
     vm = jsrNewVM(&conf);
+    signal(SIGINT, &breakEval);
 }
 
 static void exitFree(int code) {
@@ -222,10 +229,12 @@ static CLIOpts parseArguments(int argc, const char** argv) {
     if(nonOptsCount > 0) {
         opts.script = argv[0];
     }
+
     if(nonOptsCount > 1) {
         opts.args = &argv[1];
         opts.argsCount = nonOptsCount - 1;
     }
+
     return opts;
 }
 

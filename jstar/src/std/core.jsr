@@ -437,3 +437,4 @@ class InvalidArgException is Exception end
 class IndexOutOfBoundException is Exception end
 class AssertException is Exception end
 class NotImplementedException is Exception end
+class ProgramInterrupt is Exception end
