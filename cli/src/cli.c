@@ -26,9 +26,12 @@ typedef struct CLIOpts {
     int argsCount;
 } CLIOpts;
 
-static void breakEval(int signal) {
-    printf("Keyboard signal received!\n");
+static void breakEval(int sig) {
     jsrEvalBreak(vm);
+
+#ifdef JSTAR_WINDOWS
+    signal(SIGINT, &breakEval);
+#endif
 }
 
 static void initVM(void) {
