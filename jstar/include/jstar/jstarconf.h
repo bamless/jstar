@@ -2,9 +2,9 @@
 #define JSTARCONF_H
 
 // Version
-#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR @
-#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR @
-#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH @
+#define JSTAR_VERSION_MAJOR  1
+#define JSTAR_VERSION_MINOR  2
+#define JSTAR_VERSION_PATCH  3
 #define JSTAR_VERSION_STRING "1.2.3"
 
 // Increasing version number, used for range checking
@@ -50,6 +50,27 @@
     #endif
 
     #define JSTAR_POSIX
+#endif
+
+// Macro for symbol exporting
+#ifndef JSTAR_STATIC
+    #if defined(_WIN32) && defined(_MSC_VER)
+        #if defined(libjstar_EXPORTS)
+            #define JSTAR_API __declspec(dllexport)
+        #else
+            #define JSTAR_API __declspec(dllimport)
+        #endif
+    #elif defined(__GNUC__)
+        #if defined(libjstar_EXPORTS)
+            #define JSTAR_API __attribute__((visibility("default")))
+        #else
+            #define JSTAR_API
+        #endif
+    #else
+        #define JSTAR_API
+    #endif
+#else
+    #define JSTAR_API
 #endif
 
 #endif

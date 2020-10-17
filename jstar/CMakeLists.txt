@@ -57,19 +57,11 @@ target_include_directories(libjstar
 )
 set_target_properties(libjstar PROPERTIES
     OUTPUT_NAME "jstar"
+    PDB_NAME "libjstar"
     VERSION ${JSTAR_VERSION}
     SOVERSION ${JSTAR_VERSION_MAJOR}
     C_VISIBILITY_PRESET hidden
 )
-include(GenerateExportHeader)
-generate_export_header(libjstar
-    BASE_NAME JSTAR
-    EXPORT_MACRO_NAME JSTAR_API
-    EXPORT_FILE_NAME jstarexport.h
-    STATIC_DEFINE JSTAR_STATIC
-)
-
-set_target_properties(jstar PROPERTIES PDB_NAME "libjstar")
 
 # Enable link-time optimization if supported
 if(LTO)

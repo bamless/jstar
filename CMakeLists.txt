@@ -26,8 +26,8 @@ option(JSTAR_RE    "Include the 're' module in the language" ON)
 
 # setup option.h
 configure_file (
-    "${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h.in"
-    "${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h"
+    ${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h.in
+    ${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h
 )
 
 # set default build type if not specified
@@ -85,20 +85,13 @@ if(JSTAR_INSTALL)
         RUNTIME DESTINATION bin
     )
 
+    # install target, config and version CMake export files
     install(EXPORT jstar-export
         FILE        JStarTargets.cmake
         NAMESPACE   jstar::
         DESTINATION lib/cmake/jstar
     )
 
-    # install header files
-    install(DIRECTORY
-        "jstar/include/" 
-        DESTINATION include
-        PATTERN "*.h.in" EXCLUDE
-    )
-
-    # generate the version file for the config file
     include(CMakePackageConfigHelpers)
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
@@ -110,5 +103,12 @@ if(JSTAR_INSTALL)
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/JStarConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
         DESTINATION lib/cmake/jstar
+    )
+
+    # install header files
+    install(DIRECTORY
+        "jstar/include/" 
+        DESTINATION include
+        PATTERN "*.h.in" EXCLUDE
     )
 endif()
