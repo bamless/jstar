@@ -2,6 +2,8 @@
 
 #include <stdbool.h>
 
+#include "util.h"
+
 #define CODE_DEF_SIZE  8
 #define CODE_GROW_FACT 2
 
@@ -54,6 +56,7 @@ size_t writeByte(Code* c, uint8_t b, int line) {
 }
 
 int getBytecodeSrcLine(Code* c, size_t index) {
+    ASSERT(index < c->linesCount, "Line buffer overflow");
     return c->lines[index];
 }
 
