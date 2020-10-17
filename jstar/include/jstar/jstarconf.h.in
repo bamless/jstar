@@ -2,9 +2,9 @@
 #define JSTARCONF_H
 
 // Version
-#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR@
-#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR@
-#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH@
+#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR @
+#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR @
+#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH @
 #define JSTAR_VERSION_STRING "@JSTAR_VERSION_MAJOR@.@JSTAR_VERSION_MINOR@.@JSTAR_VERSION_PATCH@"
 
 // Increasing version number, used for range checking
@@ -41,36 +41,15 @@
     #define JSTAR_FREEBSD
     #define JSTAR_POSIX
 #elif defined(__APPLE__) || defined(__MACH__)
-	#include <TargetConditionals.h>
+    #include <TargetConditionals.h>
 
-	#if TARGET_OS_IPHONE == 1
+    #if TARGET_OS_IPHONE == 1
         #define JSTAR_IOS
-	#elif TARGET_OS_MAC == 1
+    #elif TARGET_OS_MAC == 1
         #define JSTAR_MACOS
-	#endif
+    #endif
 
     #define JSTAR_POSIX
-#endif
-
-// Macro for symbol exporting
-#ifndef JSTAR_STATIC
-    #if defined(_WIN32) && defined(_MSC_VER)
-        #if defined(libjstar_EXPORTS)
-            #define JSTAR_API __declspec(dllexport)
-        #else
-            #define JSTAR_API __declspec(dllimport)
-        #endif
-    #elif defined(__GNUC__)
-        #if defined(libjstar_EXPORTS)
-            #define JSTAR_API __attribute__((visibility("default")))
-        #else
-            #define JSTAR_API
-        #endif
-    #else
-        #define JSTAR_API
-    #endif
-#else
-    #define JSTAR_API
 #endif
 
 #endif

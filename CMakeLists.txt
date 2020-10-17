@@ -5,6 +5,7 @@ project(jstar)
 set(JSTAR_VERSION_MAJOR 1)
 set(JSTAR_VERSION_MINOR 2)
 set(JSTAR_VERSION_PATCH 3)
+set(JSTAR_VERSION ${JSTAR_VERSION_MAJOR}.${JSTAR_VERSION_MINOR}.${JSTAR_VERSION_PATCH})
 
 # set the c standard
 set(CMAKE_C_STANDARD 99)
@@ -78,9 +79,16 @@ add_subdirectory("jstar")
 if(JSTAR_INSTALL)
     # install all build products
     install(TARGETS jstar libjstar libjstar_static
+        EXPORT  jstar-export
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
+    )
+
+    install(EXPORT jstar-export
+        FILE        JStarTargets.cmake
+        NAMESPACE   jstar::
+        DESTINATION lib/cmake/jstar
     )
 
     # install header files
@@ -88,5 +96,19 @@ if(JSTAR_INSTALL)
         "jstar/include/" 
         DESTINATION include
         PATTERN "*.h.in" EXCLUDE
+    )
+
+    # generate the version file for the config file
+    include(CMakePackageConfigHelpers)
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
+        VERSION JSTAR_VERSION
+        COMPATIBILITY AnyNewerVersion
+    )
+
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/JStarConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
+        DESTINATION lib/cmake/jstar
     )
 endif()

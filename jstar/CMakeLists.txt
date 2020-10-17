@@ -8,12 +8,6 @@ if(USE_COMPUTED_GOTOS)
     endif()
 endif()
 
-# libjstar compatibiliy version
-set(LIBJSTAR_VERSION_MAJOR 1)
-set(LIBJSTAR_VERSION_MINOR 0)
-set(LIBJSTAR_VERSION_PATCH 0)
-set(LIBJSTAR_VERSION_STRING "${LIBJSTAR_VERSION_MAJOR}.${LIBJSTAR_VERSION_MINOR}.${LIBJSTAR_VERSION_PATCH}")
-
 # create jstar source headers names
 set(JSTAR_HEADERS)
 foreach(jsr ${JSTAR_SOURCES})
@@ -29,8 +23,6 @@ foreach(jsr ${JSTAR_SOURCES})
     )
 endforeach()
 
-include_directories("src" "include/jstar")
-
 # set extra libraries that we need to link
 set(EXTRA_LIBS)
 if(UNIX)
@@ -40,24 +32,44 @@ endif()
 # static library
 add_library(libjstar_static STATIC ${SOURCES} ${JSTAR_HEADERS})
 target_compile_definitions(libjstar_static PRIVATE JSTAR_STATIC)
+target_link_libraries(libjstar_static ${EXTRA_LIBS})
+target_include_directories(libjstar_static 
+    PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/jstar>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 set_target_properties(libjstar_static PROPERTIES 
-    OUTPUT_NAME "jstars" 
+    OUTPUT_NAME "jstars"
+    VERSION     ${JSTAR_VERSION}
 )
 
 #shared library
 add_library(libjstar SHARED ${SOURCES} ${JSTAR_HEADERS})
 target_link_libraries(libjstar ${EXTRA_LIBS})
-
-set_target_properties(libjstar PROPERTIES C_VISIBILITY_PRESET hidden)
-include(GenerateExportHeader)
-generate_export_header(libjstar)
-set_target_properties(jstar PROPERTIES PDB_NAME "libjstar")
-set_target_properties(libjstar PROPERTIES 
+target_include_directories(libjstar 
+    PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/jstar>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+set_target_properties(libjstar PROPERTIES
     OUTPUT_NAME "jstar"
-    VERSION     ${LIBJSTAR_VERSION_STRING}
-    SOVERSION   ${LIBJSTAR_VERSION_MAJOR} 
+    VERSION ${JSTAR_VERSION}
+    SOVERSION ${JSTAR_VERSION_MAJOR}
+    C_VISIBILITY_PRESET hidden
+)
+include(GenerateExportHeader)
+generate_export_header(libjstar
+    BASE_NAME JSTAR
+    EXPORT_MACRO_NAME JSTAR_API
+    EXPORT_FILE_NAME jstarexport.h
+    STATIC_DEFINE JSTAR_STATIC
 )
 
+set_target_properties(jstar PROPERTIES PDB_NAME "libjstar")
 
 # Enable link-time optimization if supported
 if(LTO)

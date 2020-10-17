@@ -1,9 +1,3 @@
-include_directories(
-    "${PROJECT_SOURCE_DIR}/jstar/include"
-    "thirdparty/linenoise/include"
-    "thirdparty/argparse"
-)
-
 add_subdirectory("thirdparty/linenoise")
 add_subdirectory("thirdparty/argparse")
 
@@ -14,9 +8,15 @@ else()
     set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 endif()
 
-# add executable and libjstar dependency
+# jstar executable
 add_executable(jstar src/cli.c)
 target_link_libraries(jstar libjstar linenoise argparse)
+target_include_directories(jstar
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/jstar/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/linenoise/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/argparse
+)
 
 # Enable link-time optimization if supported
 if(LTO)
