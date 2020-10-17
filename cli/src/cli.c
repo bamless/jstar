@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,9 +11,12 @@
 #include "jstar/parse/parser.h"
 #include "linenoise.h"
 
-#define JSTARPATH "JSTARPATH"
+#define JSTAR_PATH   "JSTARPATH"
+#define JSTAR_PROMPT "J*>> "
+#define LINE_PROMPT  ".... "
 
 static JStarVM* vm;
+static JStarBuffer completionBuf;
 
 typedef struct CLIOpts {
     const char* script;
@@ -28,33 +32,23 @@ typedef struct CLIOpts {
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
     vm = jsrNewVM(&conf);
+    jsrBufferInit(vm, &completionBuf);
 }
 
 static void exitFree(int code) {
+    jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
     exit(code);
 }
 
 // -----------------------------------------------------------------------------
-// REPL
+// UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
-
-static void printVersion(void) {
-    printf("J* Version %s\n", JSTAR_VERSION_STRING);
-    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
-}
-
-// Little hack to enable adding a tab in linenoise
-static void completion(const char* buf, linenoiseCompletions* lc) {
-    char indented[1024];
-    snprintf(indented, sizeof(indented), "%s    ", buf);
-    linenoiseAddCompletion(lc, indented);
-}
 
 static void initImportPaths(const char* path, bool ignoreEnv) {
     jsrAddImportPath(vm, path);
     if(!ignoreEnv) {
-        const char* jstarPath = getenv(JSTARPATH);
+        const char* jstarPath = getenv(JSTAR_PATH);
         if(jstarPath == NULL) return;
 
         JStarBuffer buf;
@@ -75,6 +69,35 @@ static void initImportPaths(const char* path, bool ignoreEnv) {
         jsrAddImportPath(vm, buf.data);
         jsrBufferFree(&buf);
     }
+}
+
+static void sigintHandler(int sig) {
+    signal(sig, SIG_DFL);
+    jsrEvalBreak(vm);
+}
+
+static JStarResult evaluate(const char* name, const char* src) {
+    signal(SIGINT, &sigintHandler);
+    JStarResult res = jsrEvaluate(vm, name, src);
+    signal(SIGINT, SIG_DFL);
+    return res;
+}
+
+// -----------------------------------------------------------------------------
+// REPL
+// -----------------------------------------------------------------------------
+
+static void printVersion(void) {
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
+}
+
+// Little hack to enable adding a tab in the REPL.
+// Simply add 4 spaces on linenoise tab completion.
+static void completion(const char* buf, linenoiseCompletions* lc) {
+    jsrBufferClear(&completionBuf);
+    jsrBufferAppendf(&completionBuf, "%s    ", buf);
+    linenoiseAddCompletion(lc, completionBuf.data);
 }
 
 static int countBlocks(const char* line) {
@@ -128,38 +151,39 @@ static void doRepl(CLIOpts* opts) {
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
+    JStarResult res = JSR_EVAL_SUCCESS;
 
     char* line;
-    while((line = linenoise("J*>> ")) != NULL) {
+    while((line = linenoise(JSTAR_PROMPT)) != NULL) {
         linenoiseHistoryAdd(line);
         int depth = countBlocks(line);
         jsrBufferAppendstr(&src, line);
         free(line);
 
-        while(depth > 0 && (line = linenoise(".... ")) != NULL) {
+        while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
             linenoiseHistoryAdd(line);
-            jsrBufferAppendChar(&src, '\n');
             depth += countBlocks(line);
+            jsrBufferAppendChar(&src, '\n');
             jsrBufferAppendstr(&src, line);
             free(line);
         }
 
         addPrintIfExpr(&src);
-        jsrEvaluate(vm, "<stdin>", src.data);
+        res = evaluate("<stdin>", src.data);
         jsrBufferClear(&src);
     }
 
     jsrBufferFree(&src);
     linenoiseHistoryFree();
+    exitFree(res);
 }
 
 // -----------------------------------------------------------------------------
 // SCRIPT EXECUTION
 // -----------------------------------------------------------------------------
 
-static JStarResult execScript(const char* script, int argsCount, const char** args,
-                              bool ignoreEnv) {
-    jsrInitCommandLineArgs(vm, argsCount, args);
+static JStarResult execScript(const char* script, int argc, const char** args, bool ignoreEnv) {
+    jsrInitCommandLineArgs(vm, argc, args);
 
     // set base import path to script's directory
     char* directory = strrchr(script, '/');
@@ -180,8 +204,9 @@ static JStarResult execScript(const char* script, int argsCount, const char** ar
         exitFree(EXIT_FAILURE);
     }
 
-    JStarResult res = jsrEvaluate(vm, script, src);
+    JStarResult res = evaluate(script, src);
     free(src);
+
     return res;
 }
 
@@ -222,21 +247,24 @@ static CLIOpts parseArguments(int argc, const char** argv) {
     if(nonOptsCount > 0) {
         opts.script = argv[0];
     }
+
     if(nonOptsCount > 1) {
         opts.args = &argv[1];
         opts.argsCount = nonOptsCount - 1;
     }
+
     return opts;
 }
 
 int main(int argc, const char** argv) {
     CLIOpts opts = parseArguments(argc, argv);
-    initVM();
 
     if(opts.showVersion) {
         printVersion();
-        exitFree(EXIT_SUCCESS);
+        exit(EXIT_SUCCESS);
     }
+
+    initVM();
 
     if(opts.execStmt) {
         JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
@@ -250,5 +278,4 @@ int main(int argc, const char** argv) {
     }
 
     doRepl(&opts);
-    exitFree(EXIT_SUCCESS);
 }

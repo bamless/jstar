@@ -375,4 +375,5 @@ const char *core_jsr =
 "class IndexOutOfBoundException is Exception end\n"
 "class AssertException is Exception end\n"
 "class NotImplementedException is Exception end\n"
+"class ProgramInterrupt is Exception end\n"
 ;

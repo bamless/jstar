@@ -95,6 +95,9 @@ JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const cha
 JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
+// Breaks J* evaluation at the first chance possible.
+// It can be called by an asynchronous signal handler.
+JSTAR_API void jsrEvalBreak(JStarVM* vm);
 // Prints the the stacktrace of the exception at slot 'slot'. If the value at 'slot' is not an
 // Exception, or is a non-yet-raised Exception, it doesn't print anything ad returns successfully
 JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);

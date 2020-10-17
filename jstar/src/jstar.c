@@ -110,6 +110,10 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     return finishCall(vm, depth, offsp);
 }
 
+void jsrEvalBreak(JStarVM* vm) {
+    if(vm->frameCount) vm->evalBreak = 1;
+}
+
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");

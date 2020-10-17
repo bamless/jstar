@@ -11,6 +11,7 @@
 #include "jstar.h"
 #include "object.h"
 #include "opcode.h"
+#include "signal.h"
 #include "util.h"
 #include "value.h"
 
@@ -124,6 +125,10 @@ struct JStarVM {
 
     // Callback function to report errors
     JStarErrorCB errorCallback;
+
+    // If set, the VM will break the eval loop as soon as possible.
+    // Can be set asynchronously by a signal handler
+    volatile sig_atomic_t evalBreak;
 
     // ---- Memory management ----
 
