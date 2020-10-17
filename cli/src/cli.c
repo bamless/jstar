@@ -76,7 +76,7 @@ static void sigintHandler(int sig) {
     jsrEvalBreak(vm);
 }
 
-static JStarResult evaluateScript(const char* name, const char* src) {
+static JStarResult evaluate(const char* name, const char* src) {
     signal(SIGINT, &sigintHandler);
     JStarResult res = jsrEvaluate(vm, name, src);
     signal(SIGINT, SIG_DFL);
@@ -169,7 +169,7 @@ static void doRepl(CLIOpts* opts) {
         }
 
         addPrintIfExpr(&src);
-        res = evaluateScript("<stdin>", src.data);
+        res = evaluate("<stdin>", src.data);
         jsrBufferClear(&src);
     }
 
@@ -204,7 +204,7 @@ static JStarResult execScript(const char* script, int argc, const char** args, b
         exitFree(EXIT_FAILURE);
     }
 
-    JStarResult res = evaluateScript(script, src);
+    JStarResult res = evaluate(script, src);
     free(src);
 
     return res;
