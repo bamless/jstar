@@ -4,7 +4,6 @@ set(JSTAR_SOURCES
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/ast.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/lex.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/parser.h
-    ${PROJECT_SOURCE_DIR}/include/jstar/parse/token.def
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/vector.h
 
     parse/ast.c
@@ -45,7 +44,6 @@ set(JSTAR_SOURCES
     jstar.c
     object.c
     object.h
-    opcode.def
     opcode.h
     util.h
     value.c
