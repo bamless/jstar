@@ -10,9 +10,9 @@ add_executable(cli cli.c)
 target_link_libraries(cli PRIVATE jstar linenoise argparse)
 target_include_directories(cli
     PRIVATE
-        ${PROJECT_SOURCE_DIR}/jstar/include
-        ${PROJECT_SOURCE_DIR}/deps/linenoise/include
-        ${PROJECT_SOURCE_DIR}/deps/argparse
+        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/extern/linenoise/include
+        ${PROJECT_SOURCE_DIR}/extern/argparse
 )
 set_target_properties(cli PROPERTIES
     OUTPUT_NAME "jstar"

@@ -72,11 +72,11 @@ endif()
 
 # Subprojects
 add_subdirectory("cli")
-add_subdirectory("jstar")
+add_subdirectory("src")
 
 # Add library dependencues
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/linenoise EXCLUDE_FROM_ALL)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/argparse EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/extern/linenoise EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/extern/argparse EXCLUDE_FROM_ALL)
 
 if(JSTAR_INSTALL)
     # Install files other than targets
