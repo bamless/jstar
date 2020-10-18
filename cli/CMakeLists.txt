@@ -25,7 +25,7 @@ endif()
 
 # add icon to exe on windows
 if(WIN32)
-    target_sources(cli PRIVATE "${PROJECT_SOURCE_DIR}/dist/icon.rc")
+    target_sources(cli PRIVATE "icon.rc")
 endif()
 
 # Install target
