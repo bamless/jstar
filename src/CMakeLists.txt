@@ -87,7 +87,7 @@ endif()
 
 # static library
 add_library(jstar_static STATIC ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
-target_compile_definitions(jstar_static PRIVATE JSTAR_STATIC)
+target_compile_definitions(jstar_static PUBLIC JSTAR_STATIC)
 target_link_libraries(jstar_static ${EXTRA_LIBS})
 target_include_directories(jstar_static 
     PUBLIC
