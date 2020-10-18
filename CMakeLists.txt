@@ -1,16 +1,14 @@
 cmake_minimum_required(VERSION 3.9)
 project(jstar)
 
-# version
 set(JSTAR_VERSION_MAJOR 1)
 set(JSTAR_VERSION_MINOR 2)
 set(JSTAR_VERSION_PATCH 4)
 set(JSTAR_VERSION ${JSTAR_VERSION_MAJOR}.${JSTAR_VERSION_MINOR}.${JSTAR_VERSION_PATCH})
 
-# set the c standard
 set(CMAKE_C_STANDARD 99)
 
-# options
+# Options
 option(JSTAR_INSTALL        "Generate install targets" ON)
 option(JSTAR_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
 option(JSTAR_NAN_TAGGING    "Use NaN tagging technique to store the VM internal type" ON)
@@ -24,13 +22,13 @@ option(JSTAR_MATH  "Include the 'math' module in the language" ON)
 option(JSTAR_DEBUG "Include the 'debug' module in the language" ON)
 option(JSTAR_RE    "Include the 're' module in the language" ON)
 
-# setup config file
+# Setup config file
 configure_file (
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/jstarconf.h.in
     ${CMAKE_CURRENT_SOURCE_DIR}/include/jstar/jstarconf.h
 )
 
-# set default build type if not specified
+# Set default build type if not specified
 get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if (NOT IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to 'Release' as none was specified.")
@@ -46,7 +44,7 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
 endif()
 
-# set output directories
+# Set output directories
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -76,7 +74,7 @@ add_subdirectory(src)
 # cli app
 add_subdirectory(cli)
 
-# Add external libraries
+# external libraries
 add_subdirectory(extern)
 
 if(JSTAR_INSTALL)
@@ -99,4 +97,21 @@ if(JSTAR_INSTALL)
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
         DESTINATION lib/cmake/jstar
     )
+    
+    # On Windows install required runtime dlls alongside exe
+    include(cmake/MinGWRuntime.cmake)
+    include(InstallRequiredSystemLibraries)
+
+    # Packaging support
+    set(CPACK_PACKAGE_VENDOR "bamless")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "J* - A Lightweight Scripting Language")
+    set(CPACK_PACKAGE_EXECUTABLES jstar;jstar)
+    set(CPACK_PACKAGE_VERSION ${JSTAR_VERSION})
+    set(CPACK_PACKAGE_VERSION_MAJOR ${JSTAR_VERSION_MAJOR})
+    set(CPACK_PACKAGE_VERSION_MINOR ${JSTAR_VERSION_MINOR})
+    set(CPACK_PACKAGE_VERSION_PATCH ${JSTAR_VERSION_PATCH})
+    set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
+    set(CPACK_RESOURCE_FILE_README ${CMAKE_CURRENT_SOURCE_DIR}/README.md)
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "jstar")
+    include(CPack)
 endif()
