@@ -2,31 +2,31 @@
 #define JSTARCONF_H
 
 // Version
-#define JSTAR_VERSION_MAJOR  1
-#define JSTAR_VERSION_MINOR  2
-#define JSTAR_VERSION_PATCH  4
-#define JSTAR_VERSION_STRING "1.2.4"
+#define JSTAR_VERSION_MAJOR  @JSTAR_VERSION_MAJOR@
+#define JSTAR_VERSION_MINOR  @JSTAR_VERSION_MINOR@
+#define JSTAR_VERSION_PATCH  @JSTAR_VERSION_PATCH@
+#define JSTAR_VERSION_STRING "@JSTAR_VERSION_MAJOR@.@JSTAR_VERSION_MINOR@.@JSTAR_VERSION_PATCH@"
 
 // Increasing version number, used for range checking
 #define JSTAR_VERSION \
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
 
 // compiler and platform on which this J* binary was compiled
-#define JSTAR_COMPILER "GNU 10.2.0"
-#define JSTAR_PLATFORM "Linux"
+#define JSTAR_COMPILER "@CMAKE_C_COMPILER_ID@ @CMAKE_C_COMPILER_VERSION@"
+#define JSTAR_PLATFORM "@CMAKE_SYSTEM_NAME@"
 
 // Options
-#define JSTAR_COMPUTED_GOTOS
-#define JSTAR_NAN_TAGGING
-/* #undef JSTAR_DBG_PRINT_EXEC */
-/* #undef JSTAR_DBG_PRINT_GC */
-/* #undef JSTAR_DBG_STRESS_GC */
+#cmakedefine JSTAR_COMPUTED_GOTOS
+#cmakedefine JSTAR_NAN_TAGGING
+#cmakedefine JSTAR_DBG_PRINT_EXEC
+#cmakedefine JSTAR_DBG_PRINT_GC
+#cmakedefine JSTAR_DBG_STRESS_GC
 
-#define JSTAR_SYS
-#define JSTAR_IO
-#define JSTAR_MATH
-#define JSTAR_DEBUG
-#define JSTAR_RE
+#cmakedefine JSTAR_SYS
+#cmakedefine JSTAR_IO
+#cmakedefine JSTAR_MATH
+#cmakedefine JSTAR_DEBUG
+#cmakedefine JSTAR_RE
 
 // Platform detection
 #if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
@@ -55,13 +55,13 @@
 // Macro for symbol exporting
 #ifndef JSTAR_STATIC
     #if defined(_WIN32) && defined(_MSC_VER)
-        #if defined(libjstar_EXPORTS)
+        #if defined(jstar_EXPORTS)
             #define JSTAR_API __declspec(dllexport)
         #else
             #define JSTAR_API __declspec(dllimport)
         #endif
     #elif defined(__GNUC__)
-        #if defined(libjstar_EXPORTS)
+        #if defined(jstar_EXPORTS)
             #define JSTAR_API __attribute__((visibility("default")))
         #else
             #define JSTAR_API

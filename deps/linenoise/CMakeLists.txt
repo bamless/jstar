@@ -59,7 +59,7 @@ else()
 
 endif()
 
-include_directories(${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # build liblinenoise
 add_library(
@@ -69,3 +69,9 @@ add_library(
   src/linenoise.cpp
   src/wcwidth.cpp
 )
+
+# install
+install(TARGETS linenoise DESTINATION lib)
+
+# headers
+install(FILES include/linenoise.h DESTINATION include)

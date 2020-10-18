@@ -24,10 +24,10 @@ option(JSTAR_MATH  "Include the 'math' module in the language" ON)
 option(JSTAR_DEBUG "Include the 'debug' module in the language" ON)
 option(JSTAR_RE    "Include the 're' module in the language" ON)
 
-# setup option.h
+# setup config file
 configure_file (
-    ${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h.in
-    ${PROJECT_SOURCE_DIR}/jstar/include/jstar/jstarconf.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/jstarconf.h.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/jstar/jstarconf.h
 )
 
 # set default build type if not specified
@@ -70,22 +70,16 @@ elseif(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267")
 endif()
 
-# subprojects
+# Subprojects
 add_subdirectory("cli")
 add_subdirectory("jstar")
 
-# ---- install targets ----
+# Add library dependencues
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/linenoise EXCLUDE_FROM_ALL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/argparse EXCLUDE_FROM_ALL)
 
 if(JSTAR_INSTALL)
-    # install all build products
-    install(TARGETS jstar libjstar libjstar_static
-        EXPORT  jstar-export
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
-    )
-
-    # install target, config and version CMake export files
+    # Install files other than targets
     install(EXPORT jstar-export
         FILE        JStarTargets.cmake
         NAMESPACE   jstar::
@@ -95,7 +89,7 @@ if(JSTAR_INSTALL)
     include(CMakePackageConfigHelpers)
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
-        VERSION JSTAR_VERSION
+        VERSION ${JSTAR_VERSION}
         COMPATIBILITY AnyNewerVersion
     )
 
@@ -103,12 +97,5 @@ if(JSTAR_INSTALL)
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/JStarConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
         DESTINATION lib/cmake/jstar
-    )
-
-    # install header files
-    install(DIRECTORY
-        "jstar/include/" 
-        DESTINATION include
-        PATTERN "*.h.in" EXCLUDE
     )
 endif()
