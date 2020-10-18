@@ -61,10 +61,10 @@ set(JSTAR_STDLIB
     std/sys.jsr
 )
 
-if(USE_COMPUTED_GOTOS)
+if(JSTAR_COMPUTED_GOTOS)
     if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
         # disable crossjumping optimization on vm.c for an extra ~15% dispatch performance
-        set_property(SOURCE "vm.c" PROPERTY COMPILE_FLAGS "-fno-crossjumping ")
+        set_property(SOURCE vm.c PROPERTY COMPILE_FLAGS -fno-crossjumping)
     endif()
 endif()
 

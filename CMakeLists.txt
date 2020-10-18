@@ -70,13 +70,14 @@ elseif(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267")
 endif()
 
-# Subprojects
-add_subdirectory("cli")
-add_subdirectory("src")
+# jstar sources
+add_subdirectory(src)
 
-# Add library dependencues
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/extern/linenoise EXCLUDE_FROM_ALL)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/extern/argparse EXCLUDE_FROM_ALL)
+# cli app
+add_subdirectory(cli)
+
+# Add external libraries
+add_subdirectory(extern)
 
 if(JSTAR_INSTALL)
     # Install files other than targets
