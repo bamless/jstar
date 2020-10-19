@@ -32,9 +32,9 @@ among the language and host program, rendering embedding simple.
 
 To get a feel of the language, [try it in your browser](https://jstar-lang.github.io/docs/demo)!
 
-# The **jstar** command line app
+# The **jstar** Command Line Interface
 
-Besides the language implementation, a simple executable called `jstar` is provided to start using
+Besides the language implementation, a simple command line interface called `jstar` is provided to start using
 the language without embedding it into another program.  
 If the `jstar` binary is executed without
 arguments it behaves like your usual read-eval-print loop, accepting a line at a time and executing
@@ -70,40 +70,45 @@ end
 The `jstar` executable can also accept various options that modify the behaviour of the command line
 app. To see all of them alongside a description, simply pass the `-h` option to the executable.
 
-In addition to being a useful tool to directly use the programming language, the command line app
+In addition to being a useful tool to directly use the programming language, the command line interface
 is also a good starting point to learn how **J\*** can be embedded in a program, as it uses the API
 to implement all of its functionalities. You can find the code in [**cli/cli.c**](https://github.com/bamless/jstar/blob/master/cli/cli.c).
 
 # Binaries
 
 Precompiled binaries are provided for Windows and Linux for every major release. You can find them
-[here](https://github.com/bamless/jstar/releases).
+[here](https://github.com/jstar-lang/jstar/releases).
 
 # Compilation
 
 The **J\*** library requires a C99 compiler and CMake (>= 3.9) to be built, and is known to compile 
 on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, clang).
 
-To build the provided **command line app** `jstar`, a C++11 compiler is required as one of its
+To build the provided **command line interface** `jstar`, a C++11 compiler is required as one of its
 dependencies, linenoise-ng, is written in C++.
 
-Additionally, if one wishes to modify the standard library (**.jsr** files in jstar/src/builtin),
-a python interpreter (version >= 3) is required to generate header files from the code (CMake will
+Additionally, if one wishes to modify the standard library (**.jsr** files in src/std),
+a python interpreter (version >= 2.7) is required to generate header files from the code (CMake will
 automatically take care of this).
 
 You can clone the latest **J\*** sources using git:
 
 ```
-git clone https://github.com/bamless/jstar.git
+git clone https://github.com/jstar-lang/jstar.git
 ```
 
-After cloning, use cmake to generate build files for your build system of choice and build the
-target `libjstar`/`libjstar_static` if you only want to generate the language dynamic/static library
-, or the `all` target if you want to build both the library and the command line app. On UNIX 
-systems this can be simply achieved by entering this in the command line:
+After cloning, use CMake to generate build files for your build system of choice and build the `all`
+target to generate the language dynamic/static libraries and the command line interface. On 
+UNIX-like systems this can be simply achieved by issuing this in the command line:
 
 ```
 cd jstar; mkdir build; cd build; cmake ..; make -j
+```
+
+Once the build process is complete, you can install **J\*** by typing:
+
+```
+sudo make install
 ```
 
 Various CMake options are available to switch on or off certain functionalities:
