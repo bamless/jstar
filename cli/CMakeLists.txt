@@ -5,18 +5,10 @@ else()
     set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 endif()
 
-# jstar executable
+# CLI app
 add_executable(cli cli.c)
 target_link_libraries(cli PRIVATE jstar linenoise argparse)
-target_include_directories(cli
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/extern/linenoise/include
-        ${PROJECT_SOURCE_DIR}/extern/argparse
-)
-set_target_properties(cli PROPERTIES
-    OUTPUT_NAME "jstar"
-)
+set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 
 # Enable link-time optimization if supported
 if(LTO)

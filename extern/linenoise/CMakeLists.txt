@@ -59,8 +59,6 @@ else()
 
 endif()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
 # build liblinenoise
 add_library(
   linenoise
@@ -68,6 +66,12 @@ add_library(
   src/ConvertUTF.cpp
   src/linenoise.cpp
   src/wcwidth.cpp
+)
+target_include_directories(linenoise
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # install

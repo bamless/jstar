@@ -1,3 +1,7 @@
+# -----------------------------------------------------------------------------
+# Sources
+# -----------------------------------------------------------------------------
+
 set(JSTAR_SOURCES
     ${PROJECT_SOURCE_DIR}/include/jstar/jstar.h
     ${PROJECT_SOURCE_DIR}/include/jstar/jstarconf.h
@@ -52,6 +56,7 @@ set(JSTAR_SOURCES
     vm.h
 )
 
+# J* standard library sources
 set(JSTAR_STDLIB
     std/core.jsr 
     std/debug.jsr
@@ -61,14 +66,7 @@ set(JSTAR_STDLIB
     std/sys.jsr
 )
 
-if(JSTAR_COMPUTED_GOTOS)
-    if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-        # disable crossjumping optimization on vm.c for an extra ~15% dispatch performance
-        set_property(SOURCE vm.c PROPERTY COMPILE_FLAGS -fno-crossjumping)
-    endif()
-endif()
-
-# Create commands to generate jstar sandard library source headers
+# Generate J* sandard library source headers
 set(JSTAR_STDLIB_HEADERS)
 foreach(jsr ${JSTAR_STDLIB})
     list(APPEND JSTAR_STDLIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.h)
@@ -79,11 +77,26 @@ foreach(jsr ${JSTAR_STDLIB})
     )
 endforeach()
 
+# -----------------------------------------------------------------------------
+# Prepare extra libraries
+# -----------------------------------------------------------------------------
+
 # set extra libraries that we need to link
 set(EXTRA_LIBS)
 if(UNIX)
     set(EXTRA_LIBS dl m)
 endif()
+
+if(JSTAR_COMPUTED_GOTOS)
+    if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
+        # disable crossjumping optimization on vm.c for an extra ~15% dispatch performance
+        set_property(SOURCE vm.c PROPERTY COMPILE_FLAGS -fno-crossjumping)
+    endif()
+endif()
+
+# -----------------------------------------------------------------------------
+# Library targets
+# -----------------------------------------------------------------------------
 
 # static library
 add_library(jstar_static STATIC ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
@@ -92,8 +105,9 @@ target_link_libraries(jstar_static ${EXTRA_LIBS})
 target_include_directories(jstar_static 
     PUBLIC
         $<INSTALL_INTERFACE:include>
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/jstar>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
+        ${PROJECT_SOURCE_DIR}/include/jstar
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 set_target_properties(jstar_static PROPERTIES 
@@ -107,9 +121,10 @@ target_link_libraries(jstar ${EXTRA_LIBS})
 target_include_directories(jstar 
     PUBLIC
         $<INSTALL_INTERFACE:include>
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/jstar>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/include/jstar
 )
 set_target_properties(jstar PROPERTIES
     PDB_NAME "jstar.dll"
@@ -123,6 +138,10 @@ if(LTO)
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
+
+# -----------------------------------------------------------------------------
+# Installation
+# -----------------------------------------------------------------------------
 
 # Install target
 if(JSTAR_INSTALL)
