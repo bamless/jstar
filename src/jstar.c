@@ -28,7 +28,7 @@ void jsrPrintErrorCB(const char* file, int line, const char* error) {
     fprintf(stderr, "%s\n", error);
 }
 
-JStarConf jsrGetConf() {
+JStarConf jsrGetConf(void) {
     JStarConf conf;
     conf.stackSize = STACK_SZ;
     conf.initGC = INIT_GC;
