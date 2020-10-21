@@ -63,51 +63,49 @@ JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module,
     return res;
 }
 
-static JStarResult finishCall(JStarVM* vm, int depth, size_t offSp) {
-    if(vm->frameCount <= depth) return JSR_EVAL_SUCCESS;
-    // Evaluate frame if present
-    if(!runEval(vm, depth)) {
+static JStarResult finishCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
+    if(vm->frameCount > evalDepth && !runEval(vm, evalDepth)) {
         // Exception was thrown, push it as result
         Value exc = pop(vm);
-        vm->sp = vm->stack + offSp;
+        vm->sp = vm->stack + stackPtrOffset;
         push(vm, exc);
         return JSR_RUNTIME_ERR;
     }
     return JSR_EVAL_SUCCESS;
 }
 
-static void callError(JStarVM* vm, int depth, size_t offsp) {
+static void callError(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
     // Finish to unwind the stack
-    if(vm->frameCount > depth) {
-        unwindStack(vm, depth);
+    if(vm->frameCount > evalDepth) {
+        unwindStack(vm, evalDepth);
         Value exc = pop(vm);
-        vm->sp = vm->stack + offsp;
+        vm->sp = vm->stack + stackPtrOffset;
         push(vm, exc);
     }
 }
 
 JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
-    size_t offsp = vm->sp - vm->stack - argc - 1;
-    int depth = vm->frameCount;
+    int evalDepth = vm->frameCount;
+    size_t stackPtrOffset = vm->sp - vm->stack - argc - 1;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
-        callError(vm, depth, offsp);
+        callError(vm, evalDepth, stackPtrOffset);
         return JSR_RUNTIME_ERR;
     }
 
-    return finishCall(vm, depth, offsp);
+    return finishCall(vm, evalDepth, stackPtrOffset);
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
-    size_t offsp = vm->sp - vm->stack - argc - 1;
-    int depth = vm->frameCount;
+    int evalDepth = vm->frameCount;
+    size_t stackPtrOffset = vm->sp - vm->stack - argc - 1;
 
     if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
-        callError(vm, depth, offsp);
+        callError(vm, evalDepth, stackPtrOffset);
         return JSR_RUNTIME_ERR;
     }
 
-    return finishCall(vm, depth, offsp);
+    return finishCall(vm, evalDepth, stackPtrOffset);
 }
 
 void jsrEvalBreak(JStarVM* vm) {
