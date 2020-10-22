@@ -715,6 +715,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
             }
         }
     }
+
     return NULL;
 }
 
