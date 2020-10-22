@@ -33,12 +33,16 @@ static void initCommon(FnCommon* c, ObjModule* module, uint8_t argc, Value* defa
     c->vararg = varg;
 }
 
+static void zeroValueArray(Value* arr, size_t count) {
+    for(size_t i = 0; i < count; i++) {
+        arr[i] = NULL_VAL;
+    }
+}
+
 static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
     if(defaultCount == 0) return NULL;
     Value* defaultArray = GC_ALLOC(vm, sizeof(Value) * defaultCount);
-    for(int i = 0; i < defaultCount; i++) {
-        defaultArray[i] = NULL_VAL;
-    }
+    zeroValueArray(defaultArray, defaultCount);
     return defaultArray;
 }
 
@@ -108,12 +112,10 @@ ObjBoundMethod* newBoundMethod(JStarVM* vm, Value bound, Obj* method) {
 
 ObjTuple* newTuple(JStarVM* vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
-    ObjTuple* tuple =
-        (ObjTuple*)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass, OBJ_TUPLE);
+    ObjTuple* tuple = (ObjTuple*)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass,
+                                           OBJ_TUPLE);
+    zeroValueArray(tuple->arr, size);
     tuple->size = size;
-    for(uint8_t i = 0; i < tuple->size; i++) {
-        tuple->arr[i] = NULL_VAL;
-    }
     return tuple;
 }
 

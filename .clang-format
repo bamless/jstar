@@ -14,7 +14,7 @@ SpaceBeforeParens: Never
 IndentPPDirectives: BeforeHash
 IndentCaseLabels: false
 
-PenaltyBreakAssignment: 20
+PenaltyBreakAssignment: 25
 PenaltyBreakBeforeFirstCallParameter: 50
 
 ...
