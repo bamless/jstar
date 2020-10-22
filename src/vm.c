@@ -113,16 +113,18 @@ static Frame* getFrame(JStarVM* vm, FnCommon* c) {
     return callFrame;
 }
 
-static void appendCallFrame(JStarVM* vm, ObjClosure* closure) {
+static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = getFrame(vm, &closure->fn->c);
     callFrame->fn = (Obj*)closure;
     callFrame->ip = closure->fn->code.bytecode;
+    return callFrame;
 }
 
-static void appendNativeFrame(JStarVM* vm, ObjNative* native) {
+static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
     Frame* callFrame = getFrame(vm, &native->c);
     callFrame->fn = (Obj*)native;
     callFrame->ip = NULL;
+    return callFrame;
 }
 
 static bool isNonInstantiableBuiltin(JStarVM* vm, ObjClass* cls) {
@@ -265,27 +267,28 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     }
 
     jsrEnsureStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
-    appendNativeFrame(vm, native);
+    Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
-    size_t apiStackOff = vm->apiStack - vm->stack;
+    size_t apiStackOffset = vm->apiStack - vm->stack;
 
     vm->module = native->c.module;
-    vm->apiStack = vm->frames[vm->frameCount - 1].stack;
+    vm->apiStack = frame->stack;
 
     if(!native->fn(vm)) {
         vm->module = oldModule;
-        vm->apiStack = vm->stack + apiStackOff;
+        vm->apiStack = vm->stack + apiStackOffset;
         return false;
     }
 
     Value ret = pop(vm);
+
     vm->frameCount--;
     vm->sp = vm->apiStack;
     vm->module = oldModule;
-    vm->apiStack = vm->stack + apiStackOff;
-    push(vm, ret);
+    vm->apiStack = vm->stack + apiStackOffset;
 
+    push(vm, ret);
     return true;
 }
 
@@ -727,7 +730,7 @@ typedef enum UnwindCause {
     CAUSE_RETURN,
 } UnwindCause;
 
-bool runEval(JStarVM* vm, int depth) {
+bool runEval(JStarVM* vm, int evalDepth) {
     register Frame* frame;
     register Value* frameStack;
     register ObjClosure* closure;
@@ -735,7 +738,7 @@ bool runEval(JStarVM* vm, int depth) {
     register uint8_t* ip;
 
     ASSERT(vm->frameCount != 0, "No frame to evaluate");
-    ASSERT(vm->frameCount >= depth, "Too few frame to evaluate");
+    ASSERT(vm->frameCount >= evalDepth, "Too few frame to evaluate");
 
 #define LOAD_STATE()                             \
     do {                                         \
@@ -782,14 +785,14 @@ bool runEval(JStarVM* vm, int depth) {
         push(vm, NUM_VAL(cause));                \
     } while(0)
 
-#define UNWIND_STACK(vm)              \
-    do {                              \
-        SAVE_STATE();                 \
-        if(!unwindStack(vm, depth)) { \
-            return false;             \
-        }                             \
-        LOAD_STATE();                 \
-        DISPATCH();                   \
+#define UNWIND_STACK(vm)                  \
+    do {                                  \
+        SAVE_STATE();                     \
+        if(!unwindStack(vm, evalDepth)) { \
+            return false;                 \
+        }                                 \
+        LOAD_STATE();                     \
+        DISPATCH();                       \
     } while(0)
 
 #define CHECK_EVAL_BREAK(vm)                        \
@@ -1156,7 +1159,7 @@ op_return:
         vm->sp = frameStack;
         push(vm, ret);
 
-        if(--vm->frameCount == depth) {
+        if(--vm->frameCount == evalDepth) {
             return true;
         }
 

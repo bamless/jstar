@@ -146,7 +146,7 @@ struct JStarVM {
     size_t reachedCapacity, reachedCount;
 };
 
-bool runEval(JStarVM* vm, int depth);
+bool runEval(JStarVM* vm, int evalDepth);
 
 bool getFieldFromValue(JStarVM* vm, ObjString* name);
 bool setFieldOfValue(JStarVM* vm, ObjString* name);

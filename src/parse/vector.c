@@ -30,7 +30,7 @@ static bool shouldGrow(Vector* vec, size_t required) {
     return vec->size + required > vec->capacity;
 }
 
-Vector vecNew() {
+Vector vecNew(void) {
     Vector vec;
     reset(&vec);
     return vec;

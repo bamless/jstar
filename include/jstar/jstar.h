@@ -62,7 +62,7 @@ typedef struct JstarConf {
 } JStarConf;
 
 // Retuns a JStarConf initialized with default values
-JSTAR_API JStarConf jsrGetConf();
+JSTAR_API JStarConf jsrGetConf(void);
 
 // Allocate a new VM with all the state needed for code execution
 JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);

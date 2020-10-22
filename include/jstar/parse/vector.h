@@ -15,7 +15,7 @@ typedef struct Vector {
     void** data;
 } Vector;
 
-JSTAR_API Vector vecNew();
+JSTAR_API Vector vecNew(void);
 
 JSTAR_API Vector vecCopy(const Vector* vec);
 JSTAR_API void vecCopyAssign(Vector* dest, const Vector* src);
