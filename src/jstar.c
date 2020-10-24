@@ -182,35 +182,7 @@ void jsrAddImportPath(JStarVM* vm, const char* path) {
 }
 
 void jsrEnsureStack(JStarVM* vm, size_t needed) {
-    if(vm->sp + needed < vm->stack + vm->stackSz) return;
-
-    Value* oldStack = vm->stack;
-
-    vm->stackSz = powerOf2Ceil(vm->stackSz);
-    vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
-
-    if(vm->stack != oldStack) {
-        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
-            vm->apiStack = vm->stack + (vm->apiStack - oldStack);
-        }
-
-        for(int i = 0; i < vm->frameCount; i++) {
-            Frame* frame = &vm->frames[i];
-            frame->stack = vm->stack + (frame->stack - oldStack);
-            for(int j = 0; j < frame->handlerc; j++) {
-                Handler* h = &frame->handlers[j];
-                h->savesp = vm->stack + (h->savesp - oldStack);
-            }
-        }
-
-        ObjUpvalue* upvalue = vm->upvalues;
-        while(upvalue) {
-            upvalue->addr = vm->stack + (upvalue->addr - oldStack);
-            upvalue = upvalue->next;
-        }
-
-        vm->sp = vm->stack + (vm->sp - oldStack);
-    }
+    ensureStack(vm, needed);
 }
 
 char* jsrReadFile(const char* path) {

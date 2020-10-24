@@ -147,6 +147,7 @@ struct JStarVM {
 };
 
 bool runEval(JStarVM* vm, int evalDepth);
+void ensureStack(JStarVM* vm, size_t needed);
 
 bool getFieldFromValue(JStarVM* vm, ObjString* name);
 bool setFieldOfValue(JStarVM* vm, ObjString* name);
@@ -156,32 +157,32 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 
 bool unwindStack(JStarVM* vm, int depth);
 
-static inline void push(JStarVM* vm, Value v) {
+inline void push(JStarVM* vm, Value v) {
     *vm->sp++ = v;
 }
 
-static inline Value pop(JStarVM* vm) {
+inline Value pop(JStarVM* vm) {
     return *--vm->sp;
 }
 
-static inline Value peek(JStarVM* vm) {
+inline Value peek(JStarVM* vm) {
     return vm->sp[-1];
 }
 
-static inline Value peek2(JStarVM* vm) {
+inline Value peek2(JStarVM* vm) {
     return vm->sp[-2];
 }
 
-static inline Value peekn(JStarVM* vm, int n) {
+inline Value peekn(JStarVM* vm, int n) {
     return vm->sp[-(n + 1)];
 }
 
-static inline bool isValTrue(Value val) {
+inline bool isValTrue(Value val) {
     if(IS_BOOL(val)) return AS_BOOL(val);
     return !IS_NULL(val);
 }
 
-static inline ObjClass* getClass(JStarVM* vm, Value v) {
+inline ObjClass* getClass(JStarVM* vm, Value v) {
 #ifdef JSTAR_NAN_TAGGING
     if(IS_NUM(v)) return vm->numClass;
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
@@ -210,7 +211,7 @@ static inline ObjClass* getClass(JStarVM* vm, Value v) {
 #endif
 }
 
-static inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
+inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
     for(ObjClass* c = getClass(vm, i); c != NULL; c = c->superCls) {
         if(c == cls) {
             return true;
@@ -219,7 +220,7 @@ static inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
     return false;
 }
 
-static inline int apiStackIndex(JStarVM* vm, int slot) {
+inline int apiStackIndex(JStarVM* vm, int slot) {
     ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0) return vm->sp + slot - vm->apiStack;
@@ -227,7 +228,7 @@ static inline int apiStackIndex(JStarVM* vm, int slot) {
 }
 
 // Get the value at API stack slot "slot"
-static inline Value apiStackSlot(JStarVM* vm, int slot) {
+inline Value apiStackSlot(JStarVM* vm, int slot) {
     ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0) return vm->sp[slot];

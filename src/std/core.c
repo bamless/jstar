@@ -631,8 +631,8 @@ JSR_NATIVE(jsr_List_iter) {
     }
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx < lst->count - 1) {
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx < lst->count - 1) {
             push(vm, NUM_VAL(idx + 1));
             return true;
         }
@@ -646,9 +646,9 @@ JSR_NATIVE(jsr_List_next) {
     ObjList* lst = AS_LIST(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx < lst->count) {
-            push(vm, lst->arr[(size_t)idx]);
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx < lst->count) {
+            push(vm, lst->arr[idx]);
             return true;
         }
     }
@@ -712,8 +712,8 @@ JSR_NATIVE(jsr_Tuple_iter) {
     }
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx < tup->size - 1) {
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx < tup->size - 1) {
             push(vm, NUM_VAL(idx + 1));
             return true;
         }
@@ -727,9 +727,9 @@ JSR_NATIVE(jsr_Tuple_next) {
     ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx < tup->size) {
-            push(vm, tup->arr[(size_t)idx]);
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx < tup->size) {
+            push(vm, tup->arr[idx]);
             return true;
         }
     }
@@ -1011,18 +1011,14 @@ JSR_NATIVE(jsr_String_eq) {
 JSR_NATIVE(jsr_String_iter) {
     ObjString* s = AS_STRING(vm->apiStack[0]);
 
-    if(IS_NULL(vm->apiStack[1])) {
-        if(s->length == 0) {
-            push(vm, BOOL_VAL(false));
-            return true;
-        }
+    if(IS_NULL(vm->apiStack[1]) && s->length != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx < s->length - 1) {
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx < s->length - 1) {
             push(vm, NUM_VAL(idx + 1));
             return true;
         }
@@ -1036,9 +1032,9 @@ JSR_NATIVE(jsr_String_next) {
     ObjString* str = AS_STRING(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx < str->length) {
-            jsrPushStringSz(vm, str->data + (size_t)idx, 1);
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx < str->length) {
+            jsrPushStringSz(vm, str->data + idx, 1);
             return true;
         }
     }
@@ -1305,12 +1301,12 @@ JSR_NATIVE(jsr_Table_iter) {
     size_t lastIdx = 0;
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx < 0 && idx >= t->sizeMask) {
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx >= t->sizeMask) {
             push(vm, BOOL_VAL(false));
             return true;
         }
-        lastIdx = (size_t)idx + 1;
+        lastIdx = idx + 1;
     }
 
     for(size_t i = lastIdx; i < t->sizeMask + 1; i++) {
@@ -1328,10 +1324,9 @@ JSR_NATIVE(jsr_Table_next) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
 
     if(IS_NUM(vm->apiStack[1])) {
-        double idx = AS_NUM(vm->apiStack[1]);
-        if(idx >= 0 && idx <= t->sizeMask) {
-            size_t i = (size_t)idx;
-            push(vm, t->entries[i].key);
+        size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
+        if(idx <= t->sizeMask) {
+            push(vm, t->entries[idx].key);
             return true;
         }
     }

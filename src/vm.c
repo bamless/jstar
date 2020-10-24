@@ -194,6 +194,37 @@ static void closeUpvalues(JStarVM* vm, Value* last) {
     }
 }
 
+inline void ensureStack(JStarVM* vm, size_t needed) {
+    if(vm->sp + needed < vm->stack + vm->stackSz) return;
+
+    Value* oldStack = vm->stack;
+    vm->stackSz = powerOf2Ceil(vm->stackSz);
+    vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
+
+    if(vm->stack != oldStack) {
+        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
+            vm->apiStack = vm->stack + (vm->apiStack - oldStack);
+        }
+
+        for(int i = 0; i < vm->frameCount; i++) {
+            Frame* frame = &vm->frames[i];
+            frame->stack = vm->stack + (frame->stack - oldStack);
+            for(int j = 0; j < frame->handlerc; j++) {
+                Handler* h = &frame->handlers[j];
+                h->savesp = vm->stack + (h->savesp - oldStack);
+            }
+        }
+
+        ObjUpvalue* upvalue = vm->upvalues;
+        while(upvalue) {
+            upvalue->addr = vm->stack + (upvalue->addr - oldStack);
+            upvalue = upvalue->next;
+        }
+
+        vm->sp = vm->stack + (vm->sp - oldStack);
+    }
+}
+
 static void packVarargs(JStarVM* vm, uint8_t count) {
     ObjTuple* args = newTuple(vm, count);
     for(int i = count - 1; i >= 0; i--) {
@@ -209,18 +240,14 @@ static void argumentError(JStarVM* vm, FnCommon* c, int expected, int supplied,
 }
 
 static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
+    bool isVararg = c->vararg;
     uint8_t most = c->argsCount, least = most - c->defCount;
 
-    if(!c->vararg && most == least && argc != c->argsCount) {
-        argumentError(vm, c, c->argsCount, argc, "exactly");
+    if(!isVararg && argc > most) {
+        argumentError(vm, c, c->argsCount, argc, most == least ? "exactly" : "at most");
         return false;
-    }
-    if(!c->vararg && argc > most) {
-        argumentError(vm, c, most, argc, "at most");
-        return false;
-    }
-    if(argc < least) {
-        argumentError(vm, c, least, argc, "at least");
+    } else if(argc < least) {
+        argumentError(vm, c, least, argc, (most == least && !isVararg) ? "exactly" : "at least");
         return false;
     }
 
@@ -229,7 +256,7 @@ static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
         push(vm, c->defaults[i]);
     }
 
-    if(c->vararg) {
+    if(isVararg) {
         packVarargs(vm, argc > most ? argc - most : 0);
     }
 
@@ -249,7 +276,7 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
     // TODO: modify compiler to track actual usage of stack so
     // we can allocate the right amount of memory rather than a
     // worst case bound
-    jsrEnsureStack(vm, UINT8_MAX);
+    ensureStack(vm, UINT8_MAX);
     appendCallFrame(vm, closure);
     vm->module = closure->fn->c.module;
 
@@ -266,7 +293,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
         return false;
     }
 
-    jsrEnsureStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
+    ensureStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
     Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
@@ -292,7 +319,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     return true;
 }
 
-bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
+inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
         case OBJ_CLOSURE:
@@ -352,7 +379,7 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
+inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -406,7 +433,7 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
     return true;
 }
 
-bool getFieldFromValue(JStarVM* vm, ObjString* name) {
+inline bool getFieldFromValue(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -456,7 +483,7 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
     return true;
 }
 
-bool setFieldOfValue(JStarVM* vm, ObjString* name) {
+inline bool setFieldOfValue(JStarVM* vm, ObjString* name) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -1485,3 +1512,14 @@ bool unwindStack(JStarVM* vm, int depth) {
     // return from evaluation leaving the exception on top of the stack
     return false;
 }
+
+extern inline void push(JStarVM* vm, Value v);
+extern inline Value pop(JStarVM* vm);
+extern inline Value peek(JStarVM* vm);
+extern inline Value peek2(JStarVM* vm);
+extern inline Value peekn(JStarVM* vm, int n);
+extern inline bool isValTrue(Value val);
+extern inline ObjClass* getClass(JStarVM* vm, Value v);
+extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
+extern inline int apiStackIndex(JStarVM* vm, int slot);
+extern inline Value apiStackSlot(JStarVM* vm, int slot);
