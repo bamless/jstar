@@ -319,7 +319,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     return true;
 }
 
-inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
+bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
         case OBJ_CLOSURE:
@@ -379,7 +379,7 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
-inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -433,7 +433,7 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
     return true;
 }
 
-inline bool getFieldFromValue(JStarVM* vm, ObjString* name) {
+bool getFieldFromValue(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -483,7 +483,7 @@ inline bool getFieldFromValue(JStarVM* vm, ObjString* name) {
     return true;
 }
 
-inline bool setFieldOfValue(JStarVM* vm, ObjString* name) {
+bool setFieldOfValue(JStarVM* vm, ObjString* name) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -1513,6 +1513,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     return false;
 }
 
+// Inline function declarations
 extern inline void push(JStarVM* vm, Value v);
 extern inline Value pop(JStarVM* vm);
 extern inline Value peek(JStarVM* vm);
