@@ -237,7 +237,7 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
             push(vm, v2);
             JStarResult res = jsrCallMethod(vm, "__eq__", 1);
             if(res == JSR_EVAL_SUCCESS) {
-                return isValTrue(pop(vm));
+                return valueToBool(pop(vm));
             } else {
                 pop(vm);
                 return false;

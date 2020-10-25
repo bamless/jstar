@@ -153,3 +153,14 @@ void disassembleIstr(Code* c, size_t i) {
 
     printf("\n");
 }
+
+int opcodeArgsNumber(Opcode op) {
+    // clang-format off
+    switch(op) {
+    #define OPCODE(opcode, args) case opcode: return args;
+    #include "opcode.def"
+    }
+    // clang-format on
+    UNREACHABLE();
+    return -1;
+}

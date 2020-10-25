@@ -8,15 +8,4 @@ typedef enum Opcode {
 #include "opcode.def"
 } Opcode;
 
-static inline int opcodeArgsNumber(Opcode op) {
-    // clang-format off
-    switch(op) {
-    #define OPCODE(opcode, args) case opcode: return args;
-    #include "opcode.def"
-    }
-    // clang-format on
-    UNREACHABLE();
-    return -1;
-}
-
 #endif  // OPCODE_H

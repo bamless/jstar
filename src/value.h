@@ -93,7 +93,7 @@ typedef uint64_t Value;
 
 // clang-format on
 
-static inline Value numToValue(double num) {
+inline Value numToValue(double num) {
     union {
         uint64_t raw;
         double num;
@@ -101,7 +101,7 @@ static inline Value numToValue(double num) {
     return c.raw;
 }
 
-static inline double valueToNum(Value val) {
+inline double valueToNum(Value val) {
     union {
         uint64_t raw;
         double num;
@@ -109,8 +109,13 @@ static inline double valueToNum(Value val) {
     return c.num;
 }
 
-static inline bool valueEquals(Value v1, Value v2) {
+inline bool valueEquals(Value v1, Value v2) {
     return IS_NUM(v1) && IS_NUM(v2) ? AS_NUM(v1) == AS_NUM(v2) : v1 == v2;
+}
+
+inline bool valueToBool(Value v) {
+    if(IS_BOOL(v)) return AS_BOOL(v);
+    return !IS_NULL(v);
 }
 
 #else
@@ -152,7 +157,7 @@ typedef struct {
 
 // clang-format on
 
-static inline bool valueEquals(Value v1, Value v2) {
+inline bool valueEquals(Value v1, Value v2) {
     if(v1.type != v2.type) return false;
 
     switch(v1.type) {

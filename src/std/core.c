@@ -71,7 +71,7 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
         push(vm, v1[i]);
         push(vm, v2[i]);
         if(jsrCallMethod(vm, "__eq__", 1) != JSR_EVAL_SUCCESS) return false;
-        if(!(*out = isValTrue(pop(vm)))) return true;
+        if(!(*out = valueToBool(pop(vm)))) return true;
     }
     return true;
 }
@@ -358,7 +358,7 @@ JSR_NATIVE(jsr_Number_hash) {
 // class Boolean
 JSR_NATIVE(jsr_Boolean_new) {
     Value v = vm->apiStack[1];
-    jsrPushBoolean(vm, isValTrue(v));
+    jsrPushBoolean(vm, valueToBool(v));
     return true;
 }
 
@@ -555,7 +555,7 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, a);
         push(vm, b);
         if(jsrCallMethod(vm, "__le__", 1) != JSR_EVAL_SUCCESS) return false;
-        *out = isValTrue(pop(vm));
+        *out = valueToBool(pop(vm));
     }
     return true;
 }
@@ -1080,7 +1080,7 @@ static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
     push(vm, k1);
     push(vm, k2);
     if(jsrCallMethod(vm, "__eq__", 1) != JSR_EVAL_SUCCESS) return false;
-    *eq = isValTrue(pop(vm));
+    *eq = valueToBool(pop(vm));
     return true;
 }
 

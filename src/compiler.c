@@ -8,6 +8,7 @@
 
 #include "code.h"
 #include "const.h"
+#include "disassemble.h"
 #include "gc.h"
 #include "jstar.h"
 #include "opcode.h"

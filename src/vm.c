@@ -972,7 +972,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     }
 
     TARGET(OP_NOT): {
-        push(vm, BOOL_VAL(!isValTrue(pop(vm))));
+        push(vm, BOOL_VAL(!valueToBool(pop(vm))));
         DISPATCH();
     }
 
@@ -1026,13 +1026,13 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_JUMPF): {
         int16_t off = NEXT_SHORT();
-        if(!isValTrue(pop(vm))) ip += off;
+        if(!valueToBool(pop(vm))) ip += off;
         DISPATCH();
     }
 
     TARGET(OP_JUMPT): {
         int16_t off = NEXT_SHORT();
-        if(isValTrue(pop(vm))) ip += off;
+        if(valueToBool(pop(vm))) ip += off;
         DISPATCH();
     }
 
@@ -1050,7 +1050,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     TARGET(OP_FOR_NEXT): {
         vm->sp[-2] = vm->sp[-1];
         int16_t off = NEXT_SHORT();
-        if(isValTrue(pop(vm))) {
+        if(valueToBool(pop(vm))) {
             vm->sp[0] = vm->sp[-2];
             vm->sp[1] = vm->sp[-1];
             vm->sp += 2;
@@ -1519,7 +1519,6 @@ extern inline Value pop(JStarVM* vm);
 extern inline Value peek(JStarVM* vm);
 extern inline Value peek2(JStarVM* vm);
 extern inline Value peekn(JStarVM* vm, int n);
-extern inline bool isValTrue(Value val);
 extern inline ObjClass* getClass(JStarVM* vm, Value v);
 extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
 extern inline int apiStackIndex(JStarVM* vm, int slot);

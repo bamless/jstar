@@ -177,11 +177,6 @@ inline Value peekn(JStarVM* vm, int n) {
     return vm->sp[-(n + 1)];
 }
 
-inline bool isValTrue(Value val) {
-    if(IS_BOOL(val)) return AS_BOOL(val);
-    return !IS_NULL(val);
-}
-
 inline ObjClass* getClass(JStarVM* vm, Value v) {
 #ifdef JSTAR_NAN_TAGGING
     if(IS_NUM(v)) return vm->numClass;

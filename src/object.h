@@ -63,7 +63,7 @@ extern const char* ObjTypeNames[];
 #define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
 #define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
 
-#define STRING_GET_HASH(s) (s->hash == 0 ? s->hash = hashString(s->data, s->length) : s->hash)
+#define STRING_GET_HASH(s) (s->hash == 0 ? (s->hash = hashString(s->data, s->length)) : s->hash)
 #define STRING_EQUALS(s1, s2) \
     (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data) == 0)
 

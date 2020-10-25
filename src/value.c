@@ -52,3 +52,9 @@ void printValue(Value val) {
         printf("null");
     }
 }
+
+// Inline functions declarations
+extern inline Value numToValue(double num);
+extern inline double valueToNum(Value val);
+extern inline bool valueEquals(Value v1, Value v2);
+extern inline bool valueToBool(Value v);
