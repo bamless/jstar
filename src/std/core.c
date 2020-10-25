@@ -302,6 +302,11 @@ JSR_NATIVE(jsr_eval) {
     return true;
 }
 
+JSR_NATIVE(jsr_exit) {
+    JSR_CHECK(Int, 1, "n");
+    exit(jsrGetNumber(vm, 1));
+}
+
 JSR_NATIVE(jsr_type) {
     push(vm, OBJ_VAL(getClass(vm, peek(vm))));
     return true;

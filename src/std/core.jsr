@@ -291,6 +291,7 @@ end
 native ascii(num)
 native char(c)
 native eval(source)
+native exit(n=0)
 native garbageCollect()
 native importPaths()
 native int(n)

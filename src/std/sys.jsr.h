@@ -2,7 +2,6 @@
 const char *sys_jsr =
 "native clock()\n"
 "native exec(cmd)\n"
-"native exit(n=0)\n"
 "native getenv(name)\n"
 "native isPosix()\n"
 "native platform()\n"

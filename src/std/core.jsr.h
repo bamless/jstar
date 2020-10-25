@@ -250,6 +250,7 @@ const char *core_jsr =
 "native ascii(num)\n"
 "native char(c)\n"
 "native eval(source)\n"
+"native exit(n=0)\n"
 "native garbageCollect()\n"
 "native importPaths()\n"
 "native int(n)\n"
