@@ -38,10 +38,6 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* nam
         module = newModule(vm, name);
         pop(vm);
 
-        if(vm->core != NULL) {
-            hashTableImportNames(&module->globals, &vm->core->globals);
-        }
-
         setModule(vm, name, module);
         setModuleInParent(vm, module);
     }
