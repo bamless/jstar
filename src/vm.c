@@ -751,7 +751,7 @@ inline void ensureStack(JStarVM* vm, size_t needed) {
 }
 
 // -----------------------------------------------------------------------------
-// API - EVAL LOOP
+// EVAL LOOP
 // -----------------------------------------------------------------------------
 
 // Enumeration encoding the cause of the stack unwinding,
