@@ -15,13 +15,11 @@
 #include "value.h"
 #include "vm.h"
 
-/**
- * =========================================================
- *  API - The bulk of the API (jstar.h) implementation.
- *  JStarVM new and free functions are implemented in vm.c
- *  JStarBuffer is implemented in object.c
- * =========================================================
- */
+// -----------------------------------------------------------------------------
+// API - The bulk of the API (jstar.h) implementation.
+// JStarNewVM and JStarFreeVM functions are implemented in vm.c
+// JStarBuffer is implemented in object.c
+// -----------------------------------------------------------------------------
 
 void jsrPrintErrorCB(const char* file, int line, const char* error) {
     fprintf(stderr, "File %s [line:%d]:\n", file, line);
