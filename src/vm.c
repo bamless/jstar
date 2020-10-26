@@ -550,7 +550,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 }
 
 // -----------------------------------------------------------------------------
-// API
+// VM API
 // -----------------------------------------------------------------------------
 
 bool getFieldFromValue(JStarVM* vm, ObjString* name) {
