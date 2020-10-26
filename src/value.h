@@ -113,11 +113,6 @@ inline bool valueEquals(Value v1, Value v2) {
     return IS_NUM(v1) && IS_NUM(v2) ? AS_NUM(v1) == AS_NUM(v2) : v1 == v2;
 }
 
-inline bool valueToBool(Value v) {
-    if(IS_BOOL(v)) return AS_BOOL(v);
-    return !IS_NULL(v);
-}
-
 #else
 
 typedef enum { VAL_NUM, VAL_BOOL, VAL_OBJ, VAL_NULL, VAL_HANDLE } ValueType;
@@ -177,6 +172,11 @@ inline bool valueEquals(Value v1, Value v2) {
 }
 
 #endif
+
+inline bool valueToBool(Value v) {
+    if(IS_BOOL(v)) return AS_BOOL(v);
+    return !IS_NULL(v);
+}
 
 // -----------------------------------------------------------------------------
 // VALUE ARRAY

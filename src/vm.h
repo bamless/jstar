@@ -7,6 +7,7 @@
 
 #include "compiler.h"
 #include "const.h"
+#include "disassemble.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "object.h"
