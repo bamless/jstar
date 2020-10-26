@@ -194,37 +194,6 @@ static void closeUpvalues(JStarVM* vm, Value* last) {
     }
 }
 
-inline void ensureStack(JStarVM* vm, size_t needed) {
-    if(vm->sp + needed < vm->stack + vm->stackSz) return;
-
-    Value* oldStack = vm->stack;
-    vm->stackSz = powerOf2Ceil(vm->stackSz);
-    vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
-
-    if(vm->stack != oldStack) {
-        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
-            vm->apiStack = vm->stack + (vm->apiStack - oldStack);
-        }
-
-        for(int i = 0; i < vm->frameCount; i++) {
-            Frame* frame = &vm->frames[i];
-            frame->stack = vm->stack + (frame->stack - oldStack);
-            for(int j = 0; j < frame->handlerc; j++) {
-                Handler* h = &frame->handlers[j];
-                h->savesp = vm->stack + (h->savesp - oldStack);
-            }
-        }
-
-        ObjUpvalue* upvalue = vm->upvalues;
-        while(upvalue) {
-            upvalue->addr = vm->stack + (upvalue->addr - oldStack);
-            upvalue = upvalue->next;
-        }
-
-        vm->sp = vm->stack + (vm->sp - oldStack);
-    }
-}
-
 static void packVarargs(JStarVM* vm, uint8_t count) {
     ObjTuple* args = newTuple(vm, count);
     for(int i = count - 1; i >= 0; i--) {
@@ -319,56 +288,6 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     return true;
 }
 
-bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
-    if(IS_OBJ(callee)) {
-        switch(OBJ_TYPE(callee)) {
-        case OBJ_CLOSURE:
-            return callFunction(vm, AS_CLOSURE(callee), argc);
-        case OBJ_NATIVE:
-            return callNative(vm, AS_NATIVE(callee), argc);
-        case OBJ_BOUND_METHOD: {
-            ObjBoundMethod* m = AS_BOUND_METHOD(callee);
-            vm->sp[-argc - 1] = m->bound;
-            if(m->method->type == OBJ_CLOSURE) {
-                return callFunction(vm, (ObjClosure*)m->method, argc);
-            } else {
-                return callNative(vm, (ObjNative*)m->method, argc);
-            }
-        }
-        case OBJ_CLASS: {
-            ObjClass* cls = AS_CLASS(callee);
-
-            if(isNonInstantiableBuiltin(vm, cls)) {
-                jsrRaise(vm, "Exception", "class %s can't be directly instatiated",
-                         cls->name->data);
-                return false;
-            }
-
-            bool builtin = isInstatiableBuiltin(vm, cls);
-            vm->sp[-argc - 1] = builtin ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
-
-            Value ctor;
-            if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
-                return callValue(vm, ctor, argc);
-            } else if(argc != 0) {
-                jsrRaise(vm, "TypeException",
-                         "Function %s.new() Expected 0 args, but instead `%d` supplied.",
-                         cls->name->data, argc);
-                return false;
-            }
-
-            return true;
-        }
-        default:
-            break;
-        }
-    }
-
-    ObjClass* cls = getClass(vm, callee);
-    jsrRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
-    return false;
-}
-
 static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc) {
     Value method;
     if(!hashTableGet(&cls->methods, name, &method)) {
@@ -377,47 +296,6 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
         return false;
     }
     return callValue(vm, method, argc);
-}
-
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
-    Value val = peekn(vm, argc);
-    if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
-        case OBJ_INST: {
-            Value f;
-            ObjInstance* inst = AS_INSTANCE(val);
-
-            // Check if field shadows a method
-            if(hashTableGet(&inst->fields, name, &f)) {
-                return callValue(vm, f, argc);
-            }
-
-            return invokeMethod(vm, inst->base.cls, name, argc);
-        }
-        case OBJ_MODULE: {
-            Value func;
-            ObjModule* mod = AS_MODULE(val);
-
-            // check if method shadows a function in the module
-            if(hashTableGet(&vm->modClass->methods, name, &func)) {
-                return callValue(vm, func, argc);
-            }
-
-            if(!hashTableGet(&mod->globals, name, &func)) {
-                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
-                         mod->name->data);
-                return false;
-            }
-
-            return callValue(vm, func, argc);
-        }
-        default:
-            break;
-        }
-    }
-
-    ObjClass* cls = getClass(vm, val);
-    return invokeMethod(vm, cls, name, argc);
 }
 
 static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
@@ -431,81 +309,6 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 
     push(vm, OBJ_VAL(boundMeth));
     return true;
-}
-
-bool getFieldFromValue(JStarVM* vm, ObjString* name) {
-    Value val = peek(vm);
-    if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
-        case OBJ_INST: {
-            Value v;
-            ObjInstance* inst = AS_INSTANCE(val);
-            if(!hashTableGet(&inst->fields, name, &v)) {
-                // no field, try to bind method
-                if(!bindMethod(vm, inst->base.cls, name)) {
-                    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
-                             inst->base.cls->name->data, name->data);
-                    return false;
-                }
-                return true;
-            }
-            pop(vm);
-            push(vm, v);
-            return true;
-        }
-        case OBJ_MODULE: {
-            Value v;
-            ObjModule* mod = AS_MODULE(val);
-            if(!hashTableGet(&mod->globals, name, &v)) {
-                // if we didnt find a global name try to return bound method
-                if(!bindMethod(vm, mod->base.cls, name)) {
-                    jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
-                             name->data, mod->name->data);
-                    return false;
-                }
-                return true;
-            }
-            pop(vm);
-            push(vm, v);
-            return true;
-        }
-        default:
-            break;
-        }
-    }
-
-    ObjClass* cls = getClass(vm, val);
-    if(!bindMethod(vm, cls, name)) {
-        jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
-                 name->data);
-        return false;
-    }
-    return true;
-}
-
-bool setFieldOfValue(JStarVM* vm, ObjString* name) {
-    Value val = pop(vm);
-    if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
-        case OBJ_INST: {
-            ObjInstance* inst = AS_INSTANCE(val);
-            hashTablePut(&inst->fields, name, peek(vm));
-            return true;
-        }
-        case OBJ_MODULE: {
-            ObjModule* mod = AS_MODULE(val);
-            hashTablePut(&mod->globals, name, peek(vm));
-            return true;
-        }
-        default:
-            break;
-        }
-    }
-
-    ObjClass* cls = getClass(vm, val);
-    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
-             name->data);
-    return false;
 }
 
 static bool checkSliceIndex(JStarVM* vm, ObjTuple* slice, size_t size, size_t* low, size_t* high) {
@@ -747,7 +550,208 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 }
 
 // -----------------------------------------------------------------------------
-// EVAL LOOP
+// API
+// -----------------------------------------------------------------------------
+
+bool getFieldFromValue(JStarVM* vm, ObjString* name) {
+    Value val = peek(vm);
+    if(IS_OBJ(val)) {
+        switch(OBJ_TYPE(val)) {
+        case OBJ_INST: {
+            Value v;
+            ObjInstance* inst = AS_INSTANCE(val);
+            if(!hashTableGet(&inst->fields, name, &v)) {
+                // no field, try to bind method
+                if(!bindMethod(vm, inst->base.cls, name)) {
+                    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
+                             inst->base.cls->name->data, name->data);
+                    return false;
+                }
+                return true;
+            }
+            pop(vm);
+            push(vm, v);
+            return true;
+        }
+        case OBJ_MODULE: {
+            Value v;
+            ObjModule* mod = AS_MODULE(val);
+            if(!hashTableGet(&mod->globals, name, &v)) {
+                // if we didnt find a global name try to return bound method
+                if(!bindMethod(vm, mod->base.cls, name)) {
+                    jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
+                             name->data, mod->name->data);
+                    return false;
+                }
+                return true;
+            }
+            pop(vm);
+            push(vm, v);
+            return true;
+        }
+        default:
+            break;
+        }
+    }
+
+    ObjClass* cls = getClass(vm, val);
+    if(!bindMethod(vm, cls, name)) {
+        jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
+                 name->data);
+        return false;
+    }
+    return true;
+}
+
+bool setFieldOfValue(JStarVM* vm, ObjString* name) {
+    Value val = pop(vm);
+    if(IS_OBJ(val)) {
+        switch(OBJ_TYPE(val)) {
+        case OBJ_INST: {
+            ObjInstance* inst = AS_INSTANCE(val);
+            hashTablePut(&inst->fields, name, peek(vm));
+            return true;
+        }
+        case OBJ_MODULE: {
+            ObjModule* mod = AS_MODULE(val);
+            hashTablePut(&mod->globals, name, peek(vm));
+            return true;
+        }
+        default:
+            break;
+        }
+    }
+
+    ObjClass* cls = getClass(vm, val);
+    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
+             name->data);
+    return false;
+}
+
+bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
+    if(IS_OBJ(callee)) {
+        switch(OBJ_TYPE(callee)) {
+        case OBJ_CLOSURE:
+            return callFunction(vm, AS_CLOSURE(callee), argc);
+        case OBJ_NATIVE:
+            return callNative(vm, AS_NATIVE(callee), argc);
+        case OBJ_BOUND_METHOD: {
+            ObjBoundMethod* m = AS_BOUND_METHOD(callee);
+            vm->sp[-argc - 1] = m->bound;
+            if(m->method->type == OBJ_CLOSURE) {
+                return callFunction(vm, (ObjClosure*)m->method, argc);
+            } else {
+                return callNative(vm, (ObjNative*)m->method, argc);
+            }
+        }
+        case OBJ_CLASS: {
+            ObjClass* cls = AS_CLASS(callee);
+
+            if(isNonInstantiableBuiltin(vm, cls)) {
+                jsrRaise(vm, "Exception", "class %s can't be directly instatiated",
+                         cls->name->data);
+                return false;
+            }
+
+            bool builtin = isInstatiableBuiltin(vm, cls);
+            vm->sp[-argc - 1] = builtin ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
+
+            Value ctor;
+            if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
+                return callValue(vm, ctor, argc);
+            } else if(argc != 0) {
+                jsrRaise(vm, "TypeException",
+                         "Function %s.new() Expected 0 args, but instead `%d` supplied.",
+                         cls->name->data, argc);
+                return false;
+            }
+
+            return true;
+        }
+        default:
+            break;
+        }
+    }
+
+    ObjClass* cls = getClass(vm, callee);
+    jsrRaise(vm, "TypeException", "Object %s is not a callable.", cls->name->data);
+    return false;
+}
+
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
+    Value val = peekn(vm, argc);
+    if(IS_OBJ(val)) {
+        switch(OBJ_TYPE(val)) {
+        case OBJ_INST: {
+            Value f;
+            ObjInstance* inst = AS_INSTANCE(val);
+
+            // Check if field shadows a method
+            if(hashTableGet(&inst->fields, name, &f)) {
+                return callValue(vm, f, argc);
+            }
+
+            return invokeMethod(vm, inst->base.cls, name, argc);
+        }
+        case OBJ_MODULE: {
+            Value func;
+            ObjModule* mod = AS_MODULE(val);
+
+            // check if method shadows a function in the module
+            if(hashTableGet(&vm->modClass->methods, name, &func)) {
+                return callValue(vm, func, argc);
+            }
+
+            if(!hashTableGet(&mod->globals, name, &func)) {
+                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
+                         mod->name->data);
+                return false;
+            }
+
+            return callValue(vm, func, argc);
+        }
+        default:
+            break;
+        }
+    }
+
+    ObjClass* cls = getClass(vm, val);
+    return invokeMethod(vm, cls, name, argc);
+}
+
+inline void ensureStack(JStarVM* vm, size_t needed) {
+    if(vm->sp + needed < vm->stack + vm->stackSz) return;
+
+    Value* oldStack = vm->stack;
+    vm->stackSz = powerOf2Ceil(vm->stackSz);
+    vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
+
+    if(vm->stack != oldStack) {
+        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
+            vm->apiStack = vm->stack + (vm->apiStack - oldStack);
+        }
+
+        for(int i = 0; i < vm->frameCount; i++) {
+            Frame* frame = &vm->frames[i];
+            frame->stack = vm->stack + (frame->stack - oldStack);
+            for(int j = 0; j < frame->handlerc; j++) {
+                Handler* h = &frame->handlers[j];
+                h->savesp = vm->stack + (h->savesp - oldStack);
+            }
+        }
+
+        ObjUpvalue* upvalue = vm->upvalues;
+        while(upvalue) {
+            upvalue->addr = vm->stack + (upvalue->addr - oldStack);
+            upvalue = upvalue->next;
+        }
+
+        vm->sp = vm->stack + (vm->sp - oldStack);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// API - EVAL LOOP
 // -----------------------------------------------------------------------------
 
 // Enumeration encoding the cause of the stack unwinding,

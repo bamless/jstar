@@ -54,10 +54,10 @@ void printValue(Value val) {
 }
 
 // Inline functions declarations
-extern inline bool valueEquals(Value v1, Value v2);
-extern inline bool valueToBool(Value v);
-
 #ifdef JSTAR_NAN_TAGGING
 extern inline Value numToValue(double num);
 extern inline double valueToNum(Value val);
 #endif
+
+extern inline bool valueEquals(Value v1, Value v2);
+extern inline bool valueToBool(Value v);
