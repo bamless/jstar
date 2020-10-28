@@ -7,6 +7,7 @@
 
 #include "compiler.h"
 #include "const.h"
+#include "disassemble.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "object.h"
@@ -146,15 +147,15 @@ struct JStarVM {
     size_t reachedCapacity, reachedCount;
 };
 
-bool runEval(JStarVM* vm, int evalDepth);
-void ensureStack(JStarVM* vm, size_t needed);
-
 bool getFieldFromValue(JStarVM* vm, ObjString* name);
 bool setFieldOfValue(JStarVM* vm, ObjString* name);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 
+void ensureStack(JStarVM* vm, size_t needed);
+
+bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);
 
 inline void push(JStarVM* vm, Value v) {

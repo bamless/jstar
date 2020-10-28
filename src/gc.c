@@ -18,10 +18,11 @@ void* GCallocate(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     if(size > oldsize && !vm->disableGC) {
 #ifdef JSTAR_DBG_STRESS_GC
         garbageCollect(vm);
-#endif
+#else
         if(vm->allocated > vm->nextGC) {
             garbageCollect(vm);
         }
+#endif
     }
 
     if(size == 0) {
