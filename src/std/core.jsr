@@ -1,3 +1,7 @@
+// -----------------------------------------------------------------------------
+// BUILTIN CLASSES
+// -----------------------------------------------------------------------------
+
 class Number
     native new(n)
     native isInt()
@@ -24,6 +28,7 @@ class Module
 end
 
 class StackTrace end
+
 class Userdata end
 
 class Iter
@@ -49,10 +54,6 @@ class Iter
 end
 
 class Sequence is Iter
-    fun new()
-        raise NotImplementedException()
-    end
-
     fun contains(e)
         return this.indexOf(e) != -1
     end
@@ -264,14 +265,12 @@ end
 
 fun toList(iterable)
     if iterable is Sequence then
-        var len = #iterable
-        var list = List(len, |i| => iterable[i])
+        return List(#iterable, |i| => iterable[i])
+    else
+        var list = []
+        list.addAll(iterable)
         return list
     end
-
-    var list = []
-    list.addAll(iterable)
-    return list
 end
 
 fun toTable(iterable)
@@ -288,15 +287,22 @@ fun toTable(iterable)
     return table
 end
 
+// -----------------------------------------------------------------------------
+// BUILTIN FUNCTIONS
+// -----------------------------------------------------------------------------
+
 native ascii(num)
 native char(c)
 native eval(source)
-native exit(n=0)
 native garbageCollect()
 native importPaths()
 native int(n)
 native print(s, ...)
 native type(o)
+
+// -----------------------------------------------------------------------------
+// BUILTIN ITERATORS
+// -----------------------------------------------------------------------------
 
 class IReverse is Sequence
     fun new(sequence)
@@ -412,6 +418,10 @@ class IZip is Iter
         return res
     end
 end
+
+// -----------------------------------------------------------------------------
+// BUILTIN EXCEPTIONS
+// -----------------------------------------------------------------------------
 
 class Exception
     fun new(err="")

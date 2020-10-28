@@ -100,6 +100,11 @@ JSR_NATIVE(jsr_exec) {
 #endif
 }
 
+JSR_NATIVE(jsr_exit) {
+    JSR_CHECK(Int, 1, "n");
+    exit(jsrGetNumber(vm, 1));
+}
+
 JSR_NATIVE(jsr_system) {
     const char* cmd = NULL;
     if(!jsrIsNull(vm, 1)) {

@@ -76,6 +76,10 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
     return true;
 }
 
+// -----------------------------------------------------------------------------
+// CLASS AND OBJECT CLASSES AND CORE MODULE INITIALIZATION
+// -----------------------------------------------------------------------------
+
 // class Object
 static JSR_NATIVE(jsr_Object_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
@@ -182,135 +186,9 @@ void initCoreModule(JStarVM* vm) {
     createArgvList(vm);
 }
 
-JSR_NATIVE(jsr_int) {
-    if(jsrIsNumber(vm, 1)) {
-        jsrPushNumber(vm, trunc(jsrGetNumber(vm, 1)));
-        return true;
-    }
-    if(jsrIsString(vm, 1)) {
-        char* end = NULL;
-        const char* nstr = jsrGetString(vm, 1);
-        long long n = strtoll(nstr, &end, 10);
-
-        if((n == 0 && end == nstr) || *end != '\0') {
-            JSR_RAISE(vm, "InvalidArgException", "'%s'.", nstr);
-        }
-        if(n == LLONG_MAX) {
-            JSR_RAISE(vm, "InvalidArgException", "Overflow: '%s'.", nstr);
-        }
-        if(n == LLONG_MIN) {
-            JSR_RAISE(vm, "InvalidArgException", "Underflow: '%s'.", nstr);
-        }
-
-        jsrPushNumber(vm, n);
-        return true;
-    }
-    JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
-}
-
-JSR_NATIVE(jsr_char) {
-    JSR_CHECK(String, 1, "c");
-    const char* str = jsrGetString(vm, 1);
-    if(jsrGetStringSz(vm, 1) != 1)
-        JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
-    int c = str[0];
-    jsrPushNumber(vm, (double)c);
-    return true;
-}
-
-JSR_NATIVE(jsr_garbageCollect) {
-    garbageCollect(vm);
-    jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_importPaths) {
-    push(vm, OBJ_VAL(vm->importpaths));
-    return true;
-}
-
-JSR_NATIVE(jsr_ascii) {
-    JSR_CHECK(Int, 1, "num");
-    char c = jsrGetNumber(vm, 1);
-    jsrPushStringSz(vm, &c, 1);
-    return true;
-}
-
-JSR_NATIVE(jsr_print) {
-    jsrPushValue(vm, 1);
-    if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) return false;
-    if(!jsrIsString(vm, -1)) {
-        JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
-    }
-
-    printf("%s", jsrGetString(vm, -1));
-    jsrPop(vm);
-
-    JSR_FOREACH(
-        2, {
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) return false;
-            if(!jsrIsString(vm, -1)) {
-                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-            }
-            printf(" %s", jsrGetString(vm, -1));
-            jsrPop(vm);
-        }, );
-
-    printf("\n");
-
-    jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_eval) {
-    JSR_CHECK(String, 1, "source");
-
-    if(vm->frameCount < 1) {
-        JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
-    }
-
-    Obj* prevFn = vm->frames[vm->frameCount - 2].fn;
-
-    ObjModule* mod = NULL;
-    if(prevFn->type == OBJ_CLOSURE) {
-        mod = ((ObjClosure*)prevFn)->fn->c.module;
-    } else {
-        mod = ((ObjNative*)prevFn)->c.module;
-    }
-
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
-    if(program == NULL) {
-        JSR_RAISE(vm, "SyntaxException", "Syntax error");
-    }
-
-    ObjFunction* fn = compileWithModule(vm, "<eval>", mod->name, program);
-    jsrStmtFree(program);
-
-    if(fn == NULL) {
-        JSR_RAISE(vm, "SyntaxException", "Syntax error");
-    }
-
-    push(vm, OBJ_VAL(fn));
-    ObjClosure* closure = newClosure(vm, fn);
-    pop(vm);
-
-    push(vm, OBJ_VAL(closure));
-    if(jsrCall(vm, 0) != JSR_EVAL_SUCCESS) return false;
-    pop(vm);
-
-    jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_exit) {
-    JSR_CHECK(Int, 1, "n");
-    exit(jsrGetNumber(vm, 1));
-}
-
-JSR_NATIVE(jsr_type) {
-    push(vm, OBJ_VAL(getClass(vm, peek(vm))));
-    return true;
-}
+// -----------------------------------------------------------------------------
+// BUILTIN CLASSES
+// -----------------------------------------------------------------------------
 
 // class Number
 JSR_NATIVE(jsr_Number_new) {
@@ -1379,7 +1257,7 @@ JSR_NATIVE(jsr_Table_string) {
 // end
 
 // class Enum
-#define M_VALUE_NAME "__valueName"
+#define M_VALUE_NAME "_valueName"
 
 static bool checkEnumElem(JStarVM* vm, int slot) {
     if(!jsrIsString(vm, slot)) {
@@ -1476,6 +1354,139 @@ JSR_NATIVE(jsr_Enum_name) {
     return true;
 }
 // end
+
+// -----------------------------------------------------------------------------
+// BUILTIN FUNCTIONS
+// -----------------------------------------------------------------------------
+
+JSR_NATIVE(jsr_int) {
+    if(jsrIsNumber(vm, 1)) {
+        jsrPushNumber(vm, trunc(jsrGetNumber(vm, 1)));
+        return true;
+    }
+    if(jsrIsString(vm, 1)) {
+        char* end = NULL;
+        const char* nstr = jsrGetString(vm, 1);
+        long long n = strtoll(nstr, &end, 10);
+
+        if((n == 0 && end == nstr) || *end != '\0') {
+            JSR_RAISE(vm, "InvalidArgException", "'%s'.", nstr);
+        }
+        if(n == LLONG_MAX) {
+            JSR_RAISE(vm, "InvalidArgException", "Overflow: '%s'.", nstr);
+        }
+        if(n == LLONG_MIN) {
+            JSR_RAISE(vm, "InvalidArgException", "Underflow: '%s'.", nstr);
+        }
+
+        jsrPushNumber(vm, n);
+        return true;
+    }
+    JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
+}
+
+JSR_NATIVE(jsr_char) {
+    JSR_CHECK(String, 1, "c");
+    const char* str = jsrGetString(vm, 1);
+    if(jsrGetStringSz(vm, 1) != 1)
+        JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
+    int c = str[0];
+    jsrPushNumber(vm, (double)c);
+    return true;
+}
+
+JSR_NATIVE(jsr_garbageCollect) {
+    garbageCollect(vm);
+    jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_importPaths) {
+    push(vm, OBJ_VAL(vm->importpaths));
+    return true;
+}
+
+JSR_NATIVE(jsr_ascii) {
+    JSR_CHECK(Int, 1, "num");
+    char c = jsrGetNumber(vm, 1);
+    jsrPushStringSz(vm, &c, 1);
+    return true;
+}
+
+JSR_NATIVE(jsr_print) {
+    jsrPushValue(vm, 1);
+    if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) return false;
+    if(!jsrIsString(vm, -1)) {
+        JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+    }
+
+    printf("%s", jsrGetString(vm, -1));
+    jsrPop(vm);
+
+    JSR_FOREACH(
+        2, {
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) return false;
+            if(!jsrIsString(vm, -1)) {
+                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+            }
+            printf(" %s", jsrGetString(vm, -1));
+            jsrPop(vm);
+        }, );
+
+    printf("\n");
+
+    jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_eval) {
+    JSR_CHECK(String, 1, "source");
+
+    if(vm->frameCount < 1) {
+        JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
+    }
+
+    Obj* prevFn = vm->frames[vm->frameCount - 2].fn;
+
+    ObjModule* mod = NULL;
+    if(prevFn->type == OBJ_CLOSURE) {
+        mod = ((ObjClosure*)prevFn)->fn->c.module;
+    } else {
+        mod = ((ObjNative*)prevFn)->c.module;
+    }
+
+    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
+    if(program == NULL) {
+        JSR_RAISE(vm, "SyntaxException", "Syntax error");
+    }
+
+    ObjFunction* fn = compileWithModule(vm, "<eval>", mod->name, program);
+    jsrStmtFree(program);
+
+    if(fn == NULL) {
+        JSR_RAISE(vm, "SyntaxException", "Syntax error");
+    }
+
+    push(vm, OBJ_VAL(fn));
+    ObjClosure* closure = newClosure(vm, fn);
+    pop(vm);
+
+    push(vm, OBJ_VAL(closure));
+    if(jsrCall(vm, 0) != JSR_EVAL_SUCCESS) return false;
+    pop(vm);
+
+    jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_type) {
+    push(vm, OBJ_VAL(getClass(vm, peek(vm))));
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// BUILTIN EXCEPTIONS
+// -----------------------------------------------------------------------------
 
 // class Exception
 JSR_NATIVE(jsr_Exception_printStacktrace) {

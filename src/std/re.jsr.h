@@ -13,7 +13,6 @@ const char *re_jsr =
 "fun __iter__(_)\n"
 "var res = find(this.s, this.r, this.off)\n"
 "if !res then return null end\n"
-"\n"
 "var b, e = res\n"
 "while e == this.endl and e - b == 0 do\n"
 "res = find(this.s, this.r, this.off += 1)\n"

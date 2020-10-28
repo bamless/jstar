@@ -78,7 +78,6 @@ Module builtInModules[] = {
         FUNCTION(ascii,          jsr_ascii)
         FUNCTION(char,           jsr_char)
         FUNCTION(eval,           jsr_eval)
-        FUNCTION(exit,           jsr_exit)
         FUNCTION(int,            jsr_int)
         FUNCTION(print,          jsr_print)
         FUNCTION(type,           jsr_type)
@@ -165,13 +164,14 @@ Module builtInModules[] = {
     ENDMODULE
 #ifdef JSTAR_SYS
     MODULE(sys)
-        FUNCTION(time,        jsr_time)
-        FUNCTION(exec,        jsr_exec)
-        FUNCTION(platform,    jsr_platform)
-        FUNCTION(clock,       jsr_clock)
-        FUNCTION(getenv,      jsr_getenv)
-        FUNCTION(system,      jsr_system)
-        FUNCTION(isPosix,     jsr_isPosix)
+        FUNCTION(time,     jsr_time)
+        FUNCTION(exec,     jsr_exec)
+        FUNCTION(exit,     jsr_exit)
+        FUNCTION(platform, jsr_platform)
+        FUNCTION(clock,    jsr_clock)
+        FUNCTION(getenv,   jsr_getenv)
+        FUNCTION(system,   jsr_system)
+        FUNCTION(isPosix,  jsr_isPosix)
     ENDMODULE
 #endif
 #ifdef JSTAR_IO

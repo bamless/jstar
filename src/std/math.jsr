@@ -26,10 +26,21 @@ native random()
 native seed(s)
 
 fun randint(a, b=null)
-    assert(a is Number and (b == null or b is Number), 'a and b must be Numbers')
-    assert(a.isInt() and (b == null or b.isInt()), 'a and b must be integers')
-    if !b then a, b = 0, a end
-    assert(a < b, 'a must be < b')
+    if !(a is Number and (b == null or b is Number)) then
+        raise TypeException('a and b must be Numbers')
+    end
+    if !(a.isInt() and (b == null or b.isInt())) then
+        raise TypeException('a and b must be integers')
+    end
+
+    if b == null then
+        a, b = 0, a
+    end
+
+    if a >= b then
+        raise InvalidArgException('a must be < b')
+    end
+    
     return int(a + random() * (b - a + 1))
 end
 

@@ -5,6 +5,7 @@
 
 JSR_NATIVE(jsr_time);
 JSR_NATIVE(jsr_exec);
+JSR_NATIVE(jsr_exit);
 JSR_NATIVE(jsr_isPosix);
 JSR_NATIVE(jsr_platform);
 JSR_NATIVE(jsr_getenv);

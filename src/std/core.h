@@ -8,16 +8,6 @@ void initCoreModule(JStarVM* vm);
 
 // J* core module native functions and methods
 
-JSR_NATIVE(jsr_ascii);
-JSR_NATIVE(jsr_char);
-JSR_NATIVE(jsr_eval);
-JSR_NATIVE(jsr_exit);
-JSR_NATIVE(jsr_garbageCollect);
-JSR_NATIVE(jsr_importPaths);
-JSR_NATIVE(jsr_int);
-JSR_NATIVE(jsr_print);
-JSR_NATIVE(jsr_type);
-
 // class Number
 JSR_NATIVE(jsr_Number_new);
 JSR_NATIVE(jsr_Number_isInt);
@@ -101,6 +91,16 @@ JSR_NATIVE(jsr_Enum_new);
 JSR_NATIVE(jsr_Enum_value);
 JSR_NATIVE(jsr_Enum_name);
 // end
+
+// Builtin functions
+JSR_NATIVE(jsr_ascii);
+JSR_NATIVE(jsr_char);
+JSR_NATIVE(jsr_eval);
+JSR_NATIVE(jsr_garbageCollect);
+JSR_NATIVE(jsr_importPaths);
+JSR_NATIVE(jsr_int);
+JSR_NATIVE(jsr_print);
+JSR_NATIVE(jsr_type);
 
 // class Exception
 JSR_NATIVE(jsr_Exception_printStacktrace);

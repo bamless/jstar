@@ -1345,7 +1345,8 @@ op_return:
         ObjNative* nat  = AS_NATIVE(peek(vm));
         nat->fn = resolveNative(vm->module, NULL, name->data);
         if(nat->fn == NULL) {
-            jsrRaise(vm, "Exception", "Cannot resolve native %s.", nat->c.name->data);
+            jsrRaise(vm, "Exception", "Cannot resolve native function %s.%s.", 
+                     vm->module->name->data, nat->c.name->data);
             UNWIND_STACK(vm);
         }
         DISPATCH();

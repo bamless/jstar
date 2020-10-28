@@ -1,5 +1,6 @@
 native clock()
 native exec(cmd)
+native exit(n=0)
 native getenv(name)
 native isPosix()
 native platform()
