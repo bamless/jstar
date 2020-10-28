@@ -697,7 +697,7 @@ static JStarStmt* classDecl(Parser* p) {
     return jsrClassDecl(line, &clsName, sup, &methods);
 }
 
-static JStarExpr* finishAssignment(Parser* p, JStarExpr* l, bool parseTuple) {
+static JStarExpr* parseAssignment(Parser* p, JStarExpr* l, bool parseTuple) {
     checkLvalue(p, l, p->peek.type);
     JStarTok assignToken = advance(p);
     JStarExpr* r = expression(p, parseTuple);
@@ -716,10 +716,11 @@ static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(&p->peek) && !isCallExpression(l)) {
-        error(p, "Expected assignment.");
+        error(p, "Syntax error.");
     }
+
     if(isAssign(&p->peek)) {
-        l = finishAssignment(p, l, true);
+        l = parseAssignment(p, l, true);
     }
 
     return jsrExprStmt(l->line, l);
@@ -1133,7 +1134,7 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
     JStarExpr* l = parseTuple ? tupleLiteral(p) : funcLiteral(p);
 
     if(isAssign(&p->peek)) {
-        return finishAssignment(p, l, parseTuple);
+        return parseAssignment(p, l, parseTuple);
     }
 
     return l;
@@ -1150,7 +1151,9 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errorCallbac
     JStarStmt* program = parseProgram(&p);
     skipNewLines(&p);
 
-    if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
+    if(!match(&p, TOK_EOF)) {
+        error(&p, "Unexpected token.");
+    }
 
     if(p.hadError) {
         jsrStmtFree(program);
@@ -1167,7 +1170,9 @@ JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB er
     JStarExpr* expr = expression(&p, true);
     skipNewLines(&p);
 
-    if(!match(&p, TOK_EOF)) error(&p, "Unexpected token.");
+    if(!match(&p, TOK_EOF)) {
+        error(&p, "Unexpected token.");
+    }
 
     if(p.hadError) {
         jsrExprFree(expr);
