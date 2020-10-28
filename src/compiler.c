@@ -609,7 +609,7 @@ static void compileConstUnpackLst(Compiler* c, Vector* boundNames, JStarExpr* ex
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
-        error(c, exprs->line, "Too little values to unpack.");
+        error(c, exprs->line, "Too few values to unpack: expected %d, got %d.", num, i);
     }
 }
 
@@ -706,7 +706,8 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
 
     size_t argsCount = vecSize(&argsList->as.list);
     if(argsCount >= UINT8_MAX) {
-        error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
+        error(c, e->line, "Exceeded maximum number of arguments (%d) for function %s",
+              (int)UINT8_MAX, c->func->c.name->data);
     }
 
     if(argsCount <= 10) {
@@ -1358,7 +1359,7 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
         return;
     }
     if(c->tryDepth != 0 && c->tryBlocks->depth >= c->loops->depth) {
-        error(c, s->line, "Cannot use %s across a try except.", isBreak ? "break" : "continue");
+        error(c, s->line, "Cannot %s out of a try block.", isBreak ? "break" : "continue");
     }
 
     discardScope(c, c->loops->depth);
