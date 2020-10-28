@@ -512,7 +512,7 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     }
 
     if(n > size) {
-        jsrRaise(vm, "TypeException", "Too little values to unpack.");
+        jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %d.", n, size);
         return false;
     }
 
