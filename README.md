@@ -1,7 +1,7 @@
 # J*: A Lightweight Embeddable Scripting Language
 
 <p align="center">
-  <img src="https://jstar-lang.github.io/docs/assets/images/jstar350.png" alt="J* Programming Language" title="J* Programming Language">
+  <img src="https://bamless.github.io/jstar/assets/images/jstar350.png" alt="J* Programming Language" title="J* Programming Language">
 </p>
 
 ![linux-build](https://github.com/bamless/jstar/workflows/linux-build/badge.svg)
@@ -30,7 +30,7 @@ among the language and host program, rendering embedding simple.
    **J\*** using the API, or by importing [C extensions](https://github.com/bamless/jsocket) 
    provided as dynamic libraries.
 
-To get a feel of the language, [try it in your browser](https://jstar-lang.github.io/docs/demo)!
+To get a feel of the language, [try it in your browser](https://bamless.github.io/jstar/demo)!
 
 # The **jstar** Command Line Interface
 
@@ -77,7 +77,7 @@ to implement all of its functionalities. You can find the code in [**cli/cli.c**
 # Binaries
 
 Precompiled binaries are provided for Windows and Linux for every major release. You can find them
-[here](https://github.com/jstar-lang/jstar/releases).
+[here](https://github.com/bamless/jstar/releases).
 
 # Compilation
 
@@ -94,7 +94,7 @@ automatically take care of this).
 You can clone the latest **J\*** sources using git:
 
 ```
-git clone https://github.com/jstar-lang/jstar.git
+git clone https://github.com/bamless/jstar.git
 ```
 
 After cloning, use CMake to generate build files for your build system of choice and build the `all`
