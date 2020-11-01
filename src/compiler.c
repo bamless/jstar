@@ -1013,15 +1013,17 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
     }
 
-    compileStatement(c, s->as.forStmt.body);
+    JStarStmt* body = s->as.forStmt.body;
+    compileStatements(c, &body->as.blockStmt.stmts);
+
     emitJumpTo(c, OP_JUMP, l.start, s->line);
 
     if(s->as.forStmt.cond != NULL) {
         setJumpTo(c, exitJmp, c->func->code.count, 0);
     }
 
-    endLoop(c);
     exitScope(c);
+    endLoop(c);
 }
 
 /*
