@@ -869,15 +869,21 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
         name = require(p, TOK_IDENTIFIER);
     }
 
+    bool unpackArg = false;
+
     if(match(p, TOK_LPAREN)) {
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+        if(match(p, TOK_VARARG)) {
+            advance(p);
+            unpackArg = true;
+        }
     } else if(match(p, TOK_LCURLY)) {
         Vector tableCallArgs = vecNew();
         vecPush(&tableCallArgs, parseTableLiteral(p));
         args = jsrExprList(line, &tableCallArgs);
     }
 
-    return jsrSuperLiteral(line, &name, args);
+    return jsrSuperLiteral(line, &name, args, unpackArg);
 }
 
 static JStarExpr* literal(Parser* p) {

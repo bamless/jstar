@@ -683,9 +683,35 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
     compileAssignExpr(c, &assignment);
 }
 
+static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
+                       JStarExpr* args, bool isUnpack) {
+    vecForeach(JStarExpr * *it, args->as.list) {
+        // compile arguments
+        compileExpr(c, *it);
+    }
+
+    size_t argsCount = vecSize(&args->as.list);
+    if(argsCount >= UINT8_MAX) {
+        error(c, args->line, "Exceeded maximum number of arguments (%d) for function %s",
+              (int)UINT8_MAX, c->func->c.name->data);
+    }
+
+    if(isUnpack) {
+        emitBytecode(c, OP_UNPACK_ARG, args->line);
+        emitBytecode(c, callUnpack, args->line);
+        emitBytecode(c, argsCount - 1, args->line);
+    } else if(argsCount <= 10) {
+        emitBytecode(c, callInline + argsCount, args->line);
+    } else {
+        emitBytecode(c, callCode, args->line);
+        emitBytecode(c, argsCount, args->line);
+    }
+}
+
 static void compileCallExpr(Compiler* c, JStarExpr* e) {
     Opcode callCode = OP_CALL;
     Opcode callInline = OP_CALL_0;
+    Opcode callUnapck = OP_CALL_UNPACK;
 
     JStarExpr* callee = e->as.call.callee;
     bool isMethod = callee->type == JSR_ACCESS;
@@ -693,33 +719,13 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
     if(isMethod) {
         callCode = OP_INVOKE;
         callInline = OP_INVOKE_0;
+        callUnapck = OP_INVOKE_UNPACK;
         compileExpr(c, callee->as.access.left);
     } else {
         compileExpr(c, callee);
     }
 
-    JStarExpr* argsList = e->as.call.args;
-    vecForeach(JStarExpr(**it), argsList->as.list) {
-        // Compile argument list
-        compileExpr(c, *it);
-    }
-
-    size_t argsCount = vecSize(&argsList->as.list);
-    if(argsCount >= UINT8_MAX) {
-        error(c, e->line, "Exceeded maximum number of arguments (%d) for function %s",
-              (int)UINT8_MAX, c->func->c.name->data);
-    }
-
-    if(e->as.call.unpackArg) {
-        emitBytecode(c, OP_UNPACK_ARG, e->line);
-        emitBytecode(c, OP_CALL_UNPACK, e->line);
-        emitBytecode(c, argsCount - 1, e->line);
-    } else if(argsCount <= 10) {
-        emitBytecode(c, callInline + argsCount, e->line);
-    } else {
-        emitBytecode(c, callCode, e->line);
-        emitBytecode(c, argsCount, e->line);
-    }
+    finishCall(c, callCode, callInline, callUnapck, e->as.call.args, e->as.call.unpackArg);
 
     if(isMethod) {
         emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
@@ -736,31 +742,14 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
     emitBytecode(c, 0, e->line);
 
     uint16_t nameConst;
-    if(e->as.sup.name.name) {
+    if(e->as.sup.name.name != NULL) {
         nameConst = identifierConst(c, &e->as.sup.name, e->line);
     } else {
         nameConst = identifierConst(c, &c->ast->as.funcDecl.id, e->line);
     }
 
     if(e->as.sup.args != NULL) {
-        JStarExpr* argsList = e->as.sup.args;
-        vecForeach(JStarExpr(**it), argsList->as.list) {
-            // Compile argument list
-            compileExpr(c, *it);
-        }
-
-        size_t argsCount = vecSize(&argsList->as.list);
-        if(argsCount >= UINT8_MAX) {
-            error(c, e->line, "Too many arguments for function %s.", c->func->c.name->data);
-        }
-
-        if(argsCount <= 10) {
-            emitBytecode(c, OP_SUPER_0 + argsCount, e->line);
-        } else {
-            emitBytecode(c, OP_SUPER, e->line);
-            emitBytecode(c, argsCount, e->line);
-        }
-
+        finishCall(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, e->as.sup.args, e->as.sup.unpackArg);
         emitShort(c, nameConst, e->line);
     } else {
         emitBytecode(c, OP_SUPER_BIND, e->line);

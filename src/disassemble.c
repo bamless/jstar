@@ -102,6 +102,7 @@ void disassembleIstr(Code* c, size_t i) {
     case OP_INVOKE_8:
     case OP_INVOKE_9:
     case OP_INVOKE_10:
+    case OP_INVOKE_UNPACK:
     case OP_SUPER_0:
     case OP_SUPER_1:
     case OP_SUPER_2:
@@ -114,6 +115,7 @@ void disassembleIstr(Code* c, size_t i) {
     case OP_SUPER_9:
     case OP_SUPER_10:
     case OP_SUPER_BIND:
+    case OP_SUPER_UNPACK:
     case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
@@ -138,11 +140,11 @@ void disassembleIstr(Code* c, size_t i) {
         invokeInstruction(c, i);
         break;
     case OP_CALL:
+    case OP_CALL_UNPACK:
     case OP_UNPACK:
     case OP_NEW_TUPLE:
     case OP_GET_LOCAL:
     case OP_SET_LOCAL:
-    case OP_CALL_UNPACK:
     case OP_GET_UPVALUE:
     case OP_SET_UPVALUE:
         unsignedByteInstruction(c, i);

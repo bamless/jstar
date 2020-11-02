@@ -157,10 +157,11 @@ JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool vararg, 
     return e;
 }
 
-JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args) {
+JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args, bool unpackArg) {
     JStarExpr* e = newExpr(line, JSR_SUPER);
     e->as.sup.name.name = name->lexeme;
     e->as.sup.name.length = name->length;
+    e->as.sup.unpackArg = unpackArg;
     e->as.sup.args = args;
     return e;
 }
