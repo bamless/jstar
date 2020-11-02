@@ -1158,12 +1158,11 @@ call:
         argc = op - OP_INVOKE_0;
         goto invoke;
 
-    TARGET(OP_INVOKE_UNPACK): {
+    TARGET(OP_INVOKE_UNPACK):
         if(!computeUnpackCallArgc(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto invoke;
-    }
     
     TARGET(OP_INVOKE):
         argc = NEXT_CODE();
@@ -1194,12 +1193,11 @@ invoke:;
         argc = op - OP_SUPER_0;
         goto supinvoke;
 
-    TARGET(OP_SUPER_UNPACK): {
+    TARGET(OP_SUPER_UNPACK):
         if(!computeUnpackCallArgc(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto supinvoke;
-    }
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
