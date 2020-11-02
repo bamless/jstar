@@ -142,12 +142,15 @@ void disassembleIstr(Code* c, size_t i) {
     case OP_NEW_TUPLE:
     case OP_GET_LOCAL:
     case OP_SET_LOCAL:
+    case OP_CALL_UNPACK:
     case OP_GET_UPVALUE:
     case OP_SET_UPVALUE:
         unsignedByteInstruction(c, i);
         break;
     case OP_CLOSURE:
         closureInstruction(c, i);
+        break;
+    default:
         break;
     }
 

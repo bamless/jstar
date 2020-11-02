@@ -710,7 +710,11 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
               (int)UINT8_MAX, c->func->c.name->data);
     }
 
-    if(argsCount <= 10) {
+    if(e->as.call.unpackArg) {
+        emitBytecode(c, OP_UNPACK_ARG, e->line);
+        emitBytecode(c, OP_CALL_UNPACK, e->line);
+        emitBytecode(c, argsCount - 1, e->line);
+    } else if(argsCount <= 10) {
         emitBytecode(c, callInline + argsCount, e->line);
     } else {
         emitBytecode(c, callCode, e->line);

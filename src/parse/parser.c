@@ -965,12 +965,17 @@ static JStarExpr* postfixExpr(Parser* p) {
             Vector tableCallArgs = vecNew();
             vecPush(&tableCallArgs, parseTableLiteral(p));
             JStarExpr* args = jsrExprList(line, &tableCallArgs);
-            lit = jsrCallExpr(line, lit, args);
+            lit = jsrCallExpr(line, lit, args, false);
             break;
         }
         case TOK_LPAREN: {
             JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-            lit = jsrCallExpr(line, lit, args);
+            bool unpackArg = false;
+            if(match(p, TOK_VARARG)) {
+                advance(p);
+                unpackArg = true;
+            }
+            lit = jsrCallExpr(line, lit, args, unpackArg);
             break;
         }
         case TOK_LSQUARE: {

@@ -104,8 +104,9 @@ JStarExpr* jsrExprList(int line, Vector* exprs) {
     return e;
 }
 
-JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args) {
+JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args, bool unpackArg) {
     JStarExpr* e = newExpr(line, JSR_CALL);
+    e->as.call.unpackArg = unpackArg;
     e->as.call.callee = callee;
     e->as.call.args = args;
     return e;

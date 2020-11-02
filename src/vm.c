@@ -518,6 +518,44 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     for(int i = 0; i < n; i++) {
         push(vm, arr[i]);
     }
+
+    return true;
+}
+
+static bool unpackArg(JStarVM* vm, Obj* o) {
+    Value* arr = NULL;
+    size_t size = 0;
+
+    switch(o->type) {
+    case OBJ_TUPLE: {
+        ObjTuple* tup = (ObjTuple*)o;
+        arr = tup->arr;
+        size = tup->size;
+        break;
+    }
+    case OBJ_LIST: {
+        ObjList* lst = (ObjList*)o;
+        arr = lst->arr;
+        size = lst->count;
+        break;
+    }
+    default:
+        UNREACHABLE();
+        break;
+    }
+
+    if(size >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Argument too big to unpack: %zu", size);
+        return false;
+    }
+
+    ensureStack(vm, size + 1);
+
+    for(size_t i = 0; i < size; i++) {
+        push(vm, arr[i]);
+    }
+
+    push(vm, NUM_VAL(size));
     return true;
 }
 
@@ -1075,6 +1113,16 @@ bool runEval(JStarVM* vm, int evalDepth) {
     {
         uint8_t argc;
 
+    TARGET(OP_CALL_UNPACK): {
+        int unpackArgc = AS_NUM(pop(vm)) + NEXT_CODE();
+        if(unpackArgc >= UINT8_MAX) {
+            jsrRaise(vm, "TypeException", "Too many arguments for function call: %d", unpackArgc);
+            UNWIND_STACK(vm);
+        }
+        argc = unpackArgc;
+        goto call;
+    }
+
     TARGET(OP_CALL_0):
     TARGET(OP_CALL_1):
     TARGET(OP_CALL_2):
@@ -1312,6 +1360,18 @@ op_return:
             UNWIND_STACK(vm);
         }
         if(!unpackObject(vm, AS_OBJ(pop(vm)),  NEXT_CODE())) {
+            UNWIND_STACK(vm);
+        }
+        DISPATCH();
+    }
+
+    TARGET(OP_UNPACK_ARG): {
+        if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+            jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+                     getClass(vm, peek(vm))->name->data);
+            UNWIND_STACK(vm);
+        }
+        if(!unpackArg(vm, AS_OBJ(pop(vm)))) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
