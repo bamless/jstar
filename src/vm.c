@@ -33,6 +33,7 @@ static void resetStack(JStarVM* vm) {
 
 static void initConstStrings(JStarVM* vm) {
     vm->stacktrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
+    vm->excCause = copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE));
     vm->excError = copyString(vm, EXC_ERR, strlen(EXC_ERR));
     vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
     vm->next = copyString(vm, "__next__", 8);

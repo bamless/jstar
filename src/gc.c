@@ -324,6 +324,7 @@ void garbageCollect(JStarVM* vm) {
     // reach constant strings
     reachObject(vm, (Obj*)vm->stacktrace);
     reachObject(vm, (Obj*)vm->excError);
+    reachObject(vm, (Obj*)vm->excCause);
     reachObject(vm, (Obj*)vm->ctor);
     reachObject(vm, (Obj*)vm->next);
     reachObject(vm, (Obj*)vm->iter);

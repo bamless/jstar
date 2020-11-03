@@ -1487,8 +1487,17 @@ JSR_NATIVE(jsr_type) {
 // -----------------------------------------------------------------------------
 // BUILTIN EXCEPTIONS
 // -----------------------------------------------------------------------------
-
 // class Exception
+#define INDENT "    "
+
+static bool recordEquals(FrameRecord* f1, FrameRecord* f2) {
+    if(f1 && f2) {
+        return (strcmp(f1->moduleName->data, f2->moduleName->data) == 0) &&
+               (strcmp(f1->funcName->data, f2->funcName->data) == 0) && (f1->line == f2->line);
+    }
+    return false;
+}
+
 JSR_NATIVE(jsr_Exception_printStacktrace) {
     Value stval = NULL_VAL;
     ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
@@ -1499,28 +1508,56 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
         return true;
     }
 
+    Value cause;
+    if(hashTableGet(&exc->fields, vm->excCause, &cause) && isInstance(vm, cause, vm->excClass)) {
+        push(vm, cause);
+        jsrCallMethod(vm, "printStacktrace", 0);
+        pop(vm);
+        fprintf(stderr, "\nAbove Excetption caused:\n");
+    }
+
     ObjStackTrace* st = AS_STACK_TRACE(stval);
 
     if(st->recordCount > 0) {
+        FrameRecord* lastRecord = NULL;
+
         fprintf(stderr, "Traceback (most recent call last):\n");
         for(int i = st->recordCount - 1; i >= 0; i--) {
             FrameRecord* record = &st->records[i];
-            fprintf(stderr, "    ");
-            if(record->line >= 0)
+
+            if(recordEquals(lastRecord, record)) {
+                int repetitions = 1;
+                while(i > 0) {
+                    record = &st->records[i - 1];
+                    if(!recordEquals(lastRecord, record)) break;
+                    repetitions++, i--;
+                }
+                fprintf(stderr, INDENT "...\n");
+                fprintf(stderr, INDENT "[Previous line repeated %d times]\n", repetitions);
+                continue;
+            }
+
+            fprintf(stderr, INDENT);
+
+            if(record->line >= 0) {
                 fprintf(stderr, "[line %d]", record->line);
-            else
+            } else {
                 fprintf(stderr, "[line ?]");
+            }
             fprintf(stderr, " module %s in %s\n", record->moduleName->data, record->funcName->data);
+
+            lastRecord = record;
         }
     }
 
     Value err;
     bool found = hashTableGet(&exc->fields, vm->excError, &err);
 
-    if(found && IS_STRING(err) && AS_STRING(err)->length > 0)
+    if(found && IS_STRING(err) && AS_STRING(err)->length > 0) {
         fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(err)->data);
-    else
+    } else {
         fprintf(stderr, "%s\n", exc->base.cls->name->data);
+    }
 
     jsrPushNull(vm);
     return true;
@@ -1538,12 +1575,41 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
 
     JStarBuffer string;
     jsrBufferInitSz(vm, &string, 64);
+
+    Value cause;
+    if(hashTableGet(&exc->fields, vm->excCause, &cause) && isInstance(vm, cause, vm->excClass)) {
+        push(vm, cause);
+        jsrCallMethod(vm, "getStacktrace", 0);
+        Value stackTrace = peek(vm);
+        if(IS_STRING(stackTrace)) {
+            jsrBufferAppend(&string, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);
+            jsrBufferAppendstr(&string, "\n\nAbove Exception caused:\n");
+        }
+        pop(vm);
+    }
+
     ObjStackTrace* st = AS_STACK_TRACE(stval);
 
     if(st->recordCount > 0) {
+        FrameRecord* lastRecord = NULL;
+
         jsrBufferAppendf(&string, "Traceback (most recent call last):\n");
         for(int i = st->recordCount - 1; i >= 0; i--) {
             FrameRecord* record = &st->records[i];
+
+            if(recordEquals(lastRecord, record)) {
+                int repetitions = 1;
+                while(i > 0) {
+                    record = &st->records[i - 1];
+                    if(!recordEquals(lastRecord, record)) break;
+                    repetitions++, i--;
+                }
+                jsrBufferAppendstr(&string, INDENT "...\n");
+                jsrBufferAppendf(&string, INDENT "[Previous line repeated %d times]\n",
+                                 repetitions);
+                continue;
+            }
+
             jsrBufferAppendstr(&string, "    ");
             if(record->line >= 0)
                 jsrBufferAppendf(&string, "[line %d]", record->line);
@@ -1551,6 +1617,8 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
                 jsrBufferAppend(&string, "[line ?]", record->line);
             jsrBufferAppendf(&string, " module %s in %s\n", record->moduleName->data,
                              record->funcName->data);
+
+            lastRecord = record;
         }
     }
 
