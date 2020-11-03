@@ -180,7 +180,7 @@ static uint16_t createConst(Compiler* c, Value constant, int line) {
     return (uint16_t)index;
 }
 
-static JStarIdentifier syntheticIdentifier(const char* name) {
+static JStarIdentifier createIdentifier(const char* name) {
     return (JStarIdentifier){strlen(name), name};
 }
 
@@ -327,8 +327,8 @@ static void endLoop(Compiler* c) {
     c->loops = c->loops->next;
 }
 
-static void callMethod(Compiler* c, const char* name, int args) {
-    JStarIdentifier meth = syntheticIdentifier(name);
+static void emitMethodCall(Compiler* c, const char* name, int args) {
+    JStarIdentifier meth = createIdentifier(name);
     emitBytecode(c, OP_INVOKE_0 + args, 0);
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
@@ -402,9 +402,9 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
     return stringConst;
 }
 
-static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defArgs) {
+static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
     int i = 0;
-    vecForeach(JStarExpr(**it), *defArgs) {
+    vecForeach(JStarExpr(**it), *defaultArgs) {
         JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -503,10 +503,10 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
         emitBytecode(c, OP_NOT, e->line);
         break;
     case TOK_HASH:
-        callMethod(c, "__len__", 0);
+        emitMethodCall(c, "__len__", 0);
         break;
     case TOK_HASH_HASH:
-        callMethod(c, "__string__", 0);
+        emitMethodCall(c, "__string__", 0);
         break;
     default:
         UNREACHABLE();
@@ -555,7 +555,7 @@ static void compileVariable(Compiler* c, JStarIdentifier* id, bool set, int line
 
 static void compileFunction(Compiler* c, JStarStmt* s);
 
-static void compileFunLiteral(Compiler* c, JStarIdentifier* name, JStarExpr* e) {
+static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* f = e->as.funLit.func;
     if(name == NULL) {
         char funcName[sizeof(ANON_PREFIX) + STRLEN_FOR_INT(int) + 1];
@@ -593,19 +593,19 @@ static void compileLval(Compiler* c, JStarExpr* e) {
     }
 }
 
-static void compileRval(Compiler* c, JStarIdentifier* boundName, JStarExpr* e) {
+static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
     if(e->type == JSR_FUNC_LIT) {
-        compileFunLiteral(c, boundName, e);
+        compileFunLiteral(c, e, boundName);
     } else {
         compileExpr(c, e);
     }
 }
 
-static void compileConstUnpackLst(Compiler* c, Vector* boundNames, JStarExpr* exprs, int num) {
+static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector* boundNames) {
     int i = 0;
-    vecForeach(JStarExpr(**e), exprs->as.list) {
-        JStarIdentifier* boundName = boundNames ? vecGet(boundNames, i) : NULL;
-        compileRval(c, boundName, *e);
+    vecForeach(JStarExpr(**it), exprs->as.list) {
+        JStarExpr* e = *it;
+        compileRval(c, e, boundNames ? vecGet(boundNames, i) : NULL);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
@@ -625,9 +625,9 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
     JStarExpr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
         JStarExpr* lst = rval->type == JSR_ARRAY ? rval->as.array.exprs : rval->as.tuple.exprs;
-        compileConstUnpackLst(c, NULL, lst, tupleSize);
+        compileConstUnpackLst(c, lst, tupleSize, NULL);
     } else {
-        compileRval(c, NULL, rval);
+        compileRval(c, rval, NULL);
         emitBytecode(c, OP_UNPACK, e->line);
         emitBytecode(c, (uint8_t)tupleSize, e->line);
     }
@@ -645,18 +645,18 @@ static void compileAssignExpr(Compiler* c, JStarExpr* e) {
     switch(e->as.assign.lval->type) {
     case JSR_VAR: {
         JStarIdentifier* name = &e->as.assign.lval->as.var.id;
-        compileRval(c, name, e->as.assign.rval);
+        compileRval(c, e->as.assign.rval, name);
         compileLval(c, e->as.assign.lval);
         break;
     }
     case JSR_ACCESS: {
         JStarIdentifier* name = &e->as.assign.lval->as.access.id;
-        compileRval(c, name, e->as.assign.rval);
+        compileRval(c, e->as.assign.rval, name);
         compileLval(c, e->as.assign.lval);
         break;
     }
     case JSR_ARR_ACCESS: {
-        compileRval(c, NULL, e->as.assign.rval);
+        compileRval(c, e->as.assign.rval, NULL);
         compileLval(c, e->as.assign.lval);
         break;
     }
@@ -812,7 +812,7 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
         emitBytecode(c, OP_DUP, e->line);
         compileExpr(c, key);
         compileExpr(c, val);
-        callMethod(c, "__set__", 2);
+        emitMethodCall(c, "__set__", 2);
         emitBytecode(c, OP_POP, e->line);
 
         it += 2;
@@ -888,7 +888,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileSuper(c, e);
         break;
     case JSR_FUNC_LIT:
-        compileFunLiteral(c, NULL, e);
+        compileFunLiteral(c, e, NULL);
         break;
     }
 }
@@ -914,11 +914,15 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
         JStarExpr* init = s->as.varDecl.init;
 
         if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
-            JStarExpr* exprs = init->type == JSR_ARRAY ? init->as.array.exprs
-                                                       : init->as.tuple.exprs;
-            compileConstUnpackLst(c, &s->as.varDecl.ids, exprs, numDecls);
+            JStarExpr* exprs;
+            if(init->type == JSR_ARRAY) {
+                exprs = init->as.array.exprs;
+            } else {
+                exprs = init->as.tuple.exprs;
+            }
+            compileConstUnpackLst(c, exprs, numDecls, &s->as.varDecl.ids);
         } else {
-            compileRval(c, vecGet(&s->as.varDecl.ids, 0), init);
+            compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
             if(s->as.varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)numDecls, s->line);
@@ -1009,15 +1013,17 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
     }
 
-    compileStatement(c, s->as.forStmt.body);
+    JStarStmt* body = s->as.forStmt.body;
+    compileStatements(c, &body->as.blockStmt.stmts);
+
     emitJumpTo(c, OP_JUMP, l.start, s->line);
 
     if(s->as.forStmt.cond != NULL) {
         setJumpTo(c, exitJmp, c->func->code.count, 0);
     }
 
-    endLoop(c);
     exitScope(c);
+    endLoop(c);
 }
 
 /*
@@ -1037,7 +1043,7 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
 static void compileForEach(Compiler* c, JStarStmt* s) {
     enterScope(c);
 
-    JStarIdentifier expr = syntheticIdentifier(".expr");
+    JStarIdentifier expr = createIdentifier(".expr");
     declareVar(c, &expr, s->as.forEach.iterable->line);
     defineVar(c, &expr, s->as.forEach.iterable->line);
 
@@ -1045,7 +1051,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
 
     // set the iterator variable with a name that it's not an identifier.
     // this will avoid the user shadowing the iterator with a declared variable.
-    JStarIdentifier iterator = syntheticIdentifier(".iter");
+    JStarIdentifier iterator = createIdentifier(".iter");
     declareVar(c, &iterator, s->line);
     defineVar(c, &iterator, s->line);
 
@@ -1154,7 +1160,7 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
     JStarStmt* exc = vecGet(excs, n);
     bool last = n == (int)(vecSize(excs) - 1);
 
-    JStarIdentifier exception = syntheticIdentifier(".exception");
+    JStarIdentifier exception = createIdentifier(".exception");
     compileVariable(c, &exception, false, exc->line);
     compileExpr(c, exc->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
@@ -1230,11 +1236,11 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     enterScope(c);
 
-    JStarIdentifier exc = syntheticIdentifier(".exception");
+    JStarIdentifier exc = createIdentifier(".exception");
     declareVar(c, &exc, 0);
     defineVar(c, &exc, 0);
 
-    JStarIdentifier cause = syntheticIdentifier(".cause");
+    JStarIdentifier cause = createIdentifier(".cause");
     declareVar(c, &cause, 0);
     defineVar(c, &cause, 0);
 
@@ -1323,11 +1329,11 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     // ensure
     enterScope(c);
 
-    JStarIdentifier exc = syntheticIdentifier(".exception");
+    JStarIdentifier exc = createIdentifier(".exception");
     declareVar(c, &exc, 0);
     defineVar(c, &exc, 0);
 
-    JStarIdentifier cause = syntheticIdentifier(".cause");
+    JStarIdentifier cause = createIdentifier(".cause");
     declareVar(c, &cause, 0);
     defineVar(c, &cause, 0);
 
@@ -1339,7 +1345,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     emitShort(c, 0, 0);
 
     compileVariable(c, &s->as.withStmt.var, false, s->line);
-    callMethod(c, "close", 0);
+    emitMethodCall(c, "close", 0);
     emitBytecode(c, OP_POP, s->line);
 
     setJumpTo(c, falseJmp, c->func->code.count, s->line);
@@ -1381,7 +1387,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
 
     // add phony variable for function receiver (in the case of functions the
     // receiver is the function itself but it ins't accessible)
-    JStarIdentifier id = syntheticIdentifier("");
+    JStarIdentifier id = createIdentifier("");
     addLocal(c, &id, s->line);
 
     vecForeach(JStarIdentifier(**it), s->as.funcDecl.formalArgs) {
@@ -1390,7 +1396,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     }
 
     if(s->as.funcDecl.isVararg) {
-        JStarIdentifier args = syntheticIdentifier("args");
+        JStarIdentifier args = createIdentifier("args");
         declareVar(c, &args, s->line);
         defineVar(c, &args, s->line);
     }
@@ -1427,13 +1433,13 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     c->func->c.name = createMethodName(c, classId, &s->as.funcDecl.id);
 
     // if in costructor change the type
-    JStarIdentifier ctor = syntheticIdentifier(CTOR_STR);
+    JStarIdentifier ctor = createIdentifier(CTOR_STR);
     if(jsrIdentifierEq(&s->as.funcDecl.id, &ctor)) {
         c->type = TYPE_CTOR;
     }
 
     // add `this` for method receiver (the object from which was called)
-    JStarIdentifier thisId = syntheticIdentifier(THIS_STR);
+    JStarIdentifier thisId = createIdentifier(THIS_STR);
     declareVar(c, &thisId, s->line);
     defineVar(c, &thisId, s->line);
 
@@ -1444,7 +1450,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     }
 
     if(s->as.funcDecl.isVararg) {
-        JStarIdentifier args = syntheticIdentifier("args");
+        JStarIdentifier args = createIdentifier("args");
         declareVar(c, &args, s->line);
         defineVar(c, &args, s->line);
     }

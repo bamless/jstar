@@ -14,6 +14,26 @@
 #include "value.h"
 #include "vm.h"
 
+ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name,
+                               JStarStmt* program) {
+    ObjModule* module = getModule(vm, name);
+
+    if(module == NULL) {
+        push(vm, OBJ_VAL(name));
+        module = newModule(vm, name);
+        pop(vm);
+
+        setModule(vm, name, module);
+    }
+
+    if(program != NULL) {
+        ObjFunction* fn = compile(vm, fileName, module, program);
+        return fn;
+    }
+
+    return NULL;
+}
+
 static void setModuleInParent(JStarVM* vm, ObjModule* module) {
     ObjString* name = module->name;
     const char* lastDot = strrchr(name->data, '.');
@@ -29,34 +49,10 @@ static void setModuleInParent(JStarVM* vm, ObjModule* module) {
     }
 }
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name,
-                               JStarStmt* program) {
-    ObjModule* module = getModule(vm, name);
-
-    if(module == NULL) {
-        push(vm, OBJ_VAL(name));
-        module = newModule(vm, name);
-        pop(vm);
-
-        setModule(vm, name, module);
-        setModuleInParent(vm, module);
-    }
-
-    if(program != NULL) {
-        ObjFunction* fn = compile(vm, fileName, module, program);
-        return fn;
-    }
-
-    return NULL;
-}
-
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
-    push(vm, OBJ_VAL(module));
-    push(vm, OBJ_VAL(name));
-    hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
-    pop(vm);
-    pop(vm);
     hashTablePut(&vm->modules, name, OBJ_VAL(module));
+    hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
+    setModuleInParent(vm, module);
 }
 
 ObjModule* getModule(JStarVM* vm, ObjString* name) {
