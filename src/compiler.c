@@ -205,10 +205,10 @@ static void addLocal(Compiler* c, JStarIdentifier* id, int line) {
     c->localsCount++;
 }
 
-static int resolveVariable(Compiler* c, JStarIdentifier* id, bool inFunc, int line) {
+static int resolveVariable(Compiler* c, JStarIdentifier* id, int line) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(jsrIdentifierEq(&c->locals[i].id, id)) {
-            if(inFunc && c->locals[i].depth == -1) {
+            if(c->locals[i].depth == -1) {
                 error(c, line, "Cannot read local variable in its own initializer.");
                 return 0;
             }
@@ -242,7 +242,7 @@ static int resolveUpvalue(Compiler* c, JStarIdentifier* id, int line) {
         return -1;
     }
 
-    int i = resolveVariable(c->prev, id, false, line);
+    int i = resolveVariable(c->prev, id, line);
     if(i != -1) {
         c->prev->locals[i].isUpvalue = true;
         return addUpvalue(c, i, true, line);
@@ -531,7 +531,7 @@ static void compileTernaryExpr(Compiler* c, JStarExpr* e) {
 }
 
 static void compileVariable(Compiler* c, JStarIdentifier* id, bool set, int line) {
-    int i = resolveVariable(c, id, true, line);
+    int i = resolveVariable(c, id, line);
     if(i != -1) {
         if(set)
             emitBytecode(c, OP_SET_LOCAL, line);
