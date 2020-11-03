@@ -132,23 +132,27 @@ void jsrRaiseException(JStarVM* vm, int slot) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
         return;
     }
-    ObjInstance* objException = (ObjInstance*)AS_OBJ(exc);
-    ObjStackTrace* staktrace = newStackTrace(vm);
-    hashTablePut(&objException->fields, vm->stacktrace, OBJ_VAL(staktrace));
+    ObjInstance* exception = (ObjInstance*)AS_OBJ(exc);
+    ObjStackTrace* st = newStackTrace(vm);
+    push(vm, OBJ_VAL(st));
+    hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
+    pop(vm);
     jsrPushValue(vm, slot);
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     if(!jsrGetGlobal(vm, NULL, cls)) return;
 
-    ObjInstance* excInst = newInstance(vm, AS_CLASS(pop(vm)));
-    if(!isInstance(vm, OBJ_VAL(excInst), vm->excClass)) {
+    ObjInstance* exception = newInstance(vm, AS_CLASS(pop(vm)));
+    if(!isInstance(vm, OBJ_VAL(exception), vm->excClass)) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
     }
 
-    push(vm, OBJ_VAL(excInst));
+    push(vm, OBJ_VAL(exception));
     ObjStackTrace* st = newStackTrace(vm);
-    hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
+    push(vm, OBJ_VAL(st));
+    hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
+    pop(vm);
 
     if(err != NULL) {
         JStarBuffer error;
@@ -159,8 +163,9 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
         jsrBufferAppendvf(&error, err, args);
         va_end(args);
 
+        ObjString* errorField = copyString(vm, EXC_ERR, strlen(EXC_ERR));
         ObjString* errorString = jsrBufferToString(&error);
-        hashTablePut(&excInst->fields, vm->excError, OBJ_VAL(errorString));
+        hashTablePut(&exception->fields, errorField, OBJ_VAL(errorString));
     }
 }
 

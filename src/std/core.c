@@ -1487,6 +1487,7 @@ JSR_NATIVE(jsr_type) {
 // -----------------------------------------------------------------------------
 // BUILTIN EXCEPTIONS
 // -----------------------------------------------------------------------------
+
 // class Exception
 #define INDENT "    "
 
@@ -1501,15 +1502,16 @@ static bool recordEquals(FrameRecord* f1, FrameRecord* f2) {
 JSR_NATIVE(jsr_Exception_printStacktrace) {
     Value stval = NULL_VAL;
     ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
-    hashTableGet(&exc->fields, vm->stacktrace, &stval);
+    hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
 
     if(!IS_STACK_TRACE(stval)) {
         jsrPushNull(vm);
         return true;
     }
 
-    Value cause;
-    if(hashTableGet(&exc->fields, vm->excCause, &cause) && isInstance(vm, cause, vm->excClass)) {
+    Value cause = NULL_VAL;
+    hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+    if(isInstance(vm, cause, vm->excClass)) {
         push(vm, cause);
         jsrCallMethod(vm, "printStacktrace", 0);
         pop(vm);
@@ -1550,10 +1552,10 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
         }
     }
 
-    Value err;
-    bool found = hashTableGet(&exc->fields, vm->excError, &err);
+    Value err = NULL_VAL;
+    hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
 
-    if(found && IS_STRING(err) && AS_STRING(err)->length > 0) {
+    if(IS_STRING(err) && AS_STRING(err)->length > 0) {
         fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(err)->data);
     } else {
         fprintf(stderr, "%s\n", exc->base.cls->name->data);
@@ -1566,7 +1568,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 JSR_NATIVE(jsr_Exception_getStacktrace) {
     Value stval = NULL_VAL;
     ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
-    hashTableGet(&exc->fields, vm->stacktrace, &stval);
+    hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
 
     if(!IS_STACK_TRACE(stval)) {
         jsrPushString(vm, "");
@@ -1576,8 +1578,9 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     JStarBuffer string;
     jsrBufferInitSz(vm, &string, 64);
 
-    Value cause;
-    if(hashTableGet(&exc->fields, vm->excCause, &cause) && isInstance(vm, cause, vm->excClass)) {
+    Value cause = NULL_VAL;
+    hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+    if(isInstance(vm, cause, vm->excClass)) {
         push(vm, cause);
         jsrCallMethod(vm, "getStacktrace", 0);
         Value stackTrace = peek(vm);
@@ -1622,10 +1625,10 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
         }
     }
 
-    Value err;
-    bool found = hashTableGet(&exc->fields, vm->excError, &err);
+    Value err = NULL_VAL;
+    hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
 
-    if(found && IS_STRING(err) && AS_STRING(err)->length > 0)
+    if(IS_STRING(err) && AS_STRING(err)->length > 0)
         jsrBufferAppendf(&string, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);
     else
         jsrBufferAppendf(&string, "%s", exc->base.cls->name->data);

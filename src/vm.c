@@ -32,16 +32,12 @@ static void resetStack(JStarVM* vm) {
 }
 
 static void initConstStrings(JStarVM* vm) {
-    vm->stacktrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
-    vm->excCause = copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE));
-    vm->excError = copyString(vm, EXC_ERR, strlen(EXC_ERR));
-    vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
-    vm->next = copyString(vm, "__next__", 8);
-    vm->iter = copyString(vm, "__iter__", 8);
-
     for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
         vm->overloads[i] = copyString(vm, overloadNames[i], strlen(overloadNames[i]));
     }
+    vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
+    vm->next = copyString(vm, NEXT_METH, strlen(NEXT_METH));
+    vm->iter = copyString(vm, ITER_METH, strlen(ITER_METH));
 }
 
 static void initMainModule(JStarVM* vm) {
@@ -70,8 +66,10 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
     initConstStrings(vm);
 
-    initCoreModule(vm);  // Core module bootstrap
-    initMainModule(vm);  // Create empty main module
+    // Core module bootstrap
+    initCoreModule(vm);
+    // Init empty main module
+    initMainModule(vm);
 
     // Create J* objects needed by the runtime. This is called after initCoreLibrary in order
     // to correctly assign a Class reference to the objects, since built-in classes are created
@@ -1425,8 +1423,10 @@ op_return:
             UNWIND_STACK(vm);
         }
         ObjStackTrace* st = newStackTrace(vm);
+        push(vm, OBJ_VAL(st));
         ObjInstance* excInst = AS_INSTANCE(exc);
-        hashTablePut(&excInst->fields, vm->stacktrace, OBJ_VAL(st));
+        hashTablePut(&excInst->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
+        pop(vm);
         UNWIND_STACK(vm);
     }
 
@@ -1484,10 +1484,10 @@ bool unwindStack(JStarVM* vm, int depth) {
     ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
     ObjInstance* exception = AS_INSTANCE(peek(vm));
 
-    Value stackTraceValue = NULL_VAL;
-    hashTableGet(&exception->fields, vm->stacktrace, &stackTraceValue);
-    ASSERT(IS_STACK_TRACE(stackTraceValue), "Exception doesn't have a stacktrace object");
-    ObjStackTrace* stackTrace = AS_STACK_TRACE(stackTraceValue);
+    Value stacktraceVal = NULL_VAL;
+    hashTableGet(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
+    ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
+    ObjStackTrace* stackTrace = AS_STACK_TRACE(stacktraceVal);
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame* frame = &vm->frames[vm->frameCount - 1];

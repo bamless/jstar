@@ -300,9 +300,10 @@ void garbageCollect(JStarVM* vm) {
     vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
     vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
-    // reach objects in vm
+    // reach import paths list
     reachObject(vm, (Obj*)vm->importpaths);
 
+    // reach builtin classes
     reachObject(vm, (Obj*)vm->clsClass);
     reachObject(vm, (Obj*)vm->objClass);
     reachObject(vm, (Obj*)vm->strClass);
@@ -322,9 +323,6 @@ void garbageCollect(JStarVM* vm) {
     reachObject(vm, (Obj*)vm->argv);
 
     // reach constant strings
-    reachObject(vm, (Obj*)vm->stacktrace);
-    reachObject(vm, (Obj*)vm->excError);
-    reachObject(vm, (Obj*)vm->excCause);
     reachObject(vm, (Obj*)vm->ctor);
     reachObject(vm, (Obj*)vm->next);
     reachObject(vm, (Obj*)vm->iter);

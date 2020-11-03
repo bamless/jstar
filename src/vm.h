@@ -95,7 +95,7 @@ struct JStarVM {
     Compiler* currCompiler;
 
     // Constant strings needed by compiler and runtime
-    ObjString *ctor, *stacktrace, *excError, *excCause, *next, *iter;
+    ObjString *ctor, *next, *iter;
     ObjString* overloads[OVERLOAD_SENTINEL];
 
     // The empty tuple (singleton)
