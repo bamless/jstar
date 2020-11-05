@@ -488,7 +488,7 @@ static bool callBinaryOverload(JStarVM* vm, const char* op, Overload overload, O
     return false;
 }
 
-static bool computeUnpackCallArgc(JStarVM* vm, int unpackArgc, uint8_t argc, uint8_t* out) {
+static bool computeUnpackArgCount(JStarVM* vm, int unpackArgc, uint8_t argc, uint8_t* out) {
     int callArgc = unpackArgc + argc;
     if(callArgc >= UINT8_MAX) {
         jsrRaise(vm, "TypeException", "Too many arguments for function call: %d", unpackArgc);
@@ -498,18 +498,19 @@ static bool computeUnpackCallArgc(JStarVM* vm, int unpackArgc, uint8_t argc, uin
     return true;
 }
 
-static void getValueArray(Obj* obj, Value** array, size_t* size) {
+static Value* getValueArray(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a tuple or list.");
+    Value* array = NULL;
     switch(obj->type) {
     case OBJ_TUPLE: {
         ObjTuple* tup = (ObjTuple*)obj;
-        *array = tup->arr;
+        array = tup->arr;
         *size = tup->size;
         break;
     }
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj;
-        *array = lst->arr;
+        array = lst->arr;
         *size = lst->count;
         break;
     }
@@ -517,12 +518,12 @@ static void getValueArray(Obj* obj, Value** array, size_t* size) {
         UNREACHABLE();
         break;
     }
+    return array;
 }
 
 static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     size_t size;
-    Value* array;
-    getValueArray(o, &array, &size);
+    Value* array = getValueArray(o, &size);
 
     if(n > size) {
         jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %zu", n, size);
@@ -538,11 +539,10 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
 
 static bool unpackArgument(JStarVM* vm, Obj* o) {
     size_t size;
-    Value* array;
-    getValueArray(o, &array, &size);
+    Value* array = getValueArray(o, &size);
 
     if(size >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Argument too big to unpack: %zu", size);
+        jsrRaise(vm, "TypeException", "Last argument too big to unpack: %zu", size);
         return false;
     }
 
@@ -1125,7 +1125,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         goto call;
 
     TARGET(OP_CALL_UNPACK):
-        if(!computeUnpackCallArgc(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto call;
@@ -1159,7 +1159,7 @@ call:
         goto invoke;
 
     TARGET(OP_INVOKE_UNPACK):
-        if(!computeUnpackCallArgc(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto invoke;
@@ -1194,7 +1194,7 @@ invoke:;
         goto supinvoke;
 
     TARGET(OP_SUPER_UNPACK):
-        if(!computeUnpackCallArgc(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto supinvoke;
