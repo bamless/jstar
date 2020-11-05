@@ -122,8 +122,7 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
-    jsrCallMethod(vm, "printStacktrace", 0);
-    jsrPop(vm);
+    jsrCallMethod(vm, "getStacktrace", 0);
 }
 
 void jsrRaiseException(JStarVM* vm, int slot) {
