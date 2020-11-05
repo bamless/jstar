@@ -488,36 +488,71 @@ static bool callBinaryOverload(JStarVM* vm, const char* op, Overload overload, O
     return false;
 }
 
-static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
-    Value* arr = NULL;
-    size_t size = 0;
+static bool computeUnpackArgCount(JStarVM* vm, int unpackArgc, uint8_t argc, uint8_t* out) {
+    int callArgc = unpackArgc + argc;
+    if(callArgc >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Too many arguments for function call: %d", unpackArgc);
+        return false;
+    }
+    *out = callArgc;
+    return true;
+}
 
-    switch(o->type) {
+static Value* getValueArray(Obj* obj, size_t* size) {
+    ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a tuple or list.");
+    Value* array = NULL;
+    switch(obj->type) {
     case OBJ_TUPLE: {
-        ObjTuple* tup = (ObjTuple*)o;
-        arr = tup->arr;
-        size = tup->size;
+        ObjTuple* tup = (ObjTuple*)obj;
+        array = tup->arr;
+        *size = tup->size;
         break;
     }
     case OBJ_LIST: {
-        ObjList* lst = (ObjList*)o;
-        arr = lst->arr;
-        size = lst->count;
+        ObjList* lst = (ObjList*)obj;
+        array = lst->arr;
+        *size = lst->count;
         break;
     }
     default:
         UNREACHABLE();
         break;
     }
+    return array;
+}
+
+static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
+    size_t size;
+    Value* array = getValueArray(o, &size);
 
     if(n > size) {
-        jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %d.", n, size);
+        jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %zu", n, size);
         return false;
     }
 
     for(int i = 0; i < n; i++) {
-        push(vm, arr[i]);
+        push(vm, array[i]);
     }
+
+    return true;
+}
+
+static bool unpackArgument(JStarVM* vm, Obj* o) {
+    size_t size;
+    Value* array = getValueArray(o, &size);
+
+    if(size >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Last argument too big to unpack: %zu", size);
+        return false;
+    }
+
+    ensureStack(vm, size + 1);
+
+    for(size_t i = 0; i < size; i++) {
+        push(vm, array[i]);
+    }
+
+    push(vm, NUM_VAL(size));
     return true;
 }
 
@@ -1089,6 +1124,12 @@ bool runEval(JStarVM* vm, int evalDepth) {
         argc = op - OP_CALL_0;
         goto call;
 
+    TARGET(OP_CALL_UNPACK):
+        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+            UNWIND_STACK(vm);
+        }
+        goto call;
+
     TARGET(OP_CALL):
         argc = NEXT_CODE();
 
@@ -1115,6 +1156,12 @@ call:
     TARGET(OP_INVOKE_9):
     TARGET(OP_INVOKE_10):
         argc = op - OP_INVOKE_0;
+        goto invoke;
+
+    TARGET(OP_INVOKE_UNPACK):
+        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+            UNWIND_STACK(vm);
+        }
         goto invoke;
     
     TARGET(OP_INVOKE):
@@ -1144,12 +1191,18 @@ invoke:;
     TARGET(OP_SUPER_9):
     TARGET(OP_SUPER_10):
         argc = op - OP_SUPER_0;
-        goto sup_invoke;
+        goto supinvoke;
+
+    TARGET(OP_SUPER_UNPACK):
+        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+            UNWIND_STACK(vm);
+        }
+        goto supinvoke;
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
 
-sup_invoke:;
+supinvoke:;
         ObjString* name = GET_STRING();
         // The superclass is stored as a const in the function itself
         ObjClass* sup = AS_CLASS(fn->code.consts.arr[0]);
@@ -1312,6 +1365,18 @@ op_return:
             UNWIND_STACK(vm);
         }
         if(!unpackObject(vm, AS_OBJ(pop(vm)),  NEXT_CODE())) {
+            UNWIND_STACK(vm);
+        }
+        DISPATCH();
+    }
+
+    TARGET(OP_UNPACK_ARG): {
+        if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+            jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+                     getClass(vm, peek(vm))->name->data);
+            UNWIND_STACK(vm);
+        }
+        if(!unpackArgument(vm, AS_OBJ(pop(vm)))) {
             UNWIND_STACK(vm);
         }
         DISPATCH();

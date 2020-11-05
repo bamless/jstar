@@ -869,15 +869,21 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
         name = require(p, TOK_IDENTIFIER);
     }
 
+    bool unpackArg = false;
+
     if(match(p, TOK_LPAREN)) {
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+        if(match(p, TOK_VARARG)) {
+            advance(p);
+            unpackArg = true;
+        }
     } else if(match(p, TOK_LCURLY)) {
         Vector tableCallArgs = vecNew();
         vecPush(&tableCallArgs, parseTableLiteral(p));
         args = jsrExprList(line, &tableCallArgs);
     }
 
-    return jsrSuperLiteral(line, &name, args);
+    return jsrSuperLiteral(line, &name, args, unpackArg);
 }
 
 static JStarExpr* literal(Parser* p) {
@@ -965,12 +971,17 @@ static JStarExpr* postfixExpr(Parser* p) {
             Vector tableCallArgs = vecNew();
             vecPush(&tableCallArgs, parseTableLiteral(p));
             JStarExpr* args = jsrExprList(line, &tableCallArgs);
-            lit = jsrCallExpr(line, lit, args);
+            lit = jsrCallExpr(line, lit, args, false);
             break;
         }
         case TOK_LPAREN: {
             JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-            lit = jsrCallExpr(line, lit, args);
+            bool unpackArg = false;
+            if(match(p, TOK_VARARG)) {
+                advance(p);
+                unpackArg = true;
+            }
+            lit = jsrCallExpr(line, lit, args, unpackArg);
             break;
         }
         case TOK_LSQUARE: {
