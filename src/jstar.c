@@ -180,7 +180,7 @@ void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
 }
 
 void jsrAddImportPath(JStarVM* vm, const char* path) {
-    listAppend(vm, vm->importpaths, OBJ_VAL(copyString(vm, path, strlen(path))));
+    listAppend(vm, vm->importPaths, OBJ_VAL(copyString(vm, path, strlen(path))));
 }
 
 void jsrEnsureStack(JStarVM* vm, size_t needed) {

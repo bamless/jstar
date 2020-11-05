@@ -301,7 +301,7 @@ void garbageCollect(JStarVM* vm) {
     vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
     // reach import paths list
-    reachObject(vm, (Obj*)vm->importpaths);
+    reachObject(vm, (Obj*)vm->importPaths);
 
     // reach builtin classes
     reachObject(vm, (Obj*)vm->clsClass);

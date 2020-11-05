@@ -130,7 +130,7 @@ static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* na
 }
 
 static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
-    ObjList* paths = vm->importpaths;
+    ObjList* paths = vm->importPaths;
 
     JStarBuffer fullPath;
     jsrBufferInit(vm, &fullPath);

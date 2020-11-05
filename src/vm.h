@@ -70,7 +70,7 @@ typedef enum Overload {
 // state needed to execute J* code.
 struct JStarVM {
     // Paths searched for import
-    ObjList* importpaths;
+    ObjList* importPaths;
 
     // Built in classes
     ObjClass* clsClass;

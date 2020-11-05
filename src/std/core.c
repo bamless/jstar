@@ -1402,7 +1402,7 @@ JSR_NATIVE(jsr_garbageCollect) {
 }
 
 JSR_NATIVE(jsr_importPaths) {
-    push(vm, OBJ_VAL(vm->importpaths));
+    push(vm, OBJ_VAL(vm->importPaths));
     return true;
 }
 
