@@ -613,6 +613,18 @@ static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector
     }
 }
 
+static JStarExpr* getUnpackableExprs(JStarExpr* unpackable) {
+    switch(unpackable->type) {
+    case JSR_ARRAY:
+        return unpackable->as.array.exprs;
+    case JSR_TUPLE:
+        return unpackable->as.tuple.exprs;
+    default:
+        UNREACHABLE();
+        return NULL;
+    }
+}
+
 // Compile an unpack assignment of the form: a, b, ..., z = ...
 static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
     JStarExpr* tupleExprs = e->as.assign.lval->as.tuple.exprs;
@@ -624,8 +636,8 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
 
     JStarExpr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
-        JStarExpr* lst = rval->type == JSR_ARRAY ? rval->as.array.exprs : rval->as.tuple.exprs;
-        compileConstUnpackLst(c, lst, tupleSize, NULL);
+        JStarExpr* exprs = getUnpackableExprs(rval);
+        compileConstUnpackLst(c, exprs, tupleSize, NULL);
     } else {
         compileRval(c, rval, NULL);
         emitBytecode(c, OP_UNPACK, e->line);
@@ -711,7 +723,7 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
 static void compileCallExpr(Compiler* c, JStarExpr* e) {
     Opcode callCode = OP_CALL;
     Opcode callInline = OP_CALL_0;
-    Opcode callUnapck = OP_CALL_UNPACK;
+    Opcode callUnpack = OP_CALL_UNPACK;
 
     JStarExpr* callee = e->as.call.callee;
     bool isMethod = callee->type == JSR_ACCESS;
@@ -719,13 +731,13 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
     if(isMethod) {
         callCode = OP_INVOKE;
         callInline = OP_INVOKE_0;
-        callUnapck = OP_INVOKE_UNPACK;
+        callUnpack = OP_INVOKE_UNPACK;
         compileExpr(c, callee->as.access.left);
     } else {
         compileExpr(c, callee);
     }
 
-    finishCall(c, callCode, callInline, callUnapck, e->as.call.args, e->as.call.unpackArg);
+    finishCall(c, callCode, callInline, callUnpack, e->as.call.args, e->as.call.unpackArg);
 
     if(isMethod) {
         emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
@@ -894,48 +906,6 @@ static void compileStatement(Compiler* c, JStarStmt* s);
 
 static void compileStatements(Compiler* c, Vector* stmts) {
     vecForeach(JStarStmt(**it), *stmts) { compileStatement(c, *it); }
-}
-
-static void compileVarDecl(Compiler* c, JStarStmt* s) {
-    vecForeach(JStarIdentifier(**it), s->as.varDecl.ids) {
-        JStarIdentifier* name = *it;
-        declareVar(c, name, s->line);
-    }
-
-    int numDecls = vecSize(&s->as.varDecl.ids);
-    if(s->as.varDecl.init != NULL) {
-        JStarExpr* init = s->as.varDecl.init;
-
-        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
-            JStarExpr* exprs;
-            if(init->type == JSR_ARRAY) {
-                exprs = init->as.array.exprs;
-            } else {
-                exprs = init->as.tuple.exprs;
-            }
-            compileConstUnpackLst(c, exprs, numDecls, &s->as.varDecl.ids);
-        } else {
-            compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
-            if(s->as.varDecl.isUnpack) {
-                emitBytecode(c, OP_UNPACK, s->line);
-                emitBytecode(c, (uint8_t)numDecls, s->line);
-            }
-        }
-    } else {
-        for(int i = 0; i < numDecls; i++) {
-            emitBytecode(c, OP_NULL, s->line);
-        }
-    }
-
-    // define in reverse order in order to assign correct
-    // values to variables in case of a const unpack
-    for(int i = numDecls - 1; i >= 0; i--) {
-        if(c->depth == 0) {
-            defineVar(c, vecGet(&s->as.varDecl.ids, i), s->line);
-        } else {
-            markInitialized(c, c->localsCount - i - 1);
-        }
-    }
 }
 
 static void compileReturnStatement(Compiler* c, JStarStmt* s) {
@@ -1564,8 +1534,46 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
     }
 }
 
+static void compileVarDecl(Compiler* c, JStarStmt* s) {
+    vecForeach(JStarIdentifier(**it), s->as.varDecl.ids) {
+        JStarIdentifier* name = *it;
+        declareVar(c, name, s->line);
+    }
+
+    int numDecls = vecSize(&s->as.varDecl.ids);
+    if(s->as.varDecl.init != NULL) {
+        JStarExpr* init = s->as.varDecl.init;
+
+        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
+            JStarExpr* exprs = getUnpackableExprs(init);
+            compileConstUnpackLst(c, exprs, numDecls, &s->as.varDecl.ids);
+        } else {
+            compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
+            if(s->as.varDecl.isUnpack) {
+                emitBytecode(c, OP_UNPACK, s->line);
+                emitBytecode(c, (uint8_t)numDecls, s->line);
+            }
+        }
+    } else {
+        for(int i = 0; i < numDecls; i++) {
+            emitBytecode(c, OP_NULL, s->line);
+        }
+    }
+
+    // define in reverse order in order to assign correct
+    // values to variables in case of a const unpack
+    for(int i = numDecls - 1; i >= 0; i--) {
+        if(c->depth == 0) {
+            defineVar(c, vecGet(&s->as.varDecl.ids, i), s->line);
+        } else {
+            markInitialized(c, c->localsCount - i - 1);
+        }
+    }
+}
+
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     declareVar(c, &s->as.classDecl.id, s->line);
+    if(c->depth != 0) markInitialized(c, c->localsCount - 1);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
@@ -1579,6 +1587,13 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
     compileMethods(c, s);
 
     defineVar(c, &s->as.classDecl.id, s->line);
+}
+
+static void compileFunDecl(Compiler* c, JStarStmt* s) {
+    declareVar(c, &s->as.funcDecl.id, s->line);
+    if(c->depth != 0) markInitialized(c, c->localsCount - 1);
+    compileFunction(c, s);
+    defineVar(c, &s->as.funcDecl.id, s->line);
 }
 
 static void compileStatement(Compiler* c, JStarStmt* s) {
@@ -1626,19 +1641,16 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
     case JSR_VARDECL:
         compileVarDecl(c, s);
         break;
+    case JSR_CLASSDECL:
+        compileClassDecl(c, s);
+        break;
     case JSR_FUNCDECL:
-        declareVar(c, &s->as.funcDecl.id, s->line);
-        if(c->depth != 0) markInitialized(c, c->localsCount - 1);
-        compileFunction(c, s);
-        defineVar(c, &s->as.funcDecl.id, s->line);
+        compileFunDecl(c, s);
         break;
     case JSR_NATIVEDECL:
         declareVar(c, &s->as.funcDecl.id, s->line);
         compileNative(c, s);
         defineVar(c, &s->as.funcDecl.id, s->line);
-        break;
-    case JSR_CLASSDECL:
-        compileClassDecl(c, s);
         break;
     case JSR_EXCEPT:
     default:
