@@ -863,7 +863,10 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileExpExpr(c, e);
         break;
     case JSR_EXPR_LST:
-        vecForeach(JStarExpr(**it), e->as.list) { compileExpr(c, *it); }
+        vecForeach(JStarExpr(**it), e->as.list) {
+            // compile expressions
+            compileExpr(c, *it);
+        }
         break;
     case JSR_NUMBER:
         emitValueConst(c, NUM_VAL(e->as.num), e->line);
