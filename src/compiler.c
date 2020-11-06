@@ -1564,7 +1564,7 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
     }
 }
 
-static void compileClass(Compiler* c, JStarStmt* s) {
+static void compileClassDecl(Compiler* c, JStarStmt* s) {
     declareVar(c, &s->as.classDecl.id, s->line);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
@@ -1628,6 +1628,7 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
         break;
     case JSR_FUNCDECL:
         declareVar(c, &s->as.funcDecl.id, s->line);
+        if(c->depth != 0) markInitialized(c, c->localsCount - 1);
         compileFunction(c, s);
         defineVar(c, &s->as.funcDecl.id, s->line);
         break;
@@ -1637,7 +1638,7 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
         defineVar(c, &s->as.funcDecl.id, s->line);
         break;
     case JSR_CLASSDECL:
-        compileClass(c, s);
+        compileClassDecl(c, s);
         break;
     case JSR_EXCEPT:
     default:
