@@ -13,7 +13,9 @@ class igmatch
 
     fun __iter__(_)
         var res = find(this.s, this.r, this.off)
-        if !res then return null end
+        if !res then 
+            return null
+        end
         
         var b, e = res
         while e == this.endl and e - b == 0 do
