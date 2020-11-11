@@ -34,8 +34,8 @@ To get a feel of the language, [try it in your browser](https://bamless.github.i
 
 # The **jstar** Command Line Interface
 
-Besides the language implementation, a simple command line interface called `jstar` is provided to start using
-the language without embedding it into another program.  
+Besides the language implementation, a simple command line interface called `jstar` is provided to
+start using the language without embedding it into another program.  
 If the `jstar` binary is executed without
 arguments it behaves like your usual read-eval-print loop, accepting a line at a time and executing
 it:
@@ -70,9 +70,9 @@ end
 The `jstar` executable can also accept various options that modify the behaviour of the command line
 app. To see all of them alongside a description, simply pass the `-h` option to the executable.
 
-In addition to being a useful tool to directly use the programming language, the command line interface
-is also a good starting point to learn how **J\*** can be embedded in a program, as it uses the API
-to implement all of its functionalities. You can find the code in [**cli/cli.c**](https://github.com/bamless/jstar/blob/master/cli/cli.c).
+In addition to being a useful tool to directly use the programming language, the command line 
+interface is also a good starting point to learn how **J\*** can be embedded in a program, as it 
+uses the API to implement all of its functionalities. You can find the code in [**cli/cli.c**](https://github.com/bamless/jstar/blob/master/cli/cli.c).
 
 # Binaries
 
@@ -81,15 +81,12 @@ Precompiled binaries are provided for Windows and Linux for every major release.
 
 # Compilation
 
-The **J\*** library requires a C99 compiler and CMake (>= 3.9) to be built, and is known to compile 
-on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, clang).
+The **J\*** library requires a C99 compiler and CMake (>= 3.9) and Python (>= 2.7) to be built, 
+and is known to compile on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, 
+clang).
 
 To build the provided **command line interface** `jstar`, a C++11 compiler is required as one of its
 dependencies, linenoise-ng, is written in C++.
-
-Additionally, if one wishes to modify the standard library (**.jsr** files in src/std),
-a python interpreter (version >= 2.7) is required to generate header files from the code (CMake will
-automatically take care of this).
 
 You can clone the latest **J\*** sources using git:
 
