@@ -18,16 +18,13 @@
 static JStarVM* vm;
 static JStarBuffer completionBuf;
 
-typedef struct CLIOpts {
+typedef struct Options {
     const char* script;
-    bool showVersion;
-    bool skipVersion;
-    bool interactive;
-    bool ignoreEnv;
+    bool showVersion, skipVersion, interactive, ignoreEnv;
     char* execStmt;
     const char** args;
     int argsCount;
-} CLIOpts;
+} Options;
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
@@ -47,28 +44,28 @@ static void exitFree(int code) {
 
 static void initImportPaths(const char* path, bool ignoreEnv) {
     jsrAddImportPath(vm, path);
-    if(!ignoreEnv) {
-        const char* jstarPath = getenv(JSTAR_PATH);
-        if(jstarPath == NULL) return;
+    if(ignoreEnv) return;
 
-        JStarBuffer buf;
-        jsrBufferInit(vm, &buf);
+    const char* jstarPath = getenv(JSTAR_PATH);
+    if(jstarPath == NULL) return;
 
-        size_t last = 0;
-        size_t pathLen = strlen(jstarPath);
-        for(size_t i = 0; i < pathLen; i++) {
-            if(jstarPath[i] == ':') {
-                jsrBufferAppend(&buf, jstarPath + last, i - last);
-                jsrAddImportPath(vm, buf.data);
-                jsrBufferClear(&buf);
-                last = i + 1;
-            }
+    JStarBuffer buf;
+    jsrBufferInit(vm, &buf);
+
+    size_t last = 0;
+    size_t pathLen = strlen(jstarPath);
+    for(size_t i = 0; i < pathLen; i++) {
+        if(jstarPath[i] == ':') {
+            jsrBufferAppend(&buf, jstarPath + last, i - last);
+            jsrAddImportPath(vm, buf.data);
+            jsrBufferClear(&buf);
+            last = i + 1;
         }
-
-        jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
-        jsrAddImportPath(vm, buf.data);
-        jsrBufferFree(&buf);
     }
+
+    jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
+    jsrAddImportPath(vm, buf.data);
+    jsrBufferFree(&buf);
 }
 
 static void sigintHandler(int sig) {
@@ -135,7 +132,7 @@ static int countBlocks(const char* line) {
     return depth;
 }
 
-static void addPrintIfExpr(JStarBuffer* sb) {
+static void addExprPrint(JStarBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
         jsrBufferPrependstr(sb, "var _ = ");
@@ -144,7 +141,7 @@ static void addPrintIfExpr(JStarBuffer* sb) {
     }
 }
 
-static void doRepl(CLIOpts* opts) {
+static void doRepl(Options* opts) {
     if(!opts->skipVersion) printVersion();
     linenoiseSetCompletionCallback(completion);
     initImportPaths("./", opts->ignoreEnv);
@@ -168,7 +165,7 @@ static void doRepl(CLIOpts* opts) {
             free(line);
         }
 
-        addPrintIfExpr(&src);
+        addExprPrint(&src);
         res = evaluate("<stdin>", src.data);
         jsrBufferClear(&src);
     }
@@ -214,50 +211,50 @@ static JStarResult execScript(const char* script, int argc, const char** args, b
 // MAIN FUNCTION AND ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
-static CLIOpts parseArguments(int argc, const char** argv) {
-    CLIOpts opts = {0};
-
-    struct argparse_option options[] = {
-        OPT_HELP(),
-        OPT_GROUP("Options"),
-        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", NULL,
-                    0, 0),
-        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
-                    "Don't print version information when entering the REPL", NULL, 0, 0),
-        OPT_STRING('e', "exec", &opts.execStmt,
-                   "Execute the given statement. If 'script' is provided it is executed after this",
-                   NULL, 0, 0),
-        OPT_BOOLEAN('i', "interactive", &opts.interactive,
-                    "Enter the REPL after executing 'script' and/or '-e' statement", NULL, 0, 0),
-        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
-                    "Ignore environment variables such as JSTARPATH", NULL, 0, 0),
-        OPT_END(),
-    };
+static Options parseArguments(int argc, const char** argv) {
+    Options opts = {0};
 
     static const char* const usage[] = {
         "jstar [options] [script [arguments]]",
         NULL,
     };
 
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Options"),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
+                    0),
+        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
+                    "Don't print version information when entering the REPL", 0, 0, 0),
+        OPT_STRING('e', "exec", &opts.execStmt,
+                   "Execute the given statement. If 'script' is provided it is executed after this",
+                   0, 0, 0),
+        OPT_BOOLEAN('i', "interactive", &opts.interactive,
+                    "Enter the REPL after executing 'script' and/or '-e' statement", 0, 0, 0),
+        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
+                    "Ignore environment variables such as JSTARPATH", 0, 0, 0),
+        OPT_END(),
+    };
+
     struct argparse argparse;
     argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
-    argparse_describe(&argparse, "J* a Lightweight Scripting Language", NULL);
-    int nonOptsCount = argparse_parse(&argparse, argc, argv);
+    argparse_describe(&argparse, "J* a lightweight scripting language", NULL);
+    int nonOpts = argparse_parse(&argparse, argc, argv);
 
-    if(nonOptsCount > 0) {
+    if(nonOpts > 0) {
         opts.script = argv[0];
     }
 
-    if(nonOptsCount > 1) {
+    if(nonOpts > 1) {
         opts.args = &argv[1];
-        opts.argsCount = nonOptsCount - 1;
+        opts.argsCount = nonOpts - 1;
     }
 
     return opts;
 }
 
 int main(int argc, const char** argv) {
-    CLIOpts opts = parseArguments(argc, argv);
+    Options opts = parseArguments(argc, argv);
 
     if(opts.showVersion) {
         printVersion();
