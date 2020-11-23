@@ -1473,7 +1473,6 @@ op_return:
                 break;
             }
         }
-        pop(vm), pop(vm);
         DISPATCH();
     }
 

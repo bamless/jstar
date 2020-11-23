@@ -1194,8 +1194,8 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     if(hasEnsure) {
         emitBytecode(c, OP_POP_HANDLER, s->line);
-        // Reached end of try block during normal execution flow, set exception and
-        // unwind cause to null to signal that no exception was raised
+        // Reached end of try block during normal execution flow, set exception and unwind
+        // cause to null to signal the ensure handler that no exception was raised
         emitBytecode(c, OP_NULL, s->line);
         emitBytecode(c, OP_NULL, s->line);
     }
@@ -1221,6 +1221,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
             emitBytecode(c, OP_POP_HANDLER, 0);
         } else {
             emitBytecode(c, OP_END_HANDLER, 0);
+            exitScope(c);
         }
 
         setJumpTo(c, excJmp, c->func->code.count, 0);
@@ -1230,6 +1231,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         setJumpTo(c, ensSetup, c->func->code.count, s->line);
         compileStatement(c, s->as.tryStmt.ensure);
         emitBytecode(c, OP_END_HANDLER, 0);
+        exitScope(c);
     }
 
     exitTryBlock(c, numHandlers);
