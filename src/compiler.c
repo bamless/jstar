@@ -55,8 +55,12 @@ typedef enum FuncType {
 
 struct Compiler {
     JStarVM* vm;
-    Compiler* prev;
+    JStarBuffer stringBuf;
+
     const char* filename;
+
+    int depth;
+    Compiler* prev;
 
     bool hasSuper;
 
@@ -70,32 +74,33 @@ struct Compiler {
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
-    bool hadError;
-    int depth;
-
     int tryDepth;
     TryExcept* tryBlocks;
+
+    bool hadError;
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compiler* prev, FuncType t,
                          JStarStmt* ast) {
     c->vm = vm;
-    c->type = t;
-    c->ast = ast;
-    c->depth = 0;
-    c->func = NULL;
-    c->prev = prev;
-    c->loops = NULL;
-    c->tryDepth = 0;
-    c->localsCount = 0;
-    c->hasSuper = false;
-    c->hadError = false;
-    c->tryBlocks = NULL;
     c->filename = filename;
+    c->depth = 0;
+    c->prev = prev;
+    c->hasSuper = false;
+    c->loops = NULL;
+    c->type = t;
+    c->func = NULL;
+    c->ast = ast;
+    c->localsCount = 0;
+    c->tryDepth = 0;
+    c->tryBlocks = NULL;
+    c->hadError = false;
+    jsrBufferInit(vm, &c->stringBuf);
     vm->currCompiler = c;
 }
 
 static void endCompiler(Compiler* c) {
+    jsrBufferFree(&c->stringBuf);
     if(c->prev != NULL) c->prev->hadError |= c->hadError;
     c->vm->currCompiler = c->prev;
 }
@@ -346,8 +351,9 @@ static void exitTryBlock(Compiler* c, int numHandlers) {
 }
 
 static ObjString* readString(Compiler* c, JStarExpr* e) {
-    JStarBuffer sb;
-    jsrBufferInit(c->vm, &sb);
+    JStarBuffer* sb = &c->stringBuf;
+    jsrBufferClear(sb);
+
     const char* str = e->as.string.str;
 
     for(size_t i = 0; i < e->as.string.length; i++) {
@@ -355,37 +361,37 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
         if(character == '\\') {
             switch(str[i + 1]) {
             case '0':
-                jsrBufferAppendChar(&sb, '\0');
+                jsrBufferAppendChar(sb, '\0');
                 break;
             case '\'':
-                jsrBufferAppendChar(&sb, '\'');
+                jsrBufferAppendChar(sb, '\'');
                 break;
             case '\\':
-                jsrBufferAppendChar(&sb, '\\');
+                jsrBufferAppendChar(sb, '\\');
                 break;
             case '"':
-                jsrBufferAppendChar(&sb, '"');
+                jsrBufferAppendChar(sb, '"');
                 break;
             case 'a':
-                jsrBufferAppendChar(&sb, '\a');
+                jsrBufferAppendChar(sb, '\a');
                 break;
             case 'b':
-                jsrBufferAppendChar(&sb, '\b');
+                jsrBufferAppendChar(sb, '\b');
                 break;
             case 'f':
-                jsrBufferAppendChar(&sb, '\f');
+                jsrBufferAppendChar(sb, '\f');
                 break;
             case 'n':
-                jsrBufferAppendChar(&sb, '\n');
+                jsrBufferAppendChar(sb, '\n');
                 break;
             case 'r':
-                jsrBufferAppendChar(&sb, '\r');
+                jsrBufferAppendChar(sb, '\r');
                 break;
             case 't':
-                jsrBufferAppendChar(&sb, '\t');
+                jsrBufferAppendChar(sb, '\t');
                 break;
             case 'v':
-                jsrBufferAppendChar(&sb, '\v');
+                jsrBufferAppendChar(sb, '\v');
                 break;
             default:
                 error(c, e->line, "Invalid escape character `%c`.", str[i + 1]);
@@ -393,13 +399,11 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
             }
             i++;
         } else {
-            jsrBufferAppendChar(&sb, character);
+            jsrBufferAppendChar(sb, character);
         }
     }
 
-    ObjString* stringConst = copyString(c->vm, sb.data, sb.len);
-    jsrBufferFree(&sb);
-    return stringConst;
+    return copyString(c->vm, sb->data, sb->len);
 }
 
 static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
