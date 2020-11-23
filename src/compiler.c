@@ -1126,6 +1126,7 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
 
     JStarIdentifier exception = createIdentifier(".exception");
     compileVariable(c, &exception, false, exc->line);
+
     compileExpr(c, exc->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
@@ -1164,22 +1165,22 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
 static void compileTryExcept(Compiler* c, JStarStmt* s) {
     bool hasExcept = !vecEmpty(&s->as.tryStmt.excs);
     bool hasEnsure = s->as.tryStmt.ensure != NULL;
+    int numHandlers = (hasExcept ? 1 : 0) + (hasEnsure ? 1 : 0);
 
     TryExcept tryBlock;
-    int numHandlers = (int)hasExcept + (int)hasEnsure;
     enterTryBlock(c, &tryBlock, numHandlers);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
         error(c, s->line, "Exceeded max number of nested try blocks: %d.", MAX_TRY_DEPTH);
     }
 
-    size_t excSetup = 0;
-    size_t ensSetup = 0;
+    size_t ensSetup = 0, excSetup = 0;
 
     if(hasEnsure) {
         ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
         emitShort(c, 0, 0);
     }
+
     if(hasExcept) {
         excSetup = emitBytecode(c, OP_SETUP_EXCEPT, s->line);
         emitShort(c, 0, 0);
@@ -1187,14 +1188,15 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     compileStatement(c, s->as.tryStmt.block);
 
-    if(hasExcept) emitBytecode(c, OP_POP_HANDLER, s->line);
+    if(hasExcept) {
+        emitBytecode(c, OP_POP_HANDLER, s->line);
+    }
 
     if(hasEnsure) {
         emitBytecode(c, OP_POP_HANDLER, s->line);
-        // esnure block expects exception on top or the
-        // stack or null if no exception has been raised
+        // Reached end of try block during normal execution flow, set exception and
+        // unwind cause to null to signal that no exception was raised
         emitBytecode(c, OP_NULL, s->line);
-        // the cause of the unwind null for none, CAUSE_RETURN or CAUSE_EXCEPT
         emitBytecode(c, OP_NULL, s->line);
     }
 
@@ -1213,14 +1215,12 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
 
         setJumpTo(c, excSetup, c->func->code.count, s->line);
-
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
             emitBytecode(c, OP_POP_HANDLER, 0);
         } else {
-            emitBytecode(c, OP_END_TRY, 0);
-            exitScope(c);
+            emitBytecode(c, OP_END_HANDLER, 0);
         }
 
         setJumpTo(c, excJmp, c->func->code.count, 0);
@@ -1228,9 +1228,8 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     if(hasEnsure) {
         setJumpTo(c, ensSetup, c->func->code.count, s->line);
-        compileStatements(c, &s->as.tryStmt.ensure->as.blockStmt.stmts);
-        emitBytecode(c, OP_END_TRY, 0);
-        exitScope(c);
+        compileStatement(c, s->as.tryStmt.ensure);
+        emitBytecode(c, OP_END_HANDLER, 0);
     }
 
     exitTryBlock(c, numHandlers);
@@ -1314,7 +1313,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
 
     setJumpTo(c, falseJmp, c->func->code.count, s->line);
 
-    emitBytecode(c, OP_END_TRY, 0);
+    emitBytecode(c, OP_END_HANDLER, 0);
     exitScope(c);
 
     exitTryBlock(c, 1);
