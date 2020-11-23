@@ -269,7 +269,7 @@ static void declareVar(Compiler* c, JStarIdentifier* id, int line) {
     addLocal(c, id, line);
 }
 
-static void markInitialized(Compiler* c, int id) {
+static void initializeVar(Compiler* c, int id) {
     ASSERT(id >= 0 && id < c->localsCount, "Invalid local variable");
     c->locals[id].depth = c->depth;
 }
@@ -279,7 +279,7 @@ static void defineVar(Compiler* c, JStarIdentifier* id, int line) {
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, id, line), line);
     } else {
-        markInitialized(c, c->localsCount - 1);
+        initializeVar(c, c->localsCount - 1);
     }
 }
 
@@ -1566,14 +1566,14 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
         if(c->depth == 0) {
             defineVar(c, vecGet(&s->as.varDecl.ids, i), s->line);
         } else {
-            markInitialized(c, c->localsCount - i - 1);
+            initializeVar(c, c->localsCount - i - 1);
         }
     }
 }
 
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     declareVar(c, &s->as.classDecl.id, s->line);
-    if(c->depth != 0) markInitialized(c, c->localsCount - 1);
+    if(c->depth != 0) initializeVar(c, c->localsCount - 1);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
@@ -1591,7 +1591,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     declareVar(c, &s->as.funcDecl.id, s->line);
-    if(c->depth != 0) markInitialized(c, c->localsCount - 1);
+    if(c->depth != 0) initializeVar(c, c->localsCount - 1);
     compileFunction(c, s);
     defineVar(c, &s->as.funcDecl.id, s->line);
 }
