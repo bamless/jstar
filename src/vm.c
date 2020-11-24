@@ -1457,7 +1457,7 @@ op_return:
         DISPATCH();
     }
     
-    TARGET(OP_END_TRY): {
+    TARGET(OP_END_HANDLER): {
         if(!IS_NULL(peek2(vm))) {
             UnwindCause cause = AS_NUM(pop(vm));
             switch(cause) {

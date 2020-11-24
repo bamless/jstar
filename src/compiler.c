@@ -55,8 +55,12 @@ typedef enum FuncType {
 
 struct Compiler {
     JStarVM* vm;
-    Compiler* prev;
+    JStarBuffer stringBuf;
+
     const char* filename;
+
+    int depth;
+    Compiler* prev;
 
     bool hasSuper;
 
@@ -70,32 +74,33 @@ struct Compiler {
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
-    bool hadError;
-    int depth;
-
     int tryDepth;
     TryExcept* tryBlocks;
+
+    bool hadError;
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compiler* prev, FuncType t,
                          JStarStmt* ast) {
     c->vm = vm;
-    c->type = t;
-    c->ast = ast;
-    c->depth = 0;
-    c->func = NULL;
-    c->prev = prev;
-    c->loops = NULL;
-    c->tryDepth = 0;
-    c->localsCount = 0;
-    c->hasSuper = false;
-    c->hadError = false;
-    c->tryBlocks = NULL;
     c->filename = filename;
+    c->depth = 0;
+    c->prev = prev;
+    c->hasSuper = false;
+    c->loops = NULL;
+    c->type = t;
+    c->func = NULL;
+    c->ast = ast;
+    c->localsCount = 0;
+    c->tryDepth = 0;
+    c->tryBlocks = NULL;
+    c->hadError = false;
+    jsrBufferInit(vm, &c->stringBuf);
     vm->currCompiler = c;
 }
 
 static void endCompiler(Compiler* c) {
+    jsrBufferFree(&c->stringBuf);
     if(c->prev != NULL) c->prev->hadError |= c->hadError;
     c->vm->currCompiler = c->prev;
 }
@@ -269,7 +274,7 @@ static void declareVar(Compiler* c, JStarIdentifier* id, int line) {
     addLocal(c, id, line);
 }
 
-static void markInitialized(Compiler* c, int id) {
+static void initializeVar(Compiler* c, int id) {
     ASSERT(id >= 0 && id < c->localsCount, "Invalid local variable");
     c->locals[id].depth = c->depth;
 }
@@ -279,7 +284,7 @@ static void defineVar(Compiler* c, JStarIdentifier* id, int line) {
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, id, line), line);
     } else {
-        markInitialized(c, c->localsCount - 1);
+        initializeVar(c, c->localsCount - 1);
     }
 }
 
@@ -346,8 +351,9 @@ static void exitTryBlock(Compiler* c, int numHandlers) {
 }
 
 static ObjString* readString(Compiler* c, JStarExpr* e) {
-    JStarBuffer sb;
-    jsrBufferInit(c->vm, &sb);
+    JStarBuffer* sb = &c->stringBuf;
+    jsrBufferClear(sb);
+
     const char* str = e->as.string.str;
 
     for(size_t i = 0; i < e->as.string.length; i++) {
@@ -355,37 +361,37 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
         if(character == '\\') {
             switch(str[i + 1]) {
             case '0':
-                jsrBufferAppendChar(&sb, '\0');
+                jsrBufferAppendChar(sb, '\0');
                 break;
             case '\'':
-                jsrBufferAppendChar(&sb, '\'');
+                jsrBufferAppendChar(sb, '\'');
                 break;
             case '\\':
-                jsrBufferAppendChar(&sb, '\\');
+                jsrBufferAppendChar(sb, '\\');
                 break;
             case '"':
-                jsrBufferAppendChar(&sb, '"');
+                jsrBufferAppendChar(sb, '"');
                 break;
             case 'a':
-                jsrBufferAppendChar(&sb, '\a');
+                jsrBufferAppendChar(sb, '\a');
                 break;
             case 'b':
-                jsrBufferAppendChar(&sb, '\b');
+                jsrBufferAppendChar(sb, '\b');
                 break;
             case 'f':
-                jsrBufferAppendChar(&sb, '\f');
+                jsrBufferAppendChar(sb, '\f');
                 break;
             case 'n':
-                jsrBufferAppendChar(&sb, '\n');
+                jsrBufferAppendChar(sb, '\n');
                 break;
             case 'r':
-                jsrBufferAppendChar(&sb, '\r');
+                jsrBufferAppendChar(sb, '\r');
                 break;
             case 't':
-                jsrBufferAppendChar(&sb, '\t');
+                jsrBufferAppendChar(sb, '\t');
                 break;
             case 'v':
-                jsrBufferAppendChar(&sb, '\v');
+                jsrBufferAppendChar(sb, '\v');
                 break;
             default:
                 error(c, e->line, "Invalid escape character `%c`.", str[i + 1]);
@@ -393,13 +399,11 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
             }
             i++;
         } else {
-            jsrBufferAppendChar(&sb, character);
+            jsrBufferAppendChar(sb, character);
         }
     }
 
-    ObjString* stringConst = copyString(c->vm, sb.data, sb.len);
-    jsrBufferFree(&sb);
-    return stringConst;
+    return copyString(c->vm, sb->data, sb->len);
 }
 
 static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
@@ -1126,6 +1130,7 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
 
     JStarIdentifier exception = createIdentifier(".exception");
     compileVariable(c, &exception, false, exc->line);
+
     compileExpr(c, exc->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
@@ -1164,22 +1169,22 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
 static void compileTryExcept(Compiler* c, JStarStmt* s) {
     bool hasExcept = !vecEmpty(&s->as.tryStmt.excs);
     bool hasEnsure = s->as.tryStmt.ensure != NULL;
+    int numHandlers = (hasExcept ? 1 : 0) + (hasEnsure ? 1 : 0);
 
     TryExcept tryBlock;
-    int numHandlers = (int)hasExcept + (int)hasEnsure;
     enterTryBlock(c, &tryBlock, numHandlers);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
         error(c, s->line, "Exceeded max number of nested try blocks: %d.", MAX_TRY_DEPTH);
     }
 
-    size_t excSetup = 0;
-    size_t ensSetup = 0;
+    size_t ensSetup = 0, excSetup = 0;
 
     if(hasEnsure) {
         ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
         emitShort(c, 0, 0);
     }
+
     if(hasExcept) {
         excSetup = emitBytecode(c, OP_SETUP_EXCEPT, s->line);
         emitShort(c, 0, 0);
@@ -1187,14 +1192,15 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     compileStatement(c, s->as.tryStmt.block);
 
-    if(hasExcept) emitBytecode(c, OP_POP_HANDLER, s->line);
+    if(hasExcept) {
+        emitBytecode(c, OP_POP_HANDLER, s->line);
+    }
 
     if(hasEnsure) {
         emitBytecode(c, OP_POP_HANDLER, s->line);
-        // esnure block expects exception on top or the
-        // stack or null if no exception has been raised
+        // Reached end of try block during normal execution flow, set exception and unwind
+        // cause to null to signal the ensure handler that no exception was raised
         emitBytecode(c, OP_NULL, s->line);
-        // the cause of the unwind null for none, CAUSE_RETURN or CAUSE_EXCEPT
         emitBytecode(c, OP_NULL, s->line);
     }
 
@@ -1213,13 +1219,12 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
 
         setJumpTo(c, excSetup, c->func->code.count, s->line);
-
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
             emitBytecode(c, OP_POP_HANDLER, 0);
         } else {
-            emitBytecode(c, OP_END_TRY, 0);
+            emitBytecode(c, OP_END_HANDLER, 0);
             exitScope(c);
         }
 
@@ -1228,8 +1233,8 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     if(hasEnsure) {
         setJumpTo(c, ensSetup, c->func->code.count, s->line);
-        compileStatements(c, &s->as.tryStmt.ensure->as.blockStmt.stmts);
-        emitBytecode(c, OP_END_TRY, 0);
+        compileStatement(c, s->as.tryStmt.ensure);
+        emitBytecode(c, OP_END_HANDLER, 0);
         exitScope(c);
     }
 
@@ -1314,7 +1319,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
 
     setJumpTo(c, falseJmp, c->func->code.count, s->line);
 
-    emitBytecode(c, OP_END_TRY, 0);
+    emitBytecode(c, OP_END_HANDLER, 0);
     exitScope(c);
 
     exitTryBlock(c, 1);
@@ -1567,14 +1572,14 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
         if(c->depth == 0) {
             defineVar(c, vecGet(&s->as.varDecl.ids, i), s->line);
         } else {
-            markInitialized(c, c->localsCount - i - 1);
+            initializeVar(c, c->localsCount - i - 1);
         }
     }
 }
 
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     declareVar(c, &s->as.classDecl.id, s->line);
-    if(c->depth != 0) markInitialized(c, c->localsCount - 1);
+    if(c->depth != 0) initializeVar(c, c->localsCount - 1);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
@@ -1592,7 +1597,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     declareVar(c, &s->as.funcDecl.id, s->line);
-    if(c->depth != 0) markInitialized(c, c->localsCount - 1);
+    if(c->depth != 0) initializeVar(c, c->localsCount - 1);
     compileFunction(c, s);
     defineVar(c, &s->as.funcDecl.id, s->line);
 }
