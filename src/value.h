@@ -115,7 +115,13 @@ inline bool valueEquals(Value v1, Value v2) {
 
 #else
 
-typedef enum { VAL_NUM, VAL_BOOL, VAL_OBJ, VAL_NULL, VAL_HANDLE } ValueType;
+typedef enum {
+    VAL_NUM,
+    VAL_BOOL,
+    VAL_OBJ,
+    VAL_NULL,
+    VAL_HANDLE,
+} ValueType;
 
 typedef struct {
     ValueType type;
