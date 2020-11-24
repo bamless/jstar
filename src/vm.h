@@ -153,7 +153,7 @@ bool setFieldOfValue(JStarVM* vm, ObjString* name);
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 
-void ensureStack(JStarVM* vm, size_t needed);
+void reserveStack(JStarVM* vm, size_t needed);
 
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);

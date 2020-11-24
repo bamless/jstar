@@ -184,7 +184,7 @@ void jsrAddImportPath(JStarVM* vm, const char* path) {
 }
 
 void jsrEnsureStack(JStarVM* vm, size_t needed) {
-    ensureStack(vm, needed);
+    reserveStack(vm, needed);
 }
 
 char* jsrReadFile(const char* path) {

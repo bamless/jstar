@@ -244,7 +244,7 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
     // TODO: modify compiler to track actual usage of stack so
     // we can allocate the right amount of memory rather than a
     // worst case bound
-    ensureStack(vm, UINT8_MAX);
+    reserveStack(vm, UINT8_MAX);
     appendCallFrame(vm, closure);
     vm->module = closure->fn->c.module;
 
@@ -261,7 +261,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
         return false;
     }
 
-    ensureStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
+    reserveStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
     Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
@@ -546,7 +546,7 @@ static bool unpackArgument(JStarVM* vm, Obj* o) {
         return false;
     }
 
-    ensureStack(vm, size + 1);
+    reserveStack(vm, size + 1);
 
     for(size_t i = 0; i < size; i++) {
         push(vm, array[i]);
@@ -753,7 +753,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     return invokeMethod(vm, cls, name, argc);
 }
 
-inline void ensureStack(JStarVM* vm, size_t needed) {
+inline void reserveStack(JStarVM* vm, size_t needed) {
     if(vm->sp + needed < vm->stack + vm->stackSz) return;
 
     Value* oldStack = vm->stack;
@@ -761,7 +761,7 @@ inline void ensureStack(JStarVM* vm, size_t needed) {
     vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
 
     if(vm->stack != oldStack) {
-        if(vm->apiStack >= vm->stack && vm->apiStack <= vm->sp) {
+        if(vm->apiStack >= oldStack && vm->apiStack <= vm->sp) {
             vm->apiStack = vm->stack + (vm->apiStack - oldStack);
         }
 
