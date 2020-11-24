@@ -20,6 +20,14 @@ static const char* overloadNames[OVERLOAD_SENTINEL] = {
     [GT_OVERLOAD] = "__gt__",     [GE_OVERLOAD] = "__ge__",     [NEG_OVERLOAD] = "__neg__",
 };
 
+// Enumeration encoding the cause of the stack unwinding,
+// used during unwinding to correctly handle the execution
+// of except/ensure handlers on return and exception
+typedef enum UnwindCause {
+    CAUSE_EXCEPT,
+    CAUSE_RETURN,
+} UnwindCause;
+
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
 // -----------------------------------------------------------------------------
@@ -787,14 +795,6 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 // -----------------------------------------------------------------------------
 // EVAL LOOP
 // -----------------------------------------------------------------------------
-
-// Enumeration encoding the cause of the stack unwinding,
-// used during unwinding to correctly handle the execution
-// of except/ensure handlers on return and exception
-typedef enum UnwindCause {
-    CAUSE_EXCEPT,
-    CAUSE_RETURN,
-} UnwindCause;
 
 bool runEval(JStarVM* vm, int evalDepth) {
     register Frame* frame;
