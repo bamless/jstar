@@ -20,8 +20,8 @@ static const char* overloadNames[OVERLOAD_SENTINEL] = {
     [GT_OVERLOAD] = "__gt__",     [GE_OVERLOAD] = "__ge__",     [NEG_OVERLOAD] = "__neg__",
 };
 
-// Enumeration encoding the cause of the stack unwinding,
-// used during unwinding to correctly handle the execution
+// Enumeration encoding the cause of the stack unwinding.
+// Used during unwinding to correctly handle the execution
 // of except/ensure handlers on return and exception
 typedef enum {
     CAUSE_EXCEPT,
