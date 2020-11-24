@@ -778,7 +778,7 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
             frame->stack = vm->stack + (frame->stack - oldStack);
             for(int j = 0; j < frame->handlerc; j++) {
                 Handler* h = &frame->handlers[j];
-                h->savesp = vm->stack + (h->savesp - oldStack);
+                h->savedSp = vm->stack + (h->savedSp - oldStack);
             }
         }
 
@@ -845,7 +845,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 #define RESTORE_HANDLER(h, frame, cause, excVal) \
     do {                                         \
         frame->ip = h->address;                  \
-        vm->sp = h->savesp;                      \
+        vm->sp = h->savedSp;                     \
         closeUpvalues(vm, vm->sp - 1);           \
         push(vm, excVal);                        \
         push(vm, NUM_VAL(cause));                \
@@ -1452,7 +1452,7 @@ op_return:
         uint16_t offset = NEXT_SHORT();
         Handler* handler = &frame->handlers[frame->handlerc++];
         handler->address = ip + offset;
-        handler->savesp = vm->sp;
+        handler->savedSp = vm->sp;
         handler->type = op;
         DISPATCH();
     }

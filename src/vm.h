@@ -24,7 +24,7 @@ typedef struct Handler {
 #define HANDLER_EXCEPT OP_SETUP_EXCEPT
     uint8_t type;      // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
     uint8_t* address;  // The address of the handler code
-    Value* savesp;     // Stack pointer to restore before executing the code at `address`
+    Value* savedSp;    // Stack pointer to restore before executing the code at `address`
 } Handler;
 
 // Stackframe of a function executing in
