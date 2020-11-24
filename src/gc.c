@@ -13,7 +13,7 @@
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE  2
 
-void* GCallocate(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
+void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
     if(size > oldsize && !vm->disableGC) {
 #ifdef JSTAR_DBG_STRESS_GC

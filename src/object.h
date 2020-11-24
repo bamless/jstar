@@ -260,7 +260,7 @@ typedef struct ObjUserdata {
 // OBJECT ALLOCATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// These functions use GCallocate to acquire memory and then initialize
+// These functions use gcAlloc to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
 ObjFunction* newFunction(JStarVM* vm, ObjModule* module, uint8_t argc, uint8_t defCount, bool varg);

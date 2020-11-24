@@ -145,7 +145,7 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     if(st->recordCount + 1 >= st->recordSize) {
         size_t oldSize = sizeof(FrameRecord) * st->recordSize;
         st->recordSize = st->records ? st->recordSize * 2 : 4;
-        st->records = GCallocate(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordSize);
+        st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordSize);
     }
 
     FrameRecord* record = &st->records[st->recordCount++];
@@ -196,7 +196,7 @@ ObjList* newList(JStarVM* vm, size_t startSize) {
 
 static void growList(JStarVM* vm, ObjList* lst) {
     size_t newSize = lst->size * LIST_GROW_RATE;
-    lst->arr = GCallocate(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
+    lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
     lst->size = newSize;
 }
 
@@ -274,7 +274,7 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
 #define JSR_BUF_DEFAULT_SIZE 16
 
 ObjString* jsrBufferToString(JStarBuffer* b) {
-    char* data = GCallocate(b->vm, b->data, b->size, b->len + 1);
+    char* data = gcAlloc(b->vm, b->data, b->size, b->len + 1);
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
     s->interned = false;
     s->length = b->len;
@@ -292,7 +292,7 @@ static void jsrBufGrow(JStarBuffer* b, size_t len) {
     while(newSize < b->len + len) {
         newSize <<= 1;
     }
-    char* newData = GCallocate(b->vm, b->data, b->size, newSize);
+    char* newData = gcAlloc(b->vm, b->data, b->size, newSize);
     b->size = newSize;
     b->data = newData;
 }

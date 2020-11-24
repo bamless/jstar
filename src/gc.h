@@ -7,16 +7,12 @@
 #include "jstar.h"
 #include "value.h"
 
-#define GC_ALLOC(vm, size) GCallocate(vm, NULL, 0, size)
+#define GC_ALLOC(vm, size)                  gcAlloc(vm, NULL, 0, size)
+#define GC_FREE(vm, t, obj)                 gcAlloc(vm, obj, sizeof(t), 0)
+#define GC_FREE_ARRAY(vm, t, obj, count)    gcAlloc(vm, obj, sizeof(t) * (count), 0)
+#define GC_FREE_VAR(vm, t, var, count, obj) gcAlloc(vm, obj, sizeof(t) + sizeof(var) * (count), 0)
 
-#define GC_FREE(vm, type, obj) GCallocate(vm, obj, sizeof(type), 0)
-
-#define GC_FREE_ARRAY(vm, type, obj, count) GCallocate(vm, obj, sizeof(type) * (count), 0)
-
-#define GC_FREE_VAR(vm, type, vartype, count, obj) \
-    GCallocate(vm, obj, sizeof(type) + sizeof(vartype) * (count), 0)
-
-void* GCallocate(JStarVM* vm, void* ptr, size_t oldsize, size_t size);
+void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size);
 
 // Launch a garbage collection. It scans all roots (VM stack, global Strings, etc...)
 // marking all the reachable objects (recursively, if needed) and then calls freeObjects
