@@ -1,8 +1,8 @@
 import os.path
-from argparse import ArgumentParser
 import re
+from argparse import ArgumentParser
 
-WARNING = "// WARNING: this is a file generated automatically by the build process, do not modify."
+WARNING = "// WARNING: this is a file generated automatically by the build process, do not modify"
 
 
 def minimize_line(line):
