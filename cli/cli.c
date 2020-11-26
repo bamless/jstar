@@ -1,15 +1,15 @@
+#include <argparse.h>
+#include <linenoise.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "argparse.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
-#include "linenoise.h"
 
 #define JSTAR_PATH   "JSTARPATH"
 #define JSTAR_PROMPT "J*>> "
