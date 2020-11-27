@@ -57,9 +57,9 @@ J*>> _
 ```
 When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpreter.
 
-If you instead want to execute code written in some file, you can pass it as an argument to `jstar`
-and it will be executed. Passing more than one argument causes all but the first to be forwarded to
-the language as **script arguments**. You can then read them from the script this way:
+If you instead want to execute code written in some file, you can pass it as an argument to `jstar`. 
+All arguments after the first will be passed to the language as script arguments. You can then read 
+them from the script this way:
 ```lua
 if #argv > 0 then
   print('First argument: ', argv[0])
@@ -72,7 +72,8 @@ app. To see all of them alongside a description, simply pass the `-h` option to 
 
 In addition to being a useful tool to directly use the programming language, the command line 
 interface is also a good starting point to learn how **J\*** can be embedded in a program, as it 
-uses the API to implement all of its functionalities. You can find the code in [**cli/cli.c**](https://github.com/bamless/jstar/blob/master/cli/cli.c).
+uses the API to implement all of its functionalities. You can find the code in 
+[**cli/cli.c**](https://github.com/bamless/jstar/blob/master/cli/cli.c).
 
 # Binaries
 
@@ -81,7 +82,7 @@ Precompiled binaries are provided for Windows and Linux for every major release.
 
 # Compilation
 
-The **J\*** library requires a C99 compiler and CMake (>= 3.9) and Python (>= 2.7) to be built, 
+The **J\*** library requires a C99 compiler, CMake (>= 3.9) and Python (>= 2.7) to be built, 
 and is known to compile on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, 
 clang).
 
@@ -108,7 +109,7 @@ Once the build process is complete, you can install **J\*** by typing:
 sudo make install
 ```
 
-Various CMake options are available to switch on or off certain functionalities:
+Various CMake options are available to switch on or off certain functionalities of the interpreter:
 
 |    Option name       | Default | Description |
 | :------------------: | :-----: | :---------- |
