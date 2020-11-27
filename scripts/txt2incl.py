@@ -1,37 +1,40 @@
-import sys
+import os.path
+import re
+from argparse import ArgumentParser
+
+WARNING = "// WARNING: this is a file generated automatically by the build process, do not modify"
 
 
-def error(msg):
-    print(msg)
-    sys.exit(1)
+def minimize_line(line):
+    return re.sub("//.*", "", line).strip()
 
 
-def toCString(line):
-    line = line.strip()
-    if line and not line.startswith('//'):
-        # escape
-        line = line.replace("\\", "\\\\").replace('"', '\\"')
-        return '"{}\\n"'.format(line)
-    else:
-        return ''
+def escape_line(line):
+    return line.replace("\\", "\\\\").replace('"', '\\"')
 
 
-if len(sys.argv) < 2:
-    error("No input file")
-elif len(sys.argv) < 3:
-    error("No output file")
+def to_c_string(line):
+    line = minimize_line(line)
+    line = escape_line(line)
+    return '"{0}\\n"'.format(line) if line else ""
 
-fileName = sys.argv[1].split('/').pop().replace('.', '_')
 
-WARNING = "// WARNING: this is a file generated automatically by the build process. Do not modify."
-includeBuilder = [WARNING, 'const char *{} ='.format(fileName)]
+argparser = ArgumentParser()
+argparser.add_argument("file", help="The text file to convert")
+argparser.add_argument("out", help="The name of the generated header")
 
-with open(sys.argv[1], 'r') as src:
-    for line in src:
-        includeLine = toCString(line)
-        if includeLine:
-            includeBuilder.append(includeLine)
-    includeBuilder.append(';')
+args = argparser.parse_args()
 
-with open(sys.argv[2], 'w') as out:
-    out.write('\n'.join(includeBuilder))
+name = os.path.basename(args.file).replace(".", "_")
+include_builder = [WARNING, "const char* {} =".format(name)]
+
+with open(args.file, "r") as f:
+    for line in f:
+        c_line = to_c_string(line)
+        if c_line:
+            include_builder.append(c_line)
+
+    include_builder.append(";")
+
+with open(args.out, "w") as out:
+    out.write("\n".join(include_builder))
