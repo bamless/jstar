@@ -141,6 +141,10 @@ static size_t emitShort(Compiler* c, uint16_t s, int line) {
     return i;
 }
 
+static size_t getCurrentAddr(Compiler* c) {
+    return c->func->code.count;
+}
+
 static void discardLocal(Compiler* c, Local* local) {
     if(local->isUpvalue) {
         emitBytecode(c, OP_CLOSE_UPVALUE, 0);
@@ -289,13 +293,13 @@ static void defineVar(Compiler* c, JStarIdentifier* id, int line) {
 }
 
 static size_t emitJumpTo(Compiler* c, int jmpOpcode, size_t target, int line) {
-    int32_t offset = target - (c->func->code.count + 3);
+    int32_t offset = target - (getCurrentAddr(c) + 3);
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
     emitBytecode(c, jmpOpcode, line);
     emitShort(c, (uint16_t)offset, line);
-    return c->func->code.count - 2;
+    return getCurrentAddr(c) - 2;
 }
 
 static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
@@ -310,13 +314,13 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
 
 static void startLoop(Compiler* c, Loop* loop) {
     loop->depth = c->depth;
-    loop->start = c->func->code.count;
+    loop->start = getCurrentAddr(c);
     loop->next = c->loops;
     c->loops = loop;
 }
 
 static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t brk) {
-    for(size_t i = start; i < c->func->code.count; i++) {
+    for(size_t i = start; i < getCurrentAddr(c); i++) {
         Opcode code = c->func->code.bytecode[i];
         if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
             c->func->code.bytecode[i] = OP_JUMP;
@@ -328,7 +332,7 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t br
 }
 
 static void endLoop(Compiler* c) {
-    patchLoopExitStmts(c, c->loops->start, c->loops->start, c->func->code.count);
+    patchLoopExitStmts(c, c->loops->start, c->loops->start, getCurrentAddr(c));
     c->loops = c->loops->next;
 }
 
@@ -494,7 +498,7 @@ static void compileLogicExpr(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_POP, e->line);
     compileExpr(c, e->as.binary.right);
 
-    setJumpTo(c, shortCircuit, c->func->code.count, e->line);
+    setJumpTo(c, shortCircuit, getCurrentAddr(c), e->line);
 }
 
 static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
@@ -528,10 +532,10 @@ static void compileTernaryExpr(Compiler* c, JStarExpr* e) {
     size_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
     emitShort(c, 0, 0);
 
-    setJumpTo(c, falseJmp, c->func->code.count, e->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), e->line);
     compileExpr(c, e->as.ternary.elseExpr);
 
-    setJumpTo(c, exitJmp, c->func->code.count, e->line);
+    setJumpTo(c, exitJmp, getCurrentAddr(c), e->line);
 }
 
 static void compileVariable(Compiler* c, JStarIdentifier* id, bool set, int line) {
@@ -946,11 +950,11 @@ static void compileIfStatement(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, c->func->code.count, s->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
 
     if(s->as.ifStmt.elseStmt != NULL) {
         compileStatement(c, s->as.ifStmt.elseStmt);
-        setJumpTo(c, exitJmp, c->func->code.count, s->line);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), s->line);
     }
 }
 
@@ -973,7 +977,7 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
         emitBytecode(c, OP_POP, 0);
-        setJumpTo(c, firstJmp, c->func->code.count, 0);
+        setJumpTo(c, firstJmp, getCurrentAddr(c), 0);
     }
 
     size_t exitJmp = 0;
@@ -987,7 +991,7 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
     emitJumpTo(c, OP_JUMP, l.start, s->line);
 
     if(s->as.forStmt.cond != NULL) {
-        setJumpTo(c, exitJmp, c->func->code.count, 0);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), 0);
     }
 
     endLoop(c);
@@ -1053,7 +1057,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     exitScope(c);
 
     emitJumpTo(c, OP_JUMP, l.start, s->line);
-    setJumpTo(c, exitJmp, c->func->code.count, s->line);
+    setJumpTo(c, exitJmp, getCurrentAddr(c), s->line);
 
     endLoop(c);
     exitScope(c);
@@ -1070,7 +1074,7 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
     compileStatement(c, s->as.whileStmt.body);
 
     emitJumpTo(c, OP_JUMP, l.start, s->line);
-    setJumpTo(c, exitJmp, c->func->code.count, s->line);
+    setJumpTo(c, exitJmp, getCurrentAddr(c), s->line);
 
     endLoop(c);
 }
@@ -1116,7 +1120,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         }
     } else if(isImportAs) {
         // set last import as an import as
-        c->func->code.bytecode[c->func->code.count - 3] = OP_IMPORT_AS;
+        c->func->code.bytecode[getCurrentAddr(c) - 3] = OP_IMPORT_AS;
         emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
     }
 
@@ -1158,11 +1162,11 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, c->func->code.count, exc->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), exc->line);
 
     if(!last) {
         compileExcepts(c, excs, n + 1);
-        setJumpTo(c, exitJmp, c->func->code.count, exc->line);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), exc->line);
     }
 }
 
@@ -1218,7 +1222,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         size_t excJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
-        setJumpTo(c, excSetup, c->func->code.count, s->line);
+        setJumpTo(c, excSetup, getCurrentAddr(c), s->line);
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
@@ -1228,11 +1232,11 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
             exitScope(c);
         }
 
-        setJumpTo(c, excJmp, c->func->code.count, 0);
+        setJumpTo(c, excJmp, getCurrentAddr(c), 0);
     }
 
     if(hasEnsure) {
-        setJumpTo(c, ensSetup, c->func->code.count, s->line);
+        setJumpTo(c, ensSetup, getCurrentAddr(c), s->line);
         compileStatement(c, s->as.tryStmt.ensure);
         emitBytecode(c, OP_END_HANDLER, 0);
         exitScope(c);
@@ -1306,7 +1310,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     declareVar(c, &cause, 0);
     defineVar(c, &cause, 0);
 
-    setJumpTo(c, ensSetup, c->func->code.count, s->line);
+    setJumpTo(c, ensSetup, getCurrentAddr(c), s->line);
 
     // if x then x.close() end
     compileVariable(c, &s->as.withStmt.var, false, s->line);
@@ -1317,7 +1321,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     emitMethodCall(c, "close", 0);
     emitBytecode(c, OP_POP, s->line);
 
-    setJumpTo(c, falseJmp, c->func->code.count, s->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
 
     emitBytecode(c, OP_END_HANDLER, 0);
     exitScope(c);
