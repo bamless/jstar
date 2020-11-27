@@ -18,9 +18,11 @@ static void setModuleInParent(JStarVM* vm, ObjModule* module) {
     ObjString* name = module->name;
     const char* lastDot = strrchr(name->data, '.');
     if(!lastDot) return;
+
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
+
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
 }
 
