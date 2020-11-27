@@ -8,7 +8,7 @@ set(JSTAR_VERSION ${JSTAR_VERSION_MAJOR}.${JSTAR_VERSION_MINOR}.${JSTAR_VERSION_
 
 set(CMAKE_C_STANDARD 99)
 
-# Options
+# General options
 option(JSTAR_INSTALL        "Generate install targets" ON)
 option(JSTAR_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
 option(JSTAR_NAN_TAGGING    "Use NaN tagging technique to store the VM internal type" ON)
@@ -16,6 +16,7 @@ option(JSTAR_DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
 option(JSTAR_DBG_PRINT_GC   "Trace the execution of the garbage collector" OFF)
 option(JSTAR_DBG_STRESS_GC  "Stress the garbage collector by calling it on every allocation" OFF)
 
+# Options for optional libraries
 option(JSTAR_SYS   "Include the 'sys' module in the language" ON)
 option(JSTAR_IO    "Include the 'io' module in the language" ON)
 option(JSTAR_MATH  "Include the 'math' module in the language" ON)
@@ -57,7 +58,7 @@ endif()
 
 set(CMAKE_BUILD_RPATH_USE_ORIGIN   TRUE)
 
-# set compiler flags
+# Set compiler flags
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-unused-parameter")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -fno-plt -s")
@@ -75,13 +76,9 @@ elseif(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267")
 endif()
 
-# jstar sources
+# J*, cli and external dependencies
 add_subdirectory(src)
-
-# cli app
 add_subdirectory(cli)
-
-# external libraries
 add_subdirectory(extern)
 
 if(JSTAR_INSTALL)
