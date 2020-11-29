@@ -76,9 +76,9 @@ elseif(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267")
 endif()
 
-# J*, cli and external dependencies
+# J*, cli, compiler and external dependencies
 add_subdirectory(src)
-add_subdirectory(cli)
+add_subdirectory(apps)
 add_subdirectory(extern)
 
 if(JSTAR_INSTALL)

@@ -79,6 +79,9 @@ JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src
 JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* name,
                                         const char* src);
 
+// EPERIMENTAL: compilation to binary blob
+JSTAR_API void* jsrCompile(JStarVM* vm, const char* src, size_t* outSize);
+
 // Call a function (or method with name "name") that sits on the top of the stack
 // along with its arguments. The state of the stack when calling should be:
 //  ... [callable][arg1][arg2]...[argn] $top
