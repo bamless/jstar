@@ -180,26 +180,14 @@ static void serializeConst(JStarBuffer* buf, Value c) {
     }
 }
 
-static uint16_t getConst(ObjFunction* ctx, ObjString* strConst) {
-    for(int i = 0; i < ctx->code.consts.count; i++) {
-        Value c = ctx->code.consts.arr[i];
-        if(IS_STRING(c) && strcmp(AS_STRING(c)->data, strConst->data) == 0) {
-            return i;
-        }
-    }
-    UNREACHABLE();
-    return 0;
-}
-
-static void serializeCommon(JStarBuffer* buf, FnCommon* c, ObjFunction* parent) {
+static void serializeCommon(JStarBuffer* buf, FnCommon* c) {
     serializeByte(buf, c->argsCount);
     serializeByte(buf, c->vararg);
 
-    if(parent && c->name) {
-        serializeByte(buf, 1);
-        serializeShort(buf, getConst(parent, c->name));
+    if(c->name) {
+        serializeString(buf, c->name);
     } else {
-        serializeByte(buf, 0);
+        serializeShort(buf, 0);
     }
 
     serializeByte(buf, c->defCount);
@@ -208,37 +196,35 @@ static void serializeCommon(JStarBuffer* buf, FnCommon* c, ObjFunction* parent) 
     }
 }
 
-static void serializeFunction(JStarBuffer* buf, ObjFunction* f, ObjFunction* parent);
+static void serializeFunction(JStarBuffer* buf, ObjFunction* f);
 
-static void serializeNative(JStarBuffer* buf, ObjNative* n, ObjFunction* parent) {
-    serializeCommon(buf, &n->c, parent);
+static void serializeNative(JStarBuffer* buf, ObjNative* n) {
+    serializeCommon(buf, &n->c);
 }
 
-static void serializeConstants(JStarBuffer* buf, ObjFunction* fn) {
-    ValueArray* constants = &fn->code.consts;
-
+static void serializeConstants(JStarBuffer* buf, ValueArray* constants) {
     serializeShort(buf, constants->count);
     for(int i = 0; i < constants->count; i++) {
         Value c = constants->arr[i];
         if(IS_FUNC(c)) {
             serializeByte(buf, SER_OBJ_FUN);
-            serializeFunction(buf, AS_FUNC(c), fn);
+            serializeFunction(buf, AS_FUNC(c));
         } else if(IS_NATIVE(c)) {
             serializeByte(buf, SER_OBJ_NAT);
-            serializeNative(buf, AS_NATIVE(c), fn);
+            serializeNative(buf, AS_NATIVE(c));
         } else {
             serializeConst(buf, c);
         }
     }
 }
 
-static void serializeCode(JStarBuffer* buf, ObjFunction* fn) {
+static void serializeCode(JStarBuffer* buf, Code* c) {
+    // TODO: store (compressed) line information? maybe give option in application
     // serialize lines
     // serializeUint64(buf, c->linesCount);
     // for(size_t i = 0; i < c->count; i++) {
     //     serializeUint32(buf, c->lines[i]);
     // }
-    Code* c = &fn->code;
 
     // serialize bytecode
     serializeUint64(buf, c->count);
@@ -246,12 +232,12 @@ static void serializeCode(JStarBuffer* buf, ObjFunction* fn) {
         serializeByte(buf, c->bytecode[i]);
     }
 
-    serializeConstants(buf, fn);
+    serializeConstants(buf, &c->consts);
 }
 
-static void serializeFunction(JStarBuffer* buf, ObjFunction* f, ObjFunction* parent) {
-    serializeCommon(buf, &f->c, parent);
-    serializeCode(buf, f);
+static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
+    serializeCommon(buf, &f->c);
+    serializeCode(buf, &f->code);
 }
 
 JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
@@ -264,7 +250,7 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
     serializeCString(&buf, FILE_HEADER);
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
     serializeByte(&buf, JSTAR_VERSION_MINOR);
-    serializeFunction(&buf, f, NULL);
+    serializeFunction(&buf, f);
 
     jsrBufferShrinkToFit(&buf);
     pop(vm);
