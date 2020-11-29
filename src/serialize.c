@@ -141,15 +141,11 @@ static void serializeDouble(JStarBuffer* buf, double num) {
         double num;
         uint64_t raw;
     } convert = {.num = num};
+
     serializeUint64(buf, convert.raw);
 }
 
 static void serializeString(JStarBuffer* buf, ObjString* str) {
-    if(str == NULL) {
-        serializeByte(buf, 1);
-        serializeByte(buf, 0);
-    }
-
     bool isShort = str->length <= UINT8_MAX;
     serializeByte(buf, isShort);
 
@@ -186,6 +182,7 @@ static void serializeCommon(JStarBuffer* buf, FnCommon* c) {
     serializeByte(buf, c->vararg);
 
     if(c->name) {
+        serializeByte(buf, 1);
         serializeString(buf, c->name);
     } else {
         serializeShort(buf, 0);
@@ -305,7 +302,6 @@ static bool deserializeCString(Deserializer* d, char* out, size_t size) {
     return read(d, out, size);
 }
 
-// TODO: fix empty string case
 static bool deserializeString(Deserializer* d, ObjString** out) {
     uint8_t isShort;
     if(!deserializeByte(d, &isShort)) return false;
@@ -319,18 +315,12 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         if(!deserializeUint64(d, &length)) return false;
     }
 
-    if(length == 0) {
-        *out = NULL;
-        return true;
-    }
-
     // TODO: optimize in some way
-    char* str = malloc(length + 1);
+    char* str = calloc(length, 1);
     if(!deserializeCString(d, str, length)) {
         free(str);
         return false;
     }
-    str[length] = '\0';
 
     *out = copyString(d->vm, str, length);
     free(str);
@@ -394,7 +384,15 @@ static bool deserializeCommon(Deserializer* d, FnCommon* c) {
     if(!deserializeByte(d, &vararg)) return false;
     c->vararg = (bool)vararg;
 
-    if(!deserializeString(d, &c->name)) return false;
+    uint8_t hasName;
+    if(!deserializeByte(d, &hasName)) return false;
+
+    if(hasName) {
+        if(!deserializeString(d, &c->name)) return false;
+    } else {
+        c->name = NULL;
+    }
+
     if(!deserializeByte(d, &c->defCount)) return false;
 
     c->defaults = GC_ALLOC(d->vm, sizeof(Value) * c->defCount);
