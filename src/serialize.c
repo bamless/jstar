@@ -468,8 +468,8 @@ static bool deserializeCode(Deserializer* d, Code* c) {
     c->bytecode = malloc(codeSize);
     c->count = codeSize;
     c->size = codeSize;
-    if(!read(d, c->bytecode, codeSize)) return false;
 
+    if(!read(d, c->bytecode, codeSize)) return false;
     if(!deserializeConstants(d, &c->consts)) return false;
 
     return true;
