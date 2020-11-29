@@ -203,10 +203,10 @@ static void serializeNative(JStarBuffer* buf, ObjNative* n) {
     serializeCommon(buf, &n->c);
 }
 
-static void serializeConstants(JStarBuffer* buf, ValueArray* constants) {
-    serializeShort(buf, constants->count);
-    for(int i = 0; i < constants->count; i++) {
-        Value c = constants->arr[i];
+static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
+    serializeShort(buf, consts->count);
+    for(int i = 0; i < consts->count; i++) {
+        Value c = consts->arr[i];
         if(IS_FUNC(c)) {
             serializeByte(buf, SER_OBJ_FUN);
             serializeFunction(buf, AS_FUNC(c));
@@ -429,13 +429,13 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
     return true;
 }
 
-static bool deserializeConstants(Deserializer* d, ValueArray* constants) {
+static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
     uint16_t constantSize;
     if(!deserializeShort(d, &constantSize)) return false;
 
-    constants->arr = malloc(sizeof(Value) * constantSize);
-    constants->count = constantSize;
-    constants->size = constantSize;
+    consts->arr = malloc(sizeof(Value) * constantSize);
+    consts->count = constantSize;
+    consts->size = constantSize;
 
     for(int i = 0; i < constantSize; i++) {
         uint8_t constType;
@@ -445,17 +445,17 @@ static bool deserializeConstants(Deserializer* d, ValueArray* constants) {
         case SER_OBJ_FUN: {
             ObjFunction* fn;
             if(!deserializeFunction(d, &fn)) return false;
-            constants->arr[i] = OBJ_VAL(fn);
+            consts->arr[i] = OBJ_VAL(fn);
             break;
         }
         case SER_OBJ_NAT: {
             ObjNative* nat;
             if(!deserializeNative(d, &nat)) return false;
-            constants->arr[i] = OBJ_VAL(nat);
+            consts->arr[i] = OBJ_VAL(nat);
             break;
         }
         default:
-            if(!deserializeConst(d, constType, constants->arr + i)) return false;
+            if(!deserializeConst(d, constType, consts->arr + i)) return false;
             break;
         }
     }
