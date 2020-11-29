@@ -281,8 +281,6 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     s->data = data;
     s->hash = 0;
     s->data[s->length] = '\0';
-
-    // Reset JStarBuffer
     memset(b, 0, sizeof(JStarBuffer));
     return s;
 }
@@ -389,6 +387,11 @@ void jsrBufferAppendChar(JStarBuffer* b, char c) {
     if(b->size + 1 >= b->capacity) jsrBufGrow(b, 2);
     b->data[b->size++] = c;
     b->data[b->size] = '\0';
+}
+
+void jsrBufferShrinkToFit(JStarBuffer* b) {
+    b->data = gcAlloc(b->vm, b->data, b->capacity, b->size);
+    b->capacity = b->size;
 }
 
 void jsrBufferClear(JStarBuffer* b) {

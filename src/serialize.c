@@ -9,6 +9,7 @@
 #include "object.h"
 #include "util.h"
 #include "value.h"
+#include "vm.h"
 
 #define FILE_HEADER         "\xb5JsrC"
 #define SERIALIZER_DEF_SIZE 64
@@ -103,134 +104,170 @@
 #endif
 
 typedef enum SeriaLizedValue {
-    SERIALIZED_NUM,
-    SERIALIZED_BOOL,
-    SERIALIZED_OBJ,
-    SERIALIZED_NULL,
-    SERIALIZED_HANDLE,
+    SER_NUM,
+    SER_BOOL,
+    SER_OBJ,
+    SER_NULL,
+    SER_HANDLE,
+    SER_OBJ_STR,
+    SER_OBJ_FUN,
+    SER_OBJ_NAT,
 } SeriaLizedValue;
 
-typedef struct Serializer {
-    JStarVM* vm;
-    size_t size, count;
-    uint8_t* data;
-} Serializer;
-
-static void initSerializer(Serializer* s, JStarVM* vm) {
-    s->vm = vm;
-    s->size = SERIALIZER_DEF_SIZE;
-    s->count = 0;
-    s->data = malloc(SERIALIZER_DEF_SIZE);
+static void write(JStarBuffer* buf, const void* data, size_t size) {
+    jsrBufferAppend(buf, (const char*)data, size);
 }
 
-static bool shouldGrow(Serializer* s, size_t bytes) {
-    return s->count + bytes > s->size;
-}
-
-static void reserve(Serializer* s, size_t bytes) {
-    while(shouldGrow(s, bytes)) {
-        s->size *= 2;
-    }
-    s->data = realloc(s->data, s->size);
-}
-
-static void write(Serializer* s, const void* data, size_t size) {
-    reserve(s, size);
-    memcpy(s->data + s->count, data, size);
-    s->count += size;
-}
-
-static void serializeUint64(Serializer* s, uint64_t num) {
+static void serializeUint64(JStarBuffer* buf, uint64_t num) {
     uint64_t bigendian = htobe64(num);
-    write(s, &bigendian, sizeof(uint64_t));
+    write(buf, &bigendian, sizeof(uint64_t));
 }
 
-static void serializeUint32(Serializer* s, uint32_t num) {
+static void serializeUint32(JStarBuffer* buf, uint32_t num) {
     uint32_t bigendian = htobe32(num);
-    write(s, &bigendian, sizeof(uint32_t));
+    write(buf, &bigendian, sizeof(uint32_t));
 }
 
-static void serializeByte(Serializer* s, uint8_t byte) {
-    write(s, &byte, sizeof(uint8_t));
+static void serializeShort(JStarBuffer* buf, uint16_t num) {
+    uint16_t bigendian = htobe16(num);
+    write(buf, &bigendian, sizeof(uint16_t));
 }
 
-static void serializeCString(Serializer* s, const char* string) {
-    write(s, string, strlen(string));
+static void serializeByte(JStarBuffer* buf, uint8_t byte) {
+    write(buf, &byte, sizeof(uint8_t));
 }
 
-static void serializeDouble(Serializer* s, double num) {
+static void serializeCString(JStarBuffer* buf, const char* string) {
+    write(buf, string, strlen(string));
+}
+
+static void serializeDouble(JStarBuffer* buf, double num) {
     struct {
         double num;
         uint64_t raw;
     } convert = {.num = num};
-    serializeUint64(s, convert.raw);
+    serializeUint64(buf, convert.raw);
 }
 
-static void serializeString(Serializer* s, ObjString* str) {
-    serializeUint64(s, (uint64_t)str->length);
-    write(s, str->data, str->length);
+static void serializeString(JStarBuffer* buf, ObjString* str) {
+    bool isShort = str->length <= UINT8_MAX;
+    serializeByte(buf, isShort);
+
+    if(isShort)
+        serializeByte(buf, (uint8_t)str->length);
+    else
+        serializeUint64(buf, (uint64_t)str->length);
+
+    write(buf, str->data, str->length);
 }
 
-static void serializeConst(Serializer* s, Value c) {
+static void serializeConst(JStarBuffer* buf, Value c) {
     if(IS_NUM(c)) {
-        serializeByte(s, SERIALIZED_NUM);
-        serializeDouble(s, AS_NUM(c));
+        serializeByte(buf, SER_NUM);
+        serializeDouble(buf, AS_NUM(c));
     } else if(IS_BOOL(c)) {
-        serializeByte(s, SERIALIZED_BOOL);
-        serializeByte(s, AS_BOOL(c));
+        serializeByte(buf, SER_BOOL);
+        serializeByte(buf, AS_BOOL(c));
     } else if(IS_NULL(c)) {
-        serializeByte(s, SERIALIZED_NULL);
+        serializeByte(buf, SER_NULL);
+    } else if(IS_STRING(c)) {
+        serializeByte(buf, SER_OBJ_STR);
+        serializeString(buf, AS_STRING(c));
     } else if(IS_HANDLE(c)) {
-        serializeByte(s, SERIALIZED_HANDLE);
+        serializeByte(buf, SER_HANDLE);
     } else {
         UNREACHABLE();
     }
 }
 
-static void serializeCommon(Serializer* s, FnCommon* c) {
-    serializeByte(s, c->argsCount);
-    serializeByte(s, c->vararg);
+static uint16_t getConst(ObjFunction* ctx, ObjString* strConst) {
+    for(int i = 0; i < ctx->code.consts.count; i++) {
+        Value c = ctx->code.consts.arr[i];
+        if(IS_STRING(c) && strcmp(AS_STRING(c)->data, strConst->data) == 0) {
+            return i;
+        }
+    }
+    UNREACHABLE();
+    return 0;
+}
 
-    if(c->name) {
-        serializeString(s, c->name);
+static void serializeCommon(JStarBuffer* buf, FnCommon* c, ObjFunction* parent) {
+    serializeByte(buf, c->argsCount);
+    serializeByte(buf, c->vararg);
+
+    if(parent && c->name) {
+        serializeByte(buf, 1);
+        serializeShort(buf, getConst(parent, c->name));
     } else {
-        serializeUint64(s, 0);
+        serializeByte(buf, 0);
     }
 
-    serializeByte(s, c->defCount);
+    serializeByte(buf, c->defCount);
     for(int i = 0; i < c->defCount; i++) {
-        serializeConst(s, c->defaults[i]);
+        serializeConst(buf, c->defaults[i]);
     }
 }
 
-static void serializeCode(Serializer* s, Code* c) {
-    // serialize lines
-    serializeUint64(s, c->linesCount);
-    for(size_t i = 0; i < c->count; i++) {
-        serializeUint32(s, c->bytecode[i]);
+static void serializeFunction(JStarBuffer* buf, ObjFunction* f, ObjFunction* parent);
+
+static void serializeNative(JStarBuffer* buf, ObjNative* n, ObjFunction* parent) {
+    serializeCommon(buf, &n->c, parent);
+}
+
+static void serializeConstants(JStarBuffer* buf, ObjFunction* fn) {
+    ValueArray* constants = &fn->code.consts;
+
+    serializeShort(buf, constants->count);
+    for(int i = 0; i < constants->count; i++) {
+        Value c = constants->arr[i];
+        if(IS_FUNC(c)) {
+            serializeByte(buf, SER_OBJ_FUN);
+            serializeFunction(buf, AS_FUNC(c), fn);
+        } else if(IS_NATIVE(c)) {
+            serializeByte(buf, SER_OBJ_NAT);
+            serializeNative(buf, AS_NATIVE(c), fn);
+        } else {
+            serializeConst(buf, c);
+        }
     }
+}
+
+static void serializeCode(JStarBuffer* buf, ObjFunction* fn) {
+    // serialize lines
+    // serializeUint64(buf, c->linesCount);
+    // for(size_t i = 0; i < c->count; i++) {
+    //     serializeUint32(buf, c->lines[i]);
+    // }
+    Code* c = &fn->code;
 
     // serialize bytecode
-    serializeUint64(s, c->count);
+    serializeUint64(buf, c->count);
     for(size_t i = 0; i < c->count; i++) {
-        serializeByte(s, c->bytecode[i]);
+        serializeByte(buf, c->bytecode[i]);
     }
+
+    serializeConstants(buf, fn);
 }
 
-static void serializeFunction(Serializer* s, ObjFunction* f) {
-    serializeCommon(s, &f->c);
-    serializeCode(s, &f->code);
+static void serializeFunction(JStarBuffer* buf, ObjFunction* f, ObjFunction* parent) {
+    serializeCommon(buf, &f->c, parent);
+    serializeCode(buf, f);
 }
 
-void* serialize(JStarVM* vm, ObjFunction* f, size_t* outSize) {
-    Serializer s;
-    initSerializer(&s, vm);
+JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
+    // Push as gc root
+    push(vm, OBJ_VAL(f));
 
-    serializeCString(&s, FILE_HEADER);
-    serializeByte(&s, JSTAR_VERSION_MAJOR);
-    serializeByte(&s, JSTAR_VERSION_MINOR);
-    serializeFunction(&s, f);
+    JStarBuffer buf;
+    jsrBufferInitCapacity(vm, &buf, SERIALIZER_DEF_SIZE);
 
-    *outSize = s.count;
-    return realloc(s.data, s.count);
+    serializeCString(&buf, FILE_HEADER);
+    serializeByte(&buf, JSTAR_VERSION_MAJOR);
+    serializeByte(&buf, JSTAR_VERSION_MINOR);
+    serializeFunction(&buf, f, NULL);
+
+    jsrBufferShrinkToFit(&buf);
+    pop(vm);
+
+    return buf;
 }

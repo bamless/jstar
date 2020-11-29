@@ -39,6 +39,8 @@
 // The J* virtual machine
 typedef struct JStarVM JStarVM;
 
+typedef struct JStarBuffer JStarBuffer;
+
 typedef enum JStarResult {
     JSR_EVAL_SUCCESS,  // The VM successfully executed the code
     JSR_SYNTAX_ERR,    // A syntax error has been encountered in parsing
@@ -80,7 +82,7 @@ JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const cha
                                         const char* src);
 
 // EPERIMENTAL: compilation to binary blob
-JSTAR_API void* jsrCompile(JStarVM* vm, const char* src, size_t* outSize);
+JSTAR_API JStarResult jsrCompile(JStarVM* vm, const char* src, JStarBuffer* out);
 
 // Call a function (or method with name "name") that sits on the top of the stack
 // along with its arguments. The state of the stack when calling should be:
@@ -395,11 +397,11 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 // This memory is owned by J*, but cannot be collected until the buffer
 // is pushed on the stack using the jsrBufferPush method.
 // Used for efficient creation of Strings in the native API.
-typedef struct JStarBuffer {
+struct JStarBuffer {
     JStarVM* vm;
     size_t capacity, size;
     char* data;
-} JStarBuffer;
+};
 
 JSTAR_API void jsrBufferInit(JStarVM* vm, JStarBuffer* b);
 JSTAR_API void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity);
@@ -413,6 +415,7 @@ JSTAR_API void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r
 JSTAR_API void jsrBufferPrepend(JStarBuffer* b, const char* str, size_t len);
 JSTAR_API void jsrBufferPrependStr(JStarBuffer* b, const char* str);
 JSTAR_API void jsrBufferAppendChar(JStarBuffer* b, char c);
+JSTAR_API void jsrBufferShrinkToFit(JStarBuffer* b);
 JSTAR_API void jsrBufferClear(JStarBuffer* b);
 
 // Once the buffer is pushed on the J* stack it becomes a String and can't be modified further

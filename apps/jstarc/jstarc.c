@@ -36,9 +36,14 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        size_t size;
-        void* blob = jsrCompile(vm, src, &size);
+        JStarBuffer blob;
+        JStarResult res = jsrCompile(vm, src, &blob);
         free(src);
+
+        if(res != JSR_EVAL_SUCCESS) {
+            fprintf(stderr, "Error compiling file");
+            continue;
+        }
 
         char* ext = findExtension(file, '.');
 
@@ -52,18 +57,18 @@ int main(int argc, char** argv) {
         if(outFile == NULL) {
             fprintf(stderr, "Cannot create file %s\n", strerror(errno));
             free(out);
-            free(blob);
+            jsrBufferFree(&blob);
             continue;
         }
 
-        size_t res = fwrite(blob, 1, size, outFile);
-        if(res < size) {
+        size_t written = fwrite(blob.data, 1, blob.size, outFile);
+        if(written < blob.size) {
             fprintf(stderr, "error writing to file %s\n", strerror(errno));
         }
 
         fclose(outFile);
         free(out);
-        free(blob);
+        jsrBufferFree(&blob);
     }
 
     jsrFreeVM(vm);

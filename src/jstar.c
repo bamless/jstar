@@ -64,17 +64,18 @@ JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module,
 // EPERIMENTAL: compilation to binary blob
 #include "serialize.h"
 
-void* jsrCompile(JStarVM* vm, const char* src, size_t* outSize) {
+JStarResult jsrCompile(JStarVM* vm, const char* src, JStarBuffer* out) {
     JStarStmt* program = jsrParse("compile", src, vm->errorCallback);
-    if(program == NULL) return NULL;
+    if(program == NULL) return JSR_SYNTAX_ERR;
 
     // The function won't be ever executed, so pass null module
     ObjFunction* fn = compile(vm, "compile", NULL, program);
     jsrStmtFree(program);
 
-    if(fn == NULL) return NULL;
+    if(fn == NULL) return JSR_COMPILE_ERR;
 
-    return serialize(vm, fn, outSize);
+    *out = serialize(vm, fn);
+    return JSR_EVAL_SUCCESS;
 }
 
 static JStarResult finishCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
