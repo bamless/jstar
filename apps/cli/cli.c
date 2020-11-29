@@ -135,8 +135,8 @@ static int countBlocks(const char* line) {
 static void addExprPrint(JStarBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
-        jsrBufferPrependstr(sb, "var _ = ");
-        jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");
+        jsrBufferPrependStr(sb, "var _ = ");
+        jsrBufferAppendStr(sb, "\nif _ != null then print(_) end");
         jsrExprFree(e);
     }
 }
@@ -154,14 +154,14 @@ static void doRepl(Options* opts) {
     while((line = linenoise(JSTAR_PROMPT)) != NULL) {
         linenoiseHistoryAdd(line);
         int depth = countBlocks(line);
-        jsrBufferAppendstr(&src, line);
+        jsrBufferAppendStr(&src, line);
         free(line);
 
         while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
             linenoiseHistoryAdd(line);
             depth += countBlocks(line);
             jsrBufferAppendChar(&src, '\n');
-            jsrBufferAppendstr(&src, line);
+            jsrBufferAppendStr(&src, line);
             free(line);
         }
 

@@ -656,7 +656,7 @@ JSR_NATIVE(jsr_String_new) {
                 jsrBufferFree(&string);
                 JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
             }
-            jsrBufferAppendstr(&string, jsrGetString(vm, -1));
+            jsrBufferAppendStr(&string, jsrGetString(vm, -1));
             jsrPop(vm);
         },
         jsrBufferFree(&string));
@@ -786,8 +786,8 @@ JSR_NATIVE(jsr_String_join) {
         },
         jsrBufferFree(&joined))
 
-    if(joined.len > 0) {
-        jsrBufferTrunc(&joined, joined.len - jsrGetStringSz(vm, 0));
+    if(joined.size > 0) {
+        jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 0));
     }
 
     jsrBufferPush(&joined);
@@ -840,7 +840,7 @@ JSR_NATIVE(jsr_String_mod) {
                               getClass(vm, fmtArg)->name->data);
                 }
 
-                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
                 jsrPop(vm);
 
                 ptr = end;  // skip the format specifier
@@ -1234,8 +1234,8 @@ JSR_NATIVE(jsr_Table_string) {
                     jsrBufferFree(&buf);
                     return false;
                 }
-                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
-                jsrBufferAppendstr(&buf, " : ");
+                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendStr(&buf, " : ");
                 jsrPop(vm);
 
                 push(vm, entries[i].val);
@@ -1243,12 +1243,12 @@ JSR_NATIVE(jsr_Table_string) {
                     jsrBufferFree(&buf);
                     return false;
                 }
-                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
-                jsrBufferAppendstr(&buf, ", ");
+                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendStr(&buf, ", ");
                 jsrPop(vm);
             }
         }
-        jsrBufferTrunc(&buf, buf.len - 2);
+        jsrBufferTrunc(&buf, buf.size - 2);
     }
     jsrBufferAppendChar(&buf, '}');
     jsrBufferPush(&buf);
@@ -1576,7 +1576,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     }
 
     JStarBuffer string;
-    jsrBufferInitSz(vm, &string, 64);
+    jsrBufferInitCapacity(vm, &string, 64);
 
     Value cause = NULL_VAL;
     hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
@@ -1586,7 +1586,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
         Value stackTrace = peek(vm);
         if(IS_STRING(stackTrace)) {
             jsrBufferAppend(&string, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);
-            jsrBufferAppendstr(&string, "\n\nAbove Exception caused:\n");
+            jsrBufferAppendStr(&string, "\n\nAbove Exception caused:\n");
         }
         pop(vm);
     }
@@ -1607,13 +1607,13 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
                     if(!recordEquals(lastRecord, record)) break;
                     repetitions++, i--;
                 }
-                jsrBufferAppendstr(&string, INDENT "...\n");
+                jsrBufferAppendStr(&string, INDENT "...\n");
                 jsrBufferAppendf(&string, INDENT "[Previous line repeated %d times]\n",
                                  repetitions);
                 continue;
             }
 
-            jsrBufferAppendstr(&string, "    ");
+            jsrBufferAppendStr(&string, "    ");
             if(record->line >= 0)
                 jsrBufferAppendf(&string, "[line %d]", record->line);
             else

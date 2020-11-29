@@ -397,22 +397,21 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 // Used for efficient creation of Strings in the native API.
 typedef struct JStarBuffer {
     JStarVM* vm;
-    size_t size;
-    size_t len;
+    size_t capacity, size;
     char* data;
 } JStarBuffer;
 
 JSTAR_API void jsrBufferInit(JStarVM* vm, JStarBuffer* b);
-JSTAR_API void jsrBufferInitSz(JStarVM* vm, JStarBuffer* b, size_t size);
+JSTAR_API void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity);
 JSTAR_API void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len);
-JSTAR_API void jsrBufferAppendstr(JStarBuffer* b, const char* str);
+JSTAR_API void jsrBufferAppendStr(JStarBuffer* b, const char* str);
 JSTAR_API void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap);
 JSTAR_API void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...);
 JSTAR_API void jsrBufferTrunc(JStarBuffer* b, size_t len);
 JSTAR_API void jsrBufferCut(JStarBuffer* b, size_t len);
 JSTAR_API void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r);
 JSTAR_API void jsrBufferPrepend(JStarBuffer* b, const char* str, size_t len);
-JSTAR_API void jsrBufferPrependstr(JStarBuffer* b, const char* str);
+JSTAR_API void jsrBufferPrependStr(JStarBuffer* b, const char* str);
 JSTAR_API void jsrBufferAppendChar(JStarBuffer* b, char c);
 JSTAR_API void jsrBufferClear(JStarBuffer* b);
 

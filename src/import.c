@@ -140,21 +140,21 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
     for(size_t i = 0; i < paths->count + 1; i++) {
         if(i < paths->count) {
             if(!IS_STRING(paths->arr[i])) continue;
-            jsrBufferAppendstr(&fullPath, AS_STRING(paths->arr[i])->data);
-            if(fullPath.len > 0 && fullPath.data[fullPath.len - 1] != '/') {
+            jsrBufferAppendStr(&fullPath, AS_STRING(paths->arr[i])->data);
+            if(fullPath.size > 0 && fullPath.data[fullPath.size - 1] != '/') {
                 jsrBufferAppendChar(&fullPath, '/');
             }
         }
 
-        size_t moduleStart = fullPath.len;
+        size_t moduleStart = fullPath.size;
         size_t moduleEnd = moduleStart + name->length;
-        jsrBufferAppendstr(&fullPath, name->data);
+        jsrBufferAppendStr(&fullPath, name->data);
         jsrBufferReplaceChar(&fullPath, moduleStart, '.', '/');
 
         ImportResult res;
 
         // try to load a package (__package__.jsr file in a directory)
-        jsrBufferAppendstr(&fullPath, "/" PACKAGE_FILE);
+        jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE);
         res = importFromPath(vm, &fullPath, name);
 
         if(res != IMPORT_NOT_FOUND) {
@@ -164,7 +164,7 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
 
         // if there is no package try to load module (i.e. normal .jsr file)
         jsrBufferTrunc(&fullPath, moduleEnd);
-        jsrBufferAppendstr(&fullPath, ".jsr");
+        jsrBufferAppendStr(&fullPath, ".jsr");
         res = importFromPath(vm, &fullPath, name);
 
         if(res != IMPORT_NOT_FOUND) {

@@ -171,7 +171,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
     if(err != NULL) {
         JStarBuffer error;
-        jsrBufferInitSz(vm, &error, 64);
+        jsrBufferInitCapacity(vm, &error, 64);
 
         va_list args;
         va_start(args, err);
