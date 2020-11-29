@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "code.h"
+#include "gc.h"
 #include "object.h"
 #include "util.h"
 #include "value.h"
@@ -122,11 +123,6 @@ static void serializeUint64(JStarBuffer* buf, uint64_t num) {
     write(buf, &bigendian, sizeof(uint64_t));
 }
 
-static void serializeUint32(JStarBuffer* buf, uint32_t num) {
-    uint32_t bigendian = htobe32(num);
-    write(buf, &bigendian, sizeof(uint32_t));
-}
-
 static void serializeShort(JStarBuffer* buf, uint16_t num) {
     uint16_t bigendian = htobe16(num);
     write(buf, &bigendian, sizeof(uint16_t));
@@ -149,13 +145,19 @@ static void serializeDouble(JStarBuffer* buf, double num) {
 }
 
 static void serializeString(JStarBuffer* buf, ObjString* str) {
+    if(str == NULL) {
+        serializeByte(buf, 1);
+        serializeByte(buf, 0);
+    }
+
     bool isShort = str->length <= UINT8_MAX;
     serializeByte(buf, isShort);
 
-    if(isShort)
+    if(isShort) {
         serializeByte(buf, (uint8_t)str->length);
-    else
+    } else {
         serializeUint64(buf, (uint64_t)str->length);
+    }
 
     write(buf, str->data, str->length);
 }
@@ -255,4 +257,264 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
     pop(vm);
 
     return buf;
+}
+
+typedef struct Deserializer {
+    JStarVM* vm;
+    const JStarBuffer* buf;
+    ObjModule* mod;
+    size_t ptr;
+} Deserializer;
+
+static bool read(Deserializer* d, void* dest, size_t size) {
+    if(d->ptr + size > d->buf->capacity) {
+        return false;
+    }
+    memcpy(dest, d->buf->data + d->ptr, size);
+    d->ptr += size;
+    return true;
+}
+
+static bool isExausted(Deserializer* d) {
+    return d->ptr == d->buf->size;
+}
+
+static bool deserializeUint64(Deserializer* d, uint64_t* out) {
+    uint64_t bigendian;
+    if(!read(d, &bigendian, sizeof(uint64_t))) {
+        return false;
+    }
+    *out = be64toh(bigendian);
+    return true;
+}
+
+static bool deserializeShort(Deserializer* d, uint16_t* out) {
+    uint16_t bigendian;
+    if(!read(d, &bigendian, sizeof(uint16_t))) {
+        return false;
+    }
+    *out = be16toh(bigendian);
+    return true;
+}
+
+static bool deserializeByte(Deserializer* d, uint8_t* out) {
+    return read(d, out, sizeof(uint8_t));
+}
+
+static bool deserializeCString(Deserializer* d, char* out, size_t size) {
+    return read(d, out, size);
+}
+
+// TODO: fix empty string case
+static bool deserializeString(Deserializer* d, ObjString** out) {
+    uint8_t isShort;
+    if(!deserializeByte(d, &isShort)) return false;
+
+    uint64_t length;
+    if(isShort) {
+        uint8_t shortLength;
+        if(!deserializeByte(d, &shortLength)) return false;
+        length = shortLength;
+    } else {
+        if(!deserializeUint64(d, &length)) return false;
+    }
+
+    if(length == 0) {
+        *out = NULL;
+        return true;
+    }
+
+    // TODO: optimize in some way
+    char* str = malloc(length + 1);
+    if(!deserializeCString(d, str, length)) {
+        free(str);
+        return false;
+    }
+    str[length] = '\0';
+
+    *out = copyString(d->vm, str, length);
+    free(str);
+
+    return true;
+}
+
+static bool deserializeDouble(Deserializer* d, double* out) {
+    uint64_t rawDouble;
+    if(!deserializeUint64(d, &rawDouble)) return false;
+
+    struct {
+        double num;
+        uint64_t raw;
+    } convert = {.raw = rawDouble};
+
+    *out = convert.num;
+    return true;
+}
+
+static bool deserializeConst(Deserializer* d, SeriaLizedValue type, Value* out) {
+    switch(type) {
+    case SER_NUM: {
+        double num;
+        if(!deserializeDouble(d, &num)) return false;
+        *out = NUM_VAL(num);
+        break;
+    }
+    case SER_BOOL: {
+        uint8_t boolean;
+        if(!deserializeByte(d, &boolean)) return false;
+        *out = BOOL_VAL(boolean);
+        break;
+    }
+    case SER_NULL: {
+        *out = NULL_VAL;
+        break;
+    }
+    case SER_OBJ_STR: {
+        ObjString* str;
+        if(!deserializeString(d, &str)) return false;
+        *out = OBJ_VAL(str);
+        break;
+    }
+    case SER_HANDLE: {
+        *out = HANDLE_VAL(NULL);
+        break;
+    }
+    default:
+        UNREACHABLE();
+        break;
+    }
+
+    return true;
+}
+
+static bool deserializeCommon(Deserializer* d, FnCommon* c) {
+    if(!deserializeByte(d, &c->argsCount)) return false;
+
+    uint8_t vararg;
+    if(!deserializeByte(d, &vararg)) return false;
+    c->vararg = (bool)vararg;
+
+    if(!deserializeString(d, &c->name)) return false;
+    if(!deserializeByte(d, &c->defCount)) return false;
+
+    c->defaults = GC_ALLOC(d->vm, sizeof(Value) * c->defCount);
+    for(int i = 0; i < c->defCount; i++) {
+        uint8_t valueType;
+        if(!deserializeByte(d, &valueType)) return false;
+        if(!deserializeConst(d, valueType, c->defaults + i)) return false;
+    }
+
+    return true;
+}
+
+static bool deserializeFunction(Deserializer* d, ObjFunction** out);
+
+static bool deserializeNative(Deserializer* d, ObjNative** out) {
+    JStarVM* vm = d->vm;
+    ObjModule* mod = d->mod;
+
+    // Create native and push it as root in case a gc is triggered
+    jsrEnsureStack(vm, 1);
+    ObjNative* nat = newNative(vm, mod, 0, 0, false);
+    push(vm, OBJ_VAL(nat));
+
+    if(!deserializeCommon(d, &nat->c)) {
+        pop(vm);
+        return false;
+    }
+
+    *out = nat;
+    pop(vm);
+
+    return true;
+}
+
+static bool deserializeConstants(Deserializer* d, ValueArray* constants) {
+    uint16_t constantSize;
+    if(!deserializeShort(d, &constantSize)) return false;
+
+    constants->arr = malloc(sizeof(Value) * constantSize);
+    constants->count = constantSize;
+    constants->size = constantSize;
+
+    for(int i = 0; i < constantSize; i++) {
+        uint8_t constType;
+        if(!deserializeByte(d, &constType)) return false;
+
+        switch((SeriaLizedValue)constType) {
+        case SER_OBJ_FUN: {
+            ObjFunction* fn;
+            if(!deserializeFunction(d, &fn)) return false;
+            constants->arr[i] = OBJ_VAL(fn);
+            break;
+        }
+        case SER_OBJ_NAT: {
+            ObjNative* nat;
+            if(!deserializeNative(d, &nat)) return false;
+            constants->arr[i] = OBJ_VAL(nat);
+            break;
+        }
+        default:
+            if(!deserializeConst(d, constType, constants->arr + i)) return false;
+            break;
+        }
+    }
+
+    return true;
+}
+
+static bool deserializeCode(Deserializer* d, Code* c) {
+    uint64_t codeSize;
+    if(!deserializeUint64(d, &codeSize)) return false;
+
+    c->bytecode = malloc(codeSize);
+    c->count = codeSize;
+    c->size = codeSize;
+    if(!read(d, c->bytecode, codeSize)) return false;
+
+    if(!deserializeConstants(d, &c->consts)) return false;
+
+    return true;
+}
+
+static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
+    JStarVM* vm = d->vm;
+    ObjModule* mod = d->mod;
+
+    // Create function and push it as root in case a gc is triggered
+    jsrEnsureStack(vm, 1);
+    ObjFunction* fn = newFunction(vm, mod, 0, 0, false);
+    push(vm, OBJ_VAL(fn));
+
+    if(!deserializeCommon(d, &fn->c)) {
+        pop(vm);
+        return false;
+    }
+
+    if(!deserializeCode(d, &fn->code)) {
+        pop(vm);
+        return false;
+    }
+
+    *out = fn;
+    pop(vm);
+
+    return true;
+}
+
+ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
+    ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
+
+    Deserializer d = {vm, buf, mod, 0};
+
+    ObjFunction* fn;
+    if(!deserializeFunction(&d, &fn)) {
+        return NULL;
+    }
+
+    if(!isExausted(&d)) {
+        return false;
+    }
+
+    return fn;
 }

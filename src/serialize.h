@@ -5,6 +5,6 @@
 #include "object.h"
 
 JStarBuffer serialize(JStarVM* vm, ObjFunction* f);
-ObjFunction* deserialize(JStarVM* vm, const JStarBuffer* buf);
+ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf);
 
 #endif  // SERIALIZE_H

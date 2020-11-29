@@ -156,6 +156,7 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     case OBJ_CLOSURE: {
         ObjFunction* fn = ((ObjClosure*)f->fn)->fn;
         Code* code = &fn->code;
+
         size_t op = f->ip - code->bytecode - 1;
         op = op < code->count ? op : code->count - 1;
 
