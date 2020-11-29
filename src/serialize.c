@@ -513,7 +513,7 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
     }
 
     if(!isExausted(&d)) {
-        return false;
+        return NULL;
     }
 
     return fn;
