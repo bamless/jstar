@@ -30,6 +30,9 @@
 #define ARGV_STR    "argv"
 #define ANON_PREFIX "anon:"
 
+#define JSR_EXT ".jsr"
+#define JSC_EXT ".jsc"
+
 #define NEXT_METH "__next__"
 #define ITER_METH "__iter__"
 
@@ -37,7 +40,7 @@
 #define EXC_CAUSE "_cause"
 #define EXC_TRACE "_stacktrace"
 
-#define PACKAGE_FILE "__package__.jsr"
+#define PACKAGE_FILE "__package__"
 
 #if defined(JSTAR_WINDOWS)
     #define DL_PREFIX ""

@@ -107,7 +107,6 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
 
 static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
     JStarStmt* program = jsrParse(path, source, vm->errorCallback);
-
     if(program == NULL) {
         return false;
     }
@@ -115,6 +114,18 @@ static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, con
     ObjFunction* moduleFun = compileWithModule(vm, path, name, program);
     jsrStmtFree(program);
 
+    if(moduleFun == NULL) {
+        return false;
+    }
+
+    push(vm, OBJ_VAL(moduleFun));
+    vm->sp[-1] = OBJ_VAL(newClosure(vm, moduleFun));
+
+    return true;
+}
+
+static bool importWithBinary(JStarVM* vm, ObjString* name, const JStarBuffer* code) {
+    ObjFunction* moduleFun = deserializeWithModule(vm, name, code);
     if(moduleFun == NULL) {
         return false;
     }
@@ -137,7 +148,13 @@ static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* na
         return IMPORT_NOT_FOUND;
     }
 
-    bool imported = importWithSource(vm, path->data, name, src.data);
+    bool imported;
+    if(isCompiledCode(&src)) {
+        imported = importWithBinary(vm, name, &src);
+    } else {
+        imported = importWithSource(vm, path->data, name, src.data);
+    }
+
     jsrBufferFree(&src);
 
     if(!imported) {
@@ -170,21 +187,37 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
 
         ImportResult res;
 
-        // try to load a package (__package__.jsr file in a directory)
-        jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE);
-        res = importFromPath(vm, &fullPath, name);
+        // Try to load a binary package (__package__.jsc file in a directory)
+        jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSC_EXT);
 
-        if(res != IMPORT_NOT_FOUND) {
+        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
 
-        // if there is no package try to load module (i.e. normal .jsr file)
+        // Try to load a source package (__package__.jsr file in a directory)
         jsrBufferTrunc(&fullPath, moduleEnd);
-        jsrBufferAppendStr(&fullPath, ".jsr");
-        res = importFromPath(vm, &fullPath, name);
+        jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSR_EXT);
 
-        if(res != IMPORT_NOT_FOUND) {
+        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+            jsrBufferFree(&fullPath);
+            return res == IMPORT_OK;
+        }
+
+        // If there is no package try to load compiled module (i.e. `.jsc` file)
+        jsrBufferTrunc(&fullPath, moduleEnd);
+        jsrBufferAppendStr(&fullPath, JSC_EXT);
+
+        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+            jsrBufferFree(&fullPath);
+            return res == IMPORT_OK;
+        }
+
+        // No binary module found, finally try with source module (i.e. `.jsr` file)
+        jsrBufferTrunc(&fullPath, moduleEnd);
+        jsrBufferAppendStr(&fullPath, JSR_EXT);
+
+        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
