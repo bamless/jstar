@@ -11,4 +11,4 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf);
 bool checkVersion(const JStarBuffer* buf);
 bool isCompiledCode(const JStarBuffer* buf);
 
-#endif  // SERIALIZE_H
+#endif
