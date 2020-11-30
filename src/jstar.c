@@ -23,7 +23,11 @@
 // -----------------------------------------------------------------------------
 
 void jsrPrintErrorCB(const char* file, int line, const char* error) {
-    fprintf(stderr, "File %s [line:%d]:\n", file, line);
+    if(line >= 0) {
+        fprintf(stderr, "File %s [line:%d]:\n", file, line);
+    } else {
+        fprintf(stderr, "File %s:\n", file);
+    }
     fprintf(stderr, "%s\n", error);
 }
 
@@ -71,47 +75,24 @@ JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* 
     return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code);
 }
 
-static bool isCompiledCode(const JStarBuffer* code) {
-    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
-
-    if(code->size >= headerSize) {
-        return memcmp(SERIALIZED_FILE_HEADER, code->data, headerSize) == 0;
-    }
-
-    return false;
-}
-
-static JStarResult checkVersion(const JStarBuffer* code) {
-    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
-
-    // Version numbers are stored as two bytes after file header
-    if(code->size >= headerSize + sizeof(uint8_t) * 2) {
-        uint8_t versionMajor = code->data[headerSize];
-        uint8_t versionMinor = code->data[headerSize + 1];
-
-        if(JSTAR_VERSION_MAJOR != versionMajor || JSTAR_VERSION_MINOR != versionMinor) {
-            return JSR_VERSION_ERR;
-        }
-
-        return JSR_SUCCESS;
-    }
-
-    return JSR_VERSION_ERR;
-}
-
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const JStarBuffer* code) {
     if(!isCompiledCode(code)) {
         return jsrEvalModuleString(vm, path, module, code->data);
     }
 
-    JStarResult err = checkVersion(code);
-    if(err != JSR_SUCCESS) {
-        return err;
+    if(!checkVersion(code)) {
+        vm->errorCallback(path, -1, "Incompatible binary version");
+        return JSR_VERSION_ERR;
     }
 
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = deserializeWithModule(vm, name, code);
+
+    if(fn == NULL) {
+        vm->errorCallback(path, -1, "Malformed binary file");
+        return JSR_DESERIALIZE_ERR;
+    }
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
@@ -127,15 +108,19 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 
 // EPERIMENTAL: compilation to binary blob
 
-JStarResult jsrCompile(JStarVM* vm, const char* src, JStarBuffer* out) {
-    JStarStmt* program = jsrParse("compile", src, vm->errorCallback);
-    if(program == NULL) return JSR_SYNTAX_ERR;
+JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
+    JStarStmt* program = jsrParse(path, src, vm->errorCallback);
+    if(program == NULL) {
+        return JSR_SYNTAX_ERR;
+    }
 
-    // The function won't be ever executed, so pass null module
+    // The function won't be executed, only compiled, so pass null module
     ObjFunction* fn = compile(vm, "compile", NULL, program);
     jsrStmtFree(program);
 
-    if(fn == NULL) return JSR_COMPILE_ERR;
+    if(fn == NULL) {
+        return JSR_COMPILE_ERR;
+    }
 
     *out = serialize(vm, fn);
     return JSR_SUCCESS;

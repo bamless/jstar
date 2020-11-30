@@ -37,11 +37,11 @@ int main(int argc, char** argv) {
         }
 
         JStarBuffer blob;
-        JStarResult res = jsrCompile(vm, src.data, &blob);
+        JStarResult res = jsrCompileCode(vm, file, src.data, &blob);
         jsrBufferFree(&src);
 
         if(res != JSR_SUCCESS) {
-            fprintf(stderr, "Error compiling file");
+            fprintf(stderr, "Error compiling file %s\n", file);
             continue;
         }
 

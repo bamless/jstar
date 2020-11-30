@@ -189,6 +189,7 @@ static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
 
 JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
     // Push as gc root
+    jsrEnsureStack(vm, 1);
     push(vm, OBJ_VAL(f));
 
     JStarBuffer buf;
@@ -471,4 +472,30 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
     }
 
     return fn;
+}
+
+bool checkVersion(const JStarBuffer* buf) {
+    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
+
+    // Version numbers are stored as two bytes after file header
+    if(buf->size >= headerSize + sizeof(uint8_t) * 2) {
+        uint8_t versionMajor = buf->data[headerSize];
+        uint8_t versionMinor = buf->data[headerSize + 1];
+
+        if(JSTAR_VERSION_MAJOR != versionMajor || JSTAR_VERSION_MINOR != versionMinor) {
+            return false;
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+bool isCompiledCode(const JStarBuffer* buf) {
+    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
+    if(buf->size >= headerSize) {
+        return memcmp(SERIALIZED_FILE_HEADER, buf->data, headerSize) == 0;
+    }
+    return false;
 }

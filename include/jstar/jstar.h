@@ -87,8 +87,9 @@ JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* 
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const JStarBuffer* code);
 
-// EPERIMENTAL: compilation to binary blob
-JSTAR_API JStarResult jsrCompile(JStarVM* vm, const char* src, JStarBuffer* out);
+// Compile provided source to a binary format
+JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
+                                     JStarBuffer* out);
 
 // Call a function (or method with name "name") that sits on the top of the stack
 // along with its arguments. The state of the stack when calling should be:
