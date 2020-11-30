@@ -41,9 +41,8 @@ static ObjModule* createModule(JStarVM* vm, ObjString* name) {
     return module;
 }
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* moduleName,
-                               JStarStmt* program) {
-    ObjModule* module = createModule(vm, moduleName);
+ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, JStarStmt* program) {
+    ObjModule* module = createModule(vm, name);
 
     if(program != NULL) {
         ObjFunction* fn = compile(vm, file, module, program);
@@ -53,8 +52,8 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* moduleN
     return NULL;
 }
 
-ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* moduleName, const JStarBuffer* code) {
-    ObjModule* module = createModule(vm, moduleName);
+ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuffer* code) {
+    ObjModule* module = createModule(vm, name);
     ObjFunction* fn = deserialize(vm, module, code);
     return fn;
 }
