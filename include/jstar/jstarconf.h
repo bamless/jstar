@@ -40,6 +40,9 @@
 #elif defined(__FreeBSD__)
     #define JSTAR_FREEBSD
     #define JSTAR_POSIX
+#elif defined(__OpenBSD__)
+    #define JSTAR_OPENBSD
+    #define JSTAR_POSIX
 #elif defined(__APPLE__) || defined(__MACH__)
     #include <TargetConditionals.h>
 

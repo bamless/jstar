@@ -12,98 +12,44 @@
 #include "value.h"
 #include "vm.h"
 
-#define FILE_HEADER         "\xb5JsrC"
-#define SERIALIZER_DEF_SIZE 64
+#define SER_DEF_SIZE 64
+#define FILE_HEADER  "\xb5JsrC"
 
-#if(defined(_WIN16) || defined(_WIN32) || defined(_WIN64)) && !defined(__WINDOWS__)
-    #define __WINDOWS__
-#endif
-
-#if defined(__linux__) || defined(__CYGWIN__)
+// Endianness conversion macros
+#if defined(JSTAR_LINUX)
     #include <endian.h>
-#elif defined(__APPLE__)
-    #include <libkern/OSByteOrder.h>
-
+#elif defined(JSTAR_APPLE)
     #define htobe16(x) OSSwapHostToBigInt16(x)
-    #define htole16(x) OSSwapHostToLittleInt16(x)
     #define be16toh(x) OSSwapBigToHostInt16(x)
-    #define le16toh(x) OSSwapLittleToHostInt16(x)
-
-    #define htobe32(x) OSSwapHostToBigInt32(x)
-    #define htole32(x) OSSwapHostToLittleInt32(x)
-    #define be32toh(x) OSSwapBigToHostInt32(x)
-    #define le32toh(x) OSSwapLittleToHostInt32(x)
 
     #define htobe64(x) OSSwapHostToBigInt64(x)
-    #define htole64(x) OSSwapHostToLittleInt64(x)
     #define be64toh(x) OSSwapBigToHostInt64(x)
-    #define le64toh(x) OSSwapLittleToHostInt64(x)
-
-    #define __BYTE_ORDER    BYTE_ORDER
-    #define __BIG_ENDIAN    BIG_ENDIAN
-    #define __LITTLE_ENDIAN LITTLE_ENDIAN
-    #define __PDP_ENDIAN    PDP_ENDIAN
-#elif defined(__OpenBSD__)
+#elif defined(JSTAR_OPENBSD)
     #include <sys/endian.h>
-#elif defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#elif defined(JSTAR_FREEBSD)
     #include <sys/endian.h>
 
     #define be16toh(x) betoh16(x)
-    #define le16toh(x) letoh16(x)
-
-    #define be32toh(x) betoh32(x)
-    #define le32toh(x) letoh32(x)
-
     #define be64toh(x) betoh64(x)
-    #define le64toh(x) letoh64(x)
-#elif defined(__WINDOWS__)
-    #include <winsock2.h>
-
+#elif defined(JSTAR_WINDOWS)
     #if BYTE_ORDER == LITTLE_ENDIAN
-        #define htobe16(x) htons(x)
-        #define htole16(x) (x)
-        #define be16toh(x) ntohs(x)
-        #define le16toh(x) (x)
+        #define htobe16(x) __builtin_bswap16(x)
+        #define be16toh(x) __builtin_bswap16(x)
 
-        #define htobe32(x) htonl(x)
-        #define htole32(x) (x)
-        #define be32toh(x) ntohl(x)
-        #define le32toh(x) (x)
-
-        #define htobe64(x) htonll(x)
-        #define htole64(x) (x)
-        #define be64toh(x) ntohll(x)
-        #define le64toh(x) (x)
+        #define htobe64(x) __builtin_bswap64(x)
+        #define be64toh(x) __builtin_bswap64(x)
     #elif BYTE_ORDER == BIG_ENDIAN
-    /* that would be xbox 360 */
         #define htobe16(x) (x)
-        #define htole16(x) __builtin_bswap16(x)
         #define be16toh(x) (x)
-        #define le16toh(x) __builtin_bswap16(x)
-
-        #define htobe32(x) (x)
-        #define htole32(x) __builtin_bswap32(x)
-        #define be32toh(x) (x)
-        #define le32toh(x) __builtin_bswap32(x)
 
         #define htobe64(x) (x)
-        #define htole64(x) __builtin_bswap64(x)
         #define be64toh(x) (x)
-        #define le64toh(x) __builtin_bswap64(x)
-
-    #else
-        #error byte order not supported
     #endif
-
-    #define __BYTE_ORDER    BYTE_ORDER
-    #define __BIG_ENDIAN    BIG_ENDIAN
-    #define __LITTLE_ENDIAN LITTLE_ENDIAN
-    #define __PDP_ENDIAN    PDP_ENDIAN
 #else
-    #error platform not supported
+    #error platform not supported: unknown endiannes
 #endif
 
-typedef enum SeriaLizedValue {
+typedef enum SerializedValue {
     SER_NUM,
     SER_BOOL,
     SER_OBJ,
@@ -112,7 +58,7 @@ typedef enum SeriaLizedValue {
     SER_OBJ_STR,
     SER_OBJ_FUN,
     SER_OBJ_NAT,
-} SeriaLizedValue;
+} SerializedValue;
 
 static void write(JStarBuffer* buf, const void* data, size_t size) {
     jsrBufferAppend(buf, (const char*)data, size);
@@ -243,7 +189,7 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
     push(vm, OBJ_VAL(f));
 
     JStarBuffer buf;
-    jsrBufferInitCapacity(vm, &buf, SERIALIZER_DEF_SIZE);
+    jsrBufferInitCapacity(vm, &buf, SER_DEF_SIZE);
 
     serializeCString(&buf, FILE_HEADER);
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
@@ -341,7 +287,7 @@ static bool deserializeDouble(Deserializer* d, double* out) {
     return true;
 }
 
-static bool deserializeConst(Deserializer* d, SeriaLizedValue type, Value* out) {
+static bool deserializeConst(Deserializer* d, SerializedValue type, Value* out) {
     switch(type) {
     case SER_NUM: {
         double num;
@@ -439,7 +385,7 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
         uint8_t constType;
         if(!deserializeByte(d, &constType)) return false;
 
-        switch((SeriaLizedValue)constType) {
+        switch((SerializedValue)constType) {
         case SER_OBJ_FUN: {
             ObjFunction* fn;
             if(!deserializeFunction(d, &fn)) return false;

@@ -87,8 +87,6 @@ endforeach()
 set(EXTRA_LIBS)
 if(UNIX)
     set(EXTRA_LIBS dl m)
-elseif(WIN32)
-    set(EXTRA_LIBS ws2_32)
 endif()
 
 if(JSTAR_COMPUTED_GOTOS)
