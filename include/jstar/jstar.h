@@ -42,10 +42,12 @@ typedef struct JStarVM JStarVM;
 typedef struct JStarBuffer JStarBuffer;
 
 typedef enum JStarResult {
-    JSR_EVAL_SUCCESS,  // The VM successfully executed the code
-    JSR_SYNTAX_ERR,    // A syntax error has been encountered in parsing
-    JSR_COMPILE_ERR,   // An error has been encountered during compilation
-    JSR_RUNTIME_ERR,   // An unhandled exception has reached the top of the stack
+    JSR_SUCCESS,          // The VM successfully executed the code
+    JSR_SYNTAX_ERR,       // A syntax error has been encountered in parsing
+    JSR_COMPILE_ERR,      // An error has been encountered during compilation
+    JSR_RUNTIME_ERR,      // An unhandled exception has reached the top of the stack
+    JSR_DESERIALIZE_ERR,  // An error occurred during deserialization of compiled code
+    JSR_VERSION_ERR,      // Incompatible version of compiled code
 } JStarResult;
 
 // J* error function callback. Called when syntax or compilation errors are encountered.
@@ -77,9 +79,13 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR or JSR_RUNTIME_ERR will be returned.
 // In case of JSR_RUNTIME_ERR the stacktrace of the Exception will be printed to stderr, all other
 // errors forward the message to the error callback
-JSTAR_API JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src);
-JSTAR_API JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* name,
-                                        const char* src);
+JSTAR_API JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src);
+JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
+                                          const char* src);
+
+JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code);
+JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
+                                    const JStarBuffer* code);
 
 // EPERIMENTAL: compilation to binary blob
 JSTAR_API JStarResult jsrCompile(JStarVM* vm, const char* src, JStarBuffer* out);
@@ -153,9 +159,10 @@ JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
 // A C function callable from J*
 typedef bool (*JStarNative)(JStarVM* vm);
 
+// TODO: Documentation
 // Read a whole file. The returned buffer is malloc'd, so the user should free() it when done.
 // On error returns NULL and sets errno to the appropriate error.
-JSTAR_API char* jsrReadFile(const char* path);
+JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
 
 // -----------------------------------------------------------------------------
 // NATIVE REGISTRY

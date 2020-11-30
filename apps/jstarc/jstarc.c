@@ -30,17 +30,17 @@ int main(int argc, char** argv) {
     for(int i = 1; i < argc; i++) {
         const char* file = argv[i];
 
-        char* src = jsrReadFile(file);
-        if(src == NULL) {
+        JStarBuffer src;
+        if(!jsrReadFile(vm, file, &src)) {
             fprintf(stderr, "Cannot read file %s\n", strerror(errno));
             continue;
         }
 
         JStarBuffer blob;
-        JStarResult res = jsrCompile(vm, src, &blob);
-        free(src);
+        JStarResult res = jsrCompile(vm, src.data, &blob);
+        jsrBufferFree(&src);
 
-        if(res != JSR_EVAL_SUCCESS) {
+        if(res != JSR_SUCCESS) {
             fprintf(stderr, "Error compiling file");
             continue;
         }

@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "src/std/core.jsr"
+                "build/Debug/test.jsc"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -519,7 +519,7 @@ static bool substituteCall(JStarVM* vm, RegexState* rs, JStarBuffer* b, int funS
         if(!pushCapture(vm, rs, i)) return false;
     }
 
-    if(jsrCall(vm, rs->captureCount - 1) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, rs->captureCount - 1) != JSR_SUCCESS) return false;
     JSR_CHECK(String, -1, "sub() return value");
 
     jsrBufferAppendStr(b, jsrGetString(vm, -1));

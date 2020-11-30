@@ -10,6 +10,7 @@
 #include "hashtable.h"
 #include "jstar.h"
 #include "parse/parser.h"
+#include "serialize.h"
 #include "std/modules.h"
 #include "value.h"
 #include "vm.h"
@@ -26,25 +27,41 @@ static void setModuleInParent(JStarVM* vm, ObjModule* module) {
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
 }
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* fileName, ObjString* name,
+ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* moduleName,
                                JStarStmt* program) {
-    ObjModule* module = getModule(vm, name);
+    ObjModule* module = getModule(vm, moduleName);
 
     if(module == NULL) {
-        push(vm, OBJ_VAL(name));
-        module = newModule(vm, name);
+        push(vm, OBJ_VAL(moduleName));
+        module = newModule(vm, moduleName);
         pop(vm);
 
-        setModule(vm, name, module);
+        setModule(vm, moduleName, module);
         setModuleInParent(vm, module);
     }
 
     if(program != NULL) {
-        ObjFunction* fn = compile(vm, fileName, module, program);
+        ObjFunction* fn = compile(vm, file, module, program);
         return fn;
     }
 
     return NULL;
+}
+
+ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* moduleName, const JStarBuffer* code) {
+    ObjModule* module = getModule(vm, moduleName);
+
+    if(module == NULL) {
+        push(vm, OBJ_VAL(moduleName));
+        module = newModule(vm, moduleName);
+        pop(vm);
+
+        setModule(vm, moduleName, module);
+        setModuleInParent(vm, module);
+    }
+
+    ObjFunction* fn = deserialize(vm, module, code);
+    return fn;
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
@@ -115,13 +132,13 @@ typedef enum ImportResult {
 } ImportResult;
 
 static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name) {
-    char* source = jsrReadFile(path->data);
-    if(source == NULL) {
+    JStarBuffer src;
+    if(!jsrReadFile(vm, path->data, &src)) {
         return IMPORT_NOT_FOUND;
     }
 
-    bool imported = importWithSource(vm, path->data, name, source);
-    free(source);
+    bool imported = importWithSource(vm, path->data, name, src.data);
+    jsrBufferFree(&src);
 
     if(!imported) {
         return IMPORT_ERR;

@@ -13,7 +13,6 @@
 #include "vm.h"
 
 #define SER_DEF_SIZE 64
-#define FILE_HEADER  "\xb5JsrC"
 
 // Endianness conversion macros
 #if defined(JSTAR_LINUX)
@@ -135,7 +134,7 @@ static void serializeCommon(JStarBuffer* buf, FnCommon* c) {
         serializeByte(buf, 1);
         serializeString(buf, c->name);
     } else {
-        serializeShort(buf, 0);
+        serializeByte(buf, 0);
     }
 
     serializeByte(buf, c->defCount);
@@ -195,7 +194,7 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
     JStarBuffer buf;
     jsrBufferInitCapacity(vm, &buf, SER_DEF_SIZE);
 
-    serializeCString(&buf, FILE_HEADER);
+    serializeCString(&buf, SERIALIZED_FILE_HEADER);
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
     serializeByte(&buf, JSTAR_VERSION_MINOR);
     serializeFunction(&buf, f);
@@ -454,6 +453,13 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
     ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
 
     Deserializer d = {vm, buf, mod, 0};
+
+    char header[sizeof(SERIALIZED_FILE_HEADER) - 1];
+    if(!read(&d, header, sizeof(SERIALIZED_FILE_HEADER) - 1)) return false;
+
+    uint8_t versionMajor, versionMinor;
+    if(!deserializeByte(&d, &versionMajor)) return false;
+    if(!deserializeByte(&d, &versionMinor)) return false;
 
     ObjFunction* fn;
     if(!deserializeFunction(&d, &fn)) {
