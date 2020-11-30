@@ -19,6 +19,8 @@
 #if defined(JSTAR_LINUX)
     #include <endian.h>
 #elif defined(JSTAR_APPLE)
+    #include <libkern/OSByteOrder.h>
+
     #define htobe16(x) OSSwapHostToBigInt16(x)
     #define be16toh(x) OSSwapBigToHostInt16(x)
 
@@ -32,12 +34,14 @@
     #define be16toh(x) betoh16(x)
     #define be64toh(x) betoh64(x)
 #elif defined(JSTAR_WINDOWS)
-    #if BYTE_ORDER == LITTLE_ENDIAN
-        #define htobe16(x) __builtin_bswap16(x)
-        #define be16toh(x) __builtin_bswap16(x)
+    #include <stdlib.h>
 
-        #define htobe64(x) __builtin_bswap64(x)
-        #define be64toh(x) __builtin_bswap64(x)
+    #if BYTE_ORDER == LITTLE_ENDIAN
+        #define htobe16(x) _byteswap_ushort(x)
+        #define be16toh(x) _byteswap_ushort(x)
+
+        #define htobe64(x) _byteswap_uint64(x)
+        #define be64toh(x) _byteswap_uint64(x)
     #elif BYTE_ORDER == BIG_ENDIAN
         #define htobe16(x) (x)
         #define be16toh(x) (x)
