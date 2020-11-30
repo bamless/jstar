@@ -48,7 +48,7 @@ static void serializeCString(JStarBuffer* buf, const char* string) {
 }
 
 static void serializeDouble(JStarBuffer* buf, double num) {
-    struct {
+    union {
         double num;
         uint64_t raw;
     } convert = {.num = num};
@@ -146,6 +146,7 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
 
 static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
     serializeCommon(buf, &f->c);
+    serializeByte(buf, f->upvalueCount);
     serializeCode(buf, &f->code);
 }
 
@@ -186,6 +187,12 @@ static bool read(Deserializer* d, void* dest, size_t size) {
 
 static bool isExausted(Deserializer* d) {
     return d->ptr == d->buf->size;
+}
+
+static void zeroValueArray(Value* vals, int size) {
+    for(int i = 0; i < size; i++) {
+        vals[i] = NULL_VAL;
+    }
 }
 
 static bool deserializeUint64(Deserializer* d, uint64_t* out) {
@@ -244,7 +251,7 @@ static bool deserializeDouble(Deserializer* d, double* out) {
     uint64_t rawDouble;
     if(!deserializeUint64(d, &rawDouble)) return false;
 
-    struct {
+    union {
         double num;
         uint64_t raw;
     } convert = {.raw = rawDouble};
@@ -308,6 +315,8 @@ static bool deserializeCommon(Deserializer* d, FnCommon* c) {
     if(!deserializeByte(d, &c->defCount)) return false;
 
     c->defaults = GC_ALLOC(d->vm, sizeof(Value) * c->defCount);
+    zeroValueArray(c->defaults, c->defCount);
+
     for(int i = 0; i < c->defCount; i++) {
         uint8_t valueType;
         if(!deserializeByte(d, &valueType)) return false;
@@ -344,6 +353,7 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
     if(!deserializeShort(d, &constantSize)) return false;
 
     consts->arr = malloc(sizeof(Value) * constantSize);
+    zeroValueArray(consts->arr, constantSize);
     consts->count = constantSize;
     consts->size = constantSize;
 
@@ -397,6 +407,11 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     push(vm, OBJ_VAL(fn));
 
     if(!deserializeCommon(d, &fn->c)) {
+        pop(vm);
+        return false;
+    }
+
+    if(!deserializeByte(d, &fn->upvalueCount)) {
         pop(vm);
         return false;
     }
