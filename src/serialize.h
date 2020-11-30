@@ -7,8 +7,8 @@
 #define SERIALIZED_FILE_HEADER "\xb5JsrC"
 
 JStarBuffer serialize(JStarVM* vm, ObjFunction* f);
-ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf);
-bool checkVersion(const JStarBuffer* buf);
+ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* err);
+
 bool isCompiledCode(const JStarBuffer* buf);
 
 #endif

@@ -292,8 +292,7 @@ static bool deserializeConst(Deserializer* d, SerializedValue type, Value* out) 
         break;
     }
     default:
-        UNREACHABLE();
-        break;
+        return false;
     }
 
     return true;
@@ -430,17 +429,23 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     return true;
 }
 
-ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
+ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* err) {
     ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
-
     Deserializer d = {vm, buf, mod, 0};
 
+    *err = JSR_DESERIALIZE_ERR;
+
     char header[sizeof(SERIALIZED_FILE_HEADER) - 1];
-    if(!read(&d, header, sizeof(SERIALIZED_FILE_HEADER) - 1)) return false;
+    if(!read(&d, header, sizeof(SERIALIZED_FILE_HEADER) - 1)) return NULL;
 
     uint8_t versionMajor, versionMinor;
-    if(!deserializeByte(&d, &versionMajor)) return false;
-    if(!deserializeByte(&d, &versionMinor)) return false;
+    if(!deserializeByte(&d, &versionMajor)) return NULL;
+    if(!deserializeByte(&d, &versionMinor)) return NULL;
+
+    if(versionMajor != JSTAR_VERSION_MAJOR || versionMinor != JSTAR_VERSION_MINOR) {
+        *err = JSR_VERSION_ERR;
+        return NULL;
+    }
 
     ObjFunction* fn;
     if(!deserializeFunction(&d, &fn)) {
@@ -451,30 +456,13 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
         return NULL;
     }
 
+    *err = JSR_SUCCESS;
     return fn;
 }
 
 // -----------------------------------------------------------------------------
 // TESTER FUNCTIONS
 // -----------------------------------------------------------------------------
-
-bool checkVersion(const JStarBuffer* buf) {
-    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
-
-    // Version numbers are stored as two bytes after file header
-    if(buf->size >= headerSize + sizeof(uint8_t) * 2) {
-        uint8_t versionMajor = buf->data[headerSize];
-        uint8_t versionMinor = buf->data[headerSize + 1];
-
-        if(JSTAR_VERSION_MAJOR != versionMajor || JSTAR_VERSION_MINOR != versionMinor) {
-            return false;
-        }
-
-        return true;
-    }
-
-    return false;
-}
 
 bool isCompiledCode(const JStarBuffer* buf) {
     const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;

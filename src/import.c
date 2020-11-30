@@ -52,10 +52,10 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, J
     return NULL;
 }
 
-ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuffer* code) {
+ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuffer* code,
+                                   JStarResult* err) {
     ObjModule* module = createModule(vm, name);
-    ObjFunction* fn = deserialize(vm, module, code);
-    return fn;
+    return deserialize(vm, module, code, err);
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
@@ -119,8 +119,9 @@ static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, con
 }
 
 static bool importWithBinary(JStarVM* vm, ObjString* name, const JStarBuffer* code) {
-    ObjFunction* moduleFun = deserializeWithModule(vm, name, code);
-    if(moduleFun == NULL) {
+    JStarResult res;
+    ObjFunction* moduleFun = deserializeWithModule(vm, name, code, &res);
+    if(res != JSR_SUCCESS) {
         return false;
     }
 
