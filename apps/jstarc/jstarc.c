@@ -1,3 +1,4 @@
+#include <argparse.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,70 +6,77 @@
 
 #include "jstar/jstar.h"
 
-#define EXTENSION ".jsc"
+typedef struct Options {
+    char* input;
+    char* out;
+} Options;
 
-static char* findExtension(const char* str, int c) {
-    const char* ptr = str + strlen(str);
-    while(ptr != str && *ptr != '/' && *ptr != '\\') {
-        if(*ptr == c) {
-            return (char*)ptr;
-        }
-        ptr--;
+Options parseArguments(int argc, char** argv) {
+    Options opts = {0};
+
+    static const char* const usage[] = {
+        "jstarc [options] file out",
+        NULL,
+    };
+
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_END(),
+    };
+
+    struct argparse argparse;
+    argparse_init(&argparse, options, usage, 0);
+    argparse_describe(&argparse, "jstarc: compile J* source files to bytecode", NULL);
+
+    int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
+
+    if(nonOpts != 2) {
+        argparse_usage(&argparse);
+        exit(-1);
     }
-    return NULL;
+
+    opts.input = argv[0];
+    opts.out = argv[1];
+    return opts;
+}
+
+static bool writeToFile(const JStarBuffer* buf, const char* path) {
+    FILE* f = fopen(path, "wb+");
+    if(fwrite(buf->data, 1, buf->size, f) < buf->size) {
+        return false;
+    }
+    return true;
 }
 
 int main(int argc, char** argv) {
-    if(argc <= 1) {
-        fprintf(stderr, "No files specified\n");
-        return -1;
-    }
+    Options opts = parseArguments(argc, argv);
 
     JStarConf conf = jsrGetConf();
     JStarVM* vm = jsrNewVM(&conf);
 
-    for(int i = 1; i < argc; i++) {
-        const char* file = argv[i];
+    JStarBuffer src;
+    if(!jsrReadFile(vm, opts.input, &src)) {
+        fprintf(stderr, "Cannot open input file %s: %s\n", opts.input, strerror(errno));
+        jsrFreeVM(vm);
+        exit(EXIT_FAILURE);
+    }
 
-        JStarBuffer src;
-        if(!jsrReadFile(vm, file, &src)) {
-            fprintf(stderr, "Cannot read file %s\n", strerror(errno));
-            continue;
-        }
-
-        JStarBuffer blob;
-        JStarResult res = jsrCompileCode(vm, file, src.data, &blob);
+    JStarBuffer compiled;
+    JStarResult res = jsrCompileCode(vm, opts.input, src.data, &compiled);
+    if(res != JSR_SUCCESS) {
+        fprintf(stderr, "Error compiling file %s\n", opts.input);
         jsrBufferFree(&src);
+        jsrFreeVM(vm);
+        exit(EXIT_FAILURE);
+    }
 
-        if(res != JSR_SUCCESS) {
-            fprintf(stderr, "Error compiling file %s\n", file);
-            continue;
-        }
+    jsrBufferFree(&src);
 
-        char* ext = findExtension(file, '.');
-
-        size_t pathLen = ext ? (size_t)(ext - file) : strlen(file) + 1;
-        char* out = malloc(pathLen + strlen(EXTENSION) + 2);
-        memcpy(out, file, pathLen);
-        out[pathLen] = '\0';
-        strcat(out, EXTENSION);
-
-        FILE* outFile = fopen(out, "wb+");
-        if(outFile == NULL) {
-            fprintf(stderr, "Cannot create file %s\n", strerror(errno));
-            free(out);
-            jsrBufferFree(&blob);
-            continue;
-        }
-
-        size_t written = fwrite(blob.data, 1, blob.size, outFile);
-        if(written < blob.size) {
-            fprintf(stderr, "error writing to file %s\n", strerror(errno));
-        }
-
-        fclose(outFile);
-        free(out);
-        jsrBufferFree(&blob);
+    if(!writeToFile(&compiled, opts.out)) {
+        fprintf(stderr, "Failed to write compiled file of %s: %s\n", opts.input, strerror(errno));
+        jsrBufferFree(&compiled);
+        jsrFreeVM(vm);
+        exit(EXIT_FAILURE);
     }
 
     jsrFreeVM(vm);
