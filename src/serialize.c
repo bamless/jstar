@@ -154,10 +154,10 @@ static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
     serializeCode(buf, &f->code);
 }
 
-JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
+JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
     // Push as gc root
     jsrEnsureStack(vm, 1);
-    push(vm, OBJ_VAL(f));
+    push(vm, OBJ_VAL(fn));
 
     JStarBuffer buf;
     jsrBufferInitCapacity(vm, &buf, SER_DEF_SIZE);
@@ -165,7 +165,7 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
     serializeCString(&buf, SERIALIZED_FILE_HEADER);
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
     serializeByte(&buf, JSTAR_VERSION_MINOR);
-    serializeFunction(&buf, f);
+    serializeFunction(&buf, fn);
 
     jsrBufferShrinkToFit(&buf);
     pop(vm);
