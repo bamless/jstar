@@ -18,7 +18,7 @@
 // Endianness conversion macros
 #if defined(JSTAR_LINUX)
     #include <endian.h>
-#elif defined(JSTAR_APPLE)
+#elif defined(JSTAR_MACOS) || defined(JSTAR_IOS)
     #include <libkern/OSByteOrder.h>
 
     #define htobe16(x) OSSwapHostToBigInt16(x)
