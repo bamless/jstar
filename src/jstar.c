@@ -115,7 +115,7 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
     }
 
     // The function won't be executed, only compiled, so pass null module
-    ObjFunction* fn = compile(vm, "compile", NULL, program);
+    ObjFunction* fn = compile(vm, path, NULL, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {
