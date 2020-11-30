@@ -133,11 +133,6 @@ static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
 
 static void serializeCode(JStarBuffer* buf, Code* c) {
     // TODO: store (compressed) line information? maybe give option in application
-    // serialize lines
-    // serializeUint64(buf, c->linesCount);
-    // for(size_t i = 0; i < c->count; i++) {
-    //     serializeUint32(buf, c->lines[i]);
-    // }
 
     // serialize bytecode
     serializeUint64(buf, c->count);
