@@ -86,7 +86,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     ObjFunction* fn = deserializeWithModule(vm, name, code, &err);
 
     if(err == JSR_VERSION_ERR) {
-        vm->errorCallback(path, -1, "Incompatible binary version");
+        vm->errorCallback(path, -1, "Incompatible binary file version");
         return err;
     }
     if(err == JSR_DESERIALIZE_ERR) {
