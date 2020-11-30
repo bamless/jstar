@@ -85,14 +85,13 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = deserializeWithModule(vm, name, code, &err);
 
-    if(fn == NULL) {
-        if(err == JSR_VERSION_ERR) {
-            vm->errorCallback(path, -1, "Incompatible binary version");
-            return err;
-        } else if(err == JSR_DESERIALIZE_ERR) {
-            vm->errorCallback(path, -1, "Malformed binary file");
-            return err;
-        }
+    if(err == JSR_VERSION_ERR) {
+        vm->errorCallback(path, -1, "Incompatible binary version");
+        return err;
+    }
+    if(err == JSR_DESERIALIZE_ERR) {
+        vm->errorCallback(path, -1, "Malformed binary file");
+        return err;
     }
 
     push(vm, OBJ_VAL(fn));
