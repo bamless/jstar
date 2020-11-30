@@ -106,8 +106,6 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     return res;
 }
 
-// EPERIMENTAL: compilation to binary blob
-
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
     JStarStmt* program = jsrParse(path, src, vm->errorCallback);
     if(program == NULL) {
