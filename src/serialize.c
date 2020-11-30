@@ -25,6 +25,10 @@ typedef enum SerializedValue {
     SER_OBJ_NAT,
 } SerializedValue;
 
+// -----------------------------------------------------------------------------
+// SERIALIZATION
+// -----------------------------------------------------------------------------
+
 static void write(JStarBuffer* buf, const void* data, size_t size) {
     jsrBufferAppend(buf, (const char*)data, size);
 }
@@ -168,6 +172,10 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* f) {
 
     return buf;
 }
+
+// -----------------------------------------------------------------------------
+// DESERIALIZATION
+// -----------------------------------------------------------------------------
 
 typedef struct Deserializer {
     JStarVM* vm;
@@ -450,6 +458,10 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf) {
 
     return fn;
 }
+
+// -----------------------------------------------------------------------------
+// TESTER FUNCTIONS
+// -----------------------------------------------------------------------------
 
 bool checkVersion(const JStarBuffer* buf) {
     const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
