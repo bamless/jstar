@@ -117,7 +117,7 @@ dependencies, linenoise-ng, is written in C++.
 You can clone the latest **J\*** sources using git:
 
 ```
-git clone https://github.com/bamless/jstar.git
+git clone --recurse-submodules https://github.com/bamless/jstar.git
 ```
 
 After cloning, use CMake to generate build files for your build system of choice and build the `all`
