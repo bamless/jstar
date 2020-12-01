@@ -16,9 +16,6 @@
 #define JSTAR_PROMPT "J*>> "
 #define LINE_PROMPT  ".... "
 
-static JStarVM* vm;
-static JStarBuffer completionBuf;
-
 typedef struct Options {
     char* script;
     bool showVersion, skipVersion, interactive, ignoreEnv;
@@ -26,6 +23,10 @@ typedef struct Options {
     char** args;
     int argsCount;
 } Options;
+
+static Options opts;
+static JStarVM* vm;
+static JStarBuffer completionBuf;
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
@@ -149,10 +150,10 @@ static void addExprPrint(JStarBuffer* sb) {
     }
 }
 
-static void doRepl(Options* opts) {
-    if(!opts->skipVersion) printVersion();
+static void doRepl() {
+    if(!opts.skipVersion) printVersion();
     linenoiseSetCompletionCallback(completion);
-    initImportPaths("./", opts->ignoreEnv);
+    initImportPaths("./", opts.ignoreEnv);
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
@@ -218,8 +219,8 @@ static JStarResult execScript(const char* script, int argc, char** args, bool ig
 // MAIN FUNCTION AND ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
-static Options parseArguments(int argc, char** argv) {
-    Options opts = {0};
+static void parseArguments(int argc, char** argv) {
+    opts = (Options){0};
 
     static const char* const usage[] = {
         "jstar [options] [script [arguments]]",
@@ -256,12 +257,10 @@ static Options parseArguments(int argc, char** argv) {
         opts.args = &argv[1];
         opts.argsCount = nonOpts - 1;
     }
-
-    return opts;
 }
 
 int main(int argc, char** argv) {
-    Options opts = parseArguments(argc, argv);
+    parseArguments(argc, argv);
 
     if(opts.showVersion) {
         printVersion();
@@ -281,5 +280,5 @@ int main(int argc, char** argv) {
         if(!opts.interactive) exitFree(res);
     }
 
-    doRepl(&opts);
+    doRepl();
 }
