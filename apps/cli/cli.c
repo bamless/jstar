@@ -20,10 +20,10 @@ static JStarVM* vm;
 static JStarBuffer completionBuf;
 
 typedef struct Options {
-    const char* script;
+    char* script;
     bool showVersion, skipVersion, interactive, ignoreEnv;
     char* execStmt;
-    const char** args;
+    char** args;
     int argsCount;
 } Options;
 
@@ -218,7 +218,7 @@ static JStarResult execScript(const char* script, int argc, const char** args, b
 // MAIN FUNCTION AND ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
-static Options parseArguments(int argc, const char** argv) {
+static Options parseArguments(int argc, char** argv) {
     Options opts = {0};
 
     static const char* const usage[] = {
@@ -246,7 +246,7 @@ static Options parseArguments(int argc, const char** argv) {
     struct argparse argparse;
     argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
     argparse_describe(&argparse, "J* a lightweight scripting language", NULL);
-    int nonOpts = argparse_parse(&argparse, argc, argv);
+    int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
 
     if(nonOpts > 0) {
         opts.script = argv[0];
@@ -260,7 +260,7 @@ static Options parseArguments(int argc, const char** argv) {
     return opts;
 }
 
-int main(int argc, const char** argv) {
+int main(int argc, char** argv) {
     Options opts = parseArguments(argc, argv);
 
     if(opts.showVersion) {
