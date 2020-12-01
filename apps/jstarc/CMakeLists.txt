@@ -1,4 +1,5 @@
 set(SOURCES
+    dirent.h
     jstarc.c
 )
 
@@ -10,7 +11,7 @@ endif()
 
 # Executable
 add_executable(jstarc ${SOURCES})
-target_link_libraries(jstarc PRIVATE jstar argparse)
+target_link_libraries(jstarc PRIVATE jstar argparse cwalk)
 
 # Enable link-time optimization if supported
 if(LTO)
