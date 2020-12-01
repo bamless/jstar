@@ -39,6 +39,7 @@
 // The J* virtual machine
 typedef struct JStarVM JStarVM;
 
+// J* dynamic buffer
 typedef struct JStarBuffer JStarBuffer;
 
 typedef enum JStarResult {
@@ -50,12 +51,13 @@ typedef enum JStarResult {
     JSR_VERSION_ERR,      // Incompatible version of compiled code
 } JStarResult;
 
-// J* error function callback. Called when syntax or compilation errors are encountered.
-// 'file' is the path of the file that caused the error, 'line' the line where the error occurred,
-// and 'error' is a descriptive message of the error.
+// J* error function callback. Called when syntax, compilation or dederializtion errors are
+// encountered.
+// 'file' is the path of the file that caused the error, 'line' the line where the error occurred
+// (or -1 of not line information is available), and 'error' is a descriptive message of the error.
 typedef void (*JStarErrorCB)(const char* file, int line, const char* error);
 
-// Default implementation of error callback that prints all errors to stderr
+// Default implementation of the error callback that prints all errors to stderr
 JSTAR_API void jsrPrintErrorCB(const char* file, int line, const char* error);
 
 typedef struct JstarConf {
@@ -70,61 +72,85 @@ JSTAR_API JStarConf jsrGetConf(void);
 
 // Allocate a new VM with all the state needed for code execution
 JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
-// Free a previously obtained VM along with all the state
+
+// Free a previously obtained VM along with all of its state
 JSTAR_API void jsrFreeVM(JStarVM* vm);
 
-// Evaluate J* code in the context of module (or __main__ in jsrEvaluate)
-// as top level <main> function.
-// VM_EVAL_SUCCSESS will be returned if the execution completed normally.
-// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR or JSR_RUNTIME_ERR will be returned.
-// In case of JSR_RUNTIME_ERR the stacktrace of the Exception will be printed to stderr, all other
-// errors forward the message to the error callback
-JSTAR_API JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src);
-JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
-                                          const char* src);
-
+// Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
+// JSR_SUCCESS will be returned if the execution completed normally.
+// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
+// will be returned.
+// In the case of a JSR_RUNTIME_ERR the stacktrace of the Exception will be printed to stderr.
+// All other errors will be forwarded to the error callback
 JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code);
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const JStarBuffer* code);
 
-// Compile provided source to a binary format
+// Similar to the `jsrEval` family of functions, but takes in a c string of the J* source code to
+// evaluate.
+// The provided string can be any c string, and it doesn't have to be the result of a call
+// to `jsrReadFile`. This means that these functions cannot execute compiled J* code, only source
+JSTAR_API JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src);
+JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
+                                          const char* src);
+
+// Compiles the provided source to bytecode, placing the result in `out`.
+// JSR_SUCCESS will be returned if the compilation completed normally.
+// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
+// Please note that the vm always compiles source code before execution, so using this function
+// just to immediately call jsrEval on the result is useless and less efficient than directly
+// calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
+// it over the network, etc...
 JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
                                      JStarBuffer* out);
 
-// Call a function (or method with name "name") that sits on the top of the stack
-// along with its arguments. The state of the stack when calling should be:
+// Reads a J* source or compiled file, placing the output in out.
+// Returns true on success, false on error setting errno to the approriate value.
+// Tipically used alongside jsrEval to execute a J* source or compiled file.
+JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
+
+// Call any callable object (typically a function) that sits on the top of the stack along with its
+// arguments.
+// The state of the stack when calling should be:
+//
 //  ... [callable][arg1][arg2]...[argn] $top
-//         |       |______________|
-//         |                |
-// callable object the args of the function/method
+//          |      |_________________|
+//          |               |
+//        object        arguments
 //
-// In case of success VM_EVAL_SUCCSESS will be returned, and the result will be placed
-// on the top of the stack in the place of the callable object, popping all arguments:
-//  ... [result] $top [arg1][arg2] ... [argn] <-- arguments are popped
+// In case of success JSR_SUCCSESS will be returned, and the result will be placed on the top of the
+// stack in place of the callable object. The state of the stack after a succesful call will be:
 //
-// If an exception has been raised by the code, JSR_RUNTIME_ERR will be returned and
-// The exception will be placed on top of the stack as a result.
+//  ... [result] $top [arg1][arg2] ... [argn] <-- the arguments are popped
+//
+// If an exception has been raised instead, JSR_RUNTIME_ERR will be returned and the exception will
+// be placed in place of the callable object as a result.
 JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
+
+// Similar to the above, but tries to call a method called `name` on an object.
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
-// Breaks J* evaluation at the first chance possible.
-// It can be called by an asynchronous signal handler.
+// Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
 JSTAR_API void jsrEvalBreak(JStarVM* vm);
+
 // Prints the the stacktrace of the exception at slot 'slot'. If the value at 'slot' is not an
 // Exception, or is a non-yet-raised Exception, it doesn't print anything ad returns successfully
 JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
+
 // Get the stacktrace of the exception at 'slot' and leaves it on top of the stack.
 // The stacktrace is a formatted String containing the traceback and the exception error.
 // If the value at slot is not an Exception, or is a non-yet-raised Exception, it places
 // An empty String on top of the stack and returns succesfully
 JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
+
 // Init the sys.args list with a list of arguments (usually main arguments)
 JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
+
 // Add a path to be searched during module imports
 JSTAR_API void jsrAddImportPath(JStarVM* vm, const char* path);
 
 // Raises the axception at 'slot'. If the object at 'slot' is not an exception instance it
-// raises a type exception
+// raises a TypeException instead
 JSTAR_API void jsrRaiseException(JStarVM* vm, int slot);
 
 // Instantiate an exception from "cls" with "err" as an error string and raises
@@ -136,7 +162,8 @@ JSTAR_API void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...);
 // UTILITY FUNCTIONS AND DEFINITIONS
 // -----------------------------------------------------------------------------
 
-// The minimum reserved space for the stack when calling a native function
+// The guaranteed stack space available in a native function call.
+// Use jsrEnusreStack if you need more
 #define JSTAR_MIN_NATIVE_STACK_SZ 20
 
 // Utility macro for declaring/defining a native function
@@ -159,11 +186,6 @@ JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
 
 // A C function callable from J*
 typedef bool (*JStarNative)(JStarVM* vm);
-
-// TODO: Documentation
-// Read a whole file. The returned buffer is malloc'd, so the user should free() it when done.
-// On error returns NULL and sets errno to the appropriate error.
-JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
 
 // -----------------------------------------------------------------------------
 // NATIVE REGISTRY
@@ -263,6 +285,7 @@ JSTAR_API void jsrPushNative(JStarVM* vm, const char* module, const char* name, 
 
 // Pop a value from the top of the stack
 JSTAR_API void jsrPop(JStarVM* vm);
+
 // The the top-most used api stack slot
 JSTAR_API int jsrTop(JStarVM* vm);
 
@@ -404,7 +427,7 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 // Dynamic Buffer that holds memory allocated by the J* garbage collector.
 // This memory is owned by J*, but cannot be collected until the buffer
 // is pushed on the stack using the jsrBufferPush method.
-// Used for efficient creation of Strings in the native API.
+// Can be used for efficient creation of Strings in the native API.
 struct JStarBuffer {
     JStarVM* vm;
     size_t capacity, size;
@@ -429,6 +452,8 @@ JSTAR_API void jsrBufferClear(JStarBuffer* b);
 // Once the buffer is pushed on the J* stack it becomes a String and can't be modified further
 // One can reuse the JStarBuffer struct by re-initializing it using the jsrBufferInit method.
 JSTAR_API void jsrBufferPush(JStarBuffer* b);
+
+// If not pushed with jsrBufferPush the buffer must be freed
 JSTAR_API void jsrBufferFree(JStarBuffer* b);
 
 #endif
