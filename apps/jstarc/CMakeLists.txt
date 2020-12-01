@@ -11,6 +11,9 @@ endif()
 # Executable
 add_executable(jstarc ${SOURCES})
 target_link_libraries(jstarc PRIVATE jstar argparse cwalk)
+if(WIN32)
+    target_link_libraries(jstarc PRIVATE dirent)
+endif()
 
 # Enable link-time optimization if supported
 if(LTO)
