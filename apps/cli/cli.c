@@ -188,7 +188,7 @@ static void doRepl(Options* opts) {
 // -----------------------------------------------------------------------------
 
 static JStarResult execScript(const char* script, int argc, char** args, bool ignoreEnv) {
-    jsrInitCommandLineArgs(vm, argc, args);
+    jsrInitCommandLineArgs(vm, argc, (const char**)args);
 
     // set base import path to script's directory
     char* directory = strrchr(script, '/');
