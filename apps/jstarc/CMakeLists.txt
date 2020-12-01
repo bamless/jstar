@@ -1,5 +1,4 @@
 set(SOURCES
-    dirent.h
     jstarc.c
 )
 
