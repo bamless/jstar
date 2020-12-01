@@ -6,6 +6,7 @@
 
 #include "object.h"
 #include "opcode.h"
+#include "util.h"
 #include "value.h"
 
 // Create string names of opcodes

@@ -1,8 +1,8 @@
 #include <argparse.h>
-#include <assert.h>
 #include <cwalk.h>
 #include <dirent.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "compiler.h"
 #include "const.h"
 #include "hashtable.h"
 #include "import.h"

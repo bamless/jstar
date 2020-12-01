@@ -1,6 +1,8 @@
 #ifndef SERIALIZE_H
 #define SERIALIZE_H
 
+#include <stdbool.h>
+
 #include "jstar.h"
 #include "object.h"
 

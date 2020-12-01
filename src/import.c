@@ -1,7 +1,6 @@
 #include "import.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "compiler.h"
@@ -12,6 +11,7 @@
 #include "parse/parser.h"
 #include "serialize.h"
 #include "std/modules.h"
+#include "util.h"
 #include "value.h"
 #include "vm.h"
 
