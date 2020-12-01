@@ -1,2 +1,2 @@
-add_subdirectory(cli)
+add_subdirectory(jstar)
 add_subdirectory(jstarc)
