@@ -86,7 +86,7 @@ jstarc src/file.jsr -o file.jsc
 ```
 You can even pass in a directory if you want to compile all `jsr` files contained in it:
 ```
-This compiles all jsr files in `dir` and stores them in a directory `out`
+This compiles all *.jsr files in `dir` and stores them in a directory `out`
 Both directories have to exist
 
 jstarc dir/ -o out/
