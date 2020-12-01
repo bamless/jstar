@@ -1,3 +1,4 @@
 add_subdirectory(argparse EXCLUDE_FROM_ALL)
 add_subdirectory(cwalk EXCLUDE_FROM_ALL)
+add_subdirectory(dirent EXCLUDE_FROM_ALL)
 add_subdirectory(linenoise EXCLUDE_FROM_ALL)
