@@ -1,0 +1,3 @@
+[submodule "extern/linenoise-ng"]
+	path = extern/linenoise-ng
+	url = https://github.com/bamless/linenoise-ng.git
