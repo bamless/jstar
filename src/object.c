@@ -156,6 +156,7 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     case OBJ_CLOSURE: {
         ObjFunction* fn = ((ObjClosure*)f->fn)->fn;
         Code* code = &fn->code;
+
         size_t op = f->ip - code->bytecode - 1;
         op = op < code->count ? op : code->count - 1;
 
@@ -274,73 +275,71 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
 #define JSR_BUF_DEFAULT_SIZE 16
 
 ObjString* jsrBufferToString(JStarBuffer* b) {
-    char* data = gcAlloc(b->vm, b->data, b->size, b->len + 1);
+    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
     s->interned = false;
-    s->length = b->len;
+    s->length = b->size;
     s->data = data;
     s->hash = 0;
     s->data[s->length] = '\0';
-
-    // Reset JStarBuffer
     memset(b, 0, sizeof(JStarBuffer));
     return s;
 }
 
 static void jsrBufGrow(JStarBuffer* b, size_t len) {
-    size_t newSize = b->size;
-    while(newSize < b->len + len) {
+    size_t newSize = b->capacity;
+    while(newSize < b->size + len) {
         newSize <<= 1;
     }
-    char* newData = gcAlloc(b->vm, b->data, b->size, newSize);
-    b->size = newSize;
+    char* newData = gcAlloc(b->vm, b->data, b->capacity, newSize);
+    b->capacity = newSize;
     b->data = newData;
 }
 
 void jsrBufferInit(JStarVM* vm, JStarBuffer* b) {
-    jsrBufferInitSz(vm, b, JSR_BUF_DEFAULT_SIZE);
+    jsrBufferInitCapacity(vm, b, JSR_BUF_DEFAULT_SIZE);
 }
 
-void jsrBufferInitSz(JStarVM* vm, JStarBuffer* b, size_t size) {
-    if(size < JSR_BUF_DEFAULT_SIZE) size = JSR_BUF_DEFAULT_SIZE;
+void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity) {
+    if(capacity < JSR_BUF_DEFAULT_SIZE) capacity = JSR_BUF_DEFAULT_SIZE;
     b->vm = vm;
-    b->size = size;
-    b->len = 0;
-    b->data = GC_ALLOC(vm, size);
+    b->capacity = capacity;
+    b->size = 0;
+    b->data = GC_ALLOC(vm, capacity);
 }
 
 void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len) {
-    if(b->len + len >= b->size) {
+    if(b->size + len >= b->capacity) {
         jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
-    memcpy(&b->data[b->len], str, len);
-    b->len += len;
-    b->data[b->len] = '\0';
+    memcpy(&b->data[b->size], str, len);
+    b->size += len;
+    b->data[b->size] = '\0';
 }
 
-void jsrBufferAppendstr(JStarBuffer* b, const char* str) {
+void jsrBufferAppendStr(JStarBuffer* b, const char* str) {
     jsrBufferAppend(b, str, strlen(str));
 }
 
 void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap) {
-    size_t availableSpace = b->size - b->len;
+    size_t availableSpace = b->capacity - b->size;
 
     va_list cpy;
     va_copy(cpy, ap);
-    size_t written = vsnprintf(&b->data[b->len], availableSpace, fmt, cpy);
+    size_t written = vsnprintf(&b->data[b->size], availableSpace, fmt, cpy);
     va_end(cpy);
 
     // Not enough space, need to grow and retry
     if(written >= availableSpace) {
         jsrBufGrow(b, written + 1);
-        availableSpace = b->size - b->len;
+        availableSpace = b->capacity - b->size;
         va_copy(cpy, ap);
-        written = vsnprintf(&b->data[b->len], availableSpace, fmt, cpy);
+        written = vsnprintf(&b->data[b->size], availableSpace, fmt, cpy);
         ASSERT(written < availableSpace, "Buffer still to small");
         va_end(cpy);
     }
 
-    b->len += written;
+    b->size += written;
 }
 
 void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...) {
@@ -351,20 +350,20 @@ void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...) {
 }
 
 void jsrBufferTrunc(JStarBuffer* b, size_t len) {
-    if(len >= b->len) return;
-    b->len = len;
+    if(len >= b->size) return;
+    b->size = len;
     b->data[len] = '\0';
 }
 
 void jsrBufferCut(JStarBuffer* b, size_t len) {
-    if(len == 0 || len > b->len) return;
-    memmove(b->data, b->data + len, b->len - len);
-    b->len -= len;
-    b->data[b->len] = '\0';
+    if(len == 0 || len > b->size) return;
+    memmove(b->data, b->data + len, b->size - len);
+    b->size -= len;
+    b->data[b->size] = '\0';
 }
 
 void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r) {
-    for(size_t i = start; i < b->len; i++) {
+    for(size_t i = start; i < b->size; i++) {
         if(b->data[i] == c) {
             b->data[i] = r;
         }
@@ -372,27 +371,32 @@ void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r) {
 }
 
 void jsrBufferPrepend(JStarBuffer* b, const char* str, size_t len) {
-    if(b->len + len >= b->size) {
+    if(b->size + len >= b->capacity) {
         jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
-    memmove(b->data + len, b->data, b->len);
+    memmove(b->data + len, b->data, b->size);
     memcpy(b->data, str, len);
-    b->len += len;
-    b->data[b->len] = '\0';
+    b->size += len;
+    b->data[b->size] = '\0';
 }
 
-void jsrBufferPrependstr(JStarBuffer* b, const char* str) {
+void jsrBufferPrependStr(JStarBuffer* b, const char* str) {
     jsrBufferPrepend(b, str, strlen(str));
 }
 
 void jsrBufferAppendChar(JStarBuffer* b, char c) {
-    if(b->len + 1 >= b->size) jsrBufGrow(b, 2);
-    b->data[b->len++] = c;
-    b->data[b->len] = '\0';
+    if(b->size + 1 >= b->capacity) jsrBufGrow(b, 2);
+    b->data[b->size++] = c;
+    b->data[b->size] = '\0';
+}
+
+void jsrBufferShrinkToFit(JStarBuffer* b) {
+    b->data = gcAlloc(b->vm, b->data, b->capacity, b->size);
+    b->capacity = b->size;
 }
 
 void jsrBufferClear(JStarBuffer* b) {
-    b->len = 0;
+    b->size = 0;
     b->data[0] = '\0';
 }
 
@@ -403,7 +407,7 @@ void jsrBufferPush(JStarBuffer* b) {
 
 void jsrBufferFree(JStarBuffer* b) {
     if(b->data == NULL) return;
-    GC_FREE_ARRAY(b->vm, char, b->data, b->size);
+    GC_FREE_ARRAY(b->vm, char, b->data, b->capacity);
     memset(b, 0, sizeof(JStarBuffer));
 }
 

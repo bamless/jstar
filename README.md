@@ -20,10 +20,10 @@ among the language and host program, rendering embedding simple.
 
 **J\*** is:
  - **Small**. The implementation spans only a handful of files and the memory footprint is low
-   thanks to a minimal standard library that provides only essential functionalities.
+   thanks to a minimal standard library that provides only essential functionalities
  - **Easy to use**. The API is contained in a single header file and employs a stack based approach
    similar to the one of LUA, freeing the user from the burden of keeping track of memory owned by
-   the language.
+   the language
  - **Fully object oriented**. Every entity, from numbers to class instances, is an object in **J\***
  - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
  - **Easily extensible**. The language can be easily extended by creating C functions callable from
@@ -32,7 +32,7 @@ among the language and host program, rendering embedding simple.
 
 To get a feel of the language, [try it in your browser](https://bamless.github.io/jstar/demo)!
 
-# The **jstar** Command Line Interface
+# The **jstar** command line interface
 
 Besides the language implementation, a simple command line interface called `jstar` is provided to
 start using the language without embedding it into another program.  
@@ -58,7 +58,7 @@ J*>> _
 When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpreter.
 
 If you instead want to execute code written in some file, you can pass it as an argument to `jstar`. 
-All arguments after the first will be passed to the language as script arguments. You can then read 
+All arguments after the first will be passed to the language as script arguments, you can then read 
 them from the script this way:
 ```lua
 if #argv > 0 then
@@ -73,12 +73,37 @@ app. To see all of them alongside a description, simply pass the `-h` option to 
 In addition to being a useful tool to directly use the programming language, the command line 
 interface is also a good starting point to learn how **J\*** can be embedded in a program, as it 
 uses the API to implement all of its functionalities. You can find the code in 
-[**cli/cli.c**](https://github.com/bamless/jstar/blob/master/cli/cli.c).
+[**apps/jstar/cli.c**](https://github.com/bamless/jstar/blob/master/apps/jstar/cli.c).
 
-# Binaries
+# The **jstarc** compiler
+Another application, called `jstarc`, is provided alongside the cli and the language runtime. As the
+name implies, this is a compiler that takes in **J\*** source files, compiles them to bytecode
+and stores them on file.
 
-Precompiled binaries are provided for Windows and Linux for every major release. You can find them
-[here](https://github.com/bamless/jstar/releases).
+Below is a typical usage of `jstarc`:
+```
+jstarc src/file.jsr -o file.jsc
+```
+You can even pass in a directory if you want to compile all `jsr` files contained in it:
+```
+This compiles all *.jsr files in `dir` and stores them in a directory `out`
+Both directories have to exist
+
+jstarc dir/ -o out/
+```
+
+The output `.jsc` files behave in the same way as normal `.jsr` source files. You can pass them
+to the `jstar` cli app to execute them and can be even imported by other **J\*** files.
+
+Compiled files are not faster to execute than normal source files, as the **J\*** vm will always
+compile source to bytecote before execution, but have nonetheless some nice advantages:
+ - **Compactness**. compiled files are more compact than source files and generally take up less
+   space
+ - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option 
+   since all the source and almost all the debug information are stripped
+ - **Faster startup**. Reading a compiled file is orders of magnitude faster than parsing and
+   compiling source code, so there's almost no delay between importing and actual execution
+
 
 # Compilation
 
@@ -124,3 +149,8 @@ Various CMake options are available to switch on or off certain functionalities 
 | JSTAR_DBG_PRINT_EXEC |   OFF   | Trace the execution of instructions of the virtual machine |
 | JSTAR_DBG_STRESS_GC  |   OFF   | Stress the garbage collector by calling it on every allocation |
 | JSTAR_DBG_PRINT_GC   |   OFF   | Trace the execution of the garbage collector |
+
+# Binaries
+
+Precompiled binaries are provided for Windows and Linux for every major release. You can find them
+[here](https://github.com/bamless/jstar/releases).

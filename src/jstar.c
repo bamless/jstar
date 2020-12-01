@@ -11,6 +11,7 @@
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
+#include "serialize.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
@@ -22,7 +23,11 @@
 // -----------------------------------------------------------------------------
 
 void jsrPrintErrorCB(const char* file, int line, const char* error) {
-    fprintf(stderr, "File %s [line:%d]:\n", file, line);
+    if(line >= 0) {
+        fprintf(stderr, "File %s [line:%d]:\n", file, line);
+    } else {
+        fprintf(stderr, "File %s:\n", file);
+    }
     fprintf(stderr, "%s\n", error);
 }
 
@@ -35,30 +40,88 @@ JStarConf jsrGetConf(void) {
     return conf;
 }
 
-JStarResult jsrEvaluate(JStarVM* vm, const char* path, const char* src) {
-    return jsrEvaluateModule(vm, path, JSR_MAIN_MODULE, src);
+JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
+    return jsrEvalModuleString(vm, path, JSR_MAIN_MODULE, src);
 }
 
-JStarResult jsrEvaluateModule(JStarVM* vm, const char* path, const char* module, const char* src) {
+JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
+                                const char* src) {
     JStarStmt* program = jsrParse(path, src, vm->errorCallback);
-    if(program == NULL) return JSR_SYNTAX_ERR;
+    if(program == NULL) {
+        return JSR_SYNTAX_ERR;
+    }
 
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = compileWithModule(vm, path, name, program);
     jsrStmtFree(program);
 
-    if(fn == NULL) return JSR_COMPILE_ERR;
+    if(fn == NULL) {
+        return JSR_COMPILE_ERR;
+    }
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
-    JStarResult res;
-    if((res = jsrCall(vm, 0)) != JSR_EVAL_SUCCESS) {
+    JStarResult res = jsrCall(vm, 0);
+    if(res != JSR_SUCCESS) {
         jsrPrintStacktrace(vm, -1);
     }
 
     pop(vm);
     return res;
+}
+
+JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
+    return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code);
+}
+
+JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
+                                    const JStarBuffer* code) {
+    if(!isCompiledCode(code)) {
+        return jsrEvalModuleString(vm, path, module, code->data);
+    }
+
+    JStarResult err;
+    ObjString* name = copyString(vm, module, strlen(module));
+    ObjFunction* fn = deserializeWithModule(vm, name, code, &err);
+
+    if(err == JSR_VERSION_ERR) {
+        vm->errorCallback(path, -1, "Incompatible binary file version");
+        return err;
+    }
+    if(err == JSR_DESERIALIZE_ERR) {
+        vm->errorCallback(path, -1, "Malformed binary file");
+        return err;
+    }
+
+    push(vm, OBJ_VAL(fn));
+    vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
+
+    JStarResult res = jsrCall(vm, 0);
+    if(res != JSR_SUCCESS) {
+        jsrPrintStacktrace(vm, -1);
+    }
+
+    pop(vm);
+    return res;
+}
+
+JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
+    JStarStmt* program = jsrParse(path, src, vm->errorCallback);
+    if(program == NULL) {
+        return JSR_SYNTAX_ERR;
+    }
+
+    // The function won't be executed, only compiled, so pass null module
+    ObjFunction* fn = compile(vm, path, NULL, program);
+    jsrStmtFree(program);
+
+    if(fn == NULL) {
+        return JSR_COMPILE_ERR;
+    }
+
+    *out = serialize(vm, fn);
+    return JSR_SUCCESS;
 }
 
 static JStarResult finishCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
@@ -69,7 +132,7 @@ static JStarResult finishCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset)
         push(vm, exc);
         return JSR_RUNTIME_ERR;
     }
-    return JSR_EVAL_SUCCESS;
+    return JSR_SUCCESS;
 }
 
 static void callError(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
@@ -155,7 +218,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
     if(err != NULL) {
         JStarBuffer error;
-        jsrBufferInitSz(vm, &error, 64);
+        jsrBufferInitCapacity(vm, &error, 64);
 
         va_list args;
         va_start(args, err);
@@ -187,32 +250,54 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
     reserveStack(vm, needed);
 }
 
-char* jsrReadFile(const char* path) {
-    FILE* srcFile = fopen(path, "rb");
-    if(srcFile == NULL || errno == EISDIR) {
-        if(srcFile) fclose(srcFile);
-        return NULL;
-    }
-
-    fseek(srcFile, 0, SEEK_END);
-    size_t size = ftell(srcFile);
-    rewind(srcFile);
-
-    char* src = malloc(size + 1);
+bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
+    FILE* src = fopen(path, "r");
     if(src == NULL) {
-        fclose(srcFile);
-        return NULL;
+        return false;
     }
 
-    size_t read = fread(src, sizeof(char), size, srcFile);
-    if(read < size) {
-        free(src);
-        fclose(srcFile);
-        return NULL;
+    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
+    char header[sizeof(SERIALIZED_FILE_HEADER) - 1];
+    bool isCompiled = false;
+
+    if(fread(header, 1, headerSize, src) == headerSize) {
+        if(memcmp(SERIALIZED_FILE_HEADER, header, headerSize) == 0) {
+            src = freopen(path, "rb", src);
+            if(src == NULL) return false;
+            isCompiled = true;
+        }
+    } else {
+        rewind(src);
     }
 
-    fclose(srcFile);
-    src[read] = '\0';
+    if(fseek(src, 0, SEEK_END)) {
+        return false;
+    }
+
+    long size;
+    if((size = ftell(src)) < 0) {
+        return false;
+    }
+
+    rewind(src);
+
+    jsrBufferInitCapacity(vm, out, size + (isCompiled ? 0 : 1));
+
+    size_t read = fread(out->data, 1, size, src);
+    if(read < (size_t)size) {
+        int saveErr = errno;
+        jsrBufferFree(out);
+        fclose(src);
+        errno = saveErr;
+        return false;
+    }
+
+    fclose(src);
+    if(!isCompiled) {
+        out->data[size] = '\0';
+    }
+
+    out->size = size;
     return src;
 }
 
@@ -238,7 +323,7 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
             push(vm, v1);
             push(vm, v2);
             JStarResult res = jsrCallMethod(vm, "__eq__", 1);
-            if(res == JSR_EVAL_SUCCESS) {
+            if(res == JSR_SUCCESS) {
                 return valueToBool(pop(vm));
             } else {
                 pop(vm);
@@ -262,7 +347,7 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
     jsrPushValue(vm, iterable);
     jsrPushValue(vm, res < 0 ? res - 1 : res);
 
-    if(jsrCallMethod(vm, "__iter__", 1) != JSR_EVAL_SUCCESS) {
+    if(jsrCallMethod(vm, "__iter__", 1) != JSR_SUCCESS) {
         return *err = true;
     }
     if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
@@ -278,7 +363,7 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
 bool jsrNext(JStarVM* vm, int iterable, int res) {
     jsrPushValue(vm, iterable);
     jsrPushValue(vm, res < 0 ? res - 1 : res);
-    if(jsrCallMethod(vm, "__next__", 1) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCallMethod(vm, "__next__", 1) != JSR_SUCCESS) return false;
     return true;
 }
 

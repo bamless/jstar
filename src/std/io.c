@@ -36,7 +36,7 @@ static bool readline(JStarVM* vm, FILE* file) {
 
     JStarBuffer data;
     jsrBufferInit(vm, &data);
-    jsrBufferAppendstr(&data, buf);
+    jsrBufferAppendStr(&data, buf);
 
     while(strrchr(buf, '\n') == NULL) {
         line = fgets(buf, sizeof(buf), file);
@@ -48,7 +48,7 @@ static bool readline(JStarVM* vm, FILE* file) {
                 return false;
             }
         }
-        jsrBufferAppendstr(&data, buf);
+        jsrBufferAppendStr(&data, buf);
     }
 
     jsrBufferPush(&data);
@@ -187,7 +187,7 @@ JSR_NATIVE(jsr_File_read) {
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     JStarBuffer data;
-    jsrBufferInitSz(vm, &data, bytes);
+    jsrBufferInitCapacity(vm, &data, bytes);
 
     size_t read;
     if((read = fread(data.data, 1, bytes, f)) < (size_t)bytes && ferror(f)) {
@@ -195,7 +195,7 @@ JSR_NATIVE(jsr_File_read) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
-    data.len = read;
+    data.size = read;
     jsrBufferPush(&data);
     return true;
 }
@@ -208,7 +208,7 @@ JSR_NATIVE(jsr_File_readAll) {
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     JStarBuffer data;
-    jsrBufferInitSz(vm, &data, 512);
+    jsrBufferInitCapacity(vm, &data, 512);
 
     size_t read;
     char buf[4096];
@@ -354,7 +354,7 @@ JSR_NATIVE(jsr_popen) {
 
     jsrGetGlobal(vm, NULL, "__PFile");
     jsrPushHandle(vm, f);
-    if(jsrCall(vm, 1) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
     return true;
 #else
     JSR_RAISE(vm, "NotImplementedException", "`popen` not supported on current system.");
@@ -366,7 +366,7 @@ static bool createStdFile(JStarVM* vm, const char* name, FILE* stdfile) {
     jsrPushNull(vm);
     jsrPushNull(vm);
     jsrPushHandle(vm, stdfile);
-    if(jsrCall(vm, 3) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, 3) != JSR_SUCCESS) return false;
     jsrSetGlobal(vm, NULL, name);
     jsrPop(vm);
     return true;

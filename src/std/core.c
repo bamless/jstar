@@ -70,7 +70,7 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
     for(size_t i = 0; i < size; i++) {
         push(vm, v1[i]);
         push(vm, v2[i]);
-        if(jsrCallMethod(vm, "__eq__", 1) != JSR_EVAL_SUCCESS) return false;
+        if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
         if(!(*out = valueToBool(pop(vm)))) return true;
     }
     return true;
@@ -164,7 +164,7 @@ void initCoreModule(JStarVM* vm) {
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
     // Execute core module code
-    jsrEvaluateModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
+    jsrEvalModuleString(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
 
     // Cache builtin class objects in JStarVM
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
@@ -338,7 +338,7 @@ JSR_NATIVE(jsr_List_new) {
         for(size_t i = 0; i < lst->count; i++) {
             jsrPushValue(vm, 2);
             jsrPushNumber(vm, i);
-            if(jsrCall(vm, 1) != JSR_EVAL_SUCCESS) return false;
+            if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
             lst->arr[i] = pop(vm);
         }
     } else {
@@ -424,7 +424,7 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, comparator);
         push(vm, a);
         push(vm, b);
-        if(jsrCall(vm, 2) != JSR_EVAL_SUCCESS) return false;
+        if(jsrCall(vm, 2) != JSR_SUCCESS) return false;
 
         if(!IS_NUM(peek(vm))) {
             JSR_RAISE(vm, "TypeException", "`comparator` didn't return a Number, got %s",
@@ -437,7 +437,7 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
     } else {
         push(vm, a);
         push(vm, b);
-        if(jsrCallMethod(vm, "__le__", 1) != JSR_EVAL_SUCCESS) return false;
+        if(jsrCallMethod(vm, "__le__", 1) != JSR_SUCCESS) return false;
         *out = valueToBool(pop(vm));
     }
     return true;
@@ -627,7 +627,7 @@ JSR_NATIVE(jsr_Tuple_hash) {
     uint32_t hash = 1;
     for(size_t i = 0; i < tup->size; i++) {
         push(vm, tup->arr[i]);
-        if(jsrCallMethod(vm, "__hash__", 0) != JSR_EVAL_SUCCESS) return false;
+        if(jsrCallMethod(vm, "__hash__", 0) != JSR_SUCCESS) return false;
         JSR_CHECK(Number, -1, "__hash__() return value");
         uint32_t elemHash = jsrGetNumber(vm, -1);
         pop(vm);
@@ -648,7 +648,7 @@ JSR_NATIVE(jsr_String_new) {
     JSR_FOREACH(
         1,
         {
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) {
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
                 jsrBufferFree(&string);
                 return false;
             }
@@ -656,7 +656,7 @@ JSR_NATIVE(jsr_String_new) {
                 jsrBufferFree(&string);
                 JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
             }
-            jsrBufferAppendstr(&string, jsrGetString(vm, -1));
+            jsrBufferAppendStr(&string, jsrGetString(vm, -1));
             jsrPop(vm);
         },
         jsrBufferFree(&string));
@@ -771,7 +771,7 @@ JSR_NATIVE(jsr_String_join) {
         1,
         {
             if(!jsrIsString(vm, -1)) {
-                if((jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS)) {
+                if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
                     jsrBufferFree(&joined);
                     return false;
                 }
@@ -786,8 +786,8 @@ JSR_NATIVE(jsr_String_join) {
         },
         jsrBufferFree(&joined))
 
-    if(joined.len > 0) {
-        jsrBufferTrunc(&joined, joined.len - jsrGetStringSz(vm, 0));
+    if(joined.size > 0) {
+        jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 0));
     }
 
     jsrBufferPush(&joined);
@@ -829,7 +829,7 @@ JSR_NATIVE(jsr_String_mod) {
                 }
                 push(vm, fmtArg);
 
-                if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) {
+                if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
                     jsrBufferFree(&buf);
                     return false;
                 }
@@ -840,7 +840,7 @@ JSR_NATIVE(jsr_String_mod) {
                               getClass(vm, fmtArg)->name->data);
                 }
 
-                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
                 jsrPop(vm);
 
                 ptr = end;  // skip the format specifier
@@ -947,7 +947,7 @@ static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
     }
 
     push(vm, key);
-    if(jsrCallMethod(vm, "__hash__", 0) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCallMethod(vm, "__hash__", 0) != JSR_SUCCESS) return false;
     JSR_CHECK(Number, -1, "__hash__() return value");
     *hash = (uint32_t)jsrGetNumber(vm, -1);
     pop(vm);
@@ -962,7 +962,7 @@ static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
 
     push(vm, k1);
     push(vm, k2);
-    if(jsrCallMethod(vm, "__eq__", 1) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
     *eq = valueToBool(pop(vm));
     return true;
 }
@@ -1230,25 +1230,25 @@ JSR_NATIVE(jsr_Table_string) {
         for(size_t i = 0; i < t->sizeMask + 1; i++) {
             if(!IS_NULL(entries[i].key)) {
                 push(vm, entries[i].key);
-                if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS || !jsrIsString(vm, -1)) {
+                if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
                     jsrBufferFree(&buf);
                     return false;
                 }
-                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
-                jsrBufferAppendstr(&buf, " : ");
+                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendStr(&buf, " : ");
                 jsrPop(vm);
 
                 push(vm, entries[i].val);
-                if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS || !jsrIsString(vm, -1)) {
+                if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
                     jsrBufferFree(&buf);
                     return false;
                 }
-                jsrBufferAppendstr(&buf, jsrGetString(vm, -1));
-                jsrBufferAppendstr(&buf, ", ");
+                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
+                jsrBufferAppendStr(&buf, ", ");
                 jsrPop(vm);
             }
         }
-        jsrBufferTrunc(&buf, buf.len - 2);
+        jsrBufferTrunc(&buf, buf.size - 2);
     }
     jsrBufferAppendChar(&buf, '}');
     jsrBufferPush(&buf);
@@ -1309,7 +1309,7 @@ JSR_NATIVE(jsr_Enum_new) {
             if(customEnum) {
                 jsrPushValue(vm, 2);
                 jsrPushValue(vm, -2);
-                if(jsrCallMethod(vm, "__get__", 1) != JSR_EVAL_SUCCESS) return false;
+                if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
             } else {
                 jsrPushNumber(vm, i);
             }
@@ -1322,13 +1322,13 @@ JSR_NATIVE(jsr_Enum_new) {
             if(customEnum) {
                 jsrPushValue(vm, 2);
                 jsrPushValue(vm, -3);
-                if(jsrCallMethod(vm, "__get__", 1) != JSR_EVAL_SUCCESS) return false;
+                if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
             } else {
                 jsrPushNumber(vm, i);
             }
 
             jsrPushValue(vm, -3);
-            if(jsrCallMethod(vm, "__set__", 2) != JSR_EVAL_SUCCESS) return false;
+            if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
             jsrPop(vm);
 
             jsrPop(vm);
@@ -1350,7 +1350,7 @@ JSR_NATIVE(jsr_Enum_value) {
 JSR_NATIVE(jsr_Enum_name) {
     if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
     jsrPushValue(vm, 1);
-    if(jsrCallMethod(vm, "__get__", 1) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
     return true;
 }
 // end
@@ -1415,7 +1415,7 @@ JSR_NATIVE(jsr_ascii) {
 
 JSR_NATIVE(jsr_print) {
     jsrPushValue(vm, 1);
-    if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
     if(!jsrIsString(vm, -1)) {
         JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
     }
@@ -1425,7 +1425,7 @@ JSR_NATIVE(jsr_print) {
 
     JSR_FOREACH(
         2, {
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_EVAL_SUCCESS) return false;
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
             if(!jsrIsString(vm, -1)) {
                 JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
             }
@@ -1472,7 +1472,7 @@ JSR_NATIVE(jsr_eval) {
     pop(vm);
 
     push(vm, OBJ_VAL(closure));
-    if(jsrCall(vm, 0) != JSR_EVAL_SUCCESS) return false;
+    if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
     pop(vm);
 
     jsrPushNull(vm);
@@ -1576,7 +1576,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     }
 
     JStarBuffer string;
-    jsrBufferInitSz(vm, &string, 64);
+    jsrBufferInitCapacity(vm, &string, 64);
 
     Value cause = NULL_VAL;
     hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
@@ -1586,7 +1586,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
         Value stackTrace = peek(vm);
         if(IS_STRING(stackTrace)) {
             jsrBufferAppend(&string, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);
-            jsrBufferAppendstr(&string, "\n\nAbove Exception caused:\n");
+            jsrBufferAppendStr(&string, "\n\nAbove Exception caused:\n");
         }
         pop(vm);
     }
@@ -1607,13 +1607,13 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
                     if(!recordEquals(lastRecord, record)) break;
                     repetitions++, i--;
                 }
-                jsrBufferAppendstr(&string, INDENT "...\n");
+                jsrBufferAppendStr(&string, INDENT "...\n");
                 jsrBufferAppendf(&string, INDENT "[Previous line repeated %d times]\n",
                                  repetitions);
                 continue;
             }
 
-            jsrBufferAppendstr(&string, "    ");
+            jsrBufferAppendStr(&string, "    ");
             if(record->line >= 0)
                 jsrBufferAppendf(&string, "[line %d]", record->line);
             else

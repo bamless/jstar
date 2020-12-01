@@ -115,7 +115,7 @@ static void error(Compiler* c, int line, const char* format, ...) {
 
     if(vm->errorCallback) {
         JStarBuffer error;
-        jsrBufferInitSz(c->vm, &error, 64);
+        jsrBufferInitCapacity(c->vm, &error, 64);
 
         va_list args;
         va_start(args, format);
@@ -407,7 +407,7 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
         }
     }
 
-    return copyString(c->vm, sb->data, sb->len);
+    return copyString(c->vm, sb->data, sb->size);
 }
 
 static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
@@ -1096,7 +1096,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     } else {
         emitBytecode(c, OP_IMPORT_FROM, s->line);
     }
-    emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
+    emitShort(c, stringConst(c, moduleName.data, moduleName.size, s->line), s->line);
 
     // compile submodule imports
     for(size_t i = 1; i < vecSize(modules); i++) {
@@ -1107,11 +1107,11 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         jsrBufferAppendf(&moduleName, ".%.*s", subModuleId->length, subModuleId->name);
 
         emitBytecode(c, OP_IMPORT_FROM, s->line);
-        emitShort(c, stringConst(c, moduleName.data, moduleName.len, s->line), s->line);
+        emitShort(c, stringConst(c, moduleName.data, moduleName.size, s->line), s->line);
     }
 
     if(isImportFor) {
-        uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.len, s->line);
+        uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.size, s->line);
         vecForeach(JStarIdentifier(**it), *impNames) {
             JStarIdentifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);

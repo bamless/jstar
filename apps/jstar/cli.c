@@ -1,4 +1,5 @@
 #include <argparse.h>
+#include <errno.h>
 #include <linenoise.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -15,16 +16,17 @@
 #define JSTAR_PROMPT "J*>> "
 #define LINE_PROMPT  ".... "
 
-static JStarVM* vm;
-static JStarBuffer completionBuf;
-
 typedef struct Options {
-    const char* script;
+    char* script;
     bool showVersion, skipVersion, interactive, ignoreEnv;
     char* execStmt;
-    const char** args;
+    char** args;
     int argsCount;
 } Options;
+
+static Options opts;
+static JStarVM* vm;
+static JStarBuffer completionBuf;
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
@@ -73,9 +75,16 @@ static void sigintHandler(int sig) {
     jsrEvalBreak(vm);
 }
 
-static JStarResult evaluate(const char* name, const char* src) {
+static JStarResult evaluate(const char* name, const JStarBuffer* src) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEvaluate(vm, name, src);
+    JStarResult res = jsrEval(vm, name, src);
+    signal(SIGINT, SIG_DFL);
+    return res;
+}
+
+static JStarResult evaluateString(const char* name, const char* src) {
+    signal(SIGINT, &sigintHandler);
+    JStarResult res = jsrEvalString(vm, name, src);
     signal(SIGINT, SIG_DFL);
     return res;
 }
@@ -135,38 +144,38 @@ static int countBlocks(const char* line) {
 static void addExprPrint(JStarBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL);
     if(e != NULL) {
-        jsrBufferPrependstr(sb, "var _ = ");
-        jsrBufferAppendstr(sb, "\nif _ != null then print(_) end");
+        jsrBufferPrependStr(sb, "var _ = ");
+        jsrBufferAppendStr(sb, "\nif _ != null then print(_) end");
         jsrExprFree(e);
     }
 }
 
-static void doRepl(Options* opts) {
-    if(!opts->skipVersion) printVersion();
+static void doRepl() {
+    if(!opts.skipVersion) printVersion();
     linenoiseSetCompletionCallback(completion);
-    initImportPaths("./", opts->ignoreEnv);
+    initImportPaths("./", opts.ignoreEnv);
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
-    JStarResult res = JSR_EVAL_SUCCESS;
+    JStarResult res = JSR_SUCCESS;
 
     char* line;
     while((line = linenoise(JSTAR_PROMPT)) != NULL) {
         linenoiseHistoryAdd(line);
         int depth = countBlocks(line);
-        jsrBufferAppendstr(&src, line);
+        jsrBufferAppendStr(&src, line);
         free(line);
 
         while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
             linenoiseHistoryAdd(line);
             depth += countBlocks(line);
             jsrBufferAppendChar(&src, '\n');
-            jsrBufferAppendstr(&src, line);
+            jsrBufferAppendStr(&src, line);
             free(line);
         }
 
         addExprPrint(&src);
-        res = evaluate("<stdin>", src.data);
+        res = evaluateString("<stdin>", src.data);
         jsrBufferClear(&src);
     }
 
@@ -179,8 +188,8 @@ static void doRepl(Options* opts) {
 // SCRIPT EXECUTION
 // -----------------------------------------------------------------------------
 
-static JStarResult execScript(const char* script, int argc, const char** args, bool ignoreEnv) {
-    jsrInitCommandLineArgs(vm, argc, args);
+static JStarResult execScript(const char* script, int argc, char** args, bool ignoreEnv) {
+    jsrInitCommandLineArgs(vm, argc, (const char**)args);
 
     // set base import path to script's directory
     char* directory = strrchr(script, '/');
@@ -194,15 +203,14 @@ static JStarResult execScript(const char* script, int argc, const char** args, b
         initImportPaths("./", ignoreEnv);
     }
 
-    char* src = jsrReadFile(script);
-    if(src == NULL) {
-        fprintf(stderr, "Error reading script ");
-        perror(script);
+    JStarBuffer src;
+    if(!jsrReadFile(vm, script, &src)) {
+        fprintf(stderr, "Error reading script %s: %s\n", script, strerror(errno));
         exitFree(EXIT_FAILURE);
     }
 
-    JStarResult res = evaluate(script, src);
-    free(src);
+    JStarResult res = evaluate(script, &src);
+    jsrBufferFree(&src);
 
     return res;
 }
@@ -211,8 +219,8 @@ static JStarResult execScript(const char* script, int argc, const char** args, b
 // MAIN FUNCTION AND ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
-static Options parseArguments(int argc, const char** argv) {
-    Options opts = {0};
+static void parseArguments(int argc, char** argv) {
+    opts = (Options){0};
 
     static const char* const usage[] = {
         "jstar [options] [script [arguments]]",
@@ -239,7 +247,7 @@ static Options parseArguments(int argc, const char** argv) {
     struct argparse argparse;
     argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
     argparse_describe(&argparse, "J* a lightweight scripting language", NULL);
-    int nonOpts = argparse_parse(&argparse, argc, argv);
+    int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
 
     if(nonOpts > 0) {
         opts.script = argv[0];
@@ -249,12 +257,10 @@ static Options parseArguments(int argc, const char** argv) {
         opts.args = &argv[1];
         opts.argsCount = nonOpts - 1;
     }
-
-    return opts;
 }
 
-int main(int argc, const char** argv) {
-    Options opts = parseArguments(argc, argv);
+int main(int argc, char** argv) {
+    parseArguments(argc, argv);
 
     if(opts.showVersion) {
         printVersion();
@@ -264,7 +270,7 @@ int main(int argc, const char** argv) {
     initVM();
 
     if(opts.execStmt) {
-        JStarResult res = jsrEvaluate(vm, "<string>", opts.execStmt);
+        JStarResult res = jsrEvalString(vm, "<string>", opts.execStmt);
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
@@ -274,5 +280,5 @@ int main(int argc, const char** argv) {
         if(!opts.interactive) exitFree(res);
     }
 
-    doRepl(&opts);
+    doRepl();
 }

@@ -37,7 +37,9 @@
 #define EXC_CAUSE "_cause"
 #define EXC_TRACE "_stacktrace"
 
-#define PACKAGE_FILE "__package__.jsr"
+#define PACKAGE_FILE "__package__"
+#define JSR_EXT      ".jsr"
+#define JSC_EXT      ".jsc"
 
 #if defined(JSTAR_WINDOWS)
     #define DL_PREFIX ""

@@ -81,7 +81,7 @@ JSR_NATIVE(jsr_exec) {
 
     char buf[512];
     while(fgets(buf, 512, proc) != NULL) {
-        jsrBufferAppendstr(&data, buf);
+        jsrBufferAppendStr(&data, buf);
     }
 
     if(ferror(proc)) {
