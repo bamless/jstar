@@ -4,3 +4,6 @@
 [submodule "extern/cwalk"]
 	path = extern/cwalk
 	url = https://github.com/bamless/cwalk.git
+[submodule "extern/dirent"]
+	path = extern/dirent
+	url = https://github.com/bamless/dirent.git
