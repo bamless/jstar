@@ -17,7 +17,6 @@
 typedef enum SerializedValue {
     SER_NUM,
     SER_BOOL,
-    SER_OBJ,
     SER_NULL,
     SER_HANDLE,
     SER_OBJ_STR,
