@@ -95,7 +95,7 @@ static void compileFile(const char* path, const char* out) {
     }
 
     if(!writeToFile(&compiled, outPath)) {
-        fprintf(stderr, "Failed to write compiled file of %s: %s\n", path, strerror(errno));
+        fprintf(stderr, "Failed to write compilation output of %s: %s\n", path, strerror(errno));
         jsrBufferFree(&compiled);
         exitFree(EXIT_FAILURE);
     }
