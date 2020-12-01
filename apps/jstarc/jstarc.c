@@ -89,7 +89,7 @@ static void compileFile(const char* path, const char* out) {
 
     char outPath[FILENAME_MAX] = {0};
     if(out) {
-        strncat(outPath, out, sizeof(outPath));
+        strncat(outPath, out, sizeof(outPath) - 1);
     } else {
         cwk_path_change_extension(path, "jsc", outPath, sizeof(outPath));
     }
