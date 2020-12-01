@@ -1,7 +1,3 @@
-set(SOURCES
-    jstarc.c
-)
-
 if(APPLE)
     set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
 else()
@@ -9,7 +5,7 @@ else()
 endif()
 
 # Executable
-add_executable(jstarc ${SOURCES})
+add_executable(jstarc jstarc.c)
 target_link_libraries(jstarc PRIVATE jstar argparse cwalk)
 if(WIN32)
     target_link_libraries(jstarc PRIVATE dirent)
