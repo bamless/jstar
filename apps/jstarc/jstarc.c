@@ -184,7 +184,7 @@ static void compileDirectory(const char* dir, const char* out) {
 // MAIN AND ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
-Options parseArguments(int argc, char** argv) {
+static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
     static const char* const usage[] = {
@@ -215,7 +215,6 @@ Options parseArguments(int argc, char** argv) {
     }
 
     opts.input = argv[0];
-    return opts;
 }
 
 int main(int argc, char** argv) {
