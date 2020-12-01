@@ -53,6 +53,10 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
         return false;
     }
 
+    if(fclose(f)) {
+        return false;
+    }
+
     return true;
 }
 
@@ -87,6 +91,8 @@ static void compileFile(const char* path, const char* out) {
         jsrBufferFree(&compiled);
         exitFree(EXIT_FAILURE);
     }
+
+    jsrBufferFree(&compiled);
 }
 
 // -----------------------------------------------------------------------------
