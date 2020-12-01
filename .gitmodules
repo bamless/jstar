@@ -1,3 +1,6 @@
 [submodule "extern/linenoise-ng"]
 	path = extern/linenoise-ng
 	url = https://github.com/bamless/linenoise-ng.git
+[submodule "extern/cwalk"]
+	path = extern/cwalk
+	url = https://github.com/bamless/cwalk.git
