@@ -14,15 +14,15 @@
 
 #define SER_DEF_SIZE 64
 
-typedef enum SerializedValue {
-    SER_NUM,
-    SER_BOOL,
-    SER_NULL,
-    SER_HANDLE,
-    SER_OBJ_STR,
-    SER_OBJ_FUN,
-    SER_OBJ_NAT,
-} SerializedValue;
+typedef enum ConstType {
+    CONST_NUM = 1,
+    CONST_BOOL = 2,
+    CONST_NULL = 3,
+    CONST_HANDLE = 4,
+    CONST_STR = 5,
+    CONST_FUN = 6,
+    CONST_NAT = 7,
+} ConstType;
 
 // -----------------------------------------------------------------------------
 // SERIALIZATION
@@ -74,18 +74,18 @@ static void serializeString(JStarBuffer* buf, ObjString* str) {
 
 static void serializeConst(JStarBuffer* buf, Value c) {
     if(IS_NUM(c)) {
-        serializeByte(buf, SER_NUM);
+        serializeByte(buf, CONST_NUM);
         serializeDouble(buf, AS_NUM(c));
     } else if(IS_BOOL(c)) {
-        serializeByte(buf, SER_BOOL);
+        serializeByte(buf, CONST_BOOL);
         serializeByte(buf, AS_BOOL(c));
     } else if(IS_NULL(c)) {
-        serializeByte(buf, SER_NULL);
+        serializeByte(buf, CONST_NULL);
     } else if(IS_STRING(c)) {
-        serializeByte(buf, SER_OBJ_STR);
+        serializeByte(buf, CONST_STR);
         serializeString(buf, AS_STRING(c));
     } else if(IS_HANDLE(c)) {
-        serializeByte(buf, SER_HANDLE);
+        serializeByte(buf, CONST_HANDLE);
     } else {
         UNREACHABLE();
     }
@@ -119,10 +119,10 @@ static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
     for(int i = 0; i < consts->count; i++) {
         Value c = consts->arr[i];
         if(IS_FUNC(c)) {
-            serializeByte(buf, SER_OBJ_FUN);
+            serializeByte(buf, CONST_FUN);
             serializeFunction(buf, AS_FUNC(c));
         } else if(IS_NATIVE(c)) {
-            serializeByte(buf, SER_OBJ_NAT);
+            serializeByte(buf, CONST_NAT);
             serializeNative(buf, AS_NATIVE(c));
         } else {
             serializeConst(buf, c);
@@ -262,31 +262,31 @@ static bool deserializeDouble(Deserializer* d, double* out) {
     return true;
 }
 
-static bool deserializeConst(Deserializer* d, SerializedValue type, Value* out) {
+static bool deserializeConst(Deserializer* d, ConstType type, Value* out) {
     switch(type) {
-    case SER_NUM: {
+    case CONST_NUM: {
         double num;
         if(!deserializeDouble(d, &num)) return false;
         *out = NUM_VAL(num);
         break;
     }
-    case SER_BOOL: {
+    case CONST_BOOL: {
         uint8_t boolean;
         if(!deserializeByte(d, &boolean)) return false;
         *out = BOOL_VAL(boolean);
         break;
     }
-    case SER_NULL: {
+    case CONST_NULL: {
         *out = NULL_VAL;
         break;
     }
-    case SER_OBJ_STR: {
+    case CONST_STR: {
         ObjString* str;
         if(!deserializeString(d, &str)) return false;
         *out = OBJ_VAL(str);
         break;
     }
-    case SER_HANDLE: {
+    case CONST_HANDLE: {
         *out = HANDLE_VAL(NULL);
         break;
     }
@@ -362,14 +362,14 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
         uint8_t constType;
         if(!deserializeByte(d, &constType)) return false;
 
-        switch((SerializedValue)constType) {
-        case SER_OBJ_FUN: {
+        switch((ConstType)constType) {
+        case CONST_FUN: {
             ObjFunction* fn;
             if(!deserializeFunction(d, &fn)) return false;
             consts->arr[i] = OBJ_VAL(fn);
             break;
         }
-        case SER_OBJ_NAT: {
+        case CONST_NAT: {
             ObjNative* nat;
             if(!deserializeNative(d, &nat)) return false;
             consts->arr[i] = OBJ_VAL(nat);
