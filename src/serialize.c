@@ -458,10 +458,6 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
     return fn;
 }
 
-// -----------------------------------------------------------------------------
-// TESTER FUNCTIONS
-// -----------------------------------------------------------------------------
-
 bool isCompiledCode(const JStarBuffer* buf) {
     const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
     if(buf->size >= headerSize) {
