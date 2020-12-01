@@ -20,7 +20,7 @@ typedef enum ConstType {
     CONST_HANDLE = 4,
     CONST_STR = 5,
     CONST_FUN = 6,
-    CONST_NAT = 7,
+    CONST_NAT = 7
 } ConstType;
 
 // -----------------------------------------------------------------------------
