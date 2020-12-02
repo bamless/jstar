@@ -103,6 +103,8 @@ compile source to bytecote before execution, but have nonetheless some nice adva
    since all the source and almost all debug information are stripped
  - **Faster startup**. Reading a compiled file is orders of magnitude faster than parsing and
    compiling source code, so there's almost no delay between importing and actual execution
+ - **Platofrm indipendence**. Compiled files are cross-platform, just like normal source files. This
+   means that they can be compiled once and shared across all systems that have a J* interpreter.
 
 
 # Compilation
