@@ -100,9 +100,11 @@ compile source to bytecote before execution, but have nonetheless some nice adva
  - **Compactness**. compiled files are more compact than source files and generally take up less
    space
  - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option 
-   since all the source and almost all the debug information are stripped
+   since all the source and almost all debug information are stripped
  - **Faster startup**. Reading a compiled file is orders of magnitude faster than parsing and
    compiling source code, so there's almost no delay between importing and actual execution
+ - **Platofrm indipendence**. Compiled files are cross-platform, just like normal source files. This
+   means that they can be compiled once and shared across all systems that have a J* interpreter.
 
 
 # Compilation
