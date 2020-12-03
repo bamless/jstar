@@ -50,6 +50,7 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
     }
 
     if(fwrite(buf->data, 1, buf->size, f) < buf->size) {
+        fclose(f);
         return false;
     }
 
