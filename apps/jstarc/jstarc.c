@@ -50,7 +50,6 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
     }
 
     if(fwrite(buf->data, 1, buf->size, f) < buf->size) {
-        fclose(f);
         return false;
     }
 
@@ -68,14 +67,14 @@ static void compileFile(const char* path, const char* out) {
         exitFree(EXIT_FAILURE);
     }
 
-    char normalizedOut[FILENAME_MAX];
+    char outPath[FILENAME_MAX];
     if(out != NULL) {
-        cwk_path_normalize(out, normalizedOut, sizeof(normalizedOut));
+        strncpy(outPath, out, sizeof(outPath));
     } else {
-        cwk_path_change_extension(path, JSC_EXT, normalizedOut, sizeof(normalizedOut));
+        cwk_path_change_extension(path, JSC_EXT, outPath, sizeof(outPath));
     }
 
-    printf("Compiling %s to %s...\n", path, normalizedOut);
+    printf("Compiling %s to %s...\n", path, outPath);
 
     JStarBuffer compiled;
     JStarResult res = jsrCompileCode(vm, path, src.data, &compiled);
@@ -87,8 +86,8 @@ static void compileFile(const char* path, const char* out) {
 
     jsrBufferFree(&src);
 
-    if(!writeToFile(&compiled, normalizedOut)) {
-        fprintf(stderr, "Failed to write %s: %s\n", normalizedOut, strerror(errno));
+    if(!writeToFile(&compiled, outPath)) {
+        fprintf(stderr, "Failed to write %s: %s\n", outPath, strerror(errno));
         jsrBufferFree(&compiled);
         exitFree(EXIT_FAILURE);
     }
@@ -101,26 +100,22 @@ static void compileFile(const char* path, const char* out) {
 // -----------------------------------------------------------------------------
 
 static void makeOutPath(const char* root, const char* curr, const char* name, const char* out,
-                        char* res, size_t size) {
-    if(out != NULL) {
-        size_t rootLen = strlen(root);
-        const char* fileRoot = curr + rootLen;
+                        char* dest, size_t size) {
+    size_t rootLen = strlen(root);
+    const char* fileRoot = curr + rootLen;
 
-        if(strlen(fileRoot) != 0) {
-            cwk_path_join(out, fileRoot, res, size);
-            cwk_path_join(res, name, res, size);
-        } else {
-            cwk_path_join(out, name, res, size);
-        }
+    if(strlen(fileRoot) != 0) {
+        const char* components[] = {out, fileRoot, dest, NULL};
+        cwk_path_join_multiple(components, dest, size);
     } else {
-        cwk_path_join(curr, name, res, size);
+        cwk_path_join(out, name, dest, size);
     }
 
-    cwk_path_change_extension(res, JSC_EXT, res, size);
+    cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
-static void compileDirectoryFile(const char* root, const char* curr, const char* name,
-                                 const char* out) {
+static void compileFileInDirectory(const char* root, const char* curr, const char* name,
+                                   const char* out) {
     char filePath[FILENAME_MAX];
     cwk_path_join(curr, name, filePath, sizeof(filePath));
 
@@ -137,31 +132,31 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
         exitFree(EXIT_FAILURE);
     }
 
-    struct dirent* dp;
-    while((dp = readdir(currentDir)) != NULL) {
-        if(strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0) {
+    struct dirent* file;
+    while((file = readdir(currentDir)) != NULL) {
+        if(strcmp(file->d_name, ".") == 0 || strcmp(file->d_name, "..") == 0) {
             continue;
         }
 
-        switch(dp->d_type) {
+        switch(file->d_type) {
         case DT_DIR: {
             if(opts.recursive) {
-                char subDir[FILENAME_MAX];
-                cwk_path_join(curr, dp->d_name, subDir, sizeof(subDir));
-                walkDirectory(root, subDir, out);
+                char subDirectory[FILENAME_MAX];
+                cwk_path_join(curr, file->d_name, subDirectory, sizeof(subDirectory));
+                walkDirectory(root, subDirectory, out);
             }
             break;
         }
         case DT_REG: {
             size_t len;
             const char* ext;
-            cwk_path_get_extension(dp->d_name, &ext, &len);
 
+            cwk_path_get_extension(file->d_name, &ext, &len);
             if(strcmp(ext, JSR_EXT) != 0) {
                 continue;
             }
 
-            compileDirectoryFile(root, curr, dp->d_name, out);
+            compileFileInDirectory(root, curr, file->d_name, out);
             break;
         }
         default:
@@ -176,9 +171,17 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
 }
 
 static void compileDirectory(const char* dir, const char* out) {
-    char inDir[FILENAME_MAX];
-    cwk_path_normalize(dir, inDir, sizeof(inDir));
-    walkDirectory(inDir, inDir, out);
+    char inputDir[FILENAME_MAX];
+    cwk_path_normalize(dir, inputDir, sizeof(inputDir));
+
+    char outputDir[FILENAME_MAX];
+    if(out != NULL) {
+        cwk_path_normalize(out, outputDir, sizeof(outputDir));
+    } else {
+        strcpy(outputDir, inputDir);
+    }
+
+    walkDirectory(inputDir, inputDir, outputDir);
 }
 
 // -----------------------------------------------------------------------------
