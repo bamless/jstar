@@ -433,8 +433,8 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
 
     *err = JSR_DESERIALIZE_ERR;
 
-    char header[sizeof(SERIALIZED_FILE_HEADER) - 1];
-    if(!read(&d, header, sizeof(SERIALIZED_FILE_HEADER) - 1)) return NULL;
+    char header[SERIALIZED_HEADER_SIZE];
+    if(!read(&d, header, SERIALIZED_HEADER_SIZE)) return NULL;
 
     uint8_t versionMajor, versionMinor;
     if(!deserializeByte(&d, &versionMajor)) return NULL;
@@ -459,9 +459,8 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
 }
 
 bool isCompiledCode(const JStarBuffer* buf) {
-    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
-    if(buf->size >= headerSize) {
-        return memcmp(SERIALIZED_FILE_HEADER, buf->data, headerSize) == 0;
+    if(buf->size >= SERIALIZED_HEADER_SIZE) {
+        return memcmp(SERIALIZED_FILE_HEADER, buf->data, SERIALIZED_HEADER_SIZE) == 0;
     }
     return false;
 }

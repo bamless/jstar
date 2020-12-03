@@ -257,12 +257,11 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
         return false;
     }
 
-    const size_t headerSize = sizeof(SERIALIZED_FILE_HEADER) - 1;
-    char header[sizeof(SERIALIZED_FILE_HEADER) - 1];
+    char header[SERIALIZED_HEADER_SIZE];
     bool isCompiled = false;
 
-    if(fread(header, 1, headerSize, src) == headerSize) {
-        if(memcmp(SERIALIZED_FILE_HEADER, header, headerSize) == 0) {
+    if(fread(header, 1, SERIALIZED_HEADER_SIZE, src) == SERIALIZED_HEADER_SIZE) {
+        if(memcmp(SERIALIZED_FILE_HEADER, header, SERIALIZED_HEADER_SIZE) == 0) {
             src = freopen(path, "rb", src);
             if(src == NULL) return false;
             isCompiled = true;
@@ -272,11 +271,13 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     }
 
     if(fseek(src, 0, SEEK_END)) {
+        fclose(src);
         return false;
     }
 
     long size;
     if((size = ftell(src)) < 0) {
+        fclose(src);
         return false;
     }
 
