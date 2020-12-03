@@ -26,7 +26,7 @@ static void setModuleInParent(JStarVM* vm, ObjModule* module) {
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
 }
 
-static ObjModule* createModule(JStarVM* vm, ObjString* name) {
+static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
     ObjModule* module = getModule(vm, name);
 
     if(module == NULL) {
@@ -42,7 +42,7 @@ static ObjModule* createModule(JStarVM* vm, ObjString* name) {
 }
 
 ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, JStarStmt* program) {
-    ObjModule* module = createModule(vm, name);
+    ObjModule* module = getOrCreateModule(vm, name);
 
     if(program != NULL) {
         ObjFunction* fn = compile(vm, file, module, program);
@@ -54,7 +54,7 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, J
 
 ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuffer* code,
                                    JStarResult* err) {
-    ObjModule* module = createModule(vm, name);
+    ObjModule* module = getOrCreateModule(vm, name);
     return deserialize(vm, module, code, err);
 }
 
