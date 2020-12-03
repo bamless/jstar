@@ -59,5 +59,6 @@ extern inline Value numToValue(double num);
 extern inline double valueToNum(Value val);
 #endif
 
+extern inline bool valueIsInt(Value v);
 extern inline bool valueEquals(Value v1, Value v2);
 extern inline bool valueToBool(Value v);

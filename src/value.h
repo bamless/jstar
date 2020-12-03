@@ -61,52 +61,52 @@ typedef uint64_t Value;
 
     // clang-format off
 
-#define SIGN_BIT ((uint64_t)1 << 63)
-#define QNAN     ((uint64_t)0x7FFC000000000000)
+#define SIGN ((uint64_t)1 << 63)
+#define QNAN ((uint64_t)0x7FFC000000000000)
 
 #define MASK_TAG  3
 #define NULL_TAG  1
 #define FALSE_TAG 2
 #define TRUE_TAG  3
 
-#define GET_TAG(val) ((val)&MASK_TAG)
+#define GET_TAG(val) ((val) & MASK_TAG)
 
-#define IS_HANDLE(val) (((val) & (TRUE_VAL)) == QNAN)
+#define IS_NULL(val)   ((val) == NULL_VAL)
 #define IS_NUM(val)    (((val) & (QNAN)) != QNAN)
 #define IS_BOOL(val)   (((val) & (FALSE_VAL)) == FALSE_VAL)
-#define IS_OBJ(val)    (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
-#define IS_NULL(val)   ((val) == NULL_VAL)
-#define IS_INT(val)    (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
+#define IS_HANDLE(val) (((val) & (SIGN | TRUE_VAL)) == QNAN)
+#define IS_OBJ(val)    (((val) & (QNAN | SIGN)) == (QNAN | SIGN))
+#define IS_INT(val)    valueIsInt(val)
 
+#define AS_BOOL(val)   ((val) == TRUE_VAL)
 #define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
-#define AS_BOOL(value) ((value) == TRUE_VAL)
-#define AS_NUM(value)  valueToNum(value)
-#define AS_OBJ(value)  ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
+#define AS_OBJ(val)    ((Obj*)(uintptr_t)((val) & ~(SIGN | QNAN)))
+#define AS_NUM(val)    valueToNum(val)
 
-#define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
-#define NUM_VAL(num)  numToValue(num)
+#define TRUE_VAL      ((Value)(QNAN | TRUE_TAG))
+#define FALSE_VAL     ((Value)(QNAN | FALSE_TAG))
+#define NULL_VAL      ((Value)(QNAN | NULL_TAG))
 #define BOOL_VAL(b)   ((b) ? TRUE_VAL : FALSE_VAL)
-#define OBJ_VAL(obj)  ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))
-#define TRUE_VAL      ((Value)(uint64_t)(QNAN | TRUE_TAG))
-#define FALSE_VAL     ((Value)(uint64_t)(QNAN | FALSE_TAG))
-#define NULL_VAL      ((Value)(uint64_t)(QNAN | NULL_TAG))
+#define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
+#define OBJ_VAL(obj)  ((Value)(SIGN | QNAN | (uint64_t)(uintptr_t)(obj)))
+#define NUM_VAL(num)  numToValue(num)
 
 // clang-format on
 
 inline Value numToValue(double num) {
     union {
-        uint64_t raw;
+        Value val;
         double num;
-    } c = {.num = num};
-    return c.raw;
+    } convert = {.num = num};
+    return convert.val;
 }
 
 inline double valueToNum(Value val) {
     union {
-        uint64_t raw;
+        Value val;
         double num;
-    } c = {.raw = val};
-    return c.num;
+    } convert = {.val = val};
+    return convert.num;
 }
 
 inline bool valueEquals(Value v1, Value v2) {
@@ -140,13 +140,12 @@ typedef struct {
 #define IS_BOOL(val)   ((val).type == VAL_BOOL)
 #define IS_NUM(val)    ((val).type == VAL_NUM)
 #define IS_NULL(val)   ((val).type == VAL_NULL)
-
-#define IS_INT(val) (IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val))
+#define IS_INT(val)    valueIsInt(val)
 
 #define AS_HANDLE(val) ((val).handle)
-#define AS_BOOL(value) ((value).boolean)
-#define AS_NUM(value)  ((value).num)
-#define AS_OBJ(value)  ((value).obj)
+#define AS_BOOL(val)   ((val).boolean)
+#define AS_NUM(val)    ((val).num)
+#define AS_OBJ(val)    ((val).obj)
 
 #define HANDLE_VAL(h) ((Value){VAL_HANDLE, {.handle = h}})
 #define NUM_VAL(n)    ((Value){VAL_NUM, {.num = n}})
@@ -178,6 +177,10 @@ inline bool valueEquals(Value v1, Value v2) {
 }
 
 #endif
+
+inline bool valueIsInt(Value val) {
+    return IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val);
+}
 
 inline bool valueToBool(Value v) {
     if(IS_BOOL(v)) return AS_BOOL(v);
