@@ -56,7 +56,5 @@ native popen(name, mode="r")
 native remove(path)
 native rename(oldpath, newpath)
 
-begin
-    native init()
-    init()
-end
+static native init()
+init()
