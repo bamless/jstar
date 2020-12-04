@@ -742,7 +742,7 @@ static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(&p->peek) && !isCallExpression(l)) {
-        error(p, "Syntax error.");
+        error(p, "Syntax error");
     }
 
     if(isAssign(&p->peek)) {
