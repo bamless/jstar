@@ -5,7 +5,7 @@ native find(str, regex, off=0)
 native gsub(str, regex, sub, num=0)
 native gmatch(str, regex)
 
-class igmatch
+static class IGmatch is Iter
     fun new(str, regex)
         this.s, this.r = str, regex
         this.off, this.endl = 0, null
@@ -20,13 +20,16 @@ class igmatch
         var b, e = res
         while e == this.endl and e - b == 0 do
             res = find(this.s, this.r, this.off += 1)
-            if res then return null end
+            if !res then 
+                return null
+            end
             b, e = res
         end
 
         var resLen = #res
         this.off = this.endl = e
-        if   resLen == 2 then
+        
+        if resLen == 2 then
             return this.s[b, e]
         elif resLen == 3 then
             return res[2]
@@ -38,4 +41,8 @@ class igmatch
     fun __next__(match)
         return match
     end
+end
+
+fun igmatch(str, regex)
+    return IGmatch(str, regex)
 end
