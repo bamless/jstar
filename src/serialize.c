@@ -435,6 +435,7 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
 
     char header[SERIALIZED_HEADER_SIZE];
     if(!read(&d, header, SERIALIZED_HEADER_SIZE)) return NULL;
+    ASSERT(memcmp(header, SERIALIZED_FILE_HEADER, SERIALIZED_HEADER_SIZE) == 0, "Header error");
 
     uint8_t versionMajor, versionMinor;
     if(!deserializeByte(&d, &versionMajor)) return NULL;
