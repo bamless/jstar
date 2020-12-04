@@ -15,6 +15,7 @@
     #define pclose _pclose
 #endif
 
+// Synchronized to Seek enum in io.jsr
 #define JSR_SEEK_SET 0
 #define JSR_SEEK_CUR 1
 #define JSR_SEEK_END 2

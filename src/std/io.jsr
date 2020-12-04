@@ -1,7 +1,11 @@
 class IOException is Exception end
 class FileNotFoundException is IOException end
 
-var SEEK_SET, SEEK_CUR, SEEK_END = 0, 1, 2
+var Seek = Enum{
+    .SET : 0,
+    .CUR : 1,
+    .END : 2
+}
 
 class File
     native new(path, mode, handle=null)
@@ -24,7 +28,7 @@ class File
 
     fun size()
         var oldpos = this.tell()
-        this.seek(0, SEEK_END)
+        this.seek(0, Seek.END)
         var size = this.tell()
         this.seek(oldpos)
         return size
