@@ -43,16 +43,15 @@ class File
     end
 end
 
-class __PFile is File
-    fun new(handle)
-        this._handle = handle
-        this._closed = false
-    end
-
+static class Popen is File
+    native new(name, mode)
     native close()
 end
 
-native popen(name, mode="r")
+fun popen(name, mode="r")
+    return Popen(name, mode)
+end
+
 native remove(path)
 native rename(oldpath, newpath)
 

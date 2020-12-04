@@ -290,8 +290,38 @@ JSR_NATIVE(jsr_File_flush) {
 }
 // end
 
-// class __PFile
-JSR_NATIVE(jsr_PFile_close) {
+// class Popen
+JSR_NATIVE(jsr_Popen_new) {
+#ifdef USE_POPEN
+    JSR_CHECK(String, 1, "name");
+    JSR_CHECK(String, 2, "mode");
+
+    const char* pname = jsrGetString(vm, 1);
+    const char* mode = jsrGetString(vm, 2);
+
+    if(strlen(mode) != 1 || (mode[0] != 'r' && mode[1] != 'w')) {
+        JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
+    }
+
+    FILE* f = popen(pname, mode);
+    if(f == NULL) {
+        JSR_RAISE(vm, "IOException", "%s: %s", pname, strerror(errno));
+    }
+
+    jsrPushHandle(vm, f);
+    jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+
+    jsrPushBoolean(vm, false);
+    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+
+    jsrPushValue(vm, 0);
+    return true;
+#else
+    JSR_RAISE(vm, "NotImplementedException", "Popen not supported on current system.");
+#endif
+}
+
+JSR_NATIVE(jsr_Popen_close) {
 #ifdef USE_POPEN
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
@@ -334,31 +364,6 @@ JSR_NATIVE(jsr_rename) {
     }
     jsrPushNull(vm);
     return true;
-}
-
-JSR_NATIVE(jsr_popen) {
-#ifdef USE_POPEN
-    JSR_CHECK(String, 1, "name");
-
-    const char* pname = jsrGetString(vm, 1);
-    const char* mode = jsrGetString(vm, 2);
-
-    if(strlen(mode) != 1 || (mode[0] != 'r' && mode[1] != 'w')) {
-        JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
-    }
-
-    FILE* f = popen(pname, mode);
-    if(f == NULL) {
-        JSR_RAISE(vm, "IOException", "%s: %s", pname, strerror(errno));
-    }
-
-    jsrGetGlobal(vm, NULL, "__PFile");
-    jsrPushHandle(vm, f);
-    if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
-    return true;
-#else
-    JSR_RAISE(vm, "NotImplementedException", "`popen` not supported on current system.");
-#endif
 }
 
 static bool createStdFile(JStarVM* vm, const char* name, FILE* stdfile) {
