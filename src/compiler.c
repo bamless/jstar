@@ -274,7 +274,7 @@ static int declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int lin
     if(inGlobalScope(c) && !forceLocal) return -1;
 
     if(!inGlobalScope(c) && forceLocal) {
-        error(c, line, "static declaration can appear only in global scope.");
+        error(c, line, "static declaration can only appear in global scope.");
         return -1;
     }
 
@@ -292,8 +292,9 @@ static int declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int lin
 static void markInitialized(Compiler* c, int idx, bool forceLocal) {
     if(c->depth == 0 && !forceLocal) return;
 
-    ASSERT(idx >= 0 && idx < c->localsCount, "Invalid local variable");
-    c->locals[idx].depth = c->depth;
+    if(idx >= 0) {
+        c->locals[idx].depth = c->depth;
+    }
 }
 
 static void defineVar(Compiler* c, JStarIdentifier* id, int idx, bool forceLocal, int line) {
