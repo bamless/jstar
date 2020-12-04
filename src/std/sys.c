@@ -89,8 +89,8 @@ JSR_NATIVE(jsr_exec) {
         jsrBufferFree(&data);
         JSR_RAISE(vm, "Exception", strerror(errno));
     } else {
-        jsrPushNumber(vm, pclose(proc));
         jsrBufferPush(&data);
+        jsrPushNumber(vm, pclose(proc));
         jsrPushTuple(vm, 2);
     }
 
