@@ -213,6 +213,30 @@ static JStarTokType assignToOperator(JStarTokType t) {
     }
 }
 
+static bool isDeclaration(JStarTok* tok) {
+    JStarTokType t = tok->type;
+    return t == TOK_FUN || t == TOK_NAT || t == TOK_CLASS || t == TOK_VAR;
+}
+
+static void setStatic(JStarStmt* decl) {
+    switch(decl->type) {
+    case JSR_VARDECL:
+        decl->as.varDecl.isStatic = true;
+        break;
+    case JSR_FUNCDECL:
+        decl->as.funcDecl.isStatic = true;
+        break;
+    case JSR_NATIVEDECL:
+        decl->as.nativeDecl.isStatic = true;
+        break;
+    case JSR_CLASSDECL:
+        decl->as.classDecl.isStatic = true;
+        break;
+    default:
+        break;
+    }
+}
+
 static bool isCallExpression(JStarExpr* e) {
     return (e->type == JSR_CALL) || (e->type == JSR_SUPER && e->as.sup.args);
 }
@@ -697,6 +721,20 @@ static JStarStmt* classDecl(Parser* p) {
     return jsrClassDecl(line, &clsName, sup, &methods);
 }
 
+static JStarStmt* parseStaticDecl(Parser* p) {
+    advance(p);
+    skipNewLines(p);
+
+    if(!isDeclaration(&p->peek)) {
+        error(p, "Only a declaration can be declared static", p->peek.line);
+    }
+
+    JStarStmt* decl = parseStmt(p);
+    setStatic(decl);
+
+    return decl;
+}
+
 static JStarExpr* parseAssignment(Parser* p, JStarExpr* l, bool parseTuple) {
     checkLvalue(p, l, p->peek.type);
     JStarTok assignToken = advance(p);
@@ -741,6 +779,8 @@ static JStarStmt* parseStmt(Parser* p) {
         requireStmtEnd(p);
         return var;
     }
+    case TOK_STATIC:
+        return parseStaticDecl(p);
     case TOK_IF:
         return ifStmt(p);
     case TOK_FOR:

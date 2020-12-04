@@ -69,6 +69,7 @@ TOKEN(TOK_VAR, "var")
 TOKEN(TOK_WHILE, "while")
 TOKEN(TOK_CONTINUE, "continue")
 TOKEN(TOK_BREAK, "break")
+TOKEN(TOK_STATIC, "static")
 
 TOKEN(TOK_TRY, "try")
 TOKEN(TOK_EXCEPT, "except")
