@@ -41,7 +41,5 @@ fun randint(a, b=null)
     return int(a + random() * (b - a + 1))
 end
 
-begin
-    native init()
-    init()
-end
+static native init()
+init()

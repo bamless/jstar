@@ -213,6 +213,30 @@ static JStarTokType assignToOperator(JStarTokType t) {
     }
 }
 
+static bool isDeclaration(JStarTok* tok) {
+    JStarTokType t = tok->type;
+    return t == TOK_FUN || t == TOK_NAT || t == TOK_CLASS || t == TOK_VAR;
+}
+
+static void setStaticDecl(JStarStmt* decl) {
+    switch(decl->type) {
+    case JSR_VARDECL:
+        decl->as.varDecl.isStatic = true;
+        break;
+    case JSR_FUNCDECL:
+        decl->as.funcDecl.isStatic = true;
+        break;
+    case JSR_NATIVEDECL:
+        decl->as.nativeDecl.isStatic = true;
+        break;
+    case JSR_CLASSDECL:
+        decl->as.classDecl.isStatic = true;
+        break;
+    default:
+        break;
+    }
+}
+
 static bool isCallExpression(JStarExpr* e) {
     return (e->type == JSR_CALL) || (e->type == JSR_SUPER && e->as.sup.args);
 }
@@ -697,30 +721,32 @@ static JStarStmt* classDecl(Parser* p) {
     return jsrClassDecl(line, &clsName, sup, &methods);
 }
 
-static JStarExpr* parseAssignment(Parser* p, JStarExpr* l, bool parseTuple) {
-    checkLvalue(p, l, p->peek.type);
-    JStarTok assignToken = advance(p);
-    JStarExpr* r = expression(p, parseTuple);
+static JStarStmt* parseStaticDecl(Parser* p) {
+    advance(p);
+    skipNewLines(p);
 
-    if(isCompoundAssign(&assignToken)) {
-        JStarTokType op = assignToOperator(assignToken.type);
-        l = jsrCompundAssExpr(assignToken.line, op, l, r);
-    } else {
-        l = jsrAssignExpr(assignToken.line, l, r);
+    if(!isDeclaration(&p->peek)) {
+        error(p, "Only a variable, function, native or class declaration can be defined static",
+              p->peek.line);
     }
 
-    return l;
+    JStarStmt* decl = parseStmt(p);
+    setStaticDecl(decl);
+
+    return decl;
 }
+
+static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple);
 
 static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(&p->peek) && !isCallExpression(l)) {
-        error(p, "Syntax error.");
+        error(p, "Syntax error");
     }
 
     if(isAssign(&p->peek)) {
-        l = parseAssignment(p, l, true);
+        l = assignmentExpr(p, l, true);
     }
 
     return jsrExprStmt(l->line, l);
@@ -741,6 +767,8 @@ static JStarStmt* parseStmt(Parser* p) {
         requireStmtEnd(p);
         return var;
     }
+    case TOK_STATIC:
+        return parseStaticDecl(p);
     case TOK_IF:
         return ifStmt(p);
     case TOK_FOR:
@@ -1141,11 +1169,26 @@ static JStarExpr* tupleLiteral(Parser* p) {
     return e;
 }
 
+static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple) {
+    checkLvalue(p, l, p->peek.type);
+    JStarTok assignToken = advance(p);
+    JStarExpr* r = expression(p, parseTuple);
+
+    if(isCompoundAssign(&assignToken)) {
+        JStarTokType op = assignToOperator(assignToken.type);
+        l = jsrCompundAssExpr(assignToken.line, op, l, r);
+    } else {
+        l = jsrAssignExpr(assignToken.line, l, r);
+    }
+
+    return l;
+}
+
 static JStarExpr* expression(Parser* p, bool parseTuple) {
     JStarExpr* l = parseTuple ? tupleLiteral(p) : funcLiteral(p);
 
     if(isAssign(&p->peek)) {
-        return parseAssignment(p, l, parseTuple);
+        return assignmentExpr(p, l, parseTuple);
     }
 
     return l;

@@ -188,10 +188,10 @@ Module builtInModules[] = {
             METHOD(rewind,   jsr_File_rewind)
             METHOD(flush,    jsr_File_flush)
         ENDCLASS
-        CLASS(__PFile)
-            METHOD(close, jsr_PFile_close)
+        CLASS(Popen)
+            METHOD(new,   jsr_Popen_new)
+            METHOD(close, jsr_Popen_close)
         ENDCLASS
-        FUNCTION(popen,  jsr_popen)
         FUNCTION(remove, jsr_remove)
         FUNCTION(rename, jsr_rename)
         FUNCTION(init,   jsr_io_init)

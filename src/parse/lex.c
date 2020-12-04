@@ -49,6 +49,7 @@ static Keyword keywords[] = {
     {"with",     4, TOK_WITH},
     {"continue", 8, TOK_CONTINUE},
     {"break",    5, TOK_BREAK},
+    {"static",   6, TOK_STATIC},
     // sentinel
     {NULL,       0, TOK_EOF}
 };

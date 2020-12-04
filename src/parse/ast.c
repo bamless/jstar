@@ -255,6 +255,7 @@ JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, 
     f->as.funcDecl.formalArgs = vecMove(args);
     f->as.funcDecl.defArgs = vecMove(defArgs);
     f->as.funcDecl.isVararg = vararg;
+    f->as.funcDecl.isStatic = false;
     f->as.funcDecl.body = body;
     return f;
 }
@@ -265,6 +266,7 @@ JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs
     n->as.nativeDecl.id.length = name->length;
     n->as.nativeDecl.formalArgs = vecMove(args);
     n->as.nativeDecl.isVararg = vararg;
+    n->as.nativeDecl.isStatic = false;
     n->as.nativeDecl.defArgs = vecMove(defArgs);
     return n;
 }
@@ -272,10 +274,20 @@ JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs
 JStarStmt* jsrClassDecl(int line, JStarTok* clsName, JStarExpr* sup, Vector* methods) {
     JStarStmt* c = newStmt(line, JSR_CLASSDECL);
     c->as.classDecl.sup = sup;
+    c->as.classDecl.isStatic = false;
     c->as.classDecl.id.name = clsName->lexeme;
     c->as.classDecl.id.length = clsName->length;
     c->as.classDecl.methods = vecMove(methods);
     return c;
+}
+
+JStarStmt* jsrVarDecl(int line, bool isUnpack, Vector* ids, JStarExpr* init) {
+    JStarStmt* s = newStmt(line, JSR_VARDECL);
+    s->as.varDecl.ids = vecMove(ids);
+    s->as.varDecl.isUnpack = isUnpack;
+    s->as.varDecl.isStatic = false;
+    s->as.varDecl.init = init;
+    return s;
 }
 
 JStarStmt* jsrWithStmt(int line, JStarExpr* e, JStarTok* varName, JStarStmt* block) {
@@ -301,14 +313,6 @@ JStarStmt* jsrForEachStmt(int line, JStarStmt* var, JStarExpr* iter, JStarStmt* 
     s->as.forEach.var = var;
     s->as.forEach.iterable = iter;
     s->as.forEach.body = body;
-    return s;
-}
-
-JStarStmt* jsrVarDecl(int line, bool isUnpack, Vector* ids, JStarExpr* init) {
-    JStarStmt* s = newStmt(line, JSR_VARDECL);
-    s->as.varDecl.ids = vecMove(ids);
-    s->as.varDecl.isUnpack = isUnpack;
-    s->as.varDecl.init = init;
     return s;
 }
 

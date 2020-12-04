@@ -159,6 +159,7 @@ struct JStarStmt {
         } blockStmt;
         struct {
             bool isUnpack;
+            bool isStatic;
             Vector ids;
             JStarExpr* init;
         } varDecl;
@@ -166,14 +167,17 @@ struct JStarStmt {
             JStarIdentifier id;
             Vector formalArgs, defArgs;
             bool isVararg;
+            bool isStatic;
             JStarStmt* body;
         } funcDecl;
         struct {
             JStarIdentifier id;
             Vector formalArgs, defArgs;
             bool isVararg;
+            bool isStatic;
         } nativeDecl;
         struct {
+            bool isStatic;
             JStarIdentifier id;
             JStarExpr* sup;
             Vector methods;

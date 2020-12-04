@@ -19,13 +19,13 @@ JSR_NATIVE(jsr_File_rewind);
 JSR_NATIVE(jsr_File_flush);
 // } class File
 
-// class __PFile {
-JSR_NATIVE(jsr_PFile_close);
+// class Popen {
+JSR_NATIVE(jsr_Popen_new);
+JSR_NATIVE(jsr_Popen_close);
 // }
 
 // prototypes
 
-JSR_NATIVE(jsr_popen);
 JSR_NATIVE(jsr_remove);
 JSR_NATIVE(jsr_rename);
 JSR_NATIVE(jsr_io_init);
