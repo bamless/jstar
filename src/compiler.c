@@ -311,6 +311,7 @@ static size_t emitJumpTo(Compiler* c, int jmpOpcode, size_t target, int line) {
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
+
     emitBytecode(c, jmpOpcode, line);
     emitShort(c, (uint16_t)offset, line);
     return getCurrentAddr(c) - 2;
@@ -321,6 +322,7 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
+
     Code* code = &c->func->code;
     code->bytecode[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
     code->bytecode[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
