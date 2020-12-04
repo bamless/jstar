@@ -270,6 +270,7 @@ static int resolveUpvalue(Compiler* c, JStarIdentifier* id, int line) {
 }
 
 static void declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int line) {
+    // Global variables need not be declared
     if(inGlobalScope(c) && !forceLocal) return;
 
     if(!inGlobalScope(c) && forceLocal) {
@@ -286,7 +287,9 @@ static void declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int li
     addLocal(c, id, line);
 }
 
-static void initializeVar(Compiler* c, int id) {
+static void markInitialized(Compiler* c, int id, bool forceLocal) {
+    if(c->depth == 0 && !forceLocal) return;
+
     ASSERT(id >= 0 && id < c->localsCount, "Invalid local variable");
     c->locals[id].depth = c->depth;
 }
@@ -296,7 +299,7 @@ static void defineVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int lin
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, id, line), line);
     } else {
-        initializeVar(c, c->localsCount - 1);
+        markInitialized(c, c->localsCount - 1, forceLocal);
     }
 }
 
@@ -1583,10 +1586,9 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
     // define in reverse order in order to assign correct
     // values to variables in case of a const unpack
     for(int i = numDecls - 1; i >= 0; i--) {
+        markInitialized(c, c->localsCount - i - 1, isStatic);
         if(inGlobalScope(c) && !isStatic) {
-            defineVar(c, vecGet(&s->as.varDecl.ids, i), false, s->line);
-        } else {
-            initializeVar(c, c->localsCount - i - 1);
+            defineVar(c, vecGet(&s->as.varDecl.ids, i), isStatic, s->line);
         }
     }
 }
@@ -1594,10 +1596,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     bool isStatic = s->as.classDecl.isStatic;
     declareVar(c, &s->as.classDecl.id, isStatic, s->line);
-
-    // If the class is declared in a local scope or is static initialize the name immediately to
-    // allow the methods to reference the class itself
-    if(!inGlobalScope(c) || isStatic) initializeVar(c, c->localsCount - 1);
+    markInitialized(c, c->localsCount - 1, isStatic);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
@@ -1616,10 +1615,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     bool isStatic = s->as.funcDecl.isStatic;
     declareVar(c, &s->as.funcDecl.id, isStatic, s->line);
-
-    // If the function is declared in a local scope or is static initialize the name immediately to
-    // allow the body to reference the function itself (i.e. allow recursion)
-    if(!inGlobalScope(c) || isStatic) initializeVar(c, c->localsCount - 1);
+    markInitialized(c, c->localsCount - 1, isStatic);
 
     compileFunction(c, s);
 
