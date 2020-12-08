@@ -94,12 +94,7 @@ static void serializeCommon(JStarBuffer* buf, FnCommon* c) {
     serializeByte(buf, c->argsCount);
     serializeByte(buf, c->vararg);
 
-    if(c->name) {
-        serializeByte(buf, 1);
-        serializeString(buf, c->name);
-    } else {
-        serializeByte(buf, 0);
-    }
+    serializeString(buf, c->name);
 
     serializeByte(buf, c->defCount);
     for(int i = 0; i < c->defCount; i++) {
@@ -303,15 +298,7 @@ static bool deserializeCommon(Deserializer* d, FnCommon* c) {
     if(!deserializeByte(d, &vararg)) return false;
     c->vararg = (bool)vararg;
 
-    uint8_t hasName;
-    if(!deserializeByte(d, &hasName)) return false;
-
-    if(hasName) {
-        if(!deserializeString(d, &c->name)) return false;
-    } else {
-        c->name = NULL;
-    }
-
+    if(!deserializeString(d, &c->name)) return false;
     if(!deserializeByte(d, &c->defCount)) return false;
 
     c->defaults = GC_ALLOC(d->vm, sizeof(Value) * c->defCount);

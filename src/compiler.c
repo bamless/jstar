@@ -186,8 +186,7 @@ static void exitFunctionScope(Compiler* c) {
 static uint16_t createConst(Compiler* c, Value constant, int line) {
     int index = addConstant(&c->func->code, constant);
     if(index == -1) {
-        const char* name = c->func->c.name == NULL ? "<main>" : c->func->c.name->data;
-        error(c, line, "Too many constants in function %s.", name);
+        error(c, line, "Too many constants in function %s.", c->func->c.name->data);
         return 0;
     }
     return (uint16_t)index;
@@ -211,6 +210,7 @@ static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
         error(c, line, "Too many local variables in function %s.", c->func->c.name->data);
         return -1;
     }
+
     Local* local = &c->locals[c->localsCount];
     local->isUpvalue = false;
     local->depth = -1;
@@ -1372,6 +1372,8 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
 
     if(s->as.funcDecl.id.length != 0) {
         c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
+    } else {
+        c->func->c.name = copyString(c->vm, "<main>", strlen("<main>"));
     }
 
     // add phony variable for function receiver (in the case of functions the
