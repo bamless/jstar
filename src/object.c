@@ -186,17 +186,20 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
 #define LIST_GROW_RATE 2
 
 ObjList* newList(JStarVM* vm, size_t startSize) {
-    size_t size = startSize == 0 ? LIST_DEF_SZ : startSize;
-    Value* arr = GC_ALLOC(vm, sizeof(Value) * size);
-    ObjList* l = (ObjList*)newObj(vm, sizeof(*l), vm->lstClass, OBJ_LIST);
-    l->size = size;
-    l->count = 0;
-    l->arr = arr;
-    return l;
+    Value* arr = NULL;
+    if(startSize > 0) {
+        arr = GC_ALLOC(vm, sizeof(Value) * startSize);
+    }
+
+    ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), vm->lstClass, OBJ_LIST);
+    lst->size = startSize;
+    lst->count = 0;
+    lst->arr = arr;
+    return lst;
 }
 
 static void growList(JStarVM* vm, ObjList* lst) {
-    size_t newSize = lst->size * LIST_GROW_RATE;
+    size_t newSize = lst->size != 0 ? lst->size * LIST_GROW_RATE : LIST_DEF_SZ;
     lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
     lst->size = newSize;
 }
@@ -223,6 +226,7 @@ void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
     for(size_t i = lst->count; i > index; i--) {
         arr[i] = arr[i - 1];
     }
+
     arr[index] = val;
     lst->count++;
 }
