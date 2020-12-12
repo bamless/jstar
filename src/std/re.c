@@ -35,8 +35,12 @@ typedef struct {
     } captures[MAX_CAPTURES];
 } RegexState;
 
+static bool isAtEnd(const char* str) {
+    return *str == '\0';
+}
+
 // -----------------------------------------------------------------------------
-// REGEX MATCHING ENGINE
+// REGEX MATCHING
 // -----------------------------------------------------------------------------
 
 static bool matchClass(char c, char cls) {
@@ -85,10 +89,14 @@ static bool matchCustomClass(char c, const char* regex, const char* classEnd) {
     while(++regex < classEnd) {
         if(*regex == ESCAPE) {
             regex++;
-            if(matchClass(c, *regex)) return ret;
+            if(matchClass(c, *regex)) {
+                return ret;
+            }
         } else if(regex[1] == '-' && regex + 2 < classEnd) {
             regex += 2;
-            if(*(regex - 2) <= c && c <= *regex) return ret;
+            if(regex[-2] <= c && c <= *regex) {
+                return ret;
+            }
         } else if(*regex == c) {
             return ret;
         }
@@ -173,7 +181,7 @@ static const char* matchCapture(RegexState* rs, const char* str, int captureIdx)
 static const char* greedyMatch(RegexState* rs, const char* str, const char* regex,
                                const char* clsEnd) {
     ptrdiff_t i = 0;
-    while(str[i] != '\0' && matchClassOrChar(str[i], regex, clsEnd)) {
+    while(!isAtEnd(&str[i]) && matchClassOrChar(str[i], regex, clsEnd)) {
         i++;
     }
 
@@ -201,7 +209,7 @@ static const char* lazyMatch(RegexState* rs, const char* str, const char* regex,
         if(rs->err) {
             return NULL;
         }
-    } while(*str != '\0' && matchClassOrChar(*str++, regex, clsEnd));
+    } while(!isAtEnd(str) && matchClassOrChar(*str++, regex, clsEnd));
 
     return NULL;
 }
@@ -209,18 +217,18 @@ static const char* lazyMatch(RegexState* rs, const char* str, const char* regex,
 static const char* endClass(RegexState* rs, const char* regex) {
     switch(*regex++) {
     case ESCAPE:
-        if(*regex == '\0') {
+        if(isAtEnd(regex)) {
             RAISE_REGX_EXC("Malformed regex (ends with `%c`).", ESCAPE);
             return NULL;
         }
         return regex + 1;
     case '[':
         do {
-            if(*regex == '\0') {
+            if(isAtEnd(regex)) {
                 RAISE_REGX_EXC("Malformed regex (unmatched `[`).");
                 return NULL;
             }
-            if(*regex++ == ESCAPE && *regex != '\0') {
+            if(*regex++ == ESCAPE && !isAtEnd(regex)) {
                 regex++;
             }
         } while(*regex != ']');
@@ -240,10 +248,10 @@ static const char* match(RegexState* rs, const char* str, const char* regex) {
     case ')':
         return endCapture(rs, str, regex);
     case '$':
-        if(regex[1] == '\0') {
-            return *str == '\0' ? str : NULL;
+        if(isAtEnd(&regex[1])) {
+            return isAtEnd(str) ? str : NULL;
         }
-        goto def;
+        goto dflt;
     case ESCAPE:
         if(isdigit(regex[1])) {
             int len = 1;
@@ -260,13 +268,13 @@ static const char* match(RegexState* rs, const char* str, const char* regex) {
 
             return match(rs, str, regex + len);
         }
-        goto def;
+        goto dflt;
     default:
-    def : {
+    dflt : {
         const char* classEnd = endClass(rs, regex);
         if(classEnd == NULL) return NULL;
 
-        bool isMatch = *str != '\0' && matchClassOrChar(*str, regex, classEnd);
+        bool isMatch = !isAtEnd(str) && matchClassOrChar(*str, regex, classEnd);
         switch(*classEnd) {
         case '?': {
             const char* res;
@@ -334,7 +342,7 @@ static bool matchRegex(JStarVM* vm, RegexState* rs, const char* str, size_t len,
             return true;
         }
         if(rs->err) return false;
-    } while(*str++ != '\0');
+    } while(!isAtEnd(str++));
 
     return false;
 }
@@ -438,18 +446,19 @@ JSR_NATIVE(jsr_re_gmatch) {
 
     jsrPushList(vm);
 
-    size_t off = 0;
-    const char* lastmatch = NULL;
-    while(off <= len) {
+    size_t offset = 0;
+    const char* lastMatch = NULL;
+
+    while(offset <= len) {
         RegexState rs;
-        if(!matchRegex(vm, &rs, str, len, regex, off)) {
+        if(!matchRegex(vm, &rs, str, len, regex, offset)) {
             if(rs.err) return false;
             return true;
         }
 
         // if 0 match increment by one and retry
-        if(rs.captures[0].start == lastmatch && rs.captures[0].len == 0) {
-            off++;
+        if(rs.captures[0].start == lastMatch && rs.captures[0].len == 0) {
+            offset++;
             continue;
         }
 
@@ -470,22 +479,22 @@ JSR_NATIVE(jsr_re_gmatch) {
             jsrPop(vm);
         }
 
-        ptrdiff_t offSinceLast = lastmatch ? rs.captures[0].start - lastmatch
+        ptrdiff_t offSinceLast = lastMatch ? rs.captures[0].start - lastMatch
                                            : rs.captures[0].start - str;
 
-        off += offSinceLast + rs.captures[0].len;
-        lastmatch = rs.captures[0].start + rs.captures[0].len;
+        offset += offSinceLast + rs.captures[0].len;
+        lastMatch = rs.captures[0].start + rs.captures[0].len;
     }
 
     return true;
 }
 
 static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* sub) {
-    for(; *sub != '\0'; sub++) {
+    for(; !isAtEnd(sub); sub++) {
         switch(*sub) {
         case ESCAPE:
             sub++;
-            if(*sub == '\0') {
+            if(isAtEnd(sub)) {
                 jsrRaise(vm, "RegexException", "Invalid sub string (ends with %c)", ESCAPE);
                 return false;
             }
@@ -496,7 +505,7 @@ static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* 
             }
 
             if(len == 0) {
-                goto def;
+                goto dlft;
             }
 
             int capture = strtol(sub, NULL, 10);
@@ -505,7 +514,7 @@ static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* 
             jsrPop(vm);
             break;
         default:
-        def:
+        dlft:
             jsrBufferAppendChar(b, *sub);
             break;
         }
@@ -545,16 +554,17 @@ JSR_NATIVE(jsr_re_gsub) {
     JStarBuffer b;
     jsrBufferInit(vm, &b);
 
-    int numsub = 0;
-    size_t off = 0;
-    const char* lastmatch = NULL;
-    while(off <= len) {
-        if(num > 0 && numsub > num - 1) {
+    int numSub = 0;
+    size_t offset = 0;
+    const char* lastMatch = NULL;
+
+    while(offset <= len) {
+        if(num > 0 && numSub > num - 1) {
             break;
         }
 
         RegexState rs;
-        if(!matchRegex(vm, &rs, str, len, regex, off)) {
+        if(!matchRegex(vm, &rs, str, len, regex, offset)) {
             if(rs.err) {
                 jsrBufferFree(&b);
                 return false;
@@ -563,15 +573,15 @@ JSR_NATIVE(jsr_re_gsub) {
         }
 
         // if 0 match increment by one and retry
-        if(rs.captures[0].start == lastmatch && rs.captures[0].len == 0) {
-            off++;
+        if(rs.captures[0].start == lastMatch && rs.captures[0].len == 0) {
+            offset++;
             continue;
         }
 
         ptrdiff_t offSinceLast;
-        if(lastmatch != NULL) {
-            offSinceLast = rs.captures[0].start - lastmatch;
-            jsrBufferAppend(&b, lastmatch, offSinceLast);
+        if(lastMatch != NULL) {
+            offSinceLast = rs.captures[0].start - lastMatch;
+            jsrBufferAppend(&b, lastMatch, offSinceLast);
         } else {
             offSinceLast = rs.captures[0].start - str;
             jsrBufferAppend(&b, str, offSinceLast);
@@ -590,14 +600,14 @@ JSR_NATIVE(jsr_re_gsub) {
             }
         }
 
-        off += offSinceLast + rs.captures[0].len;
-        lastmatch = rs.captures[0].start + rs.captures[0].len;
+        offset += offSinceLast + rs.captures[0].len;
+        lastMatch = rs.captures[0].start + rs.captures[0].len;
 
-        numsub++;
+        numSub++;
     }
 
-    if(lastmatch != NULL) {
-        jsrBufferAppend(&b, lastmatch, str + len - lastmatch);
+    if(lastMatch != NULL) {
+        jsrBufferAppend(&b, lastMatch, str + len - lastMatch);
         jsrBufferPush(&b);
     } else {
         jsrBufferFree(&b);

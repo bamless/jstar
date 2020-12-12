@@ -24,7 +24,7 @@ static const char* overloadNames[OVERLOAD_SENTINEL] = {
 // Enumeration encoding the cause of the stack unwinding.
 // Used during unwinding to correctly handle the execution
 // of except/ensure handlers on return and exception
-typedef enum {
+typedef enum UnwindCause {
     CAUSE_EXCEPT,
     CAUSE_RETURN,
 } UnwindCause;

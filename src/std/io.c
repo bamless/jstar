@@ -341,7 +341,7 @@ JSR_NATIVE(jsr_Popen_close) {
     jsrPushNumber(vm, ret);
     return true;
 #else
-    JSR_RAISE(vm, "NotImplementedException", "`__PFile.close` not supported on current system.");
+    JSR_RAISE(vm, "NotImplementedException", "Popen not supported on current system.");
 #endif
 }
 // end

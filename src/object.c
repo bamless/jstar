@@ -158,7 +158,9 @@ void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         Code* code = &fn->code;
 
         size_t op = f->ip - code->bytecode - 1;
-        op = op < code->count ? op : code->count - 1;
+        if(op >= code->count) {
+            op = code->count - 1;
+        }
 
         record->line = getBytecodeSrcLine(code, op);
         record->moduleName = fn->c.module->name;
