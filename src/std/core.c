@@ -70,8 +70,14 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
     for(size_t i = 0; i < size; i++) {
         push(vm, v1[i]);
         push(vm, v2[i]);
+
         if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
-        if(!(*out = valueToBool(pop(vm)))) return true;
+
+        bool res = valueToBool(pop(vm));
+        if(!res) {
+            *out = false;
+            return true;
+        }
     }
     return true;
 }
@@ -424,6 +430,7 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, comparator);
         push(vm, a);
         push(vm, b);
+
         if(jsrCall(vm, 2) != JSR_SUCCESS) return false;
 
         if(!IS_NUM(peek(vm))) {
@@ -437,7 +444,9 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
     } else {
         push(vm, a);
         push(vm, b);
+
         if(jsrCallMethod(vm, "__le__", 1) != JSR_SUCCESS) return false;
+
         *out = valueToBool(pop(vm));
     }
     return true;
@@ -731,6 +740,7 @@ JSR_NATIVE(jsr_String_strip) {
     while(start < end && isspace(str[start])) {
         start++;
     }
+
     while(start < end && isspace(str[end - 1])) {
         end--;
     }
@@ -1039,10 +1049,11 @@ JSR_NATIVE(jsr_Table_get) {
         return false;
     }
 
-    if(!IS_NULL(e->key))
+    if(!IS_NULL(e->key)) {
         push(vm, e->val);
-    else
+    } else {
         push(vm, NULL_VAL);
+    }
 
     return true;
 }
@@ -1275,10 +1286,12 @@ static bool checkEnumElem(JStarVM* vm, int slot) {
                 JSR_RAISE(vm, "InvalidArgException", "Invalid Enum element `%s`", enumElem);
             }
         }
+
         ObjString* str = AS_STRING(apiStackSlot(vm, slot));
         if(hashTableContainsKey(&inst->fields, str)) {
             JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem);
         }
+
         return true;
     }
 
@@ -1335,7 +1348,10 @@ JSR_NATIVE(jsr_Enum_new) {
             i++;
         }, );
 
-    if(i == 0) JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
+    if(i == 0) {
+        JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
+    }
+
     jsrPop(vm);
     jsrPushValue(vm, 0);
     return true;
@@ -1388,8 +1404,9 @@ JSR_NATIVE(jsr_int) {
 JSR_NATIVE(jsr_char) {
     JSR_CHECK(String, 1, "c");
     const char* str = jsrGetString(vm, 1);
-    if(jsrGetStringSz(vm, 1) != 1)
+    if(jsrGetStringSz(vm, 1) != 1) {
         JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
+    }
     int c = str[0];
     jsrPushNumber(vm, (double)c);
     return true;
