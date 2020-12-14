@@ -18,16 +18,16 @@
 #define CAPTURE_UNFINISHED -1
 #define CAPTURE_POSITION   -2
 
-#define RAISE_REGX_EXC(error, ...)                                \
+#define RAISE_REGEX_EXC(error, ...)                               \
     do {                                                          \
-        rs->err = true;                                           \
+        rs->hadError = true;                                      \
         jsrRaise(rs->vm, "RegexException", error, ##__VA_ARGS__); \
     } while(0)
 
 typedef struct {
     const char *str, *end;
     JStarVM* vm;
-    bool err;
+    bool hadError;
     int captureCount;
     struct {
         const char* start;
@@ -122,7 +122,7 @@ static int finishCaptures(RegexState* rs) {
     for(int i = rs->captureCount - 1; i > 0; i--) {
         if(rs->captures[i].len == CAPTURE_UNFINISHED) return i;
     }
-    RAISE_REGX_EXC("Invalid regex capture.");
+    RAISE_REGEX_EXC("Invalid regex capture.");
     return -1;
 }
 
@@ -130,7 +130,7 @@ static const char* match(RegexState* rs, const char* str, const char* regex);
 
 static const char* startCapture(RegexState* rs, const char* str, const char* regex) {
     if(rs->captureCount >= MAX_CAPTURES) {
-        RAISE_REGX_EXC("Max capture number exceeded: %d.", MAX_CAPTURES);
+        RAISE_REGEX_EXC("Max capture number exceeded: %d.", MAX_CAPTURES);
         return NULL;
     }
 
@@ -190,7 +190,7 @@ static const char* greedyMatch(RegexState* rs, const char* str, const char* rege
         if(res != NULL) {
             return res;
         }
-        if(rs->err) {
+        if(rs->hadError) {
             return NULL;
         }
         i--;
@@ -206,7 +206,7 @@ static const char* lazyMatch(RegexState* rs, const char* str, const char* regex,
         if(res != NULL) {
             return res;
         }
-        if(rs->err) {
+        if(rs->hadError) {
             return NULL;
         }
     } while(!isAtEnd(str) && matchClassOrChar(*str++, regex, clsEnd));
@@ -218,14 +218,14 @@ static const char* endClass(RegexState* rs, const char* regex) {
     switch(*regex++) {
     case ESCAPE:
         if(isAtEnd(regex)) {
-            RAISE_REGX_EXC("Malformed regex (ends with `%c`).", ESCAPE);
+            RAISE_REGEX_EXC("Malformed regex, ends with `%c`.", ESCAPE);
             return NULL;
         }
         return regex + 1;
     case '[':
         do {
             if(isAtEnd(regex)) {
-                RAISE_REGX_EXC("Malformed regex (unmatched `[`).");
+                RAISE_REGEX_EXC("Malformed regex, unmatched `[`.");
                 return NULL;
             }
             if(*regex++ == ESCAPE && !isAtEnd(regex)) {
@@ -304,7 +304,7 @@ static void initState(RegexState* rs, JStarVM* vm, const char* str, size_t len) 
     rs->vm = vm;
     rs->str = str;
     rs->end = str + len;
-    rs->err = false;
+    rs->hadError = false;
     rs->captureCount = 1;
     rs->captures[0].start = str;
     rs->captures[0].len = CAPTURE_UNFINISHED;
@@ -341,7 +341,7 @@ static bool matchRegex(JStarVM* vm, RegexState* rs, const char* str, size_t len,
             rs->captures[0].len = res - str;
             return true;
         }
-        if(rs->err) return false;
+        if(rs->hadError) return false;
     } while(!isAtEnd(str++));
 
     return false;
@@ -365,7 +365,7 @@ static FindRes findAux(JStarVM* vm, RegexState* rs) {
     double off = jsrGetNumber(vm, 3);
 
     if(!matchRegex(vm, rs, str, len, regex, off)) {
-        if(rs->err) return FIND_ERR;
+        if(rs->hadError) return FIND_ERR;
         jsrPushNull(vm);
         return FIND_NOMATCH;
     }
@@ -452,7 +452,7 @@ JSR_NATIVE(jsr_re_gmatch) {
     while(offset <= len) {
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, offset)) {
-            if(rs.err) return false;
+            if(rs.hadError) return false;
             return true;
         }
 
@@ -565,7 +565,7 @@ JSR_NATIVE(jsr_re_gsub) {
 
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, offset)) {
-            if(rs.err) {
+            if(rs.hadError) {
                 jsrBufferFree(&b);
                 return false;
             }
