@@ -33,7 +33,9 @@ class Userdata end
 
 class Iter
     fun forEach(func)
-        for var e in this do func(e) end
+        for var e in this do
+            func(e)
+        end
     end
 
     fun enumerate() 
@@ -247,31 +249,31 @@ fun sorted(iterable, comparator=null)
 end
 
 fun reduce(iterable, fn)
-    var accumulator, iter = null, iterable.__iter__(null)
+    var iter = iterable.__iter__(null)
     if !iter then 
         return null 
     end
 
-    accumulator = iterable.__next__(iter) 
+    var acc = iterable.__next__(iter) 
     while iter = iterable.__iter__(iter) do
-        accumulator = fn(accumulator, iterable.__next__(iter))
+        acc = fn(acc, iterable.__next__(iter))
     end
 
-    return accumulator
+    return acc
 end
 
-fun any(iterable, func)
+fun any(iterable, predicate)
     for var e in iterable do
-        if func(e) then
+        if predicate(e) then
             return true
         end
     end
     return false
 end
 
-fun all(iterable, func)
+fun all(iterable, predicate)
     for var e in iterable do
-        if !func(e) then
+        if !predicate(e) then
             return false
         end
     end
@@ -291,12 +293,12 @@ end
 fun toTable(iterable)
     var table = {}
     if iterable is Table then
-        for var k in iterable do
-            table[k] = iterable[k]
+        for var key in iterable do
+            table[key] = iterable[key]
         end
     else
-        for var k, v in iterable do
-            table[k] = v
+        for var key, val in iterable do
+            table[key] = val
         end
     end
     return table
@@ -363,15 +365,14 @@ class IEnumerate is Iter
 end
 
 class IFilter is Iter
-    fun new(func, iter)
+    fun new(func, iterable)
         this._func = func
-        this._iter = iter
+        this._iterable = iterable
     end
 
-    fun __iter__(i)
-        var iter = i
-        while iter = this._iter.__iter__(iter) do
-            if this._func(this._iter.__next__(iter)) then
+    fun __iter__(iter)
+        while iter = this._iterable.__iter__(iter) do
+            if this._func(this._iterable.__next__(iter)) then
                 return iter
             end
         end
@@ -379,22 +380,22 @@ class IFilter is Iter
     end
 
     fun __next__(i)
-        return this._iter.__next__(i)
+        return this._iterable.__next__(i)
     end
 end
 
 class IMap is Iter
-    fun new(func, iter)
+    fun new(func, iterable)
         this._func = func
-        this._iter = iter
+        this._iterable = iterable
     end
 
     fun __iter__(i)
-        return this._iter.__iter__(i)
+        return this._iterable.__iter__(i)
     end
 
     fun __next__(i)
-        return this._func(this._iter.__next__(i))
+        return this._func(this._iterable.__next__(i))
     end
 end
 
@@ -403,14 +404,15 @@ class IZip is Iter
         if #args == 0 then 
             raise InvalidArgException("Expected at least one iterator.")
         end
-        this._iters = args
+
+        this._iterables = args
         this._result = []
     end
 
-    fun __iter__(tup)
+    fun __iter__(iters)
         var i = 0
-        for var iterator in this._iters do
-            var res = iterator.__iter__(tup[i] if tup else null)
+        for var iterator in this._iterables do
+            var res = iterator.__iter__(iters[i] if iters else null)
             if !res then 
                 return false 
             end
@@ -418,20 +420,24 @@ class IZip is Iter
             this._result.add(res)
             i += 1
         end
-        var res = Tuple(this._result)
+
+        var ret = Tuple(this._result)
         this._result.clear()
-        return res
+        
+        return ret
     end
 
-    fun __next__(tup)
+    fun __next__(iters)
         var i = 0
-        for var iterator in this._iters do
-            this._result.add(iterator.__next__(tup[i]))
+        for var iterator in this._iterables do
+            this._result.add(iterator.__next__(iters[i]))
             i += 1
         end
-        var res = Tuple(this._result)
+
+        var ret = Tuple(this._result)
         this._result.clear()
-        return res
+        
+        return ret
     end
 end
 
