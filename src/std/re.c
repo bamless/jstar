@@ -390,6 +390,10 @@ static bool pushCapture(JStarVM* vm, RegexState* rs, int n) {
     return true;
 }
 
+static bool isZeroMatch(RegexState* rs, const char* lastMatch) {
+    return rs->captures[0].start == lastMatch && rs->captures[0].len == 0;
+}
+
 JSR_NATIVE(jsr_re_match) {
     RegexState rs;
     FindRes res = findAux(vm, &rs);
@@ -456,8 +460,7 @@ JSR_NATIVE(jsr_re_gmatch) {
             return true;
         }
 
-        // if 0 match increment by one and retry
-        if(rs.captures[0].start == lastMatch && rs.captures[0].len == 0) {
+        if(isZeroMatch(&rs, lastMatch)) {
             offset++;
             continue;
         }
@@ -479,9 +482,7 @@ JSR_NATIVE(jsr_re_gmatch) {
             jsrPop(vm);
         }
 
-        ptrdiff_t offSinceLast = lastMatch ? rs.captures[0].start - lastMatch
-                                           : rs.captures[0].start - str;
-
+        ptrdiff_t offSinceLast = rs.captures[0].start - (lastMatch ? lastMatch : str);
         offset += offSinceLast + rs.captures[0].len;
         lastMatch = rs.captures[0].start + rs.captures[0].len;
     }
@@ -559,10 +560,6 @@ JSR_NATIVE(jsr_re_gsub) {
     const char* lastMatch = NULL;
 
     while(offset <= len) {
-        if(num > 0 && numSub > num - 1) {
-            break;
-        }
-
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, offset)) {
             if(rs.hadError) {
@@ -572,20 +569,13 @@ JSR_NATIVE(jsr_re_gsub) {
             break;
         }
 
-        // if 0 match increment by one and retry
-        if(rs.captures[0].start == lastMatch && rs.captures[0].len == 0) {
+        if(isZeroMatch(&rs, lastMatch)) {
             offset++;
             continue;
         }
 
-        ptrdiff_t offSinceLast;
-        if(lastMatch != NULL) {
-            offSinceLast = rs.captures[0].start - lastMatch;
-            jsrBufferAppend(&b, lastMatch, offSinceLast);
-        } else {
-            offSinceLast = rs.captures[0].start - str;
-            jsrBufferAppend(&b, str, offSinceLast);
-        }
+        ptrdiff_t offSinceLast = rs.captures[0].start - (lastMatch ? lastMatch : str);
+        jsrBufferAppend(&b, lastMatch ? lastMatch : str, offSinceLast);
 
         if(jsrIsString(vm, 3)) {
             const char* sub = jsrGetString(vm, 3);
@@ -604,6 +594,9 @@ JSR_NATIVE(jsr_re_gsub) {
         lastMatch = rs.captures[0].start + rs.captures[0].len;
 
         numSub++;
+        if(num > 0 && numSub >= num) {
+            break;
+        }
     }
 
     if(lastMatch != NULL) {
