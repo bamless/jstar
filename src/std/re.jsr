@@ -5,36 +5,43 @@ native find(str, regex, off=0)
 native gsub(str, regex, sub, num=0)
 native gmatch(str, regex)
 
+static fun isZeroMatch(startMatch, endMatch, lastMatch)
+    return lastMatch == endMatch and endMatch - startMatch == 0
+end
+
 static class IGmatch is Iter
     fun new(str, regex)
-        this.s, this.r = str, regex
-        this.off, this.endl = 0, null
+        this.off = 0
+        this.lastMatch = null
+        this.str = str
+        this.regex = regex
     end
 
     fun __iter__(_)
-        var res = find(this.s, this.r, this.off)
+        var res = find(this.str, this.regex, this.off)
         if !res then 
             return null
         end
         
-        var b, e = res
-        while e == this.endl and e - b == 0 do
-            res = find(this.s, this.r, this.off += 1)
+        var startMatch, endMatch = res
+
+        while isZeroMatch(startMatch, endMatch, this.lastMatch) do
+            res = find(this.str, this.regex, this.off += 1)
             if !res then 
                 return null
             end
-            b, e = res
+            
+            startMatch, endMatch = res
         end
 
-        var resLen = #res
-        this.off = this.endl = e
+        this.off = this.lastMatch = endMatch
         
-        if resLen == 2 then
-            return this.s[b, e]
-        elif resLen == 3 then
+        if #res == 2 then
+            return this.str[startMatch, endMatch]
+        elif #res == 3 then
             return res[2]
         else
-            return res[2, resLen]
+            return res[2, #res]
         end
     end
 
