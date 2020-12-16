@@ -552,8 +552,8 @@ JSR_NATIVE(jsr_re_gsub) {
     const char* regex = jsrGetString(vm, 2);
     int num = jsrGetNumber(vm, 4);
 
-    JStarBuffer b;
-    jsrBufferInit(vm, &b);
+    JStarBuffer buf;
+    jsrBufferInit(vm, &buf);
 
     int numSub = 0;
     size_t offset = 0;
@@ -563,7 +563,7 @@ JSR_NATIVE(jsr_re_gsub) {
         RegexState rs;
         if(!matchRegex(vm, &rs, str, len, regex, offset)) {
             if(rs.hadError) {
-                jsrBufferFree(&b);
+                jsrBufferFree(&buf);
                 return false;
             }
             break;
@@ -575,17 +575,17 @@ JSR_NATIVE(jsr_re_gsub) {
         }
 
         ptrdiff_t offSinceLast = rs.captures[0].start - (lastMatch ? lastMatch : str);
-        jsrBufferAppend(&b, lastMatch ? lastMatch : str, offSinceLast);
+        jsrBufferAppend(&buf, lastMatch ? lastMatch : str, offSinceLast);
 
         if(jsrIsString(vm, 3)) {
             const char* sub = jsrGetString(vm, 3);
-            if(!substitute(vm, &rs, &b, sub)) {
-                jsrBufferFree(&b);
+            if(!substitute(vm, &rs, &buf, sub)) {
+                jsrBufferFree(&buf);
                 return false;
             }
         } else {
-            if(!substituteCall(vm, &rs, &b, 3)) {
-                jsrBufferFree(&b);
+            if(!substituteCall(vm, &rs, &buf, 3)) {
+                jsrBufferFree(&buf);
                 return false;
             }
         }
@@ -600,10 +600,10 @@ JSR_NATIVE(jsr_re_gsub) {
     }
 
     if(lastMatch != NULL) {
-        jsrBufferAppend(&b, lastMatch, str + len - lastMatch);
-        jsrBufferPush(&b);
+        jsrBufferAppend(&buf, lastMatch, str + len - lastMatch);
+        jsrBufferPush(&buf);
     } else {
-        jsrBufferFree(&b);
+        jsrBufferFree(&buf);
         jsrPushValue(vm, 1);
     }
 
