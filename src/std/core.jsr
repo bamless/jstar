@@ -254,12 +254,12 @@ fun reduce(iterable, fn)
         return null 
     end
 
-    var acc = iterable.__next__(iter) 
+    var accu = iterable.__next__(iter) 
     while iter = iterable.__iter__(iter) do
-        acc = fn(acc, iterable.__next__(iter))
+        accu = fn(accu, iterable.__next__(iter))
     end
 
-    return acc
+    return accu
 end
 
 fun any(iterable, predicate)
