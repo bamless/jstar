@@ -80,11 +80,11 @@ static void serializeConst(JStarBuffer* buf, Value c) {
         serializeByte(buf, AS_BOOL(c));
     } else if(IS_NULL(c)) {
         serializeByte(buf, CONST_NULL);
+    } else if(IS_HANDLE(c)) {
+        serializeByte(buf, CONST_HANDLE);
     } else if(IS_STRING(c)) {
         serializeByte(buf, CONST_STR);
         serializeString(buf, AS_STRING(c));
-    } else if(IS_HANDLE(c)) {
-        serializeByte(buf, CONST_HANDLE);
     } else {
         UNREACHABLE();
     }
