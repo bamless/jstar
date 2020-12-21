@@ -260,12 +260,11 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     char header[SERIALIZED_HEADER_SIZE];
     bool isCompiled = false;
 
-    if(fread(header, 1, SERIALIZED_HEADER_SIZE, src) == SERIALIZED_HEADER_SIZE) {
-        if(memcmp(SERIALIZED_FILE_HEADER, header, SERIALIZED_HEADER_SIZE) == 0) {
-            src = freopen(path, "rb", src);
-            if(src == NULL) return false;
-            isCompiled = true;
-        }
+    if(fread(header, 1, SERIALIZED_HEADER_SIZE, src) == SERIALIZED_HEADER_SIZE &&
+       memcmp(SERIALIZED_FILE_HEADER, header, SERIALIZED_HEADER_SIZE) == 0) {
+        src = freopen(path, "rb", src);
+        if(src == NULL) return false;
+        isCompiled = true;
     } else {
         rewind(src);
     }
