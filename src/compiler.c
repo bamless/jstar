@@ -290,7 +290,7 @@ static int declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int lin
 }
 
 static void markInitialized(Compiler* c, int idx, bool forceLocal) {
-    if(inGlobalScope(c) == 0 && !forceLocal) return;
+    if(inGlobalScope(c) && !forceLocal) return;
 
     if(idx >= 0) {
         c->locals[idx].depth = c->depth;
