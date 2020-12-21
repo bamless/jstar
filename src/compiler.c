@@ -739,7 +739,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
 
 static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
                        JStarExpr* args, bool isUnpack) {
-    vecForeach(JStarExpr * *it, args->as.list) {
+    vecForeach(JStarExpr(**it), args->as.list) {
         // compile arguments
         compileExpr(c, *it);
     }
