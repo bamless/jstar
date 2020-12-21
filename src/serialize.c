@@ -230,15 +230,21 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         if(!deserializeUint64(d, &length)) return false;
     }
 
-    // TODO: optimize in some way
-    char* str = calloc(length, 1);
-    if(!deserializeCString(d, str, length)) {
-        free(str);
-        return false;
-    }
+    if(length <= 4096) {
+        char str[4096];
+        if(!deserializeCString(d, str, length)) return false;
+        *out = copyString(d->vm, str, length);
+    } else {
+        char* str = calloc(length, 1);
 
-    *out = copyString(d->vm, str, length);
-    free(str);
+        if(!deserializeCString(d, str, length)) {
+            free(str);
+            return false;
+        }
+
+        *out = copyString(d->vm, str, length);
+        free(str);
+    }
 
     return true;
 }
