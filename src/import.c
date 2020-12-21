@@ -187,7 +187,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         // Try to load a binary package (__package__.jsc file in a directory)
         jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSC_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
@@ -196,7 +197,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSR_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
@@ -205,7 +207,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSC_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
@@ -214,7 +217,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSR_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
