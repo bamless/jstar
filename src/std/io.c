@@ -75,6 +75,14 @@ static int jsrSeek(FILE* file, long offset, int jsrWhence) {
     return fseek(file, offset, whence);
 }
 
+static bool checkModeString(const char* mode) {
+    if(strcmp("r", mode) == 0 || strcmp("r+", mode) == 0 || strcmp("w", mode) == 0 ||
+       strcmp("w+", mode) == 0 || strcmp("a", mode) == 0 || strcmp("a+", mode) == 0) {
+        return true;
+    }
+    return false;
+}
+
 // class File
 JSR_NATIVE(jsr_File_new) {
     if(jsrIsNull(vm, 3)) {
@@ -84,9 +92,7 @@ JSR_NATIVE(jsr_File_new) {
         const char* path = jsrGetString(vm, 1);
         const char* mode = jsrGetString(vm, 2);
 
-        size_t modeLen = strlen(mode);
-        if(modeLen > 3 || (mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a') ||
-           (modeLen > 1 && (mode[1] != 'b' && mode[1] != '+')) || (modeLen > 2 && mode[2] != 'b')) {
+        if(!checkModeString(mode)) {
             JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
         }
 
@@ -99,11 +105,9 @@ JSR_NATIVE(jsr_File_new) {
             }
         }
 
-        // this._handle = f
         jsrPushHandle(vm, (void*)f);
         jsrSetField(vm, 0, FIELD_FILE_HANDLE);
 
-        // this._closed = false
         jsrPushBoolean(vm, false);
         jsrSetField(vm, 0, FIELD_FILE_CLOSED);
     } else if(jsrIsHandle(vm, 3)) {
@@ -190,8 +194,8 @@ JSR_NATIVE(jsr_File_read) {
     JStarBuffer data;
     jsrBufferInitCapacity(vm, &data, bytes);
 
-    size_t read;
-    if((read = fread(data.data, 1, bytes, f)) < (size_t)bytes && ferror(f)) {
+    size_t read = fread(data.data, 1, bytes, f);
+    if(read < (size_t)bytes && ferror(f)) {
         jsrBufferFree(&data);
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
@@ -300,7 +304,7 @@ JSR_NATIVE(jsr_Popen_new) {
     const char* pname = jsrGetString(vm, 1);
     const char* mode = jsrGetString(vm, 2);
 
-    if(strlen(mode) != 1 || (mode[0] != 'r' && mode[1] != 'w')) {
+    if(strlen(mode) != 1 || (mode[0] != 'r' && mode[0] != 'w')) {
         JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
     }
 
