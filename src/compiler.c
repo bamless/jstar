@@ -306,24 +306,37 @@ static void defineVar(Compiler* c, JStarIdentifier* id, int idx, bool forceLocal
     }
 }
 
-static size_t emitJumpTo(Compiler* c, int jmpOpcode, size_t target, int line) {
-    int32_t offset = target - (getCurrentAddr(c) + 3);
+static void assertJumpOpcode(Opcode op) {
+    ASSERT((op == OP_JUMP || op == OP_JUMPT || op == OP_JUMPF || op == OP_FOR_NEXT ||
+            op == OP_SETUP_EXCEPT || op == OP_SETUP_ENSURE),
+           "Not a jump opcode");
+}
+
+static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
+    assertJumpOpcode(jmpOp);
+    int32_t offset = target - (getCurrentAddr(c) + opcodeArgsNumber(jmpOp) + 1);
+
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
 
-    emitBytecode(c, jmpOpcode, line);
+    size_t jmpAddr = emitBytecode(c, jmpOp, line);
     emitShort(c, (uint16_t)offset, line);
-    return getCurrentAddr(c) - 2;
+
+    return jmpAddr;
 }
 
 static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
-    int32_t offset = target - (jumpAddr + 3);
+    Code* code = &c->func->code;
+    Opcode jmpOp = code->bytecode[jumpAddr];
+    assertJumpOpcode(jmpOp);
+
+    int32_t offset = target - (jumpAddr + opcodeArgsNumber(jmpOp) + 1);
+
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over.");
     }
 
-    Code* code = &c->func->code;
     code->bytecode[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
     code->bytecode[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
 }
@@ -337,13 +350,15 @@ static void startLoop(Compiler* c, Loop* loop) {
 
 static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t brk) {
     for(size_t i = start; i < getCurrentAddr(c); i++) {
-        Opcode code = c->func->code.bytecode[i];
-        if(code == OP_SIGN_BRK || code == OP_SIGN_CONT) {
+        Opcode op = c->func->code.bytecode[i];
+
+        if(op == OP_SIGN_BRK || op == OP_SIGN_CONT) {
             c->func->code.bytecode[i] = OP_JUMP;
-            setJumpTo(c, i, code == OP_SIGN_CONT ? cont : brk, 0);
-            code = OP_JUMP;
+            setJumpTo(c, i, op == OP_SIGN_CONT ? cont : brk, 0);
+            i += opcodeArgsNumber(OP_JUMP);
+        } else {
+            i += opcodeArgsNumber(op);
         }
-        i += opcodeArgsNumber(code);
     }
 }
 
@@ -617,10 +632,10 @@ static void compileLval(Compiler* c, JStarExpr* e) {
     }
 }
 
+// boundName is the name of the variable to which we are assigning to.
+// In case of a function literal we use it to give the function a meaningful name, instead
+// of just using the default name for function literals (that is: `anon:<line_number>`)
 static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
-    // boundName is the name of the variable to which we are assigning to.
-    // In case of a function literal we use it to give the function a meaningful name, instead
-    // of just the standard 'default' name of anonymous function literals
     if(e->type == JSR_FUNC_LIT) {
         compileFunLiteral(c, e, boundName);
     } else {
