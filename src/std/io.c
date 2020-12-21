@@ -84,6 +84,9 @@ static bool checkModeString(const char* mode) {
 }
 
 // class File
+#define M_FILE_HANDLE "_handle"
+#define M_FILE_CLOSED "_closed"
+
 JSR_NATIVE(jsr_File_new) {
     if(jsrIsNull(vm, 3)) {
         JSR_CHECK(String, 1, "path");
@@ -106,14 +109,14 @@ JSR_NATIVE(jsr_File_new) {
         }
 
         jsrPushHandle(vm, (void*)f);
-        jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+        jsrSetField(vm, 0, M_FILE_HANDLE);
 
         jsrPushBoolean(vm, false);
-        jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+        jsrSetField(vm, 0, M_FILE_CLOSED);
     } else if(jsrIsHandle(vm, 3)) {
-        jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+        jsrSetField(vm, 0, M_FILE_HANDLE);
         jsrPushBoolean(vm, false);
-        jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+        jsrSetField(vm, 0, M_FILE_CLOSED);
     } else {
         JSR_RAISE(vm, "TypeException", "Provided FILE* handle is not valid");
     }
@@ -124,7 +127,7 @@ JSR_NATIVE(jsr_File_new) {
 }
 
 static bool checkClosed(JStarVM* vm) {
-    if(!jsrGetField(vm, 0, FIELD_FILE_CLOSED)) return false;
+    if(!jsrGetField(vm, 0, M_FILE_CLOSED)) return false;
     bool closed = jsrGetBoolean(vm, -1);
     if(closed) JSR_RAISE(vm, "IOException", "closed file");
     return true;
@@ -132,8 +135,8 @@ static bool checkClosed(JStarVM* vm) {
 
 JSR_NATIVE(jsr_File_seek) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
     JSR_CHECK(Int, 1, "off");
     JSR_CHECK(Int, 2, "whence");
 
@@ -155,8 +158,8 @@ JSR_NATIVE(jsr_File_seek) {
 
 JSR_NATIVE(jsr_File_tell) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
@@ -171,8 +174,8 @@ JSR_NATIVE(jsr_File_tell) {
 
 JSR_NATIVE(jsr_File_rewind) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
     rewind(f);
@@ -183,8 +186,8 @@ JSR_NATIVE(jsr_File_rewind) {
 
 JSR_NATIVE(jsr_File_read) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
     JSR_CHECK(Int, 1, "bytes");
 
     double bytes = jsrGetNumber(vm, 1);
@@ -207,8 +210,8 @@ JSR_NATIVE(jsr_File_read) {
 
 JSR_NATIVE(jsr_File_readAll) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
@@ -236,8 +239,8 @@ JSR_NATIVE(jsr_File_readAll) {
 
 JSR_NATIVE(jsr_File_readLine) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
     if(!readline(vm, f)) {
@@ -249,8 +252,8 @@ JSR_NATIVE(jsr_File_readLine) {
 
 JSR_NATIVE(jsr_File_write) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
     JSR_CHECK(String, 1, "data");
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
@@ -267,27 +270,27 @@ JSR_NATIVE(jsr_File_write) {
 
 JSR_NATIVE(jsr_File_close) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     jsrPushBoolean(vm, true);
-    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+    jsrSetField(vm, 0, M_FILE_CLOSED);
 
     if(fclose(f)) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
     jsrPushNull(vm);
-    jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+    jsrSetField(vm, 0, M_FILE_HANDLE);
     return true;
 }
 
 JSR_NATIVE(jsr_File_flush) {
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
     if(fflush(f) == EOF) JSR_RAISE(vm, "IOException", strerror(errno));
     jsrPushNull(vm);
@@ -314,10 +317,10 @@ JSR_NATIVE(jsr_Popen_new) {
     }
 
     jsrPushHandle(vm, f);
-    jsrSetField(vm, 0, FIELD_FILE_HANDLE);
+    jsrSetField(vm, 0, M_FILE_HANDLE);
 
     jsrPushBoolean(vm, false);
-    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+    jsrSetField(vm, 0, M_FILE_CLOSED);
 
     jsrPushValue(vm, 0);
     return true;
@@ -329,13 +332,13 @@ JSR_NATIVE(jsr_Popen_new) {
 JSR_NATIVE(jsr_Popen_close) {
 #ifdef USE_POPEN
     if(!checkClosed(vm)) return false;
-    if(!jsrGetField(vm, 0, FIELD_FILE_HANDLE)) return false;
-    JSR_CHECK(Handle, -1, FIELD_FILE_HANDLE);
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
 
     jsrPushBoolean(vm, true);
-    jsrSetField(vm, 0, FIELD_FILE_CLOSED);
+    jsrSetField(vm, 0, M_FILE_CLOSED);
 
     int ret;
     if((ret = pclose(f)) < 0) {
