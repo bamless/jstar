@@ -50,10 +50,10 @@
         #define htobe64(x) (x)
         #define be64toh(x) (x)
     #else
-        #warning unknown endiannes
+        #error Unsupported platform: unknown endiannes
     #endif
 #else
-    #warning Unsupported platform: unknown endiannes
+    #error Unsupported platform: unknown endiannes
 #endif
 
 #endif
