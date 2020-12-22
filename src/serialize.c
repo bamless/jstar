@@ -5,9 +5,9 @@
 #include <string.h>
 
 #include "code.h"
+#include "endianness.h"
 #include "gc.h"
 #include "object.h"
-#include "endianness.h"
 #include "value.h"
 #include "vm.h"
 
@@ -268,33 +268,31 @@ static bool deserializeConst(Deserializer* d, ConstType type, Value* out) {
         double num;
         if(!deserializeDouble(d, &num)) return false;
         *out = NUM_VAL(num);
-        break;
+        return true;
     }
     case CONST_BOOL: {
         uint8_t boolean;
         if(!deserializeByte(d, &boolean)) return false;
         *out = BOOL_VAL(boolean);
-        break;
+        return true;
     }
     case CONST_NULL: {
         *out = NULL_VAL;
-        break;
+        return true;
     }
     case CONST_STR: {
         ObjString* str;
         if(!deserializeString(d, &str)) return false;
         *out = OBJ_VAL(str);
-        break;
+        return true;
     }
     case CONST_HANDLE: {
         *out = HANDLE_VAL(NULL);
-        break;
+        return true;
     }
     default:
         return false;
     }
-
-    return true;
 }
 
 static bool deserializeCommon(Deserializer* d, FnCommon* c) {
