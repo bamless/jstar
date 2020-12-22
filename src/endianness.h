@@ -7,10 +7,8 @@
 // ENDIANNESS MACROS
 // -----------------------------------------------------------------------------
 
-#if defined(JSTAR_LINUX)
+#if defined(JSTAR_LINUX) || defined(JSTAR_EMSCRIPTEN)
     #include <endian.h>
-#elif defined(JSTAR_OPENBSD)
-    #include <sys/endian.h>
 #elif defined(JSTAR_MACOS) || defined(JSTAR_IOS)
     #include <libkern/OSByteOrder.h>
 
@@ -19,6 +17,8 @@
 
     #define htobe64(x) OSSwapHostToBigInt64(x)
     #define be64toh(x) OSSwapBigToHostInt64(x)
+#elif defined(JSTAR_OPENBSD)
+    #include <sys/endian.h>
 #elif defined(JSTAR_FREEBSD)
     #include <sys/endian.h>
 
