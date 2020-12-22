@@ -280,7 +280,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement.");
         return;
     }
-    vecForeach(JStarExpr(**it), lvals->as.list) {
+    vecForeach(JStarExpr** it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "Left hand side of unpack assignment must be composed of lvalues.");
