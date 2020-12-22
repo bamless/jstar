@@ -7,7 +7,7 @@
 #include "code.h"
 #include "gc.h"
 #include "object.h"
-#include "util.h"
+#include "endianness.h"
 #include "value.h"
 #include "vm.h"
 
