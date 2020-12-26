@@ -125,7 +125,7 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
     return JSR_SUCCESS;
 }
 
-static JStarResult finishCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
+static JStarResult executeCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
     if(vm->frameCount > evalDepth && !runEval(vm, evalDepth)) {
         // Exception was thrown, push it as result
         Value exc = pop(vm);
@@ -155,7 +155,7 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
         return JSR_RUNTIME_ERR;
     }
 
-    return finishCall(vm, evalDepth, stackPtrOffset);
+    return executeCall(vm, evalDepth, stackPtrOffset);
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
@@ -167,7 +167,7 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
         return JSR_RUNTIME_ERR;
     }
 
-    return finishCall(vm, evalDepth, stackPtrOffset);
+    return executeCall(vm, evalDepth, stackPtrOffset);
 }
 
 void jsrEvalBreak(JStarVM* vm) {
