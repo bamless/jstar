@@ -1435,7 +1435,6 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, arity, defCount, vararg);
-
     // Phony const that will be set to the superclass of the method's class at runtime
     addConstant(&c->func->code, HANDLE_VAL(NULL));
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
