@@ -509,25 +509,22 @@ static bool computeUnpackArgCount(JStarVM* vm, int unpackArgc, uint8_t argc, uin
 
 static Value* getValueArray(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a tuple or list.");
-    Value* array = NULL;
+
     switch(obj->type) {
     case OBJ_TUPLE: {
         ObjTuple* tup = (ObjTuple*)obj;
-        array = tup->arr;
         *size = tup->size;
-        break;
+        return tup->arr;
     }
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj;
-        array = lst->arr;
         *size = lst->count;
-        break;
+        return lst->arr;
     }
     default:
         UNREACHABLE();
-        break;
+        return NULL;
     }
-    return array;
 }
 
 static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
