@@ -15,15 +15,17 @@
 #include "value.h"
 #include "vm.h"
 
-static void setModuleInParent(JStarVM* vm, ObjModule* module) {
-    ObjString* name = module->name;
+static void setModuleInParent(JStarVM* vm, ObjModule* mdoule) {
+    ObjString* name = mdoule->name;
     const char* lastDot = strrchr(name->data, '.');
-    if(!lastDot) return;
 
-    const char* simpleName = lastDot + 1;
-    ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
-    ASSERT(parent, "Submodule parent could not be found.");
-    hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
+    if(lastDot != NULL) {
+        const char* simpleName = lastDot + 1;
+        ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
+        ASSERT(parent, "Submodule parent could not be found.");
+        hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)),
+                     OBJ_VAL(mdoule));
+    }
 }
 
 static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
@@ -185,7 +187,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         // Try to load a binary package (__package__.jsc file in a directory)
         jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSC_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
@@ -194,7 +197,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSR_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
@@ -203,7 +207,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSC_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }
@@ -212,7 +217,8 @@ static bool importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSR_EXT);
 
-        if((res = importFromPath(vm, &fullPath, name)) != IMPORT_NOT_FOUND) {
+        res = importFromPath(vm, &fullPath, name);
+        if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
             return res == IMPORT_OK;
         }

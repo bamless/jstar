@@ -191,11 +191,9 @@ void jsrExprFree(JStarExpr* e) {
         jsrExprFree(e->as.table.keyVals);
         break;
     case JSR_EXPR_LST: {
-        // clang-format off
         vecForeach(JStarExpr** expr, e->as.list) { 
             jsrExprFree(*expr); 
         }
-        // clang-format on
         vecFree(&e->as.list);
         break;
     }
@@ -424,69 +422,57 @@ void jsrStmtFree(JStarStmt* s) {
         jsrExprFree(s->as.exprStmt);
         break;
     case JSR_BLOCK: {
-        // clang-format off
         vecForeach(JStarStmt** stmt, s->as.blockStmt.stmts) {
             jsrStmtFree(*stmt);
         }
-        // clang-format on
         vecFree(&s->as.blockStmt.stmts);
         break;
     }
     case JSR_FUNCDECL: {
-        // clang-format off
         vecForeach(JStarIdentifier** id, s->as.funcDecl.formalArgs) {
             free(*id);
         }
         vecForeach(JStarExpr** e, s->as.funcDecl.defArgs) {
             jsrExprFree(*e);
         }
-        // clang-format on
         vecFree(&s->as.funcDecl.formalArgs);
         vecFree(&s->as.funcDecl.defArgs);
         jsrStmtFree(s->as.funcDecl.body);
         break;
     }
     case JSR_NATIVEDECL: {
-        // clang-format off
         vecForeach(JStarIdentifier** id, s->as.nativeDecl.formalArgs) {
             free(*id);
         }
         vecForeach(JStarExpr** e, s->as.nativeDecl.defArgs) {
             jsrExprFree(*e);
         }
-        // clang-format on
         vecFree(&s->as.nativeDecl.formalArgs);
         vecFree(&s->as.nativeDecl.defArgs);
         break;
     }
     case JSR_CLASSDECL: {
         jsrExprFree(s->as.classDecl.sup);
-        // clang-format off
         vecForeach(JStarStmt** stmt, s->as.classDecl.methods) {
             jsrStmtFree(*stmt);
         }
-        // clang-format on
         vecFree(&s->as.classDecl.methods);
         break;
     }
     case JSR_VARDECL: {
         jsrExprFree(s->as.varDecl.init);
-        // clang-format off
         vecForeach(JStarIdentifier** id, s->as.varDecl.ids) {
             free(*id);
         }
-        // clang-format on
         vecFree(&s->as.varDecl.ids);
         break;
     }
     case JSR_TRY:
         jsrStmtFree(s->as.tryStmt.block);
         jsrStmtFree(s->as.tryStmt.ensure);
-        // clang-format off
         vecForeach(JStarStmt** stmt, s->as.tryStmt.excs) {
             jsrStmtFree(*stmt);
         }
-        // clang-format on
         vecFree(&s->as.tryStmt.excs);
         break;
     case JSR_EXCEPT:
@@ -501,14 +487,12 @@ void jsrStmtFree(JStarStmt* s) {
         jsrStmtFree(s->as.withStmt.block);
         break;
     case JSR_IMPORT: {
-        // clang-format off
         vecForeach(JStarIdentifier** id, s->as.importStmt.modules) {
             free(*id);
         }
         vecForeach(JStarIdentifier** id, s->as.importStmt.impNames) {
             free(*id);
         }
-        // clang-format on
         vecFree(&s->as.importStmt.modules);
         vecFree(&s->as.importStmt.impNames);
         break;

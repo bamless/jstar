@@ -5,9 +5,9 @@
 #include <string.h>
 
 #include "code.h"
+#include "endianness.h"
 #include "gc.h"
 #include "object.h"
-#include "util.h"
 #include "value.h"
 #include "vm.h"
 
@@ -80,11 +80,11 @@ static void serializeConst(JStarBuffer* buf, Value c) {
         serializeByte(buf, AS_BOOL(c));
     } else if(IS_NULL(c)) {
         serializeByte(buf, CONST_NULL);
+    } else if(IS_HANDLE(c)) {
+        serializeByte(buf, CONST_HANDLE);
     } else if(IS_STRING(c)) {
         serializeByte(buf, CONST_STR);
         serializeString(buf, AS_STRING(c));
-    } else if(IS_HANDLE(c)) {
-        serializeByte(buf, CONST_HANDLE);
     } else {
         UNREACHABLE();
     }
@@ -230,15 +230,21 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         if(!deserializeUint64(d, &length)) return false;
     }
 
-    // TODO: optimize in some way
-    char* str = calloc(length, 1);
-    if(!deserializeCString(d, str, length)) {
-        free(str);
-        return false;
-    }
+    if(length <= 4096) {
+        char str[4096];
+        if(!deserializeCString(d, str, length)) return false;
+        *out = copyString(d->vm, str, length);
+    } else {
+        char* str = calloc(length, 1);
 
-    *out = copyString(d->vm, str, length);
-    free(str);
+        if(!deserializeCString(d, str, length)) {
+            free(str);
+            return false;
+        }
+
+        *out = copyString(d->vm, str, length);
+        free(str);
+    }
 
     return true;
 }
@@ -262,33 +268,31 @@ static bool deserializeConst(Deserializer* d, ConstType type, Value* out) {
         double num;
         if(!deserializeDouble(d, &num)) return false;
         *out = NUM_VAL(num);
-        break;
+        return true;
     }
     case CONST_BOOL: {
         uint8_t boolean;
         if(!deserializeByte(d, &boolean)) return false;
         *out = BOOL_VAL(boolean);
-        break;
+        return true;
     }
     case CONST_NULL: {
         *out = NULL_VAL;
-        break;
+        return true;
     }
     case CONST_STR: {
         ObjString* str;
         if(!deserializeString(d, &str)) return false;
         *out = OBJ_VAL(str);
-        break;
+        return true;
     }
     case CONST_HANDLE: {
         *out = HANDLE_VAL(NULL);
-        break;
+        return true;
     }
     default:
         return false;
     }
-
-    return true;
 }
 
 static bool deserializeCommon(Deserializer* d, FnCommon* c) {

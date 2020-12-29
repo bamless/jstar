@@ -24,10 +24,14 @@
     #define PLATFORM "OS X"
 #elif defined(JSTAR_IOS)
     #define PLATFORM "iOS"
-#elif defined(__ANDROID__)
+#elif defined(JSTAR_ANDROID)
     #define PLATFORM "Android"
-#elif defined(__FreeBSD__)
+#elif defined(JSTAR_FREEBSD)
     #define PLATFORM "FreeBSD"
+#elif defined(JSTAR_OPENBSD)
+    #define PLATFORM "OpenBSD"
+#elif defined(JSTAR_EMSCRIPTEN)
+    #define PLATFORM "Emscripten"
 #else
     #define PLATFORM "Unknown"
 #endif

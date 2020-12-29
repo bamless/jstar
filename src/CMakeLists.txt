@@ -109,8 +109,8 @@ target_include_directories(jstar_static
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
-        ${PROJECT_SOURCE_DIR}/include/jstar
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/include/jstar
 )
 set_target_properties(jstar_static PROPERTIES 
     OUTPUT_NAME "jstars"
