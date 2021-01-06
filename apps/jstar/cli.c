@@ -205,7 +205,7 @@ static JStarResult execScript(const char* script, int argc, char** args, bool ig
 
     JStarBuffer src;
     if(!jsrReadFile(vm, script, &src)) {
-        fprintf(stderr, "Error reading script %s: %s\n", script, strerror(errno));
+        fprintf(stderr, "Error reading script '%s': %s\n", script, strerror(errno));
         exitFree(EXIT_FAILURE);
     }
 

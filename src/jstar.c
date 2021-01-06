@@ -252,54 +252,64 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
 }
 
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
+    int saveErrno;
+    size_t read;
     FILE* src = fopen(path, "r");
+
     if(src == NULL) {
         return false;
     }
 
-    char header[SERIALIZED_HEADER_SIZE];
     bool isCompiled = false;
+    char header[SER_HEADER_SIZE];
 
-    if(fread(header, 1, SERIALIZED_HEADER_SIZE, src) == SERIALIZED_HEADER_SIZE &&
-       memcmp(SERIALIZED_FILE_HEADER, header, SERIALIZED_HEADER_SIZE) == 0) {
-        src = freopen(path, "rb", src);
-        if(src == NULL) return false;
-        isCompiled = true;
-    } else {
-        rewind(src);
+    read = fread(header, 1, SER_HEADER_SIZE, src);
+    if(ferror(src)) {
+        goto error;
+    } 
+    
+    if(read == SER_HEADER_SIZE) {
+        if(memcmp(SER_FILE_HEADER, header, read) == 0) {
+            isCompiled = true;
+            src = freopen(path, "rb", src);
+        }
     }
 
     if(fseek(src, 0, SEEK_END)) {
-        fclose(src);
-        return false;
+        goto error;
     }
 
-    long size;
-    if((size = ftell(src)) < 0) {
-        fclose(src);
-        return false;
+    long size = ftell(src);
+    if(size < 0) {
+        goto error;
     }
 
     rewind(src);
 
     jsrBufferInitCapacity(vm, out, size + (isCompiled ? 0 : 1));
 
-    size_t read = fread(out->data, 1, size, src);
+    read = fread(out->data, 1, size, src);
     if(read < (size_t)size) {
-        int saveErr = errno;
+        saveErrno = errno;
         jsrBufferFree(out);
-        fclose(src);
-        errno = saveErr;
+        errno = saveErrno;
+        goto error;
+    }
+
+    if(fclose(src)) {
         return false;
     }
 
-    fclose(src);
-    if(!isCompiled) {
-        out->data[size] = '\0';
-    }
-
     out->size = size;
+    if(!isCompiled) out->data[size] = '\0';
+
     return src;
+
+error:
+    saveErrno = errno;
+    if(fclose(src)) return false;
+    errno = saveErrno;
+    return false;
 }
 
 static void validateStack(JStarVM* vm) {
