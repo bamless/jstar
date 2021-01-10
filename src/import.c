@@ -1,6 +1,7 @@
 #include "import.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "compiler.h"
@@ -236,7 +237,7 @@ bool importModule(JStarVM* vm, ObjString* name) {
         return true;
     }
 
-    unsigned int len;
+    size_t len;
     char* builtinSrc = readBuiltInModule(name->data, &len);
     if(builtinSrc != NULL) {
         JStarBuffer syntheticBuf = {vm, len, len, (char*)builtinSrc};

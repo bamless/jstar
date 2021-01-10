@@ -170,9 +170,9 @@ void initCoreModule(JStarVM* vm) {
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
     // Execute core module code
-    unsigned int len;
+    size_t len;
     char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
-    JStarBuffer syntheticBuf = {vm, len, len, (char*)coreBytecode};
+    JStarBuffer syntheticBuf = {vm, len, len, coreBytecode};
     jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &syntheticBuf);
 
     // Cache builtin class objects in JStarVM

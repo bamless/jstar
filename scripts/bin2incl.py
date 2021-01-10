@@ -41,7 +41,7 @@ with open(args.file, "rb") as f:
 
     # write file length
     include_builder.append(
-        f"const unsigned int {name}_len = {os.path.getsize(args.file)};")
+        f"const size_t {name}_len = {os.path.getsize(args.file)};")
 
 
 with open(args.out, "w") as out:
