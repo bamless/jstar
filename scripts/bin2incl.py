@@ -34,7 +34,7 @@ with open(args.file, "rb") as f:
         try:
             include_builder.append("0x" + byte.hex())
         except AttributeError:
-            include_builder.append("0x" + str(byte))
+            include_builder.append("0x" + hex(byte))
 
         include_builder.append(", ")
 
