@@ -1,31 +1,31 @@
 #include "modules.h"
 
 #include "core.h"
-#include "core.incl"
+#include "core.jsc.inc"
 
 #ifdef JSTAR_SYS
     #include "sys.h"
-    #include "sys.incl"
+    #include "sys.jsc.inc"
 #endif
 
 #ifdef JSTAR_IO
     #include "io.h"
-    #include "io.incl"
+    #include "io.jsc.inc"
 #endif
 
 #ifdef JSTAR_MATH
     #include "math.h"
-    #include "math.incl"
+    #include "math.jsc.inc"
 #endif
 
 #ifdef JSTAR_DEBUG
     #include "debug.h"
-    #include "debug.incl"
+    #include "debug.jsc.inc"
 #endif
 
 #ifdef JSTAR_RE
     #include "re.h"
-    #include "re.incl"
+    #include "re.jsc.inc"
 #endif
 
 #include <string.h>

@@ -60,22 +60,22 @@ set(JSTAR_SOURCES
 
 # J* standard library sources
 set(JSTAR_STDLIB
-    std/core
-    std/debug
-    std/io
-    std/math
-    std/re
-    std/sys
+    std/core.jsc
+    std/debug.jsc
+    std/io.jsc
+    std/math.jsc
+    std/re.jsc
+    std/sys.jsc
 )
 
 # Generate J* sandard library source headers
 set(JSTAR_STDLIB_HEADERS)
 foreach(jsr ${JSTAR_STDLIB})
-    list(APPEND JSTAR_STDLIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.incl)
+    list(APPEND JSTAR_STDLIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc)
     add_custom_command(
-        OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.incl
-        COMMAND python ${PROJECT_SOURCE_DIR}/scripts/bin2incl.py ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.jsc ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.incl
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.jsc
+        OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
+        COMMAND python ${PROJECT_SOURCE_DIR}/scripts/bin2incl.py ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}
     )
 endforeach()
 
