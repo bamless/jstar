@@ -20,16 +20,18 @@ include_builder = [WARNING]
 
 with open(args.file, "rb") as f:
     # convert binary file to hex byte array
-    include_builder.append(f"char {name}[] = {{")
+    include_builder.append("char {}[] = ".format(name))
+    include_builder.append("{")
 
     hex_written = 0
     byte = f.read(1)
 
     while byte:
         if hex_written % LINE_WIDTH == 0:
-            include_builder.append(f"\n{LINE_INDENT}")
+            include_builder.append("\n")
+            include_builder.append(LINE_INDENT)
 
-        include_builder.append(f"0x{byte.hex()}")
+        include_builder.append("0x" + byte.hex())
         include_builder.append(", ")
 
         byte = f.read(1)
@@ -40,9 +42,7 @@ with open(args.file, "rb") as f:
     include_builder.append("\n")
 
     # write file length
-    include_builder.append(
-        f"const size_t {name}_len = {os.path.getsize(args.file)};")
-
+    include_builder.append("const size_t {}_len = {};".format(name, os.path.getsize(args.file)))
 
 with open(args.out, "w") as out:
     out.write("".join(include_builder))
