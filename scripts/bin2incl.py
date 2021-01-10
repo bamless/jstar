@@ -31,11 +31,7 @@ with open(args.file, "rb") as f:
             include_builder.append("\n")
             include_builder.append(LINE_INDENT)
 
-        try:
-            include_builder.append("0x" + byte.hex())
-        except AttributeError:
-            include_builder.append(hex(byte))
-
+        include_builder.append(hex(ord(byte)))
         include_builder.append(", ")
 
         byte = f.read(1)
