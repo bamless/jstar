@@ -303,12 +303,15 @@ static bool deserializeCommon(Deserializer* d, FnCommon* c) {
     c->vararg = (bool)vararg;
 
     if(!deserializeString(d, &c->name)) return false;
-    if(!deserializeByte(d, &c->defCount)) return false;
 
-    c->defaults = GC_ALLOC(d->vm, sizeof(Value) * c->defCount);
-    zeroValueArray(c->defaults, c->defCount);
+    uint8_t defCount;
+    if(!deserializeByte(d, &defCount)) return false;
 
-    for(int i = 0; i < c->defCount; i++) {
+    c->defaults = GC_ALLOC(d->vm, sizeof(Value) * defCount);
+    zeroValueArray(c->defaults, defCount);
+    c->defCount = defCount;
+
+    for(int i = 0; i < defCount; i++) {
         uint8_t valueType;
         if(!deserializeByte(d, &valueType)) return false;
         if(!deserializeConst(d, valueType, c->defaults + i)) return false;
