@@ -16,4 +16,7 @@ void setModule(JStarVM* vm, ObjString* name, ObjModule* module);
 ObjModule* getModule(JStarVM* vm, ObjString* name);
 bool importModule(JStarVM* vm, ObjString* name);
 
+void parseErrorCallback(const char* file, int line, const char* error, void* udata);
+
+
 #endif

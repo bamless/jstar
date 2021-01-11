@@ -39,6 +39,19 @@ static bool isDirectory(const char* path) {
     return false;
 }
 
+static void errorCallback(JStarVM* vm, JStarResult err, const char* file, int line,
+                          const char* error) {
+    switch(err) {
+    case JSR_SYNTAX_ERR:
+    case JSR_COMPILE_ERR:
+        fprintf(stderr, "File %s [line:%d]:\n", file, line);
+        fprintf(stderr, "%s\n", error);
+        break;
+    default:
+        break;
+    }
+}
+
 // -----------------------------------------------------------------------------
 // FILE COMPILE
 // -----------------------------------------------------------------------------

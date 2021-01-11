@@ -1477,7 +1477,7 @@ JSR_NATIVE(jsr_eval) {
         mod = ((ObjNative*)prevFn)->c.module;
     }
 
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
+    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseErrorCallback, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }

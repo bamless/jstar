@@ -103,7 +103,7 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
 }
 
 static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
-    JStarStmt* program = jsrParse(path, source, vm->errorCallback);
+    JStarStmt* program = jsrParse(path, source, parseErrorCallback, vm);
     if(program == NULL) {
         return false;
     }
@@ -249,4 +249,11 @@ bool importModule(JStarVM* vm, ObjString* name) {
     }
 
     return true;
+}
+
+void parseErrorCallback(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    if(vm->errorCallback) {
+        vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+    }
 }

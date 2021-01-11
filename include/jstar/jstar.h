@@ -55,10 +55,12 @@ typedef enum JStarResult {
 // encountered.
 // 'file' is the path of the file that caused the error, 'line' the line where the error occurred
 // (or -1 of not line information is available), and 'error' is a descriptive message of the error.
-typedef void (*JStarErrorCB)(const char* file, int line, const char* error);
+typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int line,
+                             const char* error);
 
 // Default implementation of the error callback that prints all errors to stderr
-JSTAR_API void jsrPrintErrorCB(const char* file, int line, const char* error);
+JSTAR_API void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line,
+                               const char* error);
 
 typedef struct JstarConf {
     size_t stackSize;            // Initial stack size in bytes

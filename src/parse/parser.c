@@ -19,14 +19,17 @@ typedef struct Parser {
     const char* path;
     const char* lineStart;
     ParseErrorCB errorCallback;
+    void* userData;
     bool panic, hadError;
 } Parser;
 
-static void initParser(Parser* p, const char* path, const char* src, ParseErrorCB errorCallback) {
+static void initParser(Parser* p, const char* path, const char* src, ParseErrorCB errFn,
+                       void* udata) {
     p->panic = false;
     p->hadError = false;
     p->path = path;
-    p->errorCallback = errorCallback;
+    p->errorCallback = errFn;
+    p->userData = udata;
     jsrInitLexer(&p->lex, src);
     jsrNextToken(&p->lex, &p->peek);
     p->lineStart = p->peek.lexeme;
@@ -107,7 +110,7 @@ static void error(Parser* p, const char* msg, ...) {
             ASSERT(pos < MAX_ERR_SIZE, "Error message was truncated");
         }
 
-        p->errorCallback(p->path, p->peek.line, error);
+        p->errorCallback(p->path, p->peek.line, error, p->userData);
     }
 }
 
@@ -280,7 +283,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement.");
         return;
     }
-    vecForeach(JStarExpr** it, lvals->as.list) {
+    vecForeach(JStarExpr * *it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "Left hand side of unpack assignment must be composed of lvalues.");
@@ -1198,9 +1201,9 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
 // API
 // -----------------------------------------------------------------------------
 
-JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errorCallback) {
+JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
     Parser p;
-    initParser(&p, path, src, errorCallback);
+    initParser(&p, path, src, errFn, udata);
 
     JStarStmt* program = parseProgram(&p);
     skipNewLines(&p);
@@ -1217,9 +1220,9 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errorCallbac
     return program;
 }
 
-JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errorCallback) {
+JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
     Parser p;
-    initParser(&p, path, src, errorCallback);
+    initParser(&p, path, src, errFn, udata);
 
     JStarExpr* expr = expression(&p, true);
     skipNewLines(&p);

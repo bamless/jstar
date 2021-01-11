@@ -23,7 +23,7 @@
 // JStarBuffer is implemented in object.c
 // -----------------------------------------------------------------------------
 
-void jsrPrintErrorCB(const char* file, int line, const char* error) {
+void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
     if(line >= 0) {
         fprintf(stderr, "File %s [line:%d]:\n", file, line);
     } else {
@@ -52,7 +52,7 @@ JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
 
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
-    JStarStmt* program = jsrParse(path, src, vm->errorCallback);
+    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -92,11 +92,12 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     ObjFunction* fn = deserializeWithModule(vm, name, code, &err);
 
     if(err == JSR_VERSION_ERR) {
-        vm->errorCallback(path, -1, "Incompatible binary file version");
+        vm->errorCallback(vm, err, path, -1, "Incompatible binary file version");
         return err;
     }
+
     if(err == JSR_DESERIALIZE_ERR) {
-        vm->errorCallback(path, -1, "Malformed binary file");
+        vm->errorCallback(vm, err, path, -1, "Malformed binary file");
         return err;
     }
 
@@ -113,7 +114,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
-    JStarStmt* program = jsrParse(path, src, vm->errorCallback);
+    JStarStmt* program = jsrParse(path, src, &parseErrorCallback, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
