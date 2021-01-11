@@ -20,25 +20,6 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 
-static void initVM() {
-    JStarConf conf = jsrGetConf();
-    vm = jsrNewVM(&conf);
-}
-
-static void exitFree(int code) {
-    jsrFreeVM(vm);
-    exit(code);
-}
-
-static bool isDirectory(const char* path) {
-    DIR* d = opendir(path);
-    if(d != NULL) {
-        if(closedir(d)) exitFree(errno);
-        return true;
-    }
-    return false;
-}
-
 static void errorCallback(JStarVM* vm, JStarResult err, const char* file, int line,
                           const char* error) {
     switch(err) {
@@ -50,6 +31,25 @@ static void errorCallback(JStarVM* vm, JStarResult err, const char* file, int li
     default:
         break;
     }
+}
+
+static void initVM() {
+    JStarConf conf = jsrGetConf();
+    conf.errorCallback = &errorCallback;
+    vm = jsrNewVM(&conf);
+}
+
+static void freeVM(int code) {
+    jsrFreeVM(vm);
+}
+
+static bool isDirectory(const char* path) {
+    DIR* d = opendir(path);
+    if(d != NULL) {
+        if(closedir(d)) exit(errno);
+        return true;
+    }
+    return false;
 }
 
 // -----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ static void compileFile(const char* path, const char* out) {
     JStarBuffer src;
     if(!jsrReadFile(vm, path, &src)) {
         fprintf(stderr, "Cannot open file %s: %s\n", path, strerror(errno));
-        exitFree(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     char outPath[FILENAME_MAX];
@@ -95,7 +95,7 @@ static void compileFile(const char* path, const char* out) {
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error compiling file %s\n", path);
         jsrBufferFree(&src);
-        exitFree(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     jsrBufferFree(&src);
@@ -103,7 +103,7 @@ static void compileFile(const char* path, const char* out) {
     if(!writeToFile(&compiled, outPath)) {
         fprintf(stderr, "Failed to write %s: %s\n", outPath, strerror(errno));
         jsrBufferFree(&compiled);
-        exitFree(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     jsrBufferFree(&compiled);
@@ -143,7 +143,7 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
     DIR* currentDir = opendir(curr);
     if(currentDir == NULL) {
         fprintf(stderr, "Cannot open directory %s: %s\n", curr, strerror(errno));
-        exitFree(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     struct dirent* file;
@@ -237,7 +237,9 @@ static void parseArguments(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     parseArguments(argc, argv);
+
     initVM();
+    atexit(&freeVM);
 
     if(isDirectory(opts.input)) {
         compileDirectory(opts.input, opts.output);
@@ -245,5 +247,5 @@ int main(int argc, char** argv) {
         compileFile(opts.input, opts.output);
     }
 
-    exitFree(EXIT_SUCCESS);
+    exit(EXIT_SUCCESS);
 }
