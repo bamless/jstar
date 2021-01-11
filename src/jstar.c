@@ -38,7 +38,12 @@ JStarConf jsrGetConf(void) {
     conf.initGC = INIT_GC;
     conf.heapGrowRate = HEAP_GROW_RATE;
     conf.errorCallback = &jsrPrintErrorCB;
+    conf.customData = NULL;
     return conf;
+}
+
+void* jsrGetCustomData(JStarVM* vm) {
+    return vm->customData;
 }
 
 JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {

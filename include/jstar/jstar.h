@@ -65,6 +65,7 @@ typedef struct JstarConf {
     size_t initGC;               // first GC threshold point
     int heapGrowRate;            // The rate at which the heap will grow after a succesful GC
     JStarErrorCB errorCallback;  // Error callback
+    void* customData;            // Custom data associated with the VM
 } JStarConf;
 
 // Retuns a JStarConf initialized with default values
@@ -75,6 +76,9 @@ JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
 
 // Free a previously obtained VM along with all of its state
 JSTAR_API void jsrFreeVM(JStarVM* vm);
+
+// Get the custom data associated with the VM at configuration time (if any)
+void* jsrGetCustomData(JStarVM* vm);
 
 // Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.

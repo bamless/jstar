@@ -69,14 +69,16 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     vm->nextGC = conf->initGC;
     vm->heapGrowRate = conf->heapGrowRate;
 
+    vm->customData = conf->customData;
+
     // Module and String caches
     initHashTable(&vm->modules);
     initHashTable(&vm->strings);
-
     initConstStrings(vm);
 
     // Core module bootstrap
     initCoreModule(vm);
+    
     // Init empty main module
     initMainModule(vm);
 
