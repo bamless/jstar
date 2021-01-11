@@ -34,10 +34,9 @@ static void initVM(void) {
     jsrBufferInit(vm, &completionBuf);
 }
 
-static void exitFree(int code) {
+static void freeVM(void) {
     jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
-    exit(code);
 }
 
 // -----------------------------------------------------------------------------
@@ -181,7 +180,7 @@ static void doRepl() {
 
     jsrBufferFree(&src);
     linenoiseHistoryFree();
-    exitFree(res);
+    exit(res);
 }
 
 // -----------------------------------------------------------------------------
@@ -206,7 +205,7 @@ static JStarResult execScript(const char* script, int argc, char** args, bool ig
     JStarBuffer src;
     if(!jsrReadFile(vm, script, &src)) {
         fprintf(stderr, "Error reading script '%s': %s\n", script, strerror(errno));
-        exitFree(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     JStarResult res = evaluate(script, &src);
@@ -268,16 +267,17 @@ int main(int argc, char** argv) {
     }
 
     initVM();
+    atexit(&freeVM);
 
     if(opts.execStmt) {
         JStarResult res = jsrEvalString(vm, "<string>", opts.execStmt);
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
-        if(!opts.interactive) exitFree(res);
+        if(!opts.interactive) exit(res);
     } else if(opts.script) {
         JStarResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
-        if(!opts.interactive) exitFree(res);
+        if(!opts.interactive) exit(res);
     }
 
     doRepl();
