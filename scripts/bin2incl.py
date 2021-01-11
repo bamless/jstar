@@ -6,11 +6,8 @@ from argparse import ArgumentParser
 
 WARNING = "// WARNING: this is a file generated automatically by the build process, do not modify\n"
 
-LINE_WIDTH = 15
-LINE_INDENT = " " * 4
-
 argparser = ArgumentParser()
-argparser.add_argument("file", help="The text file to convert")
+argparser.add_argument("file", help="J* compiled file to convert")
 argparser.add_argument("out", help="The name of the generated header")
 
 args = argparser.parse_args()
