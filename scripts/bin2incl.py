@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os.path
-import re
 from argparse import ArgumentParser
 
 WARNING = "// WARNING: this is a file generated automatically by the build process, do not modify\n"
