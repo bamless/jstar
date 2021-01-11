@@ -74,7 +74,7 @@ typedef struct {
 
 #define FUNCTION(name, fn) { TYPE_FUNC, .as = { .function = { #name, fn } } },
 
-Module builtInModules[] = {
+static Module builtInModules[] = {
     COREMODULE
         FUNCTION(ascii,          jsr_ascii)
         FUNCTION(char,           jsr_char)
