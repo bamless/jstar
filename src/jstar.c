@@ -70,7 +70,9 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
 
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
-        jsrPrintStacktrace(vm, -1);
+        jsrGetStacktrace(vm, -1);
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        jsrPop(vm);
     }
 
     pop(vm);
@@ -106,7 +108,9 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
-        jsrPrintStacktrace(vm, -1);
+        jsrGetStacktrace(vm, -1);
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        jsrPop(vm);
     }
 
     pop(vm);
@@ -225,7 +229,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
     if(err != NULL) {
         JStarBuffer error;
-        jsrBufferInitCapacity(vm, &error, 64);
+        jsrBufferInitCapacity(vm, &error, strlen(err) * 2);
 
         va_list args;
         va_start(args, err);

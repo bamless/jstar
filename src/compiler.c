@@ -115,7 +115,7 @@ static void error(Compiler* c, int line, const char* format, ...) {
 
     if(vm->errorCallback) {
         JStarBuffer error;
-        jsrBufferInitCapacity(c->vm, &error, 64);
+        jsrBufferInitCapacity(c->vm, &error, strlen(format) * 2);
 
         va_list args;
         va_start(args, format);
