@@ -51,10 +51,8 @@ typedef enum JStarResult {
     JSR_VERSION_ERR,      // Incompatible version of compiled code
 } JStarResult;
 
-// J* error function callback. Called when syntax, compilation or dederializtion errors are
-// encountered.
-// 'file' is the path of the file that caused the error, 'line' the line where the error occurred
-// (or -1 of not line information is available), and 'error' is a descriptive message of the error.
+// J* error function callback. Called when syntax, compilation, dederializtion 
+// or syntax errors are encountered.
 typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int line,
                              const char* error);
 
@@ -70,7 +68,7 @@ typedef struct JstarConf {
     void* customData;            // Custom data associated with the VM
 } JStarConf;
 
-// Retuns a JStarConf initialized with default values
+// Retuns a JStarConf struct initialized with default values
 JSTAR_API JStarConf jsrGetConf(void);
 
 // Allocate a new VM with all the state needed for code execution
@@ -85,9 +83,7 @@ void* jsrGetCustomData(JStarVM* vm);
 // Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
-// will be returned.
-// In the case of a JSR_RUNTIME_ERR the stacktrace of the Exception will be printed to stderr.
-// All other errors will be forwarded to the error callback
+// will be returned. All errors will be forwared to the error callback as well.
 JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code);
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const JStarBuffer* code);
@@ -215,12 +211,7 @@ typedef struct JStarNativeReg {
 
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
-#define JSR_REGEND                     \
-    {                                  \
-        REG_SENTINEL, {                \
-            .function = { NULL, NULL } \
-        }                              \
-    }
+#define JSR_REGEND                   {REG_SENTINEL, { .function = { NULL, NULL }}}
 
 // -----------------------------------------------------------------------------
 // OVERLOADABLE OPERATOR API
