@@ -238,7 +238,7 @@ bool importModule(JStarVM* vm, ObjString* name) {
     }
 
     size_t len;
-    char* builtinSrc = readBuiltInModule(name->data, &len);
+    const char* builtinSrc = readBuiltInModule(name->data, &len);
     if(builtinSrc != NULL) {
         JStarBuffer syntheticBuf = {vm, len, len, (char*)builtinSrc};
         return importWithBinary(vm, name, &syntheticBuf);

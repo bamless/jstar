@@ -171,8 +171,8 @@ void initCoreModule(JStarVM* vm) {
 
     // Execute core module code
     size_t len;
-    char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
-    JStarBuffer syntheticBuf = {vm, len, len, coreBytecode};
+    const char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
+    JStarBuffer syntheticBuf = {vm, len, len, (char*)coreBytecode};
     jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &syntheticBuf);
 
     // Cache builtin class objects in JStarVM

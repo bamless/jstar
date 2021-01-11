@@ -16,29 +16,18 @@ argparser.add_argument("out", help="The name of the generated header")
 args = argparser.parse_args()
 
 name = os.path.basename(args.file).replace(".", "_")
-include_builder = [WARNING]
+include_builder = [WARNING, "const char* {} = ".format(name)]
 
 with open(args.file, "rb") as f:
     # convert binary file to hex byte array
-    include_builder.append("char {}[] = ".format(name))
-    include_builder.append("{")
+    include_builder.append('"')
 
-    hex_written = 0
     byte = f.read(1)
-
     while byte:
-        if hex_written % LINE_WIDTH == 0:
-            include_builder.append("\n")
-            include_builder.append(LINE_INDENT)
-
-        include_builder.append(hex(ord(byte)))
-        include_builder.append(", ")
-
+        include_builder.append("\\x{:02x}".format(ord(byte)))
         byte = f.read(1)
-        hex_written += 1
 
-    include_builder.append("\n")
-    include_builder.append("};")
+    include_builder.append('";')
     include_builder.append("\n")
 
     # write file length
