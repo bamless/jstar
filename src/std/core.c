@@ -1636,10 +1636,13 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
             }
 
             jsrBufferAppendStr(&string, "    ");
-            if(record->line >= 0)
+            
+            if(record->line >= 0) {
                 jsrBufferAppendf(&string, "[line %d]", record->line);
-            else
-                jsrBufferAppend(&string, "[line ?]", record->line);
+            } else {
+                jsrBufferAppendStr(&string, "[line ?]");
+            }
+
             jsrBufferAppendf(&string, " module %s in %s\n", record->moduleName->data,
                              record->funcName->data);
 
