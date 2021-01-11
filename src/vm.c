@@ -57,6 +57,7 @@ static void initMainModule(JStarVM* vm) {
 JStarVM* jsrNewVM(const JStarConf* conf) {
     JStarVM* vm = calloc(1, sizeof(*vm));
     vm->errorCallback = conf->errorCallback;
+    vm->customData = conf->customData;
 
     // VM program stack
     vm->stackSz = roundUp(conf->stackSize, MAX_LOCALS + 1);
@@ -68,8 +69,6 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     // GC Values
     vm->nextGC = conf->initGC;
     vm->heapGrowRate = conf->heapGrowRate;
-
-    vm->customData = conf->customData;
 
     // Module and String caches
     initHashTable(&vm->modules);
