@@ -12,11 +12,11 @@
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
 
 // compiler and platform on which this J* binary was compiled
-#define JSTAR_COMPILER "MSVC 19.28.29335.0"
-#define JSTAR_PLATFORM "Windows"
+#define JSTAR_COMPILER "GNU 10.2.0"
+#define JSTAR_PLATFORM "Linux"
 
 // Options
-/* #undef JSTAR_COMPUTED_GOTOS */
+#define JSTAR_COMPUTED_GOTOS
 #define JSTAR_NAN_TAGGING
 /* #undef JSTAR_DBG_PRINT_EXEC */
 /* #undef JSTAR_DBG_PRINT_GC */
