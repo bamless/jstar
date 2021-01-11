@@ -77,7 +77,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
     // Core module bootstrap
     initCoreModule(vm);
-    
+
     // Init empty main module
     initMainModule(vm);
 
@@ -321,9 +321,14 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 }
 
 static bool checkSliceIndex(JStarVM* vm, ObjTuple* slice, size_t size, size_t* low, size_t* high) {
-    if(slice->size != 2) JSR_RAISE(vm, "TypeException", "Slice index must have two elements.");
+    if(slice->size != 2) {
+        jsrRaise(vm, "TypeException", "Slice index must have two elements.");
+        return false;
+    }
+
     if(!IS_INT(slice->arr[0]) || !IS_INT(slice->arr[1])) {
-        JSR_RAISE(vm, "TypeException", "Slice index must be two integers.");
+        jsrRaise(vm, "TypeException", "Slice index must be two integers.");
+        return false;
     }
 
     size_t a = jsrCheckIndexNum(vm, AS_NUM(slice->arr[0]), size + 1);
@@ -332,9 +337,10 @@ static bool checkSliceIndex(JStarVM* vm, ObjTuple* slice, size_t size, size_t* l
     if(b == SIZE_MAX) return false;
 
     if(a > b) {
-        JSR_RAISE(vm, "InvalidArgException",
-                  "Invalid slice indices (%g, %g), first must be <= than second",
-                  AS_NUM(slice->arr[0]), AS_NUM(slice->arr[1]));
+        jsrRaise(vm, "InvalidArgException",
+                 "Invalid slice indices (%g, %g), first must be <= than second",
+                 AS_NUM(slice->arr[0]), AS_NUM(slice->arr[1]));
+        return false;
     }
 
     *low = a, *high = b;
@@ -367,7 +373,8 @@ static bool getListSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
-    JSR_RAISE(vm, "TypeException", "Index of List subscript must be an integer or a Tuple");
+    jsrRaise(vm, "TypeException", "Index of List subscript must be an integer or a Tuple");
+    return false;
 }
 
 static bool getTupleSubscript(JStarVM* vm) {
@@ -395,7 +402,8 @@ static bool getTupleSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
-    JSR_RAISE(vm, "TypeException", "Index of Tuple subscript must be an integer or a Tuple");
+    jsrRaise(vm, "TypeException", "Index of Tuple subscript must be an integer or a Tuple");
+    return false;
 }
 
 static bool getStringSubscript(JStarVM* vm) {
@@ -420,7 +428,8 @@ static bool getStringSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
-    JSR_RAISE(vm, "TypeException", "Index of String subscript must be an integer or a Tuple");
+    jsrRaise(vm, "TypeException", "Index of String subscript must be an integer or a Tuple");
+    return false;
 }
 
 static bool getSubscriptOfValue(JStarVM* vm) {
