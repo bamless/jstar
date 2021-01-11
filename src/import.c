@@ -16,8 +16,8 @@
 #include "value.h"
 #include "vm.h"
 
-static void setModuleInParent(JStarVM* vm, ObjModule* mdoule) {
-    ObjString* name = mdoule->name;
+static void setModuleInParent(JStarVM* vm, ObjModule* module) {
+    ObjString* name = module->name;
     const char* lastDot = strrchr(name->data, '.');
 
     if(lastDot != NULL) {
@@ -25,7 +25,7 @@ static void setModuleInParent(JStarVM* vm, ObjModule* mdoule) {
         ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
         ASSERT(parent, "Submodule parent could not be found.");
         hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)),
-                     OBJ_VAL(mdoule));
+                     OBJ_VAL(module));
     }
 }
 
@@ -238,10 +238,10 @@ bool importModule(JStarVM* vm, ObjString* name) {
     }
 
     size_t len;
-    const char* builtinSrc = readBuiltInModule(name->data, &len);
-    if(builtinSrc != NULL) {
-        JStarBuffer syntheticBuf = {vm, len, len, (char*)builtinSrc};
-        return importWithBinary(vm, name, &syntheticBuf);
+    const char* builtinBytecode = readBuiltInModule(name->data, &len);
+    if(builtinBytecode != NULL) {
+        JStarBuffer code = jsrBufferWrap(vm, builtinBytecode, len);
+        return importWithBinary(vm, name, &code);
     }
 
     if(!importModuleOrPackage(vm, name)) {

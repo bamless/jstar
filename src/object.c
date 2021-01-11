@@ -292,6 +292,10 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     return s;
 }
 
+JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
+    return (JStarBuffer){vm, len, len, (char*)data};
+}
+
 static void jsrBufGrow(JStarBuffer* b, size_t len) {
     size_t newSize = b->capacity;
     while(newSize < b->size + len) {

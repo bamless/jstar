@@ -169,11 +169,13 @@ void initCoreModule(JStarVM* vm) {
     defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
-    // Execute core module code
+    // Read core module
     size_t len;
     const char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
-    JStarBuffer syntheticBuf = {vm, len, len, (char*)coreBytecode};
-    jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &syntheticBuf);
+
+    // Execute core module
+    JStarBuffer code = jsrBufferWrap(vm, coreBytecode, len);
+    jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
 
     // Cache builtin class objects in JStarVM
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
