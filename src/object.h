@@ -292,12 +292,12 @@ void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
 void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 
-// Convert a JStarBuffer to an ObjString
-ObjString* jsrBufferToString(JStarBuffer* b);
-
 // Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in 
 // API functions that expect a JStarBuffer, without copying them first. 
 JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
+
+// Convert a JStarBuffer to an ObjString
+ObjString* jsrBufferToString(JStarBuffer* b);
 
 // -----------------------------------------------------------------------------
 // DEBUG FUNCTIONS
