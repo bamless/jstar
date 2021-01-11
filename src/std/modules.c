@@ -29,6 +29,7 @@
 #endif
 
 #include <string.h>
+#include <stdlib.h>
 
 typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
@@ -53,7 +54,7 @@ typedef struct {
 typedef struct {
     const char* name;
     const char** src;
-    unsigned int len;
+    const size_t* len;
     ModuleElem elems[31];
 } Module;
 
@@ -63,10 +64,10 @@ typedef struct {
 #define MODULES_END      {NULL, NULL, 0, { ELEMS_END }}
 #define METHODS_END      {NULL, NULL}
 
-#define MODULE(name)     { #name, &name##_jsc, name##_jsc_len, {
+#define MODULE(name)     { #name, &name##_jsc, &name##_jsc_len, {
 #define ENDMODULE        ELEMS_END } },
 
-#define COREMODULE       {"__core__", &core_jsc, core_jsc_len, {
+#define COREMODULE       {"__core__", &core_jsc, &core_jsc_len, {
 
 #define CLASS(name)      { TYPE_CLASS, .as = { .class = { #name, {
 #define METHOD(name, fn) { #name, fn },
@@ -308,7 +309,7 @@ JStarNative resolveBuiltIn(const char* module, const char* cls, const char* name
 const char* readBuiltInModule(const char* name, size_t* len) {
     Module* m = getModule(name);
     if(m != NULL) {
-        *len = m->len;
+        *len = *m->len;
         return *m->src;
     }
     
