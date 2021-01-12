@@ -29,7 +29,6 @@
 #endif
 
 #include <string.h>
-#include <stdlib.h>
 
 typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
