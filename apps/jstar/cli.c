@@ -18,7 +18,10 @@
 
 typedef struct Options {
     char* script;
-    bool showVersion, skipVersion, interactive, ignoreEnv;
+    bool showVersion;
+    bool skipVersion;
+    bool interactive;
+    bool ignoreEnv;
     char* execStmt;
     char** args;
     int argsCount;

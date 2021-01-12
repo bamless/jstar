@@ -33,13 +33,13 @@ static void errorCallback(JStarVM* vm, JStarResult err, const char* file, int li
     }
 }
 
-static void initVM() {
+static void initVM(void) {
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
 }
 
-static void freeVM(int code) {
+static void freeVM(void) {
     jsrFreeVM(vm);
 }
 
