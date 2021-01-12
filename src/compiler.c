@@ -115,14 +115,14 @@ static void error(Compiler* c, int line, const char* format, ...) {
 
     if(vm->errorCallback) {
         JStarBuffer error;
-        jsrBufferInitCapacity(c->vm, &error, 64);
+        jsrBufferInitCapacity(c->vm, &error, strlen(format) * 2);
 
         va_list args;
         va_start(args, format);
         jsrBufferAppendvf(&error, format, args);
         va_end(args);
 
-        vm->errorCallback(c->filename, line, error.data);
+        vm->errorCallback(vm, JSR_COMPILE_ERR, c->filename, line, error.data);
 
         jsrBufferFree(&error);
     }

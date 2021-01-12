@@ -130,6 +130,9 @@ struct JStarVM {
     // Can be set asynchronously by a signal handler
     volatile sig_atomic_t evalBreak;
 
+    // Custom data associated with the VM
+    void* customData;
+
     // ---- Memory management ----
 
     // Linked list of all allocated objects (used in

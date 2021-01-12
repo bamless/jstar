@@ -1,34 +1,35 @@
 #include "modules.h"
 
 #include "core.h"
-#include "core.jsr.h"
+#include "core.jsc.inc"
 
 #ifdef JSTAR_SYS
     #include "sys.h"
-    #include "sys.jsr.h"
+    #include "sys.jsc.inc"
 #endif
 
 #ifdef JSTAR_IO
     #include "io.h"
-    #include "io.jsr.h"
+    #include "io.jsc.inc"
 #endif
 
 #ifdef JSTAR_MATH
     #include "math.h"
-    #include "math.jsr.h"
+    #include "math.jsc.inc"
 #endif
 
 #ifdef JSTAR_DEBUG
     #include "debug.h"
-    #include "debug.jsr.h"
+    #include "debug.jsc.inc"
 #endif
 
 #ifdef JSTAR_RE
     #include "re.h"
-    #include "re.jsr.h"
+    #include "re.jsc.inc"
 #endif
 
 #include <string.h>
+#include <stdlib.h>
 
 typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
@@ -53,19 +54,20 @@ typedef struct {
 typedef struct {
     const char* name;
     const char** src;
+    const size_t* len;
     ModuleElem elems[31];
 } Module;
 
 // clang-format off
 
 #define ELEMS_END        {TYPE_FUNC, .as = { .function = METHODS_END } },
-#define MODULES_END      {NULL, NULL, { ELEMS_END }}
+#define MODULES_END      {NULL, NULL, 0, { ELEMS_END }}
 #define METHODS_END      {NULL, NULL}
 
-#define MODULE(name)     { #name, &name##_jsr, {
+#define MODULE(name)     { #name, &name##_jsc, &name##_jsc_len, {
 #define ENDMODULE        ELEMS_END } },
 
-#define COREMODULE       {"__core__", &core_jsr, {
+#define COREMODULE       {"__core__", &core_jsc, &core_jsc_len, {
 
 #define CLASS(name)      { TYPE_CLASS, .as = { .class = { #name, {
 #define METHOD(name, fn) { #name, fn },
@@ -73,7 +75,7 @@ typedef struct {
 
 #define FUNCTION(name, fn) { TYPE_FUNC, .as = { .function = { #name, fn } } },
 
-Module builtInModules[] = {
+static Module builtInModules[] = {
     COREMODULE
         FUNCTION(ascii,          jsr_ascii)
         FUNCTION(char,           jsr_char)
@@ -304,10 +306,13 @@ JStarNative resolveBuiltIn(const char* module, const char* cls, const char* name
     return getNativeMethod(c, name);
 }
 
-const char* readBuiltInModule(const char* name) {
+const char* readBuiltInModule(const char* name, size_t* len) {
     Module* m = getModule(name);
     if(m != NULL) {
+        *len = *m->len;
         return *m->src;
     }
+    
+    *len = 0;
     return NULL;
 }

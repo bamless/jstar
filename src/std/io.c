@@ -75,14 +75,6 @@ static int jsrSeek(FILE* file, long offset, int jsrWhence) {
     return fseek(file, offset, whence);
 }
 
-static bool checkModeString(const char* mode) {
-    if(strcmp("r", mode) == 0 || strcmp("r+", mode) == 0 || strcmp("w", mode) == 0 ||
-       strcmp("w+", mode) == 0 || strcmp("a", mode) == 0 || strcmp("a+", mode) == 0) {
-        return true;
-    }
-    return false;
-}
-
 // class File
 #define M_FILE_HANDLE "_handle"
 #define M_FILE_CLOSED "_closed"
@@ -95,14 +87,12 @@ JSR_NATIVE(jsr_File_new) {
         const char* path = jsrGetString(vm, 1);
         const char* mode = jsrGetString(vm, 2);
 
-        if(!checkModeString(mode)) {
-            JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
-        }
-
         FILE* f = fopen(path, mode);
         if(f == NULL) {
             if(errno == ENOENT) {
                 JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`", path);
+            } else if (errno == EINVAL) {
+                JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
             } else {
                 JSR_RAISE(vm, "IOException", "%s: %s", path, strerror(errno));
             }

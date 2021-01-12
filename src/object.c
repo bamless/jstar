@@ -278,7 +278,9 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
 // API - JStarBuffer function implementation
 // -----------------------------------------------------------------------------
 
-#define JSR_BUF_DEFAULT_SIZE 16
+JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
+    return (JStarBuffer){vm, len, len, (char*)data};
+}
 
 ObjString* jsrBufferToString(JStarBuffer* b) {
     char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
@@ -291,6 +293,8 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     memset(b, 0, sizeof(JStarBuffer));
     return s;
 }
+
+#define JSR_BUF_DEFAULT_SIZE 16
 
 static void jsrBufGrow(JStarBuffer* b, size_t len) {
     size_t newSize = b->capacity;

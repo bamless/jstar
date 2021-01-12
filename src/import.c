@@ -1,6 +1,7 @@
 #include "import.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "compiler.h"
@@ -15,8 +16,8 @@
 #include "value.h"
 #include "vm.h"
 
-static void setModuleInParent(JStarVM* vm, ObjModule* mdoule) {
-    ObjString* name = mdoule->name;
+static void setModuleInParent(JStarVM* vm, ObjModule* module) {
+    ObjString* name = module->name;
     const char* lastDot = strrchr(name->data, '.');
 
     if(lastDot != NULL) {
@@ -24,7 +25,7 @@ static void setModuleInParent(JStarVM* vm, ObjModule* mdoule) {
         ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
         ASSERT(parent, "Submodule parent could not be found.");
         hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)),
-                     OBJ_VAL(mdoule));
+                     OBJ_VAL(module));
     }
 }
 
@@ -102,7 +103,7 @@ static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* module
 }
 
 static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
-    JStarStmt* program = jsrParse(path, source, vm->errorCallback);
+    JStarStmt* program = jsrParse(path, source, parseErrorCallback, vm);
     if(program == NULL) {
         return false;
     }
@@ -236,9 +237,11 @@ bool importModule(JStarVM* vm, ObjString* name) {
         return true;
     }
 
-    const char* builtinSrc = readBuiltInModule(name->data);
-    if(builtinSrc != NULL) {
-        return importWithSource(vm, name->data, name, builtinSrc);
+    size_t len;
+    const char* builtinBytecode = readBuiltInModule(name->data, &len);
+    if(builtinBytecode != NULL) {
+        JStarBuffer code = jsrBufferWrap(vm, builtinBytecode, len);
+        return importWithBinary(vm, name, &code);
     }
 
     if(!importModuleOrPackage(vm, name)) {
@@ -246,4 +249,11 @@ bool importModule(JStarVM* vm, ObjString* name) {
     }
 
     return true;
+}
+
+void parseErrorCallback(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    if(vm->errorCallback) {
+        vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+    }
 }

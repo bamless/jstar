@@ -169,8 +169,13 @@ void initCoreModule(JStarVM* vm) {
     defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
-    // Execute core module code
-    jsrEvalModuleString(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, readBuiltInModule(JSR_CORE_MODULE));
+    // Read core module
+    size_t len;
+    const char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
+
+    // Execute core module
+    JStarBuffer code = jsrBufferWrap(vm, coreBytecode, len);
+    jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
 
     // Cache builtin class objects in JStarVM
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
@@ -1472,7 +1477,7 @@ JSR_NATIVE(jsr_eval) {
         mod = ((ObjNative*)prevFn)->c.module;
     }
 
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), vm->errorCallback);
+    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseErrorCallback, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
@@ -1631,10 +1636,13 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
             }
 
             jsrBufferAppendStr(&string, "    ");
-            if(record->line >= 0)
+            
+            if(record->line >= 0) {
                 jsrBufferAppendf(&string, "[line %d]", record->line);
-            else
-                jsrBufferAppend(&string, "[line ?]", record->line);
+            } else {
+                jsrBufferAppendStr(&string, "[line ?]");
+            }
+
             jsrBufferAppendf(&string, " module %s in %s\n", record->moduleName->data,
                              record->funcName->data);
 
