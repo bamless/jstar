@@ -78,7 +78,7 @@ JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
 JSTAR_API void jsrFreeVM(JStarVM* vm);
 
 // Get the custom data associated with the VM at configuration time (if any)
-void* jsrGetCustomData(JStarVM* vm);
+JSTAR_API void* jsrGetCustomData(JStarVM* vm);
 
 // Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
