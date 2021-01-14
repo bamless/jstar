@@ -955,10 +955,10 @@ static void compileStatements(Compiler* c, Vector* stmts) {
 
 static void compileReturnStatement(Compiler* c, JStarStmt* s) {
     if(c->prev == NULL) {
-        error(c, s->line, "Cannot use return in global scope.");
+        error(c, s->line, "Cannot use return outside a function");
     }
     if(c->type == TYPE_CTOR) {
-        error(c, s->line, "Cannot use return in constructor.");
+        error(c, s->line, "Cannot use return in constructor");
     }
 
     if(s->as.returnStmt.e != NULL) {
