@@ -42,7 +42,7 @@ static void resetStack(JStarVM* vm) {
 
 static void initMainModule(JStarVM* vm) {
     ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
-    compileWithModule(vm, "<main>", mainModuleName, NULL); // Empty main module
+    compileWithModule(vm, "<main>", mainModuleName, NULL);  // Empty main module
 }
 
 JStarVM* jsrNewVM(const JStarConf* conf) {
@@ -365,7 +365,7 @@ static bool getListSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
-    
+
     jsrRaise(vm, "TypeException", "Index of List subscript must be an integer or a Tuple");
     return false;
 }
@@ -834,11 +834,11 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));             \
             push(vm, type(a op b));                 \
         } else {                                    \
-            SYM_BINARY(op, overload, reverse);      \
+            BINARY_OVERLOAD(op, overload, reverse); \
         }                                           \
     } while(0)
 
-#define SYM_BINARY(op, overload, reverse)                   \
+#define BINARY_OVERLOAD(op, overload, reverse)              \
     do {                                                    \
         SAVE_STATE();                                       \
         bool res = binOverload(vm, #op, overload, reverse); \
@@ -929,7 +929,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             pop(vm), pop(vm);
             push(vm, OBJ_VAL(conc));
         } else {
-            SYM_BINARY(+, SYM_ADD, SYM_RADD);
+            BINARY_OVERLOAD(+, SYM_ADD, SYM_RADD);
         }
         DISPATCH();
     }
@@ -955,7 +955,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(fmod(a, b)));
         } else {
-            SYM_BINARY(%, SYM_MOD, SYM_RMOD);
+            BINARY_OVERLOAD(%, SYM_MOD, SYM_RMOD);
         }
         DISPATCH();
     }
@@ -1008,7 +1008,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
         } else {
-            SYM_BINARY(==, SYM_EQ, SYM_END);
+            BINARY_OVERLOAD(==, SYM_EQ, SYM_END);
         }
         DISPATCH();
     }
