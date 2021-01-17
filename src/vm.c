@@ -1573,7 +1573,7 @@ bool unwindStack(JStarVM* vm, int depth) {
             break;
         }
 
-        stRecordFrame(vm, stackTrace, frame, vm->frameCount);
+        stacktraceDump(vm, stackTrace, frame, vm->frameCount);
 
         // if current frame has except or ensure handlers restore handler state and exit
         if(frame->handlerc > 0) {

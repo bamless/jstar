@@ -138,7 +138,7 @@ ObjStackTrace* newStackTrace(JStarVM* vm) {
     return st;
 }
 
-void stRecordFrame(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
+void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 

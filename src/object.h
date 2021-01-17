@@ -285,7 +285,7 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length);
 // -----------------------------------------------------------------------------
 
 // Dumps a frame in a ObjStackTrace
-void stRecordFrame(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
+void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
 
 // ObjList manipulation functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);
