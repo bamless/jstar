@@ -113,7 +113,7 @@ static void compileFile(const char* path, const char* out) {
 // DIRECTORY COMPILE
 // -----------------------------------------------------------------------------
 
-static void makeOutPath(const char* root, const char* curr, const char* name, const char* out,
+static void makeOutPath(const char* root, const char* curr, const char* file, const char* out,
                         char* dest, size_t size) {
     size_t rootLen = strlen(root);
     const char* fileRoot = curr + rootLen;
@@ -122,19 +122,19 @@ static void makeOutPath(const char* root, const char* curr, const char* name, co
         const char* components[] = {out, fileRoot, dest, NULL};
         cwk_path_join_multiple(components, dest, size);
     } else {
-        cwk_path_join(out, name, dest, size);
+        cwk_path_join(out, file, dest, size);
     }
 
     cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
-static void compileFileInDirectory(const char* root, const char* curr, const char* name,
+static void compileFileInDirectory(const char* root, const char* curr, const char* file,
                                    const char* out) {
     char filePath[FILENAME_MAX];
-    cwk_path_join(curr, name, filePath, sizeof(filePath));
+    cwk_path_join(curr, file, filePath, sizeof(filePath));
 
     char outPath[FILENAME_MAX];
-    makeOutPath(root, curr, name, out, outPath, sizeof(outPath));
+    makeOutPath(root, curr, file, out, outPath, sizeof(outPath));
 
     compileFile(filePath, outPath);
 }
@@ -164,8 +164,8 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
         case DT_REG: {
             size_t len;
             const char* ext;
-
             cwk_path_get_extension(file->d_name, &ext, &len);
+            
             if(strcmp(ext, JSR_EXT) != 0) {
                 continue;
             }
