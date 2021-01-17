@@ -1234,25 +1234,25 @@ JSR_NATIVE(jsr_Table_string) {
     TableEntry* entries = t->entries;
     if(entries != NULL) {
         for(size_t i = 0; i < t->sizeMask + 1; i++) {
-            if(!IS_NULL(entries[i].key)) {
-                push(vm, entries[i].key);
-                if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
-                    jsrBufferFree(&buf);
-                    return false;
-                }
-                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
-                jsrBufferAppendStr(&buf, " : ");
-                jsrPop(vm);
+            if(IS_NULL(entries[i].key)) continue;
 
-                push(vm, entries[i].val);
-                if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
-                    jsrBufferFree(&buf);
-                    return false;
-                }
-                jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
-                jsrBufferAppendStr(&buf, ", ");
-                jsrPop(vm);
+            push(vm, entries[i].key);
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
+                jsrBufferFree(&buf);
+                return false;
             }
+            jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
+            jsrBufferAppendStr(&buf, " : ");
+            jsrPop(vm);
+
+            push(vm, entries[i].val);
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
+                jsrBufferFree(&buf);
+                return false;
+            }
+            jsrBufferAppendStr(&buf, jsrGetString(vm, -1));
+            jsrBufferAppendStr(&buf, ", ");
+            jsrPop(vm);
         }
         jsrBufferTrunc(&buf, buf.size - 2);
     }
