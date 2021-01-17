@@ -15,7 +15,7 @@
 void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size);
 
 // Launch a garbage collection. It scans all roots (VM stack, global Strings, etc...)
-// marking all the reachable objects (recursively, if needed) and then calls freeObjects
+// marking all the reachable objects (recursively, if needed) and then calls sweepObjects
 // to free all unreached ones.
 void garbageCollect(JStarVM* vm);
 
@@ -24,6 +24,6 @@ void reachObject(JStarVM* vm, Obj* o);
 void reachValue(JStarVM* vm, Value v);
 
 // Free all unmarked objects
-void freeObjects(JStarVM* vm);
+void sweepObjects(JStarVM* vm);
 
 #endif

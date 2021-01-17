@@ -130,7 +130,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     }
 }
 
-void freeObjects(JStarVM* vm) {
+void sweepObjects(JStarVM* vm) {
     Obj** head = &vm->objects;
     while(*head != NULL) {
         if(!(*head)->reached) {
@@ -353,7 +353,7 @@ void garbageCollect(JStarVM* vm) {
 
     // free unreached objects
     removeUnreachedStrings(&vm->stringPool);
-    freeObjects(vm);
+    sweepObjects(vm);
 
     // free the reached objects stack
     free(vm->reachedStack);

@@ -89,7 +89,7 @@ void jsrFreeVM(JStarVM* vm) {
     free(vm->frames);
     freeHashTable(&vm->stringPool);
     freeHashTable(&vm->modules);
-    freeObjects(vm);
+    sweepObjects(vm);
 
 #ifdef JSTAR_DBG_PRINT_GC
     printf("Allocated at exit: %lu bytes.\n", vm->allocated);
