@@ -17,18 +17,8 @@ set(JSTAR_SOURCES
 
     std/core.c
     std/core.h
-    std/debug.c
-    std/debug.h
-    std/io.c
-    std/io.h
-    std/math.c
-    std/math.h
-    std/modules.c
     std/modules.h
-    std/re.c
-    std/re.h
-    std/sys.c
-    std/sys.h
+    std/modules.c
 
     code.c
     code.h
@@ -58,15 +48,32 @@ set(JSTAR_SOURCES
     vm.h
 )
 
-# J* standard library sources
-set(JSTAR_STDLIB
+# J* standard library files
+set(JSTAR_STDLIB 
     std/core.jsc
-    std/debug.jsc
-    std/io.jsc
-    std/math.jsc
-    std/re.jsc
-    std/sys.jsc
 )
+
+# Add optional module source files
+if(JSTAR_SYS)
+    list(APPEND JSTAR_SOURCES std/sys.h std/sys.c)
+    list(APPEND JSTAR_STDLIB  std/sys.jsc)
+endif()
+if(JSTAR_IO)
+    list(APPEND JSTAR_SOURCES std/io.h std/io.c)
+    list(APPEND JSTAR_STDLIB  std/io.jsc)
+endif()
+if(JSTAR_MATH)
+    list(APPEND JSTAR_SOURCES std/math.h std/math.c)
+    list(APPEND JSTAR_STDLIB  std/math.jsc)
+endif()
+if(JSTAR_DEBUG)
+    list(APPEND JSTAR_SOURCES std/debug.h std/debug.c)
+    list(APPEND JSTAR_STDLIB  std/debug.jsc)
+endif()
+if(JSTAR_RE)
+    list(APPEND JSTAR_SOURCES std/re.h std/re.c)
+    list(APPEND JSTAR_STDLIB  std/re.jsc)
+endif()
 
 # Generate J* sandard library source headers
 set(JSTAR_STDLIB_HEADERS)
