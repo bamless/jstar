@@ -25,8 +25,8 @@
 // to the variables. We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) (type == JSR_ARRAY || type == JSR_TUPLE)
 
-#define BREAK_MARK    0
 #define CONTINUE_MARK 1
+#define BREAK_MARK    2
 
 typedef struct Local {
     JStarIdentifier id;
@@ -356,7 +356,7 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_
         Opcode op = c->func->code.bytecode[i];
         if(op == OP_END) {
             c->func->code.bytecode[i] = OP_JUMP;
-            
+
             // Patch jump with correct offset to break loop
             int mark = c->func->code.bytecode[i + 1];
             ASSERT(mark == CONTINUE_MARK || mark == BREAK_MARK, "Unknown loop breaking marker");
