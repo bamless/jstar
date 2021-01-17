@@ -163,14 +163,14 @@ static void doRepl() {
 
     char* line;
     while((line = linenoise(JSTAR_PROMPT)) != NULL) {
-        linenoiseHistoryAdd(line);
         int depth = countBlocks(line);
+        linenoiseHistoryAdd(line);
         jsrBufferAppendStr(&src, line);
         free(line);
 
         while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
-            linenoiseHistoryAdd(line);
             depth += countBlocks(line);
+            linenoiseHistoryAdd(line);
             jsrBufferAppendChar(&src, '\n');
             jsrBufferAppendStr(&src, line);
             free(line);
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
     atexit(&freeVM);
 
     if(opts.execStmt) {
-        JStarResult res = jsrEvalString(vm, "<string>", opts.execStmt);
+        JStarResult res = evaluateString("<string>", opts.execStmt);
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
         }
