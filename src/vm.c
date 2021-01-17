@@ -365,6 +365,7 @@ static bool getListSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
+    
     jsrRaise(vm, "TypeException", "Index of List subscript must be an integer or a Tuple");
     return false;
 }
@@ -394,6 +395,7 @@ static bool getTupleSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
+
     jsrRaise(vm, "TypeException", "Index of Tuple subscript must be an integer or a Tuple");
     return false;
 }
@@ -420,6 +422,7 @@ static bool getStringSubscript(JStarVM* vm) {
         push(vm, OBJ_VAL(ret));
         return true;
     }
+
     jsrRaise(vm, "TypeException", "Index of String subscript must be an integer or a Tuple");
     return false;
 }
