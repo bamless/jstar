@@ -22,11 +22,11 @@
 /* #undef JSTAR_DBG_PRINT_GC */
 /* #undef JSTAR_DBG_STRESS_GC */
 
-/* #undef JSTAR_SYS */
-/* #undef JSTAR_IO */
-/* #undef JSTAR_MATH */
-/* #undef JSTAR_DEBUG */
-/* #undef JSTAR_RE */
+#define JSTAR_SYS
+#define JSTAR_IO
+#define JSTAR_MATH
+#define JSTAR_DEBUG
+#define JSTAR_RE
 
 // Platform detection
 #if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))

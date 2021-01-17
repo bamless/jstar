@@ -15,19 +15,6 @@
 #include "value.h"
 #include "vm.h"
 
-static void setModuleInParent(JStarVM* vm, ObjModule* module) {
-    ObjString* name = module->name;
-    const char* lastDot = strrchr(name->data, '.');
-
-    if(lastDot != NULL) {
-        const char* simpleName = lastDot + 1;
-        ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
-        ASSERT(parent, "Submodule parent could not be found.");
-        hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)),
-                     OBJ_VAL(module));
-    }
-}
-
 static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
     ObjModule* module = getModule(vm, name);
 
@@ -37,7 +24,6 @@ static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
         pop(vm);
 
         setModule(vm, name, module);
-        setModuleInParent(vm, module);
     }
 
     return module;
@@ -60,9 +46,24 @@ ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuff
     return deserialize(vm, module, code, err);
 }
 
+static void setModuleInParent(JStarVM* vm, ObjModule* mod) {
+    ObjString* name = mod->name;
+
+    const char* lastDot = strrchr(name->data, '.');
+    if(lastDot == NULL) {
+        return;  // Not a submodule, nothing to do
+    }
+
+    const char* simpleName = lastDot + 1;
+    ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
+    ASSERT(parent, "Submodule parent could not be found.");
+    hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(mod));
+}
+
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
     hashTablePut(&vm->modules, name, OBJ_VAL(module));
     hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
+    setModuleInParent(vm, module);
 }
 
 ObjModule* getModule(JStarVM* vm, ObjString* name) {
