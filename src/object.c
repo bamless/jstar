@@ -438,20 +438,12 @@ void printObj(Obj* o) {
         break;
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
-        if(f->c.name != NULL) {
-            printf("<func %s:%d>", f->c.name->data, f->c.argsCount);
-        } else {
-            printf("<func %d>", f->c.argsCount);
-        }
+        printf("<func %s.%s:%d>", f->c.module->name->data, f->c.name->data, f->c.argsCount);
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        if(n->c.name != NULL) {
-            printf("<native %s:%d>", n->c.name->data, n->c.argsCount);
-        } else {
-            printf("<native %d>", n->c.argsCount);
-        }
+        printf("<native %s.%s:%d>", n->c.module->name->data, n->c.name->data, n->c.argsCount);
         break;
     }
     case OBJ_CLASS: {

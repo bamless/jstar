@@ -21,21 +21,21 @@ JSR_NATIVE(jsr_printStack) {
 }
 
 JSR_NATIVE(jsr_disassemble) {
-    if(!IS_OBJ(vm->apiStack[1]) || !(IS_CLOSURE(vm->apiStack[1]) || IS_NATIVE(vm->apiStack[1]) ||
-                                     IS_BOUND_METHOD(vm->apiStack[1]))) {
-        JSR_RAISE(vm, "InvalidArgException", "Argument to dis must be a function object.");
+    Value arg = vm->apiStack[1];
+    if(!IS_OBJ(arg) || !(IS_CLOSURE(arg) || IS_NATIVE(arg) || IS_BOUND_METHOD(arg))) {
+        JSR_RAISE(vm, "InvalidArgException", "Cannot disassemble a %s",
+                  getClass(vm, arg)->name->data);
     }
 
-    Value func = vm->apiStack[1];
-    if(IS_BOUND_METHOD(func)) {
-        func = OBJ_VAL(AS_BOUND_METHOD(func)->method);
+    if(IS_BOUND_METHOD(arg)) {
+        arg = OBJ_VAL(AS_BOUND_METHOD(arg)->method);
     }
 
-    if(!IS_NATIVE(func)) {
-        Code* c = &AS_CLOSURE(func)->fn->code;
-        disassembleCode(c);
-    } else {
+    if(IS_NATIVE(arg)) {
         printf("Native implementation\n");
+    } else {
+        ObjFunction* fn = AS_CLOSURE(arg)->fn;
+        disassembleFunction(fn);
     }
 
     jsrPushNull(vm);

@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "object.h"
 #include "opcode.h"
 #include "util.h"
 #include "value.h"
@@ -19,12 +18,24 @@ static uint16_t readShortAt(const uint8_t* code, size_t i) {
     return ((uint16_t)code[i] << 8) | code[i + 1];
 }
 
-void disassembleCode(Code* c) {
+static void disassembleCode(Code* c) {
     for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->bytecode[i]) + 1) {
         disassembleIstr(c, i);
         if(c->bytecode[i] == OP_CLOSURE) {
             Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
             i += (AS_FUNC(func)->upvalueCount + 1) * 2;
+        }
+    }
+}
+
+void disassembleFunction(ObjFunction* fn) {
+    printf("[func %s.%s:%d]:\n", fn->c.module->name->data, fn->c.name->data, fn->c.argsCount);
+    disassembleCode(&fn->code);
+    for(int i = 0; i < fn->code.consts.count; i++) {
+        Value c = fn->code.consts.arr[i];
+        if(IS_FUNC(c)) {
+            printf("\n");
+            disassembleFunction(AS_FUNC(c));
         }
     }
 }
