@@ -74,7 +74,7 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
     return AS_MODULE(module);
 }
 
-static void tryNativeLib(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
+static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
     const char* moduleDir = strrchr(modulePath->data, '/');
     const char* lastDot = strrchr(moduleName->data, '.');
     const char* simpleName = lastDot ? lastDot + 1 : moduleName->data;
@@ -159,7 +159,7 @@ static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* na
         return IMPORT_ERR;
     }
 
-    tryNativeLib(vm, path, name);
+    loadNativeExtension(vm, path, name);
     return IMPORT_OK;
 }
 
