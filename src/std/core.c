@@ -187,7 +187,7 @@ void initCoreModule(JStarVM* vm) {
         } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
             o->cls = vm->funClass;
         }
-        
+
         ASSERT(o->cls, "Object without class reference");
     }
 }
@@ -1626,7 +1626,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
             }
 
             jsrBufferAppendStr(&string, "    ");
-            
+
             if(record->line >= 0) {
                 jsrBufferAppendf(&string, "[line %d]", record->line);
             } else {
@@ -1643,10 +1643,11 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     Value err = NULL_VAL;
     hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
 
-    if(IS_STRING(err) && AS_STRING(err)->length > 0)
+    if(IS_STRING(err) && AS_STRING(err)->length > 0) {
         jsrBufferAppendf(&string, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);
-    else
+    } else {
         jsrBufferAppendf(&string, "%s", exc->base.cls->name->data);
+    }
 
     jsrBufferPush(&string);
     return true;
