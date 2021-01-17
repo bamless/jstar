@@ -554,11 +554,10 @@ JSR_NATIVE(jsr_List_next) {
 JSR_NATIVE(jsr_Tuple_new) {
     if(!jsrIsList(vm, 1)) {
         jsrPushList(vm);
-        JSR_FOREACH(
-            1, {
-                jsrListAppend(vm, 2);
-                jsrPop(vm);
-            }, )
+        JSR_FOREACH(1, {
+            jsrListAppend(vm, 2);
+            jsrPop(vm);
+        },)
     }
 
     ObjList* lst = AS_LIST(vm->sp[-1]);
@@ -654,21 +653,19 @@ JSR_NATIVE(jsr_String_new) {
     JStarBuffer string;
     jsrBufferInit(vm, &string);
 
-    JSR_FOREACH(
-        1,
-        {
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
-                jsrBufferFree(&string);
-                return false;
-            }
-            if(!jsrIsString(vm, -1)) {
-                jsrBufferFree(&string);
-                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-            }
-            jsrBufferAppendStr(&string, jsrGetString(vm, -1));
-            jsrPop(vm);
-        },
-        jsrBufferFree(&string));
+    JSR_FOREACH(1, {
+        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
+            jsrBufferFree(&string);
+            return false;
+        }
+        if(!jsrIsString(vm, -1)) {
+            jsrBufferFree(&string);
+            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+        }
+        jsrBufferAppendStr(&string, jsrGetString(vm, -1));
+        jsrPop(vm);
+    },
+    jsrBufferFree(&string));
 
     jsrBufferPush(&string);
     return true;
@@ -777,24 +774,22 @@ JSR_NATIVE(jsr_String_join) {
     JStarBuffer joined;
     jsrBufferInit(vm, &joined);
 
-    JSR_FOREACH(
-        1,
-        {
-            if(!jsrIsString(vm, -1)) {
-                if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
-                    jsrBufferFree(&joined);
-                    return false;
-                }
-                if(!jsrIsString(vm, -1)) {
-                    jsrBufferFree(&joined);
-                    JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
-                }
+    JSR_FOREACH(1, {
+        if(!jsrIsString(vm, -1)) {
+            if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
+                jsrBufferFree(&joined);
+                return false;
             }
-            jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-            jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
-            jsrPop(vm);
-        },
-        jsrBufferFree(&joined))
+            if(!jsrIsString(vm, -1)) {
+                jsrBufferFree(&joined);
+                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+            }
+        }
+        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+        jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+        jsrPop(vm);
+    },
+    jsrBufferFree(&joined))
 
     if(joined.size > 0) {
         jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 0));
@@ -1315,38 +1310,37 @@ JSR_NATIVE(jsr_Enum_new) {
     }
 
     int i = 0;
-    JSR_FOREACH(
-        2, {
-            if(!checkEnumElem(vm, -1)) return false;
+    JSR_FOREACH(2, {
+        if(!checkEnumElem(vm, -1)) return false;
 
-            if(customEnum) {
-                jsrPushValue(vm, 2);
-                jsrPushValue(vm, -2);
-                if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
-            } else {
-                jsrPushNumber(vm, i);
-            }
+        if(customEnum) {
+            jsrPushValue(vm, 2);
+            jsrPushValue(vm, -2);
+            if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
+        } else {
+            jsrPushNumber(vm, i);
+        }
 
-            jsrSetField(vm, 0, jsrGetString(vm, -2));
-            jsrPop(vm);
+        jsrSetField(vm, 0, jsrGetString(vm, -2));
+        jsrPop(vm);
 
-            if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
+        if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
 
-            if(customEnum) {
-                jsrPushValue(vm, 2);
-                jsrPushValue(vm, -3);
-                if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
-            } else {
-                jsrPushNumber(vm, i);
-            }
-
+        if(customEnum) {
+            jsrPushValue(vm, 2);
             jsrPushValue(vm, -3);
-            if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
-            jsrPop(vm);
+            if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
+        } else {
+            jsrPushNumber(vm, i);
+        }
 
-            jsrPop(vm);
-            i++;
-        }, );
+        jsrPushValue(vm, -3);
+        if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+        jsrPop(vm);
+
+        jsrPop(vm);
+        i++;
+    },);
 
     if(i == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
@@ -1435,15 +1429,14 @@ JSR_NATIVE(jsr_print) {
     printf("%s", jsrGetString(vm, -1));
     jsrPop(vm);
 
-    JSR_FOREACH(
-        2, {
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
-            if(!jsrIsString(vm, -1)) {
-                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-            }
-            printf(" %s", jsrGetString(vm, -1));
-            jsrPop(vm);
-        }, );
+    JSR_FOREACH(2, {
+        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
+        if(!jsrIsString(vm, -1)) {
+            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+        }
+        printf(" %s", jsrGetString(vm, -1));
+        jsrPop(vm);
+    },);
 
     printf("\n");
 
