@@ -1536,10 +1536,9 @@ op_return:
         DISPATCH();
     }
 
-    TARGET(OP_SIGN_CONT):
-    TARGET(OP_SIGN_BRK):
+    TARGET(OP_END): {
         UNREACHABLE();
-        return false;
+    }
 
     }
 

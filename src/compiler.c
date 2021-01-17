@@ -25,6 +25,9 @@
 // to the variables. We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) (type == JSR_ARRAY || type == JSR_TUPLE)
 
+#define BREAK_MARK    0
+#define CONTINUE_MARK 1
+
 typedef struct Local {
     JStarIdentifier id;
     bool isUpvalue;
@@ -348,13 +351,17 @@ static void startLoop(Compiler* c, Loop* loop) {
     c->loops = loop;
 }
 
-static void patchLoopExitStmts(Compiler* c, size_t start, size_t cont, size_t brk) {
+static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_t brkAddr) {
     for(size_t i = start; i < getCurrentAddr(c); i++) {
         Opcode op = c->func->code.bytecode[i];
-
-        if(op == OP_SIGN_BRK || op == OP_SIGN_CONT) {
+        if(op == OP_END) {
             c->func->code.bytecode[i] = OP_JUMP;
-            setJumpTo(c, i, op == OP_SIGN_CONT ? cont : brk, 0);
+            
+            // Patch jump with correct offset to break loop
+            int mark = c->func->code.bytecode[i + 1];
+            ASSERT(mark == CONTINUE_MARK || mark == BREAK_MARK, "Unknown loop breaking marker");
+            setJumpTo(c, i, mark == CONTINUE_MARK ? contAddr : brkAddr, 0);
+            
             i += opcodeArgsNumber(OP_JUMP);
         } else {
             i += opcodeArgsNumber(op);
@@ -1371,13 +1378,18 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
         error(c, s->line, "Cannot use %s outside loop.", isBreak ? "break" : "continue");
         return;
     }
+
     if(c->tryDepth != 0 && c->tryBlocks->depth >= c->loops->depth) {
         error(c, s->line, "Cannot %s out of a try block.", isBreak ? "break" : "continue");
     }
 
     discardScope(c, c->loops->depth);
-    emitBytecode(c, isBreak ? OP_SIGN_BRK : OP_SIGN_CONT, s->line);
-    emitShort(c, 0, 0);
+
+    // Emit place-holder instruction that will be patched at the end of loop compilation,
+    // when we know the offset to emit for a break or continue jump
+    emitBytecode(c, OP_END, s->line);
+    emitBytecode(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->line);
+    emitBytecode(c, 0, s->line);
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
