@@ -1462,7 +1462,7 @@ op_return:
     }
     
     TARGET(OP_END_HANDLER): {
-        if(!IS_NULL(peek2(vm))) {
+        if(!IS_NULL(peek2(vm))) { // exception still raised?
             UnwindCause cause = AS_NUM(pop(vm));
             switch(cause) {
             case CAUSE_EXCEPT:
@@ -1470,7 +1470,7 @@ op_return:
                 UNWIND_STACK(vm);
                 break;
             case CAUSE_RETURN:
-                // return will handle ensure handlers
+                // return will execute ensure handlers
                 goto op_return;
             default:
                 UNREACHABLE();
