@@ -337,22 +337,21 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
     Value v2 = apiStackSlot(vm, slot2);
     if(IS_NUM(v1) || IS_NULL(v2) || IS_BOOL(v2)) {
         return valueEquals(v1, v2);
-    } else {
-        Value eqOverload;
-        ObjClass* cls = getClass(vm, v1);
-        if(hashTableGet(&cls->methods, vm->overloads[EQ_OVERLOAD], &eqOverload)) {
-            push(vm, v1);
-            push(vm, v2);
-            JStarResult res = jsrCallMethod(vm, "__eq__", 1);
-            if(res == JSR_SUCCESS) {
-                return valueToBool(pop(vm));
-            } else {
-                pop(vm);
-                return false;
-            }
+    }
+
+    Value eqOverload;
+    ObjClass* cls = getClass(vm, v1);
+    if(hashTableGet(&cls->methods, vm->methodSyms[SYM_EQ], &eqOverload)) {
+        push(vm, v1);
+        push(vm, v2);
+        JStarResult res = jsrCallMethod(vm, "__eq__", 1);
+        if(res == JSR_SUCCESS) {
+            return valueToBool(pop(vm));
         } else {
-            return valueEquals(v1, v2);
+            return pop(vm), false;
         }
+    } else {
+        return valueEquals(v1, v2);
     }
 }
 

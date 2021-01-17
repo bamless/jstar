@@ -57,12 +57,11 @@ static uint64_t hash64(uint64_t x) {
 }
 
 static uint32_t hashNumber(double num) {
-    if(num == -0) num = 0;
     union {
-        double d;
-        uint64_t r;
-    } c = {.d = num};
-    return (uint32_t)hash64(c.r);
+        double num;
+        uint64_t raw;
+    } u = {.num = num == -0 ? 0 : num};
+    return (uint32_t)hash64(u.raw);
 }
 
 static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t size, bool* out) {
@@ -124,24 +123,6 @@ static JSR_NATIVE(jsr_Class_string) {
 }
 // end
 
-// Patch up the class field of any string or function that was allocated
-// before the creation of their corresponding class object
-static void patchClassRefs(JStarVM* vm) {
-    for(Obj* o = vm->objects; o != NULL; o = o->next) {
-        if(o->type == OBJ_STRING) {
-            o->cls = vm->strClass;
-        } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
-            o->cls = vm->funClass;
-        }
-    }
-}
-
-static void createArgvList(JStarVM* vm) {
-    vm->argv = newList(vm, 0);
-    ObjString* argvName = copyString(vm, ARGV_STR, strlen(ARGV_STR));
-    hashTablePut(&vm->core->globals, argvName, OBJ_VAL(vm->argv));
-}
-
 void initCoreModule(JStarVM* vm) {
     // Create and register core module
     ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
@@ -192,9 +173,23 @@ void initCoreModule(JStarVM* vm) {
     vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
     core->base.cls = vm->modClass;
 
-    // Call these after builtin class caching above, as they make use of those fields
-    patchClassRefs(vm);
-    createArgvList(vm);
+    // Cache core module global objects in vm
+    vm->importPaths = AS_LIST(getDefinedName(vm, core, "importPaths"));
+    vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
+
+    // Patch up the class field of any object that was allocated
+    // before the creation of its corresponding class object
+    for(Obj* o = vm->objects; o != NULL; o = o->next) {
+        if(o->type == OBJ_STRING) {
+            o->cls = vm->strClass;
+        } else if(o->type == OBJ_LIST) {
+            o->cls = vm->lstClass;
+        } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
+            o->cls = vm->funClass;
+        }
+        
+        ASSERT(o->cls, "Object without class reference");
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1420,11 +1415,6 @@ JSR_NATIVE(jsr_char) {
 JSR_NATIVE(jsr_garbageCollect) {
     garbageCollect(vm);
     jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_importPaths) {
-    push(vm, OBJ_VAL(vm->importPaths));
     return true;
 }
 

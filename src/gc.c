@@ -15,7 +15,7 @@
 
 void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
-    if(size > oldsize && !vm->disableGC) {
+    if(size > oldsize) {
 #ifdef JSTAR_DBG_STRESS_GC
         garbageCollect(vm);
 #else
@@ -147,10 +147,6 @@ void freeObjects(JStarVM* vm) {
             head = &(*head)->next;
         }
     }
-}
-
-void disableGC(JStarVM* vm, bool disable) {
-    vm->disableGC = disable;
 }
 
 static void growReached(JStarVM* vm) {
@@ -322,13 +318,8 @@ void garbageCollect(JStarVM* vm) {
     // reach script argument llist
     reachObject(vm, (Obj*)vm->argv);
 
-    // reach constant strings
-    reachObject(vm, (Obj*)vm->ctor);
-    reachObject(vm, (Obj*)vm->next);
-    reachObject(vm, (Obj*)vm->iter);
-
-    for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
-        reachObject(vm, (Obj*)vm->overloads[i]);
+    for(int i = 0; i < SYM_END; i++) {
+        reachObject(vm, (Obj*)vm->methodSyms[i]);
     }
 
     // reach empty Tuple singleton
@@ -361,7 +352,7 @@ void garbageCollect(JStarVM* vm) {
     }
 
     // free unreached objects
-    removeUnreachedStrings(&vm->strings);
+    removeUnreachedStrings(&vm->stringPool);
     freeObjects(vm);
 
     // free the reached objects stack

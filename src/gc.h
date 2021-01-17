@@ -25,7 +25,5 @@ void reachValue(JStarVM* vm, Value v);
 
 // Free all unmarked objects
 void freeObjects(JStarVM* vm);
-// Disable the GC
-void disableGC(JStarVM* vm, bool disable);
 
 #endif

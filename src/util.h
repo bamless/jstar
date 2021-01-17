@@ -65,6 +65,7 @@ static inline uint32_t hashString(const char* str, size_t length) {
         hash ^= str[i];
         hash *= 16777619;
     }
+    if(hash < 2) hash += 2; // Reserve hash value 1 and 0
     return hash;
 }
 

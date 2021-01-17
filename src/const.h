@@ -25,13 +25,11 @@
 // STRING CONSTANTS
 // -----------------------------------------------------------------------------
 
-#define CTOR_STR    "new"
-#define THIS_STR    "this"
-#define ARGV_STR    "argv"
-#define ANON_PREFIX "anon:"
-
-#define NEXT_METH "__next__"
-#define ITER_METH "__iter__"
+#define CTOR_STR      "new"
+#define THIS_STR      "this"
+#define ARGV_STR      "argv"
+#define IMP_PATHS_STR "importPaths"
+#define ANON_PREFIX   "anon:"
 
 #define EXC_ERR   "_err"
 #define EXC_CAUSE "_cause"

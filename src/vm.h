@@ -15,6 +15,46 @@
 #include "util.h"
 #include "value.h"
 
+// Enum encoding special method names needed at runtime
+// See methodSyms array in vm.c
+typedef enum MethodSymbol {
+    // Constructor method
+    SYM_CTOR,
+
+    // Iterator methods
+    SYM_ITER,
+    SYM_NEXT,
+
+    // Binary overloads
+    SYM_ADD,
+    SYM_SUB,
+    SYM_MUL,
+    SYM_DIV,
+    SYM_MOD,
+
+    // Reverse binary overloads
+    SYM_RADD,
+    SYM_RSUB,
+    SYM_RMUL,
+    SYM_RDIV,
+    SYM_RMOD,
+
+    // Subscript overloads
+    SYM_GET,
+    SYM_SET,
+
+    // Comparison and ordering overloads
+    SYM_EQ,
+    SYM_LT,
+    SYM_LE,
+    SYM_GT,
+    SYM_GE,
+    SYM_NEG,
+
+    // Sentinel
+    SYM_END
+} MethodSymbol;
+
 // This stores the info needed to jump
 // to handler code and to restore the
 // VM state when handling exceptions
@@ -35,35 +75,6 @@ typedef struct Frame {
     Handler handlers[HANDLER_MAX];  // Exception handlers
     uint8_t handlerc;               // Exception handlers count
 } Frame;
-
-// Enum representing the various overloadable
-// operators of the language
-typedef enum Overload {
-    // Binary overloads
-    ADD_OVERLOAD,
-    SUB_OVERLOAD,
-    MUL_OVERLOAD,
-    DIV_OVERLOAD,
-    MOD_OVERLOAD,
-    // Reverse binary overloads
-    RADD_OVERLOAD,
-    RSUB_OVERLOAD,
-    RMUL_OVERLOAD,
-    RDIV_OVERLOAD,
-    RMOD_OVERLOAD,
-    // Subscript overloads
-    GET_OVERLOAD,
-    SET_OVERLOAD,
-    // Comparison and ordering overloads
-    EQ_OVERLOAD,
-    LT_OVERLOAD,
-    LE_OVERLOAD,
-    GT_OVERLOAD,
-    GE_OVERLOAD,
-    NEG_OVERLOAD,
-    // Sentinel
-    OVERLOAD_SENTINEL
-} Overload;
 
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
@@ -90,15 +101,14 @@ struct JStarVM {
     // Script arguments
     ObjList* argv;
 
+    // The empty tuple (singleton)
+    ObjTuple* emptyTup;
+
     // Current VM compiler (if any)
     Compiler* currCompiler;
 
-    // Constant strings needed by compiler and runtime
-    ObjString *ctor, *next, *iter;
-    ObjString* overloads[OVERLOAD_SENTINEL];
-
-    // The empty tuple (singleton)
-    ObjTuple* emptyTup;
+    // Cached method names needed at runtime
+    ObjString* methodSyms[SYM_END];
 
     // Loaded modules
     HashTable modules;
@@ -118,7 +128,7 @@ struct JStarVM {
     Value* apiStack;
 
     // Constant string pool, for interned strings
-    HashTable strings;
+    HashTable stringPool;
 
     // Linked list of all open upvalues
     ObjUpvalue* upvalues;
@@ -139,7 +149,6 @@ struct JStarVM {
     // the sweep phase of GC to free unreached objects)
     Obj* objects;
 
-    bool disableGC;    // Whether the garbage collector is enabled or disabled
     size_t allocated;  // Bytes currently allocated
     size_t nextGC;     // Bytes at which the next GC will be triggered
     int heapGrowRate;  // Rate at which the heap will grow after a GC

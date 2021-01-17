@@ -263,15 +263,15 @@ ObjString* allocateString(JStarVM* vm, size_t length) {
 
 ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
     uint32_t hash = hashString(str, length);
-    ObjString* internedString = hashTableGetString(&vm->strings, str, length, hash);
-    if(internedString == NULL) {
-        internedString = allocateString(vm, length);
-        memcpy(internedString->data, str, length);
-        internedString->hash = hash;
-        internedString->interned = true;
-        hashTablePut(&vm->strings, internedString, NULL_VAL);
+    ObjString* interned = hashTableGetString(&vm->stringPool, str, length, hash);
+    if(interned == NULL) {
+        interned = allocateString(vm, length);
+        memcpy(interned->data, str, length);
+        interned->hash = hash;
+        interned->interned = true;
+        hashTablePut(&vm->stringPool, interned, NULL_VAL);
     }
-    return internedString;
+    return interned;
 }
 
 // -----------------------------------------------------------------------------

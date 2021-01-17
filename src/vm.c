@@ -11,17 +11,17 @@
 #include "std/core.h"
 #include "std/modules.h"
 
-// Method names of overloadable operators
-static const char* overloadNames[OVERLOAD_SENTINEL] = {
-    [ADD_OVERLOAD] = "__add__",   [SUB_OVERLOAD] = "__sub__",   [MUL_OVERLOAD] = "__mul__",
-    [DIV_OVERLOAD] = "__div__",   [MOD_OVERLOAD] = "__mod__",   [RADD_OVERLOAD] = "__radd__",
-    [RSUB_OVERLOAD] = "__rsub__", [RMUL_OVERLOAD] = "__rmul__", [RDIV_OVERLOAD] = "__rdiv__",
-    [RMOD_OVERLOAD] = "__rmod__", [GET_OVERLOAD] = "__get__",   [SET_OVERLOAD] = "__set__",
-    [EQ_OVERLOAD] = "__eq__",     [LT_OVERLOAD] = "__lt__",     [LE_OVERLOAD] = "__le__",
-    [GT_OVERLOAD] = "__gt__",     [GE_OVERLOAD] = "__ge__",     [NEG_OVERLOAD] = "__neg__",
+static const char* const methodSyms[SYM_END] = {
+    [SYM_CTOR] = CTOR_STR,   [SYM_ITER] = "__iter__", [SYM_NEXT] = "__next__",
+    [SYM_ADD] = "__add__",   [SYM_SUB] = "__sub__",   [SYM_MUL] = "__mul__",
+    [SYM_DIV] = "__div__",   [SYM_MOD] = "__mod__",   [SYM_RADD] = "__radd__",
+    [SYM_RSUB] = "__rsub__", [SYM_RMUL] = "__rmul__", [SYM_RDIV] = "__rdiv__",
+    [SYM_RMOD] = "__rmod__", [SYM_GET] = "__get__",   [SYM_SET] = "__set__",
+    [SYM_EQ] = "__eq__",     [SYM_LT] = "__lt__",     [SYM_LE] = "__le__",
+    [SYM_GT] = "__gt__",     [SYM_GE] = "__ge__",     [SYM_NEG] = "__neg__",
 };
 
-// Enumeration encoding the cause of the stack unwinding.
+// Enumeration encoding the cause of stack unwinding.
 // Used during unwinding to correctly handle the execution
 // of except/ensure handlers on return and exception
 typedef enum UnwindCause {
@@ -40,18 +40,9 @@ static void resetStack(JStarVM* vm) {
     vm->module = NULL;
 }
 
-static void initConstStrings(JStarVM* vm) {
-    for(int i = 0; i < OVERLOAD_SENTINEL; i++) {
-        vm->overloads[i] = copyString(vm, overloadNames[i], strlen(overloadNames[i]));
-    }
-    vm->ctor = copyString(vm, CTOR_STR, strlen(CTOR_STR));
-    vm->next = copyString(vm, NEXT_METH, strlen(NEXT_METH));
-    vm->iter = copyString(vm, ITER_METH, strlen(ITER_METH));
-}
-
 static void initMainModule(JStarVM* vm) {
     ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
-    compileWithModule(vm, "<main>", mainModuleName, NULL);
+    compileWithModule(vm, "<main>", mainModuleName, NULL); // Empty main module
 }
 
 JStarVM* jsrNewVM(const JStarConf* conf) {
@@ -70,10 +61,14 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     vm->nextGC = conf->initGC;
     vm->heapGrowRate = conf->heapGrowRate;
 
-    // Module and String caches
+    // Module cache and interned string pool
     initHashTable(&vm->modules);
-    initHashTable(&vm->strings);
-    initConstStrings(vm);
+    initHashTable(&vm->stringPool);
+
+    // Create string constants of special method names
+    for(int i = 0; i < SYM_END; i++) {
+        vm->methodSyms[i] = copyString(vm, methodSyms[i], strlen(methodSyms[i]));
+    }
 
     // Core module bootstrap
     initCoreModule(vm);
@@ -81,10 +76,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     // Init empty main module
     initMainModule(vm);
 
-    // Create J* objects needed by the runtime. This is called after initCoreLibrary in order
-    // to correctly assign a Class reference to the objects, since built-in classes are created
-    // during the core module initialization
-    vm->importPaths = newList(vm, 0);
+    // Create empty tuple singleton
     vm->emptyTup = newTuple(vm, 0);
 
     return vm;
@@ -95,7 +87,7 @@ void jsrFreeVM(JStarVM* vm) {
 
     free(vm->stack);
     free(vm->frames);
-    freeHashTable(&vm->strings);
+    freeHashTable(&vm->stringPool);
     freeHashTable(&vm->modules);
     freeObjects(vm);
 
@@ -447,7 +439,7 @@ static bool getSubscriptOfValue(JStarVM* vm) {
         }
     }
 
-    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->overloads[GET_OVERLOAD], 1)) {
+    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->methodSyms[SYM_GET], 1)) {
         return false;
     }
     return true;
@@ -472,7 +464,7 @@ static bool setSubscriptOfValue(JStarVM* vm) {
 
     // swap the operand with value to prepare function call
     swapValues(vm->sp, -1, -3);
-    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->overloads[SET_OVERLOAD], 2)) {
+    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
         return false;
     }
     return true;
@@ -486,18 +478,19 @@ static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
     return str;
 }
 
-static bool callBinaryOverload(JStarVM* vm, const char* op, Overload overload, Overload reverse) {
+static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, MethodSymbol reverse) {
     Value method;
     ObjClass* cls1 = getClass(vm, peek2(vm));
-    ObjClass* cls2 = getClass(vm, peek(vm));
 
-    if(hashTableGet(&cls1->methods, vm->overloads[overload], &method)) {
+    if(hashTableGet(&cls1->methods, vm->methodSyms[overload], &method)) {
         return callValue(vm, method, 1);
     }
 
-    if(reverse != OVERLOAD_SENTINEL) {
+    ObjClass* cls2 = getClass(vm, peek(vm));
+    if(reverse != SYM_END) {
         swapValues(vm->sp, -1, -2);
-        if(hashTableGet(&cls2->methods, vm->overloads[reverse], &method)) {
+
+        if(hashTableGet(&cls2->methods, vm->methodSyms[reverse], &method)) {
             return callValue(vm, method, 1);
         }
     }
@@ -707,7 +700,7 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             vm->sp[-argc - 1] = builtin ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
 
             Value ctor;
-            if(hashTableGet(&cls->methods, vm->ctor, &ctor)) {
+            if(hashTableGet(&cls->methods, vm->methodSyms[SYM_CTOR], &ctor)) {
                 return callValue(vm, ctor, argc);
             } else if(argc != 0) {
                 jsrRaise(vm, "TypeException",
@@ -838,16 +831,16 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));             \
             push(vm, type(a op b));                 \
         } else {                                    \
-            BINARY_OVERLOAD(op, overload, reverse); \
+            SYM_BINARY(op, overload, reverse);      \
         }                                           \
     } while(0)
 
-#define BINARY_OVERLOAD(op, overload, reverse)                     \
-    do {                                                           \
-        SAVE_STATE();                                              \
-        bool res = callBinaryOverload(vm, #op, overload, reverse); \
-        LOAD_STATE();                                              \
-        if(!res) UNWIND_STACK(vm);                                 \
+#define SYM_BINARY(op, overload, reverse)                   \
+    do {                                                    \
+        SAVE_STATE();                                       \
+        bool res = binOverload(vm, #op, overload, reverse); \
+        LOAD_STATE();                                       \
+        if(!res) UNWIND_STACK(vm);                          \
     } while(0)
 
 #define RESTORE_HANDLER(h, frame, cause, excVal) \
@@ -933,23 +926,23 @@ bool runEval(JStarVM* vm, int evalDepth) {
             pop(vm), pop(vm);
             push(vm, OBJ_VAL(conc));
         } else {
-            BINARY_OVERLOAD(+, ADD_OVERLOAD, RADD_OVERLOAD);
+            SYM_BINARY(+, SYM_ADD, SYM_RADD);
         }
         DISPATCH();
     }
 
     TARGET(OP_SUB): {
-        BINARY(NUM_VAL, -, SUB_OVERLOAD, RSUB_OVERLOAD);
+        BINARY(NUM_VAL, -, SYM_SUB, SYM_RSUB);
         DISPATCH();
     }
 
     TARGET(OP_MUL): {
-        BINARY(NUM_VAL, *, MUL_OVERLOAD, RMUL_OVERLOAD);
+        BINARY(NUM_VAL, *, SYM_MUL, SYM_RMUL);
         DISPATCH();
     }
 
     TARGET(OP_DIV): {
-        BINARY(NUM_VAL, /, DIV_OVERLOAD, RDIV_OVERLOAD);
+        BINARY(NUM_VAL, /, SYM_DIV, SYM_RDIV);
         DISPATCH();
     }
     
@@ -959,7 +952,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(fmod(a, b)));
         } else {
-            BINARY_OVERLOAD(%, MOD_OVERLOAD, RMOD_OVERLOAD);
+            SYM_BINARY(%, SYM_MOD, SYM_RMOD);
         }
         DISPATCH();
     }
@@ -981,7 +974,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         } else {
             ObjClass* cls = getClass(vm, peek(vm));
             SAVE_STATE();
-            bool res = invokeMethod(vm, cls, vm->overloads[NEG_OVERLOAD], 0);
+            bool res = invokeMethod(vm, cls, vm->methodSyms[SYM_NEG], 0);
             LOAD_STATE();
             if(!res) UNWIND_STACK(vm);
         }
@@ -989,22 +982,22 @@ bool runEval(JStarVM* vm, int evalDepth) {
     }
 
     TARGET(OP_LT): {
-        BINARY(BOOL_VAL, <, LT_OVERLOAD, OVERLOAD_SENTINEL);
+        BINARY(BOOL_VAL, <, SYM_LT, SYM_END);
         DISPATCH();
     }
 
     TARGET(OP_LE): {
-        BINARY(BOOL_VAL, <=, LE_OVERLOAD, OVERLOAD_SENTINEL);
+        BINARY(BOOL_VAL, <=, SYM_LE, SYM_END);
         DISPATCH();
     }
 
     TARGET(OP_GT): {
-        BINARY(BOOL_VAL, >, GT_OVERLOAD, OVERLOAD_SENTINEL);
+        BINARY(BOOL_VAL, >, SYM_GT, SYM_END);
         DISPATCH();
     }
 
     TARGET(OP_GE): {
-        BINARY(BOOL_VAL, >=, GE_OVERLOAD, OVERLOAD_SENTINEL);
+        BINARY(BOOL_VAL, >=, SYM_GE, SYM_END);
         DISPATCH();
     }
 
@@ -1012,7 +1005,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
         } else {
-            BINARY_OVERLOAD(==, EQ_OVERLOAD, OVERLOAD_SENTINEL);
+            SYM_BINARY(==, SYM_EQ, SYM_END);
         }
         DISPATCH();
     }
@@ -1087,7 +1080,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         vm->sp[1] = vm->sp[-1];
         vm->sp += 2;
         SAVE_STATE();
-        bool res = invokeValue(vm, vm->iter, 1);
+        bool res = invokeValue(vm, vm->methodSyms[SYM_ITER], 1);
         LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
@@ -1101,7 +1094,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             vm->sp[1] = vm->sp[-1];
             vm->sp += 2;
             SAVE_STATE();
-            bool res = invokeValue(vm, vm->next, 1);
+            bool res = invokeValue(vm, vm->methodSyms[SYM_NEXT], 1);
             LOAD_STATE();
             if(!res) UNWIND_STACK(vm);
         } else {

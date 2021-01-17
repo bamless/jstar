@@ -82,7 +82,6 @@ static Module builtInModules[] = {
         FUNCTION(int,            jsr_int)
         FUNCTION(print,          jsr_print)
         FUNCTION(type,           jsr_type)
-        FUNCTION(importPaths,    jsr_importPaths)
         FUNCTION(garbageCollect, jsr_garbageCollect)
         CLASS(Number)
             METHOD(new,        jsr_Number_new)
