@@ -210,14 +210,13 @@ static void argumentError(JStarVM* vm, FnCommon* c, int expected, int supplied,
 }
 
 static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
-    bool isVararg = c->vararg;
     uint8_t most = c->argsCount, least = most - c->defCount;
 
-    if(!isVararg && argc > most) {
+    if(!c->vararg && argc > most) {
         argumentError(vm, c, c->argsCount, argc, most == least ? "exactly" : "at most");
         return false;
     } else if(argc < least) {
-        argumentError(vm, c, least, argc, (most == least && !isVararg) ? "exactly" : "at least");
+        argumentError(vm, c, least, argc, (most == least && !c->vararg) ? "exactly" : "at least");
         return false;
     }
 
@@ -226,7 +225,7 @@ static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
         push(vm, c->defaults[i]);
     }
 
-    if(isVararg) {
+    if(c->vararg) {
         packVarargs(vm, argc > most ? argc - most : 0);
     }
 
