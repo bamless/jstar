@@ -18,15 +18,15 @@
 #include "value.h"
 #include "vm.h"
 
+#define CONTINUE_MARK 1
+#define BREAK_MARK    2
+
 // In case of a direct assignement of the form:
 //  var a, b, ..., c = x, y, ..., z
 // Where the right hand side is an unpackable object (i.e. a tuple or a list)
 // We can omit the creation of the tuple/list, assigning directly the elements
 // to the variables. We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) (type == JSR_ARRAY || type == JSR_TUPLE)
-
-#define CONTINUE_MARK 1
-#define BREAK_MARK    2
 
 typedef struct Local {
     JStarIdentifier id;
