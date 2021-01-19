@@ -1449,7 +1449,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     c->func = newFunction(c->vm, module, arity, defCount, vararg);
     addConstant(&c->func->code, NULL_VAL); // This const will hold the superclass at runtime
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
-    
+
     c->func->c.name = createMethodName(c, classId, &s->as.funcDecl.id);
 
     // if in costructor change the type
@@ -1485,8 +1485,8 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     } else {
         emitBytecode(c, OP_NULL, 0);
     }
-    emitBytecode(c, OP_RETURN, 0);
 
+    emitBytecode(c, OP_RETURN, 0);
     return c->func;
 }
 
