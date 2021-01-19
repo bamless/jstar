@@ -42,6 +42,7 @@ static Entry* findEntry(Entry* entries, size_t sizeMask, ObjString* key) {
 static void growEntries(HashTable* t) {
     size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
     Entry* newEntries = malloc(sizeof(Entry) * newSize);
+
     for(size_t i = 0; i < newSize; i++) {
         newEntries[i].key = NULL;
         newEntries[i].value = NULL_VAL;
@@ -56,6 +57,7 @@ static void growEntries(HashTable* t) {
             Entry* dest = findEntry(newEntries, newSize - 1, e->key);
             dest->key = e->key;
             dest->value = e->value;
+            
             t->numEntries++;
         }
     }
