@@ -13,6 +13,7 @@
 #define INIT_GC         (1024 * 1024 * 20)             // 10MiB - First GC collection point
 #define HEAP_GROW_RATE  2                              // The heap growing rate
 #define HANDLER_MAX     10                             // Max number of try-excepts for a frame
+#define SUPER_SLOT      0                              // Constant slot holding the method's super-class
 
 // -----------------------------------------------------------------------------
 // COMPILER CONSTANTS
@@ -25,11 +26,11 @@
 // STRING CONSTANTS
 // -----------------------------------------------------------------------------
 
-#define CTOR_STR      "new"
-#define THIS_STR      "this"
-#define ARGV_STR      "argv"
-#define IMP_PATHS_STR "importPaths"
-#define ANON_PREFIX   "anon:"
+#define CTOR_STR    "new"
+#define THIS_STR    "this"
+#define ARGV_STR    "argv"
+#define ANON_PREFIX "anon:"
+#define IMPORT_STR  "importPaths"
 
 #define EXC_ERR   "_err"
 #define EXC_CAUSE "_cause"

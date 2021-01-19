@@ -1229,10 +1229,9 @@ invoke:;
 
 supinvoke:;
         ObjString* name = GET_STRING();
-        // The superclass is stored as a const in the function itself
-        ObjClass* sup = AS_CLASS(fn->code.consts.arr[0]);
+        ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
         SAVE_STATE();
-        bool res = invokeMethod(vm, sup, name, argc);
+        bool res = invokeMethod(vm, superCls, name, argc);
         LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
@@ -1240,10 +1239,9 @@ supinvoke:;
 
     TARGET(OP_SUPER_BIND): {
         ObjString* name = GET_STRING();
-        // The superclass is stored as a const in the function itself
-        ObjClass* cls = AS_CLASS(fn->code.consts.arr[0]);
-        if(!bindMethod(vm, cls, name)) {
-            jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+        ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
+        if(!bindMethod(vm, superCls, name)) {
+            jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
                      name->data);
             UNWIND_STACK(vm);
         }
@@ -1411,8 +1409,8 @@ op_return:
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
         ObjString* methodName = GET_STRING();
-        // Set the superclass as a const in the function
-        AS_CLOSURE(peek(vm))->fn->code.consts.arr[0] = OBJ_VAL(cls->superCls);
+        // Set the super-class as a const in the method
+        AS_CLOSURE(peek(vm))->fn->code.consts.arr[SUPER_SLOT] = OBJ_VAL(cls->superCls);
         hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }
