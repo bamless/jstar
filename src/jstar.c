@@ -276,8 +276,8 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     read = fread(header, 1, SER_HEADER_SIZE, src);
     if(ferror(src)) {
         goto error;
-    } 
-    
+    }
+
     if(read == SER_HEADER_SIZE) {
         if(memcmp(SER_FILE_HEADER, header, read) == 0) {
             isCompiled = true;
@@ -544,11 +544,10 @@ bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
 
     Value res;
     ObjString* nameStr = copyString(vm, name, strlen(name));
-    if(!hashTableGet(&mod->globals, nameStr, &res)) {
-        if(!hashTableGet(&vm->core->globals, nameStr, &res)) {
-            jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
-            return false;
-        }
+    if(!hashTableGet(&mod->globals, nameStr, &res) &&
+       !hashTableGet(&vm->core->globals, nameStr, &res)) {
+        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
+        return false;
     }
 
     push(vm, res);

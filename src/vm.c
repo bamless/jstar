@@ -558,7 +558,6 @@ static bool unpackArgument(JStarVM* vm, Obj* o) {
     }
 
     reserveStack(vm, size + 1);
-
     for(size_t i = 0; i < size; i++) {
         push(vm, array[i]);
     }
@@ -603,35 +602,45 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
-            Value v;
+            Value field;
             ObjInstance* inst = AS_INSTANCE(val);
-            if(!hashTableGet(&inst->fields, name, &v)) {
+
+            // Try top find a field
+            if(!hashTableGet(&inst->fields, name, &field)) {
                 // no field, try to bind method
                 if(!bindMethod(vm, inst->base.cls, name)) {
                     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
                              inst->base.cls->name->data, name->data);
                     return false;
                 }
+
                 return true;
             }
+
             pop(vm);
-            push(vm, v);
+            push(vm, field);
+
             return true;
         }
         case OBJ_MODULE: {
-            Value v;
+            Value global;
             ObjModule* mod = AS_MODULE(val);
-            if(!hashTableGet(&mod->globals, name, &v)) {
-                // if we didnt find a global name try to return bound method
+
+            // Try to find global variable
+            if(!hashTableGet(&mod->globals, name, &global)) {
+                // No global, try to bind method
                 if(!bindMethod(vm, mod->base.cls, name)) {
                     jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
                              name->data, mod->name->data);
                     return false;
                 }
+
                 return true;
             }
+
             pop(vm);
-            push(vm, v);
+            push(vm, global);
+
             return true;
         }
         default:
@@ -698,8 +707,11 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
                 return false;
             }
 
-            bool builtin = isInstatiableBuiltin(vm, cls);
-            vm->sp[-argc - 1] = builtin ? NULL_VAL : OBJ_VAL(newInstance(vm, cls));
+            if(isInstatiableBuiltin(vm, cls)) {
+                vm->sp[-argc - 1] = NULL_VAL;
+            } else {
+                vm->sp[-argc - 1] = OBJ_VAL(newInstance(vm, cls));
+            }
 
             Value ctor;
             if(hashTableGet(&cls->methods, vm->methodSyms[SYM_CTOR], &ctor)) {
@@ -728,32 +740,42 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
         case OBJ_INST: {
-            Value f;
             ObjInstance* inst = AS_INSTANCE(val);
+            ObjClass* cls = inst->base.cls;
 
-            // Check if field shadows a method
-            if(hashTableGet(&inst->fields, name, &f)) {
-                return callValue(vm, f, argc);
+            // First try to find a method
+            Value method;
+            if(hashTableGet(&cls->methods, name, &method)) {
+                return callValue(vm, method, argc);
             }
 
-            return invokeMethod(vm, inst->base.cls, name, argc);
+            // If no method is found try a field
+            Value field;
+            if(hashTableGet(&inst->fields, name, &field)) {
+                return callValue(vm, field, argc);
+            }
+
+            jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+                     name->data);
+            return false;
         }
         case OBJ_MODULE: {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            // check if method shadows a function in the module
+            // Check if method shadows a function in the module
             if(hashTableGet(&vm->modClass->methods, name, &func)) {
                 return callValue(vm, func, argc);
             }
 
-            if(!hashTableGet(&mod->globals, name, &func)) {
-                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
-                         mod->name->data);
-                return false;
+            // If no method is found on the ObjModule, try to get global variable
+            if(hashTableGet(&mod->globals, name, &func)) {
+                return callValue(vm, func, argc);
             }
 
-            return callValue(vm, func, argc);
+            jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
+                     mod->name->data);
+            return false;
         }
         default:
             break;
@@ -1280,6 +1302,7 @@ op_return:
             callFunction(vm, AS_CLOSURE(peek(vm)), 0);
             LOAD_STATE();
         }
+    
         DISPATCH();
     }
     
@@ -1431,11 +1454,10 @@ op_return:
 
     TARGET(OP_GET_GLOBAL): {
         ObjString* name = GET_STRING();
-        if(!hashTableGet(&vm->module->globals, name, vm->sp)) {
-            if(!hashTableGet(&vm->core->globals, name, vm->sp)) {
-                jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
-                UNWIND_STACK(vm);
-            }
+        if(!hashTableGet(&vm->module->globals, name, vm->sp) && 
+           !hashTableGet(&vm->core->globals, name, vm->sp)) {
+            jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
+            UNWIND_STACK(vm);
         }
         vm->sp++;
         DISPATCH();
