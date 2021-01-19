@@ -56,7 +56,7 @@ if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
   set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 endif()
 
-set(CMAKE_BUILD_RPATH_USE_ORIGIN   TRUE)
+set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
 
 # Set compiler flags
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -65,7 +65,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     set(CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused-parameter")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Qunused-arguments -O3 -fomit-frame-pointer -s")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Qunused-arguments -O3 -fomit-frame-pointer -fno-plt -s")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 elseif(MSVC)
     # Disable secure warnings for the useless _s variants of standard functions.
