@@ -300,10 +300,8 @@ JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
 ObjString* jsrBufferToString(JStarBuffer* b);
 
 // Get the value array and size of a List or a Tuple
-static inline Value* getValues(Obj* obj, size_t* size) {
+inline Value* getValues(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
-    
-    *size = 0;
     switch(obj->type) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj; 
@@ -317,7 +315,7 @@ static inline Value* getValues(Obj* obj, size_t* size) {
     }
     default:
         UNREACHABLE();
-        return NULL;
+        return *size = 0, NULL;
     }
 }
 

@@ -274,6 +274,8 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
     return interned;
 }
 
+extern inline Value* getValues(Obj* obj, size_t *size);
+
 // -----------------------------------------------------------------------------
 // API - JStarBuffer function implementation
 // -----------------------------------------------------------------------------
