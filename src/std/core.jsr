@@ -198,7 +198,7 @@ class List is Sequence
 end
 
 class Tuple is Sequence
-    native new(sequence=null)
+    native new(iterable=null)
     native __len__()
     native __eq__(other)
     native __iter__(iter)
