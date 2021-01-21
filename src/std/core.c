@@ -1030,6 +1030,50 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
     t->sizeMask = newSize - 1;
 }
 
+JSR_NATIVE(jsr_Table_new) {
+    ObjTable* table = newTable(vm);
+    push(vm, OBJ_VAL(table));
+
+    if(IS_TABLE(vm->apiStack[1])) {
+        ObjTable* other = AS_TABLE(vm->apiStack[1]);
+        for(size_t i = 0; i <= other->sizeMask; i++) {
+            TableEntry* e = &other->entries[i];
+            if(!IS_NULL(e->key)) {
+                push(vm, OBJ_VAL(table));
+                push(vm, e->key);
+                push(vm, e->val);
+                if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+                pop(vm);
+            }
+        }
+    } else {
+        JSR_FOREACH(1, {
+            if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+                JSR_RAISE(vm, "TypeException", "Can only unpack List or Tuple, got %s", 
+                          getClass(vm, peek(vm))->name->data);
+            }
+            
+            size_t size;
+            Value *array = getValues(AS_OBJ(peek(vm)), &size);
+
+            if(size != 2) {
+                JSR_RAISE(vm, "TypeException", "Iterable element of length %zu, must be 2", size);
+            }
+
+            push(vm, OBJ_VAL(table));
+            push(vm, array[0]);
+            push(vm, array[1]);
+
+            if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+
+            pop(vm);
+            pop(vm);
+        },)
+    }
+
+    return true;
+}
+
 JSR_NATIVE(jsr_Table_get) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 

@@ -130,13 +130,12 @@ static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
 
 static bool isNonInstantiableBuiltin(JStarVM* vm, ObjClass* cls) {
     return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass ||
-           cls == vm->stClass || cls == vm->clsClass || cls == vm->tableClass ||
-           cls == vm->udataClass;
+           cls == vm->stClass || cls == vm->clsClass || cls == vm->udataClass;
 }
 
 static bool isInstatiableBuiltin(JStarVM* vm, ObjClass* cls) {
     return cls == vm->lstClass || cls == vm->tupClass || cls == vm->numClass ||
-           cls == vm->boolClass || cls == vm->strClass;
+           cls == vm->boolClass || cls == vm->strClass || cls == vm->tableClass;
 }
 
 static bool isBuiltinClass(JStarVM* vm, ObjClass* cls) {
@@ -512,29 +511,9 @@ static bool computeUnpackArgCount(JStarVM* vm, int unpackArgc, uint8_t argc, uin
     return true;
 }
 
-static Value* getValueArray(Obj* obj, size_t* size) {
-    ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a tuple or list.");
-
-    switch(obj->type) {
-    case OBJ_TUPLE: {
-        ObjTuple* tup = (ObjTuple*)obj;
-        *size = tup->size;
-        return tup->arr;
-    }
-    case OBJ_LIST: {
-        ObjList* lst = (ObjList*)obj;
-        *size = lst->count;
-        return lst->arr;
-    }
-    default:
-        UNREACHABLE();
-        return NULL;
-    }
-}
-
 static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     size_t size;
-    Value* array = getValueArray(o, &size);
+    Value* array = getValues(o, &size);
 
     if(n > size) {
         jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %zu", n, size);
@@ -550,7 +529,7 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
 
 static bool unpackArgument(JStarVM* vm, Obj* o) {
     size_t size;
-    Value* array = getValueArray(o, &size);
+    Value* array = getValues(o, &size);
 
     if(size >= UINT8_MAX) {
         jsrRaise(vm, "TypeException", "Last argument too big to unpack: %zu", size);

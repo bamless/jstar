@@ -211,6 +211,7 @@ class Tuple is Sequence
 end
 
 class Table is Iter
+    native new(iterable)
     native delete(key)
     native clear()
     native contains(key)
@@ -293,20 +294,6 @@ fun toList(iterable)
         list.addAll(iterable)
         return list
     end
-end
-
-fun toTable(iterable)
-    var table = {}
-    if iterable is Table then
-        for var key in iterable do
-            table[key] = iterable[key]
-        end
-    else
-        for var key, val in iterable do
-            table[key] = val
-        end
-    end
-    return table
 end
 
 native ascii(num)

@@ -73,6 +73,7 @@ JSR_NATIVE(jsr_String_next);
 // end
 
 // class Table
+JSR_NATIVE(jsr_Table_new);
 JSR_NATIVE(jsr_Table_get);
 JSR_NATIVE(jsr_Table_set);
 JSR_NATIVE(jsr_Table_len);

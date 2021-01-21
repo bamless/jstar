@@ -140,6 +140,7 @@ static Module builtInModules[] = {
             METHOD(__string__, jsr_String_string)
         ENDCLASS
         CLASS(Table)
+            METHOD(new,        jsr_Table_new)
             METHOD(__get__,    jsr_Table_get)
             METHOD(__set__,    jsr_Table_set)
             METHOD(__len__,    jsr_Table_len)
