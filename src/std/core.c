@@ -552,7 +552,12 @@ JSR_NATIVE(jsr_List_next) {
 
 // class Tuple
 JSR_NATIVE(jsr_Tuple_new) {
-    if(!jsrIsList(vm, 1)) {
+    if(IS_NULL(vm->apiStack[1])) {
+        push(vm, OBJ_VAL(newTuple(vm, 0)));
+        return true;
+    }
+
+    if(!IS_LIST(vm->apiStack[1])) {
         jsrPushList(vm);
         JSR_FOREACH(1, {
             jsrListAppend(vm, 2);
@@ -562,7 +567,10 @@ JSR_NATIVE(jsr_Tuple_new) {
 
     ObjList* lst = AS_LIST(vm->sp[-1]);
     ObjTuple* tup = newTuple(vm, lst->count);
-    if(lst->count > 0) memcpy(tup->arr, lst->arr, sizeof(Value) * lst->count);
+    if(lst->count > 0) {
+        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->count);
+    }
+
     push(vm, OBJ_VAL(tup));
     return true;
 }
@@ -1046,7 +1054,7 @@ JSR_NATIVE(jsr_Table_new) {
                 pop(vm);
             }
         }
-    } else {
+    } else if(!IS_NULL(vm->apiStack[1])) {
         JSR_FOREACH(1, {
             if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
                 JSR_RAISE(vm, "TypeException", "Can only unpack List or Tuple, got %s", 
