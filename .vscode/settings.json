@@ -2,6 +2,7 @@
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
     "files.associations": {
+        "*h": "c",
         "jstar.h": "c",
         "limits": "c",
         "xutility": "c",
