@@ -6,7 +6,7 @@ else()
 endif()
 
 # Cli app
-add_executable(cli cli.c)
+add_executable(cli cli.c colorio_posix.c)
 target_link_libraries(cli PRIVATE jstar linenoise argparse)
 set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 

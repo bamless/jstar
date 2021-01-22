@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "colorio.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
@@ -262,6 +263,7 @@ static void parseArguments(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
+    colorPrintf(COLOR_RED, "Test\n");
     parseArguments(argc, argv);
 
     if(opts.showVersion) {
