@@ -55,9 +55,9 @@ static bool replPrint(JStarVM* vm) {
     JSR_CHECK(String, -1, "__string__ return value");
 
     if(jsrIsString(vm, 1)) {
-        colorPrintf(COLOR_GREEN, "\"%s\"\n", jsrGetString(vm, -1));
+        colorPrintf(COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
     } else if(jsrIsNumber(vm, 1)) {
-        colorPrintf(COLOR_MAGENTA, "%s\n", jsrGetString(vm, -1));
+        colorPrintf(COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
     } else if(jsrIsBoolean(vm, 1)) {
         colorPrintf(COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
     } else {
