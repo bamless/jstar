@@ -47,6 +47,9 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 }
 
 static bool replPrint(JStarVM* vm) {
+    // Don't print `null`
+    if(jsrIsNull(vm, 1)) return true;
+
     jsrDup(vm);
     if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
     JSR_CHECK(String, -1, "__string__ return value");
@@ -187,7 +190,7 @@ static void addExprPrint(JStarBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
-        jsrBufferAppendStr(sb, "\nif _ != null then _replprint(_) end");
+        jsrBufferAppendStr(sb, "\n_replprint(_)");
         jsrExprFree(e);
     }
 }
