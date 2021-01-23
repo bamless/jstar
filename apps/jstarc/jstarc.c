@@ -20,13 +20,12 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 
-static void errorCallback(JStarVM* vm, JStarResult err, const char* file, int line,
-                          const char* error) {
-    switch(err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+    switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
-        fprintf(stderr, "File %s [line:%d]:\n", file, line);
-        fprintf(stderr, "%s\n", error);
+        fprintf(stderr, "File %s [line:%d]:\n", file, ln);
+        fprintf(stderr, "%s\n", err);
         break;
     default:
         break;
@@ -165,7 +164,7 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
             size_t len;
             const char* ext;
             cwk_path_get_extension(file->d_name, &ext, &len);
-            
+
             if(strcmp(ext, JSR_EXT) != 0) {
                 continue;
             }
