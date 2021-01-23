@@ -13,6 +13,7 @@
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
 
+#define REPL_PRINT   "_replprint"
 #define JSTAR_PATH   "JSTARPATH"
 #define JSTAR_PROMPT "J*>> "
 #define LINE_PROMPT  ".... "
@@ -32,10 +33,48 @@ static Options opts;
 static JStarVM* vm;
 static JStarBuffer completionBuf;
 
+// -----------------------------------------------------------------------------
+// VM INITIALIZATION AND DESTRUCTION
+// -----------------------------------------------------------------------------
+
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+    if(ln >= 0) {
+        fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
+    } else {
+        fcolorPrintf(stderr, COLOR_RED, "File %s:\n", file);
+    }
+    fcolorPrintf(stderr, COLOR_RED, "%s\n", err);
+}
+
+static bool replPrint(JStarVM* vm) {
+    jsrDup(vm);
+    if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
+    JSR_CHECK(String, -1, "__string__ return value");
+
+    if(jsrIsString(vm, 1)) {
+        colorPrintf(COLOR_GREEN, "\"%s\"\n", jsrGetString(vm, -1));
+    } else if(jsrIsNumber(vm, 1)) {
+        colorPrintf(COLOR_MAGENTA, "%s\n", jsrGetString(vm, -1));
+    } else if(jsrIsBoolean(vm, 1)) {
+        colorPrintf(COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
+    } else {
+        printf("%s\n", jsrGetString(vm, -1));
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
+    conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
+
+    // register repl print function
+    jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
+    jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
+    jsrPop(vm);
 }
 
 static void freeVM(void) {
@@ -148,7 +187,7 @@ static void addExprPrint(JStarBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
-        jsrBufferAppendStr(sb, "\nif _ != null then print(_) end");
+        jsrBufferAppendStr(sb, "\nif _ != null then _replprint(_) end");
         jsrExprFree(e);
     }
 }
@@ -263,7 +302,6 @@ static void parseArguments(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
-    colorPrintf(COLOR_RED, "Test\n");
     parseArguments(argc, argv);
 
     if(opts.showVersion) {
