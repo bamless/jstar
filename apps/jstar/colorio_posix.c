@@ -16,14 +16,14 @@ static const char* colors[] = {
 
 static void startColor(FILE* f, Color color) {
     if(isatty(fileno(f))) {
-        fprintf(f, colors[color]);
+        fprintf(f, "%s", colors[color]);
         fflush(f);
     }
 }
 
 static void endColor(FILE* f) {
     if(isatty(fileno(f))) {
-        fprintf(f, colors[COLOR_END]);
+        fprintf(f, "%s", colors[COLOR_END]);
         fflush(f);
     }
 }
