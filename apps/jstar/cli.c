@@ -47,8 +47,7 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 }
 
 static bool replPrint(JStarVM* vm) {
-    // Don't print `null`
-    if(jsrIsNull(vm, 1)) return true;
+    if(jsrIsNull(vm, 1)) return true;  // Don't print `null`
 
     jsrDup(vm);
     if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
@@ -73,11 +72,6 @@ static void initVM(void) {
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
-
-    // register repl print function
-    jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
-    jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
-    jsrPop(vm);
 }
 
 static void freeVM(void) {
@@ -89,9 +83,9 @@ static void freeVM(void) {
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static void initImportPaths(const char* path, bool ignoreEnv) {
+static void initImportPaths(const char* path) {
     jsrAddImportPath(vm, path);
-    if(ignoreEnv) return;
+    if(opts.ignoreEnv) return;
 
     const char* jstarPath = getenv(JSTAR_PATH);
     if(jstarPath == NULL) return;
@@ -195,10 +189,18 @@ static void addExprPrint(JStarBuffer* sb) {
     }
 }
 
+// register repl print function
+static void registerPrintFunction(void) {
+    jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
+    jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
+    jsrPop(vm);
+}
+
 static void doRepl() {
     if(!opts.skipVersion) printVersion();
     linenoiseSetCompletionCallback(completion);
-    initImportPaths("./", opts.ignoreEnv);
+    initImportPaths("./");
+    registerPrintFunction();
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
@@ -233,19 +235,19 @@ static void doRepl() {
 // SCRIPT EXECUTION
 // -----------------------------------------------------------------------------
 
-static JStarResult execScript(const char* script, int argc, char** args, bool ignoreEnv) {
+static JStarResult execScript(const char* script, int argc, char** args) {
     jsrInitCommandLineArgs(vm, argc, (const char**)args);
 
     // set base import path to script's directory
     char* directory = strrchr(script, '/');
     if(directory != NULL) {
         size_t length = directory - script + 1;
-        char* path = calloc(length + 1, sizeof(char));
+        char* path = calloc(length + 1, 1);
         memcpy(path, script, length);
-        initImportPaths(path, ignoreEnv);
+        initImportPaths(path);
         free(path);
     } else {
-        initImportPaths("./", ignoreEnv);
+        initImportPaths("./");
     }
 
     JStarBuffer src;
@@ -318,11 +320,11 @@ int main(int argc, char** argv) {
     if(opts.execStmt) {
         JStarResult res = evaluateString("<string>", opts.execStmt);
         if(opts.script) {
-            res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
+            res = execScript(opts.script, opts.argsCount, opts.args);
         }
         if(!opts.interactive) exit(res);
     } else if(opts.script) {
-        JStarResult res = execScript(opts.script, opts.argsCount, opts.args, opts.ignoreEnv);
+        JStarResult res = execScript(opts.script, opts.argsCount, opts.args);
         if(!opts.interactive) exit(res);
     }
 
