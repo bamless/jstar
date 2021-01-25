@@ -138,7 +138,7 @@ static JStarTok advance(Parser* p) {
     }
 
     while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
-        error(p, p->peek.type == TOK_ERR ? "Invalid token." : "Unterminated string.");
+        error(p, p->peek.type == TOK_ERR ? "Invalid token" : "Unterminated string");
         prev = p->peek;
         jsrNextToken(&p->lex, &p->peek);
     }
@@ -157,7 +157,7 @@ static JStarTok require(Parser* p, JStarTokType type) {
         return advance(p);
     }
 
-    error(p, "Expected token `%s`, instead `%s` found.", JStarTokName[type],
+    error(p, "Expected token `%s`, instead `%s` found", JStarTokName[type],
           JStarTokName[p->peek.type]);
     return (JStarTok){0, NULL, 0, 0};
 }
@@ -280,13 +280,13 @@ static bool isLValue(JStarExprType type) {
 
 static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType assignToken) {
     if(assignToken != TOK_EQUAL) {
-        error(p, "Unpack cannot use compound assignement.");
+        error(p, "Unpack cannot use compound assignement");
         return;
     }
     vecForeach(JStarExpr * *it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
-            error(p, "Left hand side of unpack assignment must be composed of lvalues.");
+            error(p, "Left hand side of unpack assignment must be composed of lvalues");
         }
     }
 }
@@ -295,7 +295,7 @@ static void checkLvalue(Parser* p, JStarExpr* l, JStarTokType assignType) {
     if(l->type == JSR_TUPLE) {
         checkUnpackAssignement(p, l->as.tuple.exprs, assignType);
     } else if(!isLValue(l->type)) {
-        error(p, "Left hand side of assignment must be an lvalue.");
+        error(p, "Left hand side of assignment must be an lvalue");
     }
 }
 
@@ -304,7 +304,7 @@ static void requireStmtEnd(Parser* p) {
         if(match(p, TOK_NEWLINE) || match(p, TOK_SEMICOLON)) {
             advance(p);
         } else {
-            error(p, "Expected token `newline` or `;`.");
+            error(p, "Expected token `newline` or `;`");
         }
     }
 }
@@ -476,7 +476,7 @@ static JStarStmt* varDecl(Parser* p) {
 
 static JStarStmt* forEach(Parser* p, JStarStmt* var, int line) {
     if(var->as.varDecl.init != NULL) {
-        error(p, "Variable declaration in foreach cannot have initializer.");
+        error(p, "Variable declaration in foreach cannot have initializer");
     }
 
     advance(p);
@@ -712,7 +712,7 @@ static JStarStmt* classDecl(Parser* p) {
             vecPush(&methods, funcDecl(p));
             break;
         default:
-            error(p, "Expected function or native delcaration.");
+            error(p, "Expected function or native delcaration");
             advance(p);
             break;
         }
@@ -729,7 +729,7 @@ static JStarStmt* parseStaticDecl(Parser* p) {
     skipNewLines(p);
 
     if(!isDeclaration(&p->peek)) {
-        error(p, "Only a variable, function, native or class declaration can be defined static",
+        error(p, "Only a declaration can be annotated `static`",
               p->peek.line);
     }
 
@@ -967,15 +967,15 @@ static JStarExpr* literal(Parser* p) {
         return e;
     }
     case TOK_UNTERMINATED_STR:
-        error(p, "Unterminated String.");
+        error(p, "Unterminated String");
         advance(p);
         break;
     case TOK_ERR:
-        error(p, "Invalid token.");
+        error(p, "Invalid token");
         advance(p);
         break;
     default:
-        error(p, "Expected expression.");
+        error(p, "Expected expression");
         advance(p);
         break;
     }
@@ -1209,7 +1209,7 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void*
     skipNewLines(&p);
 
     if(!match(&p, TOK_EOF)) {
-        error(&p, "Unexpected token.");
+        error(&p, "Unexpected token");
     }
 
     if(p.hadError) {
@@ -1228,7 +1228,7 @@ JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB er
     skipNewLines(&p);
 
     if(!match(&p, TOK_EOF)) {
-        error(&p, "Unexpected token.");
+        error(&p, "Unexpected token");
     }
 
     if(p.hadError) {

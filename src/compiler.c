@@ -201,7 +201,7 @@ static void exitFunctionScope(Compiler* c) {
 static uint16_t createConst(Compiler* c, Value constant, int line) {
     int index = addConstant(&c->func->code, constant);
     if(index == -1) {
-        error(c, line, "Too many constants in function %s.", c->func->c.name->data);
+        error(c, line, "Too many constants in function %s", c->func->c.name->data);
         return 0;
     }
     return (uint16_t)index;
@@ -222,7 +222,7 @@ static uint16_t identifierConst(Compiler* c, JStarIdentifier* id, int line) {
 
 static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
     if(c->localsCount == MAX_LOCALS) {
-        error(c, line, "Too many local variables in function %s.", c->func->c.name->data);
+        error(c, line, "Too many local variables in function %s", c->func->c.name->data);
         return -1;
     }
 
@@ -258,7 +258,7 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
     }
 
     if(c->func->upvalueCount == MAX_LOCALS) {
-        error(c, line, "Too many upvalues in function %s.", c->func->c.name->data);
+        error(c, line, "Too many upvalues in function %s", c->func->c.name->data);
         return -1;
     }
 
@@ -343,7 +343,7 @@ static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
     int32_t offset = target - (getCurrentAddr(c) + opcodeArgsNumber(jmpOp) + 1);
 
     if(offset > INT16_MAX || offset < INT16_MIN) {
-        error(c, line, "Too much code to jump over.");
+        error(c, line, "Too much code to jump over");
     }
 
     size_t jmpAddr = emitBytecode(c, jmpOp, line);
@@ -360,7 +360,7 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
     int32_t offset = target - (jumpAddr + opcodeArgsNumber(jmpOp) + 1);
 
     if(offset > INT16_MAX || offset < INT16_MIN) {
-        error(c, line, "Too much code to jump over.");
+        error(c, line, "Too much code to jump over");
     }
 
     code->bytecode[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
@@ -459,7 +459,7 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
                 jsrBufferAppendChar(sb, '\v');
                 break;
             default:
-                error(c, e->line, "Invalid escape character `%c`.", str[i + 1]);
+                error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
                 break;
             }
             i++;
@@ -681,7 +681,7 @@ static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
-        error(c, exprs->line, "Too few values to unpack: expected %d, got %d.", num, i);
+        error(c, exprs->line, "Too few values to unpack: expected %d, got %d", num, i);
     }
 }
 
@@ -703,7 +703,7 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
     size_t tupleSize = vecSize(&tupleExprs->as.list);
 
     if(tupleSize >= UINT8_MAX) {
-        error(c, e->line, "Exceeded max number of unpack assignment: %d.", UINT8_MAX);
+        error(c, e->line, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
     }
 
     JStarExpr* rval = e->as.assign.rval;
@@ -817,7 +817,7 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
 
 static void compileSuper(Compiler* c, JStarExpr* e) {
     if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
-        error(c, e->line, "Can only use `super` in method call.");
+        error(c, e->line, "Can only use `super` in method call");
         return;
     }
 
@@ -872,7 +872,7 @@ static void compileTupleLit(Compiler* c, JStarExpr* e) {
     }
 
     size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
-    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal.");
+    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal");
     emitBytecode(c, OP_NEW_TUPLE, e->line);
     emitBytecode(c, tupleSize, e->line);
 }
@@ -1243,7 +1243,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     enterTryBlock(c, &tryBlock, numHandlers);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks: %d.", MAX_TRY_DEPTH);
+        error(c, s->line, "Exceeded max number of nested try blocks: %d", MAX_TRY_DEPTH);
     }
 
     size_t ensSetup = 0, excSetup = 0;
@@ -1342,7 +1342,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     enterTryBlock(c, &tryBlock, 1);
 
     if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks: %d.", MAX_TRY_DEPTH);
+        error(c, s->line, "Exceeded max number of nested try blocks: %d", MAX_TRY_DEPTH);
     }
 
     size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
@@ -1398,12 +1398,12 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
     bool isBreak = s->type == JSR_BREAK;
 
     if(c->loops == NULL) {
-        error(c, s->line, "Cannot use %s outside loop.", isBreak ? "break" : "continue");
+        error(c, s->line, "Cannot use %s outside loop", isBreak ? "break" : "continue");
         return;
     }
 
     if(c->tryDepth != 0 && c->tryBlocks->depth >= c->loops->depth) {
-        error(c, s->line, "Cannot %s out of a try block.", isBreak ? "break" : "continue");
+        error(c, s->line, "Cannot %s out of a try block", isBreak ? "break" : "continue");
     }
 
     discardScope(c, c->loops->depth);
