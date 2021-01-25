@@ -1620,6 +1620,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
     vecForeach(JStarIdentifier** it, s->as.varDecl.ids) {
         JStarIdentifier* name = *it;
         vars[varsCount++] = declareVar(c, name, s->as.varDecl.isStatic, s->line);
+        if(varsCount == MAX_LOCALS) break;
     }
 
     if(s->as.varDecl.init != NULL) {
