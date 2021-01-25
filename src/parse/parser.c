@@ -729,8 +729,7 @@ static JStarStmt* parseStaticDecl(Parser* p) {
     skipNewLines(p);
 
     if(!isDeclaration(&p->peek)) {
-        error(p, "Only a declaration can be annotated `static`",
-              p->peek.line);
+        error(p, "Only a declaration can be annotated `static`", p->peek.line);
     }
 
     JStarStmt* decl = parseStmt(p);
