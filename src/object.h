@@ -305,7 +305,7 @@ inline Value* getValues(Obj* obj, size_t* size) {
     switch(obj->type) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj; 
-        *size = lst->size;
+        *size = lst->count;
         return lst->arr;
     }
     case OBJ_TUPLE: {
