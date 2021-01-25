@@ -28,6 +28,18 @@
 // to the variables. We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) (type == JSR_ARRAY || type == JSR_TUPLE)
 
+typedef struct Variable {
+    enum { VAR_LOCAL, VAR_GLOBAL, VAR_ERR } type;
+    union {
+        struct {
+            int index;
+        } local;
+        struct {
+            JStarIdentifier id;
+        } global;
+    } as;
+} Variable;
+
 typedef struct Local {
     JStarIdentifier id;
     bool isUpvalue;
@@ -223,9 +235,11 @@ static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
 
 static int resolveVariable(Compiler* c, JStarIdentifier* id, int line) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
-        if(jsrIdentifierEq(&c->locals[i].id, id)) {
-            if(c->locals[i].depth == -1) {
-                error(c, line, "Cannot read local variable in its own initializer.");
+        Local* l = &c->locals[i];
+        if(jsrIdentifierEq(&l->id, id)) {
+            if(l->depth == -1) {
+                error(c, line, "Cannot read local variable `%.*s` in its own initializer", 
+                      l->id.length, l->id.name);
                 return 0;
             }
             return i;
@@ -272,40 +286,49 @@ static int resolveUpvalue(Compiler* c, JStarIdentifier* id, int line) {
     return -1;
 }
 
-static int declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int line) {
+static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, int line) {
     // Global variables need not be declared
-    if(inGlobalScope(c) && !forceLocal) return -1;
+    if(inGlobalScope(c) && !forceLocal) {
+        Variable var;
+        var.type = VAR_GLOBAL;
+        var.as.global.id = *id;
+        return var;
+    }
 
     if(!inGlobalScope(c) && forceLocal) {
-        error(c, line, "static declaration can only appear in global scope.");
-        return -1;
+        error(c, line, "static declaration can only appear in global scope");
+        return (Variable){VAR_ERR, {{0}}};
     }
 
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
         if(jsrIdentifierEq(&c->locals[i].id, id)) {
-            error(c, line, "Variable `%.*s` already declared.", id->length, id->name);
-            return -1;
+            error(c, line, "Variable `%.*s` already declared", id->length, id->name);
+            return (Variable){VAR_ERR, {{0}}};
         }
     }
 
-    return addLocal(c, id, line);
+    Variable var;
+    var.type = VAR_LOCAL;
+    var.as.local.index = addLocal(c, id, line);
+    return var;
 }
 
-static void markInitialized(Compiler* c, int idx, bool forceLocal) {
-    if(inGlobalScope(c) && !forceLocal) return;
-
-    if(idx >= 0) {
-        c->locals[idx].depth = c->depth;
-    }
+static void markInitialized(Compiler* c, int idx) {
+    c->locals[idx].depth = c->depth;
 }
 
-static void defineVar(Compiler* c, JStarIdentifier* id, int idx, bool forceLocal, int line) {
-    if(inGlobalScope(c) && !forceLocal) {
+static void defineVar(Compiler* c, Variable* var, int line) {
+    switch(var->type) {
+    case VAR_GLOBAL:
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
-        emitShort(c, identifierConst(c, id, line), line);
-    } else {
-        markInitialized(c, idx, forceLocal);
+        emitShort(c, identifierConst(c, &var->as.global.id, line), line);
+        break;
+    case VAR_LOCAL:
+        markInitialized(c, var->as.local.index);
+        break;
+    case VAR_ERR:
+        break;
     }
 }
 
@@ -1057,16 +1080,16 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     enterScope(c);
 
     JStarIdentifier expr = createIdentifier(".expr");
-    int exprIdx = declareVar(c, &expr, false, s->as.forEach.iterable->line);
-    defineVar(c, &expr, exprIdx, false, s->as.forEach.iterable->line);
+    Variable exprVar = declareVar(c, &expr, false, s->as.forEach.iterable->line);
+    defineVar(c, &exprVar, s->as.forEach.iterable->line);
 
     compileExpr(c, s->as.forEach.iterable);
 
     // set the iterator variable with a name that it's not an identifier.
     // this will avoid the user shadowing the iterator with a declared variable.
     JStarIdentifier iterator = createIdentifier(".iter");
-    int iterIdx = declareVar(c, &iterator, false, s->line);
-    defineVar(c, &iterator, iterIdx, false, s->line);
+    Variable iterVar = declareVar(c, &iterator, false, s->line);
+    defineVar(c, &iterVar, s->line);
 
     emitBytecode(c, OP_NULL, 0);
 
@@ -1082,8 +1105,8 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     enterScope(c);
 
     vecForeach(JStarIdentifier** id, varDecl->as.varDecl.ids) {
-        int idx = declareVar(c, *id, false, s->line);
-        defineVar(c, *id, idx, false, s->line);
+        Variable var = declareVar(c, *id, false, s->line);
+        defineVar(c, &var, s->line);
     }
 
     int num = vecSize(&varDecl->as.varDecl.ids);
@@ -1185,8 +1208,8 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
     enterScope(c);
 
     compileVariable(c, &exception, false, exc->line);
-    int idx = declareVar(c, &exc->as.excStmt.var, false, exc->line);
-    defineVar(c, &exc->as.excStmt.var, idx, false, exc->line);
+    Variable excVar = declareVar(c, &exc->as.excStmt.var, false, exc->line);
+    defineVar(c, &excVar, exc->line);
 
     JStarStmt* excBody = exc->as.excStmt.block;
     compileStatements(c, &excBody->as.blockStmt.stmts);
@@ -1252,12 +1275,12 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     enterScope(c);
 
     JStarIdentifier exc = createIdentifier(".exception");
-    int excIdx = declareVar(c, &exc, false, 0);
-    defineVar(c, &exc, excIdx, false, 0);
+    Variable excVar = declareVar(c, &exc, false, 0);
+    defineVar(c, &excVar, 0);
 
     JStarIdentifier cause = createIdentifier(".cause");
-    int causeIdx = declareVar(c, &cause, false, 0);
-    defineVar(c, &cause, causeIdx, false, 0);
+    Variable causeVar = declareVar(c, &cause, false, 0);
+    defineVar(c, &causeVar, 0);
 
     if(hasExcept) {
         size_t excJmp = emitBytecode(c, OP_JUMP, 0);
@@ -1311,8 +1334,8 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
 
     // var x
     emitBytecode(c, OP_NULL, s->line);
-    int varIdx = declareVar(c, &s->as.withStmt.var, false, s->line);
-    defineVar(c, &s->as.withStmt.var, varIdx, false, s->line);
+    Variable var = declareVar(c, &s->as.withStmt.var, false, s->line);
+    defineVar(c, &var, s->line);
 
     // try
     TryExcept tryBlock;
@@ -1344,12 +1367,12 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     enterScope(c);
 
     JStarIdentifier exc = createIdentifier(".exception");
-    int excIdx = declareVar(c, &exc, false, 0);
-    defineVar(c, &exc, excIdx, false, 0);
+    Variable excVar = declareVar(c, &exc, false, 0);
+    defineVar(c, &excVar, 0);
 
     JStarIdentifier cause = createIdentifier(".cause");
-    int causeIdx = declareVar(c, &cause, false, 0);
-    defineVar(c, &cause, causeIdx, false, 0);
+    Variable causeVar = declareVar(c, &cause, false, 0);
+    defineVar(c, &causeVar, 0);
 
     setJumpTo(c, ensSetup, getCurrentAddr(c), s->line);
 
@@ -1412,14 +1435,14 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     addLocal(c, &id, s->line);
 
     vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
-        int argIdx = declareVar(c, *it, false, s->line);
-        defineVar(c, *it, argIdx, false, s->line);
+        Variable arg = declareVar(c, *it, false, s->line);
+        defineVar(c, &arg, s->line);
     }
 
     if(s->as.funcDecl.isVararg) {
         JStarIdentifier args = createIdentifier("args");
-        int argsIdx = declareVar(c, &args, false, s->line);
-        defineVar(c, &args, argsIdx, false, s->line);
+        Variable vararg = declareVar(c, &args, false, s->line);
+        defineVar(c, &vararg, s->line);
     }
 
     JStarStmt* body = s->as.funcDecl.body;
@@ -1460,19 +1483,19 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
 
     // add `this` for method receiver (the object from which was called)
     JStarIdentifier thisId = createIdentifier(THIS_STR);
-    int thisIdx = declareVar(c, &thisId, false, s->line);
-    defineVar(c, &thisId, thisIdx, false, s->line);
+    Variable thisVar = declareVar(c, &thisId, false, s->line);
+    defineVar(c, &thisVar, s->line);
 
     // define and declare arguments
     vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
-        int argIdx = declareVar(c, *it, false, s->line);
-        defineVar(c, *it, argIdx, false, s->line);
+        Variable arg = declareVar(c, *it, false, s->line);
+        defineVar(c, &arg, s->line);
     }
 
     if(s->as.funcDecl.isVararg) {
         JStarIdentifier args = createIdentifier("args");
-        int argsIdx = declareVar(c, &args, false, s->line);
-        defineVar(c, &args, argsIdx, false, s->line);
+        Variable vararg = declareVar(c, &args, false, s->line);
+        defineVar(c, &vararg, s->line);
     }
 
     JStarStmt* body = s->as.funcDecl.body;
@@ -1592,45 +1615,46 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
 }
 
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
-    bool isStatic = s->as.varDecl.isStatic;
+    int varsCount = 0;
+    Variable vars[MAX_LOCALS];
     vecForeach(JStarIdentifier** it, s->as.varDecl.ids) {
         JStarIdentifier* name = *it;
-        declareVar(c, name, isStatic, s->line);
+        vars[varsCount++] = declareVar(c, name, s->as.varDecl.isStatic, s->line);
     }
 
-    int numDecls = vecSize(&s->as.varDecl.ids);
     if(s->as.varDecl.init != NULL) {
         JStarExpr* init = s->as.varDecl.init;
 
         if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
             JStarExpr* exprs = getUnpackableExprs(init);
-            compileConstUnpackLst(c, exprs, numDecls, &s->as.varDecl.ids);
+            compileConstUnpackLst(c, exprs, varsCount, &s->as.varDecl.ids);
         } else {
             compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
             if(s->as.varDecl.isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
-                emitBytecode(c, (uint8_t)numDecls, s->line);
+                emitBytecode(c, (uint8_t)varsCount, s->line);
             }
         }
     } else {
         // Default initialize the variables to null
-        for(int i = 0; i < numDecls; i++) {
+        for(int i = 0; i < varsCount; i++) {
             emitBytecode(c, OP_NULL, s->line);
         }
     }
 
     // define in reverse order in order to assign correct
     // values to variables in case of a const unpack
-    for(int i = numDecls - 1; i >= 0; i--) {
-        JStarIdentifier* name = vecGet(&s->as.varDecl.ids, i);
-        defineVar(c, name, c->localsCount - i - 1, isStatic, s->line);
+    for(int i = varsCount - 1; i >= 0; i--) {
+        defineVar(c, &vars[i], s->line);
     }
 }
 
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
-    bool isStatic = s->as.classDecl.isStatic;
-    int clsIdx = declareVar(c, &s->as.classDecl.id, isStatic, s->line);
-    markInitialized(c, clsIdx, isStatic);
+    Variable clsVar = declareVar(c, &s->as.classDecl.id, s->as.classDecl.isStatic, s->line);
+    // If local initialize the variable in order to permit the class to reference itself
+    if(clsVar.type == VAR_LOCAL) {
+        markInitialized(c, clsVar.as.local.index);
+    }
 
     bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
@@ -1643,24 +1667,24 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
     emitShort(c, identifierConst(c, &s->as.classDecl.id, s->line), s->line);
     compileMethods(c, s);
 
-    defineVar(c, &s->as.classDecl.id, clsIdx, isStatic, s->line);
+    defineVar(c, &clsVar, s->line);
 }
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
-    bool isStatic = s->as.funcDecl.isStatic;
-    int funIdx = declareVar(c, &s->as.funcDecl.id, isStatic, s->line);
-    markInitialized(c, funIdx, isStatic);
-
+    Variable funVar = declareVar(c, &s->as.funcDecl.id, s->as.funcDecl.isStatic, s->line);
+    // If local initialize the variable in order to permit the function to reference itself
+    if(funVar.type == VAR_LOCAL) {
+        markInitialized(c, funVar.as.local.index);
+    }
     compileFunction(c, s);
-
-    defineVar(c, &s->as.funcDecl.id, funIdx, isStatic, s->line);
+    defineVar(c, &funVar, s->line);
 }
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
     bool isStatic = s->as.nativeDecl.isStatic;
-    int natIdx = declareVar(c, &s->as.funcDecl.id, isStatic, s->line);
+    Variable natVar = declareVar(c, &s->as.funcDecl.id, isStatic, s->line);
     compileNative(c, s);
-    defineVar(c, &s->as.funcDecl.id, natIdx, isStatic, s->line);
+    defineVar(c, &natVar, s->line);
 }
 
 static void compileStatement(Compiler* c, JStarStmt* s) {
