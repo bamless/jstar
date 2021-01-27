@@ -501,13 +501,34 @@ static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, Meth
     return false;
 }
 
-static bool computeUnpackArgCount(JStarVM* vm, int unpackArgc, uint8_t argc, uint8_t* out) {
-    int callArgc = unpackArgc + argc;
-    if(callArgc >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Too many arguments for function call: %d", unpackArgc);
+static bool unpackCall(JStarVM* vm, uint8_t argc, uint8_t* out) {
+    if(argc == 0) {
+        jsrRaise(vm, "TypeException", "No argument to unpack");
         return false;
     }
-    *out = callArgc;
+
+    if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+        jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+                 getClass(vm, peek(vm))->name->data);
+        return false;
+    }
+
+    size_t size;
+    Value* array = getValues(AS_OBJ(pop(vm)), &size);
+
+    size_t totalArgc = argc + size - 1;
+    if(totalArgc >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", totalArgc);
+        return false;
+    }
+
+    *out = (uint8_t)totalArgc;
+
+    reserveStack(vm, size + 1);
+    for(size_t i = 0; i < size; i++) {
+        push(vm, array[i]);
+    }
+
     return true;
 }
 
@@ -524,24 +545,6 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
         push(vm, array[i]);
     }
 
-    return true;
-}
-
-static bool unpackArgument(JStarVM* vm, Obj* o) {
-    size_t size;
-    Value* array = getValues(o, &size);
-
-    if(size >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Last argument too big to unpack: %zu", size);
-        return false;
-    }
-
-    reserveStack(vm, size + 1);
-    for(size_t i = 0; i < size; i++) {
-        push(vm, array[i]);
-    }
-
-    push(vm, NUM_VAL(size));
     return true;
 }
 
@@ -1129,7 +1132,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         goto call;
 
     TARGET(OP_CALL_UNPACK):
-        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto call;
@@ -1163,7 +1166,7 @@ call:
         goto invoke;
 
     TARGET(OP_INVOKE_UNPACK):
-        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto invoke;
@@ -1198,7 +1201,7 @@ invoke:;
         goto supinvoke;
 
     TARGET(OP_SUPER_UNPACK):
-        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto supinvoke;
@@ -1373,17 +1376,17 @@ op_return:
         DISPATCH();
     }
 
-    TARGET(OP_UNPACK_ARG): {
-        if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-            jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
-                     getClass(vm, peek(vm))->name->data);
-            UNWIND_STACK(vm);
-        }
-        if(!unpackArgument(vm, AS_OBJ(pop(vm)))) {
-            UNWIND_STACK(vm);
-        }
-        DISPATCH();
-    }
+    // TARGET(OP_UNPACK_ARG): {
+    //     if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+    //         jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+    //                  getClass(vm, peek(vm))->name->data);
+    //         UNWIND_STACK(vm);
+    //     }
+    //     if(!unpackArgument(vm, AS_OBJ(pop(vm)))) {
+    //         UNWIND_STACK(vm);
+    //     }
+    //     DISPATCH();
+    // }
     
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));

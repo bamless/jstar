@@ -780,10 +780,9 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
     }
 
     if(isUnpack) {
-        emitBytecode(c, OP_UNPACK_ARG, args->line);
         emitBytecode(c, callUnpack, args->line);
-        emitBytecode(c, argsCount - 1, args->line);
-    } else if(argsCount <= 10) {
+        emitBytecode(c, argsCount, args->line);
+    } else if(argsCount <= MAX_INLINE_ARGS) {
         emitBytecode(c, callInline + argsCount, args->line);
     } else {
         emitBytecode(c, callCode, args->line);
