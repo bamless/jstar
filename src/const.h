@@ -13,7 +13,7 @@
 #define INIT_GC         (1024 * 1024 * 20)             // 10MiB - First GC collection point
 #define HEAP_GROW_RATE  2                              // The heap growing rate
 #define HANDLER_MAX     10                             // Max number of try-excepts for a frame
-#define SUPER_SLOT      0  // Constant slot holding the method's super-class
+#define SUPER_SLOT      0                              // Constant holding the method's super-class
 
 // -----------------------------------------------------------------------------
 // COMPILER CONSTANTS
