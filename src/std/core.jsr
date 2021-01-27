@@ -286,6 +286,10 @@ fun all(iterable, predicate)
     return true
 end
 
+fun partial(fn, arg)
+    return |...| => fn(arg, args)...
+end
+
 fun toList(iterable)
     if iterable is Sequence then
         return List(#iterable, |i| => iterable[i])
