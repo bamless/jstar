@@ -1139,6 +1139,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_CALL):
         argc = NEXT_CODE();
+        goto call;
 
 call:
         SAVE_STATE();
@@ -1170,9 +1171,10 @@ call:
             UNWIND_STACK(vm);
         }
         goto invoke;
-    
+
     TARGET(OP_INVOKE):
         argc = NEXT_CODE();
+        goto invoke;
 
 invoke:;
         ObjString* name = GET_STRING();
@@ -1208,6 +1210,7 @@ invoke:;
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
+        goto supinvoke;
 
 supinvoke:;
         ObjString* name = GET_STRING();
