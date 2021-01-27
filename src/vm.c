@@ -1484,16 +1484,7 @@ op_return:
     }
     
     TARGET(OP_RAISE): {
-        Value exc = peek(vm);
-        if(!isInstance(vm, exc, vm->excClass)) {
-            jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
-            UNWIND_STACK(vm);
-        }
-        ObjStackTrace* st = newStackTrace(vm);
-        push(vm, OBJ_VAL(st));
-        ObjInstance* excInst = AS_INSTANCE(exc);
-        hashTablePut(&excInst->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
-        pop(vm);
+        jsrRaiseException(vm, -1);
         UNWIND_STACK(vm);
     }
 

@@ -205,12 +205,17 @@ void jsrRaiseException(JStarVM* vm, int slot) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
         return;
     }
+
     ObjInstance* exception = (ObjInstance*)AS_OBJ(exc);
     ObjStackTrace* st = newStackTrace(vm);
     push(vm, OBJ_VAL(st));
     hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
     pop(vm);
-    jsrPushValue(vm, slot);
+
+    // Place the exception on top of the stack if not already
+    if(!valueEquals(exc, vm->sp[-1])) {
+        push(vm, exc);
+    }
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
