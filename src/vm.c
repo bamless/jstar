@@ -1378,18 +1378,6 @@ op_return:
         }
         DISPATCH();
     }
-
-    // TARGET(OP_UNPACK_ARG): {
-    //     if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-    //         jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
-    //                  getClass(vm, peek(vm))->name->data);
-    //         UNWIND_STACK(vm);
-    //     }
-    //     if(!unpackArgument(vm, AS_OBJ(pop(vm)))) {
-    //         UNWIND_STACK(vm);
-    //     }
-    //     DISPATCH();
-    // }
     
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
