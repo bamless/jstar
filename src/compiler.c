@@ -308,9 +308,14 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
         }
     }
 
+    int index = addLocal(c, id, line);
+    if(index == -1) {
+        return (Variable){VAR_ERR, {{0}}};
+    }
+
     Variable var;
     var.type = VAR_LOCAL;
-    var.as.local.index = addLocal(c, id, line);
+    var.as.local.index = index;
     return var;
 }
 
