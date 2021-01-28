@@ -51,7 +51,7 @@ typedef enum JStarResult {
     JSR_VERSION_ERR,      // Incompatible version of compiled code
 } JStarResult;
 
-// J* error function callback. Called when syntax, compilation, dederializtion 
+// J* error function callback. Called when syntax, compilation, dederializtion
 // or syntax errors are encountered.
 typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int line,
                              const char* error);
@@ -211,52 +211,28 @@ typedef struct JStarNativeReg {
 
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
-#define JSR_REGEND                   {REG_SENTINEL, { .function = { NULL, NULL }}}
+#define JSR_REGEND                     \
+    {                                  \
+        REG_SENTINEL, {                \
+            .function = { NULL, NULL } \
+        }                              \
+    }
 
 // -----------------------------------------------------------------------------
 // OVERLOADABLE OPERATOR API
 // -----------------------------------------------------------------------------
 
 // Check if two objects are the same. Doesn't call __eq__ overload.
+// Returns true if the two objects are the same
 JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
 
 // Check if two J* values are equal. May call the __eq__ overload.
+// Returns true if the two objects are the same, as defined by the __eq__ method
 JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
 
 // Check if a value is of a certain class.
+// Returns true if the object is an instance of the class
 JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
-
-// -----------------------------------------------------------------------------
-// ITERATOR PROTOCOL API
-// -----------------------------------------------------------------------------
-
-// `iterable` is the slot in which the iterable object is sitting and `res` is the slot of the
-// result of the last jsrIter call or, if first time calling jsrIter, a slot containing null.
-// jsrNext is called to obtain the next element in the iteration. The element will be placed
-// on the top of the stack.
-JSTAR_API bool jsrIter(JStarVM* vm, int iterable, int res, bool* err);
-JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
-
-// Macro that automatically configures the loop to iterate over a J* iterable using jsrIter and
-// jsrNext.
-// `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
-// `cleanup` is used as the cleanup code before exiting in case of an error and it is optional.
-// Beware that the macro pushes a new value on top of the stack to store the result of jsrIter, so
-// negative slot indeces to access previously pushed elements should be offset by one
-#define JSR_FOREACH(iter, code, cleanup)         \
-    {                                            \
-        bool _err = false;                       \
-        jsrEnsureStack(vm, 2);                   \
-        jsrPushNull(vm);                         \
-        while(jsrIter(vm, iter, -1, &_err)) {    \
-            if(_err || !jsrNext(vm, iter, -1)) { \
-                cleanup;                         \
-                return false;                    \
-            }                                    \
-            code                                 \
-        }                                        \
-        jsrPop(vm);                              \
-    }
 
 // -----------------------------------------------------------------------------
 // C TO J* CONVERTING FUNCTIONS
@@ -305,11 +281,42 @@ JSTAR_API size_t jsrGetStringSz(JStarVM* vm, int slot);
 JSTAR_API const char* jsrGetString(JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
+// ITERATOR PROTOCOL API
+// -----------------------------------------------------------------------------
+
+// `iterable` is the slot in which the iterable object is sitting and `res` is the slot of the
+// result of the last jsrIter call or, if first time calling jsrIter, a slot containing null.
+// jsrNext is called to obtain the next element in the iteration. The element will be placed
+// on the top of the stack.
+JSTAR_API bool jsrIter(JStarVM* vm, int iterable, int res, bool* err);
+JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
+
+// Macro that automatically configures the loop to iterate over a J* iterable using jsrIter and
+// jsrNext.
+// `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
+// `cleanup` is used as the cleanup code before exiting in case of an error and it is optional.
+// Beware that the macro pushes a new value on top of the stack to store the result of jsrIter, so
+// negative slot indeces to access previously pushed elements should be offset by one
+#define JSR_FOREACH(iter, code, cleanup)         \
+    {                                            \
+        bool _err = false;                       \
+        jsrEnsureStack(vm, 2);                   \
+        jsrPushNull(vm);                         \
+        while(jsrIter(vm, iter, -1, &_err)) {    \
+            if(_err || !jsrNext(vm, iter, -1)) { \
+                cleanup;                         \
+                return false;                    \
+            }                                    \
+            code                                 \
+        }                                        \
+        jsrPop(vm);                              \
+    }
+
+// -----------------------------------------------------------------------------
 // LIST MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// These functions do not perfrom bounds checking,
-// use jsrCeckIndex first if needed.
+// These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
 JSTAR_API void jsrListAppend(JStarVM* vm, int slot);
 JSTAR_API void jsrListInsert(JStarVM* vm, size_t i, int slot);
 JSTAR_API void jsrListRemove(JStarVM* vm, size_t i, int slot);
@@ -320,55 +327,82 @@ JSTAR_API size_t jsrListGetLength(JStarVM* vm, int slot);
 // TUPLE MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// These functions do not perfrom bounds checking,
-// use jsrCeckIndex first if needed.
+// These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
 JSTAR_API void jsrTupleGet(JStarVM* vm, size_t i, int slot);
 JSTAR_API size_t jsrTupleGetLength(JStarVM* vm, int slot);
+
+// -----------------------------------------------------------------------------
+// SEQUENCE MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
+
+// These functions are similar to jsrTupleGet, jsrListGet/jsrListSet and jsrList/jsrTupleGetLength
+// above, but operate on generic types. Uslually working with the former is more convinient, as
+// some operations cannot fail when applied on Tuples or Lists and therefore require less error
+// checking and less stack manipulation. Nonetheless, if you require operating on heterogeneous
+// types that may overload __get__ and __set__, you should use these.
+// Also, they perform bounds checking automatically.
+
+// Returns the result of subscritping the value at `slot` with the value on top of the stack
+// In case of success returns true and the result of the operation is placed on top of the stack
+// In case of errors returns false and an exception is placed on top of the stack
+JSTAR_API bool jsrSubscriptGet(JStarVM* vm, int slot);
+
+// Subscript-assign the value at `slot` with the two values on top of the stack
+// The top-most value will be interpreted as the `value` and the second top-most as the `key`
+// In case of success returns true and the assigned `value` will be left on top of the stack
+// In case of errors returns false and an exception is placed on top of the stack
+JSTAR_API bool jsrSubscriptSet(JStarVM* vm, int slot);
+
+// Returns the size of the value at `slot`
+// In case of success returns the size
+// In case of error returns SIZE_MAX and an exception is placed on top of the stack
+JSTAR_API size_t jsrGetLength(JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
 // INSTANCE MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// Set the field "name" of the value at "slot" with the value
-// on top of the stack. the value is not popped.
-// Returns true in case of success, false otherwise leaving an
-// exception on top of the stack
+// Set the field `name` of the value at `slot` with the value on top of the stack
+// The value is not popped
+// Returns true in case of success
+// Returns false otherwise leaving an exception on top of the stack
 JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 
-// Get the field "name" of the value at "slot".
-// Returns true in case of success leaving the result on
-// top of the stack, false otherwise leaving an exception
-// on top of the stack.
+// Get the field `name` of the value at `slot`
+// Returns true in case of success leaving the result on top of the stack
+// Returns false otherwise leaving an exception on top of the stack.
 JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 
 // -----------------------------------------------------------------------------
 // MODULE MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// Set the global "name" of the module "mname" with the value
-// on top of the stack. the value is not popped.
-// If calling inside a native function module can be NULL, and
-// the used module will be the current one
+// Set the global `name` of the module `module` with the value on top of the stack
+// The value is not popped
+// If calling inside a native "module" can be NULL, and the used module will be the current one
 JSTAR_API void jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
 
-// Get the global "name" of the module "mname".
-// Returns true in case of success leaving the result on the
-// top of the stack, false otherwise leaving an exception on
-// top of the stack.
-// If calling inside a native function module can be NULL, and
-// the used module will be the current one
+// Get the global `name` of the module `module`
+// Returns true in case of success leaving the result on the top of the stack
+// Returns false otherwise leaving an exception on top of the stack
+// If calling inside a native "module" can be NULL, and the used module will be the current one
 JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 
 // -----------------------------------------------------------------------------
 // CLASS MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
+// Binds the native at `natSlot` to the class at `clsSlot`
+// Does not perform type checking, the user must ensure `clsSlot` is indeed a Class and `natSlot` 
+// a Native
 JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 
 // -----------------------------------------------------------------------------
 // USERDATA MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
+// Get the memory associated with the UserDatum at `slot`
+// Does not perform type checking, the user must ensure `slot` is a Userdatum
 JSTAR_API void* jsrGetUserdata(JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
@@ -390,7 +424,7 @@ JSTAR_API bool jsrIsFunction(JStarVM* vm, int slot);
 JSTAR_API bool jsrIsUserdata(JStarVM* vm, int slot);
 
 // These functions return true if the slot is of the given type, false otherwise
-// leaving a TypeException on top of the stack with a message customized with 'name'
+// leaving a TypeException on top of the stack with a message customized with `name`
 JSTAR_API bool jsrCheckNumber(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckInt(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckString(JStarVM* vm, int slot, const char* name);
@@ -408,11 +442,11 @@ JSTAR_API bool jsrCheckUserdata(JStarVM* vm, int slot, const char* name);
 #define JSR_CHECK(type, slot, name) \
     if(!jsrCheck##type(vm, slot, name)) return false
 
-// Check if the value at slot "slot" is an integer >= 0 and < max.
+// Check if the value at slot `slot` is an integer >= 0 and < max.
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndex(JStarVM* vm, int slot, size_t max, const char* name);
-// Check if the provided double 'num' is an integer >= 0 and < max.
+// Check if the provided double `num` is an integer >= 0 and < max.
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);

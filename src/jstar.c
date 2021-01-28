@@ -367,31 +367,6 @@ bool jsrIs(JStarVM* vm, int slot, int classSlot) {
     return isInstance(vm, v, AS_CLASS(cls));
 }
 
-bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
-    jsrEnsureStack(vm, 2);
-    jsrPushValue(vm, iterable);
-    jsrPushValue(vm, res < 0 ? res - 1 : res);
-
-    if(jsrCallMethod(vm, "__iter__", 1) != JSR_SUCCESS) {
-        return *err = true;
-    }
-    if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
-        jsrPop(vm);
-        return false;
-    }
-
-    Value resVal = pop(vm);
-    vm->apiStack[apiStackIndex(vm, res)] = resVal;
-    return true;
-}
-
-bool jsrNext(JStarVM* vm, int iterable, int res) {
-    jsrPushValue(vm, iterable);
-    jsrPushValue(vm, res < 0 ? res - 1 : res);
-    if(jsrCallMethod(vm, "__next__", 1) != JSR_SUCCESS) return false;
-    return true;
-}
-
 void jsrPushNumber(JStarVM* vm, double number) {
     validateStack(vm);
     push(vm, NUM_VAL(number));
@@ -483,6 +458,31 @@ void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
 }
 
+bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
+    jsrEnsureStack(vm, 2);
+    jsrPushValue(vm, iterable);
+    jsrPushValue(vm, res < 0 ? res - 1 : res);
+
+    if(jsrCallMethod(vm, "__iter__", 1) != JSR_SUCCESS) {
+        return *err = true;
+    }
+    if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
+        jsrPop(vm);
+        return false;
+    }
+
+    Value resVal = pop(vm);
+    vm->apiStack[apiStackIndex(vm, res)] = resVal;
+    return true;
+}
+
+bool jsrNext(JStarVM* vm, int iterable, int res) {
+    jsrPushValue(vm, iterable);
+    jsrPushValue(vm, res < 0 ? res - 1 : res);
+    if(jsrCallMethod(vm, "__next__", 1) != JSR_SUCCESS) return false;
+    return true;
+}
+
 void jsrListAppend(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lst), "Not a list");
@@ -531,6 +531,30 @@ size_t jsrTupleGetLength(JStarVM* vm, int slot) {
     Value tup = apiStackSlot(vm, slot);
     ASSERT(IS_TUPLE(tup), "Not a tuple");
     return AS_TUPLE(tup)->size;
+}
+
+bool jsrSubscriptGet(JStarVM* vm, int slot) {
+    push(vm, apiStackSlot(vm, slot));
+    swapStackSlots(vm, -1, -2);
+    return getSubscriptOfValue(vm);
+}
+
+bool jsrSubscriptSet(JStarVM* vm, int slot) {
+    swapStackSlots(vm, -1, -2);
+    push(vm, apiStackSlot(vm, slot));
+    return setSubscriptOfValue(vm);
+}
+
+size_t jsrGetLength(JStarVM* vm, int slot) {
+    push(vm, apiStackSlot(vm, slot));
+
+    if(jsrCallMethod(vm, "__len__", 0) != JSR_SUCCESS) {
+        return SIZE_MAX;
+    }
+
+    size_t size = jsrGetNumber(vm, -1);
+    jsrPop(vm);
+    return size;
 }
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {

@@ -146,12 +146,6 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static void swapValues(Value* valueArray, int a, int b) {
-    Value tmp = valueArray[a];
-    valueArray[a] = valueArray[b];
-    valueArray[b] = tmp;
-}
-
 static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     ObjClass* cls = newClass(vm, name, superCls);
     hashTableMerge(&cls->methods, &superCls->methods);
@@ -425,52 +419,6 @@ static bool getStringSubscript(JStarVM* vm) {
     return false;
 }
 
-static bool getSubscriptOfValue(JStarVM* vm) {
-    if(IS_OBJ(peek2(vm))) {
-        Value operand = peek2(vm);
-        switch(OBJ_TYPE(operand)) {
-        case OBJ_LIST:
-            return getListSubscript(vm);
-        case OBJ_TUPLE:
-            return getTupleSubscript(vm);
-        case OBJ_STRING:
-            return getStringSubscript(vm);
-        default:
-            break;
-        }
-    }
-
-    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->methodSyms[SYM_GET], 1)) {
-        return false;
-    }
-    return true;
-}
-
-static bool setSubscriptOfValue(JStarVM* vm) {
-    if(IS_LIST(peek(vm))) {
-        Value operand = pop(vm), arg = pop(vm), val = peek(vm);
-
-        if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-            jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
-            return false;
-        }
-
-        ObjList* list = AS_LIST(operand);
-        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
-        if(index == SIZE_MAX) return false;
-
-        list->arr[index] = val;
-        return true;
-    }
-
-    // swap the operand with value to prepare function call
-    swapValues(vm->sp, -1, -3);
-    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
-        return false;
-    }
-    return true;
-}
-
 static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
     size_t length = s1->length + s2->length;
     ObjString* str = allocateString(vm, length);
@@ -489,7 +437,7 @@ static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, Meth
 
     ObjClass* cls2 = getClass(vm, peek(vm));
     if(reverse != SYM_END) {
-        swapValues(vm->sp, -1, -2);
+        swapStackSlots(vm, -1, -2);
 
         if(hashTableGet(&cls2->methods, vm->methodSyms[reverse], &method)) {
             return callValue(vm, method, 1);
@@ -664,6 +612,52 @@ bool setFieldOfValue(JStarVM* vm, ObjString* name) {
     return false;
 }
 
+bool getSubscriptOfValue(JStarVM* vm) {
+    if(IS_OBJ(peek2(vm))) {
+        Value operand = peek2(vm);
+        switch(OBJ_TYPE(operand)) {
+        case OBJ_LIST:
+            return getListSubscript(vm);
+        case OBJ_TUPLE:
+            return getTupleSubscript(vm);
+        case OBJ_STRING:
+            return getStringSubscript(vm);
+        default:
+            break;
+        }
+    }
+
+    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->methodSyms[SYM_GET], 1)) {
+        return false;
+    }
+    return true;
+}
+
+bool setSubscriptOfValue(JStarVM* vm) {
+    if(IS_LIST(peek(vm))) {
+        Value operand = pop(vm), arg = pop(vm), val = peek(vm);
+
+        if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
+            jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
+            return false;
+        }
+
+        ObjList* list = AS_LIST(operand);
+        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
+        if(index == SIZE_MAX) return false;
+
+        list->arr[index] = val;
+        return true;
+    }
+
+    // swap the operand with value to prepare function call
+    swapStackSlots(vm, -1, -3);
+    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
+        return false;
+    }
+    return true;
+}
+
 bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
@@ -797,6 +791,12 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 
         vm->sp = vm->stack + (vm->sp - oldStack);
     }
+}
+
+inline void swapStackSlots(JStarVM* vm, int a, int b) {
+    Value tmp = vm->sp[a];
+    vm->sp[a] = vm->sp[b];
+    vm->sp[b] = tmp;
 }
 
 // -----------------------------------------------------------------------------
