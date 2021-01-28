@@ -1149,22 +1149,20 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
 
 static void compileImportStatement(Compiler* c, JStarStmt* s) {
     Vector* modules = &s->as.importStmt.modules;
-    Vector* impNames = &s->as.importStmt.impNames;
-    bool isImportFor = vecSize(impNames);
+    Vector* names = &s->as.importStmt.impNames;
+
+    bool isImportFor = !vecEmpty(names);
     bool isImportAs = s->as.importStmt.as.name != NULL;
 
-    JStarBuffer moduleName;
-    jsrBufferInit(c->vm, &moduleName);
+    JStarBuffer fullName;
+    jsrBufferInit(c->vm, &fullName);
 
     // compile topmost import
     JStarIdentifier* moduleId = (JStarIdentifier*)vecGet(modules, 0);
-    jsrBufferAppend(&moduleName, moduleId->name, moduleId->length);
-    if(!isImportAs && !isImportFor) {
-        emitBytecode(c, OP_IMPORT, s->line);
-    } else {
-        emitBytecode(c, OP_IMPORT_FROM, s->line);
-    }
-    emitShort(c, stringConst(c, moduleName.data, moduleName.size, s->line), s->line);
+    jsrBufferAppend(&fullName, moduleId->name, moduleId->length);
+
+    emitBytecode(c, isImportAs || isImportFor ? OP_IMPORT_FROM : OP_IMPORT, s->line);
+    emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
 
     // compile submodule imports
     for(size_t i = 1; i < vecSize(modules); i++) {
@@ -1172,18 +1170,18 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         emitBytecode(c, OP_POP, s->line);
 
         JStarIdentifier* subModuleId = (JStarIdentifier*)vecGet(modules, i);
-        jsrBufferAppendf(&moduleName, ".%.*s", subModuleId->length, subModuleId->name);
+        jsrBufferAppendf(&fullName, ".%.*s", subModuleId->length, subModuleId->name);
 
         emitBytecode(c, OP_IMPORT_FROM, s->line);
-        emitShort(c, stringConst(c, moduleName.data, moduleName.size, s->line), s->line);
+        emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
     }
 
     if(isImportFor) {
-        uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.size, s->line);
-        vecForeach(JStarIdentifier** it, *impNames) {
+        uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
+        vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);
-            emitShort(c, moduleNameConst, s->line);
+            emitShort(c, moduleConst, s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
         }
     } else if(isImportAs) {
@@ -1193,7 +1191,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     }
 
     emitBytecode(c, OP_POP, s->line);
-    jsrBufferFree(&moduleName);
+    jsrBufferFree(&fullName);
 }
 
 static void compileExcepts(Compiler* c, Vector* excs, int n) {
