@@ -648,7 +648,6 @@ bool setSubscriptOfValue(JStarVM* vm) {
 
     // swap operand and value to prepare function call
     swapStackSlots(vm, -1, -3); 
-    
     if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
         return false;
     }
