@@ -527,7 +527,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 // VM API
 // -----------------------------------------------------------------------------
 
-bool getFieldFromValue(JStarVM* vm, ObjString* name) {
+bool getFieldOfValue(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -1045,7 +1045,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     }
 
     TARGET(OP_GET_FIELD): {
-        if(!getFieldFromValue(vm, GET_STRING())) {
+        if(!getFieldOfValue(vm, GET_STRING())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();

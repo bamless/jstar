@@ -564,7 +564,7 @@ bool jsrSetField(JStarVM* vm, int slot, const char* name) {
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return getFieldFromValue(vm, copyString(vm, name, strlen(name)));
+    return getFieldOfValue(vm, copyString(vm, name, strlen(name)));
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {

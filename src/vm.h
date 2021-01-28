@@ -158,7 +158,7 @@ struct JStarVM {
     size_t reachedCapacity, reachedCount;
 };
 
-bool getFieldFromValue(JStarVM* vm, ObjString* name);
+bool getFieldOfValue(JStarVM* vm, ObjString* name);
 bool setFieldOfValue(JStarVM* vm, ObjString* name);
 
 bool getSubscriptOfValue(JStarVM* vm);
