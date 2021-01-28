@@ -59,6 +59,7 @@ typedef struct Loop {
 
 typedef struct TryExcept {
     int depth;
+    int numHandlers;
     struct TryExcept* next;
 } TryExcept;
 
@@ -408,16 +409,22 @@ static void emitMethodCall(Compiler* c, const char* name, int args) {
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
-static void enterTryBlock(Compiler* c, TryExcept* tryExc, int numHandlers) {
-    tryExc->depth = c->depth;
-    tryExc->next = c->tryBlocks;
-    c->tryBlocks = tryExc;
+static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line) {
+    exc->depth = c->depth;
+    exc->numHandlers = numHandlers;
+    exc->next = c->tryBlocks;
+    c->tryBlocks = exc;
     c->tryDepth += numHandlers;
+
+    if(c->tryDepth > MAX_TRY_DEPTH) {
+        error(c, line, "Exceeded max number of nested exception handlers: max %d, got %d",
+              MAX_TRY_DEPTH, c->tryDepth);
+    }
 }
 
-static void exitTryBlock(Compiler* c, int numHandlers) {
+static void exitTryBlock(Compiler* c) {
+    c->tryDepth -= c->tryBlocks->numHandlers;
     c->tryBlocks = c->tryBlocks->next;
-    c->tryDepth -= numHandlers;
 }
 
 static ObjString* readString(Compiler* c, JStarExpr* e) {
@@ -1194,14 +1201,13 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     jsrBufferFree(&fullName);
 }
 
-static void compileExcepts(Compiler* c, Vector* excs, int n) {
-    JStarStmt* exc = vecGet(excs, n);
-    bool last = n == (int)(vecSize(excs) - 1);
+static void compileExcepts(Compiler* c, Vector* excs, size_t n) {
+    JStarStmt* handler = vecGet(excs, n);
 
     JStarIdentifier exception = createIdentifier(".exception");
-    compileVariable(c, &exception, false, exc->line);
+    compileVariable(c, &exception, false, handler->line);
 
-    compileExpr(c, exc->as.excStmt.cls);
+    compileExpr(c, handler->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
@@ -1209,44 +1215,40 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
 
     enterScope(c);
 
-    compileVariable(c, &exception, false, exc->line);
-    Variable excVar = declareVar(c, &exc->as.excStmt.var, false, exc->line);
-    defineVar(c, &excVar, exc->line);
+    compileVariable(c, &exception, false, handler->line);
+    Variable excVar = declareVar(c, &handler->as.excStmt.var, false, handler->line);
+    defineVar(c, &excVar, handler->line);
 
-    JStarStmt* excBody = exc->as.excStmt.block;
+    JStarStmt* excBody = handler->as.excStmt.block;
     compileStatements(c, &excBody->as.blockStmt.stmts);
 
-    emitBytecode(c, OP_NULL, exc->line);
-    compileVariable(c, &exception, true, exc->line);
-    emitBytecode(c, OP_POP, exc->line);
+    emitBytecode(c, OP_NULL, handler->line);
+    compileVariable(c, &exception, true, handler->line);
+    emitBytecode(c, OP_POP, handler->line);
 
     exitScope(c);
 
     size_t exitJmp = 0;
-    if(!last) {
+    if(n < vecSize(excs) - 1) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), exc->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), handler->line);
 
-    if(!last) {
+    if(n < vecSize(excs) - 1) {
         compileExcepts(c, excs, n + 1);
-        setJumpTo(c, exitJmp, getCurrentAddr(c), exc->line);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), handler->line);
     }
 }
 
 static void compileTryExcept(Compiler* c, JStarStmt* s) {
-    bool hasExcept = !vecEmpty(&s->as.tryStmt.excs);
+    bool hasExcepts = !vecEmpty(&s->as.tryStmt.excs);
     bool hasEnsure = s->as.tryStmt.ensure != NULL;
-    int numHandlers = (hasExcept ? 1 : 0) + (hasEnsure ? 1 : 0);
+    int numHandlers = (hasExcepts ? 1 : 0) + (hasEnsure ? 1 : 0);
 
     TryExcept tryBlock;
-    enterTryBlock(c, &tryBlock, numHandlers);
-
-    if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks: %d", MAX_TRY_DEPTH);
-    }
+    enterTryBlock(c, &tryBlock, numHandlers, s->line);
 
     size_t ensSetup = 0, excSetup = 0;
 
@@ -1255,14 +1257,14 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
     }
 
-    if(hasExcept) {
+    if(hasExcepts) {
         excSetup = emitBytecode(c, OP_SETUP_EXCEPT, s->line);
         emitShort(c, 0, 0);
     }
 
     compileStatement(c, s->as.tryStmt.block);
 
-    if(hasExcept) {
+    if(hasExcepts) {
         emitBytecode(c, OP_POP_HANDLER, s->line);
     }
 
@@ -1284,7 +1286,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     Variable causeVar = declareVar(c, &cause, false, 0);
     defineVar(c, &causeVar, 0);
 
-    if(hasExcept) {
+    if(hasExcepts) {
         size_t excJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
@@ -1308,7 +1310,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         exitScope(c);
     }
 
-    exitTryBlock(c, numHandlers);
+    exitTryBlock(c);
 }
 
 static void compileRaiseStmt(Compiler* c, JStarStmt* s) {
@@ -1341,11 +1343,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
 
     // try
     TryExcept tryBlock;
-    enterTryBlock(c, &tryBlock, 1);
-
-    if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks: %d", MAX_TRY_DEPTH);
-    }
+    enterTryBlock(c, &tryBlock, 1, s->line);
 
     size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
     emitShort(c, 0, 0);
@@ -1392,7 +1390,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     emitBytecode(c, OP_END_HANDLER, 0);
     exitScope(c);
 
-    exitTryBlock(c, 1);
+    exitTryBlock(c);
     exitScope(c);
 }
 

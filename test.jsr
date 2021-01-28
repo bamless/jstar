@@ -1,0 +1,28 @@
+try
+    try
+        try
+            try
+                try
+                    try
+                        try
+                        except Excption e
+                        ensure
+                        end
+                    except Excption e
+                    ensure
+                    end
+                except Excption e
+                ensure
+                end
+            except Excption e
+            ensure
+            end
+        except Excption e
+        ensure
+        end
+    except Excption e
+    ensure
+    end
+except Excption e
+ensure
+end
