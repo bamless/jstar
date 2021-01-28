@@ -543,13 +543,11 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
                              inst->base.cls->name->data, name->data);
                     return false;
                 }
-
                 return true;
             }
 
             pop(vm);
             push(vm, field);
-
             return true;
         }
         case OBJ_MODULE: {
@@ -564,13 +562,11 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
                              name->data, mod->name->data);
                     return false;
                 }
-
                 return true;
             }
 
             pop(vm);
             push(vm, global);
-
             return true;
         }
         default:
@@ -650,8 +646,9 @@ bool setSubscriptOfValue(JStarVM* vm) {
         return true;
     }
 
-    // swap the operand with value to prepare function call
-    swapStackSlots(vm, -1, -3);
+    // swap operand and value to prepare function call
+    swapStackSlots(vm, -1, -3); 
+    
     if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
         return false;
     }
