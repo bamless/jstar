@@ -78,8 +78,6 @@ struct Compiler {
     int depth;
     Compiler* prev;
 
-    bool hasSuper;
-
     Loop* loops;
 
     FuncType type;
@@ -102,7 +100,6 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compile
     c->filename = filename;
     c->depth = 0;
     c->prev = prev;
-    c->hasSuper = false;
     c->loops = NULL;
     c->type = t;
     c->func = NULL;
