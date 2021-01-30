@@ -149,7 +149,7 @@ void reachHashTable(JStarVM* vm, HashTable* t) {
     }
 }
 
-void removeUnreachedStrings(HashTable* t) {
+void sweepStrings(HashTable* t) {
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
         Entry* e = &t->entries[i];

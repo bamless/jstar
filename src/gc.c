@@ -352,7 +352,7 @@ void garbageCollect(JStarVM* vm) {
     }
 
     // free unreached objects
-    removeUnreachedStrings(&vm->stringPool);
+    sweepStrings(&vm->stringPool);
     sweepObjects(vm);
 
     // free the reached objects stack

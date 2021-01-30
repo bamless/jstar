@@ -38,6 +38,6 @@ void hashTableImportNames(HashTable* t, HashTable* o);
 ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint32_t hash);
 
 void reachHashTable(JStarVM* vm, HashTable* t);
-void removeUnreachedStrings(HashTable* t);
+void sweepStrings(HashTable* t);
 
 #endif
