@@ -85,17 +85,15 @@ static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString*
         jsrBufferClear(modulePath);
         jsrBufferAppendf(modulePath, "jsr_open_%s", simpleName);
 
-        typedef JStarNativeReg* (*RegFunc)(void);
-        RegFunc getNativeReg = (RegFunc)dynsim(dynlib, modulePath->data);
-
-        if(getNativeReg == NULL) {
+        JStarNativeReg* (*registry)(void) = dynsim(dynlib, modulePath->data);
+        if(registry == NULL) {
             dynfree(dynlib);
             return;
         }
 
         ObjModule* m = getModule(vm, moduleName);
         m->natives.dynlib = dynlib;
-        m->natives.registry = (*getNativeReg)();
+        m->natives.registry = (*registry)();
     }
 }
 
