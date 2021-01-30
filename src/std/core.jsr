@@ -38,11 +38,11 @@ class Userdata end
 
 class Iterable
     fun __iter__(i)
-        raise NotImplementedException("Iterable should implement __iter__()")
+        raise NotImplementedException("Iterable must implement __iter__()")
     end
 
     fun __next__(i)
-        raise NotImplementedException("Iterable should implement __next__()")
+        raise NotImplementedException("Iterable must implement __next__()")
     end
 
     fun forEach(func)
