@@ -127,8 +127,6 @@ ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*)) {
     return udata;
 }
 
-#define ST_DEF_SIZE 16
-
 ObjStackTrace* newStackTrace(JStarVM* vm) {
     ObjStackTrace* st = (ObjStackTrace*)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
     st->lastTracedFrame = -1;

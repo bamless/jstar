@@ -18,15 +18,15 @@
 #include "value.h"
 #include "vm.h"
 
-#define CONTINUE_MARK 1
-#define BREAK_MARK    2
-
 // In case of a direct assignement of the form:
 //  var a, b, ..., c = x, y, ..., z
 // Where the right hand side is an unpackable object (i.e. a tuple or a list)
 // We can omit the creation of the tuple/list, assigning directly the elements
 // to the variables. We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) (type == JSR_ARRAY || type == JSR_TUPLE)
+
+#define CONTINUE_MARK 1
+#define BREAK_MARK    2
 
 typedef struct Variable {
     enum { VAR_LOCAL, VAR_GLOBAL, VAR_ERR } type;
@@ -59,6 +59,7 @@ typedef struct Loop {
 
 typedef struct TryExcept {
     int depth;
+    int numHandlers;
     struct TryExcept* next;
 } TryExcept;
 
@@ -76,8 +77,6 @@ struct Compiler {
 
     int depth;
     Compiler* prev;
-
-    bool hasSuper;
 
     Loop* loops;
 
@@ -101,7 +100,6 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compile
     c->filename = filename;
     c->depth = 0;
     c->prev = prev;
-    c->hasSuper = false;
     c->loops = NULL;
     c->type = t;
     c->func = NULL;
@@ -308,9 +306,14 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
         }
     }
 
+    int index = addLocal(c, id, line);
+    if(index == -1) {
+        return (Variable){VAR_ERR, {{0}}};
+    }
+
     Variable var;
     var.type = VAR_LOCAL;
-    var.as.local.index = addLocal(c, id, line);
+    var.as.local.index = index;
     return var;
 }
 
@@ -403,16 +406,22 @@ static void emitMethodCall(Compiler* c, const char* name, int args) {
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
-static void enterTryBlock(Compiler* c, TryExcept* tryExc, int numHandlers) {
-    tryExc->depth = c->depth;
-    tryExc->next = c->tryBlocks;
-    c->tryBlocks = tryExc;
+static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line) {
+    exc->depth = c->depth;
+    exc->numHandlers = numHandlers;
+    exc->next = c->tryBlocks;
+    c->tryBlocks = exc;
     c->tryDepth += numHandlers;
+
+    if(c->tryDepth > MAX_TRY_DEPTH) {
+        error(c, line, "Exceeded max number of nested exception handlers: max %d, got %d",
+              MAX_TRY_DEPTH, c->tryDepth);
+    }
 }
 
-static void exitTryBlock(Compiler* c, int numHandlers) {
+static void exitTryBlock(Compiler* c) {
+    c->tryDepth -= c->tryBlocks->numHandlers;
     c->tryBlocks = c->tryBlocks->next;
-    c->tryDepth -= numHandlers;
 }
 
 static ObjString* readString(Compiler* c, JStarExpr* e) {
@@ -780,10 +789,9 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
     }
 
     if(isUnpack) {
-        emitBytecode(c, OP_UNPACK_ARG, args->line);
         emitBytecode(c, callUnpack, args->line);
-        emitBytecode(c, argsCount - 1, args->line);
-    } else if(argsCount <= 10) {
+        emitBytecode(c, argsCount, args->line);
+    } else if(argsCount <= MAX_INLINE_ARGS) {
         emitBytecode(c, callInline + argsCount, args->line);
     } else {
         emitBytecode(c, callCode, args->line);
@@ -1145,22 +1153,20 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
 
 static void compileImportStatement(Compiler* c, JStarStmt* s) {
     Vector* modules = &s->as.importStmt.modules;
-    Vector* impNames = &s->as.importStmt.impNames;
-    bool isImportFor = vecSize(impNames);
+    Vector* names = &s->as.importStmt.impNames;
+
+    bool isImportFor = !vecEmpty(names);
     bool isImportAs = s->as.importStmt.as.name != NULL;
 
-    JStarBuffer moduleName;
-    jsrBufferInit(c->vm, &moduleName);
+    JStarBuffer fullName;
+    jsrBufferInit(c->vm, &fullName);
 
     // compile topmost import
     JStarIdentifier* moduleId = (JStarIdentifier*)vecGet(modules, 0);
-    jsrBufferAppend(&moduleName, moduleId->name, moduleId->length);
-    if(!isImportAs && !isImportFor) {
-        emitBytecode(c, OP_IMPORT, s->line);
-    } else {
-        emitBytecode(c, OP_IMPORT_FROM, s->line);
-    }
-    emitShort(c, stringConst(c, moduleName.data, moduleName.size, s->line), s->line);
+    jsrBufferAppend(&fullName, moduleId->name, moduleId->length);
+
+    emitBytecode(c, isImportAs || isImportFor ? OP_IMPORT_FROM : OP_IMPORT, s->line);
+    emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
 
     // compile submodule imports
     for(size_t i = 1; i < vecSize(modules); i++) {
@@ -1168,18 +1174,18 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         emitBytecode(c, OP_POP, s->line);
 
         JStarIdentifier* subModuleId = (JStarIdentifier*)vecGet(modules, i);
-        jsrBufferAppendf(&moduleName, ".%.*s", subModuleId->length, subModuleId->name);
+        jsrBufferAppendf(&fullName, ".%.*s", subModuleId->length, subModuleId->name);
 
         emitBytecode(c, OP_IMPORT_FROM, s->line);
-        emitShort(c, stringConst(c, moduleName.data, moduleName.size, s->line), s->line);
+        emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
     }
 
     if(isImportFor) {
-        uint16_t moduleNameConst = stringConst(c, moduleName.data, moduleName.size, s->line);
-        vecForeach(JStarIdentifier** it, *impNames) {
+        uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
+        vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);
-            emitShort(c, moduleNameConst, s->line);
+            emitShort(c, moduleConst, s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
         }
     } else if(isImportAs) {
@@ -1189,17 +1195,16 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     }
 
     emitBytecode(c, OP_POP, s->line);
-    jsrBufferFree(&moduleName);
+    jsrBufferFree(&fullName);
 }
 
-static void compileExcepts(Compiler* c, Vector* excs, int n) {
-    JStarStmt* exc = vecGet(excs, n);
-    bool last = n == (int)(vecSize(excs) - 1);
+static void compileExcepts(Compiler* c, Vector* excs, size_t n) {
+    JStarStmt* handler = vecGet(excs, n);
 
     JStarIdentifier exception = createIdentifier(".exception");
-    compileVariable(c, &exception, false, exc->line);
+    compileVariable(c, &exception, false, handler->line);
 
-    compileExpr(c, exc->as.excStmt.cls);
+    compileExpr(c, handler->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
@@ -1207,44 +1212,40 @@ static void compileExcepts(Compiler* c, Vector* excs, int n) {
 
     enterScope(c);
 
-    compileVariable(c, &exception, false, exc->line);
-    Variable excVar = declareVar(c, &exc->as.excStmt.var, false, exc->line);
-    defineVar(c, &excVar, exc->line);
+    compileVariable(c, &exception, false, handler->line);
+    Variable excVar = declareVar(c, &handler->as.excStmt.var, false, handler->line);
+    defineVar(c, &excVar, handler->line);
 
-    JStarStmt* excBody = exc->as.excStmt.block;
+    JStarStmt* excBody = handler->as.excStmt.block;
     compileStatements(c, &excBody->as.blockStmt.stmts);
 
-    emitBytecode(c, OP_NULL, exc->line);
-    compileVariable(c, &exception, true, exc->line);
-    emitBytecode(c, OP_POP, exc->line);
+    emitBytecode(c, OP_NULL, handler->line);
+    compileVariable(c, &exception, true, handler->line);
+    emitBytecode(c, OP_POP, handler->line);
 
     exitScope(c);
 
     size_t exitJmp = 0;
-    if(!last) {
+    if(n < vecSize(excs) - 1) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), exc->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), handler->line);
 
-    if(!last) {
+    if(n < vecSize(excs) - 1) {
         compileExcepts(c, excs, n + 1);
-        setJumpTo(c, exitJmp, getCurrentAddr(c), exc->line);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), handler->line);
     }
 }
 
 static void compileTryExcept(Compiler* c, JStarStmt* s) {
-    bool hasExcept = !vecEmpty(&s->as.tryStmt.excs);
+    bool hasExcepts = !vecEmpty(&s->as.tryStmt.excs);
     bool hasEnsure = s->as.tryStmt.ensure != NULL;
-    int numHandlers = (hasExcept ? 1 : 0) + (hasEnsure ? 1 : 0);
+    int numHandlers = (hasExcepts ? 1 : 0) + (hasEnsure ? 1 : 0);
 
     TryExcept tryBlock;
-    enterTryBlock(c, &tryBlock, numHandlers);
-
-    if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks: %d", MAX_TRY_DEPTH);
-    }
+    enterTryBlock(c, &tryBlock, numHandlers, s->line);
 
     size_t ensSetup = 0, excSetup = 0;
 
@@ -1253,14 +1254,14 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         emitShort(c, 0, 0);
     }
 
-    if(hasExcept) {
+    if(hasExcepts) {
         excSetup = emitBytecode(c, OP_SETUP_EXCEPT, s->line);
         emitShort(c, 0, 0);
     }
 
     compileStatement(c, s->as.tryStmt.block);
 
-    if(hasExcept) {
+    if(hasExcepts) {
         emitBytecode(c, OP_POP_HANDLER, s->line);
     }
 
@@ -1282,7 +1283,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     Variable causeVar = declareVar(c, &cause, false, 0);
     defineVar(c, &causeVar, 0);
 
-    if(hasExcept) {
+    if(hasExcepts) {
         size_t excJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
@@ -1306,7 +1307,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         exitScope(c);
     }
 
-    exitTryBlock(c, numHandlers);
+    exitTryBlock(c);
 }
 
 static void compileRaiseStmt(Compiler* c, JStarStmt* s) {
@@ -1339,11 +1340,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
 
     // try
     TryExcept tryBlock;
-    enterTryBlock(c, &tryBlock, 1);
-
-    if(c->tryDepth > MAX_TRY_DEPTH) {
-        error(c, s->line, "Exceeded max number of nested try blocks: %d", MAX_TRY_DEPTH);
-    }
+    enterTryBlock(c, &tryBlock, 1, s->line);
 
     size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
     emitShort(c, 0, 0);
@@ -1390,7 +1387,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     emitBytecode(c, OP_END_HANDLER, 0);
     exitScope(c);
 
-    exitTryBlock(c, 1);
+    exitTryBlock(c);
     exitScope(c);
 }
 
@@ -1472,7 +1469,6 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     c->func = newFunction(c->vm, module, arity, defCount, vararg);
     addConstant(&c->func->code, NULL_VAL); // This const will hold the superclass at runtime
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
-
     c->func->c.name = createMethodName(c, classId, &s->as.funcDecl.id);
 
     // if in costructor change the type

@@ -146,12 +146,6 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static void swapValues(Value* valueArray, int a, int b) {
-    Value tmp = valueArray[a];
-    valueArray[a] = valueArray[b];
-    valueArray[b] = tmp;
-}
-
 static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     ObjClass* cls = newClass(vm, name, superCls);
     hashTableMerge(&cls->methods, &superCls->methods);
@@ -425,52 +419,6 @@ static bool getStringSubscript(JStarVM* vm) {
     return false;
 }
 
-static bool getSubscriptOfValue(JStarVM* vm) {
-    if(IS_OBJ(peek2(vm))) {
-        Value operand = peek2(vm);
-        switch(OBJ_TYPE(operand)) {
-        case OBJ_LIST:
-            return getListSubscript(vm);
-        case OBJ_TUPLE:
-            return getTupleSubscript(vm);
-        case OBJ_STRING:
-            return getStringSubscript(vm);
-        default:
-            break;
-        }
-    }
-
-    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->methodSyms[SYM_GET], 1)) {
-        return false;
-    }
-    return true;
-}
-
-static bool setSubscriptOfValue(JStarVM* vm) {
-    if(IS_LIST(peek(vm))) {
-        Value operand = pop(vm), arg = pop(vm), val = peek(vm);
-
-        if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
-            jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
-            return false;
-        }
-
-        ObjList* list = AS_LIST(operand);
-        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
-        if(index == SIZE_MAX) return false;
-
-        list->arr[index] = val;
-        return true;
-    }
-
-    // swap the operand with value to prepare function call
-    swapValues(vm->sp, -1, -3);
-    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
-        return false;
-    }
-    return true;
-}
-
 static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
     size_t length = s1->length + s2->length;
     ObjString* str = allocateString(vm, length);
@@ -489,7 +437,7 @@ static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, Meth
 
     ObjClass* cls2 = getClass(vm, peek(vm));
     if(reverse != SYM_END) {
-        swapValues(vm->sp, -1, -2);
+        swapStackSlots(vm, -1, -2);
 
         if(hashTableGet(&cls2->methods, vm->methodSyms[reverse], &method)) {
             return callValue(vm, method, 1);
@@ -501,13 +449,34 @@ static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, Meth
     return false;
 }
 
-static bool computeUnpackArgCount(JStarVM* vm, int unpackArgc, uint8_t argc, uint8_t* out) {
-    int callArgc = unpackArgc + argc;
-    if(callArgc >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Too many arguments for function call: %d", unpackArgc);
+static bool unpackCall(JStarVM* vm, uint8_t argc, uint8_t* out) {
+    if(argc == 0) {
+        jsrRaise(vm, "TypeException", "No argument to unpack");
         return false;
     }
-    *out = callArgc;
+
+    if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+        jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
+                 getClass(vm, peek(vm))->name->data);
+        return false;
+    }
+
+    size_t size;
+    Value* array = getValues(AS_OBJ(pop(vm)), &size);
+
+    size_t totalArgc = argc + size - 1;
+    if(totalArgc >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", totalArgc);
+        return false;
+    }
+
+    *out = (uint8_t)totalArgc;
+
+    reserveStack(vm, size + 1);
+    for(size_t i = 0; i < size; i++) {
+        push(vm, array[i]);
+    }
+
     return true;
 }
 
@@ -524,24 +493,6 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
         push(vm, array[i]);
     }
 
-    return true;
-}
-
-static bool unpackArgument(JStarVM* vm, Obj* o) {
-    size_t size;
-    Value* array = getValues(o, &size);
-
-    if(size >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Last argument too big to unpack: %zu", size);
-        return false;
-    }
-
-    reserveStack(vm, size + 1);
-    for(size_t i = 0; i < size; i++) {
-        push(vm, array[i]);
-    }
-
-    push(vm, NUM_VAL(size));
     return true;
 }
 
@@ -576,7 +527,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 // VM API
 // -----------------------------------------------------------------------------
 
-bool getFieldFromValue(JStarVM* vm, ObjString* name) {
+bool getFieldOfValue(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -592,13 +543,11 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
                              inst->base.cls->name->data, name->data);
                     return false;
                 }
-
                 return true;
             }
 
             pop(vm);
             push(vm, field);
-
             return true;
         }
         case OBJ_MODULE: {
@@ -613,13 +562,11 @@ bool getFieldFromValue(JStarVM* vm, ObjString* name) {
                              name->data, mod->name->data);
                     return false;
                 }
-
                 return true;
             }
 
             pop(vm);
             push(vm, global);
-
             return true;
         }
         default:
@@ -659,6 +606,52 @@ bool setFieldOfValue(JStarVM* vm, ObjString* name) {
     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
              name->data);
     return false;
+}
+
+bool getSubscriptOfValue(JStarVM* vm) {
+    if(IS_OBJ(peek2(vm))) {
+        Value operand = peek2(vm);
+        switch(OBJ_TYPE(operand)) {
+        case OBJ_LIST:
+            return getListSubscript(vm);
+        case OBJ_TUPLE:
+            return getTupleSubscript(vm);
+        case OBJ_STRING:
+            return getStringSubscript(vm);
+        default:
+            break;
+        }
+    }
+
+    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->methodSyms[SYM_GET], 1)) {
+        return false;
+    }
+    return true;
+}
+
+bool setSubscriptOfValue(JStarVM* vm) {
+    if(IS_LIST(peek(vm))) {
+        Value operand = pop(vm), arg = pop(vm), val = peek(vm);
+
+        if(!IS_NUM(arg) || !isInt(AS_NUM(arg))) {
+            jsrRaise(vm, "TypeException", "Index of List subscript access must be an integer.");
+            return false;
+        }
+
+        ObjList* list = AS_LIST(operand);
+        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
+        if(index == SIZE_MAX) return false;
+
+        list->arr[index] = val;
+        return true;
+    }
+
+    // swap operand and value to prepare function call
+    swapStackSlots(vm, -1, -3); 
+    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
+        return false;
+    }
+    return true;
 }
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
@@ -794,6 +787,12 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 
         vm->sp = vm->stack + (vm->sp - oldStack);
     }
+}
+
+inline void swapStackSlots(JStarVM* vm, int a, int b) {
+    Value tmp = vm->sp[a];
+    vm->sp[a] = vm->sp[b];
+    vm->sp[b] = tmp;
 }
 
 // -----------------------------------------------------------------------------
@@ -1046,7 +1045,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     }
 
     TARGET(OP_GET_FIELD): {
-        if(!getFieldFromValue(vm, GET_STRING())) {
+        if(!getFieldOfValue(vm, GET_STRING())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1129,13 +1128,14 @@ bool runEval(JStarVM* vm, int evalDepth) {
         goto call;
 
     TARGET(OP_CALL_UNPACK):
-        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto call;
 
     TARGET(OP_CALL):
         argc = NEXT_CODE();
+        goto call;
 
 call:
         SAVE_STATE();
@@ -1163,13 +1163,14 @@ call:
         goto invoke;
 
     TARGET(OP_INVOKE_UNPACK):
-        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto invoke;
-    
+
     TARGET(OP_INVOKE):
         argc = NEXT_CODE();
+        goto invoke;
 
 invoke:;
         ObjString* name = GET_STRING();
@@ -1198,13 +1199,14 @@ invoke:;
         goto supinvoke;
 
     TARGET(OP_SUPER_UNPACK):
-        if(!computeUnpackArgCount(vm, AS_NUM(pop(vm)), NEXT_CODE(), &argc)) {
+        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto supinvoke;
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
+        goto supinvoke;
 
 supinvoke:;
         ObjString* name = GET_STRING();
@@ -1372,18 +1374,6 @@ op_return:
         }
         DISPATCH();
     }
-
-    TARGET(OP_UNPACK_ARG): {
-        if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-            jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
-                     getClass(vm, peek(vm))->name->data);
-            UNWIND_STACK(vm);
-        }
-        if(!unpackArgument(vm, AS_OBJ(pop(vm)))) {
-            UNWIND_STACK(vm);
-        }
-        DISPATCH();
-    }
     
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
@@ -1484,16 +1474,7 @@ op_return:
     }
     
     TARGET(OP_RAISE): {
-        Value exc = peek(vm);
-        if(!isInstance(vm, exc, vm->excClass)) {
-            jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
-            UNWIND_STACK(vm);
-        }
-        ObjStackTrace* st = newStackTrace(vm);
-        push(vm, OBJ_VAL(st));
-        ObjInstance* excInst = AS_INSTANCE(exc);
-        hashTablePut(&excInst->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
-        pop(vm);
+        jsrRaiseException(vm, -1);
         UNWIND_STACK(vm);
     }
 

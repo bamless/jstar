@@ -158,13 +158,17 @@ struct JStarVM {
     size_t reachedCapacity, reachedCount;
 };
 
-bool getFieldFromValue(JStarVM* vm, ObjString* name);
+bool getFieldOfValue(JStarVM* vm, ObjString* name);
 bool setFieldOfValue(JStarVM* vm, ObjString* name);
+
+bool getSubscriptOfValue(JStarVM* vm);
+bool setSubscriptOfValue(JStarVM* vm);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 
 void reserveStack(JStarVM* vm, size_t needed);
+void swapStackSlots(JStarVM* vm, int a, int b);
 
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);

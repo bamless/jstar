@@ -31,12 +31,10 @@ static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
 
 ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, JStarStmt* program) {
     ObjModule* module = getOrCreateModule(vm, name);
-
     if(program != NULL) {
         ObjFunction* fn = compile(vm, file, module, program);
         return fn;
     }
-
     return NULL;
 }
 
@@ -48,8 +46,8 @@ ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuff
 
 static void setModuleInParent(JStarVM* vm, ObjModule* mod) {
     ObjString* name = mod->name;
-
     const char* lastDot = strrchr(name->data, '.');
+    
     if(lastDot == NULL) {
         return;  // Not a submodule, nothing to do
     }

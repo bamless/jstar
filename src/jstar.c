@@ -205,12 +205,17 @@ void jsrRaiseException(JStarVM* vm, int slot) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
         return;
     }
+
     ObjInstance* exception = (ObjInstance*)AS_OBJ(exc);
     ObjStackTrace* st = newStackTrace(vm);
     push(vm, OBJ_VAL(st));
     hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
     pop(vm);
-    jsrPushValue(vm, slot);
+
+    // Place the exception on top of the stack if not already
+    if(!valueEquals(exc, vm->sp[-1])) {
+        push(vm, exc);
+    }
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
@@ -362,31 +367,6 @@ bool jsrIs(JStarVM* vm, int slot, int classSlot) {
     return isInstance(vm, v, AS_CLASS(cls));
 }
 
-bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
-    jsrEnsureStack(vm, 2);
-    jsrPushValue(vm, iterable);
-    jsrPushValue(vm, res < 0 ? res - 1 : res);
-
-    if(jsrCallMethod(vm, "__iter__", 1) != JSR_SUCCESS) {
-        return *err = true;
-    }
-    if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
-        jsrPop(vm);
-        return false;
-    }
-
-    Value resVal = pop(vm);
-    vm->apiStack[apiStackIndex(vm, res)] = resVal;
-    return true;
-}
-
-bool jsrNext(JStarVM* vm, int iterable, int res) {
-    jsrPushValue(vm, iterable);
-    jsrPushValue(vm, res < 0 ? res - 1 : res);
-    if(jsrCallMethod(vm, "__next__", 1) != JSR_SUCCESS) return false;
-    return true;
-}
-
 void jsrPushNumber(JStarVM* vm, double number) {
     validateStack(vm);
     push(vm, NUM_VAL(number));
@@ -478,6 +458,31 @@ void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
 }
 
+bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
+    jsrEnsureStack(vm, 2);
+    jsrPushValue(vm, iterable);
+    jsrPushValue(vm, res < 0 ? res - 1 : res);
+
+    if(jsrCallMethod(vm, "__iter__", 1) != JSR_SUCCESS) {
+        return *err = true;
+    }
+    if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
+        jsrPop(vm);
+        return false;
+    }
+
+    Value resVal = pop(vm);
+    vm->apiStack[apiStackIndex(vm, res)] = resVal;
+    return true;
+}
+
+bool jsrNext(JStarVM* vm, int iterable, int res) {
+    jsrPushValue(vm, iterable);
+    jsrPushValue(vm, res < 0 ? res - 1 : res);
+    if(jsrCallMethod(vm, "__next__", 1) != JSR_SUCCESS) return false;
+    return true;
+}
+
 void jsrListAppend(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lst), "Not a list");
@@ -528,6 +533,30 @@ size_t jsrTupleGetLength(JStarVM* vm, int slot) {
     return AS_TUPLE(tup)->size;
 }
 
+bool jsrSubscriptGet(JStarVM* vm, int slot) {
+    push(vm, apiStackSlot(vm, slot));
+    swapStackSlots(vm, -1, -2);
+    return getSubscriptOfValue(vm);
+}
+
+bool jsrSubscriptSet(JStarVM* vm, int slot) {
+    swapStackSlots(vm, -1, -2);
+    push(vm, apiStackSlot(vm, slot));
+    return setSubscriptOfValue(vm);
+}
+
+size_t jsrGetLength(JStarVM* vm, int slot) {
+    push(vm, apiStackSlot(vm, slot));
+
+    if(jsrCallMethod(vm, "__len__", 0) != JSR_SUCCESS) {
+        return SIZE_MAX;
+    }
+
+    size_t size = jsrGetNumber(vm, -1);
+    jsrPop(vm);
+    return size;
+}
+
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
     return setFieldOfValue(vm, copyString(vm, name, strlen(name)));
@@ -535,7 +564,7 @@ bool jsrSetField(JStarVM* vm, int slot, const char* name) {
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return getFieldFromValue(vm, copyString(vm, name, strlen(name)));
+    return getFieldOfValue(vm, copyString(vm, name, strlen(name)));
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
