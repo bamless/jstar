@@ -1421,8 +1421,7 @@ op_return:
 
     TARGET(OP_GET_GLOBAL): {
         ObjString* name = GET_STRING();
-        if(!hashTableGet(&vm->module->globals, name, vm->sp) && 
-           !hashTableGet(&vm->core->globals, name, vm->sp)) {
+        if(!hashTableGet(&vm->module->globals, name, vm->sp)) {
             jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
             UNWIND_STACK(vm);
         }

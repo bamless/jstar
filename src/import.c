@@ -23,6 +23,8 @@ static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
         module = newModule(vm, name);
         pop(vm);
 
+        // Implicitly import core module
+        hashTableImportNames(&module->globals, &vm->core->globals);
         setModule(vm, name, module);
     }
 
