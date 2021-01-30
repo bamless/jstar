@@ -82,7 +82,7 @@ typedef uint64_t Value;
 #define AS_BOOL(val)   ((val) == TRUE_VAL)
 #define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
 #define AS_OBJ(val)    ((Obj*)(uintptr_t)((val) & ~(SIGN | QNAN)))
-#define AS_NUM(val)    reinterpret_cast(Value, double, val)
+#define AS_NUM(val)    REINTERPRET_CAST(Value, double, val)
 
 #define TRUE_VAL      ((Value)(QNAN | TRUE_TAG))
 #define FALSE_VAL     ((Value)(QNAN | FALSE_TAG))
@@ -90,7 +90,7 @@ typedef uint64_t Value;
 #define BOOL_VAL(b)   ((b) ? TRUE_VAL : FALSE_VAL)
 #define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
 #define OBJ_VAL(obj)  ((Value)(SIGN | QNAN | (uint64_t)(uintptr_t)(obj)))
-#define NUM_VAL(num)  reinterpret_cast(double, Value, num)
+#define NUM_VAL(num)  REINTERPRET_CAST(double, Value, num)
 
 // clang-format on
 

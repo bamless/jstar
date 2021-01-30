@@ -7,6 +7,9 @@
 
 #include "jstarconf.h"
 
+// Reinterprets the value `v` from type F to type T
+#define REINTERPRET_CAST(F, T, v) ((union {F f; T t;}){.f = (v)}.t)
+
 // -----------------------------------------------------------------------------
 // MACROS TO COMPUTE BASE 10 LENGHT OF INTEGERS
 // -----------------------------------------------------------------------------
@@ -18,9 +21,6 @@
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
-
-// Reinterprets the value `v` from type F to type T
-#define reinterpret_cast(F, T, v) ((union {F f; T t;}){.f = (v)}.t)
 
 // Returns the closest power of two to n, be it 2^x, where 2^x >= n
 static inline int powerOf2Ceil(int n) {
