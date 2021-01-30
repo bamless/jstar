@@ -251,7 +251,7 @@ static void parseArguments(int argc, char** argv) {
                     "bytecode is useful to learn about the J* VM",
                     0, 0, 0),
         OPT_BOOLEAN('d', "disassemble", &opts.disassemble,
-                    "Disassemble already compiled jsc files and list its content", 0, 0, 0),
+                    "Disassemble already compiled jsc files and list their content", 0, 0, 0),
         OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
                     "Compile files but do not generate output files. Used for syntax checking", 0,
                     0, 0),
