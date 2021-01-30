@@ -176,15 +176,33 @@ static void enterScope(Compiler* c) {
 
 static void exitScope(Compiler* c) {
     c->depth--;
+
+    int toPop = 0;
     while(c->localsCount > 0 && c->locals[c->localsCount - 1].depth > c->depth) {
-        discardLocal(c, &c->locals[--c->localsCount]);
+        toPop++, c->localsCount--;
+    }
+
+    if(toPop == 1) { 
+        discardLocal(c, &c->locals[c->localsCount]);
+    } else if(toPop > 1) {
+        emitBytecode(c, OP_POPN, 0);
+        emitBytecode(c, toPop, 0);
     }
 }
 
 static void discardScope(Compiler* c, int depth) {
     int localsCount = c->localsCount;
+
+    int toPop = 0;
     while(localsCount > 0 && c->locals[localsCount - 1].depth > depth) {
-        discardLocal(c, &c->locals[--localsCount]);
+        toPop++, localsCount--;
+    }
+
+    if(toPop == 1) { 
+        discardLocal(c, &c->locals[localsCount]);
+    } else if(toPop > 1) {
+        emitBytecode(c, OP_POPN, 0);
+        emitBytecode(c, toPop, 0);
     }
 }
 

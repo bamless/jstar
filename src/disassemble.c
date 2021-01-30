@@ -151,6 +151,7 @@ void disassembleIstr(Code* c, size_t i) {
     case OP_SUPER:
         invokeInstruction(c, i);
         break;
+    case OP_POPN:
     case OP_CALL:
     case OP_CALL_UNPACK:
     case OP_UNPACK:

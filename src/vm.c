@@ -849,7 +849,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     do {                                         \
         frame->ip = h->address;                  \
         vm->sp = h->savedSp;                     \
-        closeUpvalues(vm, vm->sp - 1);           \
+        closeUpvalues(vm, vm->sp);               \
         push(vm, excVal);                        \
         push(vm, NUM_VAL(cause));                \
     } while(0)
@@ -1494,6 +1494,15 @@ op_return:
 
     TARGET(OP_SET_UPVALUE): {
         *closure->upvalues[NEXT_CODE()]->addr = peek(vm);
+        DISPATCH();
+    }
+
+    TARGET(OP_POPN): {
+        uint8_t n = NEXT_CODE();
+        for(uint8_t i = 0; i < n; i++) {
+            pop(vm);
+        }
+        closeUpvalues(vm, vm->sp);
         DISPATCH();
     }
 
