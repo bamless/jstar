@@ -51,12 +51,7 @@ static void serializeCString(JStarBuffer* buf, const char* string) {
 }
 
 static void serializeDouble(JStarBuffer* buf, double num) {
-    union {
-        double num;
-        uint64_t raw;
-    } convert = {.num = num};
-
-    serializeUint64(buf, convert.raw);
+    serializeUint64(buf, reinterpret_cast(double, uint64_t, num));
 }
 
 static void serializeString(JStarBuffer* buf, ObjString* str) {
@@ -251,15 +246,9 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
 }
 
 static bool deserializeDouble(Deserializer* d, double* out) {
-    uint64_t rawDouble;
-    if(!deserializeUint64(d, &rawDouble)) return false;
-
-    union {
-        double num;
-        uint64_t raw;
-    } convert = {.raw = rawDouble};
-
-    *out = convert.num;
+    uint64_t raw;
+    if(!deserializeUint64(d, &raw)) return false;
+    *out = reinterpret_cast(uint64_t, double, raw);
     return true;
 }
 

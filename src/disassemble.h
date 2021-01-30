@@ -9,7 +9,6 @@
 
 void disassembleFunction(ObjFunction* fn);
 void disassembleIstr(Code* c, size_t istr);
-
 int opcodeArgsNumber(Opcode op);
 
 #endif

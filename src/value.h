@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "jstarconf.h"
+#include "util.h"
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
@@ -81,7 +82,7 @@ typedef uint64_t Value;
 #define AS_BOOL(val)   ((val) == TRUE_VAL)
 #define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
 #define AS_OBJ(val)    ((Obj*)(uintptr_t)((val) & ~(SIGN | QNAN)))
-#define AS_NUM(val)    valueToNum(val)
+#define AS_NUM(val)    reinterpret_cast(Value, double, val)
 
 #define TRUE_VAL      ((Value)(QNAN | TRUE_TAG))
 #define FALSE_VAL     ((Value)(QNAN | FALSE_TAG))
@@ -89,25 +90,9 @@ typedef uint64_t Value;
 #define BOOL_VAL(b)   ((b) ? TRUE_VAL : FALSE_VAL)
 #define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
 #define OBJ_VAL(obj)  ((Value)(SIGN | QNAN | (uint64_t)(uintptr_t)(obj)))
-#define NUM_VAL(num)  numToValue(num)
+#define NUM_VAL(num)  reinterpret_cast(double, Value, num)
 
 // clang-format on
-
-inline Value numToValue(double num) {
-    union {
-        Value val;
-        double num;
-    } convert = {.num = num};
-    return convert.val;
-}
-
-inline double valueToNum(Value val) {
-    union {
-        Value val;
-        double num;
-    } convert = {.val = val};
-    return convert.num;
-}
 
 inline bool valueEquals(Value v1, Value v2) {
     return IS_NUM(v1) && IS_NUM(v2) ? AS_NUM(v1) == AS_NUM(v2) : v1 == v2;
@@ -183,8 +168,7 @@ inline bool valueIsInt(Value val) {
 }
 
 inline bool valueToBool(Value v) {
-    if(IS_BOOL(v)) return AS_BOOL(v);
-    return !IS_NULL(v);
+    return IS_BOOL(v) ? AS_BOOL(v) : !IS_NULL(v);
 }
 
 // -----------------------------------------------------------------------------

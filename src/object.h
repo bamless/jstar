@@ -63,9 +63,11 @@ extern const char* ObjTypeNames[];
 #define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
 #define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
 
-#define STRING_GET_HASH(s) (s->hash == 0 ? (s->hash = hashString(s->data, s->length)) : s->hash)
+#define STRING_GET_HASH(s) \
+    ((s)->hash == 0 ? ((s)->hash = hashString((s)->data, (s)->length)) : (s)->hash)
+
 #define STRING_EQUALS(s1, s2) \
-    (s1->interned && s2->interned ? s1 == s2 : strcmp(s1->data, s2->data) == 0)
+    ((s1)->interned && (s2)->interned ? (s1) == (s2) : strcmp((s1)->data, (s2)->data) == 0)
 
 // -----------------------------------------------------------------------------
 // OBJECT DEFINITONS
@@ -292,8 +294,8 @@ void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
 void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 
-// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in 
-// API functions that expect a JStarBuffer, without copying them first. 
+// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
+// API functions that expect a JStarBuffer, without copying them first.
 JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
 
 // Convert a JStarBuffer to an ObjString
@@ -304,12 +306,12 @@ inline Value* getValues(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
     switch(obj->type) {
     case OBJ_LIST: {
-        ObjList* lst = (ObjList*)obj; 
+        ObjList* lst = (ObjList*)obj;
         *size = lst->count;
         return lst->arr;
     }
     case OBJ_TUPLE: {
-        ObjTuple* tup = (ObjTuple*)obj; 
+        ObjTuple* tup = (ObjTuple*)obj;
         *size = tup->size;
         return tup->arr;
     }
