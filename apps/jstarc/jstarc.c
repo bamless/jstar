@@ -14,7 +14,10 @@
 
 typedef struct Options {
     char *input, *output;
+    bool disassemble;
+    bool compileOnly;
     bool recursive;
+    bool list;
 } Options;
 
 static Options opts;
@@ -62,7 +65,9 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
     }
 
     if(fwrite(buf->data, 1, buf->size, f) < buf->size) {
-        fclose(f);
+        int saveErrno = errno;
+        if(fclose(f)) return false;
+        errno = saveErrno;
         return false;
     }
 
@@ -73,11 +78,11 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
     return true;
 }
 
-static void compileFile(const char* path, const char* out) {
+static bool compileFile(const char* path, const char* out) {
     JStarBuffer src;
     if(!jsrReadFile(vm, path, &src)) {
         fprintf(stderr, "Cannot open file %s: %s\n", path, strerror(errno));
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     char outPath[FILENAME_MAX];
@@ -88,32 +93,57 @@ static void compileFile(const char* path, const char* out) {
     }
 
     printf("Compiling %s to %s...\n", path, outPath);
+    fflush(stdout);
 
     JStarBuffer compiled;
     JStarResult res = jsrCompileCode(vm, path, src.data, &compiled);
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error compiling file %s\n", path);
         jsrBufferFree(&src);
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     jsrBufferFree(&src);
 
-    if(!writeToFile(&compiled, outPath)) {
+    if(opts.list) {
+        jsrDisassembleCode(vm, &compiled);
+    } else if(!opts.compileOnly && !writeToFile(&compiled, outPath)) {
         fprintf(stderr, "Failed to write %s: %s\n", outPath, strerror(errno));
         jsrBufferFree(&compiled);
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     jsrBufferFree(&compiled);
+    return true;
+}
+
+static bool disassembleFile(const char* path) {
+    JStarBuffer code;
+    if(!jsrReadFile(vm, path, &code)) {
+        fprintf(stderr, "Cannot open file %s: %s\n", path, strerror(errno));
+        return false;
+    }
+
+    printf("Disassembling %s...\n", path);
+    fflush(stdout);
+
+    JStarResult res = jsrDisassembleCode(vm, &code);
+    if(res != JSR_SUCCESS) {
+        fprintf(stderr, "Error disassembling file %s\n", path);
+        jsrBufferFree(&code);
+        return false;
+    }
+
+    jsrBufferFree(&code);
+    return true;
 }
 
 // -----------------------------------------------------------------------------
 // DIRECTORY COMPILE
 // -----------------------------------------------------------------------------
 
-static void makeOutPath(const char* root, const char* curr, const char* file, const char* out,
-                        char* dest, size_t size) {
+static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
+                           char* dest, size_t size) {
     size_t rootLen = strlen(root);
     const char* fileRoot = curr + rootLen;
 
@@ -127,36 +157,37 @@ static void makeOutPath(const char* root, const char* curr, const char* file, co
     cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
-static void compileFileInDirectory(const char* root, const char* curr, const char* file,
-                                   const char* out) {
+static bool processDirFile(const char* root, const char* curr, const char* file, const char* out) {
     char filePath[FILENAME_MAX];
     cwk_path_join(curr, file, filePath, sizeof(filePath));
 
-    char outPath[FILENAME_MAX];
-    makeOutPath(root, curr, file, out, outPath, sizeof(outPath));
-
-    compileFile(filePath, outPath);
+    if(opts.disassemble) {
+        return disassembleFile(filePath);
+    } else {
+        char outPath[FILENAME_MAX];
+        makeOutputPath(root, curr, file, out, outPath, sizeof(outPath));
+        return compileFile(filePath, outPath);
+    }
 }
 
-static void walkDirectory(const char* root, const char* curr, const char* out) {
+static bool walkDirectory(const char* root, const char* curr, const char* out) {
     DIR* currentDir = opendir(curr);
     if(currentDir == NULL) {
         fprintf(stderr, "Cannot open directory %s: %s\n", curr, strerror(errno));
-        exit(EXIT_FAILURE);
+        return false;
     }
 
+    bool allok = true;
     struct dirent* file;
     while((file = readdir(currentDir)) != NULL) {
-        if(strcmp(file->d_name, ".") == 0 || strcmp(file->d_name, "..") == 0) {
-            continue;
-        }
+        if(strcmp(file->d_name, ".") == 0 || strcmp(file->d_name, "..") == 0) continue;
 
         switch(file->d_type) {
         case DT_DIR: {
             if(opts.recursive) {
                 char subDirectory[FILENAME_MAX];
                 cwk_path_join(curr, file->d_name, subDirectory, sizeof(subDirectory));
-                walkDirectory(root, subDirectory, out);
+                allok &= walkDirectory(root, subDirectory, out);
             }
             break;
         }
@@ -164,12 +195,8 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
             size_t len;
             const char* ext;
             cwk_path_get_extension(file->d_name, &ext, &len);
-
-            if(strcmp(ext, JSR_EXT) != 0) {
-                continue;
-            }
-
-            compileFileInDirectory(root, curr, file->d_name, out);
+            if(strcmp(ext, opts.disassemble ? JSC_EXT : JSR_EXT) != 0) continue;
+            allok &= processDirFile(root, curr, file->d_name, out);
             break;
         }
         default:
@@ -179,11 +206,13 @@ static void walkDirectory(const char* root, const char* curr, const char* out) {
 
     if(closedir(currentDir)) {
         fprintf(stderr, "Cannot close dir %s: %s\n", curr, strerror(errno));
-        exit(EXIT_FAILURE);
+        return false;
     }
+
+    return allok;
 }
 
-static void compileDirectory(const char* dir, const char* out) {
+static bool processDirectory(const char* dir, const char* out) {
     char inputDir[FILENAME_MAX];
     cwk_path_normalize(dir, inputDir, sizeof(inputDir));
 
@@ -194,7 +223,7 @@ static void compileDirectory(const char* dir, const char* out) {
         strcpy(outputDir, inputDir);
     }
 
-    walkDirectory(inputDir, inputDir, outputDir);
+    return walkDirectory(inputDir, inputDir, outputDir);
 }
 
 // -----------------------------------------------------------------------------
@@ -205,8 +234,8 @@ static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
     static const char* const usage[] = {
-        "jstarc [options] file",
-        "jstarc [options] directory",
+        "jstarc [options] <file>",
+        "jstarc [options] <directory>",
         NULL,
     };
 
@@ -214,10 +243,19 @@ static void parseArguments(int argc, char** argv) {
         OPT_HELP(),
         OPT_GROUP("Options"),
         OPT_STRING('o', "output", &opts.output, "Output file or directory", 0, 0, 0),
-        OPT_BOOLEAN(
-            'r', "recursive", &opts.recursive,
-            "Recursively compile files in <directory>, does nothing if passed argument is a file",
-            0, 0, 0),
+        OPT_BOOLEAN('r', "recursive", &opts.recursive,
+                    "Recursively compile/disassemble files in <directory>, does nothing if passed "
+                    "argument is a <file>",
+                    0, 0, 0),
+        OPT_BOOLEAN('l', "list", &opts.list,
+                    "List the compiled bytecode instead of saving it on file. Listing compiled "
+                    "bytecode is useful to learn about the J* VM",
+                    0, 0, 0),
+        OPT_BOOLEAN('d', "disassemble", &opts.disassemble, "Disassemble already compiled jsc files",
+                    0, 0, 0),
+        OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
+                    "Compile files but do not generate output files. Used for syntax checking", 0,
+                    0, 0),
         OPT_END(),
     };
 
@@ -240,11 +278,14 @@ int main(int argc, char** argv) {
     initVM();
     atexit(&freeVM);
 
+    bool ok;
     if(isDirectory(opts.input)) {
-        compileDirectory(opts.input, opts.output);
+        ok = processDirectory(opts.input, opts.output);
+    } else if(opts.disassemble) {
+        ok = disassembleFile(opts.input);
     } else {
-        compileFile(opts.input, opts.output);
+        ok = compileFile(opts.input, opts.output);
     }
 
-    exit(EXIT_SUCCESS);
+    exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }

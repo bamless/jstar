@@ -272,7 +272,7 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
     return interned;
 }
 
-extern inline Value* getValues(Obj* obj, size_t *size);
+extern inline Value* getValues(Obj* obj, size_t* size);
 
 // -----------------------------------------------------------------------------
 // API - JStarBuffer function implementation
@@ -438,18 +438,25 @@ void printObj(Obj* o) {
         break;
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
-        printf("<func %s.%s:%d>", f->c.module->name->data, f->c.name->data, f->c.argsCount);
+        if(f->c.module->name->length != 0) {
+            printf("<func %s.%s:%d>", f->c.module->name->data, f->c.name->data, f->c.argsCount);
+        } else {
+            printf("<func %s:%d>", f->c.name->data, f->c.argsCount);
+        }
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        printf("<native %s.%s:%d>", n->c.module->name->data, n->c.name->data, n->c.argsCount);
+        if(n->c.module->name->length != 0) {
+            printf("<native %s.%s:%d>", n->c.module->name->data, n->c.name->data, n->c.argsCount);
+        } else {
+            printf("<native %s:%d>", n->c.name->data, n->c.argsCount);
+        }
         break;
     }
     case OBJ_CLASS: {
         ObjClass* cls = (ObjClass*)o;
-        printf("<class %s:%s>", cls->name->data,
-               cls->superCls == NULL ? "" : cls->superCls->name->data);
+        printf("<class %s %s>", cls->name->data, cls->superCls ? "" : cls->superCls->name->data);
         break;
     }
     case OBJ_INST: {

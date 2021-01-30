@@ -8,41 +8,84 @@
 #include "util.h"
 #include "value.h"
 
-// Create string names of opcodes
-static const char* OpcodeNames[] = {
-#define OPCODE(opcode, _) #opcode,
-#include "opcode.def"
-};
+#define INDENT 4
 
 static uint16_t readShortAt(const uint8_t* code, size_t i) {
     return ((uint16_t)code[i] << 8) | code[i + 1];
 }
 
-static void disassembleCode(Code* c) {
+static size_t countInstructions(Code* c) {
+    size_t count = 0;
     for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->bytecode[i]) + 1) {
-        disassembleIstr(c, i);
+        count++;
         if(c->bytecode[i] == OP_CLOSURE) {
             Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
-            i += (AS_FUNC(func)->upvalueCount + 1) * 2;
+            i += AS_FUNC(func)->upvalueCount * 2;
+        }
+    }
+    return count;
+}
+
+static void disassembleCode(Code* c, int indent) {
+    for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->bytecode[i]) + 1) {
+        disassembleIstr(c, indent, i);
+        if(c->bytecode[i] == OP_CLOSURE) {
+            Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
+            i += AS_FUNC(func)->upvalueCount * 2;
         }
     }
 }
 
+static void disassembleCommon(FnCommon* c, int upvals) {
+    printf("arguments %d, defaults %d, upvalues %d", (int)c->argsCount, (int)c->defCount, upvals);
+    if(c->vararg) printf(", vararg");
+    printf("\n");
+}
+
 void disassembleFunction(ObjFunction* fn) {
-    printf("[func %s.%s:%d]:\n", fn->c.module->name->data, fn->c.name->data, fn->c.argsCount);
-    disassembleCode(&fn->code);
+    ObjString* mod = fn->c.module->name;
+    ObjString* name = fn->c.name;
+    size_t instr = countInstructions(&fn->code);
+
+    printf("function ");
+    if(mod->length != 0) {
+        printf("%s.%s", mod->data, name->data);
+    } else {
+        printf("%s", name->data);
+    }
+    printf(" (%zu instructions at %p)\n", instr, (void*)fn);
+    
+    disassembleCommon(&fn->c, fn->upvalueCount);
+    disassembleCode(&fn->code, INDENT);
+
     for(int i = 0; i < fn->code.consts.count; i++) {
         Value c = fn->code.consts.arr[i];
         if(IS_FUNC(c)) {
             printf("\n");
             disassembleFunction(AS_FUNC(c));
+        } else if(IS_NATIVE(c)) {
+            printf("\n");
+            disassembleNative(AS_NATIVE(c));
         }
     }
 }
 
+void disassembleNative(ObjNative* nat) {
+    ObjString* mod = nat->c.module->name;
+    ObjString* name = nat->c.name;
+    printf("native ");
+    if(mod->length != 0) {
+        printf("%s.%s", mod->data, name->data);
+    } else {
+        printf("%s", name->data);
+    }
+    printf(" (%p)\n", (void*)nat);
+    disassembleCommon(&nat->c, 0);
+}
+
 static void signedOffsetInstruction(Code* c, size_t i) {
     int16_t off = (int16_t)readShortAt(c->bytecode, i + 1);
-    printf("%d (to %lu)", off, (unsigned long)(i + off + 3));
+    printf("%d (to %zu)", off, (size_t)(i + off + 3));
 }
 
 static void constInstruction(Code* c, size_t i) {
@@ -74,7 +117,7 @@ static void unsignedByteInstruction(Code* c, size_t i) {
     printf("%d", c->bytecode[i + 1]);
 }
 
-static void closureInstruction(Code* c, size_t i) {
+static void closureInstruction(Code* c, int indent, size_t i) {
     int op = readShortAt(c->bytecode, i + 1);
 
     printf("%d (", op);
@@ -83,16 +126,24 @@ static void closureInstruction(Code* c, size_t i) {
 
     ObjFunction* fn = AS_FUNC(c->consts.arr[op]);
 
-    int offset = i + 3;
+    size_t offset = i + 3;
     for(uint8_t j = 0; j < fn->upvalueCount; j++) {
         bool isLocal = c->bytecode[offset++];
         int index = c->bytecode[offset++];
-        printf("\n%04d              | %s %d", offset - 2, isLocal ? "local" : "upvalue", index);
+
+        printf("\n");
+        for(int i = 0; i < indent; i++) {
+            printf(" ");
+        }
+        printf("%04zu              | %s %d", offset - 2, isLocal ? "local" : "upvalue", index);
     }
 }
 
-void disassembleIstr(Code* c, size_t i) {
-    printf("%.4d %s ", (int)i, OpcodeNames[c->bytecode[i]]);
+void disassembleIstr(Code* c, int indent, size_t i) {
+    for(int i = 0; i < indent; i++) {
+        printf(" ");
+    }
+    printf("%.4zu %s ", i, OpcodeNames[c->bytecode[i]]);
 
     switch(c->bytecode[i]) {
     case OP_NATIVE:
@@ -163,22 +214,11 @@ void disassembleIstr(Code* c, size_t i) {
         unsignedByteInstruction(c, i);
         break;
     case OP_CLOSURE:
-        closureInstruction(c, i);
+        closureInstruction(c, indent, i);
         break;
     default:
         break;
     }
 
     printf("\n");
-}
-
-int opcodeArgsNumber(Opcode op) {
-    // clang-format off
-    switch(op) {
-    #define OPCODE(opcode, args) case opcode: return args;
-    #include "opcode.def"
-    }
-    // clang-format on
-    UNREACHABLE();
-    return -1;
 }

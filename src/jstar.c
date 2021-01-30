@@ -7,6 +7,7 @@
 
 #include "compiler.h"
 #include "const.h"
+#include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
 #include "object.h"
@@ -133,6 +134,21 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
 
     *out = serialize(vm, fn);
     return JSR_SUCCESS;
+}
+
+JStarResult jsrDisassembleCode(JStarVM* vm, const JStarBuffer* code) {
+    if(!isCompiledCode(code)) return JSR_DESERIALIZE_ERR;
+
+    JStarResult ret;
+
+    // The code will be only deserialized and not executed, so use dummy module with empty name
+    ObjString* dummyModule = copyString(vm, "", 0);
+    ObjFunction* fn = deserializeWithModule(vm, dummyModule, code, &ret);
+    if(ret == JSR_SUCCESS) {
+        disassembleFunction(fn);
+    }
+
+    return ret;
 }
 
 static JStarResult executeCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {

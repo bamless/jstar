@@ -53,6 +53,7 @@ static inline size_t roundUp(size_t num, size_t multiple) {
 
 #ifndef NDEBUG
     #include <stdio.h>
+    #include <stdlib.h>
 
     #define ASSERT(cond, msg)                                                                    \
         ((cond) ?                                                                                \

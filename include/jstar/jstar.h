@@ -106,6 +106,10 @@ JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const c
 JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
                                      JStarBuffer* out);
 
+// Disassembles the bytecode provided in `code` and prints it to stdout
+// Prints nothing if the provided `code` buffer doesn't contain valid bytecode
+JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const JStarBuffer* code);
+
 // Reads a J* source or compiled file, placing the output in out.
 // Returns true on success, false on error setting errno to the approriate value.
 // Tipically used alongside jsrEval to execute a J* source or compiled file.

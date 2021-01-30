@@ -39,6 +39,7 @@ set(JSTAR_SOURCES
     object.c
     object.h
     opcode.h
+    opcode.c
     serialize.c
     serialize.h
     util.h
