@@ -144,8 +144,7 @@ static bool disassembleFile(const char* path) {
 
 static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
                            char* dest, size_t size) {
-    size_t rootLen = strlen(root);
-    const char* fileRoot = curr + rootLen;
+    const char* fileRoot = curr + strlen(root);
 
     if(strlen(fileRoot) != 0) {
         const char* components[] = {out, fileRoot, dest, NULL};
