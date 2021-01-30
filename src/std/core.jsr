@@ -36,7 +36,15 @@ end
 class StackTrace end
 class Userdata end
 
-class Iter
+class Iterable
+    fun __iter__(i)
+        raise NotImplementedException("Iterable should implement __iter__()")
+    end
+
+    fun __next__(i)
+        raise NotImplementedException("Iterable should implement __next__()")
+    end
+
     fun forEach(func)
         for var e in this do
             func(e)
@@ -60,7 +68,19 @@ class Iter
     end
 end
 
-class Sequence is Iter
+class Sequence is Iterable
+    fun __get__(i)
+        raise NotImplementedException("Sequence must implement __get__()")
+    end
+
+    fun __set__(i, v)
+        raise NotImplementedException("Sequence must implement __set__()")
+    end
+
+    fun __len__()
+        raise NotImplementedException("Sequence must implement __len__()")
+    end
+
     fun contains(e)
         return this.indexOf(e) != -1
     end
@@ -210,7 +230,7 @@ class Tuple is Sequence
     end
 end
 
-class Table is Iter
+class Table is Iterable
     native new(iterable=null)
     native delete(key)
     native clear()
@@ -342,7 +362,7 @@ class IReverse is Sequence
     end
 end
 
-class IEnumerate is Iter
+class IEnumerate is Iterable
     fun new(iter, start=0)
         this._iter = iter
         this._idx = start
@@ -359,7 +379,7 @@ class IEnumerate is Iter
     end
 end
 
-class IFilter is Iter
+class IFilter is Iterable
     fun new(func, iterable)
         this._func = func
         this._iterable = iterable
@@ -379,7 +399,7 @@ class IFilter is Iter
     end
 end
 
-class IMap is Iter
+class IMap is Iterable
     fun new(func, iterable)
         this._func = func
         this._iterable = iterable
@@ -394,12 +414,9 @@ class IMap is Iter
     end
 end
 
-class IZip is Iter
+class IZip is Iterable
     fun new(...)
-        if #args == 0 then 
-            raise InvalidArgException("Expected at least one iterator.")
-        end
-
+        assert(#args != 0, "No iterables provided", InvalidArgException)
         this._iterables = args
         this._result = []
     end

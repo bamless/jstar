@@ -9,7 +9,7 @@ static fun isZeroMatch(startMatch, endMatch, lastMatch)
     return lastMatch == endMatch and endMatch - startMatch == 0
 end
 
-static class IGmatch is Iter
+static class IGmatch is Iterable
     fun new(str, regex)
         this.off = 0
         this.lastMatch = null
