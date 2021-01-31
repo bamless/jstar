@@ -1478,7 +1478,7 @@ JSR_NATIVE(jsr_print) {
         JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
     }
 
-    printf("%s", jsrGetString(vm, -1));
+    printf("%.*s", (int)jsrGetStringSz(vm, -1), jsrGetString(vm, -1));
     jsrPop(vm);
 
     JSR_FOREACH(2, {
@@ -1486,7 +1486,7 @@ JSR_NATIVE(jsr_print) {
         if(!jsrIsString(vm, -1)) {
             JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
         }
-        printf(" %s", jsrGetString(vm, -1));
+        printf(" %.*s", (int)jsrGetStringSz(vm, -1), jsrGetString(vm, -1));
         jsrPop(vm);
     },);
 
