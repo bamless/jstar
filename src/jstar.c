@@ -285,13 +285,12 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     int saveErrno;
     size_t read;
-    FILE* src = fopen(path, "r");
+    FILE* src = fopen(path, "rb");
 
     if(src == NULL) {
         return false;
     }
 
-    bool isCompiled = false;
     char header[SER_HEADER_SIZE];
 
     read = fread(header, 1, SER_HEADER_SIZE, src);
@@ -299,13 +298,8 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
         goto error;
     }
 
-    if(read == SER_HEADER_SIZE) {
-        if(memcmp(SER_FILE_HEADER, header, read) == 0) {
-            isCompiled = true;
-            src = freopen(path, "rb", src);
-        }
-    }
-
+    bool isCompiled = read == SER_HEADER_SIZE && memcmp(SER_FILE_HEADER, header, read) == 0;
+    
     if(fseek(src, 0, SEEK_END)) {
         goto error;
     }
