@@ -141,16 +141,16 @@ static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* na
         return IMPORT_NOT_FOUND;
     }
 
-    bool imported;
+    bool ok;
     if(isCompiledCode(&src)) {
-        imported = importWithBinary(vm, name, &src);
+        ok = importWithBinary(vm, name, &src);
     } else {
-        imported = importWithSource(vm, path->data, name, src.data);
+        ok = importWithSource(vm, path->data, name, src.data);
     }
 
     jsrBufferFree(&src);
 
-    if(!imported) {
+    if(!ok) {
         return IMPORT_ERR;
     }
 
