@@ -182,7 +182,7 @@ static void exitScope(Compiler* c) {
         toPop++, c->localsCount--;
     }
 
-    if(toPop == 1) { 
+    if(toPop == 1) {
         discardLocal(c, &c->locals[c->localsCount]);
     } else if(toPop > 1) {
         emitBytecode(c, OP_POPN, 0);
@@ -198,7 +198,7 @@ static void discardScope(Compiler* c, int depth) {
         toPop++, localsCount--;
     }
 
-    if(toPop == 1) { 
+    if(toPop == 1) {
         discardLocal(c, &c->locals[localsCount]);
     } else if(toPop > 1) {
         emitBytecode(c, OP_POPN, 0);
@@ -254,7 +254,7 @@ static int resolveVariable(Compiler* c, JStarIdentifier* id, int line) {
         Local* l = &c->locals[i];
         if(jsrIdentifierEq(&l->id, id)) {
             if(l->depth == -1) {
-                error(c, line, "Cannot read local variable `%.*s` in its own initializer", 
+                error(c, line, "Cannot read local variable `%.*s` in its own initializer",
                       l->id.length, l->id.name);
                 return 0;
             }
@@ -405,7 +405,7 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_
             int mark = c->func->code.bytecode[i + 1];
             ASSERT(mark == CONTINUE_MARK || mark == BREAK_MARK, "Unknown loop breaking marker");
             setJumpTo(c, i, mark == CONTINUE_MARK ? contAddr : brkAddr, 0);
-            
+
             i += opcodeArgsNumber(OP_JUMP);
         } else {
             i += opcodeArgsNumber(op);
@@ -447,51 +447,23 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
     jsrBufferClear(sb);
 
     const char* str = e->as.string.str;
+    size_t length = e->as.string.length;
 
-    for(size_t i = 0; i < e->as.string.length; i++) {
-        char character = str[i];
-        if(character == '\\') {
-            switch(str[i + 1]) {
-            case '0':
-                jsrBufferAppendChar(sb, '\0');
-                break;
-            case '\'':
-                jsrBufferAppendChar(sb, '\'');
-                break;
-            case '\\':
-                jsrBufferAppendChar(sb, '\\');
-                break;
-            case '"':
-                jsrBufferAppendChar(sb, '"');
-                break;
-            case 'a':
-                jsrBufferAppendChar(sb, '\a');
-                break;
-            case 'b':
-                jsrBufferAppendChar(sb, '\b');
-                break;
-            case 'f':
-                jsrBufferAppendChar(sb, '\f');
-                break;
-            case 'n':
-                jsrBufferAppendChar(sb, '\n');
-                break;
-            case 'r':
-                jsrBufferAppendChar(sb, '\r');
-                break;
-            case 't':
-                jsrBufferAppendChar(sb, '\t');
-                break;
-            case 'v':
-                jsrBufferAppendChar(sb, '\v');
-                break;
-            default:
-                error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
-                break;
+    const char* escaped = "\0\a\b\f\n\r\t\v\\\"'";
+    const char* unescaped = "0abfnrtv\\\"'";
+    for(size_t i = 0; i < length; i++) {
+        if(str[i] == '\\') {
+            int j = 0;
+            for(j = 0; j < 11; j++) {
+                if(str[i + 1] == unescaped[j]) {
+                    jsrBufferAppendChar(sb, escaped[j]);
+                    i++;
+                    break;
+                }
             }
-            i++;
+            if(j == 11) error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
         } else {
-            jsrBufferAppendChar(sb, character);
+            jsrBufferAppendChar(sb, str[i]);
         }
     }
 
@@ -500,7 +472,7 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
 
 static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
     int i = 0;
-    vecForeach(JStarExpr** it, *defaultArgs) {
+    vecForeach(JStarExpr * *it, *defaultArgs) {
         JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -702,7 +674,7 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
 
 static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector* boundNames) {
     int i = 0;
-    vecForeach(JStarExpr** it, exprs->as.list) {
+    vecForeach(JStarExpr * *it, exprs->as.list) {
         JStarExpr* e = *it;
         compileRval(c, e, boundNames ? vecGet(boundNames, i) : NULL);
         if(++i > num) emitBytecode(c, OP_POP, 0);
@@ -796,9 +768,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
 
 static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
                        JStarExpr* args, bool isUnpack) {
-    vecForeach(JStarExpr** it, args->as.list) {
-        compileExpr(c, *it);
-    }
+    vecForeach(JStarExpr * *it, args->as.list) { compileExpr(c, *it); }
 
     size_t argsCount = vecSize(&args->as.list);
     if(argsCount >= UINT8_MAX) {
@@ -886,16 +856,14 @@ static void compileExpExpr(Compiler* c, JStarExpr* e) {
 
 static void compileArrayLit(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
-    vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
+    vecForeach(JStarExpr * *it, e->as.array.exprs->as.list) {
         compileExpr(c, *it);
         emitBytecode(c, OP_APPEND_LIST, e->line);
     }
 }
 
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
-    vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
-        compileExpr(c, *it);
-    }
+    vecForeach(JStarExpr * *it, e->as.tuple.exprs->as.list) { compileExpr(c, *it); }
 
     size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
     if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal");
@@ -960,9 +928,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileExpExpr(c, e);
         break;
     case JSR_EXPR_LST:
-        vecForeach(JStarExpr** it, e->as.list) {
-            compileExpr(c, *it);
-        }
+        vecForeach(JStarExpr * *it, e->as.list) { compileExpr(c, *it); }
         break;
     case JSR_NUMBER:
         emitValueConst(c, NUM_VAL(e->as.num), e->line);
@@ -1004,9 +970,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
 static void compileStatement(Compiler* c, JStarStmt* s);
 
 static void compileStatements(Compiler* c, Vector* stmts) {
-    vecForeach(JStarStmt** it, *stmts) { 
-        compileStatement(c, *it);
-    }
+    vecForeach(JStarStmt * *it, *stmts) { compileStatement(c, *it); }
 }
 
 static void compileReturnStatement(Compiler* c, JStarStmt* s) {
@@ -1130,7 +1094,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    vecForeach(JStarIdentifier** id, varDecl->as.varDecl.ids) {
+    vecForeach(JStarIdentifier * *id, varDecl->as.varDecl.ids) {
         Variable var = declareVar(c, *id, false, s->line);
         defineVar(c, &var, s->line);
     }
@@ -1200,7 +1164,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
 
     if(isImportFor) {
         uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
-        vecForeach(JStarIdentifier** it, *names) {
+        vecForeach(JStarIdentifier * *it, *names) {
             JStarIdentifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, moduleConst, s->line);
@@ -1449,7 +1413,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     JStarIdentifier id = createIdentifier("");
     addLocal(c, &id, s->line);
 
-    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
+    vecForeach(JStarIdentifier * *it, s->as.funcDecl.formalArgs) {
         Variable arg = declareVar(c, *it, false, s->line);
         defineVar(c, &arg, s->line);
     }
@@ -1485,7 +1449,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, arity, defCount, vararg);
-    addConstant(&c->func->code, NULL_VAL); // This const will hold the superclass at runtime
+    addConstant(&c->func->code, NULL_VAL);  // This const will hold the superclass at runtime
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
     c->func->c.name = createMethodName(c, classId, &s->as.funcDecl.id);
 
@@ -1501,7 +1465,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     defineVar(c, &thisVar, s->line);
 
     // define and declare arguments
-    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
+    vecForeach(JStarIdentifier * *it, s->as.funcDecl.formalArgs) {
         Variable arg = declareVar(c, *it, false, s->line);
         defineVar(c, &arg, s->line);
     }
@@ -1612,7 +1576,7 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
 }
 
 static void compileMethods(Compiler* c, JStarStmt* cls) {
-    vecForeach(JStarStmt** it, cls->as.classDecl.methods) {
+    vecForeach(JStarStmt * *it, cls->as.classDecl.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
@@ -1631,7 +1595,7 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
-    vecForeach(JStarIdentifier** it, s->as.varDecl.ids) {
+    vecForeach(JStarIdentifier * *it, s->as.varDecl.ids) {
         Variable var = declareVar(c, *it, s->as.varDecl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;
         vars[varsCount++] = var;

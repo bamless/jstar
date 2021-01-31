@@ -431,10 +431,27 @@ const char* ObjTypeNames[] = {
 };
 #endif
 
+static void printEscaped(ObjString *s) {
+    const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
+    const char* unescaped = "0abfnrtv\\\"";
+    for(size_t i = 0; i < s->length; i++) {
+        int j;
+        for(j = 0; j < 10; j++) {
+            if(s->data[i] == escaped[j]) {
+                printf("\\%c", unescaped[j]);
+                break;
+            }
+        }
+        if(j == 10) printf("%c", s->data[i]);
+    }
+}
+
 void printObj(Obj* o) {
     switch(o->type) {
     case OBJ_STRING:
-        printf("%s", ((ObjString*)o)->data);
+        printf("\"");
+        printEscaped((ObjString*)o);
+        printf("\"");
         break;
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;

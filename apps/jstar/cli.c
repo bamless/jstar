@@ -46,6 +46,23 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
     fcolorPrintf(stderr, COLOR_RED, "%s\n", err);
 }
 
+static void printString(const char* str, size_t length) {
+    const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
+    const char* unescaped = "0abfnrtv\\\"";
+    colorPrintf(COLOR_BLUE, "\"");
+    for(size_t i = 0; i < length; i++) {
+        int j;
+        for(j = 0; j < 10; j++) {
+            if(str[i] == escaped[j]) {
+                colorPrintf(COLOR_BLUE, "\\%c", unescaped[j]);
+                break;
+            }
+        }
+        if(j == 10) colorPrintf(COLOR_BLUE, "%c", str[i]);
+    }
+    colorPrintf(COLOR_BLUE, "\"\n");
+}
+
 static bool replPrint(JStarVM* vm) {
     if(jsrIsNull(vm, 1)) return true;  // Don't print `null`
 
@@ -54,7 +71,7 @@ static bool replPrint(JStarVM* vm) {
     JSR_CHECK(String, -1, "__string__ return value");
 
     if(jsrIsString(vm, 1)) {
-        colorPrintf(COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
+        printString(jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
     } else if(jsrIsNumber(vm, 1)) {
         colorPrintf(COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
     } else if(jsrIsBoolean(vm, 1)) {
