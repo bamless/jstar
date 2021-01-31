@@ -16,23 +16,27 @@ static uint16_t readShortAt(const uint8_t* code, size_t i) {
 
 static size_t countInstructions(Code* c) {
     size_t count = 0;
-    for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->bytecode[i]) + 1) {
+    for(size_t i = 0; i < c->count;) {
         count++;
-        if(c->bytecode[i] == OP_CLOSURE) {
+        Opcode instr = c->bytecode[i];
+        if(instr == OP_CLOSURE) {
             Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
             i += AS_FUNC(func)->upvalueCount * 2;
         }
+        i += opcodeArgsNumber(instr) + 1;
     }
     return count;
 }
 
 static void disassembleCode(Code* c, int indent) {
-    for(size_t i = 0; i < c->count; i += opcodeArgsNumber(c->bytecode[i]) + 1) {
+    for(size_t i = 0; i < c->count;) {
         disassembleIstr(c, indent, i);
-        if(c->bytecode[i] == OP_CLOSURE) {
+        Opcode instr = c->bytecode[i];
+        if(instr == OP_CLOSURE) {
             Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
             i += AS_FUNC(func)->upvalueCount * 2;
         }
+        i += opcodeArgsNumber(instr) + 1;
     }
 }
 
