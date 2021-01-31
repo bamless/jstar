@@ -1486,6 +1486,7 @@ JSR_NATIVE(jsr_print) {
         if(!jsrIsString(vm, -1)) {
             JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
         }
+        
         printf(" ");
         fwrite(jsrGetString(vm, -1), 1, jsrGetStringSz(vm, -1), stdout);
         jsrPop(vm);
