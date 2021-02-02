@@ -168,6 +168,10 @@ static bool processDirFile(const char* root, const char* curr, const char* file,
     }
 }
 
+static bool isSelfPath(const char* path) {
+    return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
+}
+
 static bool walkDirectory(const char* root, const char* curr, const char* out) {
     DIR* currentDir = opendir(curr);
     if(currentDir == NULL) {
@@ -178,7 +182,7 @@ static bool walkDirectory(const char* root, const char* curr, const char* out) {
     bool allok = true;
     struct dirent* file;
     while((file = readdir(currentDir)) != NULL) {
-        if(strcmp(file->d_name, ".") == 0 || strcmp(file->d_name, "..") == 0) continue;
+        if(isSelfPath(file->d_name)) continue;
 
         switch(file->d_type) {
         case DT_DIR: {
