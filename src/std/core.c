@@ -57,11 +57,7 @@ static uint64_t hash64(uint64_t x) {
 }
 
 static uint32_t hashNumber(double num) {
-    union {
-        double num;
-        uint64_t raw;
-    } u = {.num = num == -0 ? 0 : num};
-    return (uint32_t)hash64(u.raw);
+    return (uint32_t)hash64(REINTERPRET_CAST(double, uint64_t, num == -0 ? 0 : num));
 }
 
 static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t size, bool* out) {
