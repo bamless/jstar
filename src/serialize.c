@@ -67,7 +67,7 @@ static void serializeString(JStarBuffer* buf, ObjString* str) {
     write(buf, str->data, str->length);
 }
 
-static void serializeConst(JStarBuffer* buf, Value c) {
+static void serializeConstLiteral(JStarBuffer* buf, Value c) {
     if(IS_NUM(c)) {
         serializeByte(buf, CONST_NUM);
         serializeDouble(buf, AS_NUM(c));
@@ -94,7 +94,7 @@ static void serializeCommon(JStarBuffer* buf, FnCommon* c) {
 
     serializeByte(buf, c->defCount);
     for(int i = 0; i < c->defCount; i++) {
-        serializeConst(buf, c->defaults[i]);
+        serializeConstLiteral(buf, c->defaults[i]);
     }
 }
 
@@ -115,7 +115,7 @@ static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
             serializeByte(buf, CONST_NAT);
             serializeNative(buf, AS_NATIVE(c));
         } else {
-            serializeConst(buf, c);
+            serializeConstLiteral(buf, c);
         }
     }
 }
