@@ -12,7 +12,7 @@
     #include <Windows.h>
     #define dynload(path)          LoadLibrary(path)
     #define dynfree(handle)        FreeLibrary(handle)
-    #define dynsim(handle, symbol) GetProcAddress(handle, symbol)
+    #define dynsim(handle, symbol) (void*)GetProcAddress(handle, symbol)
 #else
     #define dynload(path)          ((void*)0)
     #define dynfree(handle)        ((void)0)
