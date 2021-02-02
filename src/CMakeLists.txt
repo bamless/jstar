@@ -27,7 +27,6 @@ set(JSTAR_SOURCES
     const.h
     disassemble.c
     disassemble.h
-    dynload.c
     dynload.h
     gc.c
     gc.h
