@@ -803,6 +803,31 @@ JSR_NATIVE(jsr_String_join) {
     return true;
 }
 
+JSR_NATIVE(jsr_String_escaped) {
+    const char* str = jsrGetString(vm, 0);
+    size_t size = jsrGetStringSz(vm, 0);
+
+    const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
+    const char* unescaped = "0abfnrtv\\\"";
+
+    JStarBuffer esc;
+    jsrBufferInitCapacity(vm, &esc, size * 1.5);
+    for(size_t i = 0; i < size; i++) {
+        int j;
+        for(j = 0; j < 10; j++) {
+            if(str[i] == escaped[j]) {
+                jsrBufferAppendChar(&esc, '\\');
+                jsrBufferAppendChar(&esc, unescaped[j]);
+                break;
+            }
+        }
+        if(j == 10) jsrBufferAppendChar(&esc, str[i]);
+    }
+
+    jsrBufferPush(&esc);
+    return true;
+}
+
 static bool getFmtArgument(JStarVM* vm, Value args, size_t i, Value* out) {
     if(IS_TUPLE(args)) {
         ObjTuple* argsTuple = AS_TUPLE(args);

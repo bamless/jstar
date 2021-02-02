@@ -131,6 +131,7 @@ static Module builtInModules[] = {
             METHOD(strip,      jsr_String_strip)
             METHOD(chomp,      jsr_String_chomp)
             METHOD(join,       jsr_String_join)
+            METHOD(escaped,    jsr_String_escaped)
             METHOD(__mod__,    jsr_String_mod)
             METHOD(__eq__,     jsr_String_eq)
             METHOD(__len__,    jsr_String_len)

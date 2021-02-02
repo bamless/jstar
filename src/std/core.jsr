@@ -149,6 +149,7 @@ class String is Sequence
     native strip()
     native chomp()
     native join(iterable)
+    native escaped()
     native __mod__(args)
     native __eq__(o)
     native __len__()
