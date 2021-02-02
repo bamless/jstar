@@ -13,7 +13,7 @@
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
 
-#define REPL_PRINT   "_replprint"
+#define REPL_PRINT   "__replprint"
 #define JSTAR_PATH   "JSTARPATH"
 #define JSTAR_PROMPT "J*>> "
 #define LINE_PROMPT  ".... "
@@ -183,11 +183,11 @@ static int countBlocks(const char* line) {
     return depth;
 }
 
-static void addExprPrint(JStarBuffer* sb) {
+static void addReplPrint(JStarBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
-        jsrBufferAppendStr(sb, "\n_replprint(_)");
+        jsrBufferAppendf(sb, ";%s(_)", REPL_PRINT);
         jsrExprFree(e);
     }
 }
@@ -224,7 +224,7 @@ static void doRepl() {
             free(line);
         }
 
-        addExprPrint(&src);
+        addReplPrint(&src);
         res = evaluateString("<stdin>", src.data);
         jsrBufferClear(&src);
     }
