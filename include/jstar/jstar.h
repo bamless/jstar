@@ -215,12 +215,7 @@ typedef struct JStarNativeReg {
 
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
-#define JSR_REGEND                     \
-    {                                  \
-        REG_SENTINEL, {                \
-            .function = { NULL, NULL } \
-        }                              \
-    }
+#define JSR_REGEND                   {REG_SENTINEL, .function = { NULL, NULL }}}
 
 // -----------------------------------------------------------------------------
 // OVERLOADABLE OPERATOR API
