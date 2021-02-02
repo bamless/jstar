@@ -16,10 +16,7 @@
 #define STRLEN_FOR_SIGNED(t)   (STRLEN_FOR_UNSIGNED(t) + 1)
 #define STRLEN_FOR_UNSIGNED(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
 
-// -----------------------------------------------------------------------------
-// DEBUG ASSERTIONS
-// -----------------------------------------------------------------------------
-
+// Debug assertions
 #ifndef NDEBUG
     #include <stdio.h>
     #include <stdlib.h>
