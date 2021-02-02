@@ -87,7 +87,7 @@ static bool compileFile(const char* path, const char* out) {
 
     char outPath[FILENAME_MAX];
     if(out != NULL) {
-        strncpy(outPath, out, sizeof(outPath));
+        cwk_path_normalize(out, outPath, sizeof(outPath));
     } else {
         cwk_path_change_extension(path, JSC_EXT, outPath, sizeof(outPath));
     }
@@ -97,20 +97,20 @@ static bool compileFile(const char* path, const char* out) {
 
     JStarBuffer compiled;
     JStarResult res = jsrCompileCode(vm, path, src.data, &compiled);
+    jsrBufferFree(&src);
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error compiling file %s\n", path);
-        jsrBufferFree(&src);
         return false;
     }
 
-    jsrBufferFree(&src);
-
     if(opts.list) {
         jsrDisassembleCode(vm, &compiled);
-    } else if(!opts.compileOnly && !writeToFile(&compiled, outPath)) {
-        fprintf(stderr, "Failed to write %s: %s\n", outPath, strerror(errno));
-        jsrBufferFree(&compiled);
-        return false;
+    } else if(!opts.compileOnly) {
+        if(!writeToFile(&compiled, outPath)) {
+            fprintf(stderr, "Failed to write %s: %s\n", outPath, strerror(errno));
+            jsrBufferFree(&compiled);
+            return false;
+        }
     }
 
     jsrBufferFree(&compiled);
@@ -128,13 +128,12 @@ static bool disassembleFile(const char* path) {
     fflush(stdout);
 
     JStarResult res = jsrDisassembleCode(vm, &code);
+    jsrBufferFree(&code);
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error disassembling file %s\n", path);
-        jsrBufferFree(&code);
         return false;
     }
 
-    jsrBufferFree(&code);
     return true;
 }
 
