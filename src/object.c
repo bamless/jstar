@@ -272,8 +272,6 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
     return interned;
 }
 
-extern inline Value* getValues(Obj* obj, size_t* size);
-
 // -----------------------------------------------------------------------------
 // API - JStarBuffer function implementation
 // -----------------------------------------------------------------------------
@@ -551,3 +549,7 @@ void printObj(Obj* o) {
         break;
     }
 }
+
+// External definitions of inline functions
+extern inline uint32_t hashString(const char* str, size_t length);
+extern inline Value* getValues(Obj* obj, size_t* size);

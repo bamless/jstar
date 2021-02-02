@@ -301,6 +301,20 @@ JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
 // Convert a JStarBuffer to an ObjString
 ObjString* jsrBufferToString(JStarBuffer* b);
 
+// -----------------------------------------------------------------------------
+// Utility functions
+// -----------------------------------------------------------------------------
+
+// Hash a c-string
+inline uint32_t hashString(const char* str, size_t length) {
+    uint32_t hash = 2166136261u;
+    for(size_t i = 0; i < length; i++) {
+        hash ^= str[i];
+        hash *= 16777619;
+    }
+    return hash < 2 ? hash + 2 : hash;  // Reserve hash value 1 and 0
+}
+
 // Get the value array and size of a List or a Tuple
 inline Value* getValues(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");

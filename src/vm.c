@@ -45,6 +45,10 @@ static void initMainModule(JStarVM* vm) {
     compileWithModule(vm, "<main>", mainModuleName, NULL);  // Empty main module
 }
 
+static size_t roundUp(size_t num, size_t multiple) {
+    return ((num + multiple - 1) / multiple) * multiple;
+}
+
 JStarVM* jsrNewVM(const JStarConf* conf) {
     JStarVM* vm = calloc(1, sizeof(*vm));
     vm->errorCallback = conf->errorCallback;
@@ -756,6 +760,17 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
 
     ObjClass* cls = getClass(vm, val);
     return invokeMethod(vm, cls, name, argc);
+}
+
+static int powerOf2Ceil(int n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
 }
 
 inline void reserveStack(JStarVM* vm, size_t needed) {
