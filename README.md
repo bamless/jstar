@@ -107,8 +107,8 @@ compile source to bytecote before execution, but have nonetheless some nice adva
    means that they can be compiled once and shared across all systems that have a J* interpreter.
 
 # Special thanks
-Special thanks to Bob Nystrom and the invaluable [crafting interpreters](https://craftinginterpreters.com/),
-on which the VM is based.
+Special thanks to Bob Nystrom and the invaluable [crafting interpreters](https://craftinginterpreters.com/)
+book, on which the VM is based.
 
 My gratitude goes to the [Lua](http://www.lua.org/) project as well, for inspiring the stack-based 
 C API and its amazing [pattern matching](https://www.lua.org/pil/20.2.html) library, on which the 
