@@ -471,7 +471,7 @@ void printObj(Obj* o) {
     }
     case OBJ_CLASS: {
         ObjClass* cls = (ObjClass*)o;
-        printf("<class %s %s>", cls->name->data, cls->superCls ? "" : cls->superCls->name->data);
+        printf("<class %s %s>", cls->name->data, cls->superCls ? cls->superCls->name->data : "");
         break;
     }
     case OBJ_INST: {
