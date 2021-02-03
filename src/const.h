@@ -27,11 +27,11 @@
 // STRING CONSTANTS
 // -----------------------------------------------------------------------------
 
-#define CTOR_STR    "new"
-#define THIS_STR    "this"
-#define ARGV_STR    "argv"
-#define ANON_PREFIX "anon:"
-#define IMPORT_STR  "importPaths"
+#define CTOR_STR   "new"
+#define THIS_STR   "this"
+#define ARGV_STR   "argv"
+#define ANON_STR   "anon:"
+#define IMPORT_STR "importPaths"
 
 #define EXC_ERR   "_err"
 #define EXC_CAUSE "_cause"

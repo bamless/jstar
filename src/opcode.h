@@ -12,4 +12,4 @@ typedef enum Opcode {
 
 int opcodeArgsNumber(Opcode op);
 
-#endif  // OPCODE_H
+#endif

@@ -8,20 +8,11 @@
 #define CODE_GROW_FACT 2
 
 void initCode(Code* c) {
-    c->size = 0;
-    c->linesSize = 0;
-    c->count = 0;
-    c->linesCount = 0;
-    c->bytecode = NULL;
-    c->lines = NULL;
+    *c = (Code){0};
     initValueArray(&c->consts);
 }
 
 void freeCode(Code* c) {
-    c->size = 0;
-    c->count = 0;
-    c->linesSize = 0;
-    c->linesCount = 0;
     free(c->bytecode);
     free(c->lines);
     freeValueArray(&c->consts);

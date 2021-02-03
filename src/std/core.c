@@ -962,6 +962,7 @@ JSR_NATIVE(jsr_String_next) {
 // end
 
 // class Table
+#define TOMB_MARKER      TRUE_VAL
 #define MAX_LOAD_FACTOR  0.75
 #define INITIAL_CAPACITY 8
 #define GROW_FACTOR      2
@@ -983,8 +984,8 @@ static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
     push(vm, key);
     if(jsrCallMethod(vm, "__hash__", 0) != JSR_SUCCESS) return false;
     JSR_CHECK(Number, -1, "__hash__() return value");
-    *hash = (uint32_t)jsrGetNumber(vm, -1);
-    pop(vm);
+    *hash = (uint32_t)AS_NUM(pop(vm));
+
     return hash;
 }
 
@@ -998,6 +999,7 @@ static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
     push(vm, k2);
     if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
     *eq = valueToBool(pop(vm));
+
     return true;
 }
 
@@ -1037,8 +1039,7 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
     size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
     TableEntry* newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newSize);
     for(size_t i = 0; i < newSize; i++) {
-        newEntries[i].key = NULL_VAL;
-        newEntries[i].val = NULL_VAL;
+        newEntries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
 
     t->numEntries = 0, t->count = 0;
@@ -1049,8 +1050,7 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
 
             TableEntry* dest;
             findEntry(vm, newEntries, newSize - 1, e->key, &dest);
-            dest->key = e->key;
-            dest->val = e->val;
+            *dest = (TableEntry){e->key, e->val};
             t->numEntries++, t->count++;
         }
         GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
@@ -1139,16 +1139,14 @@ JSR_NATIVE(jsr_Table_set) {
         return false;
     }
 
-    bool isNew = IS_NULL(e->key);
-    if(isNew) {
+    bool newEntry = IS_NULL(e->key);
+    if(newEntry) {
         t->count++;
         if(IS_NULL(e->val)) t->numEntries++;
     }
 
-    e->key = vm->apiStack[1];
-    e->val = vm->apiStack[2];
-
-    push(vm, BOOL_VAL(isNew));
+    *e = (TableEntry){vm->apiStack[1], vm->apiStack[2]};
+    push(vm, BOOL_VAL(newEntry));
     return true;
 }
 
@@ -1171,8 +1169,7 @@ JSR_NATIVE(jsr_Table_delete) {
         return true;
     }
 
-    toDelete->key = NULL_VAL;
-    toDelete->val = TRUE_VAL;
+    *toDelete = (TableEntry){NULL_VAL, TOMB_MARKER};
     t->count--;
 
     push(vm, BOOL_VAL(true));
@@ -1183,8 +1180,7 @@ JSR_NATIVE(jsr_Table_clear) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
     t->numEntries = t->count = 0;
     for(size_t i = 0; i < t->sizeMask + 1; i++) {
-        t->entries[i].key = NULL_VAL;
-        t->entries[i].val = NULL_VAL;
+        t->entries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
     push(vm, NULL_VAL);
     return true;
@@ -1261,7 +1257,6 @@ JSR_NATIVE(jsr_Table_iter) {
     }
 
     size_t lastIdx = 0;
-
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
         if(idx >= t->sizeMask) {

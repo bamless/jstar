@@ -73,7 +73,7 @@ struct Compiler {
     JStarVM* vm;
     JStarBuffer stringBuf;
 
-    const char* filename;
+    const char* file;
 
     int depth;
     Compiler* prev;
@@ -94,20 +94,14 @@ struct Compiler {
     bool hadError;
 };
 
-static void initCompiler(Compiler* c, JStarVM* vm, const char* filename, Compiler* prev, FuncType t,
+static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType t,
                          JStarStmt* ast) {
+    *c = (Compiler){0};
     c->vm = vm;
-    c->filename = filename;
-    c->depth = 0;
+    c->file = file;
     c->prev = prev;
-    c->loops = NULL;
     c->type = t;
-    c->func = NULL;
     c->ast = ast;
-    c->localsCount = 0;
-    c->tryDepth = 0;
-    c->tryBlocks = NULL;
-    c->hadError = false;
     jsrBufferInit(vm, &c->stringBuf);
     vm->currCompiler = c;
 }
@@ -135,7 +129,7 @@ static void error(Compiler* c, int line, const char* format, ...) {
         jsrBufferAppendvf(&error, format, args);
         va_end(args);
 
-        vm->errorCallback(vm, JSR_COMPILE_ERR, c->filename, line, error.data);
+        vm->errorCallback(vm, JSR_COMPILE_ERR, c->file, line, error.data);
 
         jsrBufferFree(&error);
     }
@@ -626,8 +620,8 @@ static void compileFunction(Compiler* c, JStarStmt* s);
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* f = e->as.funLit.func;
     if(name == NULL) {
-        char funcName[sizeof(ANON_PREFIX) + STRLEN_FOR_INT(int) + 1];
-        sprintf(funcName, ANON_PREFIX "%d", f->line);
+        char funcName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
+        sprintf(funcName, ANON_STR "%d", f->line);
         f->as.funcDecl.id.length = strlen(funcName);
         f->as.funcDecl.id.name = funcName;
         compileFunction(c, f);
@@ -1501,7 +1495,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
 
 static void compileFunction(Compiler* c, JStarStmt* s) {
     Compiler funCompiler;
-    initCompiler(&funCompiler, c->vm, c->filename, c, TYPE_FUNC, s);
+    initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, s);
 
     enterFunctionScope(&funCompiler);
     ObjFunction* func = function(&funCompiler, c->func->c.module, s);
@@ -1543,7 +1537,7 @@ static void compileNative(Compiler* c, JStarStmt* s) {
 
 static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
     Compiler methodCompiler;
-    initCompiler(&methodCompiler, c->vm, c->filename, c, TYPE_METHOD, m);
+    initCompiler(&methodCompiler, c->vm, c->file, c, TYPE_METHOD, m);
 
     enterFunctionScope(&methodCompiler);
     ObjFunction* meth = method(&methodCompiler, c->func->c.module, &cls->as.classDecl.id, m);

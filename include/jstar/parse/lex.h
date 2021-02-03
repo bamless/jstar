@@ -13,8 +13,7 @@ typedef enum JStarTokType {
 typedef struct JStarTok {
     JStarTokType type;
     const char* lexeme;
-    int length;
-    int line;
+    int length, line;
 } JStarTok;
 
 typedef struct JStarLex {

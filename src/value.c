@@ -7,14 +7,10 @@
 #include "object.h"
 
 void initValueArray(ValueArray* a) {
-    a->size = 0;
-    a->count = 0;
-    a->arr = NULL;
+    *a = (ValueArray){0};
 }
 
 void freeValueArray(ValueArray* a) {
-    a->size = 0;
-    a->count = 0;
     free(a->arr);
 }
 
@@ -28,9 +24,7 @@ static bool shouldGrow(const ValueArray* a) {
 }
 
 static void ensureCapacity(ValueArray* a) {
-    if(shouldGrow(a)) {
-        grow(a);
-    }
+    if(shouldGrow(a)) grow(a);
 }
 
 int valueArrayAppend(ValueArray* a, Value v) {
