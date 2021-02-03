@@ -81,13 +81,13 @@ name implies, this is a compiler that takes in **J\*** source files, compiles th
 and stores them on file.
 
 Below is a typical usage of `jstarc`:
-```
+```bash
 jstarc src/file.jsr -o file.jsc
 ```
 You can even pass in a directory if you want to compile all `jsr` files contained in it:
-```
-This compiles all *.jsr files in `dir` and stores them in a directory `out`
-Both directories have to exist
+```bash
+# This compiles all *.jsr files in `dir` and stores them in a directory `out`
+# Both directories have to exist
 
 jstarc dir/ -o out/
 ```
@@ -99,10 +99,10 @@ Compiled files are not faster to execute than normal source files, as the **J\**
 compile source to bytecote before execution, but have nonetheless some nice advantages:
  - **Compactness**. compiled files are more compact than source files and generally take up less
    space
- - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option 
-   since all the source and almost all debug information are stripped
  - **Faster startup**. Reading a compiled file is orders of magnitude faster than parsing and
    compiling source code, so there's almost no delay between importing and actual execution
+ - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option 
+   since all the source and almost all debug information are stripped
  - **Platofrm indipendence**. Compiled files are cross-platform, just like normal source files. This
    means that they can be compiled once and shared across all systems that have a J* interpreter.
 
@@ -112,9 +112,9 @@ on which the VM is based.
 
 My gratitude goes to the [Lua](http://www.lua.org/) project as well, for inspiring the stack-based 
 C API and its amazing [pattern matching](https://www.lua.org/pil/20.2.html) library, on which the 
-`re` module is based.
-Also, the [closures in lua](https://www.cs.tufts.edu/~nr/cs257/archive/roberto-ierusalimschy/closures-draft.pdf) 
-and [implementation of lua 5](https://www.lua.org/doc/jucs05.pdf) articles were crucial for some
+`re` module is based on.
+Also, the [closures in Lua](https://www.cs.tufts.edu/~nr/cs257/archive/roberto-ierusalimschy/closures-draft.pdf) 
+and [implementation of Lua 5](https://www.lua.org/doc/jucs05.pdf) articles were crucial for some
 parts of the implementation.
 
 # Compilation
@@ -128,7 +128,7 @@ dependencies, linenoise-ng, is written in C++.
 
 You can clone the latest **J\*** sources using git:
 
-```z
+```bash
 git clone --recurse-submodules https://github.com/bamless/jstar.git
 ```
 
@@ -136,13 +136,13 @@ After cloning, use CMake to generate build files for your build system of choice
 target to generate the language dynamic/static libraries and the command line interface. On 
 UNIX-like systems this can be simply achieved by issuing this in the command line:
 
-```
+```bash
 cd jstar; mkdir build; cd build; cmake ..; make -j
 ```
 
 Once the build process is complete, you can install **J\*** by typing:
 
-```
+```bash
 sudo make install
 ```
 
