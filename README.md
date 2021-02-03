@@ -106,6 +106,16 @@ compile source to bytecote before execution, but have nonetheless some nice adva
  - **Platofrm indipendence**. Compiled files are cross-platform, just like normal source files. This
    means that they can be compiled once and shared across all systems that have a J* interpreter.
 
+# Special thanks
+Special thanks to Bob Nystrom and the invaluable [crafting interpreters](https://craftinginterpreters.com/),
+on which the VM is based.
+
+My gratitude goes to the [Lua](http://www.lua.org/) project as well, for inspiring the stack-based 
+C API and its amazing [pattern matching](https://www.lua.org/pil/20.2.html) library, on which the 
+`re` module is based.
+Also, the [closures in lua](https://www.cs.tufts.edu/~nr/cs257/archive/roberto-ierusalimschy/closures-draft.pdf) 
+and [implementation of lua 5](https://www.lua.org/doc/jucs05.pdf) articles were crucial for some
+parts of the implementation.
 
 # Compilation
 
@@ -118,7 +128,7 @@ dependencies, linenoise-ng, is written in C++.
 
 You can clone the latest **J\*** sources using git:
 
-```
+```z
 git clone --recurse-submodules https://github.com/bamless/jstar.git
 ```
 
