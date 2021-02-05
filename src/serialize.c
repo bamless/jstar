@@ -57,13 +57,11 @@ static void serializeDouble(JStarBuffer* buf, double num) {
 static void serializeString(JStarBuffer* buf, ObjString* str) {
     bool isShort = str->length <= UINT8_MAX;
     serializeByte(buf, isShort);
-
     if(isShort) {
         serializeByte(buf, (uint8_t)str->length);
     } else {
         serializeUint64(buf, (uint64_t)str->length);
     }
-
     write(buf, str->data, str->length);
 }
 
@@ -232,12 +230,10 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         *out = copyString(d->vm, str, length);
     } else {
         char* str = calloc(length, 1);
-
         if(!deserializeCString(d, str, length)) {
             free(str);
             return false;
         }
-
         *out = copyString(d->vm, str, length);
         free(str);
     }
