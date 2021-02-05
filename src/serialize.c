@@ -252,7 +252,7 @@ static bool deserializeDouble(Deserializer* d, double* out) {
     return true;
 }
 
-static bool deserializeConst(Deserializer* d, ConstType type, Value* out) {
+static bool deserializeConstLiteral(Deserializer* d, ConstType type, Value* out) {
     switch(type) {
     case CONST_NUM: {
         double num;
@@ -304,7 +304,7 @@ static bool deserializeCommon(Deserializer* d, FnCommon* c) {
     for(int i = 0; i < defCount; i++) {
         uint8_t valueType;
         if(!deserializeByte(d, &valueType)) return false;
-        if(!deserializeConst(d, valueType, c->defaults + i)) return false;
+        if(!deserializeConstLiteral(d, valueType, &c->defaults[i])) return false;
     }
 
     return true;
@@ -359,7 +359,7 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
             break;
         }
         default:
-            if(!deserializeConst(d, constType, consts->arr + i)) return false;
+            if(!deserializeConstLiteral(d, constType, &consts->arr[i])) return false;
             break;
         }
     }
