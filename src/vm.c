@@ -1319,19 +1319,19 @@ op_return:
     }
     
     TARGET(OP_IMPORT_NAME): {
-        ObjModule* m = getModule(vm, GET_STRING());
-        ObjString* n = GET_STRING();
+        ObjModule* module = getModule(vm, GET_STRING());
+        ObjString* name = GET_STRING();
 
-        if(n->data[0] == '*') {
-            hashTableImportNames(&vm->module->globals, &m->globals);
+        if(name->data[0] == '*') {
+            hashTableImportNames(&vm->module->globals, &module->globals);
         } else {
             Value val;
-            if(!hashTableGet(&m->globals, n, &val)) {
+            if(!hashTableGet(&module->globals, name, &val)) {
                 jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
-                         n->data, m->name->data);
+                         name->data, module->name->data);
                 UNWIND_STACK(vm);
             } 
-            hashTablePut(&vm->module->globals, n, val);
+            hashTablePut(&vm->module->globals, name, val);
         }
         DISPATCH();
     }
