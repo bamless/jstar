@@ -423,12 +423,14 @@ static bool getStringSubscript(JStarVM* vm) {
     return false;
 }
 
-static ObjString* stringConcatenate(JStarVM* vm, ObjString* s1, ObjString* s2) {
+static void concatStrings(JStarVM* vm) {
+    ObjString *s1 = AS_STRING(peek2(vm)), *s2 = AS_STRING(peek(vm));
     size_t length = s1->length + s2->length;
-    ObjString* str = allocateString(vm, length);
-    memcpy(str->data, s1->data, s1->length);
-    memcpy(str->data + s1->length, s2->data, s2->length);
-    return str;
+    ObjString* conc = allocateString(vm, length);
+    memcpy(conc->data, s1->data, s1->length);
+    memcpy(conc->data + s1->length, s2->data, s2->length);
+    pop(vm), pop(vm);
+    push(vm, OBJ_VAL(conc));
 }
 
 static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, MethodSymbol reverse) {
@@ -450,6 +452,18 @@ static bool binOverload(JStarVM* vm, const char* op, MethodSymbol overload, Meth
 
     jsrRaise(vm, "TypeException", "Operator %s not defined for types %s, %s", op, cls1->name->data,
              cls2->name->data);
+    return false;
+}
+
+static bool unaryOverload(JStarVM* vm, const char* op, MethodSymbol overload) {
+    Value method;
+    ObjClass* cls = getClass(vm, peek(vm));
+
+    if(hashTableGet(&cls->methods, vm->methodSyms[overload], &method)) {
+        return callValue(vm, method, 0);
+    }
+
+    jsrRaise(vm, "TypeException", "Unary operator %s not defined for type %s", op, cls->name->data);
     return false;
 }
 
@@ -651,7 +665,7 @@ bool setSubscriptOfValue(JStarVM* vm) {
     }
 
     // swap operand and value to prepare function call
-    swapStackSlots(vm, -1, -3); 
+    swapStackSlots(vm, -1, -3);
     if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
         return false;
     }
@@ -860,6 +874,19 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(!res) UNWIND_STACK(vm);                          \
     } while(0)
 
+#define UNARY(type, op, overload)                        \
+    do {                                                 \
+        if(IS_NUM(peek(vm))) {                           \
+            double n = AS_NUM(pop(vm));                  \
+            push(vm, type(op(n)));                       \
+        } else {                                         \
+            SAVE_STATE();                                \
+            bool res = unaryOverload(vm, #op, overload); \
+            LOAD_STATE();                                \
+            if(!res) UNWIND_STACK(vm);                   \
+        }                                                \
+    } while(0)
+
 #define RESTORE_HANDLER(h, frame, cause, excVal) \
     do {                                         \
         frame->ip = h->address;                  \
@@ -939,9 +966,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(a + b));
         } else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
-            ObjString* conc = stringConcatenate(vm, AS_STRING(peek2(vm)), AS_STRING(peek(vm)));
-            pop(vm), pop(vm);
-            push(vm, OBJ_VAL(conc));
+            concatStrings(vm);
         } else {
             BINARY_OVERLOAD(+, SYM_ADD, SYM_RADD);
         }
@@ -973,28 +998,14 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-    
-    TARGET(OP_POW): {
-        if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-            jsrRaise(vm, "TypeException", "Operands of `^` must be numbers");
-            UNWIND_STACK(vm);
-        }
-        double y = AS_NUM(pop(vm));
-        double x = AS_NUM(pop(vm));
-        push(vm, NUM_VAL(pow(x, y)));
+
+    TARGET(OP_NEG): {
+        UNARY(NUM_VAL, -, SYM_NEG);
         DISPATCH();
     }
 
-    TARGET(OP_NEG): {
-        if(IS_NUM(peek(vm))) {
-            push(vm, NUM_VAL(-AS_NUM(pop(vm))));
-        } else {
-            ObjClass* cls = getClass(vm, peek(vm));
-            SAVE_STATE();
-            bool res = invokeMethod(vm, cls, vm->methodSyms[SYM_NEG], 0);
-            LOAD_STATE();
-            if(!res) UNWIND_STACK(vm);
-        }
+    TARGET(OP_NOT): {
+        push(vm, BOOL_VAL(!valueToBool(pop(vm))));
         DISPATCH();
     }
 
@@ -1026,15 +1037,22 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-
-    TARGET(OP_NOT): {
-        push(vm, BOOL_VAL(!valueToBool(pop(vm))));
+        
+    TARGET(OP_POW): {
+        if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
+            jsrRaise(vm, "TypeException", "Operator ^ not defined for types %s, %s", 
+                     getClass(vm, peek2(vm))->name->data, getClass(vm, peek(vm))->name->data);
+            UNWIND_STACK(vm);
+        }
+        double y = AS_NUM(pop(vm));
+        double x = AS_NUM(pop(vm));
+        push(vm, NUM_VAL(pow(x, y)));
         DISPATCH();
     }
 
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
-            jsrRaise(vm, "TypeException", "Right operand of `is` must be a class.");
+            jsrRaise(vm, "TypeException", "Right operand of `is` must be a Class");
             UNWIND_STACK(vm);
         }
         Value b = pop(vm);
