@@ -63,7 +63,7 @@ typedef uint64_t Value;
     // clang-format off
 
 #define SIGN ((uint64_t)1 << 63)
-#define QNAN ((uint64_t)0x7FFC000000000000)
+#define QNAN ((uint64_t)0x7ffc000000000000)
 
 #define MASK_TAG  3
 #define NULL_TAG  1
