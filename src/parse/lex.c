@@ -210,14 +210,13 @@ static bool stringBody(JStarLex* lex, char end) {
 static void string(JStarLex* lex, char end, JStarTok* tok) {
     if(!stringBody(lex, end)) {
         makeToken(lex, tok, TOK_UNTERMINATED_STR);
-        return;
+    } else {
+        makeToken(lex, tok, TOK_STRING);
     }
-    makeToken(lex, tok, TOK_STRING);
 }
 
 static void identifier(JStarLex* lex, JStarTok* tok) {
     while(isAlphaNum(peekChar(lex))) advance(lex);
-
     JStarTokType type = TOK_IDENTIFIER;
 
     // See if the identifier is a reserved word.
