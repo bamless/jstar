@@ -137,13 +137,13 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
 }
 
 JStarResult jsrDisassembleCode(JStarVM* vm, const JStarBuffer* code) {
-    if(!isCompiledCode(code)) return JSR_DESERIALIZE_ERR;
+    if(!isCompiledCode(code)) {
+        return JSR_DESERIALIZE_ERR;
+    }
 
     JStarResult ret;
-
-    // The code will be only deserialized and not executed, so use dummy module with empty name
-    ObjString* dummyModule = copyString(vm, "", 0);
-    ObjFunction* fn = deserializeWithModule(vm, dummyModule, code, &ret);
+    ObjString* dummy = copyString(vm, "", 0);  // Use dummy module since the code won't be executed
+    ObjFunction* fn = deserializeWithModule(vm, dummy, code, &ret);
     if(ret == JSR_SUCCESS) {
         disassembleFunction(fn);
     }
@@ -268,9 +268,7 @@ void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
     argvList->count = 0;
     for(int i = 0; i < argc; i++) {
         Value arg = OBJ_VAL(copyString(vm, argv[i], strlen(argv[i])));
-        push(vm, arg);
         listAppend(vm, argvList, arg);
-        pop(vm);
     }
 }
 
@@ -285,21 +283,20 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     int saveErrno;
     size_t read;
+    
     FILE* src = fopen(path, "rb");
-
     if(src == NULL) {
         return false;
     }
 
     char header[SER_HEADER_SIZE];
-
     read = fread(header, 1, SER_HEADER_SIZE, src);
     if(ferror(src)) {
         goto error;
     }
 
     bool isCompiled = read == SER_HEADER_SIZE && memcmp(SER_FILE_HEADER, header, read) == 0;
-    
+
     if(fseek(src, 0, SEEK_END)) {
         goto error;
     }
@@ -310,7 +307,6 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     }
 
     rewind(src);
-
     jsrBufferInitCapacity(vm, out, size + (isCompiled ? 0 : 1));
 
     read = fread(out->data, 1, size, src);

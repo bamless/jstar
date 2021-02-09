@@ -126,8 +126,8 @@ ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint
     size_t i = hash & t->sizeMask;
     for(;;) {
         Entry* e = &t->entries[i];
-        if(!e->key && IS_NULL(e->value)) {
-            return NULL;
+        if(!e->key) {
+            if(IS_NULL(e->value)) return NULL;
         } else if(STRING_GET_HASH(e->key) == hash && e->key->length == length &&
                   memcmp(e->key->data, str, length) == 0) {
             return e->key;
