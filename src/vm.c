@@ -924,7 +924,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             printf("]");                             \
         }                                            \
         printf("$\n");                               \
-        disassembleIstr(&fn->code, (size_t)(ip - fn->code.bytecode));
+        disassembleIstr(&fn->code, 0, (size_t)(ip - fn->code.bytecode));
 #else
     #define PRINT_DBG_STACK()
 #endif

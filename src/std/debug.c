@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "code.h"
 #include "disassemble.h"
+#include "hashtable.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"

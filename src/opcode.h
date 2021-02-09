@@ -1,8 +1,6 @@
 #ifndef OPCODE_H
 #define OPCODE_H
 
-#include "util.h"
-
 extern const char* OpcodeNames[];
 
 typedef enum Opcode {

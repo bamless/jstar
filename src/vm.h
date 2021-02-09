@@ -1,6 +1,7 @@
 #ifndef VM_H
 #define VM_H
 
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -11,7 +12,6 @@
 #include "jstar.h"
 #include "object.h"
 #include "opcode.h"
-#include "signal.h"
 #include "util.h"
 #include "value.h"
 

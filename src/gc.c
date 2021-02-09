@@ -1,5 +1,6 @@
 #include "gc.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 

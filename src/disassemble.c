@@ -5,7 +5,6 @@
 #include <stdio.h>
 
 #include "opcode.h"
-#include "util.h"
 #include "value.h"
 
 #define INDENT 4

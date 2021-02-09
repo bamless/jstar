@@ -2,10 +2,6 @@
 #define UTIL_H
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include "jstarconf.h"
 
 // Reinterprets the bits of the value `v` from type F to type T
 #define REINTERPRET_CAST(F, T, v) ((union {F f; T t;}){.f = (v)}.t)

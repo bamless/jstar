@@ -1,6 +1,6 @@
-#include <unistd.h>
-
 #include "colorio.h"
+
+#include <unistd.h>
 
 static const char* colors[] = {
     [COLOR_BLACK] = "\x1b[30m",

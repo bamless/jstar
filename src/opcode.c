@@ -1,5 +1,7 @@
 #include "opcode.h"
 
+#include "util.h"
+
 // Create string names of opcodes
 const char* OpcodeNames[] = {
 #define OPCODE(opcode, _) #opcode,

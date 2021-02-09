@@ -1,7 +1,6 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include <stdbool.h>
 #include <stdlib.h>
 
 #include "jstar.h"

@@ -5,7 +5,6 @@
 
 #include "code.h"
 #include "object.h"
-#include "opcode.h"
 
 void disassembleFunction(ObjFunction* fn);
 void disassembleNative(ObjNative* nat);
