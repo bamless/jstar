@@ -29,7 +29,7 @@ static size_t countInstructions(Code* c) {
 
 static void disassembleCode(Code* c, int indent) {
     for(size_t i = 0; i < c->count;) {
-        disassembleIstr(c, indent, i);
+        disassembleInstr(c, indent, i);
         Opcode instr = c->bytecode[i];
         if(instr == OP_CLOSURE) {
             Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
@@ -142,13 +142,13 @@ static void closureInstruction(Code* c, int indent, size_t i) {
     }
 }
 
-void disassembleIstr(Code* c, int indent, size_t i) {
+void disassembleInstr(Code* c, int indent, size_t instr) {
     for(int i = 0; i < indent; i++) {
         printf(" ");
     }
-    printf("%.4zu %s ", i, OpcodeNames[c->bytecode[i]]);
+    printf("%.4zu %s ", instr, OpcodeNames[c->bytecode[instr]]);
 
-    switch(c->bytecode[i]) {
+    switch(c->bytecode[instr]) {
     case OP_NATIVE:
     case OP_IMPORT:
     case OP_IMPORT_FROM:
@@ -186,7 +186,7 @@ void disassembleIstr(Code* c, int indent, size_t i) {
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
     case OP_DEFINE_GLOBAL:
-        constInstruction(c, i);
+        constInstruction(c, instr);
         break;
     case OP_JUMP:
     case OP_JUMPT:
@@ -194,16 +194,16 @@ void disassembleIstr(Code* c, int indent, size_t i) {
     case OP_FOR_NEXT:
     case OP_SETUP_EXCEPT:
     case OP_SETUP_ENSURE:
-        signedOffsetInstruction(c, i);
+        signedOffsetInstruction(c, instr);
         break;
     case OP_IMPORT_AS:
     case OP_NAT_METHOD:
     case OP_IMPORT_NAME:
-        const2Instruction(c, i);
+        const2Instruction(c, instr);
         break;
     case OP_INVOKE:
     case OP_SUPER:
-        invokeInstruction(c, i);
+        invokeInstruction(c, instr);
         break;
     case OP_POPN:
     case OP_CALL:
@@ -214,10 +214,10 @@ void disassembleIstr(Code* c, int indent, size_t i) {
     case OP_SET_LOCAL:
     case OP_GET_UPVALUE:
     case OP_SET_UPVALUE:
-        unsignedByteInstruction(c, i);
+        unsignedByteInstruction(c, instr);
         break;
     case OP_CLOSURE:
-        closureInstruction(c, indent, i);
+        closureInstruction(c, indent, instr);
         break;
     default:
         break;
