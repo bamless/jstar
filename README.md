@@ -12,7 +12,7 @@
 another program. It arises from the need of having a modern scripting language with built-in
 support for OOP whilst mantaning simplicity of use and a low memory footprint. It can be viewed as 
 a middle ground between Python, a more complete scripting language with lots of features and 
-libraries, and LUA, a small and compact language that is simple to embed but doesn't  provide OOP 
+libraries, and Lua, a small and compact language that is simple to embed but doesn't  provide OOP 
 functionalities out of the box.  
 J* tries to take the best of both worlds, implementing a fully featured class system while 
 maintaining a small standard library and employing the use of a stack based API for communication 
@@ -22,7 +22,7 @@ among the language and host program, rendering embedding simple.
  - **Small**. The implementation spans only a handful of files and the memory footprint is low
    thanks to a minimal standard library that provides only essential functionalities
  - **Easy to use**. The API is contained in a single header file and employs a stack based approach
-   similar to the one of LUA, freeing the user from the burden of keeping track of memory owned by
+   similar to the one of Lua, freeing the user from the burden of keeping track of memory owned by
    the language
  - **Fully object oriented**. Every entity, from numbers to class instances, is an object in **J\***
  - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
@@ -103,7 +103,7 @@ compile source to bytecote before execution, but have nonetheless some nice adva
    compiling source code, so there's almost no delay between importing and actual execution
  - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option 
    since all the source and almost all debug information are stripped
- - **Platofrm indipendence**. Compiled files are cross-platform, just like normal source files. This
+ - **Platform indipendence**. Compiled files are cross-platform, just like normal source files. This
    means that they can be compiled once and shared across all systems that have a J* interpreter.
 
 # Special thanks
