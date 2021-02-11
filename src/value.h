@@ -108,7 +108,7 @@ typedef enum {
     VAL_HANDLE,
 } ValueType;
 
-typedef struct {
+typedef struct Value {
     ValueType type;
     union {
         bool boolean;

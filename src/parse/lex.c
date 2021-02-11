@@ -9,7 +9,7 @@ const char* JStarTokName[] = {
 #include "parse/token.def"
 };
 
-typedef struct {
+typedef struct Keyword {
     const char* name;
     size_t length;
     JStarTokType type;

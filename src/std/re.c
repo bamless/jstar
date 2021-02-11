@@ -24,7 +24,7 @@
         jsrRaise(rs->vm, "RegexException", error, ##__VA_ARGS__); \
     } while(0)
 
-typedef struct {
+typedef struct RegexState {
     const char *str, *end;
     JStarVM* vm;
     bool hadError;

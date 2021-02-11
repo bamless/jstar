@@ -413,7 +413,7 @@ JSR_NATIVE(jsr_List_clear) {
     return true;
 }
 
-typedef struct {
+typedef struct MergeState {
     JStarVM* vm;
     Value *list, *tmp;
     int64_t length;

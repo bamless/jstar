@@ -140,7 +140,7 @@ typedef struct ObjModule {
 } ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)
-typedef struct {
+typedef struct FnCommon {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -190,7 +190,7 @@ typedef struct ObjTuple {
     Value arr[];  // Tuple elements (flexible array)
 } ObjTuple;
 
-typedef struct {
+typedef struct TableEntry {
     Value key;  // The key of the entry
     Value val;  // The actual value
 } TableEntry;
@@ -234,7 +234,7 @@ typedef struct ObjClosure {
     ObjUpvalue* upvalues[];  // the actual Upvalues
 } ObjClosure;
 
-typedef struct {
+typedef struct FrameRecord {
     int line;
     ObjString* moduleName;
     ObjString* funcName;

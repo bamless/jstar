@@ -317,7 +317,7 @@ static JStarExpr* expression(Parser* p, bool parseTuple);
 static JStarExpr* literal(Parser* p);
 static JStarExpr* tupleLiteral(Parser* p);
 
-typedef struct {
+typedef struct FormalArgs {
     Vector arguments;
     Vector defaults;
     bool isVararg;
