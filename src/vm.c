@@ -1475,9 +1475,9 @@ op_return:
     TARGET(OP_SETUP_ENSURE): {
         uint16_t offset = NEXT_SHORT();
         Handler* handler = &frame->handlers[frame->handlerc++];
+        handler->type = op == OP_SETUP_ENSURE ? HANDLER_ENSURE : HANDLER_EXCEPT;
         handler->address = ip + offset;
         handler->savedSp = vm->sp;
-        handler->type = op;
         DISPATCH();
     }
     

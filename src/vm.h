@@ -59,10 +59,11 @@ typedef enum MethodSymbol {
 // to handler code and to restore the
 // VM state when handling exceptions
 typedef struct Handler {
-#define HANDLER_ENSURE OP_SETUP_ENSURE
-#define HANDLER_EXCEPT OP_SETUP_EXCEPT
-    uint8_t type;      // The type of the handler block (HANDLER_ENSURE/HANDLER_EXCEPT)
-    uint8_t* address;  // The address of the handler code
+    enum {
+        HANDLER_ENSURE,
+        HANDLER_EXCEPT,
+    } type;            // The type of the handler block
+    uint8_t* address;  // The address of handler code
     Value* savedSp;    // Stack pointer to restore before executing the code at `address`
 } Handler;
 
