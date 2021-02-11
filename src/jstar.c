@@ -119,7 +119,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
-    JStarStmt* program = jsrParse(path, src, &parseErrorCallback, vm);
+    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
