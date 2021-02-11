@@ -545,7 +545,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 // VM API
 // -----------------------------------------------------------------------------
 
-bool getFieldOfValue(JStarVM* vm, ObjString* name) {
+bool getValueField(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -601,7 +601,7 @@ bool getFieldOfValue(JStarVM* vm, ObjString* name) {
     return true;
 }
 
-bool setFieldOfValue(JStarVM* vm, ObjString* name) {
+bool setValueField(JStarVM* vm, ObjString* name) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
         switch(OBJ_TYPE(val)) {
@@ -626,7 +626,7 @@ bool setFieldOfValue(JStarVM* vm, ObjString* name) {
     return false;
 }
 
-bool getSubscriptOfValue(JStarVM* vm) {
+bool getValueSubscript(JStarVM* vm) {
     if(IS_OBJ(peek2(vm))) {
         Value operand = peek2(vm);
         switch(OBJ_TYPE(operand)) {
@@ -647,7 +647,7 @@ bool getSubscriptOfValue(JStarVM* vm) {
     return true;
 }
 
-bool setSubscriptOfValue(JStarVM* vm) {
+bool setValueSubscript(JStarVM* vm) {
     if(IS_LIST(peek(vm))) {
         Value operand = pop(vm), arg = pop(vm), val = peek(vm);
 
@@ -1063,7 +1063,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_SUBSCR_GET): {
         SAVE_STATE();
-        bool res = getSubscriptOfValue(vm);
+        bool res = getValueSubscript(vm);
         LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
@@ -1071,21 +1071,21 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_SUBSCR_SET): {
         SAVE_STATE();
-        bool res = setSubscriptOfValue(vm);
+        bool res = setValueSubscript(vm);
         LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
     TARGET(OP_GET_FIELD): {
-        if(!getFieldOfValue(vm, GET_STRING())) {
+        if(!getValueField(vm, GET_STRING())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
     }
 
     TARGET(OP_SET_FIELD): {
-        if(!setFieldOfValue(vm, GET_STRING())) {
+        if(!setValueField(vm, GET_STRING())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1581,12 +1581,16 @@ bool unwindStack(JStarVM* vm, int depth) {
         Frame* frame = &vm->frames[vm->frameCount - 1];
 
         switch(frame->fn->type) {
-        case OBJ_CLOSURE:
-            vm->module = ((ObjClosure*)frame->fn)->fn->c.module;
+        case OBJ_CLOSURE: {
+            ObjClosure* closure = (ObjClosure*)frame->fn;
+            vm->module = closure->fn->c.module;
             break;
-        case OBJ_NATIVE:
-            vm->module = ((ObjNative*)frame->fn)->c.module;
+        }
+        case OBJ_NATIVE: {
+            ObjNative* native = (ObjNative*)frame->fn;
+            vm->module = native->c.module;
             break;
+        }
         default:
             UNREACHABLE();
             break;

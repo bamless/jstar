@@ -542,13 +542,13 @@ size_t jsrTupleGetLength(JStarVM* vm, int slot) {
 bool jsrSubscriptGet(JStarVM* vm, int slot) {
     push(vm, apiStackSlot(vm, slot));
     swapStackSlots(vm, -1, -2);
-    return getSubscriptOfValue(vm);
+    return getValueSubscript(vm);
 }
 
 bool jsrSubscriptSet(JStarVM* vm, int slot) {
     swapStackSlots(vm, -1, -2);
     push(vm, apiStackSlot(vm, slot));
-    return setSubscriptOfValue(vm);
+    return setValueSubscript(vm);
 }
 
 size_t jsrGetLength(JStarVM* vm, int slot) {
@@ -565,12 +565,12 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return setFieldOfValue(vm, copyString(vm, name, strlen(name)));
+    return setValueField(vm, copyString(vm, name, strlen(name)));
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return getFieldOfValue(vm, copyString(vm, name, strlen(name)));
+    return getValueField(vm, copyString(vm, name, strlen(name)));
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
