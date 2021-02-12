@@ -142,9 +142,9 @@ static size_t emitBytecode(Compiler* c, uint8_t b, int line) {
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
-    size_t i = emitBytecode(c, (uint8_t)(s >> 8), line);
+    size_t addr = emitBytecode(c, (uint8_t)(s >> 8), line);
     emitBytecode(c, (uint8_t)s, line);
-    return i;
+    return addr;
 }
 
 static size_t getCurrentAddr(Compiler* c) {
@@ -362,7 +362,6 @@ static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
 
     size_t jmpAddr = emitBytecode(c, jmpOp, line);
     emitShort(c, (uint16_t)offset, line);
-
     return jmpAddr;
 }
 
@@ -869,7 +868,7 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.table.keyVals;
-    for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list);) {
+    for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list); it += 2) {
         JStarExpr* key = *it;
         JStarExpr* val = *(it + 1);
 
@@ -878,8 +877,6 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
         compileExpr(c, val);
         emitMethodCall(c, "__set__", 2);
         emitBytecode(c, OP_POP, e->line);
-
-        it += 2;
     }
 }
 
@@ -922,7 +919,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileExpExpr(c, e);
         break;
     case JSR_EXPR_LST:
-        vecForeach(JStarExpr **it, e->as.list) {
+        vecForeach(JStarExpr** it, e->as.list) {
             compileExpr(c, *it);
         }
         break;
@@ -966,7 +963,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
 static void compileStatement(Compiler* c, JStarStmt* s);
 
 static void compileStatements(Compiler* c, Vector* stmts) {
-    vecForeach(JStarStmt **it, *stmts) {
+    vecForeach(JStarStmt** it, *stmts) {
         compileStatement(c, *it);
     }
 }
@@ -1056,8 +1053,8 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
  * end
  *
  * begin
+ *     var _iter = null
  *     var _expr = iterable
- *     var _iter
  *     while _iter = _expr.__iter__(_iter) do
  *         var i = _expr.__next__(_iter)
  *         ...
@@ -1078,8 +1075,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarIdentifier iterator = createIdentifier(".iter");
     Variable iterVar = declareVar(c, &iterator, false, s->line);
     defineVar(c, &iterVar, s->line);
-
-    emitBytecode(c, OP_NULL, 0);
+    emitBytecode(c, OP_NULL, 0);  // initialize `.iter` to null
 
     Loop l;
     startLoop(c, &l);
@@ -1092,7 +1088,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    vecForeach(JStarIdentifier **id, varDecl->as.varDecl.ids) {
+    vecForeach(JStarIdentifier** id, varDecl->as.varDecl.ids) {
         Variable var = declareVar(c, *id, false, s->line);
         defineVar(c, &var, s->line);
     }
@@ -1150,8 +1146,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
 
     // compile submodule imports
     for(size_t i = 1; i < vecSize(modules); i++) {
-        // pop previous import result
-        emitBytecode(c, OP_POP, s->line);
+        emitBytecode(c, OP_POP, s->line);  // pop previous import result
 
         JStarIdentifier* subModuleId = (JStarIdentifier*)vecGet(modules, i);
         jsrBufferAppendf(&fullName, ".%.*s", subModuleId->length, subModuleId->name);
@@ -1162,14 +1157,14 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
 
     if(isImportFor) {
         uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
-        vecForeach(JStarIdentifier **it, *names) {
+        vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, moduleConst, s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
         }
     } else if(isImportAs) {
-        // set last import as an import as
+        // set last import as an `import as`
         c->func->code.bytecode[getCurrentAddr(c) - 3] = OP_IMPORT_AS;
         emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
     }
@@ -1178,13 +1173,13 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     jsrBufferFree(&fullName);
 }
 
-static void compileExcepts(Compiler* c, Vector* excs, size_t n) {
-    JStarStmt* handler = vecGet(excs, n);
+static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
+    JStarStmt* except = vecGet(excepts, n);
 
     JStarIdentifier exception = createIdentifier(".exception");
-    compileVariable(c, &exception, false, handler->line);
+    compileVariable(c, &exception, false, except->line);
 
-    compileExpr(c, handler->as.excStmt.cls);
+    compileExpr(c, except->as.excStmt.cls);
     emitBytecode(c, OP_IS, 0);
 
     size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
@@ -1192,30 +1187,30 @@ static void compileExcepts(Compiler* c, Vector* excs, size_t n) {
 
     enterScope(c);
 
-    compileVariable(c, &exception, false, handler->line);
-    Variable excVar = declareVar(c, &handler->as.excStmt.var, false, handler->line);
-    defineVar(c, &excVar, handler->line);
+    compileVariable(c, &exception, false, except->line);
+    Variable excVar = declareVar(c, &except->as.excStmt.var, false, except->line);
+    defineVar(c, &excVar, except->line);
 
-    JStarStmt* excBody = handler->as.excStmt.block;
-    compileStatements(c, &excBody->as.blockStmt.stmts);
+    JStarStmt* body = except->as.excStmt.block;
+    compileStatements(c, &body->as.blockStmt.stmts);
 
-    emitBytecode(c, OP_NULL, handler->line);
-    compileVariable(c, &exception, true, handler->line);
-    emitBytecode(c, OP_POP, handler->line);
+    emitBytecode(c, OP_NULL, except->line);
+    compileVariable(c, &exception, true, except->line);
+    emitBytecode(c, OP_POP, except->line);
 
     exitScope(c);
 
     size_t exitJmp = 0;
-    if(n < vecSize(excs) - 1) {
+    if(n < vecSize(excepts) - 1) {
         exitJmp = emitBytecode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), handler->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), except->line);
 
-    if(n < vecSize(excs) - 1) {
-        compileExcepts(c, excs, n + 1);
-        setJumpTo(c, exitJmp, getCurrentAddr(c), handler->line);
+    if(n < vecSize(excepts) - 1) {
+        compileExcepts(c, excepts, n + 1);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), except->line);
     }
 }
 
@@ -1411,7 +1406,7 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     JStarIdentifier id = createIdentifier("");
     addLocal(c, &id, s->line);
 
-    vecForeach(JStarIdentifier **it, s->as.funcDecl.formalArgs) {
+    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
         Variable arg = declareVar(c, *it, false, s->line);
         defineVar(c, &arg, s->line);
     }
@@ -1463,7 +1458,7 @@ static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* clas
     defineVar(c, &thisVar, s->line);
 
     // define and declare arguments
-    vecForeach(JStarIdentifier **it, s->as.funcDecl.formalArgs) {
+    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
         Variable arg = declareVar(c, *it, false, s->line);
         defineVar(c, &arg, s->line);
     }
@@ -1593,7 +1588,7 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
-    vecForeach(JStarIdentifier **it, s->as.varDecl.ids) {
+    vecForeach(JStarIdentifier** it, s->as.varDecl.ids) {
         Variable var = declareVar(c, *it, s->as.varDecl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;
         vars[varsCount++] = var;
