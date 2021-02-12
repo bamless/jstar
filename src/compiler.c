@@ -354,8 +354,8 @@ static void assertJumpOpcode(Opcode op) {
 
 static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
     assertJumpOpcode(jmpOp);
+    
     int32_t offset = target - (getCurrentAddr(c) + opcodeArgsNumber(jmpOp) + 1);
-
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over");
     }
@@ -372,7 +372,6 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
     assertJumpOpcode(jmpOp);
 
     int32_t offset = target - (jumpAddr + opcodeArgsNumber(jmpOp) + 1);
-
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over");
     }
@@ -621,12 +620,10 @@ static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) 
     if(name == NULL) {
         char funcName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
         sprintf(funcName, ANON_STR "%d", f->line);
-        f->as.funcDecl.id.length = strlen(funcName);
-        f->as.funcDecl.id.name = funcName;
+        f->as.funcDecl.id = createIdentifier(funcName);
         compileFunction(c, f);
     } else {
-        f->as.funcDecl.id.length = name->length;
-        f->as.funcDecl.id.name = name->name;
+        f->as.funcDecl.id = *name;
         compileFunction(c, f);
     }
 }
@@ -668,8 +665,8 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
 static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector* boundNames) {
     int i = 0;
     vecForeach(JStarExpr **it, exprs->as.list) {
-        JStarExpr* e = *it;
-        compileRval(c, e, boundNames ? vecGet(boundNames, i) : NULL);
+        JStarIdentifier* name = boundNames ? vecGet(boundNames, i) : NULL;
+        compileRval(c, *it, name);
         if(++i > num) emitBytecode(c, OP_POP, 0);
     }
     if(i < num) {
