@@ -34,7 +34,7 @@ fun randint(a, b=null)
     typeAssert(b, Number, "b")
 
     assert(a.isInt() and b.isInt(), "a and b must be integers")
-    assert(a < b, "a must be < b", InvalidArgException)
+    assert(a < b, "a must be < b")
 
     return int(a + random() * (b - a + 1))
 end
