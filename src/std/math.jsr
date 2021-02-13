@@ -26,16 +26,14 @@ native random()
 native seed(s)
 
 fun randint(a, b=null)
-    typeAssert(a, Number, "a")
-    if b != null then 
-        typeAssert(b, Number, "b") 
-    end
-    
     if b == null then
         a, b = 0, a
     end
 
-    assert(a.isInt() and b.isInt(), "a and b must be integers", TypeException)
+    typeAssert(a, Number, "a")
+    typeAssert(b, Number, "b")
+
+    assert(a.isInt() and b.isInt(), "a and b must be integers")
     assert(a < b, "a must be < b", InvalidArgException)
 
     return int(a + random() * (b - a + 1))
