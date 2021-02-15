@@ -37,50 +37,88 @@ class StackTrace end
 class Userdata end
 
 class Iterable
-    fun __iter__(i)
-        raise NotImplementedException("Iterable must implement __iter__()")
-    end
-
-    fun __next__(i)
-        raise NotImplementedException("Iterable must implement __next__()")
-    end
-
     fun forEach(func)
         for var e in this do
             func(e)
         end
     end
 
-    fun enumerate() 
-        return IEnumerate(this)
+    fun sum()
+        var res = 0
+        for var e in this do
+            res += e
+        end
+        return res
     end
 
-    fun map(func)
-        return IMap(func, this)
+    fun reduce(fn)
+        var iter = this.__iter__(null)
+        if !iter then 
+            return null 
+        end
+
+        var accu = this.__next__(iter) 
+        while iter = this.__iter__(iter) do
+            accu = fn(accu, this.__next__(iter))
+        end
+
+        return accu
     end
 
-    fun filter(func) 
-        return IFilter(func, this)
+    fun any(predicate)
+        for var e in this do
+            if predicate(e) then
+                return true
+            end
+        end
+        return false
+    end
+
+    fun all(predicate)
+        for var e in this do
+            if !predicate(e) then
+                return false
+            end
+        end
+        return true
+    end
+
+    fun enumerate(start=0) 
+        return IEnumerate(this, start)
+    end
+
+    fun map(fn)
+        return IMap(fn, this)
+    end
+
+    fun filter(fn) 
+        return IFilter(fn, this)
     end
 
     fun zip(iterable)
         return IZip(this, iterable)
     end
+
+    fun sorted()
+        var lst = List(this)
+        lst.sort()
+        return lst
+    end
+
+    fun toList()
+        return List(this)
+    end
+
+    fun toTuple()
+        return Tuple(this)
+    end
+
+    fun toTable()
+        return Table(this)
+    end
 end
 
 class Sequence is Iterable
-    fun __get__(i)
-        raise NotImplementedException("Sequence must implement __get__()")
-    end
-
-    fun __set__(i, v)
-        raise NotImplementedException("Sequence must implement __set__()")
-    end
-
-    fun __len__()
-        raise NotImplementedException("Sequence must implement __len__()")
-    end
-
     fun contains(e)
         return this.indexOf(e) != -1
     end
@@ -269,56 +307,8 @@ fun typeAssert(arg, cls, name)
     end
 end
 
-fun sorted(iterable, comparator=null)
-    var lst = toList(iterable)
-    lst.sort(comparator)
-    return lst
-end
-
-fun reduce(iterable, fn)
-    var iter = iterable.__iter__(null)
-    if !iter then 
-        return null 
-    end
-
-    var accu = iterable.__next__(iter) 
-    while iter = iterable.__iter__(iter) do
-        accu = fn(accu, iterable.__next__(iter))
-    end
-
-    return accu
-end
-
-fun any(iterable, predicate)
-    for var e in iterable do
-        if predicate(e) then
-            return true
-        end
-    end
-    return false
-end
-
-fun all(iterable, predicate)
-    for var e in iterable do
-        if !predicate(e) then
-            return false
-        end
-    end
-    return true
-end
-
 fun partial(fn, arg)
     return |...| => fn(arg, args)...
-end
-
-fun toList(iterable)
-    if iterable is Sequence then
-        return List(#iterable, |i| => iterable[i])
-    else
-        var list = []
-        list.addAll(iterable)
-        return list
-    end
 end
 
 native ascii(num)
@@ -381,14 +371,14 @@ class IEnumerate is Iterable
 end
 
 class IFilter is Iterable
-    fun new(func, iterable)
-        this._func = func
+    fun new(predicate, iterable)
+        this._predicate = predicate
         this._iterable = iterable
     end
 
     fun __iter__(iter)
         while iter = this._iterable.__iter__(iter) do
-            if this._func(this._iterable.__next__(iter)) then
+            if this._predicate(this._iterable.__next__(iter)) then
                 return iter
             end
         end
@@ -401,8 +391,8 @@ class IFilter is Iterable
 end
 
 class IMap is Iterable
-    fun new(func, iterable)
-        this._func = func
+    fun new(fn, iterable)
+        this._fn = fn
         this._iterable = iterable
     end
 
@@ -411,46 +401,38 @@ class IMap is Iterable
     end
 
     fun __next__(i)
-        return this._func(this._iterable.__next__(i))
+        return this._fn(this._iterable.__next__(i))
     end
 end
 
 class IZip is Iterable
-    fun new(...)
-        assert(#args != 0, "No iterables provided", InvalidArgException)
-        this._iterables = args
-        this._result = []
+    fun new(iterable1, iterable2)
+        this._iterable1 = iterable1
+        this._iterable2 = iterable2
     end
 
     fun __iter__(iters)
-        var i = 0
-        for var iterator in this._iterables do
-            var res = iterator.__iter__(iters[i] if iters else null)
-            if !res then 
-                return false 
-            end
-
-            this._result.add(res)
-            i += 1
+        var iter1, iter2
+        if iters != null then
+            iter1, iter2 = iters
         end
 
-        var ret = Tuple(this._result)
-        this._result.clear()
-        
-        return ret
+        var res1 = this._iterable1.__iter__(iter1)
+        if !res1 then
+            return false
+        end
+
+        var res2 = this._iterable2.__iter__(iter2)
+        if !res2 then
+            return false
+        end
+
+        return res1, res2
     end
 
     fun __next__(iters)
-        var i = 0
-        for var iterator in this._iterables do
-            this._result.add(iterator.__next__(iters[i]))
-            i += 1
-        end
-
-        var ret = Tuple(this._result)
-        this._result.clear()
-        
-        return ret
+        var iter1, iter2 = iters
+        return this._iterable1.__next__(iter1), this._iterable2.__next__(iter2)
     end
 end
 

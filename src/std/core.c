@@ -325,30 +325,36 @@ JSR_NATIVE(jsr_Module_string) {
 
 // class List
 JSR_NATIVE(jsr_List_new) {
-    JSR_CHECK(Int, 1, "size");
+    if(jsrIsNull(vm, 1)) {
+        jsrPushList(vm);
+    } else if(jsrIsInteger(vm, 1)) {
+        double count = jsrGetNumber(vm, 1);
+        if(count < 0) {
+            JSR_RAISE(vm, "TypeException", "size must be >= 0");
+        }
 
-    double count = jsrGetNumber(vm, 1);
-    if(count < 0) {
-        JSR_RAISE(vm, "TypeException", "size must be >= 0");
-    }
+        ObjList* lst = newList(vm, count);
+        push(vm, OBJ_VAL(lst));
 
-    ObjList* lst = newList(vm, count < 16 ? 16 : count);
-    lst->count = count;
-    push(vm, OBJ_VAL(lst));
-
-    if(IS_CLOSURE(vm->apiStack[2]) || IS_NATIVE(vm->apiStack[2])) {
-        for(size_t i = 0; i < lst->count; i++) {
-            jsrPushValue(vm, 2);
-            jsrPushNumber(vm, i);
-            if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
-            lst->arr[i] = pop(vm);
+        if(IS_CLOSURE(vm->apiStack[2]) || IS_NATIVE(vm->apiStack[2])) {
+            for(size_t i = 0; i < count; i++) {
+                jsrPushValue(vm, 2);
+                jsrPushNumber(vm, i);
+                if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
+                lst->arr[lst->count++] = pop(vm);
+            }
+        } else {
+            for(size_t i = 0; i < count; i++) {
+                lst->arr[lst->count++] = vm->apiStack[2];
+            }
         }
     } else {
-        for(size_t i = 0; i < lst->count; i++) {
-            lst->arr[i] = vm->apiStack[2];
-        }
+        jsrPushList(vm);
+        JSR_FOREACH(1, {
+            jsrListAppend(vm, 3);
+            jsrPop(vm);
+        },)
     }
-
     return true;
 }
 
