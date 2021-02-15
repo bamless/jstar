@@ -51,18 +51,12 @@ class Iterable
         return res
     end
 
-    fun reduce(fn)
-        var iter = this.__iter__(null)
-        if !iter then 
-            return null 
+    fun reduce(init, fn)
+        var acc = init
+        for var e in this do
+            acc = fn(acc, e)
         end
-
-        var accu = this.__next__(iter) 
-        while iter = this.__iter__(iter) do
-            accu = fn(accu, this.__next__(iter))
-        end
-
-        return accu
+        return acc
     end
 
     fun any(predicate)

@@ -1110,26 +1110,37 @@ bool runEval(JStarVM* vm, int evalDepth) {
         DISPATCH();
     }
 
+    TARGET(OP_FOR_PREP): {
+        ObjClass* cls = getClass(vm, vm->sp[-2]);
+        if(!hashTableGet(&cls->methods, vm->methodSyms[SYM_ITER], &vm->sp[0]) ||
+           !hashTableGet(&cls->methods, vm->methodSyms[SYM_NEXT], &vm->sp[1])) {
+            jsrRaise(vm, "MethodException", "Class %s does not implement __iter__ and __next__",
+                     cls->name->data);
+            UNWIND_STACK(vm);
+        }
+        vm->sp += 2;
+        DISPATCH();
+    }
+
     TARGET(OP_FOR_ITER): {
-        vm->sp[0] = vm->sp[-2];
-        vm->sp[1] = vm->sp[-1];
+        vm->sp[0] = vm->sp[-4];
+        vm->sp[1] = vm->sp[-3];
         vm->sp += 2;
         SAVE_STATE();
-        bool res = invokeValue(vm, vm->methodSyms[SYM_ITER], 1);
+        bool res = callValue(vm, vm->sp[-4], 1); // sp[-4] holds the cached __iter__ method
         LOAD_STATE();
         if(!res) UNWIND_STACK(vm);
         DISPATCH();
     }
 
     TARGET(OP_FOR_NEXT): {
-        vm->sp[-2] = vm->sp[-1];
         int16_t off = NEXT_SHORT();
         if(valueToBool(pop(vm))) {
-            vm->sp[0] = vm->sp[-2];
-            vm->sp[1] = vm->sp[-1];
+            vm->sp[0] = vm->sp[-4];
+            vm->sp[1] = vm->sp[-3];
             vm->sp += 2;
             SAVE_STATE();
-            bool res = invokeValue(vm, vm->methodSyms[SYM_NEXT], 1);
+            bool res = callValue(vm, vm->sp[-3], 1); // sp[-3] holds the cached __next__ method
             LOAD_STATE();
             if(!res) UNWIND_STACK(vm);
         } else {
