@@ -18,10 +18,9 @@ typedef enum ConstType {
     CONST_NUM = 1,
     CONST_BOOL = 2,
     CONST_NULL = 3,
-    CONST_HANDLE = 4,
-    CONST_STR = 5,
-    CONST_FUN = 6,
-    CONST_NAT = 7
+    CONST_STR = 4,
+    CONST_FUN = 5,
+    CONST_NAT = 6
 } ConstType;
 
 // -----------------------------------------------------------------------------
@@ -74,8 +73,6 @@ static void serializeConstLiteral(JStarBuffer* buf, Value c) {
         serializeByte(buf, AS_BOOL(c));
     } else if(IS_NULL(c)) {
         serializeByte(buf, CONST_NULL);
-    } else if(IS_HANDLE(c)) {
-        serializeByte(buf, CONST_HANDLE);
     } else if(IS_STRING(c)) {
         serializeByte(buf, CONST_STR);
         serializeString(buf, AS_STRING(c));
@@ -270,10 +267,6 @@ static bool deserializeConstLiteral(Deserializer* d, ConstType type, Value* out)
         ObjString* str;
         if(!deserializeString(d, &str)) return false;
         *out = OBJ_VAL(str);
-        return true;
-    }
-    case CONST_HANDLE: {
-        *out = HANDLE_VAL(NULL);
         return true;
     }
     default:
