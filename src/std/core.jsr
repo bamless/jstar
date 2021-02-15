@@ -354,17 +354,17 @@ class IReverse is Sequence
 end
 
 class IEnumerate is Iterable
-    fun new(iter, start=0)
-        this._iter = iter
+    fun new(iterable, start=0)
+        this._iterable = iterable
         this._idx = start
     end
 
     fun __iter__(i)
-        return this._iter.__iter__(i)
+        return this._iterable.__iter__(i)
     end
 
     fun __next__(i)
-        var ret = (this._idx, this._iter.__next__(i))
+        var ret = (this._idx, this._iterable.__next__(i))
         this._idx += 1
         return ret
     end
