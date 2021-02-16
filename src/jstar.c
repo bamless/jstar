@@ -72,7 +72,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        reportError(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
         jsrPop(vm);
     }
 
@@ -92,15 +92,9 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 
     JStarResult err;
     ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = deserializeWithModule(vm, name, code, &err);
-
-    if(err == JSR_VERSION_ERR) {
-        vm->errorCallback(vm, err, path, -1, "Incompatible binary file version");
-        return err;
-    }
-
-    if(err == JSR_DESERIALIZE_ERR) {
-        vm->errorCallback(vm, err, path, -1, "Malformed binary file");
+    ObjFunction* fn = deserializeWithModule(vm, path, name, code, &err);
+    
+    if(err != JSR_SUCCESS) {
         return err;
     }
 
@@ -110,7 +104,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        reportError(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
         jsrPop(vm);
     }
 
@@ -136,14 +130,14 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
     return JSR_SUCCESS;
 }
 
-JStarResult jsrDisassembleCode(JStarVM* vm, const JStarBuffer* code) {
+JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code) {
     if(!isCompiledCode(code)) {
         return JSR_DESERIALIZE_ERR;
     }
 
     JStarResult ret;
     ObjString* dummy = copyString(vm, "", 0);  // Use dummy module since the code won't be executed
-    ObjFunction* fn = deserializeWithModule(vm, dummy, code, &ret);
+    ObjFunction* fn = deserializeWithModule(vm, path, dummy, code, &ret);
     if(ret == JSR_SUCCESS) {
         disassembleFunction(fn);
     }

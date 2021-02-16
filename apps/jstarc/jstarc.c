@@ -23,7 +23,7 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 
-static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
@@ -37,7 +37,7 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
-    conf.errorCallback = &errorCallback;
+    conf.errorCallback = &reportError;
     vm = jsrNewVM(&conf);
 }
 
@@ -104,7 +104,7 @@ static bool compileFile(const char* path, const char* out) {
     }
 
     if(opts.list) {
-        jsrDisassembleCode(vm, &compiled);
+        jsrDisassembleCode(vm, path, &compiled);
     } else if(!opts.compileOnly) {
         if(!writeToFile(&compiled, outPath)) {
             fprintf(stderr, "Failed to write %s: %s\n", outPath, strerror(errno));

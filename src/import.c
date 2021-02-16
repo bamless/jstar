@@ -39,10 +39,24 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, J
     return NULL;
 }
 
-ObjFunction* deserializeWithModule(JStarVM* vm, ObjString* name, const JStarBuffer* code,
-                                   JStarResult* err) {
+ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
+                                   const JStarBuffer* code, JStarResult* err) {
     ObjModule* module = getOrCreateModule(vm, name);
-    return deserialize(vm, module, code, err);
+    ObjFunction* fn = deserialize(vm, module, code, err);
+
+    // TODO: Is this the best place to forward errors to the callback?
+    // Considering how `compileWithModule` already forwards the errors, and how this is supposed to
+    // be its `binary` counterpart I'd say yes, but I'm not 100% convinced yet. 
+    // Anyway, for now this works well, better than the previous solution
+    if(*err == JSR_VERSION_ERR) {
+        reportError(vm, *err, path, -1, "Incompatible binary file version");
+    }
+
+    if(*err == JSR_DESERIALIZE_ERR) {
+        reportError(vm, *err, path, -1, "Malformed binary file");
+    }
+
+    return fn;
 }
 
 static void setModuleInParent(JStarVM* vm, ObjModule* mod) {
@@ -70,7 +84,7 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
     return AS_MODULE(module);
 }
 
-static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
+static void tryNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
     const char* moduleDir = strrchr(modulePath->data, '/');
     const char* lastDot = strrchr(moduleName->data, '.');
     const char* simpleName = lastDot ? lastDot + 1 : moduleName->data;
@@ -96,7 +110,7 @@ static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString*
     }
 }
 
-static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
+static bool importSource(JStarVM* vm, const char* path, ObjString* name, const char* source) {
     JStarStmt* program = jsrParse(path, source, parseErrorCallback, vm);
     if(program == NULL) {
         return false;
@@ -115,9 +129,9 @@ static bool importWithSource(JStarVM* vm, const char* path, ObjString* name, con
     return true;
 }
 
-static bool importWithBinary(JStarVM* vm, ObjString* name, const JStarBuffer* code) {
+static bool importBinary(JStarVM* vm, const char* path, ObjString* name, const JStarBuffer* code) {
     JStarResult res;
-    ObjFunction* moduleFun = deserializeWithModule(vm, name, code, &res);
+    ObjFunction* moduleFun = deserializeWithModule(vm, path, name, code, &res);
     if(res != JSR_SUCCESS) {
         return false;
     }
@@ -140,20 +154,17 @@ static ImportResult importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* na
         return IMPORT_NOT_FOUND;
     }
 
-    bool ok;
+    bool res;
     if(isCompiledCode(&src)) {
-        ok = importWithBinary(vm, name, &src);
+        res = importBinary(vm, path->data, name, &src);
     } else {
-        ok = importWithSource(vm, path->data, name, src.data);
+        res = importSource(vm, path->data, name, src.data);
     }
 
     jsrBufferFree(&src);
+    if(!res) return IMPORT_ERR;
 
-    if(!ok) {
-        return IMPORT_ERR;
-    }
-
-    loadNativeExtension(vm, path, name);
+    tryNativeExtension(vm, path, name);
     return IMPORT_OK;
 }
 
@@ -235,7 +246,7 @@ bool importModule(JStarVM* vm, ObjString* name) {
     const char* builtinBytecode = readBuiltInModule(name->data, &len);
     if(builtinBytecode != NULL) {
         JStarBuffer code = jsrBufferWrap(vm, builtinBytecode, len);
-        return importWithBinary(vm, name, &code);
+        return importBinary(vm, name->data, name, &code);
     }
 
     if(!importModuleOrPackage(vm, name)) {
@@ -247,7 +258,5 @@ bool importModule(JStarVM* vm, ObjString* name) {
 
 void parseErrorCallback(const char* file, int line, const char* error, void* udata) {
     JStarVM* vm = udata;
-    if(vm->errorCallback) {
-        vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
-    }
+    reportError(vm, JSR_SYNTAX_ERR, file, line, error);
 }

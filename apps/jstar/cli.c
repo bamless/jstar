@@ -37,7 +37,7 @@ static JStarBuffer completionBuf;
 // VM INITIALIZATION AND DESTRUCTION
 // -----------------------------------------------------------------------------
 
-static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     if(ln >= 0) {
         fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
     } else {
@@ -72,7 +72,7 @@ static bool replPrint(JStarVM* vm) {
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
-    conf.errorCallback = &errorCallback;
+    conf.errorCallback = &reportError;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
 }

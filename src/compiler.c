@@ -128,7 +128,7 @@ static void error(Compiler* c, int line, const char* format, ...) {
         jsrBufferAppendvf(&error, format, args);
         va_end(args);
 
-        vm->errorCallback(vm, JSR_COMPILE_ERR, c->file, line, error.data);
+        reportError(vm, JSR_COMPILE_ERR, c->file, line, error.data);
 
         jsrBufferFree(&error);
     }

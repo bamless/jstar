@@ -122,12 +122,11 @@ static JSR_NATIVE(jsr_Class_string) {
 void initCoreModule(JStarVM* vm) {
     // Create and register core module
     ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
-    push(vm, OBJ_VAL(coreModName));
 
+    push(vm, OBJ_VAL(coreModName));
     ObjModule* core = newModule(vm, coreModName);
     setModule(vm, core->name, core);
     vm->core = core;
-
     pop(vm);
 
     // Setup the class object. It will be the class of every other class
@@ -152,7 +151,10 @@ void initCoreModule(JStarVM* vm) {
 
     // Execute core module
     JStarBuffer code = jsrBufferWrap(vm, coreBytecode, len);
-    jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
+    JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
+    
+    ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
+    (void)res; // Not actually used aside from the assert
 
     // Cache builtin class objects in JStarVM
     vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
@@ -184,6 +186,7 @@ void initCoreModule(JStarVM* vm) {
             o->cls = vm->funClass;
         }
 
+        // Ensure all allocated object do actually have a class reference!
         ASSERT(o->cls, "Object without class reference");
     }
 }

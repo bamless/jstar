@@ -929,14 +929,14 @@ bool runEval(JStarVM* vm, int evalDepth) {
     #define PRINT_DBG_STACK()
 #endif
 
-    #define PRINT_STACK()                        \
-        printf("     ");                             \
-        for(Value* v = vm->stack; v < vm->sp; v++) { \
-            printf("[");                             \
-            printValue(*v);                          \
-            printf("]");                             \
-        }                                            \
-        printf("$\n");                               \
+#define PRINT_STACK()                            \
+    printf("     ");                             \
+    for(Value* v = vm->stack; v < vm->sp; v++) { \
+        printf("[");                             \
+        printValue(*v);                          \
+        printf("]");                             \
+    }                                            \
+    printf("$\n");
 
 #ifdef JSTAR_COMPUTED_GOTOS
     // create jumptable
@@ -1645,3 +1645,4 @@ extern inline ObjClass* getClass(JStarVM* vm, Value v);
 extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
 extern inline int apiStackIndex(JStarVM* vm, int slot);
 extern inline Value apiStackSlot(JStarVM* vm, int slot);
+extern inline void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char*);

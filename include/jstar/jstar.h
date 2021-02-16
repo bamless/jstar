@@ -83,7 +83,9 @@ JSTAR_API void* jsrGetCustomData(JStarVM* vm);
 // Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
-// will be returned. All errors will be forwared to the error callback as well.
+// will be returned. 
+// All errors will be forwared to the error callback as well.
+// The `path` argument is the file path that will passed to the forward callback on errors
 JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code);
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const JStarBuffer* code);
@@ -99,6 +101,8 @@ JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const c
 // Compiles the provided source to bytecode, placing the result in `out`.
 // JSR_SUCCESS will be returned if the compilation completed normally.
 // In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
+// All errors will be forwarded to the error callback as well.
+// The `path` argument is the file path that will passed to the forward callback on errors
 // Please note that the vm always compiles source code before execution, so using this function
 // just to immediately call jsrEval on the result is useless and less efficient than directly
 // calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
@@ -107,8 +111,9 @@ JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* 
                                      JStarBuffer* out);
 
 // Disassembles the bytecode provided in `code` and prints it to stdout
+// The `path` argument is the file path that will passed to the forward callback on errors
 // Prints nothing if the provided `code` buffer doesn't contain valid bytecode
-JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const JStarBuffer* code);
+JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code);
 
 // Reads a J* source or compiled file, placing the output in out.
 // Returns true on success, false on error setting errno to the approriate value.
