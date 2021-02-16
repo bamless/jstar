@@ -127,7 +127,7 @@ static bool disassembleFile(const char* path) {
     printf("Disassembling %s...\n", path);
     fflush(stdout);
 
-    JStarResult res = jsrDisassembleCode(vm, &code);
+    JStarResult res = jsrDisassembleCode(vm, path, &code);
     jsrBufferFree(&code);
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error disassembling file %s\n", path);
