@@ -45,8 +45,8 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
     ObjFunction* fn = deserialize(vm, module, code, err);
 
     // TODO: Is this the best place to forward errors to the callback?
-    // Considering how `compileWithModule` already forwards the errors, and how this is supposed to
-    // be its `binary` counterpart I'd say yes, but I'm not 100% convinced yet. 
+    // Considering how `compileWithModule` already forwards the errors, and the fact that this is
+    // supposed to be its `binary` counterpart I'd say yes, but I'm not 100% convinced yet. 
     // Anyway, for now this works well, better than the previous solution
     if(*err == JSR_VERSION_ERR) {
         reportError(vm, *err, path, -1, "Incompatible binary file version");
