@@ -1095,7 +1095,6 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     startLoop(c, &l);
 
     emitBytecode(c, OP_FOR_ITER, s->line);
-    compileVariable(c, &iterator, true, s->line);
     size_t exitJmp = emitBytecode(c, OP_FOR_NEXT, 0);
     emitShort(c, 0, 0);
 

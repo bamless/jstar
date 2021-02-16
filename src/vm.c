@@ -929,6 +929,15 @@ bool runEval(JStarVM* vm, int evalDepth) {
     #define PRINT_DBG_STACK()
 #endif
 
+    #define PRINT_STACK()                        \
+        printf("     ");                             \
+        for(Value* v = vm->stack; v < vm->sp; v++) { \
+            printf("[");                             \
+            printValue(*v);                          \
+            printf("]");                             \
+        }                                            \
+        printf("$\n");                               \
+
 #ifdef JSTAR_COMPUTED_GOTOS
     // create jumptable
     static void* opJmpTable[] = {
@@ -1135,6 +1144,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_FOR_NEXT): {
         int16_t off = NEXT_SHORT();
+        vm->sp[-4] = vm->sp[-1];
         if(valueToBool(pop(vm))) {
             vm->sp[0] = vm->sp[-4];
             vm->sp[1] = vm->sp[-3];
