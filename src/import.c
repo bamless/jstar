@@ -17,7 +17,6 @@
 
 static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
     ObjModule* module = getModule(vm, name);
-
     if(module == NULL) {
         push(vm, OBJ_VAL(name));
         module = newModule(vm, name);
@@ -26,7 +25,6 @@ static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
         hashTableImportNames(&module->globals, &vm->core->globals);  // implicitly import core names
         setModule(vm, name, module);
     }
-
     return module;
 }
 
@@ -41,8 +39,7 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, J
 
 ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
                                    const JStarBuffer* code, JStarResult* err) {
-    ObjModule* module = getOrCreateModule(vm, name);
-    ObjFunction* fn = deserialize(vm, module, code, err);
+    ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, name), code, err);
 
     // TODO: Is this the best place to forward errors to the callback?
     // Considering how `compileWithModule` already forwards the errors, and the fact that this is
@@ -51,18 +48,18 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
     if(*err == JSR_VERSION_ERR) {
         reportError(vm, *err, path, -1, "Incompatible binary file version");
     }
-
     if(*err == JSR_DESERIALIZE_ERR) {
         reportError(vm, *err, path, -1, "Malformed binary file");
     }
-
     return fn;
 }
 
 static void setModuleInParent(JStarVM* vm, ObjModule* mod) {
     ObjString* name = mod->name;
     const char* lastDot = strrchr(name->data, '.');
-    if(lastDot == NULL) return;  // Not a submodule, nothing to do
+    if(lastDot == NULL) {
+        return;  // Not a submodule, nothing to do
+    }
 
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
@@ -125,7 +122,6 @@ static bool importSource(JStarVM* vm, const char* path, ObjString* name, const c
 
     push(vm, OBJ_VAL(moduleFun));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, moduleFun));
-
     return true;
 }
 
@@ -138,7 +134,6 @@ static bool importBinary(JStarVM* vm, const char* path, ObjString* name, const J
 
     push(vm, OBJ_VAL(moduleFun));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, moduleFun));
-
     return true;
 }
 
