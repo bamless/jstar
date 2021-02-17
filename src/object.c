@@ -272,26 +272,6 @@ ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
     return interned;
 }
 
-// -----------------------------------------------------------------------------
-// API - JStarBuffer function implementation
-// -----------------------------------------------------------------------------
-
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
-    return (JStarBuffer){vm, len, len, (char*)data};
-}
-
-ObjString* jsrBufferToString(JStarBuffer* b) {
-    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
-    ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
-    s->interned = false;
-    s->length = b->size;
-    s->data = data;
-    s->hash = 0;
-    s->data[s->length] = '\0';
-    memset(b, 0, sizeof(JStarBuffer));
-    return s;
-}
-
 // Compute and cache an ObjString hash
 uint32_t stringGetHash(ObjString* str) {
     if(str->hash == 0) {
@@ -325,6 +305,26 @@ Value* getValues(Obj* obj, size_t* size) {
         UNREACHABLE();
         return *size = 0, NULL;
     }
+}
+
+// -----------------------------------------------------------------------------
+// API - JStarBuffer function implementation
+// -----------------------------------------------------------------------------
+
+JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
+    return (JStarBuffer){vm, len, len, (char*)data};
+}
+
+ObjString* jsrBufferToString(JStarBuffer* b) {
+    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
+    ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
+    s->interned = false;
+    s->length = b->size;
+    s->data = data;
+    s->hash = 0;
+    s->data[s->length] = '\0';
+    memset(b, 0, sizeof(JStarBuffer));
+    return s;
 }
 
 #define JSR_BUF_DEFAULT_SIZE 16
