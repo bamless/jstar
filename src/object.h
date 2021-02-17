@@ -289,6 +289,13 @@ void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
 void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 
+// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
+// API functions that expect a JStarBuffer, without copying them first.
+JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
+
+// Convert a JStarBuffer to an ObjString
+ObjString* jsrBufferToString(JStarBuffer* b);
+
 // Compute and cache an ObjString hash
 inline uint32_t stringGetHash(ObjString* str) {
     if(str->hash == 0) {
@@ -323,13 +330,6 @@ inline Value* getValues(Obj* obj, size_t* size) {
         return *size = 0, NULL;
     }
 }
-
-// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
-// API functions that expect a JStarBuffer, without copying them first.
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
-
-// Convert a JStarBuffer to an ObjString
-ObjString* jsrBufferToString(JStarBuffer* b);
 
 // -----------------------------------------------------------------------------
 // DEBUG FUNCTIONS
