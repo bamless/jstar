@@ -289,10 +289,8 @@ void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
 void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 
-// Compute and cache an ObjString hash
+// ObjString functions
 uint32_t stringGetHash(ObjString* str);
-
-// Compute two ObjStrings for equality, short-circuiting if both are interned
 bool stringEquals(ObjString* s1, ObjString* s2);
 
 // Get the value array of a List or a Tuple
