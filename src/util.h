@@ -14,6 +14,7 @@
 #define STRLEN_FOR_SIGNED(t)   (STRLEN_FOR_UNSIGNED(t) + 1)
 #define STRLEN_FOR_UNSIGNED(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
 
+// Utilitu function to hash arbitrary data
 static inline uint32_t hashBytes(const void* data, size_t length) {
     const char* str = data;
     uint32_t hash = 2166136261u;

@@ -171,10 +171,10 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 void reserveStack(JStarVM* vm, size_t needed);
 void swapStackSlots(JStarVM* vm, int a, int b);
 
+void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char* msg);
+
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);
-
-void reportError(JStarVM* vm, JStarResult err, const char* file, int line, const char* message);
 
 inline void push(JStarVM* vm, Value v) {
     *vm->sp++ = v;

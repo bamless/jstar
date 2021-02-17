@@ -824,9 +824,9 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
     vm->sp[b] = tmp;
 }
 
-void reportError(JStarVM* vm, JStarResult err, const char* file, int line, const char* message) {
+void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char* msg) {
     if(vm->errorCallback) {
-        vm->errorCallback(vm, err, file, line, message);
+        vm->errorCallback(vm, err, file, ln, msg);
     }
 }
 
