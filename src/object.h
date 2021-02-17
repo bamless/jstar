@@ -278,13 +278,13 @@ ObjString* allocateString(JStarVM* vm, size_t length);
 ObjString* copyString(JStarVM* vm, const char* str, size_t length);
 
 // -----------------------------------------------------------------------------
-// OBJECT MANIPULATION FUNCTIONS
+// OBJECT FUNCTIONS
 // -----------------------------------------------------------------------------
 
 // Dumps a frame in a ObjStackTrace
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
 
-// ObjList manipulation functions
+// ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
 void listRemove(JStarVM* vm, ObjList* lst, size_t index);
