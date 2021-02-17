@@ -292,6 +292,41 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     return s;
 }
 
+// Compute and cache an ObjString hash
+uint32_t stringGetHash(ObjString* str) {
+    if(str->hash == 0) {
+        uint32_t hash = hashBytes(str->data, str->length);
+        str->hash = hash ? hash : hash + 1;  // Reserve hash value `0`
+    }
+    return str->hash;
+}
+
+// Compute two ObjStrings for equality, short-circuiting if both are interned
+bool stringEquals(ObjString* s1, ObjString* s2) {
+    if(s1->interned && s2->interned) return s1 == s2;
+    return memcmp(s1->data, s2->data, s1->length < s2->length ? s1->length : s2->length) == 0;
+}
+
+// Get the value array of a List or a Tuple
+Value* getValues(Obj* obj, size_t* size) {
+    ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
+    switch(obj->type) {
+    case OBJ_LIST: {
+        ObjList* lst = (ObjList*)obj;
+        *size = lst->count;
+        return lst->arr;
+    }
+    case OBJ_TUPLE: {
+        ObjTuple* tup = (ObjTuple*)obj;
+        *size = tup->size;
+        return tup->arr;
+    }
+    default:
+        UNREACHABLE();
+        return *size = 0, NULL;
+    }
+}
+
 #define JSR_BUF_DEFAULT_SIZE 16
 
 static void jsrBufGrow(JStarBuffer* b, size_t len) {
@@ -549,9 +584,3 @@ void printObj(Obj* o) {
         break;
     }
 }
-
-// External definitions of inline functions
-extern inline uint32_t stringGetHash(ObjString* str);
-extern inline bool stringEquals(ObjString* s1, ObjString* s2);
-extern inline Value* getValues(Obj* obj, size_t* size);
-extern inline uint32_t hashBytes(const void* str, size_t length);
