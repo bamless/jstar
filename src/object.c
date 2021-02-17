@@ -260,7 +260,7 @@ ObjString* allocateString(JStarVM* vm, size_t length) {
 }
 
 ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
-    uint32_t hash = hashString(str, length);
+    uint32_t hash = hashBytes(str, length);
     ObjString* interned = hashTableGetString(&vm->stringPool, str, length, hash);
     if(interned == NULL) {
         interned = allocateString(vm, length);
@@ -551,5 +551,7 @@ void printObj(Obj* o) {
 }
 
 // External definitions of inline functions
-extern inline uint32_t hashString(const char* str, size_t length);
+extern inline uint32_t stringGetHash(ObjString* str);
+extern inline bool stringEquals(ObjString* s1, ObjString* s2);
 extern inline Value* getValues(Obj* obj, size_t* size);
+extern inline uint32_t hashBytes(const void* str, size_t length);

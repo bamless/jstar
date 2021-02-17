@@ -907,7 +907,7 @@ JSR_NATIVE(jsr_String_string) {
 }
 
 JSR_NATIVE(jsr_String_hash) {
-    jsrPushNumber(vm, STRING_GET_HASH(AS_STRING(vm->apiStack[0])));
+    jsrPushNumber(vm, stringGetHash(AS_STRING(vm->apiStack[0])));
     return true;
 }
 
@@ -978,7 +978,7 @@ JSR_NATIVE(jsr_String_next) {
 
 static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
     if(IS_STRING(key)) {
-        *hash = STRING_GET_HASH(AS_STRING(key));
+        *hash = stringGetHash(AS_STRING(key));
         return true;
     }
     if(IS_NUM(key)) {

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "code.h"
 #include "hashtable.h"
@@ -62,12 +63,6 @@ extern const char* ObjTypeNames[];
 #define AS_STACK_TRACE(o)  ((ObjStackTrace*)AS_OBJ(o))
 #define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
 #define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
-
-#define STRING_GET_HASH(s) \
-    ((s)->hash == 0 ? ((s)->hash = hashString((s)->data, (s)->length)) : (s)->hash)
-
-#define STRING_EQUALS(s1, s2) \
-    ((s1)->interned && (s2)->interned ? (s1) == (s2) : strcmp((s1)->data, (s2)->data) == 0)
 
 // -----------------------------------------------------------------------------
 // OBJECT DEFINITONS
@@ -294,28 +289,22 @@ void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
 void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 
-// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
-// API functions that expect a JStarBuffer, without copying them first.
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
-
-// Convert a JStarBuffer to an ObjString
-ObjString* jsrBufferToString(JStarBuffer* b);
-
-// -----------------------------------------------------------------------------
-// Utility functions
-// -----------------------------------------------------------------------------
-
-// Hash a c-string
-inline uint32_t hashString(const char* str, size_t length) {
-    uint32_t hash = 2166136261u;
-    for(size_t i = 0; i < length; i++) {
-        hash ^= str[i];
-        hash *= 16777619;
+// Compute and cache an ObjString hash
+inline uint32_t stringGetHash(ObjString* str) {
+    if(str->hash == 0) {
+        uint32_t hash = hashBytes(str->data, str->length);
+        str->hash = hash ? hash : hash + 1;  // Reserve hash value `0`
     }
-    return hash < 2 ? hash + 2 : hash;  // Reserve hash value 1 and 0
+    return str->hash;
 }
 
-// Get the value array and size of a List or a Tuple
+// Compute two ObjStrings for equality, short-circuiting if both are interned
+inline bool stringEquals(ObjString* s1, ObjString* s2) {
+    if(s1->interned && s2->interned) return s1 == s2;
+    return memcmp(s1->data, s2->data, s1->length < s2->length ? s1->length : s2->length) == 0;
+}
+
+// Get the value array of a List or a Tuple
 inline Value* getValues(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
     switch(obj->type) {
@@ -334,6 +323,13 @@ inline Value* getValues(Obj* obj, size_t* size) {
         return *size = 0, NULL;
     }
 }
+
+// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
+// API functions that expect a JStarBuffer, without copying them first.
+JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
+
+// Convert a JStarBuffer to an ObjString
+ObjString* jsrBufferToString(JStarBuffer* b);
 
 // -----------------------------------------------------------------------------
 // DEBUG FUNCTIONS

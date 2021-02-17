@@ -2,6 +2,8 @@
 #define UTIL_H
 
 #include <limits.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 // Reinterprets the bits of the value `v` from type F to type T
 #define REINTERPRET_CAST(F, T, v) ((union {F f; T t;}){.f = (v)}.t)
@@ -11,6 +13,16 @@
 #define STRLEN_FOR_INT(t)      (((t)-1 < 0) ? STRLEN_FOR_SIGNED(t) : STRLEN_FOR_UNSIGNED(t))
 #define STRLEN_FOR_SIGNED(t)   (STRLEN_FOR_UNSIGNED(t) + 1)
 #define STRLEN_FOR_UNSIGNED(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
+
+inline uint32_t hashBytes(const void* data, size_t length) {
+    const char* str = data;
+    uint32_t hash = 2166136261u;
+    for(size_t i = 0; i < length; i++) {
+        hash ^= str[i];
+        hash *= 16777619;
+    }
+    return hash;
+}
 
 // Debug assertions
 #ifndef NDEBUG

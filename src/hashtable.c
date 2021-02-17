@@ -20,7 +20,7 @@ void freeHashTable(HashTable* t) {
 }
 
 static Entry* findEntry(Entry* entries, size_t sizeMask, ObjString* key) {
-    size_t i = STRING_GET_HASH(key) & sizeMask;
+    size_t i = stringGetHash(key) & sizeMask;
     Entry* tomb = NULL;
 
     for(;;) {
@@ -31,7 +31,7 @@ static Entry* findEntry(Entry* entries, size_t sizeMask, ObjString* key) {
             } else if(!tomb) {
                 tomb = e;
             }
-        } else if(STRING_EQUALS(e->key, key)) {
+        } else if(stringEquals(e->key, key)) {
             return e;
         }
         i = (i + 1) & sizeMask;
@@ -128,7 +128,7 @@ ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint
         Entry* e = &t->entries[i];
         if(!e->key) {
             if(IS_NULL(e->value)) return NULL;
-        } else if(STRING_GET_HASH(e->key) == hash && e->key->length == length &&
+        } else if(stringGetHash(e->key) == hash && e->key->length == length &&
                   memcmp(e->key->data, str, length) == 0) {
             return e->key;
         }
