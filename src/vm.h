@@ -174,6 +174,8 @@ void swapStackSlots(JStarVM* vm, int a, int b);
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);
 
+void reportError(JStarVM* vm, JStarResult err, const char* file, int line, const char* message);
+
 inline void push(JStarVM* vm, Value v) {
     *vm->sp++ = v;
 }
@@ -245,12 +247,6 @@ inline Value apiStackSlot(JStarVM* vm, int slot) {
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
     if(slot < 0) return vm->sp[slot];
     return vm->apiStack[slot];
-}
-
-inline void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char* msg) {
-    if(vm->errorCallback) {
-        vm->errorCallback(vm, err, file, ln, msg);
-    }
 }
 
 #endif
