@@ -48,7 +48,7 @@ J*>> _
 You can even write multiline code, it will look like this:
 ```lua
 J*>> for var i = 0; i < 3; i += 1
-....   print('Hello, World!')
+....     print('Hello, World!')
 .... end
 Hello, World!
 Hello, World!
@@ -62,9 +62,9 @@ All arguments after the first will be passed to the language as script arguments
 them from the script this way:
 ```lua
 if #argv > 0
-  print("First argument: ", argv[0])
+    print("First argument: ", argv[0])
 else
-  raise Exception("No args provided")
+    raise Exception("No args provided")
 end
 ```
 The `jstar` executable can also accept various options that modify the behaviour of the command line
