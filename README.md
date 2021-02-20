@@ -47,7 +47,7 @@ J*>> _
 ```
 You can even write multiline code, it will look like this:
 ```lua
-J*>> for var i = 0; i < 3; i += 1 do
+J*>> for var i = 0; i < 3; i += 1
 ....   print('Hello, World!')
 .... end
 Hello, World!
@@ -61,10 +61,10 @@ If you instead want to execute code written in some file, you can pass it as an 
 All arguments after the first will be passed to the language as script arguments, you can then read 
 them from the script this way:
 ```lua
-if #argv > 0 then
-  print('First argument: ', argv[0])
+if #argv > 0
+  print("First argument: ", argv[0])
 else
-  raise Exception('No args provided')
+  raise Exception("No args provided")
 end
 ```
 The `jstar` executable can also accept various options that modify the behaviour of the command line
