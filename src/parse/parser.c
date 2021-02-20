@@ -57,9 +57,9 @@ static int strncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, ...) 
     return written;
 }
 
-static int printSourceSnippet(char* buf, const char* line, size_t lineLen, int coloumn) {
+static int printSourceSnippet(char* buf, const char* line, int length, int coloumn) {
     int pos = 0;
-    pos += strncatf(buf, pos, MAX_ERR_SIZE, "    %.*s\n", lineLen, line);
+    pos += strncatf(buf, pos, MAX_ERR_SIZE, "    %.*s\n", length, line);
     pos += strncatf(buf, pos, MAX_ERR_SIZE, "    ");
     for(int i = 0; i < coloumn; i++) {
         pos += strncatf(buf, pos, MAX_ERR_SIZE, " ");
@@ -88,8 +88,8 @@ static void error(Parser* p, const char* msg, ...) {
         int tokenCol = errorTok->lexeme - p->lineStart;
         int lineLen = strchrnul(errorTok->lexeme, '\n') - p->lineStart;
 
-        // print error message with source snippet
         int pos = printSourceSnippet(error, p->lineStart, lineLen, tokenCol);
+
         va_list ap;
         va_start(ap, msg);
         pos += vstrncatf(error, pos, MAX_ERR_SIZE, msg, ap);
