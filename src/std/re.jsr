@@ -19,14 +19,14 @@ static class IGmatch is Iterable
 
     fun __iter__(_)
         var res = find(this.str, this.regex, this.offset)
-        if !res then 
+        if !res 
             return null
         end
         
         var startMatch, endMatch = res
-        while isZeroMatch(startMatch, endMatch, this.lastMatch) do
+        while isZeroMatch(startMatch, endMatch, this.lastMatch)
             res = find(this.str, this.regex, this.offset += 1)
-            if !res then 
+            if !res 
                 return null
             end
             
@@ -34,9 +34,9 @@ static class IGmatch is Iterable
         end
 
         this.offset = this.lastMatch = endMatch
-        if #res == 2 then
+        if #res == 2
             return this.str[startMatch, endMatch]
-        elif #res == 3 then
+        elif #res == 3
             return res[2]
         else
             return res[2, #res]

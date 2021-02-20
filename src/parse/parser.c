@@ -82,8 +82,8 @@ static void error(Parser* p, const char* msg, ...) {
 
     if(p->errorCallback) {
         JStarTok* errorTok = &p->peek;
+        
         char error[MAX_ERR_SIZE];
-
         p->lineStart = correctEscapedNewlines(p->lineStart, errorTok->lexeme);
         int tokenCol = errorTok->lexeme - p->lineStart;
         int lineLen = strchrnul(errorTok->lexeme, '\n') - p->lineStart;
@@ -172,8 +172,6 @@ static void synchronize(Parser* p) {
         case TOK_IF:
         case TOK_WHILE:
         case TOK_RETURN:
-        case TOK_THEN:
-        case TOK_DO:
         case TOK_BEGIN:
         case TOK_CLASS:
             return;
@@ -398,10 +396,6 @@ static JStarStmt* blockStmt(Parser* p) {
 
 static JStarStmt* ifBody(Parser* p, int line) {
     JStarExpr* cond = expression(p, true);
-    skipNewLines(p);
-
-    require(p, TOK_THEN);
-
     JStarStmt* thenBody = blockStmt(p);
     JStarStmt* elseBody = NULL;
 
@@ -435,9 +429,6 @@ static JStarStmt* whileStmt(Parser* p) {
     skipNewLines(p);
 
     JStarExpr* cond = expression(p, true);
-    skipNewLines(p);
-
-    require(p, TOK_DO);
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
@@ -483,9 +474,6 @@ static JStarStmt* forEach(Parser* p, JStarStmt* var, int line) {
     skipNewLines(p);
 
     JStarExpr* e = expression(p, true);
-    skipNewLines(p);
-
-    require(p, TOK_DO);
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
@@ -511,22 +499,14 @@ static JStarStmt* forStmt(Parser* p) {
         }
     }
 
-    skipNewLines(p);
     require(p, TOK_SEMICOLON);
-    skipNewLines(p);
 
     JStarExpr* cond = NULL;
     if(!match(p, TOK_SEMICOLON)) cond = expression(p, true);
-
-    skipNewLines(p);
     require(p, TOK_SEMICOLON);
-    skipNewLines(p);
 
     JStarExpr* act = NULL;
-    if(!match(p, TOK_DO)) act = expression(p, true);
-
-    skipNewLines(p);
-    require(p, TOK_DO);
+    if(isExpressionStart(&p->peek)) act = expression(p, true);
 
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
@@ -926,11 +906,14 @@ static JStarExpr* literal(Parser* p) {
     case TOK_LCURLY:
         return parseTableLiteral(p);
     case TOK_TRUE:
-        return advance(p), jsrBoolLiteral(line, true);
+        advance(p);
+        return jsrBoolLiteral(line, true);
     case TOK_FALSE:
-        return advance(p), jsrBoolLiteral(line, false);
+        advance(p);
+        return jsrBoolLiteral(line, false);
     case TOK_NULL:
-        return advance(p), jsrNullLiteral(line);
+        advance(p);
+        return jsrNullLiteral(line);
     case TOK_NUMBER: {
         JStarExpr* e = jsrNumLiteral(line, strtod(tok->lexeme, NULL));
         advance(p);

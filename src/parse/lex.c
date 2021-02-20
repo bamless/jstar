@@ -36,8 +36,6 @@ static Keyword keywords[] = {
     {"while",    5, TOK_WHILE},
     {"import",   6, TOK_IMPORT},
     {"in",       2, TOK_IN},
-    {"then",     4, TOK_THEN},
-    {"do",       2, TOK_DO},
     {"begin",    5, TOK_BEGIN},
     {"end",      3, TOK_END},
     {"as",       2, TOK_AS},

@@ -38,14 +38,14 @@ class Userdata end
 
 class Iterable
     fun forEach(func)
-        for var e in this do
+        for var e in this
             func(e)
         end
     end
 
     fun sum()
         var res = 0
-        for var e in this do
+        for var e in this
             res += e
         end
         return res
@@ -53,15 +53,15 @@ class Iterable
 
     fun reduce(init, fn)
         var acc = init
-        for var e in this do
+        for var e in this
             acc = fn(acc, e)
         end
         return acc
     end
 
     fun any(predicate)
-        for var e in this do
-            if predicate(e) then
+        for var e in this
+            if predicate(e)
                 return true
             end
         end
@@ -69,8 +69,8 @@ class Iterable
     end
 
     fun all(predicate)
-        for var e in this do
-            if !predicate(e) then
+        for var e in this
+            if !predicate(e)
                 return false
             end
         end
@@ -119,8 +119,8 @@ class Sequence is Iterable
 
     fun indexOf(e)
         var length = #this
-        for var i = 0; i < length; i += 1 do
-            if this[i] == e then
+        for var i = 0; i < length; i += 1
+            if this[i] == e
                 return i
             end
         end
@@ -128,8 +128,8 @@ class Sequence is Iterable
     end
 
     fun indexOfLast(e)
-        for var i = #this - 1; i >= 0; i -= 1 do
-            if this[i] == e then
+        for var i = #this - 1; i >= 0; i -= 1
+            if this[i] == e
                 return i
             end
         end
@@ -138,8 +138,8 @@ class Sequence is Iterable
 
     fun count(e)
         var count = 0
-        for var o in this do
-            if o == e then 
+        for var o in this
+            if o == e 
                 count += 1
             end
         end
@@ -155,17 +155,17 @@ class Sequence is Iterable
     end
 
     fun __eq__(other)
-        if type(other) != type(this) then
+        if type(other) != type(this)
             return false 
         end
 
         var length = #this
-        if length != #other then
+        if length != #other
             return false
         end
 
-        for var i = 0; i < length; i += 1 do
-            if this[i] != other[i] then
+        for var i = 0; i < length; i += 1
+            if this[i] != other[i]
                 return false
             end
         end
@@ -205,7 +205,7 @@ class List is Sequence
 
     fun addAll(iterable)
         var changed = false
-        for var e in iterable do
+        for var e in iterable
             this.add(e)
             changed = true
         end
@@ -214,7 +214,7 @@ class List is Sequence
 
     fun insertAll(iterable, i=0)
         var changed = false
-        for var e in iterable do
+        for var e in iterable
             this.insert(i, e)
             changed = true
         end
@@ -223,8 +223,8 @@ class List is Sequence
 
     fun remove(e)
         var length = #this
-        for var i = 0; i < length; i += 1 do
-            if e == this[i] then
+        for var i = 0; i < length; i += 1
+            if e == this[i]
                 this.removeAt(i)
                 return true
             end
@@ -234,7 +234,7 @@ class List is Sequence
 
     fun removeAll(iterable)
         var changed = false
-        for var e in iterable do
+        for var e in iterable
             var r = this.remove(e)
             changed = changed or r
         end
@@ -289,13 +289,13 @@ end
 // -----------------------------------------------------------------------------
 
 fun assert(cond, msg="assertion failed", exception=null)
-    if !cond then 
+    if !cond 
         raise (exception(msg) if exception else AssertException(msg))
     end
 end
 
 fun typeAssert(arg, cls, name)
-    if !(arg is cls) then
+    if !(arg is cls)
         var got, expected = cls.getName(), type(arg).getName()
         raise TypeException("{0} must be a {1}, got {2}" % (name, got, expected))
     end
@@ -336,7 +336,7 @@ class IReverse is Sequence
     end
 
     fun __iter__(i)
-        if i == null then
+        if i == null
             return 0 if this._size > 0 else false
         end
         return i + 1 if i < this._size - 1 else false
@@ -372,9 +372,9 @@ class IFilter is Iterable
     end
 
     fun __iter__(iter)
-        while iter = this._iterable.__iter__(iter) do
+        while iter = this._iterable.__iter__(iter)
             var next = this._iterable.__next__(iter)
-            if this._predicate(next) then
+            if this._predicate(next)
                 this._next = next
                 return iter
             end
@@ -410,17 +410,17 @@ class IZip is Iterable
 
     fun __iter__(iters)
         var iter1, iter2
-        if iters != null then
+        if iters != null
             iter1, iter2 = iters
         end
 
         var res1 = this._iterable1.__iter__(iter1)
-        if !res1 then
+        if !res1
             return false
         end
 
         var res2 = this._iterable2.__iter__(iter2)
-        if !res2 then
+        if !res2
             return false
         end
 

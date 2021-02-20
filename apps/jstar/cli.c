@@ -18,6 +18,26 @@
 #define JSTAR_PROMPT "J*>> "
 #define LINE_PROMPT  ".... "
 
+static const int tokenDepth[TOK_EOF] = {
+    // Tokens that start a new block
+    [TOK_LSQUARE] = 1,
+    [TOK_LCURLY] = 1,
+    [TOK_BEGIN] = 1,
+    [TOK_CLASS] = 1,
+    [TOK_WHILE] = 1,
+    [TOK_WITH] = 1,
+    [TOK_FUN] = 1,
+    [TOK_TRY] = 1,
+    [TOK_FOR] = 1,
+    [TOK_IF] = 1,
+
+    // Tokens that end a block
+    [TOK_RSQUARE] = -1,
+    [TOK_RCURLY] = -1,
+    [TOK_ELIF] = -1,
+    [TOK_END] = -1,
+};
+
 typedef struct Options {
     char* script;
     bool showVersion;
@@ -155,31 +175,14 @@ static int countBlocks(const char* line) {
     jsrInitLexer(&lex, line);
     jsrNextToken(&lex, &tok);
 
+    if(!tokenDepth[tok.type]) return 0;
+
     int depth = 0;
     while(tok.type != TOK_EOF && tok.type != TOK_NEWLINE) {
-        switch(tok.type) {
-        case TOK_LSQUARE:
-        case TOK_LCURLY:
-        case TOK_BEGIN:
-        case TOK_CLASS:
-        case TOK_THEN:
-        case TOK_WITH:
-        case TOK_FUN:
-        case TOK_TRY:
-        case TOK_DO:
-            depth++;
-            break;
-        case TOK_RSQUARE:
-        case TOK_RCURLY:
-        case TOK_ELIF:
-        case TOK_END:
-            depth--;
-            break;
-        default:
-            break;
-        }
+        depth += tokenDepth[tok.type];
         jsrNextToken(&lex, &tok);
     }
+
     return depth;
 }
 

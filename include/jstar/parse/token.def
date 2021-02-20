@@ -38,8 +38,6 @@ TOKEN(TOK_PIPE, "|")
 TOKEN(TOK_SEMICOLON, ";")
 TOKEN(TOK_IN, "in")
 
-TOKEN(TOK_THEN, "then")
-TOKEN(TOK_DO, "do")
 TOKEN(TOK_BEGIN, "begin")
 TOKEN(TOK_END, "end")
 
