@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "args": [],
+            "args": ["/home/fabrizio/Workspace/jstar/pulsar/pulsar.jsr", "/home/fabrizio/Workspace/jstar/pulsar/pulsar/__package__.jsr"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

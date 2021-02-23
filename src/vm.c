@@ -1321,17 +1321,18 @@ op_return:
     TARGET(OP_IMPORT_AS):
     TARGET(OP_IMPORT_FROM): {
         ObjString* name = GET_STRING();
-        if(!importModule(vm, name)) {
+        ObjModule* module = importModule(vm, name);
+        if(module == NULL) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
             UNWIND_STACK(vm);
         }
 
         switch(op) {
         case OP_IMPORT:
-            hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
+            hashTablePut(&vm->module->globals, name, OBJ_VAL(module));
             break;
         case OP_IMPORT_AS:
-            hashTablePut(&vm->module->globals, GET_STRING(), OBJ_VAL(getModule(vm, name)));
+            hashTablePut(&vm->module->globals, GET_STRING(), OBJ_VAL(module));
             break;
         }
 
@@ -1348,18 +1349,12 @@ op_return:
     TARGET(OP_IMPORT_NAME): {
         ObjModule* module = getModule(vm, GET_STRING());
         ObjString* name = GET_STRING();
-
-        if(name->data[0] == '*') {
-            hashTableImportNames(&vm->module->globals, &module->globals);
-        } else {
-            Value val;
-            if(!hashTableGet(&module->globals, name, &val)) {
-                jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
-                         name->data, module->name->data);
-                UNWIND_STACK(vm);
-            } 
-            hashTablePut(&vm->module->globals, name, val);
+        if(!hashTableGet(&module->globals, name, vm->sp)) {
+            jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
+                        name->data, module->name->data);
+            UNWIND_STACK(vm);
         }
+        vm->sp++;
         DISPATCH();
     }
 
