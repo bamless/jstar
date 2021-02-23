@@ -1151,7 +1151,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
 
     vecForeach(JStarIdentifier** it, *modules) {
         JStarIdentifier* submod = *it;
-        jsrBufferAppendf(&fullName, "%.*s", submod->length, submod->name);
+        jsrBufferAppend(&fullName, submod->name, submod->length);
 
         if(isImportAs && it + 1 == vecEnd(modules)) {
             emitBytecode(c, OP_IMPORT_AS, s->line);
@@ -1170,15 +1170,16 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     }
 
     if(isImportFor) {
-        uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
+        uint16_t modName = stringConst(c, fullName.data, fullName.size, s->line);
         vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
+
+            emitBytecode(c, OP_IMPORT_NAME, s->line);
+            emitShort(c, modName, s->line);
+            emitShort(c, identifierConst(c, name, s->line), s->line);
+
             Variable nameVar = declareVar(c, name, false, s->line);
             defineVar(c, &nameVar, s->line);
-            
-            emitBytecode(c, OP_IMPORT_NAME, s->line);
-            emitShort(c, moduleConst, s->line);
-            emitShort(c, identifierConst(c, name, s->line), s->line);
         }
     }
 
