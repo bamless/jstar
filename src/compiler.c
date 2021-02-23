@@ -1173,12 +1173,12 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
         vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
+            Variable nameVar = declareVar(c, name, false, s->line);
+            defineVar(c, &nameVar, s->line);
+            
             emitBytecode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, moduleConst, s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
-
-            Variable nameVar = declareVar(c, name, false, s->line);
-            defineVar(c, &nameVar, s->line);
         }
     }
 
