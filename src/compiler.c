@@ -1143,33 +1143,39 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
 static void compileImportStatement(Compiler* c, JStarStmt* s) {
     Vector* modules = &s->as.importStmt.modules;
     Vector* names = &s->as.importStmt.impNames;
-    bool isImportFor = !vecEmpty(names);
-    bool isImportAs = s->as.importStmt.as.name != NULL;
+    bool importFor = !vecEmpty(names);
+    bool importAs = s->as.importStmt.as.name != NULL;
 
     JStarBuffer fullName;
     jsrBufferInit(c->vm, &fullName);
 
-    vecForeach(JStarIdentifier** it, *modules) {
-        JStarIdentifier* submod = *it;
-        jsrBufferAppend(&fullName, submod->name, submod->length);
-
-        if(isImportAs && it + 1 == vecEnd(modules)) {
-            emitBytecode(c, OP_IMPORT_AS, s->line);
-            emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
-            emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
-        } else if(it == vecBegin(modules)) {
-            emitBytecode(c, isImportAs || isImportFor ? OP_IMPORT_FROM : OP_IMPORT, s->line);
-            emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
-        } else {
-            emitBytecode(c, OP_IMPORT_FROM, s->line);
-            emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
-        }
-
-        emitBytecode(c, OP_POP, s->line);
-        if(it + 1 != vecEnd(modules)) jsrBufferAppendChar(&fullName, '.');
+    Variable modVar;
+    if(!importFor) {
+        JStarIdentifier* name = importAs ? &s->as.importStmt.as : vecGet(modules, 0);
+        modVar = declareVar(c, name, false, s->line);
     }
 
-    if(isImportFor) {
+    vecForeach(JStarIdentifier** it, *modules) {
+        JStarIdentifier* subMod = *it;
+        jsrBufferAppend(&fullName, subMod->name, subMod->length);
+
+        if(importAs && it + 1 == vecEnd(modules)) {
+            emitBytecode(c, OP_IMPORT, s->line);
+        } else if(it == vecBegin(modules) && !(importAs || importFor)) {
+            emitBytecode(c, OP_IMPORT, s->line);
+        } else {
+            emitBytecode(c, OP_IMPORT_FROM, s->line);
+        }
+
+        emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
+        emitBytecode(c, OP_POP, s->line);
+        
+        if(it + 1 != vecEnd(modules)) {
+            jsrBufferAppendChar(&fullName, '.');
+        }
+    }
+
+    if(importFor) {
         uint16_t modName = stringConst(c, fullName.data, fullName.size, s->line);
         vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
@@ -1181,6 +1187,8 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
             Variable nameVar = declareVar(c, name, false, s->line);
             defineVar(c, &nameVar, s->line);
         }
+    } else {
+        defineVar(c, &modVar, s->line);
     }
 
     jsrBufferFree(&fullName);
@@ -1522,21 +1530,18 @@ static void compileNative(Compiler* c, JStarStmt* s) {
     bool vararg = s->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->c.module, arity, defCount, vararg);
-
-    // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
 
     addFunctionDefaults(c, &native->c, &s->as.nativeDecl.defArgs);
-    uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
-    native->c.name = AS_STRING(c->func->code.consts.arr[nameConst]);
-
-    pop(c->vm);
+    native->c.name = copyString(c->vm, s->as.nativeDecl.id.name, s->as.nativeDecl.id.length);
 
     emitBytecode(c, OP_GET_CONST, s->line);
     emitShort(c, createConst(c, OBJ_VAL(native), s->line), s->line);
 
     emitBytecode(c, OP_NATIVE, s->line);
-    emitShort(c, nameConst, s->line);
+    emitShort(c, identifierConst(c, &s->as.nativeDecl.id, s->line), s->line);
+
+    pop(c->vm);
 }
 
 static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
@@ -1566,19 +1571,16 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
     bool vararg = m->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->c.module, arity, defaults, vararg);
-
-    // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
 
     addFunctionDefaults(c, &native->c, &m->as.nativeDecl.defArgs);
-    uint16_t idConst = identifierConst(c, &m->as.nativeDecl.id, m->line);
     native->c.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
 
-    pop(c->vm);
-
     emitBytecode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, idConst, cls->line);
+    emitShort(c, identifierConst(c, &m->as.nativeDecl.id, m->line), cls->line);
     emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
+
+    pop(c->vm);
 }
 
 static void compileMethods(Compiler* c, JStarStmt* cls) {
@@ -1637,9 +1639,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     Variable clsVar = declareVar(c, &s->as.classDecl.id, s->as.classDecl.isStatic, s->line);
     // If local initialize the variable in order to permit the class to reference itself
-    if(clsVar.type == VAR_LOCAL) {
-        markInitialized(c, clsVar.as.local.index);
-    }
+    if(clsVar.type == VAR_LOCAL) markInitialized(c, clsVar.as.local.index);
 
     bool isSubClass = s->as.classDecl.sup != NULL;
     if(isSubClass) {
@@ -1658,16 +1658,13 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     Variable funVar = declareVar(c, &s->as.funcDecl.id, s->as.funcDecl.isStatic, s->line);
     // If local initialize the variable in order to permit the function to reference itself
-    if(funVar.type == VAR_LOCAL) {
-        markInitialized(c, funVar.as.local.index);
-    }
+    if(funVar.type == VAR_LOCAL) markInitialized(c, funVar.as.local.index);
     compileFunction(c, s);
     defineVar(c, &funVar, s->line);
 }
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
-    bool isStatic = s->as.nativeDecl.isStatic;
-    Variable natVar = declareVar(c, &s->as.funcDecl.id, isStatic, s->line);
+    Variable natVar = declareVar(c, &s->as.funcDecl.id, s->as.nativeDecl.isStatic, s->line);
     compileNative(c, s);
     defineVar(c, &natVar, s->line);
 }

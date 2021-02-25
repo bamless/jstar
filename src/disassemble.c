@@ -196,7 +196,6 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_SETUP_ENSURE:
         signedOffsetInstruction(c, instr);
         break;
-    case OP_IMPORT_AS:
     case OP_NAT_METHOD:
     case OP_IMPORT_NAME:
         const2Instruction(c, instr);

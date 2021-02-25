@@ -1318,22 +1318,18 @@ op_return:
     }
 
     TARGET(OP_IMPORT): 
-    TARGET(OP_IMPORT_AS):
     TARGET(OP_IMPORT_FROM): {
         ObjString* name = GET_STRING();
         ObjModule* module = importModule(vm, name);
+
         if(module == NULL) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
             UNWIND_STACK(vm);
         }
 
-        switch(op) {
-        case OP_IMPORT:
-            hashTablePut(&vm->module->globals, name, OBJ_VAL(module));
-            break;
-        case OP_IMPORT_AS:
-            hashTablePut(&vm->module->globals, GET_STRING(), OBJ_VAL(module));
-            break;
+        if(op == OP_IMPORT) {
+            push(vm, OBJ_VAL(module));
+            swapStackSlots(vm, -1, -2);
         }
 
         //call the module's main if first time import
