@@ -75,9 +75,7 @@ static bool replPrint(JStarVM* vm) {
     JSR_CHECK(String, -1, isString ? "escaped return value" : "__string__ return value");
 
     if(jsrIsString(vm, 1)) {
-        colorPrintf(COLOR_BLUE, "\"");
-        colorPrintf(COLOR_BLUE, "%s", jsrGetString(vm, -1));
-        colorPrintf(COLOR_BLUE, "\"\n");
+        colorPrintf(COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
     } else if(jsrIsNumber(vm, 1)) {
         colorPrintf(COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
     } else if(jsrIsBoolean(vm, 1)) {
