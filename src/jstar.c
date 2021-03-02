@@ -24,11 +24,6 @@
 // JStarBuffer is implemented in object.c
 // -----------------------------------------------------------------------------
 
-static void parseError(const char* file, int line, const char* error, void* udata) {
-    JStarVM* vm = udata;
-    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
-}
-
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
     if(line >= 0) {
         fprintf(stderr, "File %s [line:%d]:\n", file, line);
@@ -36,6 +31,11 @@ void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, c
         fprintf(stderr, "File %s:\n", file);
     }
     fprintf(stderr, "%s\n", error);
+}
+
+static void parseError(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
 }
 
 JStarConf jsrGetConf(void) {
