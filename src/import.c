@@ -20,10 +20,11 @@ static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
     if(module == NULL) {
         push(vm, OBJ_VAL(name));
         module = newModule(vm, name);
+        setModule(vm, name, module);
         pop(vm);
 
-        hashTableImportNames(&module->globals, &vm->core->globals);  // implicitly import core
-        setModule(vm, name, module);
+        hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
+        hashTableMerge(&module->globals, &vm->core->globals);  // implicitly import core
     }
     return module;
 }
@@ -40,18 +41,12 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, J
 ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
                                    const JStarBuffer* code, JStarResult* err) {
     ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, name), code, err);
-
-    // TODO: Is this the best place to forward errors to the callback?
-    // Considering how `compileWithModule` already forwards the errors, and the fact that this is
-    // supposed to be its `binary` counterpart I'd say yes, but I'm not 100% convinced yet.
-    // Anyway, for now this works well, better than the previous solution
     if(*err == JSR_VERSION_ERR) {
-        reportError(vm, *err, path, -1, "Incompatible binary file version");
+        vm->errorCallback(vm, *err, path, -1, "Incompatible binary file version");
     }
     if(*err == JSR_DESERIALIZE_ERR) {
-        reportError(vm, *err, path, -1, "Malformed binary file");
+        vm->errorCallback(vm, *err, path, -1, "Malformed binary file");
     }
-
     return fn;
 }
 
@@ -63,12 +58,12 @@ static void registerInParent(JStarVM* vm, ObjModule* mod) {
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
+    
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(mod));
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* mod) {
     hashTablePut(&vm->modules, name, OBJ_VAL(mod));
-    hashTablePut(&mod->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
     registerInParent(vm, mod);
 }
 
@@ -80,7 +75,7 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
     return AS_MODULE(module);
 }
 
-static void loadNatives(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
+static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
     const char* moduleDir = strrchr(modulePath->data, '/');
     const char* lastDot = strrchr(moduleName->data, '.');
     const char* simpleName = lastDot ? lastDot + 1 : moduleName->data;
@@ -106,8 +101,13 @@ static void loadNatives(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleN
     }
 }
 
+static void parseError(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+}
+
 static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src) {
-    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
+    JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return NULL;
     }
@@ -121,6 +121,7 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
+
     return fn->c.module;
 }
 
@@ -134,6 +135,7 @@ static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
+
     return fn->c.module;
 }
 
@@ -161,7 +163,7 @@ static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name,
         return IMPORT_ERR;
     }
 
-    loadNatives(vm, path, name);
+    loadNativeExtension(vm, path, name);
     return IMPORT_OK;
 }
 
@@ -248,9 +250,4 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
     }
 
     return importModuleOrPackage(vm, name);
-}
-
-void parseErrorCallback(const char* file, int line, const char* error, void* udata) {
-    JStarVM* vm = udata;
-    reportError(vm, JSR_SYNTAX_ERR, file, line, error);
 }

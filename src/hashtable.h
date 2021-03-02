@@ -32,8 +32,6 @@ bool hashTableContainsKey(HashTable* t, ObjString* key);
 bool hashTableDel(HashTable* t, ObjString* key);
 // Adds all key/value pairs in o to t
 void hashTableMerge(HashTable* t, HashTable* o);
-// Similar to merge, but doesn't add entries with a key starting with an underscore.
-void hashTableImportNames(HashTable* t, HashTable* o);
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
 ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint32_t hash);
 

@@ -111,16 +111,6 @@ void hashTableMerge(HashTable* t, HashTable* o) {
     }
 }
 
-void hashTableImportNames(HashTable* t, HashTable* o) {
-    if(o->entries == NULL) return;
-    for(size_t i = 0; i <= o->sizeMask; i++) {
-        Entry* e = &o->entries[i];
-        if(e->key != NULL && e->key->data[0] != '_') {
-            hashTablePut(t, e->key, e->value);
-        }
-    }
-}
-
 ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint32_t hash) {
     if(t->entries == NULL) return NULL;
     size_t i = hash & t->sizeMask;

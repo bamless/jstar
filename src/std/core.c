@@ -1523,6 +1523,11 @@ JSR_NATIVE(jsr_print) {
     return true;
 }
 
+static void parseError(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+}
+
 JSR_NATIVE(jsr_eval) {
     JSR_CHECK(String, 1, "source");
 
@@ -1539,7 +1544,7 @@ JSR_NATIVE(jsr_eval) {
         mod = ((ObjNative*)prevFn)->c.module;
     }
 
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseErrorCallback, vm);
+    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }

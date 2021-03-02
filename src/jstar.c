@@ -24,6 +24,11 @@
 // JStarBuffer is implemented in object.c
 // -----------------------------------------------------------------------------
 
+static void parseError(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+}
+
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
     if(line >= 0) {
         fprintf(stderr, "File %s [line:%d]:\n", file, line);
@@ -53,7 +58,7 @@ JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
 
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
-    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
+    JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -72,7 +77,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        reportError(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
         jsrPop(vm);
     }
 
@@ -94,7 +99,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = deserializeWithModule(vm, path, name, code, &err);
     
-    if(err != JSR_SUCCESS) {
+    if(fn == NULL) {
         return err;
     }
 
@@ -104,7 +109,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        reportError(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
         jsrPop(vm);
     }
 
@@ -113,7 +118,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
-    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
+    JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -244,7 +249,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
     if(err != NULL) {
         JStarBuffer error;
-        jsrBufferInitCapacity(vm, &error, strlen(err) * 2);
+        jsrBufferInit(vm, &error);
 
         va_list args;
         va_start(args, err);

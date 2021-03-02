@@ -824,12 +824,6 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
     vm->sp[b] = tmp;
 }
 
-void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char* msg) {
-    if(vm->errorCallback) {
-        vm->errorCallback(vm, err, file, ln, msg);
-    }
-}
-
 // -----------------------------------------------------------------------------
 // EVAL LOOP
 // -----------------------------------------------------------------------------
@@ -1642,4 +1636,3 @@ extern inline ObjClass* getClass(JStarVM* vm, Value v);
 extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
 extern inline int apiStackIndex(JStarVM* vm, int slot);
 extern inline Value apiStackSlot(JStarVM* vm, int slot);
-extern inline void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char*);
