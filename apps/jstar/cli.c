@@ -34,7 +34,6 @@ static const int tokenDepth[TOK_EOF] = {
     // Tokens that end a block
     [TOK_RSQUARE] = -1,
     [TOK_RCURLY] = -1,
-    [TOK_ELIF] = -1,
     [TOK_END] = -1,
 };
 
@@ -57,7 +56,7 @@ static JStarBuffer completionBuf;
 // VM INITIALIZATION AND DESTRUCTION
 // -----------------------------------------------------------------------------
 
-static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     if(ln >= 0) {
         fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
     } else {
@@ -72,7 +71,7 @@ static bool replPrint(JStarVM* vm) {
     jsrDup(vm);
     bool isString = jsrIsString(vm, 1);
     if(jsrCallMethod(vm, isString ? "escaped" : "__string__", 0) != JSR_SUCCESS) return false;
-    JSR_CHECK(String, -1, isString ? "escaped return value" : "__string__ return value");
+    JSR_CHECK(String, -1, "Cannot convert result to String");
 
     if(jsrIsString(vm, 1)) {
         colorPrintf(COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
@@ -90,7 +89,7 @@ static bool replPrint(JStarVM* vm) {
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
-    conf.errorCallback = &reportError;
+    conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
 }

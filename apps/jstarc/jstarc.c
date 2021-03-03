@@ -23,7 +23,7 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 
-static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
@@ -37,7 +37,7 @@ static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, 
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
-    conf.errorCallback = &reportError;
+    conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
 }
 
