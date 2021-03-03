@@ -148,13 +148,11 @@ void* vecEnd(Vector* vec) {
     return vec->data + vec->size;
 }
 
-void* vecIterator(Vector* vec, size_t i) {
+void* vecIter(Vector* vec, size_t i) {
     ASSERT(i <= vec->size, "index out of bounds");
     return vec->data + i;
 }
 
-size_t vecIteratorIndex(const Vector* vec, void* it) {
-    ptrdiff_t i = (intptr_t)it - (intptr_t)vec->data;
-    ASSERT(i >= 0, "invalid iterator");
-    return i / sizeof(void*);
+bool vecIsIterEnd(Vector* vec, const void* it) {
+    return vec->data + vec->size - 1 == it;
 }

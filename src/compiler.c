@@ -463,7 +463,7 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
 
 static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
     int i = 0;
-    vecForeach(JStarExpr **it, *defaultArgs) {
+    vecForeach(JStarExpr** it, *defaultArgs) {
         JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -663,7 +663,7 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
 
 static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector* boundNames) {
     int i = 0;
-    vecForeach(JStarExpr **it, exprs->as.list) {
+    vecForeach(JStarExpr** it, exprs->as.list) {
         JStarIdentifier* name = boundNames ? vecGet(boundNames, i) : NULL;
         compileRval(c, *it, name);
         if(++i > num) emitBytecode(c, OP_POP, 0);
@@ -757,7 +757,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
 
 static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
                        JStarExpr* args, bool isUnpack) {
-    vecForeach(JStarExpr **it, args->as.list) {
+    vecForeach(JStarExpr** it, args->as.list) {
         compileExpr(c, *it);
     }
 
@@ -847,14 +847,14 @@ static void compileExpExpr(Compiler* c, JStarExpr* e) {
 
 static void compileArrayLit(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
-    vecForeach(JStarExpr **it, e->as.array.exprs->as.list) {
+    vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
         compileExpr(c, *it);
         emitBytecode(c, OP_APPEND_LIST, e->line);
     }
 }
 
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
-    vecForeach(JStarExpr **it, e->as.tuple.exprs->as.list) {
+    vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
         compileExpr(c, *it);
     }
 
@@ -1159,7 +1159,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         JStarIdentifier* subMod = *it;
         jsrBufferAppend(&fullName, subMod->name, subMod->length);
 
-        if(importAs && it + 1 == vecEnd(modules)) {
+        if(importAs && vecIsIterEnd(modules, it)) {
             emitBytecode(c, OP_IMPORT, s->line);
         } else if(it == vecBegin(modules) && !(importAs || importFor)) {
             emitBytecode(c, OP_IMPORT, s->line);
@@ -1170,9 +1170,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
         emitBytecode(c, OP_POP, s->line);
         
-        if(it + 1 != vecEnd(modules)) {
-            jsrBufferAppendChar(&fullName, '.');
-        }
+        if(!vecIsIterEnd(modules, it)) jsrBufferAppendChar(&fullName, '.');
     }
 
     if(importFor) {
@@ -1584,7 +1582,7 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
 }
 
 static void compileMethods(Compiler* c, JStarStmt* cls) {
-    vecForeach(JStarStmt **it, cls->as.classDecl.methods) {
+    vecForeach(JStarStmt** it, cls->as.classDecl.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
