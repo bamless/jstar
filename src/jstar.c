@@ -228,9 +228,7 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     pop(vm);
 
     // Place the exception on top of the stack if not already
-    if(!valueEquals(exc, vm->sp[-1])) {
-        push(vm, exc);
-    }
+    if(!valueEquals(exc, vm->sp[-1])) push(vm, exc);
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
