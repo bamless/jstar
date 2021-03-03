@@ -85,12 +85,12 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     return res;
 }
 
-JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
+JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
     return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code);
 }
 
-JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
-                                    const JStarBuffer* code) {
+JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
+                          const JStarBuffer* code) {
     if(!isCompiledCode(code)) {
         return jsrEvalModuleString(vm, path, module, code->data);
     }
@@ -98,7 +98,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     JStarResult err;
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = deserializeWithModule(vm, path, name, code, &err);
-    
+
     if(fn == NULL) {
         return err;
     }
@@ -282,7 +282,7 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     int saveErrno;
     size_t read;
-    
+
     FILE* src = fopen(path, "rb");
     if(src == NULL) {
         return false;

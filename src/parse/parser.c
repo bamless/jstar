@@ -549,17 +549,12 @@ static JStarStmt* importStmt(Parser* p) {
         advance(p);
         skipNewLines(p);
 
-        if(match(p, TOK_MULT)) {
-            JStarTok all = advance(p);
-            vecPush(&importNames, jsrNewIdentifier(all.length, all.lexeme));
-        } else {
-            for(;;) {
-                JStarTok name = require(p, TOK_IDENTIFIER);
-                vecPush(&importNames, jsrNewIdentifier(name.length, name.lexeme));
-                if(!match(p, TOK_COMMA)) break;
-                advance(p);
-                skipNewLines(p);
-            }
+        for(;;) {
+            JStarTok name = require(p, TOK_IDENTIFIER);
+            vecPush(&importNames, jsrNewIdentifier(name.length, name.lexeme));
+            if(!match(p, TOK_COMMA)) break;
+            advance(p);
+            skipNewLines(p);
         }
     } else if(match(p, TOK_AS)) {
         advance(p);
