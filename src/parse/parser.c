@@ -832,7 +832,6 @@ static JStarExpr* parseTableLiteral(Parser* p) {
         JStarExpr* key;
         if(match(p, TOK_DOT)) {
             advance(p);
-            skipNewLines(p);
             JStarTok id = require(p, TOK_IDENTIFIER);
             key = jsrStrLiteral(id.line, id.lexeme, id.length);
         } else {
