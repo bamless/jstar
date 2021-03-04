@@ -1077,7 +1077,6 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     compileExpr(c, s->as.forEach.iterable);
 
     // Set the iterator variable with a name that it's not an identifier.
-    // this will avoid the user shadowing the iterator with a declared variable.
     JStarIdentifier iterator = createIdentifier(".iter");
     Variable iterVar = declareVar(c, &iterator, false, s->line);
     defineVar(c, &iterVar, s->line);
@@ -1085,17 +1084,15 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
 
     // FOR_PREP will cache the __iter__ and __next__ methods as locals
     emitBytecode(c, OP_FOR_PREP, 0);
-    {
-        // These vars are managed by the vm and we don't need to reference them in compilation
-        // So, perfrom the declaration in a scope in order to avoid local name cluttering
-        JStarIdentifier iterMeth = createIdentifier(".__iter__");
-        Variable iterMethVar = declareVar(c, &iterMeth, false, s->line);
-        defineVar(c, &iterMethVar, s->line);
 
-        JStarIdentifier nextMeth = createIdentifier(".__next__");
-        Variable nextMethVar = declareVar(c, &nextMeth, false, s->line);
-        defineVar(c, &nextMethVar, s->line);
-    }
+    // Declare variables for cached methods
+    JStarIdentifier iterMeth = createIdentifier(".__iter__");
+    Variable iterMethVar = declareVar(c, &iterMeth, false, s->line);
+    defineVar(c, &iterMethVar, s->line);
+
+    JStarIdentifier nextMeth = createIdentifier(".__next__");
+    Variable nextMethVar = declareVar(c, &nextMeth, false, s->line);
+    defineVar(c, &nextMethVar, s->line);
 
     Loop l;
     startLoop(c, &l);
