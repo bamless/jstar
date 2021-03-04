@@ -1464,8 +1464,7 @@ static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, mod, arity, defCount, vararg);
-    // This cost will hold the superclass at runtime
-    addConstant(&c->func->code, NULL_VAL);
+    addConstant(&c->func->code, NULL_VAL);  // This const will hold the superclass at runtime
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
 
     c->func->c.name = createMethodName(c, clsName, name);
