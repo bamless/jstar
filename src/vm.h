@@ -51,6 +51,10 @@ typedef enum MethodSymbol {
     SYM_GE,
     SYM_NEG,
 
+    // `^` operator
+    SYM_POW,
+    SYM_RPOW,
+
     // Sentinel
     SYM_END
 } MethodSymbol;

@@ -19,6 +19,7 @@ static const char* const methodSyms[SYM_END] = {
     [SYM_RMOD] = "__rmod__", [SYM_GET] = "__get__",   [SYM_SET] = "__set__",
     [SYM_EQ] = "__eq__",     [SYM_LT] = "__lt__",     [SYM_LE] = "__le__",
     [SYM_GT] = "__gt__",     [SYM_GE] = "__ge__",     [SYM_NEG] = "__neg__",
+    [SYM_POW] = "__pow__",   [SYM_RPOW] = "__rpow__",
 };
 
 // Enumeration encoding the cause of stack unwinding.
@@ -1048,14 +1049,13 @@ bool runEval(JStarVM* vm, int evalDepth) {
     }
         
     TARGET(OP_POW): {
-        if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-            jsrRaise(vm, "TypeException", "Operator ^ not defined for types %s, %s", 
-                     getClass(vm, peek2(vm))->name->data, getClass(vm, peek(vm))->name->data);
-            UNWIND_STACK(vm);
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
+            double y = AS_NUM(pop(vm));
+            double x = AS_NUM(pop(vm));
+            push(vm, NUM_VAL(pow(x, y)));
+        } else {
+            BINARY_OVERLOAD(^, SYM_POW, SYM_RPOW);
         }
-        double y = AS_NUM(pop(vm));
-        double x = AS_NUM(pop(vm));
-        push(vm, NUM_VAL(pow(x, y)));
         DISPATCH();
     }
 
