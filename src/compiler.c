@@ -93,14 +93,19 @@ struct Compiler {
     bool hadError;
 };
 
-static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType t,
+static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType type,
                          JStarStmt* ast) {
-    *c = (Compiler){0};
     c->vm = vm;
     c->file = file;
     c->prev = prev;
-    c->type = t;
+    c->type = type;
     c->ast = ast;
+    c->depth = 0;
+    c->localsCount = 0;
+    c->loops = NULL;
+    c->tryDepth = 0;
+    c->tryBlocks = NULL;
+    c->hadError = false;
     jsrBufferInit(vm, &c->stringBuf);
     vm->currCompiler = c;
 }
