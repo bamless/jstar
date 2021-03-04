@@ -920,17 +920,7 @@ JSR_NATIVE(jsr_String_eq) {
     ObjString* s1 = AS_STRING(vm->apiStack[0]);
     ObjString* s2 = AS_STRING(vm->apiStack[1]);
 
-    if(s1->interned && s2->interned) {
-        jsrPushBoolean(vm, s1 == s2);
-        return true;
-    }
-
-    if(s1->length != s2->length) {
-        jsrPushBoolean(vm, false);
-        return true;
-    }
-
-    jsrPushBoolean(vm, memcmp(s1->data, s2->data, s1->length) == 0);
+    jsrPushBoolean(vm, stringEquals(s1, s2));
     return true;
 }
 

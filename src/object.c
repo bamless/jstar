@@ -284,7 +284,7 @@ uint32_t stringGetHash(ObjString* str) {
 // Compute two ObjStrings for equality, short-circuiting if both are interned
 bool stringEquals(ObjString* s1, ObjString* s2) {
     if(s1->interned && s2->interned) return s1 == s2;
-    return memcmp(s1->data, s2->data, s1->length < s2->length ? s1->length : s2->length) == 0;
+    return s1->length == s2->length ? memcmp(s1->data, s2->data, s1->length) == 0 : false;
 }
 
 // Get the value array of a List or a Tuple
