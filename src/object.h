@@ -174,9 +174,9 @@ typedef struct ObjInstance {
 
 typedef struct ObjList {
     Obj base;
-    size_t size;   // Size of the List (how much space is currently allocated)
-    size_t count;  // How many objects are currently in the list
-    Value* arr;    // List elements
+    size_t capacity;  // Size of the List (how much space is currently allocated)
+    size_t size;      // How many objects are currently in the list
+    Value* arr;       // List elements
 } ObjList;
 
 typedef struct ObjTuple {
@@ -192,9 +192,9 @@ typedef struct TableEntry {
 
 typedef struct ObjTable {
     Obj base;
-    size_t sizeMask;      // The size of the entries array
+    size_t capacityMask;  // The size of the entries array
     size_t numEntries;    // The number of entries in the Table (including tombstones)
-    size_t count;         // The number of actual entries in the Table (i.e. excluding tombstones)
+    size_t size;          // The number of actual entries in the Table (i.e. excluding tombstones)
     TableEntry* entries;  // The actual array of entries
 } ObjTable;
 
@@ -240,7 +240,7 @@ typedef struct FrameRecord {
 typedef struct ObjStackTrace {
     Obj base;
     int lastTracedFrame;
-    int recordCount;
+    int recordCapacity;
     int recordSize;
     FrameRecord* records;
 } ObjStackTrace;
@@ -269,7 +269,7 @@ ObjInstance* newInstance(JStarVM* vm, ObjClass* cls);
 ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn);
 ObjModule* newModule(JStarVM* vm, ObjString* name);
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr);
-ObjList* newList(JStarVM* vm, size_t startSize);
+ObjList* newList(JStarVM* vm, size_t capacity);
 ObjTuple* newTuple(JStarVM* vm, size_t size);
 ObjStackTrace* newStackTrace(JStarVM* vm);
 ObjTable* newTable(JStarVM* vm);

@@ -262,7 +262,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
 void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
     ObjList* argvList = vm->argv;
-    argvList->count = 0;
+    argvList->size = 0;
     for(int i = 0; i < argc; i++) {
         Value arg = OBJ_VAL(copyString(vm, argv[i], strlen(argv[i])));
         listAppend(vm, argvList, arg);
@@ -496,7 +496,7 @@ void jsrListInsert(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->size, "Out of bounds");
     listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
@@ -504,7 +504,7 @@ void jsrListRemove(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->size, "Out of bounds");
     listRemove(vm, lst, (size_t)i);
 }
 
@@ -512,14 +512,14 @@ void jsrListGet(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->size, "Out of bounds");
     push(vm, lst->arr[i]);
 }
 
 size_t jsrListGetLength(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lst), "Not a list");
-    return AS_LIST(lst)->count;
+    return AS_LIST(lst)->size;
 }
 
 void jsrTupleGet(JStarVM* vm, size_t i, int slot) {

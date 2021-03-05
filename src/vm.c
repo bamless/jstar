@@ -341,7 +341,7 @@ static bool getListSubscript(JStarVM* vm) {
     Value arg = peek(vm);
 
     if(IS_INT(arg)) {
-        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->count);
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->size);
         if(idx == SIZE_MAX) return false;
 
         pop(vm), pop(vm);
@@ -350,10 +350,10 @@ static bool getListSubscript(JStarVM* vm) {
     }
     if(IS_TUPLE(arg)) {
         size_t low = 0, high = 0;
-        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->count, &low, &high)) return false;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->size, &low, &high)) return false;
 
         ObjList* ret = newList(vm, high - low);
-        ret->count = high - low;
+        ret->size = high - low;
         for(size_t i = low; i < high; i++) {
             ret->arr[i - low] = lst->arr[i];
         }
@@ -658,7 +658,7 @@ bool setValueSubscript(JStarVM* vm) {
         }
 
         ObjList* list = AS_LIST(operand);
-        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
+        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->size);
         if(index == SIZE_MAX) return false;
 
         list->arr[index] = val;

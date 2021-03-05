@@ -130,8 +130,8 @@ ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*)) {
 ObjStackTrace* newStackTrace(JStarVM* vm) {
     ObjStackTrace* st = (ObjStackTrace*)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
     st->lastTracedFrame = -1;
+    st->recordCapacity = 0;
     st->recordSize = 0;
-    st->recordCount = 0;
     st->records = NULL;
     return st;
 }
@@ -140,13 +140,13 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 
-    if(st->recordCount + 1 >= st->recordSize) {
-        size_t oldSize = sizeof(FrameRecord) * st->recordSize;
-        st->recordSize = st->records ? st->recordSize * 2 : 4;
-        st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordSize);
+    if(st->recordSize + 1 >= st->recordCapacity) {
+        size_t oldSize = sizeof(FrameRecord) * st->recordCapacity;
+        st->recordCapacity = st->records ? st->recordCapacity * 2 : 4;
+        st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordCapacity);
     }
 
-    FrameRecord* record = &st->records[st->recordCount++];
+    FrameRecord* record = &st->records[st->recordSize++];
     record->funcName = NULL;
     record->moduleName = NULL;
 
@@ -156,8 +156,8 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         Code* code = &fn->code;
 
         size_t op = f->ip - code->bytecode - 1;
-        if(op >= code->count) {
-            op = code->count - 1;
+        if(op >= code->size) {
+            op = code->size - 1;
         }
 
         record->line = getBytecodeSrcLine(code, op);
@@ -185,65 +185,62 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
 #define LIST_DEF_SZ    8
 #define LIST_GROW_RATE 2
 
-ObjList* newList(JStarVM* vm, size_t startSize) {
+ObjList* newList(JStarVM* vm, size_t capacity) {
     Value* arr = NULL;
-    if(startSize > 0) {
-        arr = GC_ALLOC(vm, sizeof(Value) * startSize);
-    }
-
+    if(capacity > 0) arr = GC_ALLOC(vm, sizeof(Value) * capacity);
     ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), vm->lstClass, OBJ_LIST);
-    lst->size = startSize;
-    lst->count = 0;
+    lst->capacity = capacity;
+    lst->size = 0;
     lst->arr = arr;
     return lst;
 }
 
 static void growList(JStarVM* vm, ObjList* lst) {
-    size_t newSize = lst->size != 0 ? lst->size * LIST_GROW_RATE : LIST_DEF_SZ;
-    lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->size, sizeof(Value) * newSize);
-    lst->size = newSize;
+    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEF_SZ;
+    lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->capacity, sizeof(Value) * newCap);
+    lst->capacity = newCap;
 }
 
 void listAppend(JStarVM* vm, ObjList* lst, Value val) {
     // if the list get resized a GC may kick in, so push val as root
-    if(lst->count + 1 > lst->size) {
+    if(lst->size + 1 > lst->capacity) {
         push(vm, val);
         growList(vm, lst);
         pop(vm);
     }
-    lst->arr[lst->count++] = val;
+    lst->arr[lst->size++] = val;
 }
 
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
     // if the list get resized a GC may kick in, so push val as root
-    if(lst->count + 1 > lst->size) {
+    if(lst->size + 1 > lst->capacity) {
         push(vm, val);
         growList(vm, lst);
         pop(vm);
     }
 
     Value* arr = lst->arr;
-    for(size_t i = lst->count; i > index; i--) {
+    for(size_t i = lst->size; i > index; i--) {
         arr[i] = arr[i - 1];
     }
 
     arr[index] = val;
-    lst->count++;
+    lst->size++;
 }
 
 void listRemove(JStarVM* vm, ObjList* lst, size_t index) {
     Value* arr = lst->arr;
-    for(size_t i = index + 1; i < lst->count; i++) {
+    for(size_t i = index + 1; i < lst->size; i++) {
         arr[i - 1] = arr[i];
     }
-    lst->count--;
+    lst->size--;
 }
 
 ObjTable* newTable(JStarVM* vm) {
     ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), vm->tableClass, OBJ_TABLE);
-    table->sizeMask = 0;
+    table->capacityMask = 0;
     table->numEntries = 0;
-    table->count = 0;
+    table->size = 0;
     table->entries = NULL;
     return table;
 }
@@ -293,7 +290,7 @@ Value* getValues(Obj* obj, size_t* size) {
     switch(obj->type) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj;
-        *size = lst->count;
+        *size = lst->size;
         return lst->arr;
     }
     case OBJ_TUPLE: {
@@ -520,11 +517,11 @@ void printObj(Obj* o) {
         break;
     }
     case OBJ_LIST: {
-        ObjList* l = (ObjList*)o;
+        ObjList* lst = (ObjList*)o;
         printf("[");
-        for(size_t i = 0; i < l->count; i++) {
-            printValue(l->arr[i]);
-            if(i != l->count - 1) printf(", ");
+        for(size_t i = 0; i < lst->size; i++) {
+            printValue(lst->arr[i]);
+            if(i != lst->size - 1) printf(", ");
         }
         printf("]");
         break;
@@ -543,7 +540,7 @@ void printObj(Obj* o) {
         ObjTable* t = (ObjTable*)o;
         printf("{");
         if(t->entries != NULL) {
-            for(size_t i = 0; i < t->sizeMask + 1; i++) {
+            for(size_t i = 0; i < t->capacityMask + 1; i++) {
                 if(!IS_NULL(t->entries[i].key)) {
                     printValue(t->entries[i].key);
                     printf(" : ");

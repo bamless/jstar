@@ -140,8 +140,8 @@ static void error(Compiler* c, int line, const char* format, ...) {
 }
 
 static size_t emitBytecode(Compiler* c, uint8_t b, int line) {
-    if(line == 0 && c->func->code.linesCount > 0) {
-        line = c->func->code.lines[c->func->code.linesCount - 1];
+    if(line == 0 && c->func->code.lineSize > 0) {
+        line = c->func->code.lines[c->func->code.lineSize - 1];
     }
     return writeByte(&c->func->code, b, line);
 }
@@ -153,7 +153,7 @@ static size_t emitShort(Compiler* c, uint16_t s, int line) {
 }
 
 static size_t getCurrentAddr(Compiler* c) {
-    return c->func->code.count;
+    return c->func->code.size;
 }
 
 static bool inGlobalScope(Compiler* c) {

@@ -100,8 +100,8 @@ static void serializeNative(JStarBuffer* buf, ObjNative* n) {
 }
 
 static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
-    serializeShort(buf, consts->count);
-    for(int i = 0; i < consts->count; i++) {
+    serializeShort(buf, consts->size);
+    for(int i = 0; i < consts->size; i++) {
         Value c = consts->arr[i];
         if(IS_FUNC(c)) {
             serializeByte(buf, CONST_FUN);
@@ -119,8 +119,8 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
     // TODO: store (compressed) line information? maybe give option in application
 
     // serialize bytecode
-    serializeUint64(buf, c->count);
-    for(size_t i = 0; i < c->count; i++) {
+    serializeUint64(buf, c->size);
+    for(size_t i = 0; i < c->size; i++) {
         serializeByte(buf, c->bytecode[i]);
     }
 
@@ -322,15 +322,15 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
 }
 
 static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
-    uint16_t constantSize;
-    if(!deserializeShort(d, &constantSize)) return false;
+    uint16_t constsSize;
+    if(!deserializeShort(d, &constsSize)) return false;
 
-    consts->arr = malloc(sizeof(Value) * constantSize);
-    zeroValueArray(consts->arr, constantSize);
-    consts->count = constantSize;
-    consts->size = constantSize;
+    consts->arr = malloc(sizeof(Value) * constsSize);
+    zeroValueArray(consts->arr, constsSize);
+    consts->capacity = constsSize;
+    consts->size = constsSize;
 
-    for(int i = 0; i < constantSize; i++) {
+    for(int i = 0; i < constsSize; i++) {
         uint8_t constType;
         if(!deserializeByte(d, &constType)) return false;
 
@@ -361,8 +361,8 @@ static bool deserializeCode(Deserializer* d, Code* c) {
     if(!deserializeUint64(d, &codeSize)) return false;
 
     c->bytecode = malloc(codeSize);
-    c->count = codeSize;
     c->size = codeSize;
+    c->capacity = codeSize;
 
     if(!read(d, c->bytecode, codeSize)) return false;
     if(!deserializeConstants(d, &c->consts)) return false;

@@ -173,8 +173,8 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
     JStarBuffer fullPath;
     jsrBufferInit(vm, &fullPath);
 
-    for(size_t i = 0; i < paths->count + 1; i++) {
-        if(i < paths->count) {
+    for(size_t i = 0; i < paths->size + 1; i++) {
+        if(i < paths->size) {
             if(!IS_STRING(paths->arr[i])) continue;
             jsrBufferAppendStr(&fullPath, AS_STRING(paths->arr[i])->data);
             if(fullPath.size > 0 && fullPath.data[fullPath.size - 1] != '/') {

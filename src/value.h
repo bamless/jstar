@@ -179,7 +179,7 @@ inline bool valueToBool(Value v) {
 #define VAL_ARR_GROW_FAC 2
 
 typedef struct ValueArray {
-    int size, count;
+    int capacity, size;
     Value* arr;
 } ValueArray;
 
