@@ -1059,28 +1059,23 @@ static JStarExpr* additiveExpr(Parser* p) {
 }
 
 static JStarExpr* relationalExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_GT, TOK_GE, TOK_LT, TOK_LE, TOK_IS};
+    JStarTokType tokens[] = {TOK_EQUAL_EQUAL, TOK_BANG_EQ, TOK_GT, TOK_GE, TOK_LT, TOK_LE, TOK_IS};
     return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), additiveExpr);
 }
 
-static JStarExpr* equalityExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_EQUAL_EQUAL, TOK_BANG_EQ};
+static JStarExpr* andExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_AND};
     return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), relationalExpr);
 }
 
-static JStarExpr* logicAndExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_AND};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), equalityExpr);
-}
-
-static JStarExpr* logicOrExpr(Parser* p) {
+static JStarExpr* orExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_OR};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), logicAndExpr);
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), andExpr);
 }
 
 static JStarExpr* ternaryExpr(Parser* p) {
     int line = p->peek.line;
-    JStarExpr* expr = logicOrExpr(p);
+    JStarExpr* expr = orExpr(p);
 
     if(match(p, TOK_IF)) {
         advance(p);
