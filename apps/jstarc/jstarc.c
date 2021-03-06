@@ -144,12 +144,14 @@ static bool disassembleFile(const char* path) {
 static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
                            char* dest, size_t size) {
     const char* fileRoot = curr + strlen(root);
+
     if(strlen(fileRoot) != 0) {
         const char* components[] = {out, fileRoot, dest, NULL};
         cwk_path_join_multiple(components, dest, size);
     } else {
         cwk_path_join(out, file, dest, size);
     }
+    
     cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
