@@ -1593,7 +1593,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     Value stacktraceVal = NULL_VAL;
     hashTableGet(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
     ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
-    ObjStackTrace* stackTrace = AS_STACK_TRACE(stacktraceVal);
+    ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame* frame = &vm->frames[vm->frameCount - 1];
@@ -1614,7 +1614,7 @@ bool unwindStack(JStarVM* vm, int depth) {
             break;
         }
 
-        stacktraceDump(vm, stackTrace, frame, vm->frameCount);
+        stacktraceDump(vm, stacktrace, frame, vm->frameCount);
 
         // if current frame has except or ensure handlers restore handler state and exit
         if(frame->handlerc > 0) {
