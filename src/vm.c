@@ -993,20 +993,6 @@ bool runEval(JStarVM* vm, int evalDepth) {
     uint8_t op;
     DECODE(op) {
 
-    TARGET(OP_SUB):    BINARY(NUM_VAL, -, SYM_SUB, SYM_RSUB);
-    TARGET(OP_MUL):    BINARY(NUM_VAL, *, SYM_MUL, SYM_RMUL);
-    TARGET(OP_DIV):    BINARY(NUM_VAL, /, SYM_DIV, SYM_RDIV);
-    TARGET(OP_LT):     BINARY(BOOL_VAL, <, SYM_LT, SYM_END);
-    TARGET(OP_LE):     BINARY(BOOL_VAL, <=, SYM_LE, SYM_END);
-    TARGET(OP_GT):     BINARY(BOOL_VAL, >, SYM_GT, SYM_END);
-    TARGET(OP_GE):     BINARY(BOOL_VAL, >=, SYM_GE, SYM_END);
-    TARGET(OP_LSHIFT): BITWISE(<<, <<, SYM_LSHFT, SYM_RLSHFT);
-    TARGET(OP_RSHIFT): BITWISE(>>, >>, SYM_RSHFT, SYM_RRSHFT);
-    TARGET(OP_BAND):   BITWISE(&, &, SYM_BAND, SYM_RBAND);
-    TARGET(OP_BOR):    BITWISE(|, |, SYM_BOR, SYM_RBOR);
-    TARGET(OP_XOR):    BITWISE(~, ^, SYM_XOR, SYM_RXOR);
-    TARGET(OP_NEG):    UNARY(NUM_VAL, -, SYM_NEG);
-
     TARGET(OP_ADD): {
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
             double b = AS_NUM(pop(vm));
@@ -1064,6 +1050,20 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
+
+    TARGET(OP_SUB):    BINARY(NUM_VAL, -, SYM_SUB, SYM_RSUB);
+    TARGET(OP_MUL):    BINARY(NUM_VAL, *, SYM_MUL, SYM_RMUL);
+    TARGET(OP_DIV):    BINARY(NUM_VAL, /, SYM_DIV, SYM_RDIV);
+    TARGET(OP_LT):     BINARY(BOOL_VAL, <, SYM_LT, SYM_END);
+    TARGET(OP_LE):     BINARY(BOOL_VAL, <=, SYM_LE, SYM_END);
+    TARGET(OP_GT):     BINARY(BOOL_VAL, >, SYM_GT, SYM_END);
+    TARGET(OP_GE):     BINARY(BOOL_VAL, >=, SYM_GE, SYM_END);
+    TARGET(OP_LSHIFT): BITWISE(<<, <<, SYM_LSHFT, SYM_RLSHFT);
+    TARGET(OP_RSHIFT): BITWISE(>>, >>, SYM_RSHFT, SYM_RRSHFT);
+    TARGET(OP_BAND):   BITWISE(&, &, SYM_BAND, SYM_RBAND);
+    TARGET(OP_BOR):    BITWISE(|, |, SYM_BOR, SYM_RBOR);
+    TARGET(OP_XOR):    BITWISE(~, ^, SYM_XOR, SYM_RXOR);
+    TARGET(OP_NEG):    UNARY(NUM_VAL, -, SYM_NEG);
 
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
