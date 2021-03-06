@@ -890,17 +890,14 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }                                             \
     } while(0)
 
-#define UNARY(type, op, overload)                        \
-    do {                                                 \
-        if(IS_NUM(peek(vm))) {                           \
-            double n = AS_NUM(pop(vm));                  \
-            push(vm, type(op(n)));                       \
-        } else {                                         \
-            SAVE_STATE();                                \
-            bool res = unaryOverload(vm, #op, overload); \
-            LOAD_STATE();                                \
-            if(!res) UNWIND_STACK(vm);                   \
-        }                                                \
+#define UNARY(type, op, overload)               \
+    do {                                        \
+        if(IS_NUM(peek(vm))) {                  \
+            double n = AS_NUM(pop(vm));         \
+            push(vm, type(op(n)));              \
+        } else {                                \
+            UNARY_OVERLOAD(type, op, overload); \
+        }                                       \
     } while(0)
 
 #define UNARY_OVERLOAD(type, op, overload)           \
