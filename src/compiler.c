@@ -862,13 +862,13 @@ static void compileArraryAccExpression(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_SUBSCR_GET, e->line);
 }
 
-static void compileExpExpr(Compiler* c, JStarExpr* e) {
+static void compilePowExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.pow.base);
     compileExpr(c, e->as.pow.exp);
     emitBytecode(c, OP_POW, e->line);
 }
 
-static void compileArrayLit(Compiler* c, JStarExpr* e) {
+static void CompileListLit(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
     vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
         compileExpr(c, *it);
@@ -940,7 +940,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileArraryAccExpression(c, e);
         break;
     case JSR_POWER:
-        compileExpExpr(c, e);
+        compilePowExpr(c, e);
         break;
     case JSR_EXPR_LST:
         vecForeach(JStarExpr** it, e->as.list) {
@@ -963,7 +963,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         emitBytecode(c, OP_NULL, e->line);
         break;
     case JSR_ARRAY:
-        compileArrayLit(c, e);
+        CompileListLit(c, e);
         break;
     case JSR_TUPLE:
         compileTupleLit(c, e);
