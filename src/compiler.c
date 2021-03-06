@@ -515,6 +515,21 @@ static void compileBinaryExpr(Compiler* c, JStarExpr* e) {
     case TOK_MOD:
         emitBytecode(c, OP_MOD, e->line);
         break;
+    case TOK_AMPER:
+        emitBytecode(c, OP_BAND, e->line);
+        break;
+    case TOK_PIPE:
+        emitBytecode(c, OP_BOR, e->line);
+        break;
+    case TOK_TILDE:
+        emitBytecode(c, OP_XOR, e->line);
+        break;
+    case TOK_LSHIFT:
+        emitBytecode(c, OP_LSHIFT, e->line);
+        break;
+    case TOK_RSHIFT:
+        emitBytecode(c, OP_RSHIFT, e->line);
+        break;
     case TOK_EQUAL_EQUAL:
         emitBytecode(c, OP_EQ, e->line);
         break;
@@ -565,6 +580,9 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
         break;
     case TOK_BANG:
         emitBytecode(c, OP_NOT, e->line);
+        break;
+    case TOK_TILDE:
+        emitBytecode(c, OP_BNOT, e->line);
         break;
     case TOK_HASH:
         emitMethodCall(c, "__len__", 0);

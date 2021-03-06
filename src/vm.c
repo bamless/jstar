@@ -12,14 +12,18 @@
 #include "std/modules.h"
 
 static const char* const methodSyms[SYM_END] = {
-    [SYM_CTOR] = CTOR_STR,   [SYM_ITER] = "__iter__", [SYM_NEXT] = "__next__",
-    [SYM_ADD] = "__add__",   [SYM_SUB] = "__sub__",   [SYM_MUL] = "__mul__",
-    [SYM_DIV] = "__div__",   [SYM_MOD] = "__mod__",   [SYM_RADD] = "__radd__",
-    [SYM_RSUB] = "__rsub__", [SYM_RMUL] = "__rmul__", [SYM_RDIV] = "__rdiv__",
-    [SYM_RMOD] = "__rmod__", [SYM_GET] = "__get__",   [SYM_SET] = "__set__",
-    [SYM_EQ] = "__eq__",     [SYM_LT] = "__lt__",     [SYM_LE] = "__le__",
-    [SYM_GT] = "__gt__",     [SYM_GE] = "__ge__",     [SYM_NEG] = "__neg__",
-    [SYM_POW] = "__pow__",   [SYM_RPOW] = "__rpow__",
+    [SYM_CTOR] = CTOR_STR,        [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",
+    [SYM_ADD] = "__add__",        [SYM_SUB] = "__sub__",        [SYM_MUL] = "__mul__",
+    [SYM_DIV] = "__div__",        [SYM_MOD] = "__mod__",        [SYM_BAND] = "__band__",
+    [SYM_BOR] = "__bor__",        [SYM_XOR] = "__xor__",        [SYM_LSHFT] = "__lshift__",
+    [SYM_RSHFT] = "__rshift__",   [SYM_RADD] = "__radd__",      [SYM_RSUB] = "__rsub__",
+    [SYM_RMUL] = "__rmul__",      [SYM_RDIV] = "__rdiv__",      [SYM_RMOD] = "__rmod__",
+    [SYM_RBAND] = "__rband__",    [SYM_RBOR] = "__rbor__",      [SYM_RXOR] = "__rxor__",
+    [SYM_RLSHFT] = "__rlshift__", [SYM_RRSHFT] = "__rrshift__", [SYM_GET] = "__get__",
+    [SYM_SET] = "__set__",        [SYM_EQ] = "__eq__",          [SYM_LT] = "__lt__",
+    [SYM_LE] = "__le__",          [SYM_GT] = "__gt__",          [SYM_GE] = "__ge__",
+    [SYM_NEG] = "__neg__",        [SYM_BNOT] = "__bnot__",      [SYM_POW] = "__pow__",
+    [SYM_RPOW] = "__rpow__",
 };
 
 // Enumeration encoding the cause of stack unwinding.
@@ -875,6 +879,17 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(!res) UNWIND_STACK(vm);                          \
     } while(0)
 
+#define BITWISE(name, op, overload, reverse)          \
+    do {                                              \
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {   \
+            uint32_t b = (uint32_t)AS_NUM(pop(vm));   \
+            uint32_t a = (uint32_t)AS_NUM(pop(vm));   \
+            push(vm, NUM_VAL(a op b));                \
+        } else {                                      \
+            BINARY_OVERLOAD(name, overload, reverse); \
+        }                                             \
+    } while(0)
+
 #define UNARY(type, op, overload)                        \
     do {                                                 \
         if(IS_NUM(peek(vm))) {                           \
@@ -886,6 +901,14 @@ bool runEval(JStarVM* vm, int evalDepth) {
             LOAD_STATE();                                \
             if(!res) UNWIND_STACK(vm);                   \
         }                                                \
+    } while(0)
+
+#define UNARY_OVERLOAD(type, op, overload)           \
+    do {                                             \
+        SAVE_STATE();                                \
+        bool res = unaryOverload(vm, #op, overload); \
+        LOAD_STATE();                                \
+        if(!res) UNWIND_STACK(vm);                   \
     } while(0)
 
 #define RESTORE_HANDLER(h, frame, cause, excVal) \
@@ -1009,8 +1032,42 @@ bool runEval(JStarVM* vm, int evalDepth) {
         DISPATCH();
     }
 
+    TARGET(OP_BAND): {
+        BITWISE(&, &, SYM_BAND, SYM_RBAND);
+        DISPATCH();
+    }
+    
+    TARGET(OP_BOR): {
+        BITWISE(|, |, SYM_BOR, SYM_RBOR);
+        DISPATCH();
+    }
+
+    TARGET(OP_XOR): {
+        BITWISE(~, ^, SYM_XOR, SYM_RXOR);
+        DISPATCH();
+    }
+
+    TARGET(OP_LSHIFT): {
+        BITWISE(<<, <<, SYM_LSHFT, SYM_RLSHFT);
+        DISPATCH();
+    }
+
+    TARGET(OP_RSHIFT): {
+        BITWISE(>>, >>, SYM_RSHFT, SYM_RRSHFT);
+        DISPATCH();
+    }
+
     TARGET(OP_NEG): {
         UNARY(NUM_VAL, -, SYM_NEG);
+        DISPATCH();
+    }
+
+    TARGET(OP_BNOT): {
+        if(IS_NUM(peek(vm))) {
+            push(vm, NUM_VAL(~(uint32_t)AS_NUM(pop(vm))));
+        } else {
+            UNARY_OVERLOAD(NUM_VAL, ~, SYM_BNOT);
+        }
         DISPATCH();
     }
 
