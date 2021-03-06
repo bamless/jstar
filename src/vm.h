@@ -11,7 +11,6 @@
 #include "hashtable.h"
 #include "jstar.h"
 #include "object.h"
-#include "opcode.h"
 #include "util.h"
 #include "value.h"
 

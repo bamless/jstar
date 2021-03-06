@@ -1,8 +1,6 @@
 #ifndef IMPORT_H
 #define IMPORT_H
 
-#include <stdbool.h>
-
 #include "jstar.h"
 #include "object.h"
 #include "parse/ast.h"

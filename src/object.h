@@ -4,12 +4,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "code.h"
 #include "hashtable.h"
 #include "jstar.h"
-#include "util.h"
 #include "value.h"
 
 struct Frame;

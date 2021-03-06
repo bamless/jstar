@@ -83,7 +83,10 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "valarray": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "stdbool.h": "c",
+        "signal.h": "c",
+        "sig_atomic_t.h": "c"
     },
     "editor.formatOnSave": false
 }
