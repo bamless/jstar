@@ -59,7 +59,7 @@ static bool isDirectory(const char* path) {
 // -----------------------------------------------------------------------------
 
 static bool writeToFile(const JStarBuffer* buf, const char* path) {
-    FILE* f = fopen(path, "wb+");
+    FILE* f = fopen(path, "wb");
     if(f == NULL) {
         return false;
     }
