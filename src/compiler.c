@@ -99,6 +99,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* p
     c->file = file;
     c->prev = prev;
     c->type = type;
+    c->func = NULL;
     c->ast = ast;
     c->depth = 0;
     c->localsCount = 0;
