@@ -1016,6 +1016,26 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
+            
+    TARGET(OP_POW): {
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
+            double y = AS_NUM(pop(vm));
+            double x = AS_NUM(pop(vm));
+            push(vm, NUM_VAL(pow(x, y)));
+        } else {
+            BINARY_OVERLOAD(^, SYM_POW, SYM_RPOW);
+        }
+        DISPATCH();
+    }
+
+    TARGET(OP_EQ): {
+        if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
+            push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
+        } else {
+            BINARY_OVERLOAD(==, SYM_EQ, SYM_END);
+        }
+        DISPATCH();
+    }
 
     TARGET(OP_INVERT): {
         if(IS_NUM(peek(vm))) {
@@ -1028,26 +1048,6 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_NOT): {
         push(vm, BOOL_VAL(!valueToBool(pop(vm))));
-        DISPATCH();
-    }
-
-    TARGET(OP_EQ): {
-        if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
-            push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
-        } else {
-            BINARY_OVERLOAD(==, SYM_EQ, SYM_END);
-        }
-        DISPATCH();
-    }
-        
-    TARGET(OP_POW): {
-        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
-            double y = AS_NUM(pop(vm));
-            double x = AS_NUM(pop(vm));
-            push(vm, NUM_VAL(pow(x, y)));
-        } else {
-            BINARY_OVERLOAD(^, SYM_POW, SYM_RPOW);
-        }
         DISPATCH();
     }
 
