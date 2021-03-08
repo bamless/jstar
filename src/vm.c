@@ -22,7 +22,7 @@ static const char* const methodSyms[SYM_END] = {
     [SYM_RLSHFT] = "__rlshift__", [SYM_RRSHFT] = "__rrshift__", [SYM_GET] = "__get__",
     [SYM_SET] = "__set__",        [SYM_EQ] = "__eq__",          [SYM_LT] = "__lt__",
     [SYM_LE] = "__le__",          [SYM_GT] = "__gt__",          [SYM_GE] = "__ge__",
-    [SYM_NEG] = "__neg__",        [SYM_BNOT] = "__bnot__",      [SYM_POW] = "__pow__",
+    [SYM_NEG] = "__neg__",        [SYM_BNOT] = "__invert__",    [SYM_POW] = "__pow__",
     [SYM_RPOW] = "__rpow__",
 };
 
@@ -1017,7 +1017,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         DISPATCH();
     }
 
-    TARGET(OP_BNOT): {
+    TARGET(OP_INVERT): {
         if(IS_NUM(peek(vm))) {
             push(vm, NUM_VAL(~(uint32_t)AS_NUM(pop(vm))));
         } else {

@@ -582,7 +582,7 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
         emitBytecode(c, OP_NOT, e->line);
         break;
     case TOK_TILDE:
-        emitBytecode(c, OP_BNOT, e->line);
+        emitBytecode(c, OP_INVERT, e->line);
         break;
     case TOK_HASH:
         emitMethodCall(c, "__len__", 0);
