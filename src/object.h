@@ -16,9 +16,9 @@ struct Frame;
  * Object system of the J* language.
  * Every object shares the base fields of the Obj struct, including it as the
  * first field in their declaration. This permits the casting of any pointer to
- * to Obj* and back, implementing a sort of manual polymorphism.
+ * to Obj* and back, implementing a sort of manual inheritance.
  *
- * In addition to objects' definitions, this file defineS macros for testing and
+ * In addition to object definitions, this file defines macros for testing and
  * casting Obj* pointers.
  * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
