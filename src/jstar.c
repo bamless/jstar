@@ -33,6 +33,11 @@ void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, c
     fprintf(stderr, "%s\n", error);
 }
 
+static void parseError(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+}
+
 JStarConf jsrGetConf(void) {
     JStarConf conf;
     conf.stackSize = STACK_SZ;
@@ -53,7 +58,7 @@ JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
 
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
-    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
+    JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -72,7 +77,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        reportError(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
         jsrPop(vm);
     }
 
@@ -80,12 +85,12 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     return res;
 }
 
-JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
+JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
     return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code);
 }
 
-JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
-                                    const JStarBuffer* code) {
+JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
+                          const JStarBuffer* code) {
     if(!isCompiledCode(code)) {
         return jsrEvalModuleString(vm, path, module, code->data);
     }
@@ -93,8 +98,8 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     JStarResult err;
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = deserializeWithModule(vm, path, name, code, &err);
-    
-    if(err != JSR_SUCCESS) {
+
+    if(fn == NULL) {
         return err;
     }
 
@@ -104,7 +109,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        reportError(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
         jsrPop(vm);
     }
 
@@ -113,7 +118,7 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
-    JStarStmt* program = jsrParse(path, src, parseErrorCallback, vm);
+    JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -223,9 +228,7 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     pop(vm);
 
     // Place the exception on top of the stack if not already
-    if(!valueEquals(exc, vm->sp[-1])) {
-        push(vm, exc);
-    }
+    if(!valueEquals(exc, vm->sp[-1])) push(vm, exc);
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
@@ -244,7 +247,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
     if(err != NULL) {
         JStarBuffer error;
-        jsrBufferInitCapacity(vm, &error, strlen(err) * 2);
+        jsrBufferInit(vm, &error);
 
         va_list args;
         va_start(args, err);
@@ -259,7 +262,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
 void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
     ObjList* argvList = vm->argv;
-    argvList->count = 0;
+    argvList->size = 0;
     for(int i = 0; i < argc; i++) {
         Value arg = OBJ_VAL(copyString(vm, argv[i], strlen(argv[i])));
         listAppend(vm, argvList, arg);
@@ -277,7 +280,7 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     int saveErrno;
     size_t read;
-    
+
     FILE* src = fopen(path, "rb");
     if(src == NULL) {
         return false;
@@ -493,7 +496,7 @@ void jsrListInsert(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->size, "Out of bounds");
     listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
@@ -501,7 +504,7 @@ void jsrListRemove(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->size, "Out of bounds");
     listRemove(vm, lst, (size_t)i);
 }
 
@@ -509,14 +512,14 @@ void jsrListGet(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->count, "Out of bounds");
+    ASSERT(i < lst->size, "Out of bounds");
     push(vm, lst->arr[i]);
 }
 
 size_t jsrListGetLength(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     ASSERT(IS_LIST(lst), "Not a list");
-    return AS_LIST(lst)->count;
+    return AS_LIST(lst)->size;
 }
 
 void jsrTupleGet(JStarVM* vm, size_t i, int slot) {

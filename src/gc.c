@@ -87,7 +87,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_LIST: {
         ObjList* l = (ObjList*)o;
-        GC_FREE_ARRAY(vm, Value, l->arr, l->size);
+        GC_FREE_ARRAY(vm, Value, l->arr, l->capacity);
         GC_FREE(vm, ObjList, l);
         break;
     }
@@ -99,7 +99,7 @@ static void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_TABLE: {
         ObjTable* t = (ObjTable*)o;
         if(t->entries != NULL) {
-            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
+            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
         }
         GC_FREE(vm, ObjTable, t);
         break;
@@ -180,7 +180,7 @@ void reachValue(JStarVM* vm, Value v) {
 }
 
 static void reachValueArray(JStarVM* vm, ValueArray* a) {
-    for(int i = 0; i < a->count; i++) {
+    for(int i = 0; i < a->size; i++) {
         reachValue(vm, a->arr[i]);
     }
 }
@@ -232,7 +232,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_LIST: {
         ObjList* l = (ObjList*)o;
-        for(size_t i = 0; i < l->count; i++) {
+        for(size_t i = 0; i < l->size; i++) {
             reachValue(vm, l->arr[i]);
         }
         break;
@@ -247,7 +247,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     case OBJ_TABLE: {
         ObjTable* t = (ObjTable*)o;
         if(t->entries != NULL) {
-            for(size_t i = 0; i < t->sizeMask + 1; i++) {
+            for(size_t i = 0; i < t->capacityMask + 1; i++) {
                 reachValue(vm, t->entries[i].key);
                 reachValue(vm, t->entries[i].val);
             }
@@ -275,7 +275,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_STACK_TRACE: {
         ObjStackTrace* stackTrace = (ObjStackTrace*)o;
-        for(int i = 0; i < stackTrace->recordCount; i++) {
+        for(int i = 0; i < stackTrace->recordSize; i++) {
             reachObject(vm, (Obj*)stackTrace->records[i].funcName);
             reachObject(vm, (Obj*)stackTrace->records[i].moduleName);
         }

@@ -23,7 +23,7 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 
-static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
@@ -37,7 +37,7 @@ static void reportError(JStarVM* vm, JStarResult res, const char* file, int ln, 
 
 static void initVM(void) {
     JStarConf conf = jsrGetConf();
-    conf.errorCallback = &reportError;
+    conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
 }
 
@@ -59,7 +59,7 @@ static bool isDirectory(const char* path) {
 // -----------------------------------------------------------------------------
 
 static bool writeToFile(const JStarBuffer* buf, const char* path) {
-    FILE* f = fopen(path, "wb+");
+    FILE* f = fopen(path, "wb");
     if(f == NULL) {
         return false;
     }
@@ -144,12 +144,14 @@ static bool disassembleFile(const char* path) {
 static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
                            char* dest, size_t size) {
     const char* fileRoot = curr + strlen(root);
+
     if(strlen(fileRoot) != 0) {
         const char* components[] = {out, fileRoot, dest, NULL};
         cwk_path_join_multiple(components, dest, size);
     } else {
         cwk_path_join(out, file, dest, size);
     }
+    
     cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
@@ -166,7 +168,7 @@ static bool processDirFile(const char* root, const char* curr, const char* file,
     }
 }
 
-static bool isSelfPath(const char* path) {
+static bool isRelPath(const char* path) {
     return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
 }
 
@@ -180,7 +182,7 @@ static bool walkDirectory(const char* root, const char* curr, const char* out) {
     bool allok = true;
     struct dirent* file;
     while((file = readdir(currentDir)) != NULL) {
-        if(isSelfPath(file->d_name)) continue;
+        if(isRelPath(file->d_name)) continue;
 
         switch(file->d_type) {
         case DT_DIR: {

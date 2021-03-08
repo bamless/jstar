@@ -11,7 +11,6 @@
 #include "hashtable.h"
 #include "jstar.h"
 #include "object.h"
-#include "opcode.h"
 #include "util.h"
 #include "value.h"
 
@@ -31,6 +30,11 @@ typedef enum MethodSymbol {
     SYM_MUL,
     SYM_DIV,
     SYM_MOD,
+    SYM_BAND,
+    SYM_BOR,
+    SYM_XOR,
+    SYM_LSHFT,
+    SYM_RSHFT,
 
     // Reverse binary overloads
     SYM_RADD,
@@ -38,10 +42,19 @@ typedef enum MethodSymbol {
     SYM_RMUL,
     SYM_RDIV,
     SYM_RMOD,
+    SYM_RBAND,
+    SYM_RBOR,
+    SYM_RXOR,
+    SYM_RLSHFT,
+    SYM_RRSHFT,
 
     // Subscript overloads
     SYM_GET,
     SYM_SET,
+
+    // Unary overloads
+    SYM_NEG,
+    SYM_INV,
 
     // Comparison and ordering overloads
     SYM_EQ,
@@ -49,7 +62,10 @@ typedef enum MethodSymbol {
     SYM_LE,
     SYM_GT,
     SYM_GE,
-    SYM_NEG,
+
+    // `^` operator
+    SYM_POW,
+    SYM_RPOW,
 
     // Sentinel
     SYM_END
@@ -170,8 +186,6 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 
 void reserveStack(JStarVM* vm, size_t needed);
 void swapStackSlots(JStarVM* vm, int a, int b);
-
-void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char* msg);
 
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);

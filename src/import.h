@@ -1,8 +1,6 @@
 #ifndef IMPORT_H
 #define IMPORT_H
 
-#include <stdbool.h>
-
 #include "jstar.h"
 #include "object.h"
 #include "parse/ast.h"
@@ -14,8 +12,6 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module);
 ObjModule* getModule(JStarVM* vm, ObjString* name);
-bool importModule(JStarVM* vm, ObjString* name);
-
-void parseErrorCallback(const char* file, int line, const char* error, void* udata);
+ObjModule* importModule(JStarVM* vm, ObjString* name);
 
 #endif

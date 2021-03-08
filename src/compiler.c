@@ -93,14 +93,20 @@ struct Compiler {
     bool hadError;
 };
 
-static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType t,
+static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType type,
                          JStarStmt* ast) {
-    *c = (Compiler){0};
     c->vm = vm;
     c->file = file;
     c->prev = prev;
-    c->type = t;
+    c->type = type;
+    c->func = NULL;
     c->ast = ast;
+    c->depth = 0;
+    c->localsCount = 0;
+    c->loops = NULL;
+    c->tryDepth = 0;
+    c->tryBlocks = NULL;
+    c->hadError = false;
     jsrBufferInit(vm, &c->stringBuf);
     vm->currCompiler = c;
 }
@@ -128,27 +134,27 @@ static void error(Compiler* c, int line, const char* format, ...) {
         jsrBufferAppendvf(&error, format, args);
         va_end(args);
 
-        reportError(vm, JSR_COMPILE_ERR, c->file, line, error.data);
+        vm->errorCallback(vm, JSR_COMPILE_ERR, c->file, line, error.data);
 
         jsrBufferFree(&error);
     }
 }
 
 static size_t emitBytecode(Compiler* c, uint8_t b, int line) {
-    if(line == 0 && c->func->code.linesCount > 0) {
-        line = c->func->code.lines[c->func->code.linesCount - 1];
+    if(line == 0 && c->func->code.lineSize > 0) {
+        line = c->func->code.lines[c->func->code.lineSize - 1];
     }
     return writeByte(&c->func->code, b, line);
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
-    size_t addr = emitBytecode(c, (uint8_t)(s >> 8), line);
-    emitBytecode(c, (uint8_t)s, line);
+    size_t addr = emitBytecode(c, (s >> 8) & 0xff, line);
+    emitBytecode(c, s & 0xff, line);
     return addr;
 }
 
 static size_t getCurrentAddr(Compiler* c) {
-    return c->func->code.count;
+    return c->func->code.size;
 }
 
 static bool inGlobalScope(Compiler* c) {
@@ -375,8 +381,8 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
         error(c, line, "Too much code to jump over");
     }
 
-    code->bytecode[jumpAddr + 1] = (uint8_t)((uint16_t)offset >> 8);
-    code->bytecode[jumpAddr + 2] = (uint8_t)((uint16_t)offset);
+    code->bytecode[jumpAddr + 1] = ((uint16_t)offset >> 8) & 0xff;
+    code->bytecode[jumpAddr + 2] = ((uint16_t)offset) & 0xff;
 }
 
 static void startLoop(Compiler* c, Loop* loop) {
@@ -463,7 +469,7 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
 
 static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
     int i = 0;
-    vecForeach(JStarExpr **it, *defaultArgs) {
+    vecForeach(JStarExpr** it, *defaultArgs) {
         JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -510,6 +516,21 @@ static void compileBinaryExpr(Compiler* c, JStarExpr* e) {
     case TOK_MOD:
         emitBytecode(c, OP_MOD, e->line);
         break;
+    case TOK_AMPER:
+        emitBytecode(c, OP_BAND, e->line);
+        break;
+    case TOK_PIPE:
+        emitBytecode(c, OP_BOR, e->line);
+        break;
+    case TOK_TILDE:
+        emitBytecode(c, OP_XOR, e->line);
+        break;
+    case TOK_LSHIFT:
+        emitBytecode(c, OP_LSHIFT, e->line);
+        break;
+    case TOK_RSHIFT:
+        emitBytecode(c, OP_RSHIFT, e->line);
+        break;
     case TOK_EQUAL_EQUAL:
         emitBytecode(c, OP_EQ, e->line);
         break;
@@ -542,8 +563,8 @@ static void compileLogicExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.binary.left);
     emitBytecode(c, OP_DUP, e->line);
 
-    uint8_t jmp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
-    size_t shortCircuit = emitBytecode(c, jmp, 0);
+    Opcode jmpOp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
+    size_t shortCircuit = emitBytecode(c, jmpOp, 0);
     emitShort(c, 0, 0);
 
     emitBytecode(c, OP_POP, e->line);
@@ -560,6 +581,9 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
         break;
     case TOK_BANG:
         emitBytecode(c, OP_NOT, e->line);
+        break;
+    case TOK_TILDE:
+        emitBytecode(c, OP_INVERT, e->line);
         break;
     case TOK_HASH:
         emitMethodCall(c, "__len__", 0);
@@ -650,7 +674,7 @@ static void compileLval(Compiler* c, JStarExpr* e) {
     }
 }
 
-// boundName is the name of the variable to which we are assigning to.
+// `boundName` is the name of the variable to which we are assigning to.
 // In case of a function literal we use it to give the function a meaningful name, instead
 // of just using the default name for function literals (that is: `anon:<line_number>`)
 static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
@@ -663,7 +687,7 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
 
 static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector* boundNames) {
     int i = 0;
-    vecForeach(JStarExpr **it, exprs->as.list) {
+    vecForeach(JStarExpr** it, exprs->as.list) {
         JStarIdentifier* name = boundNames ? vecGet(boundNames, i) : NULL;
         compileRval(c, *it, name);
         if(++i > num) emitBytecode(c, OP_POP, 0);
@@ -687,27 +711,27 @@ static JStarExpr* getUnpackableExprs(JStarExpr* unpackable) {
 
 // Compile an unpack assignment of the form: a, b, ..., z = ...
 static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
-    JStarExpr* tupleExprs = e->as.assign.lval->as.tuple.exprs;
-    size_t tupleSize = vecSize(&tupleExprs->as.list);
+    JStarExpr* lvals = e->as.assign.lval->as.tuple.exprs;
+    size_t lvalCount = vecSize(&lvals->as.list);
 
-    if(tupleSize >= UINT8_MAX) {
+    if(lvalCount >= UINT8_MAX) {
         error(c, e->line, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
     }
 
     JStarExpr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
         JStarExpr* exprs = getUnpackableExprs(rval);
-        compileConstUnpackLst(c, exprs, tupleSize, NULL);
+        compileConstUnpackLst(c, exprs, lvalCount, NULL);
     } else {
         compileRval(c, rval, NULL);
         emitBytecode(c, OP_UNPACK, e->line);
-        emitBytecode(c, (uint8_t)tupleSize, e->line);
+        emitBytecode(c, (uint8_t)lvalCount, e->line);
     }
 
     // compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
-    for(int n = tupleSize - 1; n >= 0; n--) {
-        JStarExpr* lval = vecGet(&tupleExprs->as.list, n);
+    for(int n = lvalCount - 1; n >= 0; n--) {
+        JStarExpr* lval = vecGet(&lvals->as.list, n);
         compileLval(c, lval);
         if(n != 0) emitBytecode(c, OP_POP, e->line);
     }
@@ -757,7 +781,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
 
 static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
                        JStarExpr* args, bool isUnpack) {
-    vecForeach(JStarExpr **it, args->as.list) {
+    vecForeach(JStarExpr** it, args->as.list) {
         compileExpr(c, *it);
     }
 
@@ -839,27 +863,27 @@ static void compileArraryAccExpression(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_SUBSCR_GET, e->line);
 }
 
-static void compileExpExpr(Compiler* c, JStarExpr* e) {
+static void compilePowExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.pow.base);
     compileExpr(c, e->as.pow.exp);
     emitBytecode(c, OP_POW, e->line);
 }
 
-static void compileArrayLit(Compiler* c, JStarExpr* e) {
+static void CompileListLit(Compiler* c, JStarExpr* e) {
     emitBytecode(c, OP_NEW_LIST, e->line);
-    vecForeach(JStarExpr **it, e->as.array.exprs->as.list) {
+    vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
         compileExpr(c, *it);
         emitBytecode(c, OP_APPEND_LIST, e->line);
     }
 }
 
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
-    vecForeach(JStarExpr **it, e->as.tuple.exprs->as.list) {
+    vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
         compileExpr(c, *it);
     }
 
     size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
-    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in tuple literal");
+    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in Tuple literal");
     emitBytecode(c, OP_NEW_TUPLE, e->line);
     emitBytecode(c, tupleSize, e->line);
 }
@@ -875,6 +899,7 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
         emitBytecode(c, OP_DUP, e->line);
         compileExpr(c, key);
         compileExpr(c, val);
+        
         emitMethodCall(c, "__set__", 2);
         emitBytecode(c, OP_POP, e->line);
     }
@@ -916,7 +941,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileArraryAccExpression(c, e);
         break;
     case JSR_POWER:
-        compileExpExpr(c, e);
+        compilePowExpr(c, e);
         break;
     case JSR_EXPR_LST:
         vecForeach(JStarExpr** it, e->as.list) {
@@ -939,7 +964,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         emitBytecode(c, OP_NULL, e->line);
         break;
     case JSR_ARRAY:
-        compileArrayLit(c, e);
+        CompileListLit(c, e);
         break;
     case JSR_TUPLE:
         compileTupleLit(c, e);
@@ -1048,15 +1073,15 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
 }
 
 /*
- * for var i in iterable do
+ * for var i in iterable
  *     ...
  * end
  *
  * begin
- *     var _iter = null
- *     var _expr = iterable
- *     while _iter = _expr.__iter__(_iter) do
- *         var i = _expr.__next__(_iter)
+ *     var iter = null
+ *     var expr = iterable
+ *     while iter = expr.__iter__(iter)
+ *         var i = expr.__next__(iter)
  *         ...
  *     end
  * end
@@ -1071,25 +1096,22 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     compileExpr(c, s->as.forEach.iterable);
 
     // Set the iterator variable with a name that it's not an identifier.
-    // this will avoid the user shadowing the iterator with a declared variable.
     JStarIdentifier iterator = createIdentifier(".iter");
     Variable iterVar = declareVar(c, &iterator, false, s->line);
     defineVar(c, &iterVar, s->line);
     emitBytecode(c, OP_NULL, 0);  // initialize `.iter` to null
 
-    // FOR_PREP will cache the __iter__ and __next__ methods on the stack
+    // FOR_PREP will cache the __iter__ and __next__ methods as locals
     emitBytecode(c, OP_FOR_PREP, 0);
-    {
-        // These vars are managed by the vm and we don't need to reference them in compilation
-        // So, perfrom the declaration in a scope in order to avoid local name cluttering
-        JStarIdentifier iterMeth = createIdentifier(".__iter__");
-        Variable iterMethVar = declareVar(c, &iterMeth, false, s->line);
-        defineVar(c, &iterMethVar, s->line);
 
-        JStarIdentifier nextMeth = createIdentifier(".__next__");
-        Variable nextMethVar = declareVar(c, &nextMeth, false, s->line);
-        defineVar(c, &nextMethVar, s->line);
-    }
+    // Declare variables for cached methods
+    JStarIdentifier iterMeth = createIdentifier(".__iter__");
+    Variable iterMethVar = declareVar(c, &iterMeth, false, s->line);
+    defineVar(c, &iterMethVar, s->line);
+
+    JStarIdentifier nextMeth = createIdentifier(".__next__");
+    Variable nextMethVar = declareVar(c, &nextMeth, false, s->line);
+    defineVar(c, &nextMethVar, s->line);
 
     Loop l;
     startLoop(c, &l);
@@ -1106,10 +1128,10 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
         defineVar(c, &var, s->line);
     }
 
-    int num = vecSize(&varDecl->as.varDecl.ids);
+    uint8_t numDecls = vecSize(&varDecl->as.varDecl.ids);
     if(varDecl->as.varDecl.isUnpack) {
         emitBytecode(c, OP_UNPACK, s->line);
-        emitBytecode(c, (uint8_t)num, s->line);
+        emitBytecode(c, numDecls, s->line);
     }
 
     JStarStmt* body = s->as.forEach.body;
@@ -1143,47 +1165,52 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
 static void compileImportStatement(Compiler* c, JStarStmt* s) {
     Vector* modules = &s->as.importStmt.modules;
     Vector* names = &s->as.importStmt.impNames;
+    bool importFor = !vecEmpty(names);
+    bool importAs = s->as.importStmt.as.name != NULL;
 
-    bool isImportFor = !vecEmpty(names);
-    bool isImportAs = s->as.importStmt.as.name != NULL;
+    JStarBuffer nameBuf;
+    jsrBufferInit(c->vm, &nameBuf);
 
-    JStarBuffer fullName;
-    jsrBufferInit(c->vm, &fullName);
-
-    // compile topmost import
-    JStarIdentifier* moduleId = (JStarIdentifier*)vecGet(modules, 0);
-    jsrBufferAppend(&fullName, moduleId->name, moduleId->length);
-
-    emitBytecode(c, isImportAs || isImportFor ? OP_IMPORT_FROM : OP_IMPORT, s->line);
-    emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
-
-    // compile submodule imports
-    for(size_t i = 1; i < vecSize(modules); i++) {
-        emitBytecode(c, OP_POP, s->line);  // pop previous import result
-
-        JStarIdentifier* subModuleId = (JStarIdentifier*)vecGet(modules, i);
-        jsrBufferAppendf(&fullName, ".%.*s", subModuleId->length, subModuleId->name);
-
-        emitBytecode(c, OP_IMPORT_FROM, s->line);
-        emitShort(c, stringConst(c, fullName.data, fullName.size, s->line), s->line);
+    Variable modVar;
+    if(!importFor) {
+        JStarIdentifier* name = importAs ? &s->as.importStmt.as : vecGet(modules, 0);
+        modVar = declareVar(c, name, false, s->line);
     }
 
-    if(isImportFor) {
-        uint16_t moduleConst = stringConst(c, fullName.data, fullName.size, s->line);
+    vecForeach(JStarIdentifier** it, *modules) {
+        JStarIdentifier* subMod = *it;
+        jsrBufferAppend(&nameBuf, subMod->name, subMod->length);
+
+        if(importAs && vecIsIterEnd(modules, it)) {
+            emitBytecode(c, OP_IMPORT, s->line);
+        } else if(it == vecBegin(modules) && !(importAs || importFor)) {
+            emitBytecode(c, OP_IMPORT, s->line);
+        } else {
+            emitBytecode(c, OP_IMPORT_FROM, s->line);
+        }
+
+        emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
+        emitBytecode(c, OP_POP, s->line);
+        
+        if(!vecIsIterEnd(modules, it)) jsrBufferAppendChar(&nameBuf, '.');
+    }
+
+    if(importFor) {
         vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
+
             emitBytecode(c, OP_IMPORT_NAME, s->line);
-            emitShort(c, moduleConst, s->line);
+            emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
+
+            Variable nameVar = declareVar(c, name, false, s->line);
+            defineVar(c, &nameVar, s->line);
         }
-    } else if(isImportAs) {
-        // set last import as an `import as`
-        c->func->code.bytecode[getCurrentAddr(c) - 3] = OP_IMPORT_AS;
-        emitShort(c, identifierConst(c, &s->as.importStmt.as, s->line), s->line);
+    } else {
+        defineVar(c, &modVar, s->line);
     }
 
-    emitBytecode(c, OP_POP, s->line);
-    jsrBufferFree(&fullName);
+    jsrBufferFree(&nameBuf);
 }
 
 static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
@@ -1401,6 +1428,7 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
+    JStarIdentifier* name = &s->as.funcDecl.id;
     size_t defaults = vecSize(&s->as.funcDecl.defArgs);
     size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
@@ -1408,8 +1436,8 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     c->func = newFunction(c->vm, module, arity, defaults, vararg);
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
 
-    if(s->as.funcDecl.id.length != 0) {
-        c->func->c.name = copyString(c->vm, s->as.funcDecl.id.name, s->as.funcDecl.id.length);
+    if(name->length != 0) {
+        c->func->c.name = copyString(c->vm, name->name, name->length);
     } else {
         c->func->c.name = copyString(c->vm, "<main>", strlen("<main>"));
     }
@@ -1439,25 +1467,26 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     return c->func;
 }
 
-static ObjString* createMethodName(Compiler* c, JStarIdentifier* classId,
-                                   JStarIdentifier* methodId) {
-    size_t length = classId->length + methodId->length + 1;
+static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIdentifier* methId) {
+    size_t length = clsId->length + methId->length + 1;
     ObjString* name = allocateString(c->vm, length);
-    memcpy(name->data, classId->name, classId->length);
-    name->data[classId->length] = '.';
-    memcpy(name->data + classId->length + 1, methodId->name, methodId->length);
+    memcpy(name->data, clsId->name, clsId->length);
+    name->data[clsId->length] = '.';
+    memcpy(name->data + clsId->length + 1, methId->name, methId->length);
     return name;
 }
 
-static ObjFunction* method(Compiler* c, ObjModule* module, JStarIdentifier* classId, JStarStmt* s) {
+static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName, JStarStmt* s) {
+    JStarIdentifier* name = &s->as.funcDecl.id;
     size_t defCount = vecSize(&s->as.funcDecl.defArgs);
     size_t arity = vecSize(&s->as.funcDecl.formalArgs);
     bool vararg = s->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, arity, defCount, vararg);
+    c->func = newFunction(c->vm, mod, arity, defCount, vararg);
     addConstant(&c->func->code, NULL_VAL);  // This const will hold the superclass at runtime
     addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
-    c->func->c.name = createMethodName(c, classId, &s->as.funcDecl.id);
+
+    c->func->c.name = createMethodName(c, clsName, name);
 
     // if in costructor change the type
     JStarIdentifier ctor = createIdentifier(CTOR_STR);
@@ -1517,26 +1546,24 @@ static void compileFunction(Compiler* c, JStarStmt* s) {
 }
 
 static void compileNative(Compiler* c, JStarStmt* s) {
+    JStarIdentifier* name = &s->as.nativeDecl.id;
     size_t defCount = vecSize(&s->as.nativeDecl.defArgs);
     size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
     bool vararg = s->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->c.module, arity, defCount, vararg);
-
-    // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
 
     addFunctionDefaults(c, &native->c, &s->as.nativeDecl.defArgs);
-    uint16_t nameConst = identifierConst(c, &s->as.nativeDecl.id, s->line);
-    native->c.name = AS_STRING(c->func->code.consts.arr[nameConst]);
-
-    pop(c->vm);
+    native->c.name = copyString(c->vm, name->name, name->length);
 
     emitBytecode(c, OP_GET_CONST, s->line);
     emitShort(c, createConst(c, OBJ_VAL(native), s->line), s->line);
 
     emitBytecode(c, OP_NATIVE, s->line);
-    emitShort(c, nameConst, s->line);
+    emitShort(c, identifierConst(c, name, s->line), s->line);
+
+    pop(c->vm);
 }
 
 static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
@@ -1566,23 +1593,20 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
     bool vararg = m->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->c.module, arity, defaults, vararg);
-
-    // push as root in case of GC
     push(c->vm, OBJ_VAL(native));
 
     addFunctionDefaults(c, &native->c, &m->as.nativeDecl.defArgs);
-    uint16_t idConst = identifierConst(c, &m->as.nativeDecl.id, m->line);
     native->c.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
 
-    pop(c->vm);
-
     emitBytecode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, idConst, cls->line);
+    emitShort(c, identifierConst(c, &m->as.nativeDecl.id, m->line), cls->line);
     emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
+
+    pop(c->vm);
 }
 
 static void compileMethods(Compiler* c, JStarStmt* cls) {
-    vecForeach(JStarStmt **it, cls->as.classDecl.methods) {
+    vecForeach(JStarStmt** it, cls->as.classDecl.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
@@ -1609,13 +1633,14 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 
     if(s->as.varDecl.init != NULL) {
         JStarExpr* init = s->as.varDecl.init;
+        bool isUnpack = s->as.varDecl.isUnpack;
 
-        if(s->as.varDecl.isUnpack && IS_CONST_UNPACK(init->type)) {
+        if(isUnpack && IS_CONST_UNPACK(init->type)) {
             JStarExpr* exprs = getUnpackableExprs(init);
             compileConstUnpackLst(c, exprs, varsCount, &s->as.varDecl.ids);
         } else {
             compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
-            if(s->as.varDecl.isUnpack) {
+            if(isUnpack) {
                 emitBytecode(c, OP_UNPACK, s->line);
                 emitBytecode(c, (uint8_t)varsCount, s->line);
             }
@@ -1637,12 +1662,9 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     Variable clsVar = declareVar(c, &s->as.classDecl.id, s->as.classDecl.isStatic, s->line);
     // If local initialize the variable in order to permit the class to reference itself
-    if(clsVar.type == VAR_LOCAL) {
-        markInitialized(c, clsVar.as.local.index);
-    }
+    if(clsVar.type == VAR_LOCAL) markInitialized(c, clsVar.as.local.index);
 
-    bool isSubClass = s->as.classDecl.sup != NULL;
-    if(isSubClass) {
+    if(s->as.classDecl.sup != NULL) {
         compileExpr(c, s->as.classDecl.sup);
         emitBytecode(c, OP_NEW_SUBCLASS, s->line);
     } else {
@@ -1658,16 +1680,13 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     Variable funVar = declareVar(c, &s->as.funcDecl.id, s->as.funcDecl.isStatic, s->line);
     // If local initialize the variable in order to permit the function to reference itself
-    if(funVar.type == VAR_LOCAL) {
-        markInitialized(c, funVar.as.local.index);
-    }
+    if(funVar.type == VAR_LOCAL) markInitialized(c, funVar.as.local.index);
     compileFunction(c, s);
     defineVar(c, &funVar, s->line);
 }
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
-    bool isStatic = s->as.nativeDecl.isStatic;
-    Variable natVar = declareVar(c, &s->as.funcDecl.id, isStatic, s->line);
+    Variable natVar = declareVar(c, &s->as.funcDecl.id, s->as.nativeDecl.isStatic, s->line);
     compileNative(c, s);
     defineVar(c, &natVar, s->line);
 }

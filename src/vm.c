@@ -12,13 +12,18 @@
 #include "std/modules.h"
 
 static const char* const methodSyms[SYM_END] = {
-    [SYM_CTOR] = CTOR_STR,   [SYM_ITER] = "__iter__", [SYM_NEXT] = "__next__",
-    [SYM_ADD] = "__add__",   [SYM_SUB] = "__sub__",   [SYM_MUL] = "__mul__",
-    [SYM_DIV] = "__div__",   [SYM_MOD] = "__mod__",   [SYM_RADD] = "__radd__",
-    [SYM_RSUB] = "__rsub__", [SYM_RMUL] = "__rmul__", [SYM_RDIV] = "__rdiv__",
-    [SYM_RMOD] = "__rmod__", [SYM_GET] = "__get__",   [SYM_SET] = "__set__",
-    [SYM_EQ] = "__eq__",     [SYM_LT] = "__lt__",     [SYM_LE] = "__le__",
-    [SYM_GT] = "__gt__",     [SYM_GE] = "__ge__",     [SYM_NEG] = "__neg__",
+    [SYM_CTOR] = CTOR_STR,        [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",
+    [SYM_ADD] = "__add__",        [SYM_SUB] = "__sub__",        [SYM_MUL] = "__mul__",
+    [SYM_DIV] = "__div__",        [SYM_MOD] = "__mod__",        [SYM_BAND] = "__band__",
+    [SYM_BOR] = "__bor__",        [SYM_XOR] = "__xor__",        [SYM_LSHFT] = "__lshift__",
+    [SYM_RSHFT] = "__rshift__",   [SYM_RADD] = "__radd__",      [SYM_RSUB] = "__rsub__",
+    [SYM_RMUL] = "__rmul__",      [SYM_RDIV] = "__rdiv__",      [SYM_RMOD] = "__rmod__",
+    [SYM_RBAND] = "__rband__",    [SYM_RBOR] = "__rbor__",      [SYM_RXOR] = "__rxor__",
+    [SYM_RLSHFT] = "__rlshift__", [SYM_RRSHFT] = "__rrshift__", [SYM_GET] = "__get__",
+    [SYM_SET] = "__set__",        [SYM_EQ] = "__eq__",          [SYM_LT] = "__lt__",
+    [SYM_LE] = "__le__",          [SYM_GT] = "__gt__",          [SYM_GE] = "__ge__",
+    [SYM_NEG] = "__neg__",        [SYM_INV] = "__invert__",    [SYM_POW] = "__pow__",
+    [SYM_RPOW] = "__rpow__",
 };
 
 // Enumeration encoding the cause of stack unwinding.
@@ -340,7 +345,7 @@ static bool getListSubscript(JStarVM* vm) {
     Value arg = peek(vm);
 
     if(IS_INT(arg)) {
-        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->count);
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->size);
         if(idx == SIZE_MAX) return false;
 
         pop(vm), pop(vm);
@@ -349,10 +354,10 @@ static bool getListSubscript(JStarVM* vm) {
     }
     if(IS_TUPLE(arg)) {
         size_t low = 0, high = 0;
-        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->count, &low, &high)) return false;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->size, &low, &high)) return false;
 
         ObjList* ret = newList(vm, high - low);
-        ret->count = high - low;
+        ret->size = high - low;
         for(size_t i = low; i < high; i++) {
             ret->arr[i - low] = lst->arr[i];
         }
@@ -657,7 +662,7 @@ bool setValueSubscript(JStarVM* vm) {
         }
 
         ObjList* list = AS_LIST(operand);
-        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
+        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->size);
         if(index == SIZE_MAX) return false;
 
         list->arr[index] = val;
@@ -824,12 +829,6 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
     vm->sp[b] = tmp;
 }
 
-void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char* msg) {
-    if(vm->errorCallback) {
-        vm->errorCallback(vm, err, file, ln, msg);
-    }
-}
-
 // -----------------------------------------------------------------------------
 // EVAL LOOP
 // -----------------------------------------------------------------------------
@@ -870,6 +869,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         } else {                                    \
             BINARY_OVERLOAD(op, overload, reverse); \
         }                                           \
+        DISPATCH();                                 \
     } while(0)
 
 #define BINARY_OVERLOAD(op, overload, reverse)              \
@@ -880,17 +880,35 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(!res) UNWIND_STACK(vm);                          \
     } while(0)
 
-#define UNARY(type, op, overload)                        \
-    do {                                                 \
-        if(IS_NUM(peek(vm))) {                           \
-            double n = AS_NUM(pop(vm));                  \
-            push(vm, type(op(n)));                       \
-        } else {                                         \
-            SAVE_STATE();                                \
-            bool res = unaryOverload(vm, #op, overload); \
-            LOAD_STATE();                                \
-            if(!res) UNWIND_STACK(vm);                   \
-        }                                                \
+#define BITWISE(name, op, overload, reverse)          \
+    do {                                              \
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {   \
+            uint32_t b = (uint32_t)AS_NUM(pop(vm));   \
+            uint32_t a = (uint32_t)AS_NUM(pop(vm));   \
+            push(vm, NUM_VAL(a op b));                \
+        } else {                                      \
+            BINARY_OVERLOAD(name, overload, reverse); \
+        }                                             \
+        DISPATCH();                                   \
+    } while(0)
+
+#define UNARY(type, op, overload)               \
+    do {                                        \
+        if(IS_NUM(peek(vm))) {                  \
+            double n = AS_NUM(pop(vm));         \
+            push(vm, type(op(n)));              \
+        } else {                                \
+            UNARY_OVERLOAD(type, op, overload); \
+        }                                       \
+        DISPATCH();                             \
+    } while(0)
+
+#define UNARY_OVERLOAD(type, op, overload)           \
+    do {                                             \
+        SAVE_STATE();                                \
+        bool res = unaryOverload(vm, #op, overload); \
+        LOAD_STATE();                                \
+        if(!res) UNWIND_STACK(vm);                   \
     } while(0)
 
 #define RESTORE_HANDLER(h, frame, cause, excVal) \
@@ -987,21 +1005,6 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-
-    TARGET(OP_SUB): {
-        BINARY(NUM_VAL, -, SYM_SUB, SYM_RSUB);
-        DISPATCH();
-    }
-
-    TARGET(OP_MUL): {
-        BINARY(NUM_VAL, *, SYM_MUL, SYM_RMUL);
-        DISPATCH();
-    }
-
-    TARGET(OP_DIV): {
-        BINARY(NUM_VAL, /, SYM_DIV, SYM_RDIV);
-        DISPATCH();
-    }
     
     TARGET(OP_MOD): {
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
@@ -1013,34 +1016,15 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-
-    TARGET(OP_NEG): {
-        UNARY(NUM_VAL, -, SYM_NEG);
-        DISPATCH();
-    }
-
-    TARGET(OP_NOT): {
-        push(vm, BOOL_VAL(!valueToBool(pop(vm))));
-        DISPATCH();
-    }
-
-    TARGET(OP_LT): {
-        BINARY(BOOL_VAL, <, SYM_LT, SYM_END);
-        DISPATCH();
-    }
-
-    TARGET(OP_LE): {
-        BINARY(BOOL_VAL, <=, SYM_LE, SYM_END);
-        DISPATCH();
-    }
-
-    TARGET(OP_GT): {
-        BINARY(BOOL_VAL, >, SYM_GT, SYM_END);
-        DISPATCH();
-    }
-
-    TARGET(OP_GE): {
-        BINARY(BOOL_VAL, >=, SYM_GE, SYM_END);
+            
+    TARGET(OP_POW): {
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
+            double y = AS_NUM(pop(vm));
+            double x = AS_NUM(pop(vm));
+            push(vm, NUM_VAL(pow(x, y)));
+        } else {
+            BINARY_OVERLOAD(^, SYM_POW, SYM_RPOW);
+        }
         DISPATCH();
     }
 
@@ -1052,18 +1036,34 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-        
-    TARGET(OP_POW): {
-        if(!IS_NUM(peek(vm)) || !IS_NUM(peek2(vm))) {
-            jsrRaise(vm, "TypeException", "Operator ^ not defined for types %s, %s", 
-                     getClass(vm, peek2(vm))->name->data, getClass(vm, peek(vm))->name->data);
-            UNWIND_STACK(vm);
+
+    TARGET(OP_INVERT): {
+        if(IS_NUM(peek(vm))) {
+            push(vm, NUM_VAL(~(uint32_t)AS_NUM(pop(vm))));
+        } else {
+            UNARY_OVERLOAD(NUM_VAL, ~, SYM_INV);
         }
-        double y = AS_NUM(pop(vm));
-        double x = AS_NUM(pop(vm));
-        push(vm, NUM_VAL(pow(x, y)));
         DISPATCH();
     }
+
+    TARGET(OP_NOT): {
+        push(vm, BOOL_VAL(!valueToBool(pop(vm))));
+        DISPATCH();
+    }
+
+    TARGET(OP_SUB):    BINARY(NUM_VAL, -, SYM_SUB, SYM_RSUB);
+    TARGET(OP_MUL):    BINARY(NUM_VAL, *, SYM_MUL, SYM_RMUL);
+    TARGET(OP_DIV):    BINARY(NUM_VAL, /, SYM_DIV, SYM_RDIV);
+    TARGET(OP_LT):     BINARY(BOOL_VAL, <, SYM_LT, SYM_END);
+    TARGET(OP_LE):     BINARY(BOOL_VAL, <=, SYM_LE, SYM_END);
+    TARGET(OP_GT):     BINARY(BOOL_VAL, >, SYM_GT, SYM_END);
+    TARGET(OP_GE):     BINARY(BOOL_VAL, >=, SYM_GE, SYM_END);
+    TARGET(OP_LSHIFT): BITWISE(<<, <<, SYM_LSHFT, SYM_RLSHFT);
+    TARGET(OP_RSHIFT): BITWISE(>>, >>, SYM_RSHFT, SYM_RRSHFT);
+    TARGET(OP_BAND):   BITWISE(&, &, SYM_BAND, SYM_RBAND);
+    TARGET(OP_BOR):    BITWISE(|, |, SYM_BOR, SYM_RBOR);
+    TARGET(OP_XOR):    BITWISE(~, ^, SYM_XOR, SYM_RXOR);
+    TARGET(OP_NEG):    UNARY(NUM_VAL, -, SYM_NEG);
 
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
@@ -1318,21 +1318,18 @@ op_return:
     }
 
     TARGET(OP_IMPORT): 
-    TARGET(OP_IMPORT_AS):
     TARGET(OP_IMPORT_FROM): {
         ObjString* name = GET_STRING();
-        if(!importModule(vm, name)) {
+        ObjModule* module = importModule(vm, name);
+
+        if(module == NULL) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
             UNWIND_STACK(vm);
         }
 
-        switch(op) {
-        case OP_IMPORT:
-            hashTablePut(&vm->module->globals, name, OBJ_VAL(getModule(vm, name)));
-            break;
-        case OP_IMPORT_AS:
-            hashTablePut(&vm->module->globals, GET_STRING(), OBJ_VAL(getModule(vm, name)));
-            break;
+        if(op == OP_IMPORT) {
+            push(vm, OBJ_VAL(module));
+            swapStackSlots(vm, -1, -2);
         }
 
         //call the module's main if first time import
@@ -1348,18 +1345,12 @@ op_return:
     TARGET(OP_IMPORT_NAME): {
         ObjModule* module = getModule(vm, GET_STRING());
         ObjString* name = GET_STRING();
-
-        if(name->data[0] == '*') {
-            hashTableImportNames(&vm->module->globals, &module->globals);
-        } else {
-            Value val;
-            if(!hashTableGet(&module->globals, name, &val)) {
-                jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
-                         name->data, module->name->data);
-                UNWIND_STACK(vm);
-            } 
-            hashTablePut(&vm->module->globals, name, val);
+        if(!hashTableGet(&module->globals, name, vm->sp)) {
+            jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
+                        name->data, module->name->data);
+            UNWIND_STACK(vm);
         }
+        vm->sp++;
         DISPATCH();
     }
 
@@ -1602,7 +1593,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     Value stacktraceVal = NULL_VAL;
     hashTableGet(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
     ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
-    ObjStackTrace* stackTrace = AS_STACK_TRACE(stacktraceVal);
+    ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
     for(; vm->frameCount > depth; vm->frameCount--) {
         Frame* frame = &vm->frames[vm->frameCount - 1];
@@ -1623,7 +1614,7 @@ bool unwindStack(JStarVM* vm, int depth) {
             break;
         }
 
-        stacktraceDump(vm, stackTrace, frame, vm->frameCount);
+        stacktraceDump(vm, stacktrace, frame, vm->frameCount);
 
         // if current frame has except or ensure handlers restore handler state and exit
         if(frame->handlerc > 0) {
@@ -1651,4 +1642,3 @@ extern inline ObjClass* getClass(JStarVM* vm, Value v);
 extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
 extern inline int apiStackIndex(JStarVM* vm, int slot);
 extern inline Value apiStackSlot(JStarVM* vm, int slot);
-extern inline void reportError(JStarVM* vm, JStarResult err, const char* file, int ln, const char*);

@@ -19,6 +19,7 @@ typedef struct Keyword {
 
 static Keyword keywords[] = {
     {"and",      3, TOK_AND},
+    {"or",       2, TOK_OR},
     {"class",    5, TOK_CLASS},
     {"else",     4, TOK_ELSE},
     {"false",    5, TOK_FALSE},
@@ -28,7 +29,6 @@ static Keyword keywords[] = {
     {"if",       2, TOK_IF},
     {"elif",     4, TOK_ELIF},
     {"null",     4, TOK_NULL},
-    {"or",       2, TOK_OR},
     {"return",   6, TOK_RETURN},
     {"super",    5, TOK_SUPER},
     {"true",     4, TOK_TRUE},
@@ -269,6 +269,12 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
     case '|':
         makeToken(lex, tok, TOK_PIPE);
         break;
+    case '&':
+        makeToken(lex, tok, TOK_AMPER);
+        break;
+    case '~':
+        makeToken(lex, tok, TOK_TILDE);
+        break;
     case ',':
         makeToken(lex, tok, TOK_COMMA);
         break;
@@ -347,12 +353,16 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
     case '<':
         if(match(lex, '='))
             makeToken(lex, tok, TOK_LE);
+        else if(match(lex, '<'))
+            makeToken(lex, tok, TOK_LSHIFT);
         else
             makeToken(lex, tok, TOK_LT);
         break;
     case '>':
         if(match(lex, '='))
             makeToken(lex, tok, TOK_GE);
+        else if(match(lex, '>'))
+            makeToken(lex, tok, TOK_RSHIFT);
         else
             makeToken(lex, tok, TOK_GT);
         break;

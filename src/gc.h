@@ -1,5 +1,5 @@
-#ifndef MEMORY_H
-#define MEMORY_H
+#ifndef GC_H
+#define GC_H
 
 #include <stdlib.h>
 

@@ -549,17 +549,12 @@ static JStarStmt* importStmt(Parser* p) {
         advance(p);
         skipNewLines(p);
 
-        if(match(p, TOK_MULT)) {
-            JStarTok all = advance(p);
-            vecPush(&importNames, jsrNewIdentifier(all.length, all.lexeme));
-        } else {
-            for(;;) {
-                JStarTok name = require(p, TOK_IDENTIFIER);
-                vecPush(&importNames, jsrNewIdentifier(name.length, name.lexeme));
-                if(!match(p, TOK_COMMA)) break;
-                advance(p);
-                skipNewLines(p);
-            }
+        for(;;) {
+            JStarTok name = require(p, TOK_IDENTIFIER);
+            vecPush(&importNames, jsrNewIdentifier(name.length, name.lexeme));
+            if(!match(p, TOK_COMMA)) break;
+            advance(p);
+            skipNewLines(p);
         }
     } else if(match(p, TOK_AS)) {
         advance(p);
@@ -724,7 +719,7 @@ static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(&p->peek) && !isCallExpression(l)) {
-        error(p, "Expression not allowed as statement");
+        error(p, "Invalid syntax");
     }
 
     if(isAssign(&p->peek)) {
@@ -837,7 +832,6 @@ static JStarExpr* parseTableLiteral(Parser* p) {
         JStarExpr* key;
         if(match(p, TOK_DOT)) {
             advance(p);
-            skipNewLines(p);
             JStarTok id = require(p, TOK_IDENTIFIER);
             key = jsrStrLiteral(id.line, id.lexeme, id.length);
         } else {
@@ -1029,7 +1023,7 @@ static JStarExpr* powExpr(Parser* p) {
 }
 
 static JStarExpr* unaryExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_BANG, TOK_MINUS, TOK_HASH, TOK_HASH_HASH};
+    JStarTokType tokens[] = {TOK_TILDE, TOK_BANG, TOK_MINUS, TOK_HASH, TOK_HASH_HASH};
 
     if(matchAny(p, tokens, sizeof(tokens) / sizeof(JStarTokType))) {
         JStarTok op = advance(p);
@@ -1064,29 +1058,44 @@ static JStarExpr* additiveExpr(Parser* p) {
     return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), multiplicativeExpr);
 }
 
-static JStarExpr* relationalExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_GT, TOK_GE, TOK_LT, TOK_LE, TOK_IS};
+static JStarExpr* shiftExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_LSHIFT, TOK_RSHIFT};
     return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), additiveExpr);
 }
 
-static JStarExpr* equalityExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_EQUAL_EQUAL, TOK_BANG_EQ};
+static JStarExpr* bandExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_AMPER};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), shiftExpr);
+}
+
+static JStarExpr* xorExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_TILDE};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), bandExpr);
+}
+
+static JStarExpr* borExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_PIPE};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), xorExpr);
+}
+
+static JStarExpr* relationalExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_EQUAL_EQUAL, TOK_BANG_EQ, TOK_GT, TOK_GE, TOK_LT, TOK_LE, TOK_IS};
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), borExpr);
+}
+
+static JStarExpr* andExpr(Parser* p) {
+    JStarTokType tokens[] = {TOK_AND};
     return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), relationalExpr);
 }
 
-static JStarExpr* logicAndExpr(Parser* p) {
-    JStarTokType tokens[] = {TOK_AND};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), equalityExpr);
-}
-
-static JStarExpr* logicOrExpr(Parser* p) {
+static JStarExpr* orExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_OR};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), logicAndExpr);
+    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), andExpr);
 }
 
 static JStarExpr* ternaryExpr(Parser* p) {
     int line = p->peek.line;
-    JStarExpr* expr = logicOrExpr(p);
+    JStarExpr* expr = orExpr(p);
 
     if(match(p, TOK_IF)) {
         advance(p);

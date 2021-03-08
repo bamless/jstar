@@ -8,7 +8,7 @@
 
 #define vecForeach(elem, vec)                                                            \
     for(size_t __cont = 1, __i = 0; __cont && __i < (vec).size; __cont = !__cont, __i++) \
-        for(elem = vecIterator(&(vec), __i); __cont; __cont = !__cont)
+        for(elem = vecIter(&(vec), __i); __cont; __cont = !__cont)
 
 typedef struct Vector {
     size_t size, capacity;
@@ -42,7 +42,7 @@ JSTAR_API size_t vecCapacity(const Vector* vec);
 
 JSTAR_API void* vecBegin(Vector* vec);
 JSTAR_API void* vecEnd(Vector* vec);
-JSTAR_API void* vecIterator(Vector* vec, size_t i);
-JSTAR_API size_t vecIteratorIndex(const Vector* vec, void* it);
+JSTAR_API void* vecIter(Vector* vec, size_t i);
+JSTAR_API bool vecIsIterEnd(Vector* vec, const void* it);
 
 #endif

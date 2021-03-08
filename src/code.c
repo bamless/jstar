@@ -19,17 +19,17 @@ void freeCode(Code* c) {
 }
 
 static void growCode(Code* c) {
-    c->size = c->size == 0 ? CODE_DEF_SIZE : c->size * CODE_GROW_FACT;
-    c->bytecode = realloc(c->bytecode, c->size * sizeof(uint8_t));
+    c->capacity = c->capacity ? c->capacity * CODE_GROW_FACT : CODE_DEF_SIZE;
+    c->bytecode = realloc(c->bytecode, c->capacity * sizeof(uint8_t));
 }
 
 static void growLines(Code* c) {
-    c->linesSize = c->linesSize == 0 ? CODE_DEF_SIZE : c->linesSize * CODE_GROW_FACT;
-    c->lines = realloc(c->lines, c->linesSize * sizeof(int));
+    c->lineCapacity = c->lineCapacity ? c->lineCapacity * CODE_GROW_FACT : CODE_DEF_SIZE;
+    c->lines = realloc(c->lines, c->lineCapacity * sizeof(int));
 }
 
 static bool shouldGrow(const Code* c) {
-    return c->count + 1 > c->size;
+    return c->size + 1 > c->capacity;
 }
 
 static void ensureCapacity(Code* c) {
@@ -41,22 +41,22 @@ static void ensureCapacity(Code* c) {
 
 size_t writeByte(Code* c, uint8_t b, int line) {
     ensureCapacity(c);
-    c->bytecode[c->count] = b;
-    c->lines[c->linesCount++] = line;
-    return c->count++;
+    c->bytecode[c->size] = b;
+    c->lines[c->lineSize++] = line;
+    return c->size++;
 }
 
 int getBytecodeSrcLine(Code* c, size_t index) {
     if(c->lines == NULL) return -1;
-    ASSERT(index < c->linesCount, "Line buffer overflow");
+    ASSERT(index < c->lineSize, "Line buffer overflow");
     return c->lines[index];
 }
 
 int addConstant(Code* c, Value constant) {
     ValueArray* consts = &c->consts;
-    if(consts->count == UINT16_MAX) return -1;
+    if(consts->size == UINT16_MAX) return -1;
 
-    for(int i = 0; i < consts->count; i++) {
+    for(int i = 0; i < consts->size; i++) {
         if(valueEquals(consts->arr[i], constant)) {
             return i;
         }

@@ -15,7 +15,7 @@ static uint16_t readShortAt(const uint8_t* code, size_t i) {
 
 static size_t countInstructions(Code* c) {
     size_t count = 0;
-    for(size_t i = 0; i < c->count;) {
+    for(size_t i = 0; i < c->size;) {
         count++;
         Opcode instr = c->bytecode[i];
         if(instr == OP_CLOSURE) {
@@ -28,7 +28,7 @@ static size_t countInstructions(Code* c) {
 }
 
 static void disassembleCode(Code* c, int indent) {
-    for(size_t i = 0; i < c->count;) {
+    for(size_t i = 0; i < c->size;) {
         disassembleInstr(c, indent, i);
         Opcode instr = c->bytecode[i];
         if(instr == OP_CLOSURE) {
@@ -61,7 +61,7 @@ void disassembleFunction(ObjFunction* fn) {
     disassembleCommon(&fn->c, fn->upvalueCount);
     disassembleCode(&fn->code, INDENT);
 
-    for(int i = 0; i < fn->code.consts.count; i++) {
+    for(int i = 0; i < fn->code.consts.size; i++) {
         Value c = fn->code.consts.arr[i];
         if(IS_FUNC(c)) {
             printf("\n");
@@ -196,7 +196,6 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_SETUP_ENSURE:
         signedOffsetInstruction(c, instr);
         break;
-    case OP_IMPORT_AS:
     case OP_NAT_METHOD:
     case OP_IMPORT_NAME:
         const2Instruction(c, instr);

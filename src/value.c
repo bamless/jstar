@@ -15,12 +15,12 @@ void freeValueArray(ValueArray* a) {
 }
 
 static void grow(ValueArray* a) {
-    a->size = a->size == 0 ? VAL_ARR_DEF_SZ : a->size * VAL_ARR_GROW_FAC;
-    a->arr = realloc(a->arr, a->size * sizeof(Value));
+    a->capacity = a->capacity ? a->capacity * VAL_ARR_GROW_FAC : VAL_ARR_DEF_SZ;
+    a->arr = realloc(a->arr, a->capacity * sizeof(Value));
 }
 
 static bool shouldGrow(const ValueArray* a) {
-    return a->count + 1 > a->size;
+    return a->size + 1 > a->capacity;
 }
 
 static void ensureCapacity(ValueArray* a) {
@@ -29,8 +29,8 @@ static void ensureCapacity(ValueArray* a) {
 
 int valueArrayAppend(ValueArray* a, Value v) {
     ensureCapacity(a);
-    a->arr[a->count] = v;
-    return a->count++;
+    a->arr[a->size] = v;
+    return a->size++;
 }
 
 void printValue(Value val) {

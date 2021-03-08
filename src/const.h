@@ -10,7 +10,7 @@
 #define RECURSION_LIMIT 5000                           // Max recursion depth
 #define FRAME_SZ        100                            // Default starting frame size
 #define STACK_SZ        (FRAME_SZ) * (MAX_LOCALS + 1)  // Deafult starting stack size
-#define INIT_GC         (1024 * 1024 * 20)             // 10MiB - First GC collection point
+#define INIT_GC         (1024 * 1024 * 20)             // 20MiB - First GC collection point
 #define HEAP_GROW_RATE  2                              // The heap growing rate
 #define HANDLER_MAX     10                             // Max number of try-excepts for a frame
 #define SUPER_SLOT      0                              // Constant holding the method's super-class

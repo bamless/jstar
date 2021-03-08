@@ -344,11 +344,11 @@ JSR_NATIVE(jsr_List_new) {
                 jsrPushValue(vm, 2);
                 jsrPushNumber(vm, i);
                 if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
-                lst->arr[lst->count++] = pop(vm);
+                lst->arr[lst->size++] = pop(vm);
             }
         } else {
             for(size_t i = 0; i < count; i++) {
-                lst->arr[lst->count++] = vm->apiStack[2];
+                lst->arr[lst->size++] = vm->apiStack[2];
             }
         }
     } else {
@@ -370,7 +370,7 @@ JSR_NATIVE(jsr_List_add) {
 
 JSR_NATIVE(jsr_List_insert) {
     ObjList* l = AS_LIST(vm->apiStack[0]);
-    size_t index = jsrCheckIndex(vm, 1, l->count + 1, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->size + 1, "i");
     if(index == SIZE_MAX) return false;
 
     listInsert(vm, l, index, vm->apiStack[2]);
@@ -379,7 +379,7 @@ JSR_NATIVE(jsr_List_insert) {
 }
 
 JSR_NATIVE(jsr_List_len) {
-    push(vm, NUM_VAL(AS_LIST(vm->apiStack[0])->count));
+    push(vm, NUM_VAL(AS_LIST(vm->apiStack[0])->size));
     return true;
 }
 
@@ -393,13 +393,13 @@ JSR_NATIVE(jsr_List_eq) {
 
     ObjList* other = AS_LIST(vm->apiStack[1]);
 
-    if(other->count != lst->count) {
+    if(other->size != lst->size) {
         jsrPushBoolean(vm, false);
         return true;
     }
 
     bool res = false;
-    if(!compareValues(vm, lst->arr, other->arr, lst->count, &res)) return false;
+    if(!compareValues(vm, lst->arr, other->arr, lst->size, &res)) return false;
 
     jsrPushBoolean(vm, res);
     return true;
@@ -407,7 +407,7 @@ JSR_NATIVE(jsr_List_eq) {
 
 JSR_NATIVE(jsr_List_removeAt) {
     ObjList* l = AS_LIST(vm->apiStack[0]);
-    size_t index = jsrCheckIndex(vm, 1, l->count, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->size, "i");
     if(index == SIZE_MAX) return false;
 
     Value r = l->arr[index];
@@ -417,7 +417,7 @@ JSR_NATIVE(jsr_List_removeAt) {
 }
 
 JSR_NATIVE(jsr_List_clear) {
-    AS_LIST(vm->apiStack[0])->count = 0;
+    AS_LIST(vm->apiStack[0])->size = 0;
     jsrPushNull(vm);
     return true;
 }
@@ -514,7 +514,7 @@ static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
 JSR_NATIVE(jsr_List_sort) {
     ObjList* list = AS_LIST(vm->apiStack[0]);
     Value comp = vm->apiStack[1];
-    if(!mergeSort(vm, list->arr, list->count, comp)) return false;
+    if(!mergeSort(vm, list->arr, list->size, comp)) return false;
     jsrPushNull(vm);
     return true;
 }
@@ -522,14 +522,14 @@ JSR_NATIVE(jsr_List_sort) {
 JSR_NATIVE(jsr_List_iter) {
     ObjList* lst = AS_LIST(vm->apiStack[0]);
 
-    if(IS_NULL(vm->apiStack[1]) && lst->count != 0) {
+    if(IS_NULL(vm->apiStack[1]) && lst->size != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx < lst->count - 1) {
+        if(idx < lst->size - 1) {
             push(vm, NUM_VAL(idx + 1));
             return true;
         }
@@ -544,7 +544,7 @@ JSR_NATIVE(jsr_List_next) {
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx < lst->count) {
+        if(idx < lst->size) {
             push(vm, lst->arr[idx]);
             return true;
         }
@@ -571,9 +571,9 @@ JSR_NATIVE(jsr_Tuple_new) {
     }
 
     ObjList* lst = AS_LIST(vm->sp[-1]);
-    ObjTuple* tup = newTuple(vm, lst->count);
-    if(lst->count > 0) {
-        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->count);
+    ObjTuple* tup = newTuple(vm, lst->size);
+    if(lst->size > 0) {
+        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->size);
     }
 
     push(vm, OBJ_VAL(tup));
@@ -920,17 +920,7 @@ JSR_NATIVE(jsr_String_eq) {
     ObjString* s1 = AS_STRING(vm->apiStack[0]);
     ObjString* s2 = AS_STRING(vm->apiStack[1]);
 
-    if(s1->interned && s2->interned) {
-        jsrPushBoolean(vm, s1 == s2);
-        return true;
-    }
-
-    if(s1->length != s2->length) {
-        jsrPushBoolean(vm, false);
-        return true;
-    }
-
-    jsrPushBoolean(vm, memcmp(s1->data, s2->data, s1->length) == 0);
+    jsrPushBoolean(vm, stringEquals(s1, s2));
     return true;
 }
 
@@ -1045,27 +1035,27 @@ static bool findEntry(JStarVM* vm, TableEntry* entries, size_t sizeMask, Value k
 }
 
 static void growEntries(JStarVM* vm, ObjTable* t) {
-    size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
-    TableEntry* newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newSize);
-    for(size_t i = 0; i < newSize; i++) {
+    size_t newCap = t->capacityMask ? (t->capacityMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
+    TableEntry* newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newCap);
+    for(size_t i = 0; i < newCap; i++) {
         newEntries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
 
-    t->numEntries = 0, t->count = 0;
-    if(t->sizeMask != 0) {
-        for(size_t i = 0; i <= t->sizeMask; i++) {
+    t->numEntries = 0, t->size = 0;
+    if(t->capacityMask != 0) {
+        for(size_t i = 0; i <= t->capacityMask; i++) {
             TableEntry* e = &t->entries[i];
             if(IS_NULL(e->key)) continue;
 
             TableEntry* dest;
-            findEntry(vm, newEntries, newSize - 1, e->key, &dest);
+            findEntry(vm, newEntries, newCap - 1, e->key, &dest);
             *dest = (TableEntry){e->key, e->val};
-            t->numEntries++, t->count++;
+            t->numEntries++, t->size++;
         }
-        GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
+        GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
     }
     t->entries = newEntries;
-    t->sizeMask = newSize - 1;
+    t->capacityMask = newCap - 1;
 }
 
 JSR_NATIVE(jsr_Table_new) {
@@ -1074,7 +1064,7 @@ JSR_NATIVE(jsr_Table_new) {
 
     if(IS_TABLE(vm->apiStack[1])) {
         ObjTable* other = AS_TABLE(vm->apiStack[1]);
-        for(size_t i = 0; i <= other->sizeMask; i++) {
+        for(size_t i = 0; i <= other->capacityMask; i++) {
             TableEntry* e = &other->entries[i];
             if(!IS_NULL(e->key)) {
                 push(vm, OBJ_VAL(table));
@@ -1122,7 +1112,7 @@ JSR_NATIVE(jsr_Table_get) {
     }
 
     TableEntry* e;
-    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
+    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &e)) {
         return false;
     }
 
@@ -1139,18 +1129,18 @@ JSR_NATIVE(jsr_Table_set) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
+    if(t->numEntries + 1 > (t->capacityMask + 1) * MAX_LOAD_FACTOR) {
         growEntries(vm, t);
     }
 
     TableEntry* e;
-    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
+    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &e)) {
         return false;
     }
 
     bool newEntry = IS_NULL(e->key);
     if(newEntry) {
-        t->count++;
+        t->size++;
         if(IS_NULL(e->val)) t->numEntries++;
     }
 
@@ -1169,7 +1159,7 @@ JSR_NATIVE(jsr_Table_delete) {
     }
 
     TableEntry* toDelete;
-    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &toDelete)) {
+    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &toDelete)) {
         return false;
     }
 
@@ -1179,7 +1169,7 @@ JSR_NATIVE(jsr_Table_delete) {
     }
 
     *toDelete = (TableEntry){NULL_VAL, TOMB_MARKER};
-    t->count--;
+    t->size--;
 
     push(vm, BOOL_VAL(true));
     return true;
@@ -1187,8 +1177,8 @@ JSR_NATIVE(jsr_Table_delete) {
 
 JSR_NATIVE(jsr_Table_clear) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    t->numEntries = t->count = 0;
-    for(size_t i = 0; i < t->sizeMask + 1; i++) {
+    t->numEntries = t->size = 0;
+    for(size_t i = 0; i < t->capacityMask + 1; i++) {
         t->entries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
     push(vm, NULL_VAL);
@@ -1197,7 +1187,7 @@ JSR_NATIVE(jsr_Table_clear) {
 
 JSR_NATIVE(jsr_Table_len) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    push(vm, NUM_VAL(t->count));
+    push(vm, NUM_VAL(t->size));
     return true;
 }
 
@@ -1211,7 +1201,7 @@ JSR_NATIVE(jsr_Table_contains) {
     }
 
     TableEntry* e;
-    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
+    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &e)) {
         return false;
     }
 
@@ -1226,7 +1216,7 @@ JSR_NATIVE(jsr_Table_keys) {
     jsrPushList(vm);
 
     if(entries != NULL) {
-        for(size_t i = 0; i < t->sizeMask + 1; i++) {
+        for(size_t i = 0; i < t->capacityMask + 1; i++) {
             if(!IS_NULL(entries[i].key)) {
                 push(vm, entries[i].key);
                 jsrListAppend(vm, -2);
@@ -1245,7 +1235,7 @@ JSR_NATIVE(jsr_Table_values) {
     jsrPushList(vm);
 
     if(entries != NULL) {
-        for(size_t i = 0; i < t->sizeMask + 1; i++) {
+        for(size_t i = 0; i < t->capacityMask + 1; i++) {
             if(!IS_NULL(entries[i].key)) {
                 push(vm, entries[i].val);
                 jsrListAppend(vm, -2);
@@ -1268,14 +1258,14 @@ JSR_NATIVE(jsr_Table_iter) {
     size_t lastIdx = 0;
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx >= t->sizeMask) {
+        if(idx >= t->capacityMask) {
             push(vm, BOOL_VAL(false));
             return true;
         }
         lastIdx = idx + 1;
     }
 
-    for(size_t i = lastIdx; i < t->sizeMask + 1; i++) {
+    for(size_t i = lastIdx; i < t->capacityMask + 1; i++) {
         if(!IS_NULL(t->entries[i].key)) {
             push(vm, NUM_VAL(i));
             return true;
@@ -1291,7 +1281,7 @@ JSR_NATIVE(jsr_Table_next) {
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx <= t->sizeMask) {
+        if(idx <= t->capacityMask) {
             push(vm, t->entries[idx].key);
             return true;
         }
@@ -1310,7 +1300,7 @@ JSR_NATIVE(jsr_Table_string) {
 
     TableEntry* entries = t->entries;
     if(entries != NULL) {
-        for(size_t i = 0; i < t->sizeMask + 1; i++) {
+        for(size_t i = 0; i < t->capacityMask + 1; i++) {
             if(IS_NULL(entries[i].key)) continue;
 
             push(vm, entries[i].key);
@@ -1523,6 +1513,11 @@ JSR_NATIVE(jsr_print) {
     return true;
 }
 
+static void parseError(const char* file, int line, const char* error, void* udata) {
+    JStarVM* vm = udata;
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+}
+
 JSR_NATIVE(jsr_eval) {
     JSR_CHECK(String, 1, "source");
 
@@ -1539,7 +1534,7 @@ JSR_NATIVE(jsr_eval) {
         mod = ((ObjNative*)prevFn)->c.module;
     }
 
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseErrorCallback, vm);
+    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
@@ -1604,11 +1599,11 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
     ObjStackTrace* st = AS_STACK_TRACE(stval);
 
-    if(st->recordCount > 0) {
+    if(st->recordSize > 0) {
         FrameRecord* lastRecord = NULL;
 
         fprintf(stderr, "Traceback (most recent call last):\n");
-        for(int i = st->recordCount - 1; i >= 0; i--) {
+        for(int i = st->recordSize - 1; i >= 0; i--) {
             FrameRecord* record = &st->records[i];
 
             if(recordEquals(lastRecord, record)) {
@@ -1677,11 +1672,11 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
 
     ObjStackTrace* st = AS_STACK_TRACE(stval);
 
-    if(st->recordCount > 0) {
+    if(st->recordSize > 0) {
         FrameRecord* lastRecord = NULL;
 
         jsrBufferAppendf(&string, "Traceback (most recent call last):\n");
-        for(int i = st->recordCount - 1; i >= 0; i--) {
+        for(int i = st->recordSize - 1; i >= 0; i--) {
             FrameRecord* record = &st->records[i];
 
             if(recordEquals(lastRecord, record)) {
