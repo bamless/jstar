@@ -54,7 +54,7 @@ typedef enum MethodSymbol {
 
     // Unary overloads
     SYM_NEG,
-    SYM_BNOT,
+    SYM_INV,
 
     // Comparison and ordering overloads
     SYM_EQ,
