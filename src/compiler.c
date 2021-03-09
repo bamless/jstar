@@ -416,6 +416,7 @@ static void endLoop(Compiler* c) {
 }
 
 static void emitMethodCall(Compiler* c, const char* name, int args) {
+    ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
     JStarIdentifier meth = createIdentifier(name);
     emitBytecode(c, OP_INVOKE_0 + args, 0);
     emitShort(c, identifierConst(c, &meth, 0), 0);
