@@ -17,18 +17,21 @@
 #include "value.h"
 #include "vm.h"
 
-// In case of a direct assignement of the form:
-//  var a, b, ..., c = x, y, ..., z
-// Where the right hand side is an unpackable object (i.e. a tuple or a list)
-// We can omit the creation of the tuple/list, assigning directly the elements
-// to the variables. We call this type of unpack assignement a 'const unpack'
+// In case of a direct assignment of the form:
+//   a, b, ..., c = ...
+// Where the right hand side is an unpackable object (i.e. Tuple or List), we
+// can omit its creation and assign directly the elements to the variables.
+// We call this type of unpack assignement a 'const unpack'
 #define IS_CONST_UNPACK(type) ((type) == JSR_ARRAY || (type) == JSR_TUPLE)
 
+// Marker values used in the bytecode during the compilation of loop breaking statements.
+// When we finish the compilation of a loop, and thus we know the addresses of its start
+// and end, we replace these with jump offsets
 #define CONTINUE_MARK 1
 #define BREAK_MARK    2
 
 typedef struct Variable {
-    enum { VAR_LOCAL, VAR_GLOBAL, VAR_ERR } type;
+    enum { VAR_LOCAL, VAR_GLOBAL, VAR_ERR } scope;
     union {
         struct {
             int index;
@@ -250,11 +253,11 @@ static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
 
 static int resolveVariable(Compiler* c, JStarIdentifier* id, int line) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
-        Local* l = &c->locals[i];
-        if(jsrIdentifierEq(&l->id, id)) {
-            if(l->depth == -1) {
+        Local* local = &c->locals[i];
+        if(jsrIdentifierEq(&local->id, id)) {
+            if(local->depth == -1) {
                 error(c, line, "Cannot read local variable `%.*s` in its own initializer",
-                      l->id.length, l->id.name);
+                      local->id.length, local->id.name);
                 return 0;
             }
             return i;
@@ -305,7 +308,7 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
     // Global variables need not be declared
     if(inGlobalScope(c) && !forceLocal) {
         Variable var;
-        var.type = VAR_GLOBAL;
+        var.scope = VAR_GLOBAL;
         var.as.global.id = *id;
         return var;
     }
@@ -329,7 +332,7 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
     }
 
     Variable var;
-    var.type = VAR_LOCAL;
+    var.scope = VAR_LOCAL;
     var.as.local.index = index;
     return var;
 }
@@ -339,7 +342,7 @@ static void markInitialized(Compiler* c, int idx) {
 }
 
 static void defineVar(Compiler* c, Variable* var, int line) {
-    switch(var->type) {
+    switch(var->scope) {
     case VAR_GLOBAL:
         emitBytecode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, &var->as.global.id, line), line);
@@ -459,7 +462,9 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
                     break;
                 }
             }
-            if(j == 11) error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
+            if(j == 11) {
+                error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
+            }
         } else {
             jsrBufferAppendChar(sb, str[i]);
         }
@@ -617,22 +622,25 @@ static void compileTernaryExpr(Compiler* c, JStarExpr* e) {
 static void compileVariable(Compiler* c, JStarIdentifier* id, bool set, int line) {
     int idx = resolveVariable(c, id, line);
     if(idx != -1) {
-        if(set)
+        if(set) {
             emitBytecode(c, OP_SET_LOCAL, line);
-        else
+        } else {
             emitBytecode(c, OP_GET_LOCAL, line);
+        }
         emitBytecode(c, idx, line);
     } else if((idx = resolveUpvalue(c, id, line)) != -1) {
-        if(set)
+        if(set) {
             emitBytecode(c, OP_SET_UPVALUE, line);
-        else
+        } else {
             emitBytecode(c, OP_GET_UPVALUE, line);
+        }
         emitBytecode(c, idx, line);
     } else {
-        if(set)
+        if(set) {
             emitBytecode(c, OP_SET_GLOBAL, line);
-        else
+        } else {
             emitBytecode(c, OP_GET_GLOBAL, line);
+        }
         emitShort(c, identifierConst(c, id, line), line);
     }
 }
@@ -640,15 +648,16 @@ static void compileVariable(Compiler* c, JStarIdentifier* id, bool set, int line
 static void compileFunction(Compiler* c, JStarStmt* s);
 
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
-    JStarStmt* f = e->as.funLit.func;
+    JStarStmt* func = e->as.funLit.func;
     if(name == NULL) {
         char funcName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
-        sprintf(funcName, ANON_STR "%d", f->line);
-        f->as.funcDecl.id = createIdentifier(funcName);
-        compileFunction(c, f);
+        sprintf(funcName, ANON_STR "%d", func->line);
+
+        func->as.funcDecl.id = createIdentifier(funcName);
+        compileFunction(c, func);
     } else {
-        f->as.funcDecl.id = *name;
-        compileFunction(c, f);
+        func->as.funcDecl.id = *name;
+        compileFunction(c, func);
     }
 }
 
@@ -675,9 +684,9 @@ static void compileLval(Compiler* c, JStarExpr* e) {
     }
 }
 
-// `boundName` is the name of the variable to which we are assigning to.
+// The `boundName` argument is the name of the variable to which we are assigning to.
 // In case of a function literal we use it to give the function a meaningful name, instead
-// of just using the default name for function literals (that is: `anon:<line_number>`)
+// of just using the default name for anonymous functions (that is: `anon:<line_number>`)
 static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
     if(e->type == JSR_FUNC_LIT) {
         compileFunLiteral(c, e, boundName);
@@ -686,15 +695,19 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
     }
 }
 
-static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int num, Vector* boundNames) {
+static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int lvals, Vector* names) {
+    if(vecSize(&exprs->as.list) < (size_t)lvals) {
+        error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals, 
+              vecSize(&exprs->as.list));
+    }
+
     int i = 0;
     vecForeach(JStarExpr** it, exprs->as.list) {
-        JStarIdentifier* name = boundNames ? vecGet(boundNames, i) : NULL;
+        JStarIdentifier* name = NULL;
+        if(names && i < lvals) name = vecGet(names, i);
         compileRval(c, *it, name);
-        if(++i > num) emitBytecode(c, OP_POP, 0);
-    }
-    if(i < num) {
-        error(c, exprs->line, "Too few values to unpack: expected %d, got %d", num, i);
+        
+        if(++i > lvals) emitBytecode(c, OP_POP, 0);
     }
 }
 
@@ -944,11 +957,6 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
     case JSR_POWER:
         compilePowExpr(c, e);
         break;
-    case JSR_EXPR_LST:
-        vecForeach(JStarExpr** it, e->as.list) {
-            compileExpr(c, *it);
-        }
-        break;
     case JSR_NUMBER:
         emitValueConst(c, NUM_VAL(e->as.num), e->line);
         break;
@@ -978,6 +986,11 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         break;
     case JSR_FUNC_LIT:
         compileFunLiteral(c, e, NULL);
+        break;
+    case JSR_EXPR_LST:
+        vecForeach(JStarExpr** it, e->as.list) {
+            compileExpr(c, *it);
+        }
         break;
     }
 }
@@ -1663,7 +1676,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     Variable clsVar = declareVar(c, &s->as.classDecl.id, s->as.classDecl.isStatic, s->line);
     // If local initialize the variable in order to permit the class to reference itself
-    if(clsVar.type == VAR_LOCAL) markInitialized(c, clsVar.as.local.index);
+    if(clsVar.scope == VAR_LOCAL) markInitialized(c, clsVar.as.local.index);
 
     if(s->as.classDecl.sup != NULL) {
         compileExpr(c, s->as.classDecl.sup);
@@ -1681,7 +1694,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     Variable funVar = declareVar(c, &s->as.funcDecl.id, s->as.funcDecl.isStatic, s->line);
     // If local initialize the variable in order to permit the function to reference itself
-    if(funVar.type == VAR_LOCAL) markInitialized(c, funVar.as.local.index);
+    if(funVar.scope == VAR_LOCAL) markInitialized(c, funVar.as.local.index);
     compileFunction(c, s);
     defineVar(c, &funVar, s->line);
 }
