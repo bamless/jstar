@@ -1,16 +1,11 @@
 # Cli app
-add_executable(cli cli.c colorio.h)
-target_link_libraries(cli PRIVATE jstar linenoise argparse)
-set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
-
-# Add platform specific sources
-if(UNIX)
-    target_sources(cli PRIVATE colorio_posix.c)
-elseif(WIN32)
-    target_sources(cli PRIVATE colorio_none.c icon.rc)
-else()
-    target_sources(cli PRIVATE colorio_none.c)
+add_executable(cli cli.c)
+if(WIN32)
+    target_sources(cli PRIVATE icon.rc)
 endif()
+
+target_link_libraries(cli PRIVATE jstar linenoise argparse common)
+set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 
 # Enable link-time optimization if supported
 if(LTO)

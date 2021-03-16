@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "colorio.h"
 #include "jstar/jstar.h"
 
 #define JSR_EXT ".jsr"
@@ -27,8 +28,8 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
-        fprintf(stderr, "File %s [line:%d]:\n", file, ln);
-        fprintf(stderr, "%s\n", err);
+        fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
+        fcolorPrintf(stderr, COLOR_RED, "%s\n", err);
         break;
     default:
         break;

@@ -1,6 +1,6 @@
 # Executable
 add_executable(jstarc jstarc.c)
-target_link_libraries(jstarc PRIVATE jstar argparse cwalk)
+target_link_libraries(jstarc PRIVATE jstar argparse cwalk common)
 if(WIN32)
     target_link_libraries(jstarc PRIVATE dirent)
 endif()
