@@ -143,10 +143,10 @@ static bool disassembleFile(const char* path) {
 
 static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
                            char* dest, size_t size) {
-    const char* fileRoot = curr + strlen(root);
+    const char* fileRoot = curr + cwk_path_get_intersection(root, curr);
 
     if(strlen(fileRoot) != 0) {
-        const char* components[] = {out, fileRoot, dest, NULL};
+        const char* components[] = {out, fileRoot, file, NULL};
         cwk_path_join_multiple(components, dest, size);
     } else {
         cwk_path_join(out, file, dest, size);
@@ -196,9 +196,10 @@ static bool walkDirectory(const char* root, const char* curr, const char* out) {
         case DT_REG: {
             size_t len;
             const char* ext;
-            cwk_path_get_extension(file->d_name, &ext, &len);
-            if(strcmp(ext, opts.disassemble ? JSC_EXT : JSR_EXT) != 0) continue;
-            allok &= processDirFile(root, curr, file->d_name, out);
+            if(cwk_path_get_extension(file->d_name, &ext, &len) &&
+               strcmp(ext, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
+                allok &= processDirFile(root, curr, file->d_name, out);
+            }
             break;
         }
         default:
