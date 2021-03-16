@@ -4,5 +4,4 @@ if(UNIX)
 else()
     target_sources(common PRIVATE colorio_none.c)
 endif()
-
 target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
