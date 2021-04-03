@@ -107,11 +107,11 @@ class Iterable
         return lst
     end
 
+    native join(sep="")
+
     fun collect(collector)
         return collector(this)
     end
-
-    native join(sep="")
 end
 
 class Sequence is Iterable
