@@ -37,6 +37,12 @@ class StackTrace end
 class Userdata end
 
 class Iterable
+    native join(sep="")
+
+    fun collect(collector)
+        return collector(this)
+    end
+
     fun forEach(func)
         for var e in this
             func(e)
@@ -109,12 +115,6 @@ class Iterable
         var lst = List(this)
         lst.sort()
         return lst
-    end
-
-    native join(sep="")
-
-    fun collect(collector)
-        return collector(this)
     end
 end
 
