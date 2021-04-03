@@ -81,6 +81,10 @@ class Iterable
         return EnumerateIter(this, start)
     end
 
+    fun concat(iterable)
+        return ConcatIter(this, iterable)
+    end
+
     fun map(fn)
         return MapIter(fn, this)
     end
@@ -363,6 +367,30 @@ class EnumerateIter is Iterable
         var ret = this._idx, this._iterable.__next__(iter)
         this._idx += 1
         return ret
+    end
+end
+
+class ConcatIter is Iterable
+    fun new(iterable1, iterable2)
+        this._currIter = iterable1
+        this._nextIter = iterable2
+    end
+
+    fun __iter__(iter)
+        var iterator = this._currIter.__iter__(iter)
+
+        if iterator
+            return iterator
+        elif this._nextIter
+            this._currIter, this._nextIter = this._nextIter, null
+            return this._currIter.__iter__(null)
+        end
+        
+        return false
+    end
+
+    fun __next__(iter)
+        return this._currIter.__next__(iter)
     end
 end
 
