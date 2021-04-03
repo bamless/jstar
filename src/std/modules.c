@@ -39,7 +39,7 @@ typedef struct {
 
 typedef struct {
     const char* name;
-    Func methods[16];
+    Func methods[17];
 } Class;
 
 typedef struct {
@@ -114,6 +114,7 @@ static Module builtInModules[] = {
             METHOD(clear,    jsr_List_clear)
             METHOD(sort,     jsr_List_sort)
             METHOD(__len__,  jsr_List_len)
+            METHOD(__add__,  jsr_List_plus)
             METHOD(__eq__,   jsr_List_eq)
             METHOD(__iter__, jsr_List_iter)
             METHOD(__next__, jsr_List_next)
@@ -121,6 +122,7 @@ static Module builtInModules[] = {
         CLASS(Tuple)
             METHOD(new,      jsr_Tuple_new)
             METHOD(__len__,  jsr_Tuple_len)
+            METHOD(__add__,  jsr_Tuple_add)
             METHOD(__eq__,   jsr_Tuple_eq)
             METHOD(__iter__, jsr_Tuple_iter)
             METHOD(__next__, jsr_Tuple_next)
@@ -135,6 +137,7 @@ static Module builtInModules[] = {
             METHOD(strip,      jsr_String_strip)
             METHOD(chomp,      jsr_String_chomp)
             METHOD(escaped,    jsr_String_escaped)
+            METHOD(__mul__,    jsr_String_mul)
             METHOD(__mod__,    jsr_String_mod)
             METHOD(__eq__,     jsr_String_eq)
             METHOD(__len__,    jsr_String_len)

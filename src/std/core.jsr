@@ -188,6 +188,7 @@ class String is Sequence
     native strip()
     native chomp()
     native escaped()
+    native __mul__(reps)
     native __mod__(args)
     native __eq__(o)
     native __len__()
@@ -195,6 +196,10 @@ class String is Sequence
     native __next__(idx)
     native __string__()
     native __hash__()
+
+    fun __rmul__(reps)
+        return this.__mul__(reps)
+    end
 end
 
 class List is Sequence
@@ -205,6 +210,7 @@ class List is Sequence
     native clear()
     native sort(comparator=null)
     native __len__()
+    native __add__(other)
     native __eq__(other)
     native __iter__(iter)
     native __next__(idx)
@@ -259,6 +265,7 @@ end
 class Tuple is Sequence
     native new(iterable=null)
     native __len__()
+    native __add__(other)
     native __eq__(other)
     native __iter__(iter)
     native __next__(idx)

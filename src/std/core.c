@@ -416,6 +416,21 @@ JSR_NATIVE(jsr_List_len) {
     return true;
 }
 
+JSR_NATIVE(jsr_List_plus) {
+    JSR_CHECK(List, 1, "other");
+
+    ObjList* lst1 = AS_LIST(vm->apiStack[0]);
+    ObjList* lst2 = AS_LIST(vm->apiStack[1]);
+
+    ObjList* concat = newList(vm, lst1->size + lst2->size);
+    memcpy(concat->arr, lst1->arr, lst1->size * sizeof(Value));
+    memcpy(concat->arr + lst1->size, lst2->arr, lst2->size * sizeof(Value));
+    concat->size = concat->capacity;
+
+    push(vm, OBJ_VAL(concat));
+    return true;
+}
+
 JSR_NATIVE(jsr_List_eq) {
     ObjList* lst = AS_LIST(vm->apiStack[0]);
 
@@ -615,6 +630,20 @@ JSR_NATIVE(jsr_Tuple_new) {
 
 JSR_NATIVE(jsr_Tuple_len) {
     push(vm, NUM_VAL(AS_TUPLE(vm->apiStack[0])->size));
+    return true;
+}
+
+JSR_NATIVE(jsr_Tuple_add) {
+    JSR_CHECK(Tuple, 1, "other");
+
+    ObjTuple* tup1 = AS_TUPLE(vm->apiStack[0]);
+    ObjTuple* tup2 = AS_TUPLE(vm->apiStack[1]);
+
+    ObjTuple* concat = newTuple(vm, tup1->size + tup2->size);
+    memcpy(concat->arr, tup1->arr, tup1->size * sizeof(Value));
+    memcpy(concat->arr + tup1->size, tup2->arr, tup2->size * sizeof(Value));
+
+    push(vm, OBJ_VAL(concat));
     return true;
 }
 
@@ -873,6 +902,24 @@ JSR_NATIVE(jsr_String_escaped) {
     }
 
     jsrBufferPush(&buf);
+    return true;
+}
+
+JSR_NATIVE(jsr_String_mul) {
+    JSR_CHECK(Int, 1, "reps");
+
+    size_t size = jsrGetStringSz(vm, 0);
+    double reps = jsrGetNumber(vm, -1);
+    if(reps < 0) reps = 0;
+
+    JStarBuffer repeated;
+    jsrBufferInitCapacity(vm, &repeated, reps * size);
+
+    for(size_t i = 0; i < reps; i++) {
+        jsrBufferAppend(&repeated, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+    }
+
+    jsrBufferPush(&repeated);
     return true;
 }
 
