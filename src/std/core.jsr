@@ -352,7 +352,7 @@ class EnumerateIter is Iterable
     end
 
     fun __next__(i)
-        var ret = (this._idx, this._iterable.__next__(i))
+        var ret = this._idx, this._iterable.__next__(i)
         this._idx += 1
         return ret
     end
