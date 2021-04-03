@@ -294,16 +294,16 @@ end
 // BUILTIN FUNCTIONS
 // -----------------------------------------------------------------------------
 
-fun assert(cond, msg="assertion failed", exception=null)
-    if !cond 
-        raise (exception(msg) if exception else AssertException(msg))
-    end
-end
-
 fun typeAssert(arg, cls, name)
     if !(arg is cls)
         var got, expected = cls.getName(), type(arg).getName()
         raise TypeException("{0} must be a {1}, got {2}" % (name, got, expected))
+    end
+end
+
+fun assert(cond, msg="assertion failed", exception=null)
+    if !cond 
+        raise (exception(msg) if exception else AssertException(msg))
     end
 end
 
