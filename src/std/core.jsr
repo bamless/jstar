@@ -362,22 +362,20 @@ class FilterIter is Iterable
     fun new(predicate, iterable)
         this._predicate = predicate
         this._iterable = iterable
-        this._next = null
     end
 
     fun __iter__(iter)
         while iter = this._iterable.__iter__(iter)
             var next = this._iterable.__next__(iter)
             if this._predicate(next)
-                this._next = next
-                return iter
+                return next
             end
         end
         return false
     end
 
-    fun __next__(i)
-        return this._next
+    fun __next__(value)
+        return value
     end
 end
 
