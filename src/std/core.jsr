@@ -78,19 +78,19 @@ class Iterable
     end
 
     fun enumerate(start=0) 
-        return IEnumerate(this, start)
+        return EnumerateIter(this, start)
     end
 
     fun map(fn)
-        return IMap(fn, this)
+        return MapIter(fn, this)
     end
 
     fun filter(fn) 
-        return IFilter(fn, this)
+        return FilterIter(fn, this)
     end
 
     fun zip(iterable)
-        return IZip(this, iterable)
+        return ZipIter(this, iterable)
     end
 
     fun sorted()
@@ -99,17 +99,11 @@ class Iterable
         return lst
     end
 
-    fun toList()
-        return List(this)
+    fun collect(collector)
+        return collector(this)
     end
 
-    fun toTuple()
-        return Tuple(this)
-    end
-
-    fun toTable()
-        return Table(this)
-    end
+    native join(sep="")
 end
 
 class Sequence is Iterable
@@ -150,8 +144,8 @@ class Sequence is Iterable
         return #this == 0
     end
 
-    fun reverse()
-        return IReverse(this)
+    fun reversed()
+        return ReversedSequence(this)
     end
 
     fun __eq__(other)
@@ -178,9 +172,9 @@ class String is Sequence
     native charAt(idx)
     native startsWith(prefix, offset=0)
     native endsWith(suffix)
+    native split(separator)
     native strip()
     native chomp()
-    native join(iterable)
     native escaped()
     native __mod__(args)
     native __eq__(o)
@@ -246,7 +240,7 @@ class List is Sequence
     end
 
     fun __string__()
-        return "[" + ", ".join(this) + "]"
+        return "[" + this.join(", ") + "]"
     end
 end
 
@@ -259,7 +253,7 @@ class Tuple is Sequence
     native __hash__()
 
     fun __string__()
-        return "(" + ", ".join(this) + ")"
+        return "(" + this.join(", ") + ")"
     end
 end
 
@@ -317,7 +311,7 @@ native type(o)
 // BUILTIN ITERATORS
 // -----------------------------------------------------------------------------
 
-class IReverse is Sequence
+class ReversedSequence is Sequence
     fun new(sequence)
         this._sequence = sequence
         this._size = #sequence
@@ -347,7 +341,7 @@ class IReverse is Sequence
     end
 end
 
-class IEnumerate is Iterable
+class EnumerateIter is Iterable
     fun new(iterable, start=0)
         this._iterable = iterable
         this._idx = start
@@ -364,7 +358,7 @@ class IEnumerate is Iterable
     end
 end
 
-class IFilter is Iterable
+class FilterIter is Iterable
     fun new(predicate, iterable)
         this._predicate = predicate
         this._iterable = iterable
@@ -387,7 +381,7 @@ class IFilter is Iterable
     end
 end
 
-class IMap is Iterable
+class MapIter is Iterable
     fun new(fn, iterable)
         this._fn = fn
         this._iterable = iterable
@@ -402,7 +396,7 @@ class IMap is Iterable
     end
 end
 
-class IZip is Iterable
+class ZipIter is Iterable
     fun new(iterable1, iterable2)
         this._iterable1 = iterable1
         this._iterable2 = iterable2

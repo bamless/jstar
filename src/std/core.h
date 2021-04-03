@@ -33,6 +33,10 @@ JSR_NATIVE(jsr_Function_string);
 JSR_NATIVE(jsr_Module_string);
 // end
 
+// class Iterable
+JSR_NATIVE(jsr_Iterable_join);
+// end
+
 // class List
 JSR_NATIVE(jsr_List_new);
 JSR_NATIVE(jsr_List_add);
@@ -60,9 +64,9 @@ JSR_NATIVE(jsr_String_new);
 JSR_NATIVE(jsr_String_charAt);
 JSR_NATIVE(jsr_String_startsWith);
 JSR_NATIVE(jsr_String_endsWith);
+JSR_NATIVE(jsr_String_split);
 JSR_NATIVE(jsr_String_strip);
 JSR_NATIVE(jsr_String_chomp);
-JSR_NATIVE(jsr_String_join);
 JSR_NATIVE(jsr_String_escaped);
 JSR_NATIVE(jsr_String_mod);
 JSR_NATIVE(jsr_String_len);
@@ -108,4 +112,4 @@ JSR_NATIVE(jsr_Exception_printStacktrace);
 JSR_NATIVE(jsr_Exception_getStacktrace);
 // end
 
-#endif
+#endif // CORE_H

@@ -326,6 +326,39 @@ JSR_NATIVE(jsr_Module_string) {
 }
 // end
 
+// class Iterable
+JSR_NATIVE(jsr_Iterable_join) {
+    JSR_CHECK(String, 1, "sep");
+
+    JStarBuffer joined;
+    jsrBufferInit(vm, &joined);
+
+    JSR_FOREACH(0, {
+        if(!jsrIsString(vm, -1)) {
+            if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
+                jsrBufferFree(&joined);
+                return false;
+            }
+            if(!jsrIsString(vm, -1)) {
+                jsrBufferFree(&joined);
+                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
+            }
+        }
+        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+        jsrBufferAppend(&joined, jsrGetString(vm, 1), jsrGetStringSz(vm, 1));
+        jsrPop(vm);
+    },
+    jsrBufferFree(&joined))
+
+    if(joined.size > 0) {
+        jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 1));
+    }
+
+    jsrBufferPush(&joined);
+    return true;
+}
+// end
+
 // class List
 JSR_NATIVE(jsr_List_new) {
     if(jsrIsNull(vm, 1)) {
@@ -743,6 +776,40 @@ JSR_NATIVE(jsr_String_endsWith) {
     return true;
 }
 
+JSR_NATIVE(jsr_String_split) {
+    JSR_CHECK(String, 1, "delimiter");
+
+    const char* str = jsrGetString(vm, 0);
+    size_t size = jsrGetStringSz(vm, 0);
+
+    const char* delimiter = jsrGetString(vm, 1);
+    size_t delimSize = jsrGetStringSz(vm, 1);
+    if(delimSize == 0) JSR_RAISE(vm, "InvalidArgException", "Empty delimiter");
+
+    ObjList *tokens = newList(vm, 0);
+    push(vm, OBJ_VAL(tokens));
+
+    const char* last = str;
+
+    if(delimSize < size) {
+        for(size_t i = 0; i <= size - delimSize; i++) {
+            if(memcmp(str + i, delimiter, delimSize) == 0) {
+                jsrPushStringSz(vm, last, str + i - last);
+                jsrListAppend(vm, -2);
+                jsrPop(vm);
+
+                last = str + i + delimSize;
+            }
+        }
+    }
+
+    jsrPushStringSz(vm, last, str + size - last);
+    jsrListAppend(vm, -2);
+    jsrPop(vm);
+
+    return true;
+}
+
 JSR_NATIVE(jsr_String_strip) {
     const char* str = jsrGetString(vm, 0);
     size_t start = 0, end = jsrGetStringSz(vm, 0);
@@ -783,39 +850,11 @@ JSR_NATIVE(jsr_String_chomp) {
     return true;
 }
 
-JSR_NATIVE(jsr_String_join) {
-    JStarBuffer joined;
-    jsrBufferInit(vm, &joined);
-
-    JSR_FOREACH(1, {
-        if(!jsrIsString(vm, -1)) {
-            if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
-                jsrBufferFree(&joined);
-                return false;
-            }
-            if(!jsrIsString(vm, -1)) {
-                jsrBufferFree(&joined);
-                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
-            }
-        }
-        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-        jsrBufferAppend(&joined, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
-        jsrPop(vm);
-    },
-    jsrBufferFree(&joined))
-
-    if(joined.size > 0) {
-        jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 0));
-    }
-
-    jsrBufferPush(&joined);
-    return true;
-}
-
 JSR_NATIVE(jsr_String_escaped) {
     const char* str = jsrGetString(vm, 0);
     size_t size = jsrGetStringSz(vm, 0);
 
+    const int numEscapes = 10;
     const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
     const char* unescaped = "0abfnrtv\\\"";
 
@@ -823,14 +862,14 @@ JSR_NATIVE(jsr_String_escaped) {
     jsrBufferInitCapacity(vm, &buf, size * 1.5);
     for(size_t i = 0; i < size; i++) {
         int j;
-        for(j = 0; j < 10; j++) {
+        for(j = 0; j < numEscapes; j++) {
             if(str[i] == escaped[j]) {
                 jsrBufferAppendChar(&buf, '\\');
                 jsrBufferAppendChar(&buf, unescaped[j]);
                 break;
             }
         }
-        if(j == 10) jsrBufferAppendChar(&buf, str[i]);
+        if(j == numEscapes) jsrBufferAppendChar(&buf, str[i]);
     }
 
     jsrBufferPush(&buf);
