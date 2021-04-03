@@ -450,19 +450,21 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
     const char* str = e->as.string.str;
     size_t length = e->as.string.length;
 
+    const int numEscapes = 11;
     const char* escaped = "\0\a\b\f\n\r\t\v\\\"'";
     const char* unescaped = "0abfnrtv\\\"'";
+
     for(size_t i = 0; i < length; i++) {
         if(str[i] == '\\') {
             int j = 0;
-            for(j = 0; j < 11; j++) {
+            for(j = 0; j < numEscapes; j++) {
                 if(str[i + 1] == unescaped[j]) {
                     jsrBufferAppendChar(sb, escaped[j]);
                     i++;
                     break;
                 }
             }
-            if(j == 11) {
+            if(j == numEscapes) {
                 error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
             }
         } else {
