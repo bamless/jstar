@@ -1075,8 +1075,12 @@ static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
 }
 
 static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
-    if(IS_STRING(k1) || IS_NUM(k1) || IS_BOOL(k1)) {
+    if(IS_NUM(k1) || IS_BOOL(k1)) {
         *eq = valueEquals(k1, k2);
+        return true;
+    }
+    if(IS_STRING(k1) && IS_STRING(k2)) {
+        *eq = stringEquals(AS_STRING(k1), AS_STRING(k2));
         return true;
     }
 
