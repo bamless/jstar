@@ -1048,7 +1048,6 @@ JSR_NATIVE(jsr_String_next) {
 
 // class Table
 #define TOMB_MARKER      TRUE_VAL
-#define MAX_LOAD_FACTOR  0.75
 #define INITIAL_CAPACITY 8
 #define GROW_FACTOR      2
 
@@ -1215,11 +1214,15 @@ JSR_NATIVE(jsr_Table_get) {
     return true;
 }
 
+static size_t tableMaxEntryLoad(size_t capacity) {
+    return (capacity >> 1) + (capacity >> 2);  // Read as: 3/4 * capacity i.e. a load factor of 75%
+}
+
 JSR_NATIVE(jsr_Table_set) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    if(t->numEntries + 1 > (t->capacityMask + 1) * MAX_LOAD_FACTOR) {
+    if(t->numEntries + 1 > tableMaxEntryLoad(t->capacityMask + 1)) {
         growEntries(vm, t);
     }
 

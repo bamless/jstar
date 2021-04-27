@@ -7,7 +7,6 @@
 #include "object.h"
 
 #define TOMB_MARKER      TRUE_VAL
-#define MAX_LOAD_FACTOR  0.75
 #define GROW_FACTOR      2
 #define INITIAL_CAPACITY 8
 
@@ -63,8 +62,13 @@ static void growEntries(HashTable* t) {
     t->sizeMask = newSize - 1;
 }
 
+// Computes the maximum number of entries allowed in the hashtable without resizing
+static size_t maxEntryLoad(size_t size) {
+    return (size >> 1) + (size >> 2);  // Read as: 3/4 * size i.e. a load factor of 75%
+}
+
 bool hashTablePut(HashTable* t, ObjString* key, Value val) {
-    if(t->numEntries + 1 > (t->sizeMask + 1) * MAX_LOAD_FACTOR) {
+    if(t->numEntries + 1 > maxEntryLoad(t->sizeMask + 1)) {
         growEntries(t);
     }
 

@@ -37,7 +37,7 @@ if (NOT IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Check for link time optimization support
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     include(CheckIPOSupported)
     check_ipo_supported(RESULT LTO)
     if(LTO)

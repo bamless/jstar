@@ -86,7 +86,8 @@
         "variant": "cpp",
         "stdbool.h": "c",
         "signal.h": "c",
-        "sig_atomic_t.h": "c"
+        "sig_atomic_t.h": "c",
+        "unordered_set": "c"
     },
     "editor.formatOnSave": false
 }
