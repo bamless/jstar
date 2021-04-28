@@ -15,6 +15,7 @@ option(JSTAR_NAN_TAGGING    "Use NaN tagging technique to store the VM internal 
 option(JSTAR_DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
 option(JSTAR_DBG_PRINT_GC   "Trace the execution of the garbage collector" OFF)
 option(JSTAR_DBG_STRESS_GC  "Stress the garbage collector by calling it on every allocation" OFF)
+option(JSTAR_INSTRUMENT     "Enable function instrumentation" OFF)
 
 # Options for optional libraries
 option(JSTAR_SYS   "Include the 'sys' module in the language" ON)
@@ -73,6 +74,9 @@ elseif(MSVC)
     add_definitions(-DNOMINMAX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267 /wd5105 /wd4116")
 endif()
+
+# Instrumentation
+add_subdirectory(instrument)
 
 # J*, cli, compiler and external dependencies
 add_subdirectory(src)

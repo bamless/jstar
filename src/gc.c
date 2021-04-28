@@ -8,8 +8,10 @@
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
+#include "instrumentor.h"
 #include "object.h"
 #include "vm.h"
+#include "time.h"
 
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE  2
@@ -132,6 +134,8 @@ static void freeObject(JStarVM* vm, Obj* o) {
 }
 
 void sweepObjects(JStarVM* vm) {
+    PROFILE_FUNC()
+
     Obj** head = &vm->objects;
     while(*head != NULL) {
         if(!(*head)->reached) {
@@ -141,7 +145,6 @@ void sweepObjects(JStarVM* vm) {
 #ifdef JSTAR_DBG_PRINT_GC
             printf("GC_FREE: unreached object %p type: %s\n", (void*)u, ObjTypeNames[u->type]);
 #endif
-
             freeObject(vm, u);
         } else {
             (*head)->reached = false;
@@ -151,6 +154,7 @@ void sweepObjects(JStarVM* vm) {
 }
 
 static void growReached(JStarVM* vm) {
+    PROFILE_FUNC()
     vm->reachedCapacity *= REACHED_GROW_RATE;
     vm->reachedStack = realloc(vm->reachedStack, sizeof(Obj*) * vm->reachedCapacity);
 }
@@ -288,6 +292,8 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
 }
 
 void garbageCollect(JStarVM* vm) {
+    PROFILE_FUNC()
+
 #ifdef JSTAR_DBG_PRINT_GC
     size_t prevAlloc = vm->allocated;
     puts("*--- Starting GC ---*");
@@ -297,59 +303,67 @@ void garbageCollect(JStarVM* vm) {
     vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
     vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
-    // reach import paths list
-    reachObject(vm, (Obj*)vm->importPaths);
+    {
+        PROFILE("{reach-objects}::garbageCollect")
 
-    // reach builtin classes
-    reachObject(vm, (Obj*)vm->clsClass);
-    reachObject(vm, (Obj*)vm->objClass);
-    reachObject(vm, (Obj*)vm->strClass);
-    reachObject(vm, (Obj*)vm->boolClass);
-    reachObject(vm, (Obj*)vm->lstClass);
-    reachObject(vm, (Obj*)vm->numClass);
-    reachObject(vm, (Obj*)vm->funClass);
-    reachObject(vm, (Obj*)vm->modClass);
-    reachObject(vm, (Obj*)vm->nullClass);
-    reachObject(vm, (Obj*)vm->stClass);
-    reachObject(vm, (Obj*)vm->tupClass);
-    reachObject(vm, (Obj*)vm->excClass);
-    reachObject(vm, (Obj*)vm->tableClass);
-    reachObject(vm, (Obj*)vm->udataClass);
+        // reach import paths list
+        reachObject(vm, (Obj*)vm->importPaths);
 
-    // reach script argument llist
-    reachObject(vm, (Obj*)vm->argv);
+        // reach builtin classes
+        reachObject(vm, (Obj*)vm->clsClass);
+        reachObject(vm, (Obj*)vm->objClass);
+        reachObject(vm, (Obj*)vm->strClass);
+        reachObject(vm, (Obj*)vm->boolClass);
+        reachObject(vm, (Obj*)vm->lstClass);
+        reachObject(vm, (Obj*)vm->numClass);
+        reachObject(vm, (Obj*)vm->funClass);
+        reachObject(vm, (Obj*)vm->modClass);
+        reachObject(vm, (Obj*)vm->nullClass);
+        reachObject(vm, (Obj*)vm->stClass);
+        reachObject(vm, (Obj*)vm->tupClass);
+        reachObject(vm, (Obj*)vm->excClass);
+        reachObject(vm, (Obj*)vm->tableClass);
+        reachObject(vm, (Obj*)vm->udataClass);
 
-    for(int i = 0; i < SYM_END; i++) {
-        reachObject(vm, (Obj*)vm->methodSyms[i]);
+        // reach script argument llist
+        reachObject(vm, (Obj*)vm->argv);
+
+        for(int i = 0; i < SYM_END; i++) {
+            reachObject(vm, (Obj*)vm->methodSyms[i]);
+        }
+
+        // reach empty Tuple singleton
+        reachObject(vm, (Obj*)vm->emptyTup);
+
+        // reach loaded modules
+        reachHashTable(vm, &vm->modules);
+
+        // reach elements on the stack
+        for(Value* v = vm->stack; v < vm->sp; v++) {
+            reachValue(vm, *v);
+        }
+
+        // reach elements on the frame stack
+        for(int i = 0; i < vm->frameCount; i++) {
+            reachObject(vm, vm->frames[i].fn);
+        }
+
+        // reach open upvalues
+        for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
+            reachObject(vm, (Obj*)upvalue);
+        }
+
+        // reach the compiler objects
+        reachCompilerRoots(vm, vm->currCompiler);
     }
 
-    // reach empty Tuple singleton
-    reachObject(vm, (Obj*)vm->emptyTup);
+    {
+        PROFILE("{recursively-reach}::garbageCollect")
 
-    // reach loaded modules
-    reachHashTable(vm, &vm->modules);
-
-    // reach elements on the stack
-    for(Value* v = vm->stack; v < vm->sp; v++) {
-        reachValue(vm, *v);
-    }
-
-    // reach elements on the frame stack
-    for(int i = 0; i < vm->frameCount; i++) {
-        reachObject(vm, vm->frames[i].fn);
-    }
-
-    // reach open upvalues
-    for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
-        reachObject(vm, (Obj*)upvalue);
-    }
-
-    // reach the compiler objects
-    reachCompilerRoots(vm, vm->currCompiler);
-
-    // recursevely reach objects held by other reached objects
-    while(vm->reachedCount != 0) {
-        recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
+        // recursevely reach objects held by other reached objects
+        while(vm->reachedCount != 0) {
+            recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
+        }
     }
 
     // free unreached objects

@@ -21,6 +21,7 @@
 #cmakedefine JSTAR_DBG_PRINT_EXEC
 #cmakedefine JSTAR_DBG_PRINT_GC
 #cmakedefine JSTAR_DBG_STRESS_GC
+#cmakedefine JSTAR_INSTRUMENT
 
 #cmakedefine JSTAR_SYS
 #cmakedefine JSTAR_IO

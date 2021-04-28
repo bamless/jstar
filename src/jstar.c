@@ -10,6 +10,7 @@
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
+#include "instrumentor.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
@@ -53,11 +54,14 @@ void* jsrGetCustomData(JStarVM* vm) {
 }
 
 JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
+    PROFILE_FUNC()
     return jsrEvalModuleString(vm, path, JSR_MAIN_MODULE, src);
 }
 
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
+    PROFILE_FUNC()
+    
     JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
@@ -86,11 +90,14 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
 }
 
 JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
+    PROFILE_FUNC()
     return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code);
 }
 
 JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                           const JStarBuffer* code) {
+    PROFILE_FUNC()
+    
     if(!isCompiledCode(code)) {
         return jsrEvalModuleString(vm, path, module, code->data);
     }

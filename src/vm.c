@@ -7,6 +7,7 @@
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
+#include "instrumentor.h"
 #include "opcode.h"
 #include "std/core.h"
 #include "std/modules.h"
@@ -55,6 +56,8 @@ static size_t roundUp(size_t num, size_t multiple) {
 }
 
 JStarVM* jsrNewVM(const JStarConf* conf) {
+    PROFILE_FUNC()
+
     JStarVM* vm = calloc(1, sizeof(*vm));
     vm->errorCallback = conf->errorCallback;
     vm->customData = conf->customData;
@@ -92,6 +95,8 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 }
 
 void jsrFreeVM(JStarVM* vm) {
+    PROFILE_FUNC()
+
     resetStack(vm);
 
     free(vm->stack);
@@ -834,6 +839,8 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
 // -----------------------------------------------------------------------------
 
 bool runEval(JStarVM* vm, int evalDepth) {
+    PROFILE_FUNC()
+
     register Frame* frame;
     register Value* frameStack;
     register ObjClosure* closure;

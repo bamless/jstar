@@ -15,6 +15,7 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
+#include "instrumentor.h"
 #include "modules.h"
 #include "object.h"
 #include "parse/ast.h"
@@ -120,6 +121,8 @@ static JSR_NATIVE(jsr_Class_string) {
 // end
 
 void initCoreModule(JStarVM* vm) {
+    PROFILE_FUNC()
+
     // Create and register core module
     ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
 
@@ -157,19 +160,23 @@ void initCoreModule(JStarVM* vm) {
     (void)res; // Not actually used aside from the assert
 
     // Cache builtin class objects in JStarVM
-    vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
-    vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-    vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
-    vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
-    vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
-    vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
-    vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-    vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-    vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
-    vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
-    vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
-    vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
-    core->base.cls = vm->modClass;
+    {
+        PROFILE("{cache-bltins}::initCore")
+
+        vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
+        vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+        vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
+        vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
+        vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
+        vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
+        vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
+        vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+        vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+        vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
+        vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
+        vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
+        core->base.cls = vm->modClass;
+    }
 
     // Cache core module global objects in vm
     vm->importPaths = AS_LIST(getDefinedName(vm, core, "importPaths"));

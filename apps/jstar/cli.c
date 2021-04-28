@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "colorio.h"
+#include "instrumentor.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
@@ -88,15 +89,23 @@ static bool replPrint(JStarVM* vm) {
 }
 
 static void initVM(void) {
+    PROFILE_BEGIN_SESSION("jstar-init.json")
+
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
+
+    PROFILE_END_SESSION()
 }
 
 static void freeVM(void) {
+    PROFILE_BEGIN_SESSION("jstar-free.json")
+
     jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
+
+    PROFILE_END_SESSION()
 }
 
 // -----------------------------------------------------------------------------
@@ -204,6 +213,8 @@ static void doRepl() {
     linenoiseSetCompletionCallback(completion);
     initImportPaths("./");
     registerPrintFunction();
+    
+    PROFILE_BEGIN_SESSION("jstar-repl.json")
 
     JStarBuffer src;
     jsrBufferInit(vm, &src);
@@ -225,10 +236,12 @@ static void doRepl() {
         }
 
         addReplPrint(&src);
-        
+
         res = evaluateString("<stdin>", src.data);
         jsrBufferClear(&src);
     }
+
+    PROFILE_END_SESSION()
 
     jsrBufferFree(&src);
     linenoiseHistoryFree();
@@ -240,6 +253,8 @@ static void doRepl() {
 // -----------------------------------------------------------------------------
 
 static JStarResult execScript(const char* script, int argc, char** args) {
+    PROFILE_BEGIN_SESSION("jstar-run.json")
+
     jsrInitCommandLineArgs(vm, argc, (const char**)args);
 
     // set base import path to script's directory
@@ -262,6 +277,8 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 
     JStarResult res = evaluate(script, &src);
     jsrBufferFree(&src);
+
+    PROFILE_END_SESSION()
 
     return res;
 }
