@@ -118,6 +118,7 @@ target_include_directories(jstar_static
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/jstar
+        ${PROJECT_SOURCE_DIR}/instrument
 )
 set_target_properties(jstar_static PROPERTIES 
     OUTPUT_NAME "jstars"
@@ -134,6 +135,7 @@ target_include_directories(jstar
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/jstar
+        ${PROJECT_SOURCE_DIR}/instrument
 )
 set_target_properties(jstar PROPERTIES
     PDB_NAME "jstar.dll"

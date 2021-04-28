@@ -5,6 +5,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(cli PRIVATE jstar instrument linenoise argparse common)
+target_include_directories(cli PRIVATE ${PROJECT_SOURCE_DIR}/instrument)
 set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 
 # Enable link-time optimization if supported

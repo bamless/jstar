@@ -1,6 +1,7 @@
 # Executable
 add_executable(jstarc jstarc.c)
 target_link_libraries(jstarc PRIVATE jstar instrument argparse cwalk common)
+target_include_directories(jstarc PRIVATE ${PROJECT_SOURCE_DIR}/instrument)
 if(WIN32)
     target_link_libraries(jstarc PRIVATE dirent)
 endif()

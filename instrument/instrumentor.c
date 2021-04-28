@@ -50,19 +50,17 @@ static void writeInstrumentRecord(const char* name, long startNano, long endNano
         abort();
     }
 
-    if(profileCount++ > 0) fputc(',', sessionFile);
+    if(profileCount++ > 0) {
+        fputc(',', sessionFile);
+    }
 
     fputs("{\"cat\":\"function\",", sessionFile);
-
-    fprintf(sessionFile, "\"dur\":%lf,", (double)(endNano - startNano) / 1000.0);
+    fprintf(sessionFile, "\"dur\":%ld,", (endNano - startNano) / 1000);
     fprintf(sessionFile, "\"name\":\"%s\",", name);
-
     fputs("\"ph\":\"X\",", sessionFile);
     fputs("\"pid\":0,", sessionFile);
     fputs("\"tid\":0,", sessionFile);
-
     fprintf(sessionFile, "\"ts\":%lf", (double)(startNano) / 1000.0);
-    
     fputc('}', sessionFile);
 }
 
