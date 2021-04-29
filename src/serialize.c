@@ -8,6 +8,7 @@
 #include "endianness.h"
 #include "gc.h"
 #include "object.h"
+#include "profiler.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
@@ -134,6 +135,8 @@ static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
 }
 
 JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
+    PROFILE_FUNC()
+
     // Push as gc root
     jsrEnsureStack(vm, 1);
     push(vm, OBJ_VAL(fn));
@@ -401,6 +404,8 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
 }
 
 ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* err) {
+    PROFILE_FUNC()
+
     ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
     Deserializer d = {vm, buf, mod, 0};
 

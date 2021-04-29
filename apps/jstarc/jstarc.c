@@ -9,6 +9,7 @@
 
 #include "colorio.h"
 #include "jstar/jstar.h"
+#include "profiler.h"
 
 #define JSR_EXT ".jsr"
 #define JSC_EXT ".jsc"
@@ -25,6 +26,8 @@ static Options opts;
 static JStarVM* vm;
 
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+    PROFILE_FUNC()
+    
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
@@ -37,13 +40,19 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 }
 
 static void initVM(void) {
+    PROFILE_BEGIN_SESSION("jstar-init.json")
+
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
+
+    PROFILE_END_SESSION()
 }
 
 static void freeVM(void) {
+    PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);
+    PROFILE_END_SESSION()
 }
 
 static bool isDirectory(const char* path) {
@@ -282,6 +291,8 @@ int main(int argc, char** argv) {
     initVM();
     atexit(&freeVM);
 
+    PROFILE_BEGIN_SESSION("jstar-run.json")
+
     bool ok;
     if(isDirectory(opts.input)) {
         ok = processDirectory(opts.input, opts.output);
@@ -290,6 +301,8 @@ int main(int argc, char** argv) {
     } else {
         ok = compileFile(opts.input, opts.output);
     }
+
+    PROFILE_END_SESSION()
 
     exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
