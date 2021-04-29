@@ -9,6 +9,7 @@
 #include "hashtable.h"
 #include "jstar.h"
 #include "parse/parser.h"
+#include "profiler.h"
 #include "serialize.h"
 #include "std/modules.h"
 #include "util.h"
@@ -30,6 +31,8 @@ static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
 }
 
 ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, JStarStmt* program) {
+    PROFILE_FUNC()
+
     ObjModule* module = getOrCreateModule(vm, name);
     if(program != NULL) {
         ObjFunction* fn = compile(vm, file, module, program);
@@ -40,6 +43,8 @@ ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, J
 
 ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
                                    const JStarBuffer* code, JStarResult* err) {
+    PROFILE_FUNC()
+
     ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, name), code, err);
     if(*err == JSR_VERSION_ERR) {
         vm->errorCallback(vm, *err, path, -1, "Incompatible binary file version");
@@ -76,6 +81,8 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
 }
 
 static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
+    PROFILE_FUNC()
+
     const char* moduleDir = strrchr(modulePath->data, '/');
     const char* lastDot = strrchr(moduleName->data, '.');
     const char* simpleName = lastDot ? lastDot + 1 : moduleName->data;
@@ -107,6 +114,8 @@ static void parseError(const char* file, int line, const char* error, void* udat
 }
 
 static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src) {
+    PROFILE_FUNC()
+
     JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return NULL;
@@ -127,6 +136,8 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
 
 static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
                                const JStarBuffer* code) {
+    PROFILE_FUNC()
+
     JStarResult res;
     ObjFunction* fn = deserializeWithModule(vm, path, name, code, &res);
     if(res != JSR_SUCCESS) {
@@ -146,6 +157,8 @@ typedef enum ImportRes {
 } ImportRes;
 
 static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name, ObjModule** res) {
+    PROFILE_FUNC()
+
     JStarBuffer src;
     if(!jsrReadFile(vm, path->data, &src)) {
         return IMPORT_NOT_FOUND;
@@ -168,6 +181,8 @@ static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name,
 }
 
 static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
+    PROFILE_FUNC()
+
     ObjList* paths = vm->importPaths;
 
     JStarBuffer fullPath;
@@ -237,6 +252,8 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
 }
 
 ObjModule* importModule(JStarVM* vm, ObjString* name) {
+    PROFILE_FUNC()
+
     if(hashTableContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);
         return getModule(vm, name);

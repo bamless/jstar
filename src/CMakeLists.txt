@@ -118,7 +118,8 @@ target_include_directories(jstar_static
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/jstar
-        ${PROJECT_SOURCE_DIR}/instrument
+        ${PROJECT_SOURCE_DIR}/profile
+        ${PROJECT_BINARY_DIR}
 )
 set_target_properties(jstar_static PROPERTIES 
     OUTPUT_NAME "jstars"
@@ -127,7 +128,7 @@ set_target_properties(jstar_static PROPERTIES
 
 #shared library
 add_library(jstar SHARED ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
-target_link_libraries(jstar PUBLIC ${EXTRA_LIBS} PRIVATE instrument)
+target_link_libraries(jstar PUBLIC ${EXTRA_LIBS})
 target_include_directories(jstar 
     PUBLIC
         $<INSTALL_INTERFACE:include>
@@ -135,7 +136,8 @@ target_include_directories(jstar
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/jstar
-        ${PROJECT_SOURCE_DIR}/instrument
+        ${PROJECT_SOURCE_DIR}/profile
+        ${PROJECT_BINARY_DIR}
 )
 set_target_properties(jstar PROPERTIES
     PDB_NAME "jstar.dll"
@@ -143,6 +145,10 @@ set_target_properties(jstar PROPERTIES
     SOVERSION ${JSTAR_VERSION_MAJOR}
     C_VISIBILITY_PRESET hidden
 )
+
+if(JSTAR_INSTRUMENT)
+    target_link_libraries(jstar PRIVATE profile)
+endif()
 
 # Enable link-time optimization if supported
 if(LTO)

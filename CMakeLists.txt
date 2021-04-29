@@ -76,7 +76,7 @@ elseif(MSVC)
 endif()
 
 # Instrumentation
-add_subdirectory(instrument)
+add_subdirectory(profile)
 
 # J*, cli, compiler and external dependencies
 add_subdirectory(src)

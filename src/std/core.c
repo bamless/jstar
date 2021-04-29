@@ -15,11 +15,11 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
-#include "instrumentor.h"
 #include "modules.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
+#include "profiler.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
@@ -123,41 +123,51 @@ static JSR_NATIVE(jsr_Class_string) {
 void initCoreModule(JStarVM* vm) {
     PROFILE_FUNC()
 
-    // Create and register core module
-    ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
-
-    push(vm, OBJ_VAL(coreModName));
-    ObjModule* core = newModule(vm, coreModName);
-    setModule(vm, core->name, core);
-    vm->core = core;
-    pop(vm);
-
-    // Setup the class object. It will be the class of every other class
-    vm->clsClass = createClass(vm, core, NULL, "Class");
-    vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
-
-    // Setup the base class of the object hierarchy
-    vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
-    defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
-    defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
-    defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
-
-    // Patch up Class object information
-    vm->clsClass->superCls = vm->objClass;
-    hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
-
-    // Read core module
-    size_t len;
-    const char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
-
-    // Execute core module
-    JStarBuffer code = jsrBufferWrap(vm, coreBytecode, len);
-    JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
+    ObjModule* core;
     
-    ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
-    (void)res; // Not actually used aside from the assert
+    {
+        PROFILE("{class-and-object}::initCoreModule")
+
+        // Create and register core module
+        ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
+
+        push(vm, OBJ_VAL(coreModName));
+        core = newModule(vm, coreModName);
+        setModule(vm, core->name, core);
+        vm->core = core;
+        pop(vm);
+
+        // Setup the class object. It will be the class of every other class
+        vm->clsClass = createClass(vm, core, NULL, "Class");
+        vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
+
+        // Setup the base class of the object hierarchy
+        vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
+        defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
+        defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
+        defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
+
+        // Patch up Class object information
+        vm->clsClass->superCls = vm->objClass;
+        hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
+        defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
+        defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
+    }
+
+    {
+        PROFILE("{core-runEval}::initCore")
+
+        // Read core module
+        size_t len;
+        const char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
+
+        // Execute core module
+        JStarBuffer code = jsrBufferWrap(vm, coreBytecode, len);
+        JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
+        
+        ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
+        (void)res; // Not actually used aside from the assert
+    }
 
     // Cache builtin class objects in JStarVM
     {

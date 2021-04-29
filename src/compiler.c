@@ -13,6 +13,7 @@
 #include "opcode.h"
 #include "parse/lex.h"
 #include "parse/vector.h"
+#include "profiler.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
@@ -1772,6 +1773,8 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
 // -----------------------------------------------------------------------------
 
 ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStarStmt* ast) {
+    PROFILE_FUNC()
+
     Compiler c;
     initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast);
     ObjFunction* func = function(&c, module, ast);
@@ -1780,6 +1783,8 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStar
 }
 
 void reachCompilerRoots(JStarVM* vm, Compiler* c) {
+    PROFILE_FUNC()
+
     while(c != NULL) {
         reachObject(vm, (Obj*)c->func);
         c = c->prev;

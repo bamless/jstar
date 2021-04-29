@@ -1,9 +1,13 @@
 # Executable
 add_executable(jstarc jstarc.c)
-target_link_libraries(jstarc PRIVATE jstar instrument argparse cwalk common)
-target_include_directories(jstarc PRIVATE ${PROJECT_SOURCE_DIR}/instrument)
+target_link_libraries(jstarc PRIVATE jstar argparse cwalk common)
+target_include_directories(jstarc PRIVATE ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/profile)
 if(WIN32)
     target_link_libraries(jstarc PRIVATE dirent)
+endif()
+
+if(JSTAR_INSTRUMENT)
+    target_link_libraries(jstarc PRIVATE profile)
 endif()
 
 # Enable link-time optimization if supported

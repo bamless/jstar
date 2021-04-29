@@ -8,11 +8,11 @@
 #include <string.h>
 
 #include "colorio.h"
-#include "instrumentor.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
+#include "profiler.h"
 
 #define REPL_PRINT   "__replprint"
 #define JSTAR_PATH   "JSTARPATH"
@@ -58,6 +58,8 @@ static JStarBuffer completionBuf;
 // -----------------------------------------------------------------------------
 
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+    PROFILE_FUNC()
+    
     if(ln >= 0) {
         fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
     } else {

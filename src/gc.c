@@ -8,8 +8,8 @@
 #include "compiler.h"
 #include "dynload.h"
 #include "hashtable.h"
-#include "instrumentor.h"
 #include "object.h"
+#include "profiler.h"
 #include "vm.h"
 #include "time.h"
 

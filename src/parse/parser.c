@@ -9,6 +9,7 @@
 #include "parse/ast.h"
 #include "parse/lex.h"
 #include "parse/vector.h"
+#include "profiler.h"
 #include "util.h"
 
 #define MAX_ERR_SIZE 512
@@ -1193,6 +1194,8 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
 // -----------------------------------------------------------------------------
 
 JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
+    PROFILE_FUNC()
+
     Parser p;
     initParser(&p, path, src, errFn, udata);
 
@@ -1212,6 +1215,8 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void*
 }
 
 JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
+    PROFILE_FUNC()
+
     Parser p;
     initParser(&p, path, src, errFn, udata);
 

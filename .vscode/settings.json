@@ -89,7 +89,10 @@
         "sig_atomic_t.h": "c",
         "unordered_set": "c",
         "jstarconf.h": "c",
-        "instrumentor.h": "c"
+        "instrumentor.h": "c",
+        "serialize.h": "c",
+        "ast.h": "c",
+        "parser.h": "c"
     },
     "editor.formatOnSave": false
 }

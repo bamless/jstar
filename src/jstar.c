@@ -10,10 +10,10 @@
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
-#include "instrumentor.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
+#include "profiler.h"
 #include "serialize.h"
 #include "util.h"
 #include "value.h"
@@ -125,6 +125,8 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
+    PROFILE_FUNC()
+
     JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
@@ -143,6 +145,8 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
 }
 
 JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code) {
+    PROFILE_FUNC()
+
     if(!isCompiledCode(code)) {
         return JSR_DESERIALIZE_ERR;
     }
@@ -169,6 +173,8 @@ static JStarResult executeCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset
 }
 
 static void finishUnwind(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
+    PROFILE_FUNC()
+
     // Finish to unwind the stack
     if(vm->frameCount > evalDepth) {
         unwindStack(vm, evalDepth);
@@ -207,6 +213,8 @@ void jsrEvalBreak(JStarVM* vm) {
 }
 
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
+    PROFILE_FUNC()
+
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
@@ -215,6 +223,8 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
 }
 
 void jsrGetStacktrace(JStarVM* vm, int slot) {
+    PROFILE_FUNC()
+
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
@@ -222,6 +232,8 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
 }
 
 void jsrRaiseException(JStarVM* vm, int slot) {
+    PROFILE_FUNC()
+
     Value exc = apiStackSlot(vm, slot);
     if(!isInstance(vm, exc, vm->excClass)) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
@@ -239,6 +251,8 @@ void jsrRaiseException(JStarVM* vm, int slot) {
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
+    PROFILE_FUNC()
+
     if(!jsrGetGlobal(vm, NULL, cls)) return;
 
     ObjInstance* exception = newInstance(vm, AS_CLASS(pop(vm)));

@@ -7,8 +7,8 @@
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
-#include "instrumentor.h"
 #include "opcode.h"
+#include "profiler.h"
 #include "std/core.h"
 #include "std/modules.h"
 
@@ -47,6 +47,7 @@ static void resetStack(JStarVM* vm) {
 }
 
 static void initMainModule(JStarVM* vm) {
+    PROFILE_FUNC()
     ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
     compileWithModule(vm, "<main>", mainModuleName, NULL);  // Empty main module
 }
@@ -1585,6 +1586,8 @@ op_return:
 }
 
 bool unwindStack(JStarVM* vm, int depth) {
+    PROFILE_FUNC()
+
     ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
     ObjInstance* exception = AS_INSTANCE(peek(vm));
 
