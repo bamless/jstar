@@ -177,6 +177,8 @@ static void completion(const char* buf, linenoiseCompletions* lc) {
 }
 
 static int countBlocks(const char* line) {
+    PROFILE_FUNC()
+    
     JStarLex lex;
     JStarTok tok;
 
@@ -195,6 +197,8 @@ static int countBlocks(const char* line) {
 }
 
 static void addReplPrint(JStarBuffer* sb) {
+    PROFILE_FUNC()
+
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
@@ -211,42 +215,48 @@ static void registerPrintFunction(void) {
 }
 
 static void doRepl() {
-    if(!opts.skipVersion) printVersion();
-    linenoiseSetCompletionCallback(completion);
-    initImportPaths("./");
-    registerPrintFunction();
-    
     PROFILE_BEGIN_SESSION("jstar-repl.json")
 
-    JStarBuffer src;
-    jsrBufferInit(vm, &src);
     JStarResult res = JSR_SUCCESS;
+    {
+        PROFILE_FUNC()
 
-    char* line;
-    while((line = linenoise(JSTAR_PROMPT)) != NULL) {
-        int depth = countBlocks(line);
-        linenoiseHistoryAdd(line);
-        jsrBufferAppendStr(&src, line);
-        free(line);
+        if(!opts.skipVersion) printVersion();
+        linenoiseSetCompletionCallback(completion);
+        initImportPaths("./");
+        registerPrintFunction();
+        
 
-        while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
-            depth += countBlocks(line);
+        JStarBuffer src;
+        jsrBufferInit(vm, &src);
+
+        char* line;
+        while((line = linenoise(JSTAR_PROMPT)) != NULL) {
+            int depth = countBlocks(line);
             linenoiseHistoryAdd(line);
-            jsrBufferAppendChar(&src, '\n');
             jsrBufferAppendStr(&src, line);
             free(line);
+
+            while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
+                depth += countBlocks(line);
+                linenoiseHistoryAdd(line);
+                jsrBufferAppendChar(&src, '\n');
+                jsrBufferAppendStr(&src, line);
+                free(line);
+            }
+
+            addReplPrint(&src);
+
+            res = evaluateString("<stdin>", src.data);
+            jsrBufferClear(&src);
         }
 
-        addReplPrint(&src);
-
-        res = evaluateString("<stdin>", src.data);
-        jsrBufferClear(&src);
+        jsrBufferFree(&src);
+        linenoiseHistoryFree();
     }
 
     PROFILE_END_SESSION()
 
-    jsrBufferFree(&src);
-    linenoiseHistoryFree();
     exit(res);
 }
 
@@ -257,28 +267,33 @@ static void doRepl() {
 static JStarResult execScript(const char* script, int argc, char** args) {
     PROFILE_BEGIN_SESSION("jstar-run.json")
 
-    jsrInitCommandLineArgs(vm, argc, (const char**)args);
+    JStarResult res;
+    {
+        PROFILE_FUNC()
 
-    // set base import path to script's directory
-    char* directory = strrchr(script, '/');
-    if(directory != NULL) {
-        size_t length = directory - script + 1;
-        char* path = calloc(length + 1, 1);
-        memcpy(path, script, length);
-        initImportPaths(path);
-        free(path);
-    } else {
-        initImportPaths("./");
+        jsrInitCommandLineArgs(vm, argc, (const char**)args);
+
+        // set base import path to script's directory
+        char* directory = strrchr(script, '/');
+        if(directory != NULL) {
+            size_t length = directory - script + 1;
+            char* path = calloc(length + 1, 1);
+            memcpy(path, script, length);
+            initImportPaths(path);
+            free(path);
+        } else {
+            initImportPaths("./");
+        }
+
+        JStarBuffer src;
+        if(!jsrReadFile(vm, script, &src)) {
+            fprintf(stderr, "Error reading script '%s': %s\n", script, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        res = evaluate(script, &src);
+        jsrBufferFree(&src);
     }
-
-    JStarBuffer src;
-    if(!jsrReadFile(vm, script, &src)) {
-        fprintf(stderr, "Error reading script '%s': %s\n", script, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    JStarResult res = evaluate(script, &src);
-    jsrBufferFree(&src);
 
     PROFILE_END_SESSION()
 

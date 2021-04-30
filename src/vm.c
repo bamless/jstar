@@ -100,6 +100,7 @@ void jsrFreeVM(JStarVM* vm) {
 
     {
         PROFILE("{free-vm-state}::jsrFreeVM")
+
         resetStack(vm);
         free(vm->stack);
         free(vm->frames);
@@ -804,11 +805,15 @@ static int powerOf2Ceil(int n) {
 inline void reserveStack(JStarVM* vm, size_t needed) {
     if(vm->sp + needed < vm->stack + vm->stackSz) return;
 
+    PROFILE_FUNC()
+
     Value* oldStack = vm->stack;
-    vm->stackSz = powerOf2Ceil(vm->stackSz);
+    vm->stackSz = powerOf2Ceil(vm->stackSz + needed);
     vm->stack = realloc(vm->stack, sizeof(Value) * vm->stackSz);
 
     if(vm->stack != oldStack) {
+        PROFILE("{restore-stack}::reserveStack")
+
         if(vm->apiStack >= oldStack && vm->apiStack <= vm->sp) {
             vm->apiStack = vm->stack + (vm->apiStack - oldStack);
         }
