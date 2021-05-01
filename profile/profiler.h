@@ -21,17 +21,17 @@ void endProfileTimer(const InstrumentationTimer* timer);
 #endif
 
 #ifdef JSTAR_INSTRUMENT
+    #define PROFILE_LINE2_(name, line)     \
+        InstrumentationTimer _timer_##line \
+            __attribute__((__cleanup__(endProfileTimer))) = startProfileTimer(name);
+
+    #define PROFILE_LINE_(name, line) PROFILE_LINE2_(name, line)
+
     #define PROFILE_BEGIN_SESSION(name) startProfileSession(name);
     #define PROFILE_END_SESSION()       endProfileSession();
 
-    #define CONCAT_(x, y)   x##y
-    #define UNIQ_VAR_(name) CONCAT_(name, __LINE__)
-
+    #define PROFILE(name)  PROFILE_LINE_(name, __LINE__)
     #define PROFILE_FUNC() PROFILE(__func__)
-
-    #define PROFILE(name)                   \
-        InstrumentationTimer UNIQ_VAR_(_t_) \
-            __attribute__((__cleanup__(endProfileTimer))) = startProfileTimer(name);
 #else
     #define PROFILE_BEGIN_SESSION(name)
     #define PROFILE_END_SESSION()

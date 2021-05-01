@@ -54,8 +54,8 @@ static void writeInstrumentRecord(const char* name, uint64_t startNano, uint64_t
         fputc(',', sessionFile);
     }
     fprintf(sessionFile,
-            "{\"cat\":\"function\",\"dur\":%g,\"name\":\"%s\",\"ph\":\"X\",\"pid\":0,\"tid\":0,"
-            "\"ts\":%g}",
+            "{\"cat\":\"function\",\"dur\":%lf,\"name\":\"%s\",\"ph\":\"X\",\"pid\":0,\"tid\":0,"
+            "\"ts\":%lf}",
             elapsed, name, timestamp);
 }
 

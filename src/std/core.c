@@ -123,36 +123,30 @@ static JSR_NATIVE(jsr_Class_string) {
 void initCoreModule(JStarVM* vm) {
     PROFILE_FUNC()
 
-    ObjModule* core;
-    
-    {
-        PROFILE("{class-and-object}::initCoreModule")
+    // Create and register core module
+    ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
 
-        // Create and register core module
-        ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
+    push(vm, OBJ_VAL(coreModName));
+    ObjModule* core = newModule(vm, coreModName);
+    setModule(vm, core->name, core);
+    vm->core = core;
+    pop(vm);
 
-        push(vm, OBJ_VAL(coreModName));
-        core = newModule(vm, coreModName);
-        setModule(vm, core->name, core);
-        vm->core = core;
-        pop(vm);
+    // Setup the class object. It will be the class of every other class
+    vm->clsClass = createClass(vm, core, NULL, "Class");
+    vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
 
-        // Setup the class object. It will be the class of every other class
-        vm->clsClass = createClass(vm, core, NULL, "Class");
-        vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
+    // Setup the base class of the object hierarchy
+    vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
+    defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
 
-        // Setup the base class of the object hierarchy
-        vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
-        defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
-        defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
-        defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
-
-        // Patch up Class object information
-        vm->clsClass->superCls = vm->objClass;
-        hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
-        defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
-        defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
-    }
+    // Patch up Class object information
+    vm->clsClass->superCls = vm->objClass;
+    hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
     {
         PROFILE("{core-runEval}::initCore")
@@ -186,25 +180,29 @@ void initCoreModule(JStarVM* vm) {
         vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
         vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
         core->base.cls = vm->modClass;
+
+        // Cache core module global objects in vm
+        vm->importPaths = AS_LIST(getDefinedName(vm, core, "importPaths"));
+        vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
     }
 
-    // Cache core module global objects in vm
-    vm->importPaths = AS_LIST(getDefinedName(vm, core, "importPaths"));
-    vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
+    {
+        PROFILE("{patch-up-classes}::initCoreModule")
 
-    // Patch up the class field of any object that was allocated
-    // before the creation of its corresponding class object
-    for(Obj* o = vm->objects; o != NULL; o = o->next) {
-        if(o->type == OBJ_STRING) {
-            o->cls = vm->strClass;
-        } else if(o->type == OBJ_LIST) {
-            o->cls = vm->lstClass;
-        } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
-            o->cls = vm->funClass;
+        // Patch up the class field of any object that was allocated
+        // before the creation of its corresponding class object
+        for(Obj* o = vm->objects; o != NULL; o = o->next) {
+            if(o->type == OBJ_STRING) {
+                o->cls = vm->strClass;
+            } else if(o->type == OBJ_LIST) {
+                o->cls = vm->lstClass;
+            } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
+                o->cls = vm->funClass;
+            }
+
+            // Ensure all allocated object do actually have a class reference!
+            ASSERT(o->cls, "Object without class reference");
         }
-
-        // Ensure all allocated object do actually have a class reference!
-        ASSERT(o->cls, "Object without class reference");
     }
 }
 

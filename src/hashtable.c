@@ -5,6 +5,7 @@
 
 #include "gc.h"
 #include "object.h"
+#include "profiler.h"
 
 #define TOMB_MARKER      TRUE_VAL
 #define GROW_FACTOR      2
@@ -140,6 +141,8 @@ void reachHashTable(JStarVM* vm, HashTable* t) {
 }
 
 void sweepStrings(HashTable* t) {
+    PROFILE_FUNC()
+
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
         Entry* e = &t->entries[i];

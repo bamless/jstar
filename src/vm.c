@@ -97,11 +97,12 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
 void jsrFreeVM(JStarVM* vm) {
     PROFILE_FUNC()
+    
+    resetStack(vm);
 
     {
         PROFILE("{free-vm-state}::jsrFreeVM")
 
-        resetStack(vm);
         free(vm->stack);
         free(vm->frames);
         freeHashTable(&vm->stringPool);
