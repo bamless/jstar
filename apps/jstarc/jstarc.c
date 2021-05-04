@@ -68,6 +68,8 @@ static bool isDirectory(const char* path) {
 // -----------------------------------------------------------------------------
 
 static bool writeToFile(const JStarBuffer* buf, const char* path) {
+    PROFILE_FUNC()
+
     FILE* f = fopen(path, "wb");
     if(f == NULL) {
         return false;
@@ -88,6 +90,8 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
 }
 
 static bool compileFile(const char* path, const char* out) {
+    PROFILE_FUNC()
+
     JStarBuffer src;
     if(!jsrReadFile(vm, path, &src)) {
         fprintf(stderr, "Cannot open file %s: %s\n", path, strerror(errno));
@@ -127,6 +131,8 @@ static bool compileFile(const char* path, const char* out) {
 }
 
 static bool disassembleFile(const char* path) {
+    PROFILE_FUNC()
+
     JStarBuffer code;
     if(!jsrReadFile(vm, path, &code)) {
         fprintf(stderr, "Cannot open file %s: %s\n", path, strerror(errno));
