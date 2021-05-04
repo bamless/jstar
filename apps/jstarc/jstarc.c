@@ -27,7 +27,6 @@ static JStarVM* vm;
 
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     PROFILE_FUNC()
-    
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
