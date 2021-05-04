@@ -59,7 +59,6 @@ static JStarBuffer completionBuf;
 
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     PROFILE_FUNC()
-    
     if(ln >= 0) {
         fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
     } else {
