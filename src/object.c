@@ -23,11 +23,11 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initCommon(FnCommon* c, ObjModule* module, uint8_t argc, Value* defaults,
-                       uint8_t defCount, bool varg) {
+static void initCommon(FnCommon* c, ObjModule* m, uint8_t args, Value* defaults, uint8_t defCount,
+                       bool varg) {
     c->name = NULL;
-    c->module = module;
-    c->argsCount = argc;
+    c->module = m;
+    c->argsCount = args;
     c->defaults = defaults;
     c->defCount = defCount;
     c->vararg = varg;
@@ -461,7 +461,7 @@ const char* ObjTypeNames[] = {
 };
 #endif
 
-static void printEscaped(ObjString *s) {
+static void printEscaped(ObjString* s) {
     const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
     const char* unescaped = "0abfnrtv\\\"";
     for(size_t i = 0; i < s->length; i++) {

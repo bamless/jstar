@@ -258,8 +258,8 @@ typedef struct ObjUserdata {
 // These functions use gcAlloc to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
 // bookkeping information needed by the garbage collector (see struct Obj)
-ObjFunction* newFunction(JStarVM* vm, ObjModule* module, uint8_t argc, uint8_t defCount, bool varg);
-ObjNative* newNative(JStarVM* vm, ObjModule* module, uint8_t argc, uint8_t defCount, bool varg);
+ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
+ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method);
