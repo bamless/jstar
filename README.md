@@ -106,6 +106,13 @@ compile source to bytecote before execution, but have nonetheless some nice adva
  - **Platform indipendence**. Compiled files are cross-platform, just like normal source files. This
    means that they can be compiled once and shared across all systems that have a J* interpreter.
 
+# Linting and IDE support
+
+Check out the [Pulsar](https://github.com/bamless/pulsar) static analyzer for code linting and
+static analysis from the command line.  
+Check the [VSCode J* extension](https://marketplace.visualstudio.com/items?itemName=bamless.vsc-jstar-extension&utm_source=VSCode.pro&utm_campaign=AhmadAwais)
+for linting and syntax highlighting support in VSCode.
+
 # Special thanks
 Special thanks to Bob Nystrom and the invaluable [crafting interpreters](https://craftinginterpreters.com/)
 book, on which the VM is based.
