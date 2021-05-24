@@ -168,7 +168,7 @@ Various CMake options are available to switch on or off certain functionalities 
 | JSTAR_DBG_PRINT_EXEC |   OFF   | Trace the execution of instructions of the virtual machine |
 | JSTAR_DBG_STRESS_GC  |   OFF   | Stress the garbage collector by calling it on every allocation |
 | JSTAR_DBG_PRINT_GC   |   OFF   | Trace the execution of the garbage collector |
-| JSTAR_INSTRUMENT     |   OFF   | Enable instrumentation timers scattered trhoughout the code. Running J* will then produce 3 json files importable from `chrome://tracing` to view a timeline of executed functions. Supported only when using the GCC compiler on POSIX systems |
+| JSTAR_INSTRUMENT     |   OFF   | Enable instrumentation timers scattered throughout the code. Running J* will then produce 3 json files importable from `chrome://tracing` to view a timeline of executed functions. Supported only when using the GCC compiler on POSIX systems |
 
 # Binaries
 
