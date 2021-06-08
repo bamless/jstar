@@ -145,13 +145,13 @@ JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc)
 JSTAR_API void jsrEvalBreak(JStarVM* vm);
 
 // Prints the the stacktrace of the exception at slot 'slot'. If the value at 'slot' is not an
-// Exception, or is a non-yet-raised Exception, it doesn't print anything ad returns successfully
+// Exception, it doesn't print anything ad returns successfully
 JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
 
 // Get the stacktrace of the exception at 'slot' and leaves it on top of the stack.
 // The stacktrace is a formatted String containing the traceback and the exception error.
-// If the value at slot is not an Exception, or is a non-yet-raised Exception, it places
-// An empty String on top of the stack and returns succesfully
+// If the value at slot is not an Exception, it places An empty String on top of the stack 
+// and returns succesfully
 JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
 
 // Init the sys.args list with a list of arguments (usually main arguments)

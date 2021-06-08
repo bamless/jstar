@@ -1679,63 +1679,59 @@ JSR_NATIVE(jsr_type) {
 #define INDENT "    "
 
 static bool recordEquals(FrameRecord* f1, FrameRecord* f2) {
-    if(f1 && f2) {
-        return (strcmp(f1->moduleName->data, f2->moduleName->data) == 0) &&
-               (strcmp(f1->funcName->data, f2->funcName->data) == 0) && (f1->line == f2->line);
-    }
-    return false;
+    return f1 && f2 && (strcmp(f1->moduleName->data, f2->moduleName->data) == 0) &&
+           (strcmp(f1->funcName->data, f2->funcName->data) == 0) && (f1->line == f2->line);
 }
 
 JSR_NATIVE(jsr_Exception_printStacktrace) {
-    Value stval = NULL_VAL;
     ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
-    hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
 
-    if(!IS_STACK_TRACE(stval)) {
-        jsrPushNull(vm);
-        return true;
-    }
+    Value stacktraceVal = NULL_VAL;
+    hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
 
-    Value cause = NULL_VAL;
-    hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
-    if(isInstance(vm, cause, vm->excClass)) {
-        push(vm, cause);
-        jsrCallMethod(vm, "printStacktrace", 0);
-        pop(vm);
-        fprintf(stderr, "\nAbove Excetption caused:\n");
-    }
+    if(IS_STACK_TRACE(stacktraceVal)) {
+        Value cause = NULL_VAL;
+        hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+        if(isInstance(vm, cause, vm->excClass)) {
+            push(vm, cause);
+            jsrCallMethod(vm, "printStacktrace", 0);
+            pop(vm);
+            fprintf(stderr, "\nAbove Excetption caused:\n");
+        }
 
-    ObjStackTrace* st = AS_STACK_TRACE(stval);
+        ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
-    if(st->recordSize > 0) {
-        FrameRecord* lastRecord = NULL;
+        if(stacktrace->recordSize > 0) {
+            FrameRecord* lastRecord = NULL;
 
-        fprintf(stderr, "Traceback (most recent call last):\n");
-        for(int i = st->recordSize - 1; i >= 0; i--) {
-            FrameRecord* record = &st->records[i];
+            fprintf(stderr, "Traceback (most recent call last):\n");
+            for(int i = stacktrace->recordSize - 1; i >= 0; i--) {
+                FrameRecord* record = &stacktrace->records[i];
 
-            if(recordEquals(lastRecord, record)) {
-                int repetitions = 1;
-                while(i > 0) {
-                    record = &st->records[i - 1];
-                    if(!recordEquals(lastRecord, record)) break;
-                    repetitions++, i--;
+                if(recordEquals(lastRecord, record)) {
+                    int repetitions = 1;
+                    while(i > 0) {
+                        record = &stacktrace->records[i - 1];
+                        if(!recordEquals(lastRecord, record)) break;
+                        repetitions++, i--;
+                    }
+                    fprintf(stderr, INDENT "...\n");
+                    fprintf(stderr, INDENT "[Previous line repeated %d times]\n", repetitions);
+                    continue;
                 }
-                fprintf(stderr, INDENT "...\n");
-                fprintf(stderr, INDENT "[Previous line repeated %d times]\n", repetitions);
-                continue;
+
+                fprintf(stderr, INDENT);
+
+                if(record->line >= 0) {
+                    fprintf(stderr, "[line %d]", record->line);
+                } else {
+                    fprintf(stderr, "[line ?]");
+                }
+                fprintf(stderr, " module %s in %s\n", record->moduleName->data,
+                        record->funcName->data);
+
+                lastRecord = record;
             }
-
-            fprintf(stderr, INDENT);
-
-            if(record->line >= 0) {
-                fprintf(stderr, "[line %d]", record->line);
-            } else {
-                fprintf(stderr, "[line ?]");
-            }
-            fprintf(stderr, " module %s in %s\n", record->moduleName->data, record->funcName->data);
-
-            lastRecord = record;
         }
     }
 
@@ -1753,65 +1749,63 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 }
 
 JSR_NATIVE(jsr_Exception_getStacktrace) {
-    Value stval = NULL_VAL;
     ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
+
+    JStarBuffer buf;
+    jsrBufferInitCapacity(vm, &buf, 64);
+
+    Value stval = NULL_VAL;
     hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
 
-    if(!IS_STACK_TRACE(stval)) {
-        jsrPushString(vm, "");
-        return true;
-    }
-
-    JStarBuffer string;
-    jsrBufferInitCapacity(vm, &string, 64);
-
-    Value cause = NULL_VAL;
-    hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
-    if(isInstance(vm, cause, vm->excClass)) {
-        push(vm, cause);
-        jsrCallMethod(vm, "getStacktrace", 0);
-        Value stackTrace = peek(vm);
-        if(IS_STRING(stackTrace)) {
-            jsrBufferAppend(&string, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);
-            jsrBufferAppendStr(&string, "\n\nAbove Exception caused:\n");
+    if(IS_STACK_TRACE(stval)) {
+        Value cause = NULL_VAL;
+        hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+        if(isInstance(vm, cause, vm->excClass)) {
+            push(vm, cause);
+            jsrCallMethod(vm, "getStacktrace", 0);
+            Value stackTrace = peek(vm);
+            if(IS_STRING(stackTrace)) {
+                jsrBufferAppend(&buf, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);
+                jsrBufferAppendStr(&buf, "\n\nAbove Exception caused:\n");
+            }
+            pop(vm);
         }
-        pop(vm);
-    }
 
-    ObjStackTrace* st = AS_STACK_TRACE(stval);
+        ObjStackTrace* stacktrace = AS_STACK_TRACE(stval);
 
-    if(st->recordSize > 0) {
-        FrameRecord* lastRecord = NULL;
+        if(stacktrace->recordSize > 0) {
+            FrameRecord* lastRecord = NULL;
 
-        jsrBufferAppendf(&string, "Traceback (most recent call last):\n");
-        for(int i = st->recordSize - 1; i >= 0; i--) {
-            FrameRecord* record = &st->records[i];
+            jsrBufferAppendf(&buf, "Traceback (most recent call last):\n");
+            for(int i = stacktrace->recordSize - 1; i >= 0; i--) {
+                FrameRecord* record = &stacktrace->records[i];
 
-            if(recordEquals(lastRecord, record)) {
-                int repetitions = 1;
-                while(i > 0) {
-                    record = &st->records[i - 1];
-                    if(!recordEquals(lastRecord, record)) break;
-                    repetitions++, i--;
+                if(recordEquals(lastRecord, record)) {
+                    int repetitions = 1;
+                    while(i > 0) {
+                        record = &stacktrace->records[i - 1];
+                        if(!recordEquals(lastRecord, record)) break;
+                        repetitions++, i--;
+                    }
+                    jsrBufferAppendStr(&buf, INDENT "...\n");
+                    jsrBufferAppendf(&buf, INDENT "[Previous line repeated %d times]\n",
+                                     repetitions);
+                    continue;
                 }
-                jsrBufferAppendStr(&string, INDENT "...\n");
-                jsrBufferAppendf(&string, INDENT "[Previous line repeated %d times]\n",
-                                 repetitions);
-                continue;
+
+                jsrBufferAppendStr(&buf, "    ");
+
+                if(record->line >= 0) {
+                    jsrBufferAppendf(&buf, "[line %d]", record->line);
+                } else {
+                    jsrBufferAppendStr(&buf, "[line ?]");
+                }
+
+                jsrBufferAppendf(&buf, " module %s in %s\n", record->moduleName->data,
+                                 record->funcName->data);
+
+                lastRecord = record;
             }
-
-            jsrBufferAppendStr(&string, "    ");
-
-            if(record->line >= 0) {
-                jsrBufferAppendf(&string, "[line %d]", record->line);
-            } else {
-                jsrBufferAppendStr(&string, "[line ?]");
-            }
-
-            jsrBufferAppendf(&string, " module %s in %s\n", record->moduleName->data,
-                             record->funcName->data);
-
-            lastRecord = record;
         }
     }
 
@@ -1819,12 +1813,12 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
 
     if(IS_STRING(err) && AS_STRING(err)->length > 0) {
-        jsrBufferAppendf(&string, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);
+        jsrBufferAppendf(&buf, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);
     } else {
-        jsrBufferAppendf(&string, "%s", exc->base.cls->name->data);
+        jsrBufferAppendf(&buf, "%s", exc->base.cls->name->data);
     }
 
-    jsrBufferPush(&string);
+    jsrBufferPush(&buf);
     return true;
 }
 // end
