@@ -1355,7 +1355,7 @@ op_return:
         ObjString* name = GET_STRING();
         if(!hashTableGet(&module->globals, name, vm->sp)) {
             jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
-                        name->data, module->name->data);
+                     name->data, module->name->data);
             UNWIND_STACK(vm);
         }
         vm->sp++;

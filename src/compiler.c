@@ -1768,6 +1768,7 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
         break;
     }
 }
+
 // -----------------------------------------------------------------------------
 // API
 // -----------------------------------------------------------------------------
@@ -1779,6 +1780,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStar
     initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast);
     ObjFunction* func = function(&c, module, ast);
     endCompiler(&c);
+
     return c.hadError ? NULL : func;
 }
 
