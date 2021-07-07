@@ -452,6 +452,7 @@ JSTAR_API bool jsrCheckUserdata(JStarVM* vm, int slot, const char* name);
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndex(JStarVM* vm, int slot, size_t max, const char* name);
+
 // Check if the provided double `num` is an integer >= 0 and < max.
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
