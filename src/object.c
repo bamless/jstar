@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "const.h"
 #include "dynload.h"
 #include "gc.h"
 #include "util.h"
@@ -278,7 +279,7 @@ void freeObject(JStarVM* vm, Obj* o) {
 // -----------------------------------------------------------------------------
 
 static void growList(JStarVM* vm, ObjList* lst) {
-    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_CAPACITY;
+    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEF_CAP;
     lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->capacity, sizeof(Value) * newCap);
     lst->capacity = newCap;
 }
