@@ -5,6 +5,7 @@
 set(JSTAR_SOURCES
     ${PROJECT_SOURCE_DIR}/include/jstar/jstar.h
     ${PROJECT_SOURCE_DIR}/include/jstar/jstarconf.h
+    ${PROJECT_SOURCE_DIR}/include/jstar/buffer.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/ast.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/lex.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/parser.h
@@ -20,6 +21,7 @@ set(JSTAR_SOURCES
     std/modules.h
     std/modules.c
 
+    buffer.c
     code.c
     code.h
     compiler.c

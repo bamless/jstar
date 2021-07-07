@@ -92,7 +92,9 @@
         "instrumentor.h": "c",
         "serialize.h": "c",
         "ast.h": "c",
-        "parser.h": "c"
+        "parser.h": "c",
+        "buffer.h": "c",
+        "time.h": "c"
     },
     "editor.formatOnSave": false
 }

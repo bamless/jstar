@@ -14,6 +14,8 @@
 #define HEAP_GROW_RATE  2                              // The heap growing rate
 #define HANDLER_MAX     6                              // Max number of try-excepts for a frame
 #define SUPER_SLOT      0                              // Constant holding the method's super-class
+#define LIST_CAPACITY   8                              // Default capacity of a List (with at least 1 element)
+#define LIST_GROW_RATE  2                              // List growing rate
 
 // -----------------------------------------------------------------------------
 // COMPILER CONSTANTS

@@ -25,11 +25,11 @@
 #ifndef JSTAR_H
 #define JSTAR_H
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "buffer.h"     // IWYU pragma: export
 #include "jstarconf.h"  // IWYU pragma: export
 
 // -----------------------------------------------------------------------------
@@ -38,9 +38,6 @@
 
 // The J* virtual machine
 typedef struct JStarVM JStarVM;
-
-// J* dynamic buffer
-typedef struct JStarBuffer JStarBuffer;
 
 typedef enum JStarResult {
     JSR_SUCCESS,          // The VM successfully executed the code
@@ -83,7 +80,7 @@ JSTAR_API void* jsrGetCustomData(JStarVM* vm);
 // Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
-// will be returned. 
+// will be returned.
 // All errors will be forwared to the error callback as well.
 // The `path` argument is the file path that will passed to the forward callback on errors
 JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code);
@@ -150,7 +147,7 @@ JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
 
 // Get the stacktrace of the exception at 'slot' and leaves it on top of the stack.
 // The stacktrace is a formatted String containing the traceback and the exception error.
-// If the value at slot is not an Exception, it places An empty String on top of the stack 
+// If the value at slot is not an Exception, it places An empty String on top of the stack
 // and returns succesfully
 JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
 
@@ -220,7 +217,12 @@ typedef struct JStarNativeReg {
 
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
-#define JSR_REGEND                   {REG_SENTINEL, {.function = {NULL, NULL}}}
+#define JSR_REGEND                     \
+    {                                  \
+        REG_SENTINEL, {                \
+            .function = { NULL, NULL } \
+        }                              \
+    }
 
 // -----------------------------------------------------------------------------
 // OVERLOADABLE OPERATOR API
@@ -397,7 +399,7 @@ JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 // -----------------------------------------------------------------------------
 
 // Binds the native at `natSlot` to the class at `clsSlot`
-// Does not perform type checking, the user must ensure `clsSlot` is indeed a Class and `natSlot` 
+// Does not perform type checking, the user must ensure `clsSlot` is indeed a Class and `natSlot`
 // a Native
 JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 
@@ -454,41 +456,5 @@ JSTAR_API size_t jsrCheckIndex(JStarVM* vm, int slot, size_t max, const char* na
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
-
-// -----------------------------------------------------------------------------
-// JSTARBUFFER API
-// -----------------------------------------------------------------------------
-
-// Dynamic Buffer that holds memory allocated by the J* garbage collector.
-// This memory is owned by J*, but cannot be collected until the buffer
-// is pushed on the stack using the jsrBufferPush method.
-// Can be used for efficient creation of Strings in the native API.
-struct JStarBuffer {
-    JStarVM* vm;
-    size_t capacity, size;
-    char* data;
-};
-
-JSTAR_API void jsrBufferInit(JStarVM* vm, JStarBuffer* b);
-JSTAR_API void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity);
-JSTAR_API void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len);
-JSTAR_API void jsrBufferAppendStr(JStarBuffer* b, const char* str);
-JSTAR_API void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap);
-JSTAR_API void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...);
-JSTAR_API void jsrBufferTrunc(JStarBuffer* b, size_t len);
-JSTAR_API void jsrBufferCut(JStarBuffer* b, size_t len);
-JSTAR_API void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r);
-JSTAR_API void jsrBufferPrepend(JStarBuffer* b, const char* str, size_t len);
-JSTAR_API void jsrBufferPrependStr(JStarBuffer* b, const char* str);
-JSTAR_API void jsrBufferAppendChar(JStarBuffer* b, char c);
-JSTAR_API void jsrBufferShrinkToFit(JStarBuffer* b);
-JSTAR_API void jsrBufferClear(JStarBuffer* b);
-
-// Once the buffer is pushed on the J* stack it becomes a String and can't be modified further
-// One can reuse the JStarBuffer struct by re-initializing it using the jsrBufferInit method.
-JSTAR_API void jsrBufferPush(JStarBuffer* b);
-
-// If not pushed with jsrBufferPush the buffer must be freed
-JSTAR_API void jsrBufferFree(JStarBuffer* b);
 
 #endif

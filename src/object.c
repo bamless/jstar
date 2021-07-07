@@ -1,12 +1,16 @@
 #include "object.h"
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "dynload.h"
 #include "gc.h"
 #include "util.h"
 #include "vm.h"
+
+// -----------------------------------------------------------------------------
+// OBJECT ALLOCATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 static Obj* newObj(JStarVM* vm, size_t size, ObjClass* cls, ObjType type) {
     Obj* o = GC_ALLOC(vm, size);
@@ -135,6 +139,198 @@ ObjStackTrace* newStackTrace(JStarVM* vm) {
     return st;
 }
 
+ObjList* newList(JStarVM* vm, size_t capacity) {
+    Value* arr = NULL;
+    if(capacity > 0) arr = GC_ALLOC(vm, sizeof(Value) * capacity);
+    ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), vm->lstClass, OBJ_LIST);
+    lst->capacity = capacity;
+    lst->size = 0;
+    lst->arr = arr;
+    return lst;
+}
+
+ObjTable* newTable(JStarVM* vm) {
+    ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), vm->tableClass, OBJ_TABLE);
+    table->capacityMask = 0;
+    table->numEntries = 0;
+    table->size = 0;
+    table->entries = NULL;
+    return table;
+}
+
+ObjString* allocateString(JStarVM* vm, size_t length) {
+    char* data = GC_ALLOC(vm, length + 1);
+    ObjString* str = (ObjString*)newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
+    str->length = length;
+    str->hash = 0;
+    str->interned = false;
+    str->data = data;
+    str->data[str->length] = '\0';
+    return str;
+}
+
+ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
+    uint32_t hash = hashBytes(str, length);
+    ObjString* interned = hashTableGetString(&vm->stringPool, str, length, hash);
+    if(interned == NULL) {
+        interned = allocateString(vm, length);
+        memcpy(interned->data, str, length);
+        interned->hash = hash;
+        interned->interned = true;
+        hashTablePut(&vm->stringPool, interned, NULL_VAL);
+    }
+    return interned;
+}
+
+void freeObject(JStarVM* vm, Obj* o) {
+    switch(o->type) {
+    case OBJ_STRING: {
+        ObjString* s = (ObjString*)o;
+        GC_FREE_ARRAY(vm, char, s->data, s->length + 1);
+        GC_FREE(vm, ObjString, s);
+        break;
+    }
+    case OBJ_NATIVE: {
+        ObjNative* n = (ObjNative*)o;
+        GC_FREE_ARRAY(vm, Value, n->c.defaults, n->c.defCount);
+        GC_FREE(vm, ObjNative, n);
+        break;
+    }
+    case OBJ_FUNCTION: {
+        ObjFunction* f = (ObjFunction*)o;
+        freeCode(&f->code);
+        GC_FREE_ARRAY(vm, Value, f->c.defaults, f->c.defCount);
+        GC_FREE(vm, ObjFunction, f);
+        break;
+    }
+    case OBJ_CLASS: {
+        ObjClass* cls = (ObjClass*)o;
+        freeHashTable(&cls->methods);
+        GC_FREE(vm, ObjClass, cls);
+        break;
+    }
+    case OBJ_INST: {
+        ObjInstance* i = (ObjInstance*)o;
+        freeHashTable(&i->fields);
+        GC_FREE(vm, ObjInstance, i);
+        break;
+    }
+    case OBJ_MODULE: {
+        ObjModule* m = (ObjModule*)o;
+        freeHashTable(&m->globals);
+        if(m->natives.dynlib) dynfree(m->natives.dynlib);
+        GC_FREE(vm, ObjModule, m);
+        break;
+    }
+    case OBJ_BOUND_METHOD: {
+        ObjBoundMethod* b = (ObjBoundMethod*)o;
+        GC_FREE(vm, ObjBoundMethod, b);
+        break;
+    }
+    case OBJ_LIST: {
+        ObjList* l = (ObjList*)o;
+        GC_FREE_ARRAY(vm, Value, l->arr, l->capacity);
+        GC_FREE(vm, ObjList, l);
+        break;
+    }
+    case OBJ_TUPLE: {
+        ObjTuple* t = (ObjTuple*)o;
+        GC_FREE_VAR(vm, ObjTuple, Value, t->size, t);
+        break;
+    }
+    case OBJ_TABLE: {
+        ObjTable* t = (ObjTable*)o;
+        if(t->entries != NULL) {
+            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
+        }
+        GC_FREE(vm, ObjTable, t);
+        break;
+    }
+    case OBJ_STACK_TRACE: {
+        ObjStackTrace* st = (ObjStackTrace*)o;
+        if(st->records != NULL) {
+            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordSize);
+        }
+        GC_FREE(vm, ObjStackTrace, st);
+        break;
+    }
+    case OBJ_CLOSURE: {
+        ObjClosure* closure = (ObjClosure*)o;
+        GC_FREE_VAR(vm, ObjClosure, ObjUpvalue*, closure->upvalueCount, o);
+        break;
+    }
+    case OBJ_UPVALUE: {
+        ObjUpvalue* upvalue = (ObjUpvalue*)o;
+        GC_FREE(vm, ObjUpvalue, upvalue);
+        break;
+    }
+    case OBJ_USERDATA: {
+        ObjUserdata* udata = (ObjUserdata*)o;
+        if(udata->finalize) udata->finalize((void*)udata->data);
+        GC_FREE_VAR(vm, ObjUserdata, uint8_t, udata->size, udata);
+        break;
+    }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// OBJECT MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
+
+static void growList(JStarVM* vm, ObjList* lst) {
+    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_CAPACITY;
+    lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->capacity, sizeof(Value) * newCap);
+    lst->capacity = newCap;
+}
+
+void listAppend(JStarVM* vm, ObjList* lst, Value val) {
+    // if the list get resized a GC may kick in, so push val as root
+    if(lst->size + 1 > lst->capacity) {
+        push(vm, val);
+        growList(vm, lst);
+        pop(vm);
+    }
+    lst->arr[lst->size++] = val;
+}
+
+void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
+    // if the list get resized a GC may kick in, so push val as root
+    if(lst->size + 1 > lst->capacity) {
+        push(vm, val);
+        growList(vm, lst);
+        pop(vm);
+    }
+
+    Value* arr = lst->arr;
+    for(size_t i = lst->size; i > index; i--) {
+        arr[i] = arr[i - 1];
+    }
+
+    arr[index] = val;
+    lst->size++;
+}
+
+void listRemove(JStarVM* vm, ObjList* lst, size_t index) {
+    Value* arr = lst->arr;
+    for(size_t i = index + 1; i < lst->size; i++) {
+        arr[i - 1] = arr[i];
+    }
+    lst->size--;
+}
+
+uint32_t stringGetHash(ObjString* str) {
+    if(str->hash == 0) {
+        uint32_t hash = hashBytes(str->data, str->length);
+        str->hash = hash ? hash : hash + 1;  // Reserve hash value `0`
+    }
+    return str->hash;
+}
+
+bool stringEquals(ObjString* s1, ObjString* s2) {
+    if(s1->interned && s2->interned) return s1 == s2;
+    return s1->length == s2->length && memcmp(s1->data, s2->data, s1->length) == 0;
+}
+
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
@@ -181,109 +377,6 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     }
 }
 
-#define LIST_DEF_SZ    8
-#define LIST_GROW_RATE 2
-
-ObjList* newList(JStarVM* vm, size_t capacity) {
-    Value* arr = NULL;
-    if(capacity > 0) arr = GC_ALLOC(vm, sizeof(Value) * capacity);
-    ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), vm->lstClass, OBJ_LIST);
-    lst->capacity = capacity;
-    lst->size = 0;
-    lst->arr = arr;
-    return lst;
-}
-
-static void growList(JStarVM* vm, ObjList* lst) {
-    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEF_SZ;
-    lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->capacity, sizeof(Value) * newCap);
-    lst->capacity = newCap;
-}
-
-void listAppend(JStarVM* vm, ObjList* lst, Value val) {
-    // if the list get resized a GC may kick in, so push val as root
-    if(lst->size + 1 > lst->capacity) {
-        push(vm, val);
-        growList(vm, lst);
-        pop(vm);
-    }
-    lst->arr[lst->size++] = val;
-}
-
-void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
-    // if the list get resized a GC may kick in, so push val as root
-    if(lst->size + 1 > lst->capacity) {
-        push(vm, val);
-        growList(vm, lst);
-        pop(vm);
-    }
-
-    Value* arr = lst->arr;
-    for(size_t i = lst->size; i > index; i--) {
-        arr[i] = arr[i - 1];
-    }
-
-    arr[index] = val;
-    lst->size++;
-}
-
-void listRemove(JStarVM* vm, ObjList* lst, size_t index) {
-    Value* arr = lst->arr;
-    for(size_t i = index + 1; i < lst->size; i++) {
-        arr[i - 1] = arr[i];
-    }
-    lst->size--;
-}
-
-ObjTable* newTable(JStarVM* vm) {
-    ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), vm->tableClass, OBJ_TABLE);
-    table->capacityMask = 0;
-    table->numEntries = 0;
-    table->size = 0;
-    table->entries = NULL;
-    return table;
-}
-
-ObjString* allocateString(JStarVM* vm, size_t length) {
-    char* data = GC_ALLOC(vm, length + 1);
-    ObjString* str = (ObjString*)newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
-    str->length = length;
-    str->hash = 0;
-    str->interned = false;
-    str->data = data;
-    str->data[str->length] = '\0';
-    return str;
-}
-
-ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
-    uint32_t hash = hashBytes(str, length);
-    ObjString* interned = hashTableGetString(&vm->stringPool, str, length, hash);
-    if(interned == NULL) {
-        interned = allocateString(vm, length);
-        memcpy(interned->data, str, length);
-        interned->hash = hash;
-        interned->interned = true;
-        hashTablePut(&vm->stringPool, interned, NULL_VAL);
-    }
-    return interned;
-}
-
-// Compute and cache an ObjString hash
-uint32_t stringGetHash(ObjString* str) {
-    if(str->hash == 0) {
-        uint32_t hash = hashBytes(str->data, str->length);
-        str->hash = hash ? hash : hash + 1;  // Reserve hash value `0`
-    }
-    return str->hash;
-}
-
-// Compare two ObjStrings for equality, short-circuiting if both are interned
-bool stringEquals(ObjString* s1, ObjString* s2) {
-    if(s1->interned && s2->interned) return s1 == s2;
-    return s1->length == s2->length && memcmp(s1->data, s2->data, s1->length) == 0;
-}
-
-// Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* size) {
     ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
     switch(obj->type) {
@@ -303,14 +396,6 @@ Value* getValues(Obj* obj, size_t* size) {
     }
 }
 
-// -----------------------------------------------------------------------------
-// API - JStarBuffer function implementation
-// -----------------------------------------------------------------------------
-
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
-    return (JStarBuffer){vm, len, len, (char*)data};
-}
-
 ObjString* jsrBufferToString(JStarBuffer* b) {
     char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
@@ -323,134 +408,9 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     return s;
 }
 
-#define JSR_BUF_DEFAULT_SIZE 16
-
-static void jsrBufGrow(JStarBuffer* b, size_t len) {
-    size_t newSize = b->capacity;
-    while(newSize < b->size + len) {
-        newSize <<= 1;
-    }
-    char* newData = gcAlloc(b->vm, b->data, b->capacity, newSize);
-    b->capacity = newSize;
-    b->data = newData;
-}
-
-void jsrBufferInit(JStarVM* vm, JStarBuffer* b) {
-    jsrBufferInitCapacity(vm, b, JSR_BUF_DEFAULT_SIZE);
-}
-
-void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity) {
-    if(capacity < JSR_BUF_DEFAULT_SIZE) capacity = JSR_BUF_DEFAULT_SIZE;
-    b->vm = vm;
-    b->capacity = capacity;
-    b->size = 0;
-    b->data = GC_ALLOC(vm, capacity);
-}
-
-void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len) {
-    if(b->size + len >= b->capacity) {
-        jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
-    }
-    memcpy(&b->data[b->size], str, len);
-    b->size += len;
-    b->data[b->size] = '\0';
-}
-
-void jsrBufferAppendStr(JStarBuffer* b, const char* str) {
-    jsrBufferAppend(b, str, strlen(str));
-}
-
-void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap) {
-    size_t availableSpace = b->capacity - b->size;
-
-    va_list cpy;
-    va_copy(cpy, ap);
-    size_t written = vsnprintf(&b->data[b->size], availableSpace, fmt, cpy);
-    va_end(cpy);
-
-    // Not enough space, need to grow and retry
-    if(written >= availableSpace) {
-        jsrBufGrow(b, written + 1);
-        availableSpace = b->capacity - b->size;
-        va_copy(cpy, ap);
-        written = vsnprintf(&b->data[b->size], availableSpace, fmt, cpy);
-        ASSERT(written < availableSpace, "Buffer still to small");
-        va_end(cpy);
-    }
-
-    b->size += written;
-}
-
-void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    jsrBufferAppendvf(b, fmt, ap);
-    va_end(ap);
-}
-
-void jsrBufferTrunc(JStarBuffer* b, size_t len) {
-    if(len >= b->size) return;
-    b->size = len;
-    b->data[len] = '\0';
-}
-
-void jsrBufferCut(JStarBuffer* b, size_t len) {
-    if(len == 0 || len > b->size) return;
-    memmove(b->data, b->data + len, b->size - len);
-    b->size -= len;
-    b->data[b->size] = '\0';
-}
-
-void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r) {
-    for(size_t i = start; i < b->size; i++) {
-        if(b->data[i] == c) {
-            b->data[i] = r;
-        }
-    }
-}
-
-void jsrBufferPrepend(JStarBuffer* b, const char* str, size_t len) {
-    if(b->size + len >= b->capacity) {
-        jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
-    }
-    memmove(b->data + len, b->data, b->size);
-    memcpy(b->data, str, len);
-    b->size += len;
-    b->data[b->size] = '\0';
-}
-
-void jsrBufferPrependStr(JStarBuffer* b, const char* str) {
-    jsrBufferPrepend(b, str, strlen(str));
-}
-
-void jsrBufferAppendChar(JStarBuffer* b, char c) {
-    if(b->size + 1 >= b->capacity) jsrBufGrow(b, 2);
-    b->data[b->size++] = c;
-    b->data[b->size] = '\0';
-}
-
-void jsrBufferShrinkToFit(JStarBuffer* b) {
-    b->data = gcAlloc(b->vm, b->data, b->capacity, b->size);
-    b->capacity = b->size;
-}
-
-void jsrBufferClear(JStarBuffer* b) {
-    b->size = 0;
-    b->data[0] = '\0';
-}
-
-void jsrBufferPush(JStarBuffer* b) {
-    JStarVM* vm = b->vm;
-    push(vm, OBJ_VAL(jsrBufferToString(b)));
-}
-
-void jsrBufferFree(JStarBuffer* b) {
-    if(b->data == NULL) return;
-    GC_FREE_ARRAY(b->vm, char, b->data, b->capacity);
-    memset(b, 0, sizeof(JStarBuffer));
-}
-
-// Debug logging functions
+// -----------------------------------------------------------------------------
+// DEBUG FUNCTIONS
+// -----------------------------------------------------------------------------
 
 #ifdef JSTAR_DBG_PRINT_GC
 const char* ObjTypeNames[] = {

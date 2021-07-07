@@ -12,6 +12,10 @@
 
 struct Frame;
 
+#ifdef JSTAR_DBG_PRINT_GC
+extern const char* ObjTypeNames[];
+#endif
+
 /**
  * Object system of the J* language.
  * Every object shares the base fields of the Obj struct, including it as the
@@ -24,12 +28,8 @@ struct Frame;
  * should be tested before casting.
  */
 
-#ifdef JSTAR_DBG_PRINT_GC
-extern const char* ObjTypeNames[];
-#endif
-
 // -----------------------------------------------------------------------------
-// OBJECT TESTNG AND CASTING MACROS
+// OBJECT MACROS
 // -----------------------------------------------------------------------------
 
 #define OBJ_TYPE(o) (AS_OBJ(o)->type)
@@ -257,7 +257,7 @@ typedef struct ObjUserdata {
 
 // These functions use gcAlloc to acquire memory and then initialize
 // the object with the supplied arguments, as well as setting all the
-// bookkeping information needed by the garbage collector (see struct Obj)
+// bookkeping information needed by the GC (see struct Obj)
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
@@ -272,15 +272,18 @@ ObjTuple* newTuple(JStarVM* vm, size_t size);
 ObjStackTrace* newStackTrace(JStarVM* vm);
 ObjTable* newTable(JStarVM* vm);
 
+// Allocate an uninitialized string of size `length`
 ObjString* allocateString(JStarVM* vm, size_t length);
+
+// Copy a c-string of size `length`. The string is automatically interned
 ObjString* copyString(JStarVM* vm, const char* str, size_t length);
 
-// -----------------------------------------------------------------------------
-// OBJECT FUNCTIONS
-// -----------------------------------------------------------------------------
+// Release the object's memory. It uses gcAlloc internally to let the GC know
+void freeObject(JStarVM* vm, Obj* o);
 
-// Dumps a frame in a ObjStackTrace
-void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
+// -----------------------------------------------------------------------------
+// OBJECT MANIPULATION FUNCTIONS
+// -----------------------------------------------------------------------------
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);
@@ -291,12 +294,12 @@ void listRemove(JStarVM* vm, ObjList* lst, size_t index);
 uint32_t stringGetHash(ObjString* str);
 bool stringEquals(ObjString* s1, ObjString* s2);
 
+// ObjStacktrace functions
+// Dumps a frame in a ObjStackTrace
+void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
+
 // Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* size);
-
-// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
-// API functions that expect a JStarBuffer, without copying them first.
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
 
 // Convert a JStarBuffer to an ObjString
 ObjString* jsrBufferToString(JStarBuffer* b);

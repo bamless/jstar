@@ -20,9 +20,8 @@
 #include "vm.h"
 
 // -----------------------------------------------------------------------------
-// API - The bulk of the API (jstar.h) implementation.
+// API - The bulk of the API (jstar.h) implementation
 // JStarNewVM and JStarFreeVM functions are implemented in vm.c
-// JStarBuffer is implemented in object.c
 // -----------------------------------------------------------------------------
 
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {

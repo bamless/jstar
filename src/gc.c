@@ -6,12 +6,10 @@
 
 #include "code.h"
 #include "compiler.h"
-#include "dynload.h"
 #include "hashtable.h"
 #include "object.h"
 #include "profiler.h"
 #include "vm.h"
-#include "time.h"
 
 #define REACHED_DEFAULT_SZ 16
 #define REACHED_GROW_RATE  2
@@ -40,97 +38,6 @@ void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     }
 
     return mem;
-}
-
-static void freeObject(JStarVM* vm, Obj* o) {
-    switch(o->type) {
-    case OBJ_STRING: {
-        ObjString* s = (ObjString*)o;
-        GC_FREE_ARRAY(vm, char, s->data, s->length + 1);
-        GC_FREE(vm, ObjString, s);
-        break;
-    }
-    case OBJ_NATIVE: {
-        ObjNative* n = (ObjNative*)o;
-        GC_FREE_ARRAY(vm, Value, n->c.defaults, n->c.defCount);
-        GC_FREE(vm, ObjNative, n);
-        break;
-    }
-    case OBJ_FUNCTION: {
-        ObjFunction* f = (ObjFunction*)o;
-        freeCode(&f->code);
-        GC_FREE_ARRAY(vm, Value, f->c.defaults, f->c.defCount);
-        GC_FREE(vm, ObjFunction, f);
-        break;
-    }
-    case OBJ_CLASS: {
-        ObjClass* cls = (ObjClass*)o;
-        freeHashTable(&cls->methods);
-        GC_FREE(vm, ObjClass, cls);
-        break;
-    }
-    case OBJ_INST: {
-        ObjInstance* i = (ObjInstance*)o;
-        freeHashTable(&i->fields);
-        GC_FREE(vm, ObjInstance, i);
-        break;
-    }
-    case OBJ_MODULE: {
-        ObjModule* m = (ObjModule*)o;
-        freeHashTable(&m->globals);
-        if(m->natives.dynlib) dynfree(m->natives.dynlib);
-        GC_FREE(vm, ObjModule, m);
-        break;
-    }
-    case OBJ_BOUND_METHOD: {
-        ObjBoundMethod* b = (ObjBoundMethod*)o;
-        GC_FREE(vm, ObjBoundMethod, b);
-        break;
-    }
-    case OBJ_LIST: {
-        ObjList* l = (ObjList*)o;
-        GC_FREE_ARRAY(vm, Value, l->arr, l->capacity);
-        GC_FREE(vm, ObjList, l);
-        break;
-    }
-    case OBJ_TUPLE: {
-        ObjTuple* t = (ObjTuple*)o;
-        GC_FREE_VAR(vm, ObjTuple, Value, t->size, t);
-        break;
-    }
-    case OBJ_TABLE: {
-        ObjTable* t = (ObjTable*)o;
-        if(t->entries != NULL) {
-            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
-        }
-        GC_FREE(vm, ObjTable, t);
-        break;
-    }
-    case OBJ_STACK_TRACE: {
-        ObjStackTrace* st = (ObjStackTrace*)o;
-        if(st->records != NULL) {
-            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordSize);
-        }
-        GC_FREE(vm, ObjStackTrace, st);
-        break;
-    }
-    case OBJ_CLOSURE: {
-        ObjClosure* closure = (ObjClosure*)o;
-        GC_FREE_VAR(vm, ObjClosure, ObjUpvalue*, closure->upvalueCount, o);
-        break;
-    }
-    case OBJ_UPVALUE: {
-        ObjUpvalue* upvalue = (ObjUpvalue*)o;
-        GC_FREE(vm, ObjUpvalue, upvalue);
-        break;
-    }
-    case OBJ_USERDATA: {
-        ObjUserdata* udata = (ObjUserdata*)o;
-        if(udata->finalize) udata->finalize((void*)udata->data);
-        GC_FREE_VAR(vm, ObjUserdata, uint8_t, udata->size, udata);
-        break;
-    }
-    }
 }
 
 void sweepObjects(JStarVM* vm) {
