@@ -52,7 +52,7 @@ typedef struct {
 
 typedef struct {
     const char* name;
-    const char** src;
+    const char** bytecode;
     const size_t* len;
     ModuleElem elems[31];
 } Module;
@@ -316,9 +316,8 @@ const char* readBuiltInModule(const char* name, size_t* len) {
     Module* m = getModule(name);
     if(m != NULL) {
         *len = *m->len;
-        return *m->src;
+        return *m->bytecode;
     }
-    
     *len = 0;
     return NULL;
 }
