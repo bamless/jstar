@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "buffer.h"
 #include "code.h"
 #include "hashtable.h"
 #include "jstar.h"
