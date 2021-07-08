@@ -1508,7 +1508,7 @@ op_return:
     }
     
     TARGET(OP_END_HANDLER): {
-        if(!IS_NULL(peek2(vm))) { // exception still raised?
+        if(!IS_NULL(peek(vm))) { // exception still raised?
             UnwindCause cause = AS_NUM(pop(vm));
             switch(cause) {
             case CAUSE_EXCEPT:
