@@ -177,23 +177,7 @@ static void enterScope(Compiler* c) {
     c->depth++;
 }
 
-static void exitScope(Compiler* c) {
-    c->depth--;
-
-    int toPop = 0;
-    while(c->localsCount > 0 && c->locals[c->localsCount - 1].depth > c->depth) {
-        toPop++, c->localsCount--;
-    }
-
-    if(toPop == 1) {
-        discardLocal(c, &c->locals[c->localsCount]);
-    } else if(toPop > 1) {
-        emitBytecode(c, OP_POPN, 0);
-        emitBytecode(c, toPop, 0);
-    }
-}
-
-static void discardScope(Compiler* c, int depth) {
+static int discardScopes(Compiler* c, int depth) {
     int localsCount = c->localsCount;
 
     int toPop = 0;
@@ -201,12 +185,18 @@ static void discardScope(Compiler* c, int depth) {
         toPop++, localsCount--;
     }
 
-    if(toPop == 1) {
-        discardLocal(c, &c->locals[localsCount]);
-    } else if(toPop > 1) {
+    if(toPop > 1) {
         emitBytecode(c, OP_POPN, 0);
         emitBytecode(c, toPop, 0);
+    } else if(toPop == 1) {
+        discardLocal(c, &c->locals[localsCount]);
     }
+
+    return localsCount;
+}
+
+static void exitScope(Compiler* c) {
+    c->localsCount = discardScopes(c, --c->depth);
 }
 
 static void enterFunctionScope(Compiler* c) {
@@ -1437,7 +1427,7 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
         error(c, s->line, "Cannot %s out of a try block", isBreak ? "break" : "continue");
     }
 
-    discardScope(c, c->loops->depth);
+    discardScopes(c, c->loops->depth);
 
     // Emit place-holder instruction that will be patched at the end of loop compilation,
     // when we know the offset to emit for a break or continue jump
