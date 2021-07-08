@@ -72,11 +72,11 @@ enum TagBits {
     NULL_BITS,
     FALSE_BITS,
     TRUE_BITS,
-    END_TAG
+    END_BITS
 };
 
 // Retrieve the tag bits of a Value
-#define BITS_MASK      (END_TAG - 1)
+#define BITS_MASK      (END_BITS - 1)
 #define TAG_BITS(val)  ((val) & BITS_MASK)
 
 // Value checking macros
