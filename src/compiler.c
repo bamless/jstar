@@ -43,11 +43,11 @@ typedef struct Variable {
     } as;
 } Variable;
 
-typedef struct Local {
+typedef struct LocalVar {
     JStarIdentifier id;
     bool isUpvalue;
     int depth;
-} Local;
+} LocalVar;
 
 typedef struct Upvalue {
     bool isLocal;
@@ -88,7 +88,7 @@ struct Compiler {
     JStarStmt* ast;
 
     uint8_t localsCount;
-    Local locals[MAX_LOCALS];
+    LocalVar locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
     int tryDepth;
@@ -165,7 +165,7 @@ static bool inGlobalScope(Compiler* c) {
     return c->depth == 0;
 }
 
-static void discardLocal(Compiler* c, Local* local) {
+static void discardLocal(Compiler* c, LocalVar* local) {
     if(local->isUpvalue) {
         emitBytecode(c, OP_CLOSE_UPVALUE, 0);
     } else {
@@ -245,7 +245,7 @@ static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
         return -1;
     }
 
-    Local* local = &c->locals[c->localsCount];
+    LocalVar* local = &c->locals[c->localsCount];
     local->isUpvalue = false;
     local->depth = -1;
     local->id = *id;
@@ -254,7 +254,7 @@ static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
 
 static int resolveVariable(Compiler* c, JStarIdentifier* id, int line) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
-        Local* local = &c->locals[i];
+        LocalVar* local = &c->locals[i];
         if(jsrIdentifierEq(&local->id, id)) {
             if(local->depth == -1) {
                 error(c, line, "Cannot read local variable `%.*s` in its own initializer",
