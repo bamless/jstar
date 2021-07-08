@@ -233,7 +233,7 @@ static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
         return false;
     }
 
-    // push remaining args taking the default value
+    // Push remaining args taking the default value
     for(uint8_t i = argc - least; i < c->defCount; i++) {
         push(vm, c->defaults[i]);
     }
@@ -571,7 +571,7 @@ bool getValueField(JStarVM* vm, ObjString* name) {
 
             // Try top find a field
             if(!hashTableGet(&inst->fields, name, &field)) {
-                // no field, try to bind method
+                // No field, try to bind method
                 if(!bindMethod(vm, inst->base.cls, name)) {
                     jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
                              inst->base.cls->name->data, name->data);
@@ -680,7 +680,7 @@ bool setValueSubscript(JStarVM* vm) {
         return true;
     }
 
-    // swap operand and value to prepare function call
+    // Swap operand and value to prepare function call
     swapStackSlots(vm, -1, -3);
     if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->methodSyms[SYM_SET], 2)) {
         return false;
@@ -1508,21 +1508,22 @@ op_return:
     }
     
     TARGET(OP_END_HANDLER): {
-        if(!IS_NULL(peek(vm))) { // exception still raised?
+        if(!IS_NULL(peek(vm))) { // Is the exception still unhandled?
             UnwindCause cause = AS_NUM(pop(vm));
             switch(cause) {
             case CAUSE_EXCEPT:
-                // continue unwinding
-                UNWIND_STACK(vm);
+                // Continue unwinding
+                UNWIND_STACK(vm); 
                 break;
             case CAUSE_RETURN:
-                // return will execute ensure handlers
+                // OP_RETURN will execute ensure handlers
                 goto op_return;
             default:
                 UNREACHABLE();
                 break;
             }
         }
+        // The exception has been handled, resume normal execution flow
         DISPATCH();
     }
 
@@ -1626,7 +1627,7 @@ bool unwindStack(JStarVM* vm, int depth) {
 
         stacktraceDump(vm, stacktrace, frame, vm->frameCount);
 
-        // if current frame has except or ensure handlers restore handler state and exit
+        // If current frame has except or ensure handlers restore handler state and exit
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerc];
@@ -1637,7 +1638,7 @@ bool unwindStack(JStarVM* vm, int depth) {
         closeUpvalues(vm, frame->stack);
     }
 
-    // we have reached the end of the stack or a native/function boundary,
+    // We have reached the end of the stack or a native/function boundary,
     // return from evaluation leaving the exception on top of the stack
     return false;
 }

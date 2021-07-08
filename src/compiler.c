@@ -1251,8 +1251,9 @@ static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
     JStarStmt* body = except->as.excStmt.block;
     compileStatements(c, &body->as.blockStmt.stmts);
 
+    JStarIdentifier cause = createIdentifier(".cause");
     emitBytecode(c, OP_NULL, except->line);
-    compileVariable(c, &exception, true, except->line);
+    compileVariable(c, &cause, true, except->line);
     emitBytecode(c, OP_POP, except->line);
 
     exitScope(c);
