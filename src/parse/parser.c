@@ -25,12 +25,12 @@ typedef struct Parser {
 } Parser;
 
 static void initParser(Parser* p, const char* path, const char* src, ParseErrorCB errFn,
-                       void* udata) {
+                       void* data) {
     p->panic = false;
     p->hadError = false;
     p->path = path;
     p->errorCallback = errFn;
-    p->userData = udata;
+    p->userData = data;
     jsrInitLexer(&p->lex, src);
     jsrNextToken(&p->lex, &p->peek);
     p->lineStart = p->peek.lexeme;
@@ -83,7 +83,7 @@ static void error(Parser* p, const char* msg, ...) {
 
     if(p->errorCallback) {
         JStarTok* errorTok = &p->peek;
-        
+
         char error[MAX_ERR_SIZE];
         p->lineStart = correctEscapedNewlines(p->lineStart, errorTok->lexeme);
         int tokenCol = errorTok->lexeme - p->lineStart;
@@ -1193,11 +1193,11 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
 // API
 // -----------------------------------------------------------------------------
 
-JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
+JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, errFn, udata);
+    initParser(&p, path, src, errFn, data);
 
     JStarStmt* program = parseProgram(&p);
     skipNewLines(&p);
