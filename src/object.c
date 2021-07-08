@@ -409,6 +409,10 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     return s;
 }
 
+JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
+    return (JStarBuffer){vm, len, len, (char*)data};
+}
+
 // -----------------------------------------------------------------------------
 // DEBUG FUNCTIONS
 // -----------------------------------------------------------------------------

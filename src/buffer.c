@@ -136,7 +136,3 @@ void jsrBufferFree(JStarBuffer* b) {
     }
     *b = (JStarBuffer){0};
 }
-
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
-    return (JStarBuffer){vm, len, len, (char*)data};
-}

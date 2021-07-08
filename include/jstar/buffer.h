@@ -46,12 +46,4 @@ JSTAR_API void jsrBufferPush(JStarBuffer* b);
 // If not pushed with jsrBufferPush the buffer must be freed
 JSTAR_API void jsrBufferFree(JStarBuffer* b);
 
-// -----------------------------------------------------------------------------
-// INTERNAL FUNCTIONS
-// -----------------------------------------------------------------------------
-
-// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
-// API functions that expect a JStarBuffer, without copying them first.
-JStarBuffer jsrBufferWrap(struct JStarVM* vm, const void* data, size_t len);
-
 #endif  // BUFFER_H
