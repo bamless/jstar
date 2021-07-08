@@ -62,16 +62,24 @@ typedef uint64_t Value;
 
     // clang-format off
 
-#define SIGN ((uint64_t)1 << 63)
-#define QNAN ((uint64_t)0x7ffc000000000000)
+#define SIGN ((uint64_t)1 << 63)            // The sign bit
+#define QNAN ((uint64_t)0x7ffc000000000000) // Quiet NaN used for the NaN tagging technique
 
-#define MASK_TAG  3
-#define NULL_TAG  1
-#define FALSE_TAG 2
-#define TRUE_TAG  3
+// The last two bits of of a Value that has the NaN 
+// bits set indentify its type, also called its `tag`
+enum TagBits {
+    HANDLE_BITS,
+    NULL_BITS,
+    FALSE_BITS,
+    TRUE_BITS,
+    END_TAG
+};
 
-#define GET_TAG(val) ((val) & MASK_TAG)
+// Retrieve the tag bits of a Value
+#define BITS_MASK      (END_TAG - 1)
+#define TAG_BITS(val)  ((val) & BITS_MASK)
 
+// Value checking macros
 #define IS_NULL(val)   ((val) == NULL_VAL)
 #define IS_NUM(val)    (((val) & (QNAN)) != QNAN)
 #define IS_BOOL(val)   (((val) & (FALSE_VAL)) == FALSE_VAL)
@@ -79,14 +87,17 @@ typedef uint64_t Value;
 #define IS_OBJ(val)    (((val) & (QNAN | SIGN)) == (QNAN | SIGN))
 #define IS_INT(val)    valueIsInt(val)
 
+// Convert from Value to c type
+// These don't check the type of the value, one should use IS_* macros before these
 #define AS_BOOL(val)   ((val) == TRUE_VAL)
 #define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
 #define AS_OBJ(val)    ((Obj*)(uintptr_t)((val) & ~(SIGN | QNAN)))
 #define AS_NUM(val)    REINTERPRET_CAST(Value, double, val)
 
-#define TRUE_VAL      ((Value)(QNAN | TRUE_TAG))
-#define FALSE_VAL     ((Value)(QNAN | FALSE_TAG))
-#define NULL_VAL      ((Value)(QNAN | NULL_TAG))
+// Convert from c type to Value
+#define TRUE_VAL      ((Value)(QNAN | TRUE_BITS))
+#define FALSE_VAL     ((Value)(QNAN | FALSE_BITS))
+#define NULL_VAL      ((Value)(QNAN | NULL_BITS))
 #define BOOL_VAL(b)   ((b) ? TRUE_VAL : FALSE_VAL)
 #define HANDLE_VAL(h) ((Value)(QNAN | (uint64_t)((uintptr_t)(h) << 2)))
 #define OBJ_VAL(obj)  ((Value)(SIGN | QNAN | (uint64_t)(uintptr_t)(obj)))
@@ -94,13 +105,14 @@ typedef uint64_t Value;
 
 // clang-format on
 
+// Perform a raw equality test, i.e. wihtout calling __eq__ overloads
 inline bool valueEquals(Value v1, Value v2) {
     return IS_NUM(v1) && IS_NUM(v2) ? AS_NUM(v1) == AS_NUM(v2) : v1 == v2;
 }
 
 #else
 
-typedef enum {
+typedef enum ValueType {
     VAL_NUM,
     VAL_BOOL,
     VAL_OBJ,
@@ -163,10 +175,12 @@ inline bool valueEquals(Value v1, Value v2) {
 
 #endif
 
+// Check wheter a Value is an integral Number
 inline bool valueIsInt(Value val) {
     return IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val);
 }
 
+// Return the truth value of a Value
 inline bool valueToBool(Value v) {
     return IS_BOOL(v) ? AS_BOOL(v) : !IS_NULL(v);
 }

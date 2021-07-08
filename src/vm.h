@@ -212,16 +212,19 @@ inline Value peekn(JStarVM* vm, int n) {
 
 inline ObjClass* getClass(JStarVM* vm, Value v) {
 #ifdef JSTAR_NAN_TAGGING
-    if(IS_NUM(v)) return vm->numClass;
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
+    if(IS_NUM(v)) return vm->numClass;
 
-    switch(GET_TAG(v)) {
-    case TRUE_TAG:
-    case FALSE_TAG:
-        return vm->boolClass;
-    case NULL_TAG:
-    default:
+    switch(TAG_BITS(v)) {
+    case HANDLE_BITS:
+    case NULL_BITS:
         return vm->nullClass;
+    case FALSE_BITS:
+    case TRUE_BITS:
+        return vm->boolClass;
+    default:
+        UNREACHABLE();
+        return NULL;
     }
 #else
     switch(v.type) {
@@ -233,8 +236,10 @@ inline ObjClass* getClass(JStarVM* vm, Value v) {
         return AS_OBJ(v)->cls;
     case VAL_HANDLE:
     case VAL_NULL:
-    default:
         return vm->nullClass;
+    default:
+        UNREACHABLE();
+        return NULL;
     }
 #endif
 }
