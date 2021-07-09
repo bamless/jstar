@@ -84,7 +84,7 @@ add_subdirectory(apps)
 add_subdirectory(extern)
 
 if(JSTAR_INSTALL)
-    # Install files other than targets
+    # Install export files
     install(EXPORT jstar-export
         FILE        JStarTargets.cmake
         NAMESPACE   jstar::
@@ -103,6 +103,13 @@ if(JSTAR_INSTALL)
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
         DESTINATION lib/cmake/jstar
     )
+
+    # Install license files
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION share/licenses/jstar)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/argparse/LICENSE DESTINATION share/licenses/jstar/argparse)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/cwalk/LICENSE.md DESTINATION share/licenses/jstar/cwalk)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/dirent/LICENSE DESTINATION share/licenses/jstar/dirent)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/linenoise-ng/LICENSE DESTINATION share/licenses/jstar/linenoise-ng)
     
     # On Windows install required runtime dlls alongside exe
     include(cmake/MinGWRuntime.cmake)
