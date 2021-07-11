@@ -26,8 +26,8 @@ option(JSTAR_RE    "Include the 're' module in the language" ON)
 
 # Setup config file
 configure_file (
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/jstarconf.h.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/jstar/jstarconf.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/conf.h.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/jstar/conf.h
 )
 
 # Set default build type if not specified

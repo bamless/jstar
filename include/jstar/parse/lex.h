@@ -1,7 +1,7 @@
 #ifndef LEX_H
 #define LEX_H
 
-#include "../jstarconf.h"
+#include "../conf.h"
 
 JSTAR_API extern const char* JStarTokName[];
 

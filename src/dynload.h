@@ -1,7 +1,7 @@
 #ifndef DYNLOAD_H
 #define DYNLOAD_H
 
-#include "jstarconf.h"
+#include "conf.h"
 
 #if defined(JSTAR_POSIX)
     #include <dlfcn.h>

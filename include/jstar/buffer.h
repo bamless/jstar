@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "jstarconf.h"
+#include "conf.h"
 
 struct JStarVM;
 

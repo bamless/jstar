@@ -94,7 +94,8 @@
         "ast.h": "c",
         "parser.h": "c",
         "buffer.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "conf.h": "c"
     },
     "editor.formatOnSave": false
 }

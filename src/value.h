@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "jstarconf.h"
+#include "conf.h"
 #include "util.h"
 
 typedef struct Obj Obj;
@@ -67,7 +67,7 @@ typedef uint64_t Value;
 
 // The last two bits of of a Value that has the NaN 
 // bits set indentify its type, also called its `tag`
-enum TagBits {
+enum {
     HANDLE_BITS,
     NULL_BITS,
     FALSE_BITS,

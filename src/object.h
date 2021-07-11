@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "buffer.h"
 #include "code.h"
 #include "hashtable.h"
 #include "jstar.h"
@@ -316,4 +315,4 @@ JStarBuffer jsrBufferWrap(struct JStarVM* vm, const void* data, size_t len);
 // Prints an Obj in a human readable form
 void printObj(Obj* o);
 
-#endif
+#endif // OBJECT_H

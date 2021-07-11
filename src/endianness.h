@@ -1,7 +1,7 @@
 #ifndef ENDIANNES_H
 #define ENDIANNES_H
 
-#include "jstarconf.h"
+#include "conf.h"
 
 // -----------------------------------------------------------------------------
 // ENDIANNESS MACROS

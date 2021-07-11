@@ -29,8 +29,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "buffer.h"     // IWYU pragma: export
-#include "jstarconf.h"  // IWYU pragma: export
+#include "buffer.h"  // IWYU pragma: export
+#include "conf.h"    // IWYU pragma: export
 
 // -----------------------------------------------------------------------------
 // J* VM ENTRY POINTS
