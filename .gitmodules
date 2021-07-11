@@ -7,3 +7,6 @@
 [submodule "extern/dirent"]
 	path = extern/dirent
 	url = https://github.com/bamless/dirent.git
+[submodule "extern/replxx"]
+	path = extern/replxx
+	url = https://github.com/AmokHuginnsson/replxx.git
