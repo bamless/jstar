@@ -238,7 +238,7 @@ void jsrExprFree(JStarExpr* e) {
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-static JStarStmt* newStmt(int line, StmtType type) {
+static JStarStmt* newStmt(int line, JStarStmtType type) {
     JStarStmt* s = malloc(sizeof(*s));
     s->line = line;
     s->type = type;

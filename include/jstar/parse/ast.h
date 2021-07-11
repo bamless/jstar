@@ -108,7 +108,7 @@ struct JStarExpr {
     } as;
 };
 
-typedef enum StmtType {
+typedef enum JStarStmtType {
     JSR_IF,
     JSR_FOR,
     JSR_WHILE,
@@ -127,11 +127,11 @@ typedef enum StmtType {
     JSR_WITH,
     JSR_CONTINUE,
     JSR_BREAK
-} StmtType;
+} JStarStmtType;
 
 struct JStarStmt {
     int line;
-    StmtType type;
+    JStarStmtType type;
     union {
         struct {
             JStarExpr* cond;
