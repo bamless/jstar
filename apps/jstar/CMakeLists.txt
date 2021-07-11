@@ -4,7 +4,7 @@ if(WIN32)
     target_sources(cli PRIVATE icon.rc)
 endif()
 
-target_link_libraries(cli PRIVATE jstar linenoise argparse common)
+target_link_libraries(cli PRIVATE jstar replxx argparse common)
 target_include_directories(cli PRIVATE ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/profile)
 set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 

@@ -1,6 +1,6 @@
 #include <argparse.h>
 #include <errno.h>
-#include <linenoise.h>
+#include <replxx.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,6 +18,7 @@
 #define JSTAR_PATH   "JSTARPATH"
 #define JSTAR_PROMPT "J*>> "
 #define LINE_PROMPT  ".... "
+#define INDENT       "    "
 
 static const int tokenDepth[TOK_EOF] = {
     // Tokens that start a new block
@@ -167,17 +168,15 @@ static void printVersion(void) {
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-// Little hack to enable adding a tab in the REPL.
-// Simply add 4 spaces on linenoise tab completion.
-static void completion(const char* buf, linenoiseCompletions* lc) {
+static void completion(const char* input, replxx_completions* completions, int* len, void* data) {
     jsrBufferClear(&completionBuf);
-    jsrBufferAppendf(&completionBuf, "%s    ", buf);
-    linenoiseAddCompletion(lc, completionBuf.data);
+    jsrBufferAppendf(&completionBuf, "%s" INDENT, input);
+    replxx_add_completion(completions, completionBuf.data);
 }
 
 static int countBlocks(const char* line) {
     PROFILE_FUNC()
-    
+
     JStarLex lex;
     JStarTok tok;
 
@@ -197,7 +196,6 @@ static int countBlocks(const char* line) {
 
 static void addReplPrint(JStarBuffer* sb) {
     PROFILE_FUNC()
-
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
@@ -220,28 +218,27 @@ static void doRepl() {
     {
         PROFILE_FUNC()
 
+        Replxx* replxx = replxx_init();
+        replxx_set_completion_callback(replxx, &completion, NULL);
+
         if(!opts.skipVersion) printVersion();
-        linenoiseSetCompletionCallback(completion);
         initImportPaths("./");
         registerPrintFunction();
-        
 
         JStarBuffer src;
         jsrBufferInit(vm, &src);
 
-        char* line;
-        while((line = linenoise(JSTAR_PROMPT)) != NULL) {
+        const char* line;
+        while((line = replxx_input(replxx, JSTAR_PROMPT)) != NULL) {
             int depth = countBlocks(line);
-            linenoiseHistoryAdd(line);
+            replxx_history_add(replxx, line);
             jsrBufferAppendStr(&src, line);
-            free(line);
 
-            while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
+            while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
                 depth += countBlocks(line);
-                linenoiseHistoryAdd(line);
+                replxx_history_add(replxx, line);
                 jsrBufferAppendChar(&src, '\n');
                 jsrBufferAppendStr(&src, line);
-                free(line);
             }
 
             addReplPrint(&src);
@@ -251,7 +248,9 @@ static void doRepl() {
         }
 
         jsrBufferFree(&src);
-        linenoiseHistoryFree();
+
+        replxx_history_clear(replxx);
+        replxx_end(replxx);
     }
 
     PROFILE_END_SESSION()
