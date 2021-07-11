@@ -1,5 +1,5 @@
-#ifndef BUFFER_H
-#define BUFFER_H
+#ifndef JSTAR_BUFFER_H
+#define JSTAR_BUFFER_H
 
 #include <stdarg.h>
 #include <stdlib.h>

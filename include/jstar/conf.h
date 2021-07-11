@@ -1,5 +1,5 @@
-#ifndef CONF_H
-#define CONF_H
+#ifndef JSTAR_CONF_H
+#define JSTAR_CONF_H
 
 // Version
 #define JSTAR_VERSION_MAJOR  1

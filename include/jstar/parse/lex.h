@@ -1,5 +1,5 @@
-#ifndef LEX_H
-#define LEX_H
+#ifndef JSTAR_LEX_H
+#define JSTAR_LEX_H
 
 #include "../conf.h"
 

@@ -1,5 +1,5 @@
-#ifndef AST_H
-#define AST_H
+#ifndef JSTAR_AST_H
+#define JSTAR_AST_H
 
 #include <stdbool.h>
 #include <stdlib.h>

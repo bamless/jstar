@@ -1,5 +1,5 @@
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef JSTAR_PARSER_H
+#define JSTAR_PARSER_H
 
 #include "../conf.h"
 #include "ast.h"

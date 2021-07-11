@@ -1,5 +1,5 @@
-#ifndef VECTOR_H
-#define VECTOR_H
+#ifndef JSTAR_VECTOR_H
+#define JSTAR_VECTOR_H
 
 #include <stdbool.h>
 #include <stddef.h>
