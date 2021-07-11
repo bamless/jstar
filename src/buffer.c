@@ -11,7 +11,7 @@
 #include "value.h"
 #include "vm.h"
 
-static void jsrBufGrow(JStarBuffer* b, size_t len) {
+static void bufferGrow(JStarBuffer* b, size_t len) {
     size_t newSize = b->capacity;
     while(newSize < b->size + len) {
         newSize <<= 1;
@@ -35,7 +35,7 @@ void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity) {
 
 void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len) {
     if(b->size + len >= b->capacity) {
-        jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
+        bufferGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
     memcpy(&b->data[b->size], str, len);
     b->size += len;
@@ -56,7 +56,7 @@ void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap) {
 
     // Not enough space, need to grow and retry
     if(written >= availableSpace) {
-        jsrBufGrow(b, written + 1);
+        bufferGrow(b, written + 1);
         availableSpace = b->capacity - b->size;
         va_copy(cpy, ap);
         written = vsnprintf(&b->data[b->size], availableSpace, fmt, cpy);
@@ -97,7 +97,7 @@ void jsrBufferReplaceChar(JStarBuffer* b, size_t start, char c, char r) {
 
 void jsrBufferPrepend(JStarBuffer* b, const char* str, size_t len) {
     if(b->size + len >= b->capacity) {
-        jsrBufGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
+        bufferGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
     memmove(b->data + len, b->data, b->size);
     memcpy(b->data, str, len);
@@ -110,7 +110,7 @@ void jsrBufferPrependStr(JStarBuffer* b, const char* str) {
 }
 
 void jsrBufferAppendChar(JStarBuffer* b, char c) {
-    if(b->size + 1 >= b->capacity) jsrBufGrow(b, 2);
+    if(b->size + 1 >= b->capacity) bufferGrow(b, 2);
     b->data[b->size++] = c;
     b->data[b->size] = '\0';
 }
