@@ -98,7 +98,7 @@ static void completion(const char* input, replxx_completions* completions, int* 
     replxx_add_completion(completions, completionBuf.data);
 }
 
-static void initState(void) {
+static void initApp(void) {
     PROFILE_BEGIN_SESSION("jstar-init.json")
 
     // Init VM
@@ -115,7 +115,7 @@ static void initState(void) {
     PROFILE_END_SESSION()
 }
 
-static void freeState(void) {
+static void freeApp(void) {
     PROFILE_BEGIN_SESSION("jstar-free.json")
 
     // Free VM
@@ -357,8 +357,8 @@ int main(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
-    initState();
-    atexit(&freeState);
+    initApp();
+    atexit(&freeApp);
 
     if(opts.execStmt) {
         JStarResult res = evaluateString("<string>", opts.execStmt);
