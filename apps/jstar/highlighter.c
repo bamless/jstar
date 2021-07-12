@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------------------
 
 #define IDENTIFIER_DEFINITION_COLOR REPLXX_COLOR_BLUE
-#define IDENTIFIER_FUNC_CALL_COLOR  REPLXX_COLOR_YELLOW
+#define IDENTIFIER_CALL_COLOR       REPLXX_COLOR_YELLOW
 
 static const ReplxxColor theme[TOK_EOF] = {
     // Literals
@@ -65,16 +65,16 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_ERR] = REPLXX_COLOR_RED,
 };
 
+// -----------------------------------------------------------------------------
+// HIGHLIGHTER FUNCTION
+// -----------------------------------------------------------------------------
+
 static void setTokColor(const char* in, const JStarTok* tok, ReplxxColor color, ReplxxColor* out) {
     size_t startOffset = tok->lexeme - in;
     for(size_t i = startOffset; i < startOffset + tok->length; i++) {
         out[i] = color;
     }
 }
-
-// -----------------------------------------------------------------------------
-// HIGHLIGHTER FUNCTION
-// -----------------------------------------------------------------------------
 
 void highlighter(const char* input, ReplxxColor* colors, int size, void* userData) {
     JStarLex lex;
@@ -88,7 +88,7 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
         ReplxxColor themeColor = theme[tok.type];
 
         if(tok.type == TOK_LPAREN && prev.type == TOK_IDENTIFIER) {
-            setTokColor(input, &prev, IDENTIFIER_FUNC_CALL_COLOR, colors);
+            setTokColor(input, &prev, IDENTIFIER_CALL_COLOR, colors);
         }
         if(tok.type == TOK_IDENTIFIER && prev.type == TOK_CLASS) {
             themeColor = IDENTIFIER_DEFINITION_COLOR;
