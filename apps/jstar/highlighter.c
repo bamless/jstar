@@ -13,8 +13,8 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_UNTERMINATED_STR] = REPLXX_COLOR_BLUE,
     [TOK_NULL] = REPLXX_COLOR_MAGENTA,
 
-    // Keywords 
-    #define KEYWORD_COLOR REPLXX_COLOR_MAGENTA
+// Keywords
+#define KEYWORD_COLOR REPLXX_COLOR_MAGENTA
     [TOK_VAR] = KEYWORD_COLOR,
     [TOK_STATIC] = KEYWORD_COLOR,
     [TOK_CLASS] = KEYWORD_COLOR,
@@ -30,6 +30,8 @@ static const ReplxxColor theme[TOK_EOF] = {
 };
 
 void highlighter(const char* input, ReplxxColor* colors, int size, void* userData) {
+    Replxx* replxx = userData;
+    
     JStarLex lex;
     JStarTok tok;
 
@@ -45,5 +47,10 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
             }
         }
         jsrNextToken(&lex, &tok);
+    }
+
+    if((size > 0) && (input[size - 1] == '(')) {
+        replxx_emulate_key_press(replxx, ')');
+        replxx_emulate_key_press(replxx, REPLXX_KEY_LEFT);
     }
 }

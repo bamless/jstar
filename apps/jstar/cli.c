@@ -110,7 +110,7 @@ static void initState(void) {
     // Init replxx
     replxx = replxx_init();
     replxx_set_completion_callback(replxx, &completion, NULL);
-    replxx_set_highlighter_callback(replxx, &highlighter, NULL);
+    replxx_set_highlighter_callback(replxx, &highlighter, replxx);
 
     PROFILE_END_SESSION()
 }
