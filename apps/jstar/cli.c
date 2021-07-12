@@ -1,23 +1,25 @@
 #include <argparse.h>
 #include <errno.h>
-#include <linenoise.h>
+#include <replxx.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "colorio.h"
+#include "console_print.h"
+#include "highlighter.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
 #include "profiler.h"
 
+#define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
+#define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
 #define REPL_PRINT   "__replprint"
 #define JSTAR_PATH   "JSTARPATH"
-#define JSTAR_PROMPT "J*>> "
-#define LINE_PROMPT  ".... "
+#define INDENT       "    "
 
 static const int tokenDepth[TOK_EOF] = {
     // Tokens that start a new block
@@ -44,6 +46,7 @@ typedef struct Options {
     bool skipVersion;
     bool interactive;
     bool ignoreEnv;
+    bool disableColors;
     char* execStmt;
     char** args;
     int argsCount;
@@ -52,6 +55,7 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 static JStarBuffer completionBuf;
+static Replxx* replxx;
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
@@ -60,11 +64,11 @@ static JStarBuffer completionBuf;
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     PROFILE_FUNC()
     if(ln >= 0) {
-        fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "File %s [line:%d]:\n", file, ln);
     } else {
-        fcolorPrintf(stderr, COLOR_RED, "File %s:\n", file);
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "File %s:\n", file);
     }
-    fcolorPrintf(stderr, COLOR_RED, "%s\n", err);
+    fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s\n", err);
 }
 
 static bool replPrint(JStarVM* vm) {
@@ -76,35 +80,67 @@ static bool replPrint(JStarVM* vm) {
     JSR_CHECK(String, -1, "Cannot convert result to String");
 
     if(jsrIsString(vm, 1)) {
-        colorPrintf(COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
     } else if(jsrIsNumber(vm, 1)) {
-        colorPrintf(COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
     } else if(jsrIsBoolean(vm, 1)) {
-        colorPrintf(COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
     } else {
-        printf("%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_NONE, "%s\n", jsrGetString(vm, -1));
     }
 
     jsrPushNull(vm);
     return true;
 }
 
-static void initVM(void) {
+// Autocompletion with indentation support
+static void completion(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
+    Replxx* replxx = ud;
+    jsrBufferClear(&completionBuf);
+
+    ReplxxState state;
+    replxx_get_state(replxx, &state);
+
+    int cursorPos = state.cursorPosition;
+    int inputLen = strlen(input);
+    int indentLen = strlen(INDENT);
+
+    // Indent the current context up to a multiple of strlen(INDENT)
+    jsrBufferAppendf(&completionBuf, "%.*s", *ctxLen, input + inputLen - *ctxLen);
+    jsrBufferAppendf(&completionBuf, "%.*s", indentLen - (cursorPos % indentLen), INDENT);
+
+    // Give the processed output to replxx for visualization
+    replxx_add_completion(completions, completionBuf.data);
+}
+
+static void initApp(const Options* opts) {
     PROFILE_BEGIN_SESSION("jstar-init.json")
 
+    // Init VM
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
 
+    // Init replxx
+    replxx = replxx_init();
+    replxx_set_completion_callback(replxx, &completion, replxx);
+    replxx_set_highlighter_callback(replxx, &highlighter, replxx);
+    if(opts->disableColors) replxx_set_no_color(replxx, true);
+
     PROFILE_END_SESSION()
 }
 
-static void freeVM(void) {
+static void freeApp(void) {
     PROFILE_BEGIN_SESSION("jstar-free.json")
 
+    // Free VM
     jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
+
+    // Free replxx
+    replxx_history_clear(replxx);
+    replxx_end(replxx);
 
     PROFILE_END_SESSION()
 }
@@ -163,21 +199,13 @@ static JStarResult evaluateString(const char* name, const char* src) {
 // -----------------------------------------------------------------------------
 
 static void printVersion(void) {
-    printf("J* Version %s\n", JSTAR_VERSION_STRING);
-    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
-}
-
-// Little hack to enable adding a tab in the REPL.
-// Simply add 4 spaces on linenoise tab completion.
-static void completion(const char* buf, linenoiseCompletions* lc) {
-    jsrBufferClear(&completionBuf);
-    jsrBufferAppendf(&completionBuf, "%s    ", buf);
-    linenoiseAddCompletion(lc, completionBuf.data);
+    consolePrint(replxx, COLOR_WHITE, "J* Version %s\n", JSTAR_VERSION_STRING);
+    consolePrint(replxx, COLOR_WHITE, "%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
 static int countBlocks(const char* line) {
     PROFILE_FUNC()
-    
+
     JStarLex lex;
     JStarTok tok;
 
@@ -197,7 +225,6 @@ static int countBlocks(const char* line) {
 
 static void addReplPrint(JStarBuffer* sb) {
     PROFILE_FUNC()
-
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
@@ -221,27 +248,23 @@ static void doRepl() {
         PROFILE_FUNC()
 
         if(!opts.skipVersion) printVersion();
-        linenoiseSetCompletionCallback(completion);
         initImportPaths("./");
         registerPrintFunction();
-        
 
         JStarBuffer src;
         jsrBufferInit(vm, &src);
 
-        char* line;
-        while((line = linenoise(JSTAR_PROMPT)) != NULL) {
+        const char* line;
+        while((line = replxx_input(replxx, JSTAR_PROMPT)) != NULL) {
             int depth = countBlocks(line);
-            linenoiseHistoryAdd(line);
+            replxx_history_add(replxx, line);
             jsrBufferAppendStr(&src, line);
-            free(line);
 
-            while(depth > 0 && (line = linenoise(LINE_PROMPT)) != NULL) {
+            while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
                 depth += countBlocks(line);
-                linenoiseHistoryAdd(line);
+                replxx_history_add(replxx, line);
                 jsrBufferAppendChar(&src, '\n');
                 jsrBufferAppendStr(&src, line);
-                free(line);
             }
 
             addReplPrint(&src);
@@ -251,7 +274,6 @@ static void doRepl() {
         }
 
         jsrBufferFree(&src);
-        linenoiseHistoryFree();
     }
 
     PROFILE_END_SESSION()
@@ -286,7 +308,8 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 
         JStarBuffer src;
         if(!jsrReadFile(vm, script, &src)) {
-            fprintf(stderr, "Error reading script '%s': %s\n", script, strerror(errno));
+            fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
+                          script, strerror(errno));
             exit(EXIT_FAILURE);
         }
 
@@ -325,6 +348,7 @@ static void parseArguments(int argc, char** argv) {
                     "Enter the REPL after executing 'script' and/or '-e' statement", 0, 0, 0),
         OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
                     "Ignore environment variables such as JSTARPATH", 0, 0, 0),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring", 0, 0, 0),
         OPT_END(),
     };
 
@@ -351,8 +375,8 @@ int main(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
-    initVM();
-    atexit(&freeVM);
+    initApp(&opts);
+    atexit(&freeApp);
 
     if(opts.execStmt) {
         JStarResult res = evaluateString("<string>", opts.execStmt);
