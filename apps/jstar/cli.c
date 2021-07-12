@@ -15,10 +15,10 @@
 #include "jstar/parse/parser.h"
 #include "profiler.h"
 
+#define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
+#define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
 #define REPL_PRINT   "__replprint"
 #define JSTAR_PATH   "JSTARPATH"
-#define JSTAR_PROMPT "J*>> "
-#define LINE_PROMPT  ".... "
 #define INDENT       "    "
 
 static const int tokenDepth[TOK_EOF] = {
@@ -199,8 +199,8 @@ static JStarResult evaluateString(const char* name, const char* src) {
 // -----------------------------------------------------------------------------
 
 static void printVersion(void) {
-    printf("J* Version %s\n", JSTAR_VERSION_STRING);
-    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
+    consolePrint(replxx, COLOR_WHITE, "J* Version %s\n", JSTAR_VERSION_STRING);
+    consolePrint(replxx, COLOR_WHITE, "%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
 static int countBlocks(const char* line) {
