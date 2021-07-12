@@ -95,7 +95,9 @@
         "parser.h": "c",
         "buffer.h": "c",
         "time.h": "c",
-        "conf.h": "c"
+        "conf.h": "c",
+        "lex.h": "c",
+        "highlighter.h": "c"
     },
     "editor.formatOnSave": false
 }

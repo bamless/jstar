@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "console_print.h"
+#include "highlighter.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
@@ -109,6 +110,7 @@ static void initState(void) {
     // Init replxx
     replxx = replxx_init();
     replxx_set_completion_callback(replxx, &completion, NULL);
+    replxx_set_highlighter_callback(replxx, &highlighter, NULL);
 
     PROFILE_END_SESSION()
 }
