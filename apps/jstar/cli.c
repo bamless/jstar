@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include "colorio.h"
 #include "console_print.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
