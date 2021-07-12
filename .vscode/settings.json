@@ -97,7 +97,8 @@
         "time.h": "c",
         "conf.h": "c",
         "lex.h": "c",
-        "highlighter.h": "c"
+        "highlighter.h": "c",
+        "replxx.h": "c"
     },
     "editor.formatOnSave": false
 }

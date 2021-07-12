@@ -92,9 +92,24 @@ static bool replPrint(JStarVM* vm) {
     return true;
 }
 
-static void completion(const char* input, replxx_completions* completions, int* len, void* data) {
+// Autocompletion with indentation support
+static void completion(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
+    Replxx* replxx = ud;
     jsrBufferClear(&completionBuf);
-    jsrBufferAppendf(&completionBuf, "%s" INDENT, input);
+
+    ReplxxState state;
+    replxx_get_state(replxx, &state);
+
+    int cursorPos = state.cursorPosition;
+    int inputLen = strlen(input);
+    int indentLen = strlen(INDENT);
+
+    // Insert the current contex back into the buffer
+    jsrBufferAppendf(&completionBuf, "%.*s", *ctxLen, input + inputLen - *ctxLen);
+    // Insert spaces aligning them on multiples of strlen(INDENT)
+    jsrBufferAppendf(&completionBuf, "%.*s", indentLen - (cursorPos % indentLen), INDENT);
+    
+    // Give the processed output to replxx for visualization
     replxx_add_completion(completions, completionBuf.data);
 }
 
@@ -109,8 +124,8 @@ static void initApp(void) {
 
     // Init replxx
     replxx = replxx_init();
-    replxx_set_completion_callback(replxx, &completion, NULL);
-    replxx_set_highlighter_callback(replxx, &highlighter, NULL);
+    replxx_set_completion_callback(replxx, &completion, replxx);
+    replxx_set_highlighter_callback(replxx, &highlighter, replxx);
 
     PROFILE_END_SESSION()
 }
