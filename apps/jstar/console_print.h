@@ -1,5 +1,5 @@
-#ifndef COLOR_IO_H
-#define COLOR_IO_H
+#ifndef CONSOLE_PRINT_H
+#define CONSOLE_PRINT_H
 
 #include <stdarg.h>
 
