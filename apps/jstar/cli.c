@@ -104,9 +104,8 @@ static void completion(const char* input, replxx_completions* completions, int* 
     int inputLen = strlen(input);
     int indentLen = strlen(INDENT);
 
-    // Insert the current contex back into the buffer
+    // Indent the current context up to a multiple of strlen(INDENT)
     jsrBufferAppendf(&completionBuf, "%.*s", *ctxLen, input + inputLen - *ctxLen);
-    // Insert spaces aligning them on multiples of strlen(INDENT)
     jsrBufferAppendf(&completionBuf, "%.*s", indentLen - (cursorPos % indentLen), INDENT);
     
     // Give the processed output to replxx for visualization
