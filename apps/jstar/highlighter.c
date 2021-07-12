@@ -1,6 +1,7 @@
 #include "highlighter.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "jstar/parse/lex.h"
 
@@ -8,7 +9,7 @@
 // COLOR THEME DEFINITION
 // -----------------------------------------------------------------------------
 
-#define IDENTIFIER_DEFINITION_COLOR REPLXX_COLOR_BLUE
+#define IDENTIFIER_DEFINITION_COLOR REPLXX_COLOR_YELLOW
 #define IDENTIFIER_CALL_COLOR       REPLXX_COLOR_YELLOW
 
 static const ReplxxColor theme[TOK_EOF] = {
@@ -21,7 +22,7 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_NULL] = REPLXX_COLOR_MAGENTA,
 
 // Keywords
-#define KEYWORD_COLOR REPLXX_COLOR_GREEN
+#define KEYWORD_COLOR REPLXX_COLOR_BLUE
     [TOK_AND] = KEYWORD_COLOR,
     [TOK_OR] = KEYWORD_COLOR,
     [TOK_CLASS] = KEYWORD_COLOR,
@@ -32,7 +33,6 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_IF] = KEYWORD_COLOR,
     [TOK_ELIF] = KEYWORD_COLOR,
     [TOK_RETURN] = KEYWORD_COLOR,
-    [TOK_SUPER] = KEYWORD_COLOR,
     [TOK_WHILE] = KEYWORD_COLOR,
     [TOK_IMPORT] = KEYWORD_COLOR,
     [TOK_IN] = KEYWORD_COLOR,
@@ -48,6 +48,10 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_CONTINUE] = KEYWORD_COLOR,
     [TOK_BREAK] = KEYWORD_COLOR,
 
+// `this` and `super` keyworkds
+#define METHOD_KEYWORD_COLOR REPLXX_COLOR_BLUE
+    [TOK_SUPER] = METHOD_KEYWORD_COLOR,
+
 // Storage keywords
 #define STORAGE_KEYWORD_COLOR REPLXX_COLOR_BLUE
     [TOK_VAR] = STORAGE_KEYWORD_COLOR,
@@ -58,8 +62,16 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_SEMICOLON] = PUNCTUATION_COLOR,
     [TOK_LPAREN] = PUNCTUATION_COLOR,
     [TOK_RPAREN] = PUNCTUATION_COLOR,
+    [TOK_LSQUARE] = PUNCTUATION_COLOR,
+    [TOK_RSQUARE] = PUNCTUATION_COLOR,
+    [TOK_LCURLY] = PUNCTUATION_COLOR,
+    [TOK_RCURLY] = PUNCTUATION_COLOR,
     [TOK_COLON] = PUNCTUATION_COLOR,
     [TOK_COMMA] = PUNCTUATION_COLOR,
+    [TOK_DOT] = PUNCTUATION_COLOR,
+
+    // Misc
+    [TOK_ARROW] = REPLXX_COLOR_RED,
 
     // Error
     [TOK_ERR] = REPLXX_COLOR_RED,
@@ -79,7 +91,7 @@ static void setTokColor(const char* in, const JStarTok* tok, ReplxxColor color, 
 void highlighter(const char* input, ReplxxColor* colors, int size, void* userData) {
     JStarLex lex;
     jsrInitLexer(&lex, input);
-    
+
     JStarTok prev, tok;
     jsrNextToken(&lex, &tok);
     prev = tok;
@@ -92,6 +104,10 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
         }
         if(tok.type == TOK_IDENTIFIER && prev.type == TOK_CLASS) {
             themeColor = IDENTIFIER_DEFINITION_COLOR;
+        }
+        if(tok.type == TOK_IDENTIFIER && tok.length == strlen("this") &&
+           strncmp(tok.lexeme, "this", (size_t)tok.length) == 0) {
+            themeColor = METHOD_KEYWORD_COLOR;
         }
 
         if(themeColor) {
