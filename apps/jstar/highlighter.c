@@ -40,7 +40,7 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_CONTINUE] = KEYWORD_COLOR,
     [TOK_BREAK] = KEYWORD_COLOR,
 
-// `this` and `super` keyworkds
+// `this` and `super` keywords
 #define METHOD_KEYWORD_COLOR REPLXX_COLOR_BLUE
     [TOK_SUPER] = METHOD_KEYWORD_COLOR,
 
