@@ -46,6 +46,7 @@ typedef struct Options {
     bool skipVersion;
     bool interactive;
     bool ignoreEnv;
+    bool disableColors;
     char* execStmt;
     char** args;
     int argsCount;
@@ -125,6 +126,7 @@ static void initApp(void) {
     replxx = replxx_init();
     replxx_set_completion_callback(replxx, &completion, replxx);
     replxx_set_highlighter_callback(replxx, &highlighter, replxx);
+    if(opts.disableColors) replxx_set_no_color(replxx, true);
 
     PROFILE_END_SESSION()
 }
@@ -346,6 +348,7 @@ static void parseArguments(int argc, char** argv) {
                     "Enter the REPL after executing 'script' and/or '-e' statement", 0, 0, 0),
         OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
                     "Ignore environment variables such as JSTARPATH", 0, 0, 0),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring", 0, 0, 0),
         OPT_END(),
     };
 

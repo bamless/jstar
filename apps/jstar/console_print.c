@@ -48,7 +48,7 @@ static FILE* replxxStdToFile(ReplxxStdFile std) {
 
 int vfConsolePrint(Replxx* replxx, ReplxxStdFile std, Color color, const char* fmt, va_list ap) {
     FILE* stdFile = replxxStdToFile(std);
-    if(isatty(fileno(stdFile))) {
+    if(replxx_is_color_enabled(replxx) && isatty(fileno(stdFile))) {
         int written = 0;
         written += replxx_fprint(replxx, std, colors[color]);
         written += replxx_vfprint(replxx, std, fmt, ap);
