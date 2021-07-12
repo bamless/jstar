@@ -15,7 +15,15 @@ typedef enum Color {
     COLOR_MAGENTA,
     COLOR_CYAN,
     COLOR_LIGHT_GRAY,
-    COLOR_DEFAULT,
+    COLOR_GRAY,
+    COLOR_BRIGHTRED,
+    COLOR_BRIGHTGREEN,
+    COLOR_YELLOW,
+    COLOR_BRIGHTBLUE,
+    COLOR_BRIGHTMAGENTA,
+    COLOR_BRIGHTCYAN,
+    COLOR_WHITE,
+    COLOR_NONE,
 } Color;
 
 int vfConsolePrint(Replxx* replxx, ReplxxStdFile std, Color color, const char* fmt, va_list ap);

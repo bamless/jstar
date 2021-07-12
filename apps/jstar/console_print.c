@@ -22,7 +22,15 @@ static const char* colors[] = {
     [COLOR_MAGENTA] = "\033[0;22;35m",
     [COLOR_CYAN] = "\033[0;22;36m",
     [COLOR_LIGHT_GRAY] = "\033[0;22;37m",
-    [COLOR_DEFAULT] = "",
+    [COLOR_GRAY] = "\033[0;1;90m",
+    [COLOR_BRIGHTRED] = "\033[0;1;91m",
+    [COLOR_BRIGHTGREEN] = "\033[0;1;92m",
+    [COLOR_YELLOW] = "\033[0;1;93m",
+    [COLOR_BRIGHTBLUE] = "\033[0;1;94m",
+    [COLOR_BRIGHTMAGENTA] = "\033[0;1;95m",
+    [COLOR_BRIGHTCYAN] = "\033[0;1;96m",
+    [COLOR_WHITE] = "\033[0;1;97m",
+    [COLOR_NONE] = "",
 };
 
 static FILE* replxxStdToFile(ReplxxStdFile std) {

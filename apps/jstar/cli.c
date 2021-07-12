@@ -85,7 +85,7 @@ static bool replPrint(JStarVM* vm) {
     } else if(jsrIsBoolean(vm, 1)) {
         consolePrint(replxx, COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
     } else {
-        printf("%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_NONE, "%s\n", jsrGetString(vm, -1));
     }
 
     jsrPushNull(vm);
@@ -306,7 +306,8 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 
         JStarBuffer src;
         if(!jsrReadFile(vm, script, &src)) {
-            fprintf(stderr, "Error reading script '%s': %s\n", script, strerror(errno));
+            fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
+                          script, strerror(errno));
             exit(EXIT_FAILURE);
         }
 
