@@ -199,8 +199,8 @@ static JStarResult evaluateString(const char* name, const char* src) {
 // -----------------------------------------------------------------------------
 
 static void printVersion(void) {
-    consolePrint(replxx, COLOR_WHITE, "J* Version %s\n", JSTAR_VERSION_STRING);
-    consolePrint(replxx, COLOR_WHITE, "%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
 static int countBlocks(const char* line) {
