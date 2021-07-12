@@ -107,7 +107,7 @@ static void completion(const char* input, replxx_completions* completions, int* 
     // Indent the current context up to a multiple of strlen(INDENT)
     jsrBufferAppendf(&completionBuf, "%.*s", *ctxLen, input + inputLen - *ctxLen);
     jsrBufferAppendf(&completionBuf, "%.*s", indentLen - (cursorPos % indentLen), INDENT);
-    
+
     // Give the processed output to replxx for visualization
     replxx_add_completion(completions, completionBuf.data);
 }
