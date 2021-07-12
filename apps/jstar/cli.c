@@ -40,6 +40,11 @@ static const int tokenDepth[TOK_EOF] = {
     [TOK_END] = -1,
 };
 
+static Options opts;
+static JStarVM* vm;
+static JStarBuffer completionBuf;
+static Replxx* replxx;
+
 typedef struct Options {
     char* script;
     bool showVersion;
@@ -50,11 +55,6 @@ typedef struct Options {
     char** args;
     int argsCount;
 } Options;
-
-static Options opts;
-static JStarVM* vm;
-static JStarBuffer completionBuf;
-static Replxx* replxx;
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
