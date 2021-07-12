@@ -113,7 +113,7 @@ static void completion(const char* input, replxx_completions* completions, int* 
     replxx_add_completion(completions, completionBuf.data);
 }
 
-static void initApp(void) {
+static void initApp(const Options* opts) {
     PROFILE_BEGIN_SESSION("jstar-init.json")
 
     // Init VM
@@ -126,7 +126,7 @@ static void initApp(void) {
     replxx = replxx_init();
     replxx_set_completion_callback(replxx, &completion, replxx);
     replxx_set_highlighter_callback(replxx, &highlighter, replxx);
-    if(opts.disableColors) replxx_set_no_color(replxx, true);
+    if(opts->disableColors) replxx_set_no_color(replxx, true);
 
     PROFILE_END_SESSION()
 }
@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
-    initApp();
+    initApp(&opts);
     atexit(&freeApp);
 
     if(opts.execStmt) {
