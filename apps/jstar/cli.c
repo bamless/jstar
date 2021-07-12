@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "colorio.h"
+//#include "colorio.h"
+#include "console_print.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
@@ -53,6 +54,7 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 static JStarBuffer completionBuf;
+static Replxx* replxx;
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
@@ -61,11 +63,11 @@ static JStarBuffer completionBuf;
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     PROFILE_FUNC()
     if(ln >= 0) {
-        fcolorPrintf(stderr, COLOR_RED, "File %s [line:%d]:\n", file, ln);
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "File %s [line:%d]:\n", file, ln);
     } else {
-        fcolorPrintf(stderr, COLOR_RED, "File %s:\n", file);
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "File %s:\n", file);
     }
-    fcolorPrintf(stderr, COLOR_RED, "%s\n", err);
+    fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s\n", err);
 }
 
 static bool replPrint(JStarVM* vm) {
@@ -77,11 +79,11 @@ static bool replPrint(JStarVM* vm) {
     JSR_CHECK(String, -1, "Cannot convert result to String");
 
     if(jsrIsString(vm, 1)) {
-        colorPrintf(COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_BLUE, "\"%s\"\n", jsrGetString(vm, -1));
     } else if(jsrIsNumber(vm, 1)) {
-        colorPrintf(COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_GREEN, "%s\n", jsrGetString(vm, -1));
     } else if(jsrIsBoolean(vm, 1)) {
-        colorPrintf(COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
     } else {
         printf("%s\n", jsrGetString(vm, -1));
     }
@@ -90,22 +92,38 @@ static bool replPrint(JStarVM* vm) {
     return true;
 }
 
-static void initVM(void) {
+static void completion(const char* input, replxx_completions* completions, int* len, void* data) {
+    jsrBufferClear(&completionBuf);
+    jsrBufferAppendf(&completionBuf, "%s" INDENT, input);
+    replxx_add_completion(completions, completionBuf.data);
+}
+
+static void initState(void) {
     PROFILE_BEGIN_SESSION("jstar-init.json")
 
+    // Init VM
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
 
+    // Init replxx
+    replxx = replxx_init();
+    replxx_set_completion_callback(replxx, &completion, NULL);
+
     PROFILE_END_SESSION()
 }
 
-static void freeVM(void) {
+static void freeState(void) {
     PROFILE_BEGIN_SESSION("jstar-free.json")
 
+    // Free VM
     jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
+
+    // Free replxx
+    replxx_history_clear(replxx);
+    replxx_end(replxx);
 
     PROFILE_END_SESSION()
 }
@@ -168,12 +186,6 @@ static void printVersion(void) {
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-static void completion(const char* input, replxx_completions* completions, int* len, void* data) {
-    jsrBufferClear(&completionBuf);
-    jsrBufferAppendf(&completionBuf, "%s" INDENT, input);
-    replxx_add_completion(completions, completionBuf.data);
-}
-
 static int countBlocks(const char* line) {
     PROFILE_FUNC()
 
@@ -218,9 +230,6 @@ static void doRepl() {
     {
         PROFILE_FUNC()
 
-        Replxx* replxx = replxx_init();
-        replxx_set_completion_callback(replxx, &completion, NULL);
-
         if(!opts.skipVersion) printVersion();
         initImportPaths("./");
         registerPrintFunction();
@@ -248,9 +257,6 @@ static void doRepl() {
         }
 
         jsrBufferFree(&src);
-
-        replxx_history_clear(replxx);
-        replxx_end(replxx);
     }
 
     PROFILE_END_SESSION()
@@ -350,8 +356,8 @@ int main(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
-    initVM();
-    atexit(&freeVM);
+    initState();
+    atexit(&freeState);
 
     if(opts.execStmt) {
         JStarResult res = evaluateString("<string>", opts.execStmt);
