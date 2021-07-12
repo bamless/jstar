@@ -31,7 +31,7 @@ static const ReplxxColor theme[TOK_EOF] = {
 
 void highlighter(const char* input, ReplxxColor* colors, int size, void* userData) {
     Replxx* replxx = userData;
-    
+
     JStarLex lex;
     JStarTok tok;
 
