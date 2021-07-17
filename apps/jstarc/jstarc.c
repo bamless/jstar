@@ -345,8 +345,6 @@ static void freeApp(void) {
 }
 
 int main(int argc, char** argv) {
-    parseArguments(argc, argv);
-
     initApp(argc, argv);
     atexit(&freeApp);
 
