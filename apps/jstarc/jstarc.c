@@ -28,7 +28,7 @@ static JStarVM* vm;
 // CALLBACKS AND HOOKS
 // -----------------------------------------------------------------------------
 
-// Custom J* error callback
+// Custom J* error callback.
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     PROFILE_FUNC()
     switch(res) {
@@ -46,7 +46,7 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// Returns whether `path` is a directory or not 
+// Returns whether `path` is a directory or not.
 static bool isDirectory(const char* path) {
     DIR* d = opendir(path);
     if(d != NULL) {
