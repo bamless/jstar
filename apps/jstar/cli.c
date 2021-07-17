@@ -310,7 +310,7 @@ static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
     static const char* const usage[] = {
-        "jstar [options] [script [arguments]]",
+        "jstar [options] [script [arguments...]]",
         NULL,
     };
 

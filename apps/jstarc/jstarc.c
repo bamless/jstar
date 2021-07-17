@@ -15,6 +15,7 @@
 
 typedef struct Options {
     char *input, *output;
+    bool showVersion;
     bool disassemble;
     bool compileOnly;
     bool recursive;
@@ -24,6 +25,11 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 
+// -----------------------------------------------------------------------------
+// CALLBACKS AND HOOKS
+// -----------------------------------------------------------------------------
+
+// Custom J* error callback
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
     PROFILE_FUNC()
     switch(res) {
@@ -37,22 +43,17 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
     }
 }
 
-static void initVM(void) {
-    PROFILE_BEGIN_SESSION("jstar-init.json")
+// -----------------------------------------------------------------------------
+// UTILITY FUNCTIONS
+// -----------------------------------------------------------------------------
 
-    JStarConf conf = jsrGetConf();
-    conf.errorCallback = &errorCallback;
-    vm = jsrNewVM(&conf);
-
-    PROFILE_END_SESSION()
+// Print the J* version along with its compilation environment
+static void printVersion(void) {
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-static void freeVM(void) {
-    PROFILE_BEGIN_SESSION("jstar-free.json")
-    jsrFreeVM(vm);
-    PROFILE_END_SESSION()
-}
-
+// Returns whether `path` is a directory or not 
 static bool isDirectory(const char* path) {
     DIR* d = opendir(path);
     if(d != NULL) {
@@ -63,9 +64,11 @@ static bool isDirectory(const char* path) {
 }
 
 // -----------------------------------------------------------------------------
-// FILE COMPILE
+// FILE COMPILATION AND DISASSEMBLY
 // -----------------------------------------------------------------------------
 
+// Write a JStarBuffer to file.
+// The buffer is written as a binary file in order to avoid \n -> \r\n conversions on windows.
 static bool writeToFile(const JStarBuffer* buf, const char* path) {
     PROFILE_FUNC()
 
@@ -88,6 +91,11 @@ static bool writeToFile(const JStarBuffer* buf, const char* path) {
     return true;
 }
 
+// Compile the file at `path` and store the result in a new file at `out`.
+// If `out` is NULL, then an output path will be generated from the input one by changing
+// the file extension.
+// If `-l` or `-c` were passed to the application, then no output file is generated.
+// Returns true on success, false on failure.
 static bool compileFile(const char* path, const char* out) {
     PROFILE_FUNC()
 
@@ -129,6 +137,8 @@ static bool compileFile(const char* path, const char* out) {
     return true;
 }
 
+// Disassemble the file at `path` and print the bytecode to standard output.
+// Returns true on success, false on failure.
 static bool disassembleFile(const char* path) {
     PROFILE_FUNC()
 
@@ -152,9 +162,11 @@ static bool disassembleFile(const char* path) {
 }
 
 // -----------------------------------------------------------------------------
-// DIRECTORY COMPILE
+// DIRECTORY COMPILATION
 // -----------------------------------------------------------------------------
 
+// Generate an output path using the starting directory, current position in the
+// directory tree and a filename.
 static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
                            char* dest, size_t size) {
     const char* fileRoot = curr + cwk_path_get_intersection(root, curr);
@@ -165,10 +177,15 @@ static void makeOutputPath(const char* root, const char* curr, const char* file,
     } else {
         cwk_path_join(out, file, dest, size);
     }
-    
+
     cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
+// Process a J* source file during directory compilation.
+// It generates the the full file path and an output path using on the root directory,
+// current position in the directory tree and a file name.
+// It then compiles or disassembles the file based on application options.
+// Returns true on success, false on failure.
 static bool processDirFile(const char* root, const char* curr, const char* file, const char* out) {
     char filePath[FILENAME_MAX];
     cwk_path_join(curr, file, filePath, sizeof(filePath));
@@ -186,6 +203,9 @@ static bool isRelPath(const char* path) {
     return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
 }
 
+// Walk a directory (recursively, if `-r` was specified) and process all files
+// that end in a`.jsr` extension.
+// Returns true on success, false on failure.
 static bool walkDirectory(const char* root, const char* curr, const char* out) {
     DIR* currentDir = opendir(curr);
     if(currentDir == NULL) {
@@ -229,6 +249,11 @@ static bool walkDirectory(const char* root, const char* curr, const char* out) {
     return allok;
 }
 
+// Process a directory.
+// It normalizes the diretory path and either normalizes or generates an out
+// path depending if the `out` argument is null or not.
+// It then delegates the actual directory scan to `walkDirectory`.
+// Returns true on success, false on failure.
 static bool processDirectory(const char* dir, const char* out) {
     char inputDir[FILENAME_MAX];
     cwk_path_normalize(dir, inputDir, sizeof(inputDir));
@@ -244,7 +269,7 @@ static bool processDirectory(const char* dir, const char* out) {
 }
 
 // -----------------------------------------------------------------------------
-// MAIN AND ARGUMENT PARSE
+// ARGUMENT PARSE
 // -----------------------------------------------------------------------------
 
 static void parseArguments(int argc, char** argv) {
@@ -259,6 +284,8 @@ static void parseArguments(int argc, char** argv) {
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
+                    0),
         OPT_STRING('o', "output", &opts.output, "Output file or directory", 0, 0, 0),
         OPT_BOOLEAN('r', "recursive", &opts.recursive,
                     "Recursively compile/disassemble files in <directory>, does nothing if passed "
@@ -289,11 +316,39 @@ static void parseArguments(int argc, char** argv) {
     opts.input = argv[0];
 }
 
+// -----------------------------------------------------------------------------
+// APP INITIALIZATION AND MAIN FUNCTION
+// -----------------------------------------------------------------------------
+
+static void initApp(int argc, char** argv) {
+    parseArguments(argc, argv);
+
+    // Bail out early if we only need to show the version
+    if(opts.showVersion) {
+        printVersion();
+        exit(EXIT_SUCCESS);
+    }
+
+    PROFILE_BEGIN_SESSION("jstar-init.json")
+
+    JStarConf conf = jsrGetConf();
+    conf.errorCallback = &errorCallback;
+    vm = jsrNewVM(&conf);
+
+    PROFILE_END_SESSION()
+}
+
+static void freeApp(void) {
+    PROFILE_BEGIN_SESSION("jstar-free.json")
+    jsrFreeVM(vm);
+    PROFILE_END_SESSION()
+}
+
 int main(int argc, char** argv) {
     parseArguments(argc, argv);
 
-    initVM();
-    atexit(&freeVM);
+    initApp(argc, argv);
+    atexit(&freeApp);
 
     PROFILE_BEGIN_SESSION("jstar-run.json")
 
