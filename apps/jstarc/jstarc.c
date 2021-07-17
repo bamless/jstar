@@ -175,8 +175,8 @@ static void makeOutputPath(const char* root, const char* curr, const char* file,
 }
 
 // Process a J* source file during directory compilation.
-// It generates the the full file path and an output path using on the root directory,
-// current position in the directory tree and a file name.
+// It generates the the full file path and an output path using the input root directory, 
+// output root directory, the current position in the directory tree and a file name.
 // It then compiles or disassembles the file based on application options.
 // Returns true on success, false on failure.
 static bool processDirFile(const char* root, const char* curr, const char* file, const char* out) {
