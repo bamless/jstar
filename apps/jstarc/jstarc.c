@@ -158,8 +158,8 @@ static bool disassembleFile(const char* path) {
 // DIRECTORY COMPILATION
 // -----------------------------------------------------------------------------
 
-// Generate an output path using the starting directory, current position in the
-// directory tree and a filename.
+// Generate a file output path using the input root directory, output root directory, 
+// the current position in the directory tree and a file name.
 static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
                            char* dest, size_t size) {
     const char* fileRoot = curr + cwk_path_get_intersection(root, curr);
