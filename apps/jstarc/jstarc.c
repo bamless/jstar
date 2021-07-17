@@ -15,7 +15,6 @@
 
 typedef struct Options {
     char *input, *output;
-    bool showVersion;
     bool disassemble;
     bool compileOnly;
     bool recursive;
@@ -46,12 +45,6 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
-
-// Print the J* version along with its compilation environment
-static void printVersion(void) {
-    printf("J* Version %s\n", JSTAR_VERSION_STRING);
-    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
-}
 
 // Returns whether `path` is a directory or not 
 static bool isDirectory(const char* path) {
@@ -284,8 +277,6 @@ static void parseArguments(int argc, char** argv) {
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
-        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
-                    0),
         OPT_STRING('o', "output", &opts.output, "Output file or directory", 0, 0, 0),
         OPT_BOOLEAN('r', "recursive", &opts.recursive,
                     "Recursively compile/disassemble files in <directory>, does nothing if passed "
@@ -322,12 +313,6 @@ static void parseArguments(int argc, char** argv) {
 
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
-
-    // Bail out early if we only need to show the version
-    if(opts.showVersion) {
-        printVersion();
-        exit(EXIT_SUCCESS);
-    }
 
     PROFILE_BEGIN_SESSION("jstar-init.json")
 
