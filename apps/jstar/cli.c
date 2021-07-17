@@ -96,14 +96,14 @@ static void completion(const char* input, replxx_completions* completions, int* 
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// Print the J* version along with its compilation environment
+// Print the J* version along with its compilation environment.
 static void printVersion(void) {
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-// Init the J* importPaths list using a custom path and the `JSTARPATH` env variable
-// The custom path appended first
+// Init the J* importPaths list using a custom path and the `JSTARPATH` env variable.
+// The custom path is appended first.
 static void initImportPaths(const char* path) {
     jsrAddImportPath(vm, path);
     if(opts.ignoreEnv) return;
@@ -130,14 +130,14 @@ static void initImportPaths(const char* path) {
     jsrBufferFree(&buf);
 }
 
-// SIGINT handler to break evaluation on CTRL-C
+// SIGINT handler to break evaluation on CTRL-C.
 static void sigintHandler(int sig) {
     signal(sig, SIG_DFL);
     jsrEvalBreak(vm);
 }
 
-// Wrapper function to evaluate source or binary J* code
-// Sets up a signal handler to support the breaking of evaluation using CTRL-C
+// Wrapper function to evaluate source or binary J* code.
+// Sets up a signal handler to support the breaking of evaluation using CTRL-C.
 static JStarResult evaluate(const char* name, const JStarBuffer* src) {
     signal(SIGINT, &sigintHandler);
     JStarResult res = jsrEval(vm, name, src);
@@ -145,8 +145,8 @@ static JStarResult evaluate(const char* name, const JStarBuffer* src) {
     return res;
 }
 
-// Wrapper function to evaluate J* source code passed in as a c-string
-// Sets up a signal handler to support the breaking of evaluation using CTRL-C
+// Wrapper function to evaluate J* source code passed in as a c-string.
+// Sets up a signal handler to support the breaking of evaluation using CTRL-C.
 static JStarResult evaluateString(const char* name, const char* src) {
     signal(SIGINT, &sigintHandler);
     JStarResult res = jsrEvalString(vm, name, src);
@@ -154,7 +154,7 @@ static JStarResult evaluateString(const char* name, const char* src) {
     return res;
 }
 
-// Execute a J* source or compiled file from disk
+// Execute a J* source or compiled file from disk.
 static JStarResult execScript(const char* script, int argc, char** args) {
     PROFILE_BEGIN_SESSION("jstar-run.json")
 
@@ -196,8 +196,8 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 // REPL
 // -----------------------------------------------------------------------------
 
-// Counts the number of blocks in a single line of J* code
-// Used to handle multiline input in the repl
+// Counts the number of blocks in a single line of J* code.
+// Used to handle multiline input in the repl.
 static int countBlocks(const char* line) {
     PROFILE_FUNC()
 
@@ -218,7 +218,7 @@ static int countBlocks(const char* line) {
     return depth;
 }
 
-// J* native function that formats and colors the output depending on the Value's type
+// J* native function that formats and colors the output depending on the Value's type.
 static bool replPrint(JStarVM* vm) {
     // Don't print `null`
     if(jsrIsNull(vm, 1)) return true;
@@ -242,15 +242,15 @@ static bool replPrint(JStarVM* vm) {
     return true;
 }
 
-// Registers the custom replPrint function in the VM
+// Registers the custom replPrint function in the VM.
 static void registerPrintFunction(void) {
     jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
     jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
     jsrPop(vm);
 }
 
-// Add an additional print statement if the current input is a valid J* expression
-// Also, the current expression is assigned to `_` in order to permit calculation chaining
+// Add an additional print statement if the current input is a valid J* expression.
+// Also, the current expression is assigned to `_` in order to permit calculation chaining.
 static void addReplPrint(JStarBuffer* sb) {
     PROFILE_FUNC()
     JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
@@ -261,7 +261,7 @@ static void addReplPrint(JStarBuffer* sb) {
     }
 }
 
-// The interactive read-eval-print loop
+// The interactive read-eval-print loop.
 static JStarResult doRepl(void) {
     PROFILE_BEGIN_SESSION("jstar-repl.json")
 
