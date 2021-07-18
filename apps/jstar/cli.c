@@ -188,7 +188,6 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     }
 
     PROFILE_END_SESSION()
-
     return res;
 }
 
@@ -235,7 +234,7 @@ static bool replPrint(JStarVM* vm) {
     } else if(jsrIsBoolean(vm, 1)) {
         consolePrint(replxx, COLOR_CYAN, "%s\n", jsrGetString(vm, -1));
     } else {
-        consolePrint(replxx, COLOR_NONE, "%s\n", jsrGetString(vm, -1));
+        consolePrint(replxx, COLOR_WHITE, "%s\n", jsrGetString(vm, -1));
     }
 
     jsrPushNull(vm);
