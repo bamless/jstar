@@ -103,7 +103,7 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
         if(tok.type == TOK_LPAREN && prev.type == TOK_IDENTIFIER) {
             setTokColor(input, &prev, IDENTIFIER_CALL_COLOR, colors);
         }
-        if(tok.type == TOK_IDENTIFIER && prev.type == TOK_CLASS) {
+        if(tok.type == TOK_IDENTIFIER && (prev.type == TOK_CLASS || prev.type == TOK_IS)) {
             themeColor = IDENTIFIER_DEFINITION_COLOR;
         }
         if(tok.type == TOK_IDENTIFIER && tok.length == strlen("this") &&
