@@ -72,7 +72,7 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
     fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s\n", err);
 }
 
-// Replxx autocompletion hook to add indentation support
+// Replxx autocompletion hook with indentation support
 static void completion(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
     Replxx* replxx = ud;
     jsrBufferClear(&completionBuf);
