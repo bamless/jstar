@@ -60,7 +60,7 @@ JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
     PROFILE_FUNC()
-    
+
     JStarStmt* program = jsrParse(path, src, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
@@ -96,7 +96,7 @@ JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
 JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                           const JStarBuffer* code) {
     PROFILE_FUNC()
-    
+
     if(!isCompiledCode(code)) {
         return jsrEvalModuleString(vm, path, module, code->data);
     }
@@ -306,26 +306,24 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
         return false;
     }
 
-    char header[SER_HEADER_SIZE];
-    read = fread(header, 1, SER_HEADER_SIZE, src);
+    char header[SERIALIZED_HEADER_SZ];
+    read = fread(header, 1, SERIALIZED_HEADER_SZ, src);
     if(ferror(src)) {
         goto error;
     }
 
-    bool isCompiled = read == SER_HEADER_SIZE && memcmp(SER_FILE_HEADER, header, read) == 0;
+    bool compiled = (read == SERIALIZED_HEADER_SZ) &&
+                    (memcmp(SERIALIZED_HEADER, header, read) == 0);
 
     if(fseek(src, 0, SEEK_END)) {
         goto error;
     }
 
     long size = ftell(src);
-    if(size < 0) {
-        goto error;
-    }
-
+    if(size < 0) goto error;
     rewind(src);
-    jsrBufferInitCapacity(vm, out, size + (isCompiled ? 0 : 1));
 
+    jsrBufferInitCapacity(vm, out, size + (compiled ? 0 : 1));
     read = fread(out->data, 1, size, src);
     if(read < (size_t)size) {
         saveErrno = errno;
@@ -339,8 +337,7 @@ bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     }
 
     out->size = size;
-    if(!isCompiled) out->data[size] = '\0';
-
+    if(!compiled) out->data[size] = '\0';
     return src;
 
 error:
