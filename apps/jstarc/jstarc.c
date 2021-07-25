@@ -158,37 +158,38 @@ static bool disassembleFile(const char* path) {
 // DIRECTORY COMPILATION
 // -----------------------------------------------------------------------------
 
-// Generate a file output path using the input root directory, output root directory, 
+// Generate a file output path using the input root directory, output root directory,
 // the current position in the directory tree and a file name.
-static void makeOutputPath(const char* root, const char* curr, const char* file, const char* out,
-                           char* dest, size_t size) {
-    const char* fileRoot = curr + cwk_path_get_intersection(root, curr);
+static void makeOutputPath(const char* root, const char* outRoot, const char* currDir,
+                           const char* fileName, char* dest, size_t size) {
+    const char* relFilePath = &currDir[cwk_path_get_intersection(root, currDir)];
 
-    if(strlen(fileRoot) != 0) {
-        const char* components[] = {out, fileRoot, file, NULL};
+    if(strlen(relFilePath) != 0) {
+        const char* components[] = {outRoot, relFilePath, fileName, NULL};
         cwk_path_join_multiple(components, dest, size);
     } else {
-        cwk_path_join(out, file, dest, size);
+        cwk_path_join(outRoot, fileName, dest, size);
     }
 
     cwk_path_change_extension(dest, JSC_EXT, dest, size);
 }
 
 // Process a J* source file during directory compilation.
-// It generates the the full file path and an output path using the input root directory, 
+// It generates the the full file path and an output path using the input root directory,
 // output root directory, the current position in the directory tree and a file name.
 // It then compiles or disassembles the file based on application options.
 // Returns true on success, false on failure.
-static bool processDirFile(const char* root, const char* curr, const char* file, const char* out) {
+static bool processDirFile(const char* root, const char* outRoot, const char* currDir,
+                           const char* fileName) {
     char filePath[FILENAME_MAX];
-    cwk_path_join(curr, file, filePath, sizeof(filePath));
+    cwk_path_join(currDir, fileName, filePath, sizeof(filePath));
 
-    if(opts.disassemble) {
-        return disassembleFile(filePath);
-    } else {
+    if(!opts.disassemble) {
         char outPath[FILENAME_MAX];
-        makeOutputPath(root, curr, file, out, outPath, sizeof(outPath));
+        makeOutputPath(root, outRoot, currDir, fileName, outPath, sizeof(outPath));
         return compileFile(filePath, outPath);
+    } else {
+        return disassembleFile(filePath);
     }
 }
 
@@ -196,27 +197,27 @@ static bool isRelPath(const char* path) {
     return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
 }
 
-// Walk a directory (recursively, if `-r` was specified) and process all files
-// that end in a`.jsr` extension.
+// Walk a directory (recursively, if `-r` was specified) and process 
+// all files that end in a `.jsr` or `.jsc` extension.
 // Returns true on success, false on failure.
-static bool walkDirectory(const char* root, const char* curr, const char* out) {
-    DIR* currentDir = opendir(curr);
-    if(currentDir == NULL) {
-        fprintf(stderr, "Cannot open directory %s: %s\n", curr, strerror(errno));
+static bool walkDirectory(const char* root, const char* currDir, const char* outDir) {
+    DIR* directory = opendir(currDir);
+    if(directory == NULL) {
+        fprintf(stderr, "Cannot open directory %s: %s\n", currDir, strerror(errno));
         return false;
     }
 
     bool allok = true;
     struct dirent* file;
-    while((file = readdir(currentDir)) != NULL) {
+    while((file = readdir(directory)) != NULL) {
         if(isRelPath(file->d_name)) continue;
 
         switch(file->d_type) {
         case DT_DIR: {
             if(opts.recursive) {
-                char subDirectory[FILENAME_MAX];
-                cwk_path_join(curr, file->d_name, subDirectory, sizeof(subDirectory));
-                allok &= walkDirectory(root, subDirectory, out);
+                char subdirectory[FILENAME_MAX];
+                cwk_path_join(currDir, file->d_name, subdirectory, sizeof(subdirectory));
+                allok &= walkDirectory(root, subdirectory, outDir);
             }
             break;
         }
@@ -225,17 +226,18 @@ static bool walkDirectory(const char* root, const char* curr, const char* out) {
             const char* ext;
             if(cwk_path_get_extension(file->d_name, &ext, &len) &&
                strcmp(ext, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
-                allok &= processDirFile(root, curr, file->d_name, out);
+                allok &= processDirFile(root, outDir, currDir, file->d_name);
             }
             break;
         }
         default:
+            // Ignore other file types
             break;
         }
     }
 
-    if(closedir(currentDir)) {
-        fprintf(stderr, "Cannot close dir %s: %s\n", curr, strerror(errno));
+    if(closedir(directory)) {
+        fprintf(stderr, "Cannot close dir %s: %s\n", currDir, strerror(errno));
         return false;
     }
 
