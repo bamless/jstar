@@ -16,7 +16,7 @@ endif()
 add_subdirectory(argparse EXCLUDE_FROM_ALL)
 add_subdirectory(cwalk    EXCLUDE_FROM_ALL)
 add_subdirectory(dirent   EXCLUDE_FROM_ALL)
+
 set(REPLXX_BUILD_EXAMPLES OFF CACHE BOOL "Build the examples"      FORCE)
 set(REPLXX_BUILD_PACKAGE  OFF CACHE BOOL "Generate package target" FORCE)
 add_subdirectory(replxx   EXCLUDE_FROM_ALL)
-# add_subdirectory(linenoise-ng EXCLUDE_FROM_ALL)

@@ -131,7 +131,7 @@ and is known to compile on OSX (Apple clang), Windows (both MSVC and MinGW-w64) 
 clang).
 
 To build the provided **command line interface** `jstar`, a C++11 compiler is required as one of its
-dependencies, linenoise-ng, is written in C++.
+dependencies, is written in C++.
 
 You can clone the latest **J\*** sources using git:
 
