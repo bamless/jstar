@@ -9,8 +9,8 @@
 // COLOR THEME DEFINITION
 // -----------------------------------------------------------------------------
 
-#define IDENTIFIER_DEFINITION_COLOR REPLXX_COLOR_YELLOW
-#define IDENTIFIER_CALL_COLOR       REPLXX_COLOR_YELLOW
+#define CLASS_NAME_COLOR      REPLXX_COLOR_YELLOW
+#define IDENTIFIER_CALL_COLOR REPLXX_COLOR_YELLOW
 
 static const ReplxxColor theme[TOK_EOF] = {
 // Keywords
@@ -104,16 +104,14 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
             setTokColor(input, &prev, IDENTIFIER_CALL_COLOR, colors);
         }
         if(tok.type == TOK_IDENTIFIER && (prev.type == TOK_CLASS || prev.type == TOK_IS)) {
-            themeColor = IDENTIFIER_DEFINITION_COLOR;
+            themeColor = CLASS_NAME_COLOR;
         }
         if(tok.type == TOK_IDENTIFIER && tok.length == strlen("this") &&
            strncmp(tok.lexeme, "this", (size_t)tok.length) == 0) {
             themeColor = METHOD_KEYWORD_COLOR;
         }
 
-        if(themeColor) {
-            setTokColor(input, &tok, themeColor, colors);
-        }
+        if(themeColor) setTokColor(input, &tok, themeColor, colors);
 
         prev = tok;
         jsrNextToken(&lex, &tok);

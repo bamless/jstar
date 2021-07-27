@@ -1,9 +1,8 @@
 #ifndef CONSOLE_PRINT_H
 #define CONSOLE_PRINT_H
 
+#include <replxx.h>
 #include <stdarg.h>
-
-#include "replxx.h"
 
 typedef enum Color {
     COLOR_RESET,

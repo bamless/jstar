@@ -9,6 +9,7 @@
 
 #include "console_print.h"
 #include "highlighter.h"
+#include "hints.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
@@ -73,7 +74,7 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 }
 
 // Replxx autocompletion hook with indentation support
-static void completion(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
+static void indent(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
     Replxx* replxx = ud;
     jsrBufferClear(&completionBuf);
 
@@ -371,9 +372,10 @@ static void initApp(int argc, char** argv) {
 
     // Init replxx for repl and output coloring supprt
     replxx = replxx_init();
-    replxx_set_completion_callback(replxx, &completion, replxx);
+    replxx_set_completion_callback(replxx, &indent, replxx);
     replxx_set_highlighter_callback(replxx, &highlighter, replxx);
-    if(opts.disableColors) replxx_set_no_color(replxx, true);
+    replxx_set_no_color(replxx, opts.disableColors);
+    if(!opts.disableColors) replxx_set_hint_callback(replxx, &hints, vm);
 }
 
 static void freeApp(void) {

@@ -1,5 +1,5 @@
 # Cli app
-add_executable(cli cli.c console_print.h console_print.c highlighter.h highlighter.c)
+add_executable(cli cli.c console_print.h console_print.c highlighter.h highlighter.c hints.h hints.c)
 if(WIN32)
     target_sources(cli PRIVATE icon.rc)
 endif()
