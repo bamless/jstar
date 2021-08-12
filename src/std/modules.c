@@ -102,6 +102,7 @@ static Module builtInModules[] = {
         ENDCLASS
         CLASS(Module)
             METHOD(__string__, jsr_Module_string)
+            METHOD(globals,    jsr_Module_globals)
         ENDCLASS
         CLASS(Iterable)
             METHOD(join,       jsr_Iterable_join)

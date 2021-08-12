@@ -31,6 +31,7 @@ JSR_NATIVE(jsr_Function_string);
 
 // class Module
 JSR_NATIVE(jsr_Module_string);
+JSR_NATIVE(jsr_Module_globals);
 // end
 
 // class Iterable
