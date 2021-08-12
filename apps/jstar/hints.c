@@ -32,6 +32,7 @@ static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hint
 
     JStarResult res = jsrCallMethod(vm, "globals", 0);
     assert(res == JSR_SUCCESS);
+    (void) res;
 
     bool err;
     jsrPushNull(vm);
