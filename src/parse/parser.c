@@ -1214,11 +1214,11 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void*
     return program;
 }
 
-JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
+JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, errFn, udata);
+    initParser(&p, path, src, errFn, data);
 
     JStarExpr* expr = expression(&p, true);
     skipNewLines(&p);
