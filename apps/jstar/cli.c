@@ -242,8 +242,11 @@ static bool replPrint(JStarVM* vm) {
     return true;
 }
 
-// Registers the custom replPrint function in the VM.
+// Register the custom `replPrint` function in the __main__ module.
 static void registerPrintFunction(void) {
+    // Make sure to initialize an empty __main__ module
+    jsrEvalModuleString(vm, "<repl>", JSR_MAIN_MODULE, "");
+    // Register it
     jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
     jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
     jsrPop(vm);

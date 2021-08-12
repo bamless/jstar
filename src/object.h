@@ -128,6 +128,7 @@ typedef struct NativeExt {
 typedef struct ObjModule {
     Obj base;
     ObjString* name;    // Name of the module
+    ObjString* path;    // The path to the module file
     HashTable globals;  // HashTable containing the global variables of the module
     NativeExt natives;  // Natives registered in this module
 } ObjModule;
@@ -262,10 +263,10 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCou
 ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
+ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name);
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method);
 ObjInstance* newInstance(JStarVM* vm, ObjClass* cls);
 ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn);
-ObjModule* newModule(JStarVM* vm, ObjString* name);
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr);
 ObjList* newList(JStarVM* vm, size_t capacity);
 ObjTuple* newTuple(JStarVM* vm, size_t size);

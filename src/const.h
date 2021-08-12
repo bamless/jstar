@@ -40,6 +40,10 @@
 #define EXC_CAUSE "_cause"
 #define EXC_TRACE "_stacktrace"
 
+#define MOD_NAME "__name__"
+#define MOD_PATH "__path__"
+#define MOD_THIS "__this__"
+
 #define PACKAGE_FILE "__package__"
 #define JSR_EXT      ".jsr"
 #define JSC_EXT      ".jsc"

@@ -16,26 +16,22 @@
 #include "value.h"
 #include "vm.h"
 
-static ObjModule* getOrCreateModule(JStarVM* vm, ObjString* name) {
+static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* name) {
     ObjModule* module = getModule(vm, name);
     if(module == NULL) {
         push(vm, OBJ_VAL(name));
-        module = newModule(vm, name);
+        module = newModule(vm, path, name);
         setModule(vm, name, module);
         pop(vm);
-
-        hashTablePut(&module->globals, copyString(vm, "__name__", 8), OBJ_VAL(name));
-        hashTableMerge(&module->globals, &vm->core->globals);  // implicitly import core
     }
     return module;
 }
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* file, ObjString* name, JStarStmt* program) {
+ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program) {
     PROFILE_FUNC()
-
-    ObjModule* module = getOrCreateModule(vm, name);
+    ObjModule* module = getOrCreateModule(vm, path, name);
     if(program != NULL) {
-        ObjFunction* fn = compile(vm, file, module, program);
+        ObjFunction* fn = compile(vm, path, module, program);
         return fn;
     }
     return NULL;
@@ -45,7 +41,7 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
                                    const JStarBuffer* code, JStarResult* err) {
     PROFILE_FUNC()
 
-    ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, name), code, err);
+    ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, path, name), code, err);
     if(*err == JSR_VERSION_ERR) {
         vm->errorCallback(vm, *err, path, -1, "Incompatible binary file version");
     }

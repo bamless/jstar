@@ -46,12 +46,6 @@ static void resetStack(JStarVM* vm) {
     vm->module = NULL;
 }
 
-static void initMainModule(JStarVM* vm) {
-    PROFILE_FUNC()
-    ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
-    compileWithModule(vm, "<main>", mainModuleName, NULL);  // Empty main module
-}
-
 static size_t roundUp(size_t num, size_t multiple) {
     return ((num + multiple - 1) / multiple) * multiple;
 }
@@ -85,9 +79,6 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
     // Core module bootstrap
     initCoreModule(vm);
-
-    // Init empty main module
-    initMainModule(vm);
 
     // Create empty tuple singleton
     vm->emptyTup = newTuple(vm, 0);

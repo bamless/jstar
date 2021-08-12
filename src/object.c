@@ -75,6 +75,31 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     return cls;
 }
 
+ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
+    ObjModule* mod = (ObjModule*)newObj(vm, sizeof(*mod), vm->modClass, OBJ_MODULE);
+    push(vm, OBJ_VAL(mod));
+
+    mod->name = name;
+    mod->path = copyString(vm, path, strlen(path));
+    mod->natives.dynlib = NULL;
+    mod->natives.registry = NULL;
+
+    initHashTable(&mod->globals);
+    
+    // Implicitly import core
+    if(vm->core) {
+        hashTableMerge(&mod->globals, &vm->core->globals);
+    }
+
+    // Set builtin module names
+    hashTablePut(&mod->globals, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
+    hashTablePut(&mod->globals, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
+    hashTablePut(&mod->globals, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
+
+    pop(vm);
+    return mod;
+}
+
 ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
     ObjInstance* inst = (ObjInstance*)newObj(vm, sizeof(*inst), cls, OBJ_INST);
     initHashTable(&inst->fields);
@@ -88,15 +113,6 @@ ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
     c->upvalueCount = fn->upvalueCount;
     c->fn = fn;
     return c;
-}
-
-ObjModule* newModule(JStarVM* vm, ObjString* name) {
-    ObjModule* module = (ObjModule*)newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
-    module->name = name;
-    initHashTable(&module->globals);
-    module->natives.dynlib = NULL;
-    module->natives.registry = NULL;
-    return module;
 }
 
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {

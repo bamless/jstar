@@ -127,7 +127,7 @@ void initCoreModule(JStarVM* vm) {
     ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
 
     push(vm, OBJ_VAL(coreModName));
-    ObjModule* core = newModule(vm, coreModName);
+    ObjModule* core = newModule(vm, JSR_CORE_MODULE, coreModName);
     setModule(vm, core->name, core);
     vm->core = core;
     pop(vm);
