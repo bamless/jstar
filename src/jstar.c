@@ -493,6 +493,8 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
 
     Value resVal = pop(vm);
     vm->apiStack[apiStackIndex(vm, res)] = resVal;
+
+    *err = false;
     return true;
 }
 
