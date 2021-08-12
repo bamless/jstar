@@ -14,7 +14,7 @@ static const char* keywords[] = {
     "return", "import", "ensure", "except", "static", "continue", NULL,
 };
 
-// Add all matching keywords to the hints array/
+// Add all matching keywords to the hints array.
 static void hintKeywords(const char* ctxStart, int ctxLen, replxx_hints* hints) {
     for(const char** kw = keywords; *kw; kw++) {
         int kwLen = strlen(*kw);
