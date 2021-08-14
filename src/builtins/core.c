@@ -67,7 +67,9 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
         push(vm, v1[i]);
         push(vm, v2[i]);
 
-        if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
+        if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) {
+            return false;
+        }
 
         bool res = valueToBool(pop(vm));
         if(!res) {
