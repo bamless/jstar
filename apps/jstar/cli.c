@@ -23,7 +23,7 @@
 #elif defined(JSTAR_WINDOWS)
     #include <direct.h>
     #define getcwd   _getcwd
-    #define PATH_SEP ':'
+    #define PATH_SEP ';'
 #endif
 
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
