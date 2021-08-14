@@ -199,6 +199,10 @@ static JStarResult evaluateString(const char* name, const char* src) {
     return res;
 }
 
+// -----------------------------------------------------------------------------
+// SCRIPT EXECUTION
+// -----------------------------------------------------------------------------
+
 // Execute a J* source or compiled file from disk.
 static JStarResult execScript(const char* script, int argc, char** args) {
     PROFILE_BEGIN_SESSION("jstar-run.json")
