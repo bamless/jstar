@@ -335,7 +335,7 @@ JSR_NATIVE(jsr_Module_string) {
     ObjModule* m = AS_MODULE(vm->apiStack[0]);
     JStarBuffer str;
     jsrBufferInit(vm, &str);
-    jsrBufferAppendf(&str, "<module %s@%p>", m->name->data, (void*)m);
+    jsrBufferAppendf(&str, "<module %s@\"%s\">", m->name->data, m->path->data);
     jsrBufferPush(&str);
     return true;
 }
