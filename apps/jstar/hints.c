@@ -29,6 +29,7 @@ static void hintKeywords(const char* ctxStart, int ctxLen, replxx_hints* hints) 
 static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hints* hints) {
     bool ok = jsrGetGlobal(vm, JSR_MAIN_MODULE, "__this__");
     assert(ok);
+    (void) ok;
 
     JStarResult res = jsrCallMethod(vm, "globals", 0);
     assert(res == JSR_SUCCESS);
@@ -39,10 +40,9 @@ static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hint
     while(jsrIter(vm, -2, -1, &err)) {
         assert(!err);
         
-        ok = jsrNext(vm, -2, -1);
-        assert(ok);
-
-        assert(jsrIsString(vm, -1));
+        bool ok = jsrNext(vm, -2, -1);
+        assert(ok && jsrIsString(vm, -1));
+        (void) ok;
 
         const char* global = jsrGetString(vm, -1);
         int globalLen = jsrGetStringSz(vm, -1);

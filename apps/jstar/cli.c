@@ -1,4 +1,5 @@
 #include <argparse.h>
+#include <cwalk.h>
 #include <errno.h>
 #include <replxx.h>
 #include <signal.h>
@@ -15,6 +16,15 @@
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
 #include "profiler.h"
+
+#if defined(JSTAR_POSIX)
+    #include <unistd.h>
+    #define PATH_SEP ':'
+#elif defined(JSTAR_WINDOWS)
+    #include <direct.h>
+    #define getcwd _getcwd
+    #define PATH_SEP ':'
+#endif
 
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
@@ -103,10 +113,39 @@ static void printVersion(void) {
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-// Init the J* importPaths list using a custom path and the `JSTARPATH` env variable.
-// The custom path is appended first.
+// Returns the current working directory.
+// The returned buffer is malloc'd, and should be freed by the user
+static char* getCurrentDirectory(void) {
+    size_t cwdLen = 256;
+    char* cwd = malloc(cwdLen);
+    while(!getcwd(cwd, cwdLen)) {
+        if(errno != ERANGE) {
+            int saveErrno = errno;
+            free(cwd);
+            errno = saveErrno;
+            return NULL;
+        }
+        cwdLen *= 2;
+        cwd = realloc(cwd, cwdLen);
+    }
+    return cwd;
+}
+
+// Init the J* `importPaths` list by appending the provided `path` to it, as 
+// well as all the paths found in the `JSTARPATH` environment variable.
+// All paths are converted to absolute ones.
 static void initImportPaths(const char* path) {
-    jsrAddImportPath(vm, path);
+    char absolutePath[FILENAME_MAX];
+    char* cwd = getCurrentDirectory();
+
+    if(!cwd) {
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error obtaining cwd");
+        exit(EXIT_FAILURE);
+    }
+
+    cwk_path_get_absolute(cwd, path, absolutePath, FILENAME_MAX);
+    jsrAddImportPath(vm, absolutePath);
+
     if(opts.ignoreEnv) return;
 
     const char* jstarPath = getenv(JSTAR_PATH);
@@ -117,18 +156,18 @@ static void initImportPaths(const char* path) {
 
     size_t last = 0;
     size_t pathLen = strlen(jstarPath);
-    for(size_t i = 0; i < pathLen; i++) {
-        if(jstarPath[i] == ':') {
+    for(size_t i = 0; i <= pathLen; i++) {
+        if(jstarPath[i] == PATH_SEP || i == pathLen) {
             jsrBufferAppend(&buf, jstarPath + last, i - last);
-            jsrAddImportPath(vm, buf.data);
+            cwk_path_get_absolute(cwd, buf.data, absolutePath, FILENAME_MAX);
+            jsrAddImportPath(vm, absolutePath);
             jsrBufferClear(&buf);
             last = i + 1;
         }
     }
 
-    jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
-    jsrAddImportPath(vm, buf.data);
     jsrBufferFree(&buf);
+    free(cwd);
 }
 
 // SIGINT handler to break evaluation on CTRL-C.
@@ -165,14 +204,16 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 
         jsrInitCommandLineArgs(vm, argc, (const char**)args);
 
-        // set base import path to script's directory
-        char* directory = strrchr(script, '/');
-        if(directory != NULL) {
-            size_t length = directory - script + 1;
-            char* path = calloc(length + 1, 1);
-            memcpy(path, script, length);
-            initImportPaths(path);
-            free(path);
+        size_t scriptDirLen;
+        cwk_path_get_dirname(script, &scriptDirLen);
+
+        // Set base import path to script's directory
+        if(scriptDirLen) {
+            char* scriptDirectory = malloc(scriptDirLen + 1);
+            memcpy(scriptDirectory, script, scriptDirLen);
+            scriptDirectory[scriptDirLen] = '\0';
+            initImportPaths(scriptDirectory);
+            free(scriptDirectory);
         } else {
             initImportPaths("./");
         }
@@ -273,6 +314,7 @@ static JStarResult doRepl(void) {
         PROFILE_FUNC()
 
         if(!opts.skipVersion) printVersion();
+
         initImportPaths("./");
         registerPrintFunction();
 
