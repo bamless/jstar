@@ -58,6 +58,7 @@ typedef struct Options {
     bool interactive;
     bool ignoreEnv;
     bool disableColors;
+    bool disableHints;
     char* execStmt;
     char** args;
     int argsCount;
@@ -363,8 +364,6 @@ static void parseArguments(int argc, char** argv) {
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
-        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
-                    0),
         OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
                     "Don't print version information when entering the REPL", 0, 0, 0),
         OPT_STRING('e', "exec", &opts.execStmt,
@@ -374,7 +373,11 @@ static void parseArguments(int argc, char** argv) {
                     "Enter the REPL after executing 'script' and/or '-e' statement", 0, 0, 0),
         OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
                     "Ignore environment variables such as JSTARPATH", 0, 0, 0),
-        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring", 0, 0, 0),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
+                    "Disable output coloring. Hints are disabled as well", 0, 0, 0),
+        OPT_BOOLEAN('H', "no-hints", &opts.disableHints, "Disable hinting support", 0, 0, 0),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
+                    0),
         OPT_END(),
     };
 
@@ -382,6 +385,12 @@ static void parseArguments(int argc, char** argv) {
     argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
     argparse_describe(&argparse, "J* a lightweight scripting language", NULL);
     int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
+
+    // Bail out early if we only need to show the version
+    if(opts.showVersion) {
+        printVersion();
+        exit(EXIT_SUCCESS);
+    }
 
     if(nonOpts > 0) {
         opts.script = argv[0];
@@ -400,12 +409,6 @@ static void parseArguments(int argc, char** argv) {
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
-    // Bail out early if we only need to show the version
-    if(opts.showVersion) {
-        printVersion();
-        exit(EXIT_SUCCESS);
-    }
-
     // Init the J* VM
     PROFILE_BEGIN_SESSION("jstar-init.json")
     JStarConf conf = jsrGetConf();
@@ -414,12 +417,12 @@ static void initApp(int argc, char** argv) {
     jsrBufferInit(vm, &completionBuf);
     PROFILE_END_SESSION()
 
-    // Init replxx for repl and output coloring supprt
+    // Init replxx for repl and output coloring/hints support
     replxx = replxx_init();
     replxx_set_completion_callback(replxx, &indent, replxx);
-    replxx_set_highlighter_callback(replxx, &highlighter, replxx);
     replxx_set_no_color(replxx, opts.disableColors);
-    if(!opts.disableColors) replxx_set_hint_callback(replxx, &hints, vm);
+    if(!opts.disableColors) replxx_set_highlighter_callback(replxx, &highlighter, replxx);
+    if(!opts.disableColors && !opts.disableHints) replxx_set_hint_callback(replxx, &hints, vm);
 }
 
 static void freeApp(void) {
