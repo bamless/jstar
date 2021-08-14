@@ -16,10 +16,10 @@ set(JSTAR_SOURCES
     parse/parser.c
     parse/vector.c
 
-    std/core.c
-    std/core.h
-    std/modules.h
-    std/modules.c
+    builtins/core.c
+    builtins/core.h
+    builtins/builtins.h
+    builtins/builtins.c
 
     buffer.c
     code.c
@@ -52,29 +52,29 @@ set(JSTAR_SOURCES
 
 # J* standard library files
 set(JSTAR_STDLIB 
-    std/core.jsc
+    builtins/core.jsc
 )
 
 # Add optional module source files
 if(JSTAR_SYS)
-    list(APPEND JSTAR_SOURCES std/sys.h std/sys.c)
-    list(APPEND JSTAR_STDLIB  std/sys.jsc)
+    list(APPEND JSTAR_SOURCES builtins/sys.h builtins/sys.c)
+    list(APPEND JSTAR_STDLIB  builtins/sys.jsc)
 endif()
 if(JSTAR_IO)
-    list(APPEND JSTAR_SOURCES std/io.h std/io.c)
-    list(APPEND JSTAR_STDLIB  std/io.jsc)
+    list(APPEND JSTAR_SOURCES builtins/io.h builtins/io.c)
+    list(APPEND JSTAR_STDLIB  builtins/io.jsc)
 endif()
 if(JSTAR_MATH)
-    list(APPEND JSTAR_SOURCES std/math.h std/math.c)
-    list(APPEND JSTAR_STDLIB  std/math.jsc)
+    list(APPEND JSTAR_SOURCES builtins/math.h builtins/math.c)
+    list(APPEND JSTAR_STDLIB  builtins/math.jsc)
 endif()
 if(JSTAR_DEBUG)
-    list(APPEND JSTAR_SOURCES std/debug.h std/debug.c)
-    list(APPEND JSTAR_STDLIB  std/debug.jsc)
+    list(APPEND JSTAR_SOURCES builtins/debug.h builtins/debug.c)
+    list(APPEND JSTAR_STDLIB  builtins/debug.jsc)
 endif()
 if(JSTAR_RE)
-    list(APPEND JSTAR_SOURCES std/re.h std/re.c)
-    list(APPEND JSTAR_STDLIB  std/re.jsc)
+    list(APPEND JSTAR_SOURCES builtins/re.h builtins/re.c)
+    list(APPEND JSTAR_STDLIB  builtins/re.jsc)
 endif()
 
 # Generate J* sandard library source headers

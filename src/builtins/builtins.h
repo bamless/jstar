@@ -1,5 +1,5 @@
-#ifndef MODULES_H
-#define MODULES_H
+#ifndef BUILTINS_H
+#define BUILTINS_H
 
 #include <stddef.h>
 
@@ -8,4 +8,4 @@
 JStarNative resolveBuiltIn(const char* module, const char* cls, const char* name);
 const char* readBuiltInModule(const char* name, size_t* len);
 
-#endif // MODULES_H
+#endif

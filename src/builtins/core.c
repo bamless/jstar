@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "builtins.h"
 #include "const.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
-#include "modules.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"

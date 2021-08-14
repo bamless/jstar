@@ -3,14 +3,14 @@
 #include <math.h>
 #include <string.h>
 
+#include "builtins/builtins.h"
+#include "builtins/core.h"
 #include "code.h"
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
 #include "opcode.h"
 #include "profiler.h"
-#include "std/core.h"
-#include "std/modules.h"
 
 static const char* const methodSyms[SYM_END] = {
     [SYM_CTOR] = CTOR_STR,        [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",
@@ -88,7 +88,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
 void jsrFreeVM(JStarVM* vm) {
     PROFILE_FUNC()
-    
+
     resetStack(vm);
 
     {

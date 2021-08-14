@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "builtins/builtins.h"
 #include "compiler.h"
 #include "const.h"
 #include "dynload.h"
@@ -11,7 +12,6 @@
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
-#include "std/modules.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
@@ -59,7 +59,7 @@ static void registerInParent(JStarVM* vm, ObjModule* mod) {
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
-    
+
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(mod));
 }
 
