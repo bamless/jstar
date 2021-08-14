@@ -1,5 +1,7 @@
 #include "builtins.h"
 
+#include <string.h>
+
 #include "core.h"
 #include "core.jsc.inc"
 
@@ -27,8 +29,6 @@
     #include "re.h"
     #include "re.jsc.inc"
 #endif
-
-#include <string.h>
 
 typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
