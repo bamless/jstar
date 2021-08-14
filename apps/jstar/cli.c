@@ -22,7 +22,7 @@
     #define PATH_SEP ':'
 #elif defined(JSTAR_WINDOWS)
     #include <direct.h>
-    #define getcwd _getcwd
+    #define getcwd   _getcwd
     #define PATH_SEP ':'
 #endif
 
@@ -131,7 +131,7 @@ static char* getCurrentDirectory(void) {
     return cwd;
 }
 
-// Init the J* `importPaths` list by appending the provided `path` to it, as 
+// Init the J* `importPaths` list by appending the provided `path` to it, as
 // well as all the paths found in the `JSTARPATH` environment variable.
 // All paths are converted to absolute ones.
 static void initImportPaths(const char* path) {
@@ -139,7 +139,8 @@ static void initImportPaths(const char* path) {
     char* cwd = getCurrentDirectory();
 
     if(!cwd) {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error obtaining cwd");
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error obtaining cwd: %s\n",
+                      strerror(errno));
         exit(EXIT_FAILURE);
     }
 
