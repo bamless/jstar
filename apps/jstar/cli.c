@@ -156,9 +156,8 @@ static void initImportPaths(const char* path) {
     JStarBuffer buf;
     jsrBufferInit(vm, &buf);
 
-    size_t last = 0;
     size_t pathLen = strlen(jstarPath);
-    for(size_t i = 0; i <= pathLen; i++) {
+    for(size_t i = 0, last = 0; i <= pathLen; i++) {
         if(jstarPath[i] == PATH_SEP || i == pathLen) {
             jsrBufferAppend(&buf, jstarPath + last, i - last);
             cwk_path_get_absolute(cwd, buf.data, absolutePath, FILENAME_MAX);
