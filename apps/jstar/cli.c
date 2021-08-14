@@ -117,7 +117,7 @@ static void printVersion(void) {
 // Returns the current working directory.
 // The returned buffer is malloc'd and should be freed by the user
 static char* getCurrentDirectory(void) {
-    size_t cwdLen = 256;
+    size_t cwdLen = 128;
     char* cwd = malloc(cwdLen);
     while(!getcwd(cwd, cwdLen)) {
         if(errno != ERANGE) {
