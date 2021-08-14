@@ -408,12 +408,10 @@ static void initApp(int argc, char** argv) {
 
     // Init the J* VM
     PROFILE_BEGIN_SESSION("jstar-init.json")
-
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
-
     PROFILE_END_SESSION()
 
     // Init replxx for repl and output coloring supprt
@@ -427,10 +425,8 @@ static void initApp(int argc, char** argv) {
 static void freeApp(void) {
     // Free  the J* VM
     PROFILE_BEGIN_SESSION("jstar-free.json")
-
     jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
-
     PROFILE_END_SESSION()
 
     // Free replxx

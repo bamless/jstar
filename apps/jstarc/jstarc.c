@@ -317,11 +317,9 @@ static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
     PROFILE_BEGIN_SESSION("jstar-init.json")
-
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
-
     PROFILE_END_SESSION()
 }
 
