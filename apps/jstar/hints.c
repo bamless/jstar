@@ -25,7 +25,7 @@ static void hintKeywords(const char* ctxStart, int ctxLen, replxx_hints* hints) 
 }
 
 // Add all matching global names to the hints array.
-// We assert on all errors as all calls should succeed on a correctly functioning J* VM.
+// We assert on errors as all calls should succeed on a correctly functioning J* VM.
 static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hints* hints) {
     bool ok = jsrGetGlobal(vm, JSR_MAIN_MODULE, "__this__");
     assert(ok);
