@@ -64,6 +64,10 @@ typedef struct Options {
     int argsCount;
 } Options;
 
+// -----------------------------------------------------------------------------
+// APP STATE
+// -----------------------------------------------------------------------------
+
 static Options opts;
 static JStarVM* vm;
 static JStarBuffer completionBuf;
