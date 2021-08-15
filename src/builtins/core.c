@@ -373,7 +373,6 @@ JSR_NATIVE(jsr_Module_globals) {
     jsrPushTable(vm);
     for(const Entry* e = globals->entries; e < globals->entries + globals->sizeMask + 1; e++) {
         if(!e->key) continue;
-        
         push(vm, OBJ_VAL(e->key));
         push(vm, e->value);
         if(!jsrSubscriptSet(vm, -3)) return false;
