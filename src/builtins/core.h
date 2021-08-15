@@ -27,6 +27,9 @@ JSR_NATIVE(jsr_Null_string);
 
 // class Function
 JSR_NATIVE(jsr_Function_string);
+JSR_NATIVE(jsr_Function_arity);
+JSR_NATIVE(jsr_Function_vararg);
+JSR_NATIVE(jsr_Function_defaults);
 // end
 
 // class Module
