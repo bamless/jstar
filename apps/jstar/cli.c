@@ -323,8 +323,6 @@ static JStarResult doRepl(void) {
         PROFILE_FUNC()
 
         if(!opts.skipVersion) printVersion();
-
-        initImportPaths("./");
         registerPrintFunction();
 
         JStarBuffer src;
@@ -448,16 +446,20 @@ int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
 
+    JStarResult res;
     if(opts.execStmt) {
-        JStarResult res = evaluateString("<string>", opts.execStmt);
+        res = evaluateString("<string>", opts.execStmt);
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args);
         }
-        if(!opts.interactive) exit(res);
+        if(opts.interactive) res = doRepl();
     } else if(opts.script) {
-        JStarResult res = execScript(opts.script, opts.argsCount, opts.args);
-        if(!opts.interactive) exit(res);
+        res = execScript(opts.script, opts.argsCount, opts.args);
+        if(opts.interactive) res = doRepl();
+    } else {
+        initImportPaths("./");
+        res = doRepl();
     }
 
-    exit(doRepl());
+    exit(res);
 }
