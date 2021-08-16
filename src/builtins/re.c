@@ -371,7 +371,7 @@ typedef enum FindRes {
     FIND_NOMATCH,
 } FindRes;
 
-static FindRes findAux(JStarVM* vm, RegexState* rs) {
+static FindRes find(JStarVM* vm, RegexState* rs) {
     if(!jsrCheckString(vm, 1, "str") || !jsrCheckString(vm, 2, "regex") ||
        !jsrCheckInt(vm, 3, "off")) {
         return FIND_ERR;
@@ -413,7 +413,7 @@ static bool pushCapture(JStarVM* vm, RegexState* rs, int captureIdx) {
 
 JSR_NATIVE(jsr_re_match) {
     RegexState rs;
-    FindRes res = findAux(vm, &rs);
+    FindRes res = find(vm, &rs);
 
     // An exception was thrown, return error
     if(res == FIND_ERR) return false;
@@ -438,7 +438,7 @@ JSR_NATIVE(jsr_re_match) {
 
 JSR_NATIVE(jsr_re_find) {
     RegexState rs;
-    FindRes res = findAux(vm, &rs);
+    FindRes res = find(vm, &rs);
 
     // An exception was thrown, return error
     if(res == FIND_ERR) return false;
