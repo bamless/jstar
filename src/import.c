@@ -16,6 +16,14 @@
 #include "value.h"
 #include "vm.h"
 
+#ifdef JSTAR_WINDOWS
+    #define PATH_SEP_CHAR '\\'
+    #define PATH_SEP_STR  "\\"
+#else
+    #define PATH_SEP_CHAR '/'
+    #define PATH_SEP_STR  "/"
+#endif
+
 static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* name) {
     ObjModule* module = getModule(vm, name);
     if(module == NULL) {
@@ -30,17 +38,13 @@ static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* na
 ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program) {
     PROFILE_FUNC()
     ObjModule* module = getOrCreateModule(vm, path, name);
-    if(program != NULL) {
-        ObjFunction* fn = compile(vm, path, module, program);
-        return fn;
-    }
-    return NULL;
+    ObjFunction* fn = compile(vm, path, module, program);
+    return fn;
 }
 
 ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
                                    const JStarBuffer* code, JStarResult* err) {
     PROFILE_FUNC()
-
     ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, path, name), code, err);
     if(*err == JSR_VERSION_ERR) {
         vm->errorCallback(vm, *err, path, -1, "Incompatible binary file version");
@@ -54,12 +58,14 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
 static void registerInParent(JStarVM* vm, ObjModule* mod) {
     ObjString* name = mod->name;
     const char* lastDot = strrchr(name->data, '.');
-    if(lastDot == NULL) return;  // Not a submodule, nothing to do
+
+    if(lastDot == NULL) {
+        return;  // Not a submodule, nothing to do
+    }
 
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
-
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(mod));
 }
 
@@ -79,12 +85,12 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
 static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString* moduleName) {
     PROFILE_FUNC()
 
-    const char* moduleDir = strrchr(modulePath->data, '/');
+    const char* moduleDir = strrchr(modulePath->data, PATH_SEP_CHAR);
     const char* lastDot = strrchr(moduleName->data, '.');
     const char* simpleName = lastDot ? lastDot + 1 : moduleName->data;
 
     jsrBufferTrunc(modulePath, moduleDir - modulePath->data);
-    jsrBufferAppendf(modulePath, "/" DL_PREFIX "%s" DL_SUFFIX, simpleName);
+    jsrBufferAppendf(modulePath, PATH_SEP_STR DL_PREFIX "%s" DL_SUFFIX, simpleName);
 
     void* dynlib = dynload(modulePath->data);
     if(dynlib != NULL) {
@@ -188,21 +194,21 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
         if(i < paths->size) {
             if(!IS_STRING(paths->arr[i])) continue;
             jsrBufferAppendStr(&fullPath, AS_STRING(paths->arr[i])->data);
-            if(fullPath.size > 0 && fullPath.data[fullPath.size - 1] != '/') {
-                jsrBufferAppendChar(&fullPath, '/');
+            if(fullPath.size > 0 && fullPath.data[fullPath.size - 1] != PATH_SEP_CHAR) {
+                jsrBufferAppendChar(&fullPath, PATH_SEP_CHAR);
             }
         }
 
         size_t moduleStart = fullPath.size;
         size_t moduleEnd = moduleStart + name->length;
         jsrBufferAppendStr(&fullPath, name->data);
-        jsrBufferReplaceChar(&fullPath, moduleStart, '.', '/');
+        jsrBufferReplaceChar(&fullPath, moduleStart, '.', PATH_SEP_CHAR);
 
         ImportRes res;
         ObjModule* mod;
 
         // Try to load a binary package (__package__.jsc file in a directory)
-        jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSC_EXT);
+        jsrBufferAppendStr(&fullPath, PATH_SEP_STR PACKAGE_FILE JSC_EXT);
         res = importFromPath(vm, &fullPath, name, &mod);
 
         if(res != IMPORT_NOT_FOUND) {
@@ -212,7 +218,7 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
 
         // Try to load a source package (__package__.jsr file in a directory)
         jsrBufferTrunc(&fullPath, moduleEnd);
-        jsrBufferAppendStr(&fullPath, "/" PACKAGE_FILE JSR_EXT);
+        jsrBufferAppendStr(&fullPath, PATH_SEP_STR PACKAGE_FILE JSR_EXT);
         res = importFromPath(vm, &fullPath, name, &mod);
 
         if(res != IMPORT_NOT_FOUND) {

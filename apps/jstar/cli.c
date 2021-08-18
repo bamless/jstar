@@ -136,45 +136,6 @@ static char* getCurrentDirectory(void) {
     return cwd;
 }
 
-// Init the J* `importPaths` list by appending the provided `path` to it, as
-// well as all the paths found in the `JSTARPATH` environment variable.
-// All paths are converted to absolute ones.
-static void initImportPaths(const char* path) {
-    char absolutePath[FILENAME_MAX];
-    char* cwd = getCurrentDirectory();
-
-    if(!cwd) {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error obtaining cwd: %s\n",
-                      strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    cwk_path_get_absolute(cwd, path, absolutePath, FILENAME_MAX);
-    jsrAddImportPath(vm, absolutePath);
-
-    if(opts.ignoreEnv) return;
-
-    const char* jstarPath = getenv(JSTAR_PATH);
-    if(!jstarPath) return;
-
-    JStarBuffer buf;
-    jsrBufferInit(vm, &buf);
-
-    size_t pathLen = strlen(jstarPath);
-    for(size_t i = 0, last = 0; i <= pathLen; i++) {
-        if(jstarPath[i] == PATH_SEP || i == pathLen) {
-            jsrBufferAppend(&buf, jstarPath + last, i - last);
-            cwk_path_get_absolute(cwd, buf.data, absolutePath, FILENAME_MAX);
-            jsrAddImportPath(vm, absolutePath);
-            jsrBufferClear(&buf);
-            last = i + 1;
-        }
-    }
-
-    jsrBufferFree(&buf);
-    free(cwd);
-}
-
 // SIGINT handler to break evaluation on CTRL-C.
 static void sigintHandler(int sig) {
     signal(sig, SIG_DFL);
@@ -183,18 +144,18 @@ static void sigintHandler(int sig) {
 
 // Wrapper function to evaluate source or binary J* code.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluate(const char* name, const JStarBuffer* src) {
+static JStarResult evaluate(const char* path, const JStarBuffer* src) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEval(vm, name, src);
+    JStarResult res = jsrEval(vm, path, src);
     signal(SIGINT, SIG_DFL);
     return res;
 }
 
 // Wrapper function to evaluate J* source code passed in as a c-string.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluateString(const char* name, const char* src) {
+static JStarResult evaluateString(const char* path, const char* src) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEvalString(vm, name, src);
+    JStarResult res = jsrEvalString(vm, path, src);
     signal(SIGINT, SIG_DFL);
     return res;
 }
@@ -211,22 +172,6 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     {
         PROFILE_FUNC()
 
-        jsrInitCommandLineArgs(vm, argc, (const char**)args);
-
-        size_t scriptDirLen;
-        cwk_path_get_dirname(script, &scriptDirLen);
-
-        // Set base import path to script's directory
-        if(scriptDirLen) {
-            char* scriptDirectory = malloc(scriptDirLen + 1);
-            memcpy(scriptDirectory, script, scriptDirLen);
-            scriptDirectory[scriptDirLen] = '\0';
-            initImportPaths(scriptDirectory);
-            free(scriptDirectory);
-        } else {
-            initImportPaths("./");
-        }
-
         JStarBuffer src;
         if(!jsrReadFile(vm, script, &src)) {
             fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
@@ -234,7 +179,22 @@ static JStarResult execScript(const char* script, int argc, char** args) {
             exit(EXIT_FAILURE);
         }
 
-        res = evaluate(script, &src);
+        char* currentDir = getCurrentDirectory();
+        if(!currentDir) {
+            fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
+                          strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        // Convert the script path to an absolute one
+        char absolutePath[FILENAME_MAX];
+        cwk_path_get_absolute(currentDir, script, absolutePath, FILENAME_MAX);
+        free(currentDir);
+
+        // Execute the script; make sure to use the absolute path for consistency
+        jsrInitCommandLineArgs(vm, argc, (const char**)args);
+        res = evaluate(absolutePath, &src);
+
         jsrBufferFree(&src);
     }
 
@@ -442,24 +402,76 @@ static void freeApp(void) {
     replxx_end(replxx);
 }
 
+// Init the J* `importPaths` list by appending the script directory (or the current working
+// directory if no script was provided) and all the paths present in the JSTARPATH env variable.
+// All paths are converted to absolute ones.
+static void initImportPaths(void) {
+    char absolutePath[FILENAME_MAX];
+    char* currentDir = getCurrentDirectory();
+
+    if(!currentDir) {
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
+                      strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    // Compute the main import path
+    char* mainImportPath;
+    size_t directory = 0;
+    if(opts.script) cwk_path_get_dirname(opts.script, &directory);
+
+    if(directory) {
+        mainImportPath = calloc(directory + 1, 1);
+        memcpy(mainImportPath, opts.script, directory);
+    } else {
+        mainImportPath = calloc(strlen("./") + 1, 1);
+        memcpy(mainImportPath, "./", 2);
+    }
+
+    // Convert the main path to an absoute one and append it to the J* import list
+    cwk_path_get_absolute(currentDir, mainImportPath, absolutePath, FILENAME_MAX);
+    jsrAddImportPath(vm, absolutePath);
+    free(mainImportPath);
+
+    // Add all paths appearing in the JSTARPATH env variable
+    const char* jstarPath;
+    if(!opts.ignoreEnv && (jstarPath = getenv(JSTAR_PATH))) {
+        JStarBuffer buf;
+        jsrBufferInit(vm, &buf);
+
+        size_t pathLen = strlen(jstarPath);
+        for(size_t i = 0, last = 0; i <= pathLen; i++) {
+            if(jstarPath[i] == PATH_SEP || i == pathLen) {
+                jsrBufferAppend(&buf, jstarPath + last, i - last);
+                cwk_path_get_absolute(currentDir, buf.data, absolutePath, FILENAME_MAX);
+                jsrAddImportPath(vm, absolutePath);
+                jsrBufferClear(&buf);
+                last = i + 1;
+            }
+        }
+
+        jsrBufferFree(&buf);
+    }
+
+    free(currentDir);
+}
+
 int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
 
-    JStarResult res;
+    initImportPaths();
+
     if(opts.execStmt) {
-        res = evaluateString("<string>", opts.execStmt);
+        JStarResult res = evaluateString("<string>", opts.execStmt);
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args);
         }
-        if(opts.interactive) res = doRepl();
+        if(!opts.interactive) exit(res);
     } else if(opts.script) {
-        res = execScript(opts.script, opts.argsCount, opts.args);
-        if(opts.interactive) res = doRepl();
-    } else {
-        initImportPaths("./");
-        res = doRepl();
+        JStarResult res = execScript(opts.script, opts.argsCount, opts.args);
+        if(!opts.interactive) exit(res);
     }
 
-    exit(res);
+    exit(doRepl());
 }
