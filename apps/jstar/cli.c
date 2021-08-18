@@ -302,7 +302,6 @@ static JStarResult doRepl(void) {
             }
 
             addReplPrint(&src);
-
             res = evaluateString("<stdin>", src.data);
             jsrBufferClear(&src);
         }
