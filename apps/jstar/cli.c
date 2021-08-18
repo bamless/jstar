@@ -370,6 +370,7 @@ static void parseArguments(int argc, char** argv) {
 // APP INITIALIZATION AND MAIN FUNCTION
 // -----------------------------------------------------------------------------
 
+// Init the app state by parsing arguments and initializing J* and replxx
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
@@ -389,6 +390,7 @@ static void initApp(int argc, char** argv) {
     if(!opts.disableColors && !opts.disableHints) replxx_set_hint_callback(replxx, &hints, vm);
 }
 
+// Free the app state
 static void freeApp(void) {
     // Free  the J* VM
     PROFILE_BEGIN_SESSION("jstar-free.json")
