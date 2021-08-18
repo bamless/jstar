@@ -244,10 +244,9 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     ObjString* stField = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
     push(vm, OBJ_VAL(stField));
 
-    Value stVal = NULL_VAL;
-    hashTableGet(&exception->fields, stField, &stVal);
-
-    ObjStackTrace* st = IS_NULL(stVal) ? newStackTrace(vm) : (ObjStackTrace*)AS_OBJ(stVal);
+    Value value = NULL_VAL;
+    hashTableGet(&exception->fields, stField, &value);
+    ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
     st->lastTracedFrame = -1;
 
     hashTablePut(&exception->fields, stField, OBJ_VAL(st));

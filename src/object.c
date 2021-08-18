@@ -80,10 +80,9 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     push(vm, OBJ_VAL(mod));
 
     mod->name = name;
-    mod->path = copyString(vm, path, strlen(path));
+    mod->path = NULL;
     mod->natives.dynlib = NULL;
     mod->natives.registry = NULL;
-
     initHashTable(&mod->globals);
     
     // Implicitly import core
@@ -91,12 +90,13 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
         hashTableMerge(&mod->globals, &vm->core->globals);
     }
 
-    // Set builtin module names
-    hashTablePut(&mod->globals, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
+    // Set builtin names for the module object
+    mod->path = copyString(vm, path, strlen(path));
     hashTablePut(&mod->globals, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
+    hashTablePut(&mod->globals, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
     hashTablePut(&mod->globals, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
-
     pop(vm);
+
     return mod;
 }
 
