@@ -59,7 +59,6 @@ static void registerInParent(JStarVM* vm, ObjModule* mod) {
     ObjString* name = mod->name;
     const char* lastDot = strrchr(name->data, '.');
     if(lastDot == NULL) return;  // Not a submodule, nothing to do
-
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
@@ -91,7 +90,6 @@ static void loadNativeExtension(JStarVM* vm, JStarBuffer* modulePath, ObjString*
 
     void* dynlib = dynload(modulePath->data);
     if(dynlib != NULL) {
-        // Reuse modulepath to create open function name
         jsrBufferClear(modulePath);
         jsrBufferAppendf(modulePath, "jsr_open_%s", simpleName);
 
