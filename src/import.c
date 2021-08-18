@@ -58,10 +58,7 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
 static void registerInParent(JStarVM* vm, ObjModule* mod) {
     ObjString* name = mod->name;
     const char* lastDot = strrchr(name->data, '.');
-
-    if(lastDot == NULL) {
-        return;  // Not a submodule, nothing to do
-    }
+    if(lastDot == NULL) return;  // Not a submodule, nothing to do
 
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
