@@ -417,6 +417,7 @@ static void initImportPaths(void) {
 
     // Compute the main import path
     char* mainImportPath;
+
     size_t directory = 0;
     if(opts.script) cwk_path_get_dirname(opts.script, &directory);
 
@@ -459,7 +460,6 @@ static void initImportPaths(void) {
 int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
-
     initImportPaths();
 
     if(opts.execStmt) {
