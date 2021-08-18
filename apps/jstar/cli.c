@@ -314,9 +314,10 @@ static JStarResult doRepl(void) {
 }
 
 // -----------------------------------------------------------------------------
-// ARGUMENT PARSE
+// APP INITIALIZATION AND MAIN FUNCTION
 // -----------------------------------------------------------------------------
 
+// Parse the app arguments into an Options struct
 static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
@@ -365,10 +366,6 @@ static void parseArguments(int argc, char** argv) {
         opts.argsCount = nonOpts - 1;
     }
 }
-
-// -----------------------------------------------------------------------------
-// APP INITIALIZATION AND MAIN FUNCTION
-// -----------------------------------------------------------------------------
 
 // Init the app state by parsing arguments and initializing J* and replxx
 static void initApp(int argc, char** argv) {

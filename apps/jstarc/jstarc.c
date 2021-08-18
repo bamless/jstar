@@ -275,9 +275,10 @@ static bool processDirectory(const char* dir, const char* out) {
 }
 
 // -----------------------------------------------------------------------------
-// ARGUMENT PARSE
+// APP INITIALIZATION AND MAIN FUNCTION
 // -----------------------------------------------------------------------------
 
+// Parse the app arguments into an Options struct
 static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
@@ -326,10 +327,7 @@ static void parseArguments(int argc, char** argv) {
     opts.input = argv[0];
 }
 
-// -----------------------------------------------------------------------------
-// APP INITIALIZATION AND MAIN FUNCTION
-// -----------------------------------------------------------------------------
-
+// Init the app state by parsing arguments and initializing the J* vm
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
@@ -340,6 +338,7 @@ static void initApp(int argc, char** argv) {
     PROFILE_END_SESSION()
 }
 
+// Free the app state
 static void freeApp(void) {
     PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);
