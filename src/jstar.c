@@ -233,20 +233,28 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
 void jsrRaiseException(JStarVM* vm, int slot) {
     PROFILE_FUNC()
 
-    Value exc = apiStackSlot(vm, slot);
-    if(!isInstance(vm, exc, vm->excClass)) {
+    Value excVal = apiStackSlot(vm, slot);
+    if(!isInstance(vm, excVal, vm->excClass)) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
         return;
     }
 
-    ObjInstance* exception = (ObjInstance*)AS_OBJ(exc);
-    ObjStackTrace* st = newStackTrace(vm);
-    push(vm, OBJ_VAL(st));
-    hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
+    ObjInstance* exception = (ObjInstance*)AS_OBJ(excVal);
+
+    ObjString* stField = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
+    push(vm, OBJ_VAL(stField));
+
+    Value stVal = NULL_VAL;
+    hashTableGet(&exception->fields, stField, &stVal);
+
+    ObjStackTrace* st = IS_NULL(stVal) ? newStackTrace(vm) : (ObjStackTrace*)AS_OBJ(stVal);
+    st->lastTracedFrame = -1;
+
+    hashTablePut(&exception->fields, stField, OBJ_VAL(st));
     pop(vm);
 
     // Place the exception on top of the stack if not already
-    if(!valueEquals(exc, vm->sp[-1])) push(vm, exc);
+    if(!valueEquals(excVal, vm->sp[-1])) push(vm, excVal);
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
