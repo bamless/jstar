@@ -98,7 +98,8 @@
         "conf.h": "c",
         "lex.h": "c",
         "highlighter.h": "c",
-        "replxx.h": "c"
+        "replxx.h": "c",
+        "version": "c"
     },
     "editor.formatOnSave": false
 }

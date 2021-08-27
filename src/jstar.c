@@ -464,7 +464,7 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
     ObjString* nativeName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(nativeName));
     ObjNative* native = newNative(vm, mod, argc, 0, false);
-    native->c.name = nativeName;
+    native->proto.name = nativeName;
     native->fn = nat;
     pop(vm);
 
@@ -617,7 +617,7 @@ void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     Value nat = apiStackSlot(vm, natSlot);
     ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
     ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
-    hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->c.name, nat);
+    hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->proto.name, nat);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {

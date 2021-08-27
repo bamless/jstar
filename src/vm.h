@@ -215,7 +215,7 @@ inline ObjClass* getClass(JStarVM* vm, Value v) {
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
     if(IS_NUM(v)) return vm->numClass;
 
-    switch(TAG_BITS(v)) {
+    switch(BITS_TAG(v)) {
     case HANDLE_BITS:
     case NULL_BITS:
         return vm->nullClass;

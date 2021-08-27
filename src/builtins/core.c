@@ -44,7 +44,7 @@ static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative nat,
     ObjString* strName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(strName));
     ObjNative* native = newNative(vm, m, argc, 0, false);
-    native->c.name = strName;
+    native->proto.name = strName;
     native->fn = nat;
     pop(vm);
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
@@ -286,16 +286,16 @@ JSR_NATIVE(jsr_Null_string) {
 //
 
 // class Function
-static FnCommon* getFnCommon(Obj* functionObj) {
+static Prototype* getPrototype(Obj* functionObj) {
     switch(functionObj->type) {
     case OBJ_CLOSURE:
-        return &((ObjClosure*)functionObj)->fn->c;
+        return &((ObjClosure*)functionObj)->fn->proto;
         break;
     case OBJ_NATIVE:
-        return &((ObjNative*)functionObj)->c;
+        return &((ObjNative*)functionObj)->proto;
         break;
     case OBJ_BOUND_METHOD:
-        return getFnCommon(((ObjBoundMethod*)functionObj)->method);
+        return getPrototype(((ObjBoundMethod*)functionObj)->method);
     default:
         UNREACHABLE();
         break;
@@ -305,7 +305,7 @@ static FnCommon* getFnCommon(Obj* functionObj) {
 
 JSR_NATIVE(jsr_Function_string) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    FnCommon* fnCommon = getFnCommon(fn);
+    Prototype* proto = getPrototype(fn);
 
     const char* fnType = NULL;
     if(fn->type == OBJ_CLOSURE) {
@@ -319,11 +319,11 @@ JSR_NATIVE(jsr_Function_string) {
     JStarBuffer str;
     jsrBufferInit(vm, &str);
 
-    if(strcmp(fnCommon->module->name->data, JSR_CORE_MODULE) == 0) {
-        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, fnCommon->name->data, (void*)fn);
+    if(strcmp(proto->module->name->data, JSR_CORE_MODULE) == 0) {
+        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, proto->name->data, (void*)fn);
     } else {
-        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, fnCommon->module->name->data,
-                         fnCommon->name->data, (void*)fn);
+        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, proto->module->name->data,
+                         proto->name->data, (void*)fn);
     }
 
     jsrBufferPush(&str);
@@ -332,25 +332,25 @@ JSR_NATIVE(jsr_Function_string) {
 
 JSR_NATIVE(jsr_Function_arity) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    FnCommon* fnCommon = getFnCommon(fn);
-    jsrPushNumber(vm, fnCommon->argsCount);
+    Prototype* prototype = getPrototype(fn);
+    jsrPushNumber(vm, prototype->argsCount);
     return true;
 }
 
 JSR_NATIVE(jsr_Function_vararg) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    FnCommon* fnCommon = getFnCommon(fn);
-    jsrPushBoolean(vm, fnCommon->vararg);
+    Prototype* prototype = getPrototype(fn);
+    jsrPushBoolean(vm, prototype->vararg);
     return true;
 }
 
 JSR_NATIVE(jsr_Function_defaults) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    FnCommon* fnCommon = getFnCommon(fn);
-    ObjTuple* defaultTuple = newTuple(vm, fnCommon->defCount);
+    Prototype* prototype = getPrototype(fn);
+    ObjTuple* defaultTuple = newTuple(vm, prototype->defCount);
     push(vm, OBJ_VAL(defaultTuple));
-    if(fnCommon->defCount) {
-        memcpy(defaultTuple->arr, fnCommon->defaults, fnCommon->defCount * sizeof(Value));
+    if(prototype->defCount) {
+        memcpy(defaultTuple->arr, prototype->defaults, prototype->defCount * sizeof(Value));
     }
     return true;
 }
@@ -1679,9 +1679,9 @@ JSR_NATIVE(jsr_eval) {
 
     ObjModule* mod = NULL;
     if(prevFn->type == OBJ_CLOSURE) {
-        mod = ((ObjClosure*)prevFn)->fn->c.module;
+        mod = ((ObjClosure*)prevFn)->fn->proto.module;
     } else {
-        mod = ((ObjNative*)prevFn)->c.module;
+        mod = ((ObjNative*)prevFn)->proto.module;
     }
 
     JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);

@@ -134,7 +134,7 @@ typedef struct ObjModule {
 } ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)
-typedef struct FnCommon {
+typedef struct Prototype {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -142,18 +142,18 @@ typedef struct FnCommon {
     Value* defaults;    // Array of default arguments (NULL if no defaults)
     ObjModule* module;  // The module of the function
     ObjString* name;    // The name of the function
-} FnCommon;
+} Prototype;
 
 // A compiled J* function
 typedef struct ObjFunction {
-    FnCommon c;
+    Prototype proto;
     Code code;             // The actual code chunk containing bytecodes
     uint8_t upvalueCount;  // The number of upvalues the function closes over
 } ObjFunction;
 
 // A C function callable from J*
 typedef struct ObjNative {
-    FnCommon c;
+    Prototype proto;
     JStarNative fn;  // The C function that gets called
 } ObjNative;
 

@@ -128,7 +128,7 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
-    return fn->c.module;
+    return fn->proto.module;
 }
 
 static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
@@ -144,7 +144,7 @@ static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
-    return fn->c.module;
+    return fn->proto.module;
 }
 
 typedef enum ImportRes {
