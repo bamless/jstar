@@ -58,13 +58,14 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
 static void registerInParent(JStarVM* vm, ObjModule* mod) {
     ObjString* name = mod->name;
     const char* lastDot = strrchr(name->data, '.');
-    
+
     // Not a submodule, nothing to do
     if(lastDot == NULL) return;
-    
+
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
+
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(mod));
 }
 
