@@ -267,6 +267,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     }
 
     push(vm, OBJ_VAL(exception));
+
     ObjStackTrace* st = newStackTrace(vm);
     push(vm, OBJ_VAL(st));
     hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));

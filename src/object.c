@@ -266,7 +266,7 @@ void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_STACK_TRACE: {
         ObjStackTrace* st = (ObjStackTrace*)o;
         if(st->records != NULL) {
-            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordSize);
+            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordCapacity);
         }
         GC_FREE(vm, ObjStackTrace, st);
         break;
