@@ -213,23 +213,23 @@ static void argumentError(JStarVM* vm, Prototype* proto, int expected, int suppl
              proto->module->name->data, proto->name->data, quantity, expected, supplied);
 }
 
-static bool adjustArguments(JStarVM* vm, Prototype* proto, uint8_t argc) {
-    uint8_t most = proto->argsCount, least = most - proto->defCount;
+static bool adjustArguments(JStarVM* vm, Prototype* p, uint8_t argc) {
+    uint8_t most = p->argsCount, least = most - p->defCount;
 
-    if(!proto->vararg && argc > most) {
-        argumentError(vm, proto, proto->argsCount, argc, most == least ? "exactly" : "at most");
+    if(!p->vararg && argc > most) {
+        argumentError(vm, p, p->argsCount, argc, most == least ? "exactly" : "at most");
         return false;
     } else if(argc < least) {
-        argumentError(vm, proto, least, argc, (most == least && !proto->vararg) ? "exactly" : "at least");
+        argumentError(vm, p, least, argc, (most == least && !p->vararg) ? "exactly" : "at least");
         return false;
     }
 
     // Push remaining args taking the default value
-    for(uint8_t i = argc - least; i < proto->defCount; i++) {
-        push(vm, proto->defaults[i]);
+    for(uint8_t i = argc - least; i < p->defCount; i++) {
+        push(vm, p->defaults[i]);
     }
 
-    if(proto->vararg) {
+    if(p->vararg) {
         packVarargs(vm, argc > most ? argc - most : 0);
     }
 
