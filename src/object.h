@@ -120,7 +120,7 @@ struct ObjString {
 
 // Native C extension. It contains the handle to the dynamic library and resolved
 // symbol to a native registry.
-typedef struct NativeExt {
+typedef struct {
     void* dynlib;
     JStarNativeReg* registry;
 } NativeExt;
@@ -134,7 +134,7 @@ typedef struct ObjModule {
 } ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)
-typedef struct Prototype {
+typedef struct {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -184,7 +184,7 @@ typedef struct ObjTuple {
     Value arr[];  // Tuple elements (flexible array)
 } ObjTuple;
 
-typedef struct TableEntry {
+typedef struct {
     Value key;  // The key of the entry
     Value val;  // The actual value
 } TableEntry;
@@ -228,7 +228,7 @@ typedef struct ObjClosure {
     ObjUpvalue* upvalues[];  // the actual Upvalues
 } ObjClosure;
 
-typedef struct FrameRecord {
+typedef struct {
     int line;
     ObjString* moduleName;
     ObjString* funcName;
