@@ -1642,5 +1642,3 @@ extern inline Value peek2(JStarVM* vm);
 extern inline Value peekn(JStarVM* vm, int n);
 extern inline ObjClass* getClass(JStarVM* vm, Value v);
 extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
-extern inline int apiStackIndex(JStarVM* vm, int slot);
-extern inline Value apiStackSlot(JStarVM* vm, int slot);

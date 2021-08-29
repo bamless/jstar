@@ -24,6 +24,20 @@
 // JStarNewVM and JStarFreeVM functions are implemented in vm.c
 // -----------------------------------------------------------------------------
 
+static int apiStackIndex(JStarVM* vm, int slot) {
+    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
+    if(slot < 0) return vm->sp + slot - vm->apiStack;
+    return slot;
+}
+
+static Value apiStackSlot(JStarVM* vm, int slot) {
+    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
+    if(slot < 0) return vm->sp[slot];
+    return vm->apiStack[slot];
+}
+
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
     if(line >= 0) {
         fprintf(stderr, "File %s [line:%d]:\n", file, line);

@@ -1482,84 +1482,79 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "_valueName"
 
-static bool checkEnumElem(JStarVM* vm, int slot) {
-    if(!jsrIsString(vm, slot)) {
-        JSR_RAISE(vm, "TypeException", "Enum element must be a String");
+static bool checkEnumElem(JStarVM* vm) {
+    if(!IS_STRING(peek(vm))) {
+        JSR_RAISE(vm, "TypeException", "Enum element must be a String, got %s",
+                  getClass(vm, peek(vm))->name->data);
     }
 
     ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
-    const char* enumElem = jsrGetString(vm, slot);
-    size_t enumElemLen = jsrGetStringSz(vm, slot);
+    ObjString* enumElem = AS_STRING(peek(vm));
 
-    if(isalpha(enumElem[0])) {
-        for(size_t i = 1; i < enumElemLen; i++) {
-            char c = enumElem[i];
+    if(isalpha(enumElem->data[0])) {
+        for(size_t i = 1; i < enumElem->length; i++) {
+            char c = enumElem->data[i];
             if(!isalpha(c) && !isdigit(c) && c != '_') {
-                JSR_RAISE(vm, "InvalidArgException", "Invalid Enum element `%s`", enumElem);
+                JSR_RAISE(vm, "InvalidArgException", "Enum element `%s` is not a valid identifier",
+                          enumElem->data);
             }
         }
 
-        ObjString* str = AS_STRING(apiStackSlot(vm, slot));
-        if(hashTableContainsKey(&inst->fields, str)) {
-            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem);
+        if(hashTableContainsKey(&inst->fields, enumElem)) {
+            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 
         return true;
     }
 
-    JSR_RAISE(vm, "InvalidArgException", "Invalid Enum element `%s`", enumElem);
+    JSR_RAISE(vm, "InvalidArgException", "Enum element `%s` is not a valid identifier",
+              enumElem->data);
 }
 
 JSR_NATIVE(jsr_Enum_new) {
-    jsrPushTable(vm);
-    jsrSetField(vm, 0, M_VALUE_NAME);
-    jsrPop(vm);
-
     if(jsrTupleGetLength(vm, 1) == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     }
 
+    jsrPushTable(vm);
+    jsrSetField(vm, 0, M_VALUE_NAME);
+    jsrPop(vm);
+
     jsrTupleGet(vm, 0, 1);
-    bool customEnum = jsrIsTable(vm, -1);
-    if(!customEnum) {
+    bool isCustom = jsrIsTable(vm, -1);
+
+    if(!isCustom) {
         jsrPop(vm);
         jsrPushValue(vm, 1);
     }
 
-    int i = 0;
+    int iota = 0;
     JSR_FOREACH(2, {
-        if(!checkEnumElem(vm, -1)) return false;
+        if(!checkEnumElem(vm)) return false;
 
-        if(customEnum) {
-            jsrPushValue(vm, 2);
-            jsrPushValue(vm, -2);
-            if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
+        if(isCustom) {
+            jsrPushValue(vm, -1);
+            if(!jsrSubscriptGet(vm, 2)) return false;
         } else {
-            jsrPushNumber(vm, i);
+            jsrPushNumber(vm, iota);
         }
 
         jsrSetField(vm, 0, jsrGetString(vm, -2));
+
+        jsrGetField(vm, 0, M_VALUE_NAME);
+        jsrPushValue(vm, -2);
+        jsrPushValue(vm, -4);
+        if(!jsrSubscriptSet(vm, -3)) return false;
         jsrPop(vm);
-
-        if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
-
-        if(customEnum) {
-            jsrPushValue(vm, 2);
-            jsrPushValue(vm, -3);
-            if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
-        } else {
-            jsrPushNumber(vm, i);
-        }
-
-        jsrPushValue(vm, -3);
-        if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
         jsrPop(vm);
 
         jsrPop(vm);
-        i++;
+        jsrPop(vm);
+
+        iota++;
     },);
 
-    if(i == 0) {
+    if(iota == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     }
 
@@ -1674,22 +1669,15 @@ JSR_NATIVE(jsr_eval) {
     if(vm->frameCount < 1) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
-
-    Obj* prevFn = vm->frames[vm->frameCount - 2].fn;
-
-    ObjModule* mod = NULL;
-    if(prevFn->type == OBJ_CLOSURE) {
-        mod = ((ObjClosure*)prevFn)->fn->proto.module;
-    } else {
-        mod = ((ObjNative*)prevFn)->proto.module;
-    }
+    
+    Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
 
     JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
-    ObjFunction* fn = compileWithModule(vm, "<eval>", mod->name, program);
+    ObjFunction* fn = compileWithModule(vm, "<eval>", proto->module->name, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {

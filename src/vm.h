@@ -253,19 +253,4 @@ inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
     return false;
 }
 
-inline int apiStackIndex(JStarVM* vm, int slot) {
-    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
-    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0) return vm->sp + slot - vm->apiStack;
-    return slot;
-}
-
-// Get the value at API stack slot "slot"
-inline Value apiStackSlot(JStarVM* vm, int slot) {
-    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
-    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0) return vm->sp[slot];
-    return vm->apiStack[slot];
-}
-
 #endif
