@@ -1669,7 +1669,6 @@ JSR_NATIVE(jsr_eval) {
     if(vm->frameCount < 1) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
-    
 
     JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
     if(program == NULL) {
