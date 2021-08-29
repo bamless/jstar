@@ -1670,13 +1670,13 @@ JSR_NATIVE(jsr_eval) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
     
-    Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
 
     JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
+    Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
     ObjFunction* fn = compileWithModule(vm, "<eval>", proto->module->name, program);
     jsrStmtFree(program);
 
