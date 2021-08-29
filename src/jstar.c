@@ -227,7 +227,6 @@ void jsrEvalBreak(JStarVM* vm) {
 
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
-
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
@@ -237,7 +236,6 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
 
 void jsrGetStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
-
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
@@ -249,7 +247,7 @@ void jsrRaiseException(JStarVM* vm, int slot) {
 
     Value excVal = apiStackSlot(vm, slot);
     if(!isInstance(vm, excVal, vm->excClass)) {
-        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+        jsrRaise(vm, "TypeException", "Can only raise Exception instances");
         return;
     }
 
@@ -267,7 +265,9 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     pop(vm);
 
     // Place the exception on top of the stack if not already
-    if(!valueEquals(excVal, vm->sp[-1])) push(vm, excVal);
+    if(!valueEquals(excVal, vm->sp[-1])) {
+        push(vm, excVal);
+    }
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
@@ -369,10 +369,6 @@ error:
     return false;
 }
 
-static void validateStack(JStarVM* vm) {
-    ASSERT((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
-}
-
 bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
     Value v1 = apiStackSlot(vm, slot1);
     Value v2 = apiStackSlot(vm, slot2);
@@ -406,8 +402,11 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
 bool jsrIs(JStarVM* vm, int slot, int classSlot) {
     Value v = apiStackSlot(vm, slot);
     Value cls = apiStackSlot(vm, classSlot);
-    if(!IS_CLASS(cls)) return false;
-    return isInstance(vm, v, AS_CLASS(cls));
+    return IS_CLASS(cls) ? isInstance(vm, v, AS_CLASS(cls)) : false;
+}
+
+static void validateStack(JStarVM* vm) {
+    ASSERT((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
 }
 
 void jsrPushNumber(JStarVM* vm, double number) {
