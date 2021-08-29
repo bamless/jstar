@@ -382,6 +382,7 @@ bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
 bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
     Value v1 = apiStackSlot(vm, slot1);
     Value v2 = apiStackSlot(vm, slot2);
+
     if(IS_NUM(v1) || IS_NULL(v1) || IS_BOOL(v1)) {
         return valueEquals(v1, v2);
     }
