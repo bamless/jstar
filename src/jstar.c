@@ -389,11 +389,10 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
         push(vm, v1);
         push(vm, v2);
         JStarResult res = jsrCallMethod(vm, "__eq__", 1);
-        if(res == JSR_SUCCESS) {
+        if(res == JSR_SUCCESS)
             return valueToBool(pop(vm));
-        } else {
+        else
             return pop(vm), false;
-        }
     } else {
         return valueEquals(v1, v2);
     }
