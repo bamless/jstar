@@ -597,6 +597,7 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 
     size_t size = jsrGetNumber(vm, -1);
     jsrPop(vm);
+
     return size;
 }
 
