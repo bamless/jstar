@@ -1514,7 +1514,6 @@ op_return:
                 break;
             }
         }
-        // The exception has been handled, resume normal execution flow
         DISPATCH();
     }
 
