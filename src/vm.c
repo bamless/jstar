@@ -237,8 +237,8 @@ static bool adjustArguments(JStarVM* vm, Prototype* p, uint8_t argc) {
 }
 
 static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
-    if(vm->frameCount + 1 == RECURSION_LIMIT) {
-        jsrRaise(vm, "StackOverflowException", NULL);
+    if(vm->frameCount + 1 == MAX_FRAMES) {
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
         return false;
     }
 
@@ -257,8 +257,8 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
 }
 
 static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
-    if(vm->frameCount + 1 == RECURSION_LIMIT) {
-        jsrRaise(vm, "StackOverflowException", NULL);
+    if(vm->frameCount + 1 == MAX_FRAMES) {
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
         return false;
     }
 
