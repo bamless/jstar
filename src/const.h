@@ -3,20 +3,24 @@
 
 #include <stdint.h>
 
+// TODO: Move constants in other files?
+
 // -----------------------------------------------------------------------------
 // RUNTIME CONSTANTS
 // -----------------------------------------------------------------------------
 
-#define RECURSION_LIMIT 100000                         // Max recursion depth
+#define MAX_FRAMES      100000                         // Max number of frame (J* recursion depth)
+#define MAX_RECURSION   1000                           // Max allowed recursion for reentrant calls
 #define FRAME_SZ        100                            // Default starting frame size
 #define STACK_SZ        (FRAME_SZ) * (MAX_LOCALS + 1)  // Deafult starting stack size
 #define INIT_GC         (1024 * 1024 * 20)             // 20MiB - First GC collection point
-#define HEAP_GROW_RATE  2                              // The heap growing rate
+#define HEAP_GROW_RATE  2                              // How much the heap will grow after a gc
 #define HANDLER_MAX     6                              // Max number of try-excepts for a frame
 #define SUPER_SLOT      0                              // Constant holding the method's super-class
-#define LIST_DEF_CAP    8                              // Starting capacity of a List with at least 1 element
-#define LIST_GROW_RATE  2                              // List growing rate
-#define JSR_BUF_DEF_CAP 16                             // Default capacity of a JStarBuffer
+
+#define LIST_DEF_CAP    8   // Default List capacity
+#define LIST_GROW_RATE  2   // List growing rate
+#define JSR_BUF_DEF_CAP 16  // Default capacity of a JStarBuffer
 
 // -----------------------------------------------------------------------------
 // COMPILER CONSTANTS
@@ -32,9 +36,7 @@
 
 #define CTOR_STR   "new"
 #define THIS_STR   "this"
-#define ARGV_STR   "argv"
 #define ANON_STR   "anon:"
-#define IMPORT_STR "importPaths"
 
 #define EXC_ERR   "_err"
 #define EXC_CAUSE "_cause"
