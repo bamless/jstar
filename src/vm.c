@@ -919,13 +919,13 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(!res) UNWIND_STACK(vm);                   \
     } while(0)
 
-#define RESTORE_HANDLER(h, frame, cause, excVal) \
-    do {                                         \
-        frame->ip = h->address;                  \
-        vm->sp = h->savedSp;                     \
-        closeUpvalues(vm, vm->sp);               \
-        push(vm, excVal);                        \
-        push(vm, NUM_VAL(cause));                \
+#define RESTORE_HANDLER(vm, h, frame, cause, exc) \
+    do {                                          \
+        frame->ip = h->address;                   \
+        vm->sp = h->savedSp;                      \
+        closeUpvalues(vm, vm->sp);                \
+        push(vm, exc);                            \
+        push(vm, NUM_VAL(cause));                 \
     } while(0)
 
 #define UNWIND_STACK(vm)                  \
@@ -1296,7 +1296,7 @@ op_return:
         while(frame->handlerc > 0) {
             Handler* h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
-                RESTORE_HANDLER(h, frame, CAUSE_RETURN, ret);
+                RESTORE_HANDLER(vm, h, frame, CAUSE_RETURN, ret);
                 LOAD_STATE();
                 DISPATCH();
             }
@@ -1621,7 +1621,7 @@ bool unwindStack(JStarVM* vm, int depth) {
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerc];
-            RESTORE_HANDLER(h, frame, CAUSE_EXCEPT, exc);
+            RESTORE_HANDLER(vm, h, frame, CAUSE_EXCEPT, exc);
             return true;
         }
 
