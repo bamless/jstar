@@ -164,7 +164,7 @@ static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
 }
 
 static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
-    if(vm->upvalues == NULL) {
+    if(!vm->upvalues) {
         vm->upvalues = newUpvalue(vm, addr);
         return vm->upvalues;
     }
@@ -172,26 +172,28 @@ static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
     ObjUpvalue* prev = NULL;
     ObjUpvalue* upvalue = vm->upvalues;
 
-    while(upvalue != NULL && upvalue->addr > addr) {
+    while(upvalue && upvalue->addr > addr) {
         prev = upvalue;
         upvalue = upvalue->next;
     }
 
-    if(upvalue != NULL && upvalue->addr == addr) return upvalue;
-
-    ObjUpvalue* createdUpvalue = newUpvalue(vm, addr);
-    if(prev == NULL) {
-        vm->upvalues = createdUpvalue;
-    } else {
-        prev->next = createdUpvalue;
+    if(upvalue && upvalue->addr == addr) {
+        return upvalue;
     }
 
-    createdUpvalue->next = upvalue;
-    return createdUpvalue;
+    ObjUpvalue* created = newUpvalue(vm, addr);
+    if(!prev) {
+        vm->upvalues = created;
+    } else {
+        prev->next = created;
+    }
+
+    created->next = upvalue;
+    return created;
 }
 
 static void closeUpvalues(JStarVM* vm, Value* last) {
-    while(vm->upvalues != NULL && vm->upvalues->addr >= last) {
+    while(vm->upvalues && vm->upvalues->addr >= last) {
         ObjUpvalue* upvalue = vm->upvalues;
         upvalue->closed = *upvalue->addr;
         upvalue->addr = &upvalue->closed;
