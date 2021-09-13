@@ -95,7 +95,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
         vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
-        jsrPop(vm);
+        pop(vm);
     }
 
     pop(vm);
@@ -130,7 +130,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
         vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
-        jsrPop(vm);
+        pop(vm);
     }
 
     pop(vm);
@@ -231,7 +231,7 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
     jsrCallMethod(vm, "printStacktrace", 0);
-    jsrPop(vm);
+    pop(vm);
 }
 
 void jsrGetStacktrace(JStarVM* vm, int slot) {
@@ -508,7 +508,7 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
         return *err = true;
     }
     if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
-        jsrPop(vm);
+        pop(vm);
         return false;
     }
 
@@ -596,7 +596,7 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
     }
 
     size_t size = jsrGetNumber(vm, -1);
-    jsrPop(vm);
+    pop(vm);
 
     return size;
 }
