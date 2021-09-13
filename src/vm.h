@@ -15,16 +15,14 @@
 #include "value.h"
 
 // Enum encoding special method names needed at runtime
+// Mainly used for operator overloading
 // See methodSyms array in vm.c
 typedef enum MethodSymbol {
-    // Constructor method
     SYM_CTOR,
 
-    // Iterator methods
     SYM_ITER,
     SYM_NEXT,
 
-    // Binary overloads
     SYM_ADD,
     SYM_SUB,
     SYM_MUL,
@@ -36,7 +34,6 @@ typedef enum MethodSymbol {
     SYM_LSHFT,
     SYM_RSHFT,
 
-    // Reverse binary overloads
     SYM_RADD,
     SYM_RSUB,
     SYM_RMUL,
@@ -48,31 +45,26 @@ typedef enum MethodSymbol {
     SYM_RLSHFT,
     SYM_RRSHFT,
 
-    // Subscript overloads
     SYM_GET,
     SYM_SET,
 
-    // Unary overloads
     SYM_NEG,
     SYM_INV,
 
-    // Comparison and ordering overloads
     SYM_EQ,
     SYM_LT,
     SYM_LE,
     SYM_GT,
     SYM_GE,
 
-    // `^` operator
     SYM_POW,
     SYM_RPOW,
 
-    // Sentinel
     SYM_END
 } MethodSymbol;
 
-// This stores the info needed to jump
-// to handler code and to restore the
+// Struct that stores the info needed to
+// jump to handler code and to restore the
 // VM state when handling exceptions
 typedef struct Handler {
     enum {
@@ -80,7 +72,7 @@ typedef struct Handler {
         HANDLER_EXCEPT,
     } type;            // The type of the handler block
     uint8_t* address;  // The address of handler code
-    Value* savedSp;    // Stack pointer to restore before executing the code at `address`
+    Value* savedSp;    // Saved stack state before the try block was enterd
 } Handler;
 
 // Stackframe of a function executing in
