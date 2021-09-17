@@ -272,23 +272,22 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
-    size_t apiStackOffset = vm->apiStack - vm->stack;
+    size_t savedApiStack = vm->apiStack - vm->stack;
 
     vm->module = native->proto.module;
     vm->apiStack = frame->stack;
 
     if(!native->fn(vm)) {
         vm->module = oldModule;
-        vm->apiStack = vm->stack + apiStackOffset;
+        vm->apiStack = vm->stack + savedApiStack;
         return false;
     }
 
     Value ret = pop(vm);
-
     vm->frameCount--;
     vm->sp = vm->apiStack;
     vm->module = oldModule;
-    vm->apiStack = vm->stack + apiStackOffset;
+    vm->apiStack = vm->stack + savedApiStack;
 
     push(vm, ret);
     return true;
