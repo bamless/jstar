@@ -10,7 +10,7 @@
 // -----------------------------------------------------------------------------
 
 #define MAX_FRAMES      100000                         // Max number of frame (J* recursion depth)
-#define MAX_RECURSION   1000                           // Max allowed recursion for reentrant calls
+#define MAX_REENTRANT   1000                           // Max allowed recursion for reentrant calls
 #define FRAME_SZ        100                            // Default starting frame size
 #define STACK_SZ        (FRAME_SZ) * (MAX_LOCALS + 1)  // Deafult starting stack size
 #define INIT_GC         (1024 * 1024 * 20)             // 20MiB - First GC collection point

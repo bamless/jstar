@@ -133,6 +133,9 @@ struct JStarVM {
     Frame* frames;
     int frameSz, frameCount;
 
+    // Number of reentrant calls made into the eval loop
+    int reentrantCalls;
+
     // Stack used during native function calls
     Value* apiStack;
 

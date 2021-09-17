@@ -167,6 +167,7 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
     JStarResult ret;
     ObjString* dummy = copyString(vm, "", 0);  // Use dummy module since the code won't be executed
     ObjFunction* fn = deserializeWithModule(vm, path, dummy, code, &ret);
+
     if(ret == JSR_SUCCESS) {
         disassembleFunction(fn);
     }
@@ -174,51 +175,83 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
     return ret;
 }
 
-static JStarResult executeCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
-    if(vm->frameCount > evalDepth && !runEval(vm, evalDepth)) {
-        // Exception was thrown, push it as result
-        Value exc = pop(vm);
-        vm->sp = vm->stack + stackPtrOffset;
-        push(vm, exc);
-        return JSR_RUNTIME_ERR;
+static bool executeCall(JStarVM* vm, int evalDepth, size_t base) {
+    if(vm->frameCount > evalDepth) {
+        if(!runEval(vm, evalDepth)) {
+            // Exception was thrown, push it as a result
+            Value exception = pop(vm);
+            vm->sp = vm->stack + base;
+            push(vm, exception);
+            return false;
+        }
     }
-    return JSR_SUCCESS;
+    return true;
 }
 
-static void finishUnwind(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
-    PROFILE_FUNC()
-
-    // Finish to unwind the stack
+static void finishUnwind(JStarVM* vm, int evalDepth, size_t base) {
+    // If needed, finish to unwind the stack
     if(vm->frameCount > evalDepth) {
         unwindStack(vm, evalDepth);
-        Value exc = pop(vm);
-        vm->sp = vm->stack + stackPtrOffset;
-        push(vm, exc);
     }
+
+    // Push the exception as a result
+    Value exception = pop(vm);
+    vm->sp = vm->stack + base;
+    push(vm, exception);
 }
 
 JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
     int evalDepth = vm->frameCount;
-    size_t stackPtrOffset = vm->sp - vm->stack - argc - 1;
+    size_t base = vm->sp - vm->stack - argc - 1;
 
-    if(!callValue(vm, peekn(vm, argc), argc)) {
-        finishUnwind(vm, evalDepth, stackPtrOffset);
+    if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
+        vm->sp = vm->stack + base;
+        jsrRaise(vm, "StackOverflowException", NULL);
         return JSR_RUNTIME_ERR;
     }
 
-    return executeCall(vm, evalDepth, stackPtrOffset);
+    vm->reentrantCalls++;
+
+    if(!callValue(vm, peekn(vm, argc), argc)) {
+        vm->reentrantCalls--;
+        finishUnwind(vm, evalDepth, base);
+        return JSR_RUNTIME_ERR;
+    }
+
+    if(!executeCall(vm, evalDepth, base)) {
+        vm->reentrantCalls--;
+        return JSR_RUNTIME_ERR;
+    }
+
+    vm->reentrantCalls--;
+    return JSR_SUCCESS;
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
-    size_t stackPtrOffset = vm->sp - vm->stack - argc - 1;
+    size_t base = vm->sp - vm->stack - argc - 1;
 
-    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
-        finishUnwind(vm, evalDepth, stackPtrOffset);
+    if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
+        vm->sp = vm->stack + base;
+        jsrRaise(vm, "StackOverflowException", NULL);
         return JSR_RUNTIME_ERR;
     }
 
-    return executeCall(vm, evalDepth, stackPtrOffset);
+    vm->reentrantCalls++;
+
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
+        vm->reentrantCalls--;
+        finishUnwind(vm, evalDepth, base);
+        return JSR_RUNTIME_ERR;
+    }
+
+    if(!executeCall(vm, evalDepth, base)) {
+        vm->reentrantCalls--;
+        return JSR_RUNTIME_ERR;
+    }
+
+    vm->reentrantCalls--;
+    return JSR_SUCCESS;
 }
 
 void jsrEvalBreak(JStarVM* vm) {
@@ -239,7 +272,11 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
-    jsrCallMethod(vm, "getStacktrace", 0);
+
+    // Can fail with a stack overflow (for example if there is a cycle in exception causes)
+    if(jsrCallMethod(vm, "getStacktrace", 0) != JSR_SUCCESS) {
+        jsrGetStacktrace(vm, -1);
+    }
 }
 
 void jsrRaiseException(JStarVM* vm, int slot) {
