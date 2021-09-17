@@ -206,7 +206,7 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
 
     if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
         vm->sp = vm->stack + base;
-        jsrRaise(vm, "StackOverflowException", NULL);
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         return JSR_RUNTIME_ERR;
     }
 
@@ -233,7 +233,7 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
 
     if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
         vm->sp = vm->stack + base;
-        jsrRaise(vm, "StackOverflowException", NULL);
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         return JSR_RUNTIME_ERR;
     }
 
@@ -260,15 +260,22 @@ void jsrEvalBreak(JStarVM* vm) {
 
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
+
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
-    jsrCallMethod(vm, "printStacktrace", 0);
+
+    // Can fail with a stack overflow (for example if there is a cycle in exception causes)
+    if(jsrCallMethod(vm, "printStacktrace", 0) != JSR_SUCCESS) {
+        jsrPrintStacktrace(vm, -1);
+    }
+
     pop(vm);
 }
 
 void jsrGetStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
+
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
