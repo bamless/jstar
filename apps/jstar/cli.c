@@ -317,6 +317,61 @@ static JStarResult doRepl(void) {
 // APP INITIALIZATION AND MAIN FUNCTION
 // -----------------------------------------------------------------------------
 
+// Init the J* `importPaths` list by appending the script directory (or the current working
+// directory if no script was provided) and all the paths present in the JSTARPATH env variable.
+// All paths are converted to absolute ones.
+static void initImportPaths(void) {
+    char absolutePath[FILENAME_MAX];
+    char* currentDir = getCurrentDirectory();
+
+    if(!currentDir) {
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
+                      strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    // Compute the absolute main import path
+    size_t directory = 0;
+    if(opts.script) {
+        cwk_path_get_dirname(opts.script, &directory);
+    }
+
+    char* mainImportPath;
+    if(directory) {
+        mainImportPath = calloc(directory + 1, 1);
+        memcpy(mainImportPath, opts.script, directory);
+    } else {
+        mainImportPath = calloc(strlen("./") + 1, 1);
+        memcpy(mainImportPath, "./", 2);
+    }
+
+    cwk_path_get_absolute(currentDir, mainImportPath, absolutePath, FILENAME_MAX);
+    jsrAddImportPath(vm, absolutePath);
+    free(mainImportPath);
+
+    // Add all other paths appearing in the JSTARPATH env variable
+    const char* jstarPath;
+    if(!opts.ignoreEnv && (jstarPath = getenv(JSTAR_PATH))) {
+        JStarBuffer buf;
+        jsrBufferInit(vm, &buf);
+
+        size_t pathLen = strlen(jstarPath);
+        for(size_t i = 0, last = 0; i <= pathLen; i++) {
+            if(jstarPath[i] == PATH_SEP || i == pathLen) {
+                jsrBufferAppend(&buf, jstarPath + last, i - last);
+                cwk_path_get_absolute(currentDir, buf.data, absolutePath, FILENAME_MAX);
+                jsrAddImportPath(vm, absolutePath);
+                jsrBufferClear(&buf);
+                last = i + 1;
+            }
+        }
+
+        jsrBufferFree(&buf);
+    }
+
+    free(currentDir);
+}
+
 // Parse the app arguments into an Options struct
 static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
@@ -398,61 +453,6 @@ static void freeApp(void) {
     // Free replxx
     replxx_history_clear(replxx);
     replxx_end(replxx);
-}
-
-// Init the J* `importPaths` list by appending the script directory (or the current working
-// directory if no script was provided) and all the paths present in the JSTARPATH env variable.
-// All paths are converted to absolute ones.
-static void initImportPaths(void) {
-    char absolutePath[FILENAME_MAX];
-    char* currentDir = getCurrentDirectory();
-
-    if(!currentDir) {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
-                      strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    // Compute the main import path
-    char* mainImportPath;
-
-    size_t directory = 0;
-    if(opts.script) cwk_path_get_dirname(opts.script, &directory);
-
-    if(directory) {
-        mainImportPath = calloc(directory + 1, 1);
-        memcpy(mainImportPath, opts.script, directory);
-    } else {
-        mainImportPath = calloc(strlen("./") + 1, 1);
-        memcpy(mainImportPath, "./", 2);
-    }
-
-    // Convert the main path to an absoute one and append it to the J* import list
-    cwk_path_get_absolute(currentDir, mainImportPath, absolutePath, FILENAME_MAX);
-    jsrAddImportPath(vm, absolutePath);
-    free(mainImportPath);
-
-    // Add all paths appearing in the JSTARPATH env variable
-    const char* jstarPath;
-    if(!opts.ignoreEnv && (jstarPath = getenv(JSTAR_PATH))) {
-        JStarBuffer buf;
-        jsrBufferInit(vm, &buf);
-
-        size_t pathLen = strlen(jstarPath);
-        for(size_t i = 0, last = 0; i <= pathLen; i++) {
-            if(jstarPath[i] == PATH_SEP || i == pathLen) {
-                jsrBufferAppend(&buf, jstarPath + last, i - last);
-                cwk_path_get_absolute(currentDir, buf.data, absolutePath, FILENAME_MAX);
-                jsrAddImportPath(vm, absolutePath);
-                jsrBufferClear(&buf);
-                last = i + 1;
-            }
-        }
-
-        jsrBufferFree(&buf);
-    }
-
-    free(currentDir);
 }
 
 int main(int argc, char** argv) {
