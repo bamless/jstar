@@ -322,8 +322,8 @@ static JStarResult doRepl(void) {
 // All paths are converted to absolute ones.
 static void initImportPaths(void) {
     char absolutePath[FILENAME_MAX];
+    
     char* currentDir = getCurrentDirectory();
-
     if(!currentDir) {
         fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
                       strerror(errno));
