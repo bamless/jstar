@@ -6,12 +6,12 @@
 #include "parse/ast.h"
 #include "value.h"
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program);
-ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
+ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* mod, JStarStmt* program);
+ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* mod,
                                    const JStarBuffer* code, JStarResult* err);
 
-void setModule(JStarVM* vm, ObjString* name, ObjModule* module);
-ObjModule* getModule(JStarVM* vm, ObjString* name);
-ObjModule* importModule(JStarVM* vm, ObjString* name);
+void setModule(JStarVM* vm, ObjString* name, ObjModule* moduleName);
+ObjModule* getModule(JStarVM* vm, ObjString* moduleName);
+ObjModule* importModule(JStarVM* vm, ObjString* moduleName);
 
 #endif

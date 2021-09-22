@@ -24,28 +24,28 @@
     #define PATH_SEP_STR  "/"
 #endif
 
-static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* name) {
-    ObjModule* module = getModule(vm, name);
+static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* moduleName) {
+    ObjModule* module = getModule(vm, moduleName);
     if(module == NULL) {
-        push(vm, OBJ_VAL(name));
-        module = newModule(vm, path, name);
-        setModule(vm, name, module);
+        push(vm, OBJ_VAL(moduleName));
+        module = newModule(vm, path, moduleName);
+        setModule(vm, moduleName, module);
         pop(vm);
     }
     return module;
 }
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program) {
+ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* mod, JStarStmt* program) {
     PROFILE_FUNC()
-    ObjModule* module = getOrCreateModule(vm, path, name);
+    ObjModule* module = getOrCreateModule(vm, path, mod);
     ObjFunction* fn = compile(vm, path, module, program);
     return fn;
 }
 
-ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
+ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* moduleName,
                                    const JStarBuffer* code, JStarResult* err) {
     PROFILE_FUNC()
-    ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, path, name), code, err);
+    ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, path, moduleName), code, err);
     if(*err == JSR_VERSION_ERR) {
         vm->errorCallback(vm, *err, path, -1, "Incompatible binary file version");
     }
@@ -55,8 +55,8 @@ ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* nam
     return fn;
 }
 
-static void registerInParent(JStarVM* vm, ObjModule* mod) {
-    ObjString* name = mod->name;
+static void registerInParent(JStarVM* vm, ObjModule* module) {
+    ObjString* name = module->name;
     const char* lastDot = strrchr(name->data, '.');
 
     // Not a submodule, nothing to do
@@ -66,7 +66,7 @@ static void registerInParent(JStarVM* vm, ObjModule* mod) {
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
 
-    hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(mod));
+    hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* mod) {
@@ -74,9 +74,9 @@ void setModule(JStarVM* vm, ObjString* name, ObjModule* mod) {
     registerInParent(vm, mod);
 }
 
-ObjModule* getModule(JStarVM* vm, ObjString* name) {
+ObjModule* getModule(JStarVM* vm, ObjString* moduleName) {
     Value module;
-    if(!hashTableGet(&vm->modules, name, &module)) {
+    if(!hashTableGet(&vm->modules, moduleName, &module)) {
         return NULL;
     }
     return AS_MODULE(module);
@@ -114,7 +114,7 @@ static void parseError(const char* file, int line, const char* error, void* udat
     vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
 }
 
-static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src) {
+static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* modName, const char* src) {
     PROFILE_FUNC()
 
     JStarStmt* program = jsrParse(path, src, parseError, vm);
@@ -122,7 +122,7 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
         return NULL;
     }
 
-    ObjFunction* fn = compileWithModule(vm, path, name, program);
+    ObjFunction* fn = compileWithModule(vm, path, modName, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {
@@ -135,12 +135,12 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
     return fn->proto.module;
 }
 
-static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
+static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* modName,
                                const JStarBuffer* code) {
     PROFILE_FUNC()
 
     JStarResult res;
-    ObjFunction* fn = deserializeWithModule(vm, path, name, code, &res);
+    ObjFunction* fn = deserializeWithModule(vm, path, modName, code, &res);
     if(res != JSR_SUCCESS) {
         return NULL;
     }
@@ -157,7 +157,8 @@ typedef enum ImportRes {
     IMPORT_NOT_FOUND,
 } ImportRes;
 
-static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name, ObjModule** res) {
+static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* modName,
+                                ObjModule** res) {
     PROFILE_FUNC()
 
     JStarBuffer src;
@@ -166,9 +167,9 @@ static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name,
     }
 
     if(isCompiledCode(&src)) {
-        *res = importBinary(vm, path->data, name, &src);
+        *res = importBinary(vm, path->data, modName, &src);
     } else {
-        *res = importSource(vm, path->data, name, src.data);
+        *res = importSource(vm, path->data, modName, src.data);
     }
 
     jsrBufferFree(&src);
@@ -177,11 +178,11 @@ static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name,
         return IMPORT_ERR;
     }
 
-    loadNativeExtension(vm, path, name);
+    loadNativeExtension(vm, path, modName);
     return IMPORT_OK;
 }
 
-static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
+static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* moduleName) {
     PROFILE_FUNC()
 
     ObjList* paths = vm->importPaths;
@@ -199,8 +200,8 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
         }
 
         size_t moduleStart = fullPath.size;
-        size_t moduleEnd = moduleStart + name->length;
-        jsrBufferAppendStr(&fullPath, name->data);
+        size_t moduleEnd = moduleStart + moduleName->length;
+        jsrBufferAppendStr(&fullPath, moduleName->data);
         jsrBufferReplaceChar(&fullPath, moduleStart, '.', PATH_SEP_CHAR);
 
         ImportRes res;
@@ -208,7 +209,7 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
 
         // Try to load a binary package (__package__.jsc file in a directory)
         jsrBufferAppendStr(&fullPath, PATH_SEP_STR PACKAGE_FILE JSC_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, moduleName, &mod);
 
         if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
@@ -218,7 +219,7 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
         // Try to load a source package (__package__.jsr file in a directory)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, PATH_SEP_STR PACKAGE_FILE JSR_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, moduleName, &mod);
 
         if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
@@ -228,7 +229,7 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
         // If there is no package try to load compiled module (i.e. `.jsc` file)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSC_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, moduleName, &mod);
 
         if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
@@ -238,7 +239,7 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
         // No binary module found, finally try with source module (i.e. `.jsr` file)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSR_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, moduleName, &mod);
 
         if(res != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
@@ -252,20 +253,20 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
     return NULL;
 }
 
-ObjModule* importModule(JStarVM* vm, ObjString* name) {
+ObjModule* importModule(JStarVM* vm, ObjString* moduleName) {
     PROFILE_FUNC()
 
-    if(hashTableContainsKey(&vm->modules, name)) {
+    if(hashTableContainsKey(&vm->modules, moduleName)) {
         push(vm, NULL_VAL);
-        return getModule(vm, name);
+        return getModule(vm, moduleName);
     }
 
     size_t len;
-    const char* builtinBytecode = readBuiltInModule(name->data, &len);
+    const char* builtinBytecode = readBuiltInModule(moduleName->data, &len);
     if(builtinBytecode != NULL) {
         JStarBuffer code = jsrBufferWrap(vm, builtinBytecode, len);
-        return importBinary(vm, name->data, name, &code);
+        return importBinary(vm, moduleName->data, moduleName, &code);
     }
 
-    return importModuleOrPackage(vm, name);
+    return importModuleOrPackage(vm, moduleName);
 }
