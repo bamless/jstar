@@ -176,15 +176,18 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
 }
 
 static bool executeCall(JStarVM* vm, int evalDepth, size_t base) {
-    if(vm->frameCount > evalDepth) {
-        if(!runEval(vm, evalDepth)) {
-            // Exception was thrown, push it as a result
-            Value exception = pop(vm);
-            vm->sp = vm->stack + base;
-            push(vm, exception);
-            return false;
-        }
+    // Nothing to do, must have been a native call
+    if(vm->frameCount <= evalDepth) return true;
+
+    // Eval the function
+    if(!runEval(vm, evalDepth)) {
+        // Exception was thrown, push it as a result
+        Value exception = pop(vm);
+        vm->sp = vm->stack + base;
+        push(vm, exception);
+        return false;
     }
+
     return true;
 }
 
