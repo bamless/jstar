@@ -556,7 +556,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 bool getValueField(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
+        switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             Value field;
             ObjInstance* inst = AS_INSTANCE(val);
@@ -612,7 +612,7 @@ bool getValueField(JStarVM* vm, ObjString* name) {
 bool setValueField(JStarVM* vm, ObjString* name) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
+        switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
             hashTablePut(&inst->fields, name, peek(vm));
@@ -637,7 +637,7 @@ bool setValueField(JStarVM* vm, ObjString* name) {
 bool getValueSubscript(JStarVM* vm) {
     if(IS_OBJ(peek2(vm))) {
         Value operand = peek2(vm);
-        switch(OBJ_TYPE(operand)) {
+        switch(AS_OBJ(operand)->type) {
         case OBJ_LIST:
             return getListSubscript(vm);
         case OBJ_TUPLE:
@@ -682,7 +682,7 @@ bool setValueSubscript(JStarVM* vm) {
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
-        switch(OBJ_TYPE(callee)) {
+        switch(AS_OBJ(callee)->type) {
         case OBJ_CLOSURE:
             return callFunction(vm, AS_CLOSURE(callee), argc);
         case OBJ_NATIVE:
@@ -736,7 +736,7 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
+        switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
@@ -1420,7 +1420,7 @@ op_return:
                      getClass(vm, peek(vm))->name->data);
             UNWIND_STACK(vm);
         }
-        if(!unpackObject(vm, AS_OBJ(pop(vm)),  NEXT_CODE())) {
+        if(!unpackObject(vm, AS_OBJ(pop(vm)), NEXT_CODE())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
