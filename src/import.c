@@ -182,6 +182,8 @@ static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name)
     }
 
     loadNativeExtension(vm, path, name);
+
+    res.status = IMPORT_OK;
     return res;
 }
 
