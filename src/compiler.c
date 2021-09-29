@@ -210,7 +210,7 @@ static void exitFunctionScope(Compiler* c) {
 static uint16_t createConst(Compiler* c, Value constant, int line) {
     int index = addConstant(&c->func->code, constant);
     if(index == -1) {
-        error(c, line, "Too many constants in function %s", c->func->c.name->data);
+        error(c, line, "Too many constants in function %s", c->func->proto.name->data);
         return 0;
     }
     return (uint16_t)index;
@@ -231,7 +231,7 @@ static uint16_t identifierConst(Compiler* c, JStarIdentifier* id, int line) {
 
 static int addLocal(Compiler* c, JStarIdentifier* id, int line) {
     if(c->localsCount == MAX_LOCALS) {
-        error(c, line, "Too many local variables in function %s", c->func->c.name->data);
+        error(c, line, "Too many local variables in function %s", c->func->proto.name->data);
         return -1;
     }
 
@@ -267,7 +267,7 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
     }
 
     if(c->func->upvalueCount == MAX_LOCALS) {
-        error(c, line, "Too many upvalues in function %s", c->func->c.name->data);
+        error(c, line, "Too many upvalues in function %s", c->func->proto.name->data);
         return -1;
     }
 
@@ -466,22 +466,22 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
     return copyString(c->vm, sb->data, sb->size);
 }
 
-static void addFunctionDefaults(Compiler* c, FnCommon* fn, Vector* defaultArgs) {
+static void addFunctionDefaults(Compiler* c, Prototype* proto, Vector* defaultArgs) {
     int i = 0;
     vecForeach(JStarExpr** it, *defaultArgs) {
         JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
-            fn->defaults[i++] = NUM_VAL(e->as.num);
+            proto->defaults[i++] = NUM_VAL(e->as.num);
             break;
         case JSR_BOOL:
-            fn->defaults[i++] = BOOL_VAL(e->as.boolean);
+            proto->defaults[i++] = BOOL_VAL(e->as.boolean);
             break;
         case JSR_STRING:
-            fn->defaults[i++] = OBJ_VAL(readString(c, e));
+            proto->defaults[i++] = OBJ_VAL(readString(c, e));
             break;
         case JSR_NULL:
-            fn->defaults[i++] = NULL_VAL;
+            proto->defaults[i++] = NULL_VAL;
             break;
         default:
             UNREACHABLE();
@@ -795,7 +795,7 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
     size_t argsCount = vecSize(&args->as.list);
     if(argsCount >= UINT8_MAX) {
         error(c, args->line, "Exceeded maximum number of arguments (%d) for function %s",
-              (int)UINT8_MAX, c->func->c.name->data);
+              (int)UINT8_MAX, c->func->proto.name->data);
     }
 
     if(isUnpack) {
@@ -1443,12 +1443,12 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, module, arity, defaults, vararg);
-    addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
+    addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
 
     if(name->length != 0) {
-        c->func->c.name = copyString(c->vm, name->name, name->length);
+        c->func->proto.name = copyString(c->vm, name->name, name->length);
     } else {
-        c->func->c.name = copyString(c->vm, "<main>", strlen("<main>"));
+        c->func->proto.name = copyString(c->vm, "<main>", strlen("<main>"));
     }
 
     // add phony variable for function receiver (in the case of functions the
@@ -1493,9 +1493,9 @@ static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName
 
     c->func = newFunction(c->vm, mod, arity, defCount, vararg);
     addConstant(&c->func->code, NULL_VAL);  // This const will hold the superclass at runtime
-    addFunctionDefaults(c, &c->func->c, &s->as.funcDecl.defArgs);
+    addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
 
-    c->func->c.name = createMethodName(c, clsName, name);
+    c->func->proto.name = createMethodName(c, clsName, name);
 
     // if in costructor change the type
     JStarIdentifier ctor = createIdentifier(CTOR_STR);
@@ -1540,7 +1540,7 @@ static void compileFunction(Compiler* c, JStarStmt* s) {
     initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, s);
 
     enterFunctionScope(&funCompiler);
-    ObjFunction* func = function(&funCompiler, c->func->c.module, s);
+    ObjFunction* func = function(&funCompiler, c->func->proto.module, s);
     exitFunctionScope(&funCompiler);
 
     emitBytecode(c, OP_CLOSURE, s->line);
@@ -1560,11 +1560,11 @@ static void compileNative(Compiler* c, JStarStmt* s) {
     size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
     bool vararg = s->as.nativeDecl.isVararg;
 
-    ObjNative* native = newNative(c->vm, c->func->c.module, arity, defCount, vararg);
+    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->c, &s->as.nativeDecl.defArgs);
-    native->c.name = copyString(c->vm, name->name, name->length);
+    addFunctionDefaults(c, &native->proto, &s->as.nativeDecl.defArgs);
+    native->proto.name = copyString(c->vm, name->name, name->length);
 
     emitBytecode(c, OP_GET_CONST, s->line);
     emitShort(c, createConst(c, OBJ_VAL(native), s->line), s->line);
@@ -1580,7 +1580,7 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
     initCompiler(&methodCompiler, c->vm, c->file, c, TYPE_METHOD, m);
 
     enterFunctionScope(&methodCompiler);
-    ObjFunction* meth = method(&methodCompiler, c->func->c.module, &cls->as.classDecl.id, m);
+    ObjFunction* meth = method(&methodCompiler, c->func->proto.module, &cls->as.classDecl.id, m);
     exitFunctionScope(&methodCompiler);
 
     emitBytecode(c, OP_CLOSURE, m->line);
@@ -1601,11 +1601,11 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
     size_t arity = vecSize(&m->as.nativeDecl.formalArgs);
     bool vararg = m->as.nativeDecl.isVararg;
 
-    ObjNative* native = newNative(c->vm, c->func->c.module, arity, defaults, vararg);
+    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defaults, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->c, &m->as.nativeDecl.defArgs);
-    native->c.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
+    addFunctionDefaults(c, &native->proto, &m->as.nativeDecl.defArgs);
+    native->proto.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
 
     emitBytecode(c, OP_NAT_METHOD, cls->line);
     emitShort(c, identifierConst(c, &m->as.nativeDecl.id, m->line), cls->line);

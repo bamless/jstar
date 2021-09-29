@@ -1,0 +1,48 @@
+class RegexException is Exception end
+
+native match(str, regex, off=0)
+native find(str, regex, off=0)
+native gsub(str, regex, sub, num=0)
+native gmatch(str, regex)
+
+static class MatchIter is Iterable
+    fun new(string, regex)
+        this.offset = 0
+        this.lastMatch = null
+        this.string = string
+        this.regex = regex
+    end
+
+    fun _madeProgress(startMatch, endMatch)
+        return this.lastMatch != startMatch or endMatch - startMatch != 0
+    end
+
+    fun __iter__(_)
+        var match = find(this.string, this.regex, this.offset)
+        if !match return null end
+
+        var matchStart, matchEnd = match
+        while !this._madeProgress(matchStart, matchEnd)
+            match = find(this.string, this.regex, this.offset += 1)
+            if !match return null end
+            matchStart, matchEnd = match
+        end
+
+        this.offset = this.lastMatch = matchEnd
+        if #match == 2
+            return this.string[matchStart, matchEnd]
+        elif #match == 3
+            return match[2]
+        else
+            return match[2, #match]
+        end
+    end
+
+    fun __next__(match)
+        return match
+    end
+end
+
+fun igmatch(str, regex)
+    return MatchIter(str, regex)
+end

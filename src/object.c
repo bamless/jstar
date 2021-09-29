@@ -28,14 +28,14 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initCommon(FnCommon* c, ObjModule* m, uint8_t args, Value* defaults, uint8_t defCount,
-                       bool varg) {
-    c->name = NULL;
-    c->module = m;
-    c->argsCount = args;
-    c->defaults = defaults;
-    c->defCount = defCount;
-    c->vararg = varg;
+static void initProto(Prototype* proto, ObjModule* m, uint8_t args, Value* defaults,
+                      uint8_t defCount, bool varg) {
+    proto->name = NULL;
+    proto->module = m;
+    proto->argsCount = args;
+    proto->defaults = defaults;
+    proto->defCount = defCount;
+    proto->vararg = varg;
 }
 
 static void zeroValueArray(Value* arr, size_t count) {
@@ -54,7 +54,7 @@ static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg) {
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
-    initCommon(&fun->c, m, args, defaults, defCount, varg);
+    initProto(&fun->proto, m, args, defaults, defCount, varg);
     fun->upvalueCount = 0;
     initCode(&fun->code);
     return fun;
@@ -63,7 +63,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCou
 ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg) {
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjNative* native = (ObjNative*)newObj(vm, sizeof(*native), vm->funClass, OBJ_NATIVE);
-    initCommon(&native->c, m, args, defaults, defCount, varg);
+    initProto(&native->proto, m, args, defaults, defCount, varg);
     return native;
 }
 
@@ -73,6 +73,31 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     cls->superCls = superCls;
     initHashTable(&cls->methods);
     return cls;
+}
+
+ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
+    ObjModule* mod = (ObjModule*)newObj(vm, sizeof(*mod), vm->modClass, OBJ_MODULE);
+    push(vm, OBJ_VAL(mod));
+
+    mod->name = name;
+    mod->path = NULL;
+    mod->natives.dynlib = NULL;
+    mod->natives.registry = NULL;
+    initHashTable(&mod->globals);
+    
+    // Implicitly import core
+    if(vm->core) {
+        hashTableMerge(&mod->globals, &vm->core->globals);
+    }
+
+    // Set builtin names for the module object
+    mod->path = copyString(vm, path, strlen(path));
+    hashTablePut(&mod->globals, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
+    hashTablePut(&mod->globals, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
+    hashTablePut(&mod->globals, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
+    pop(vm);
+
+    return mod;
 }
 
 ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
@@ -88,15 +113,6 @@ ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
     c->upvalueCount = fn->upvalueCount;
     c->fn = fn;
     return c;
-}
-
-ObjModule* newModule(JStarVM* vm, ObjString* name) {
-    ObjModule* module = (ObjModule*)newObj(vm, sizeof(*module), vm->modClass, OBJ_MODULE);
-    module->name = name;
-    initHashTable(&module->globals);
-    module->natives.dynlib = NULL;
-    module->natives.registry = NULL;
-    return module;
 }
 
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
@@ -193,14 +209,14 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        GC_FREE_ARRAY(vm, Value, n->c.defaults, n->c.defCount);
+        GC_FREE_ARRAY(vm, Value, n->proto.defaults, n->proto.defCount);
         GC_FREE(vm, ObjNative, n);
         break;
     }
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
         freeCode(&f->code);
-        GC_FREE_ARRAY(vm, Value, f->c.defaults, f->c.defCount);
+        GC_FREE_ARRAY(vm, Value, f->proto.defaults, f->proto.defCount);
         GC_FREE(vm, ObjFunction, f);
         break;
     }
@@ -250,7 +266,7 @@ void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_STACK_TRACE: {
         ObjStackTrace* st = (ObjStackTrace*)o;
         if(st->records != NULL) {
-            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordSize);
+            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordCapacity);
         }
         GC_FREE(vm, ObjStackTrace, st);
         break;
@@ -357,15 +373,15 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         }
 
         record->line = getBytecodeSrcLine(code, op);
-        record->moduleName = fn->c.module->name;
-        record->funcName = fn->c.name;
+        record->moduleName = fn->proto.module->name;
+        record->funcName = fn->proto.name;
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* nat = (ObjNative*)f->fn;
         record->line = -1;
-        record->moduleName = nat->c.module->name;
-        record->funcName = nat->c.name;
+        record->moduleName = nat->proto.module->name;
+        record->funcName = nat->proto.name;
         break;
     }
     default:
@@ -449,19 +465,19 @@ void printObj(Obj* o) {
         break;
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
-        if(f->c.module->name->length != 0) {
-            printf("<func %s.%s:%d>", f->c.module->name->data, f->c.name->data, f->c.argsCount);
+        if(f->proto.module->name->length != 0) {
+            printf("<func %s.%s:%d>", f->proto.module->name->data, f->proto.name->data, f->proto.argsCount);
         } else {
-            printf("<func %s:%d>", f->c.name->data, f->c.argsCount);
+            printf("<func %s:%d>", f->proto.name->data, f->proto.argsCount);
         }
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        if(n->c.module->name->length != 0) {
-            printf("<native %s.%s:%d>", n->c.module->name->data, n->c.name->data, n->c.argsCount);
+        if(n->proto.module->name->length != 0) {
+            printf("<native %s.%s:%d>", n->proto.module->name->data, n->proto.name->data, n->proto.argsCount);
         } else {
-            printf("<native %s:%d>", n->c.name->data, n->c.argsCount);
+            printf("<native %s:%d>", n->proto.name->data, n->proto.argsCount);
         }
         break;
     }
@@ -521,9 +537,9 @@ void printObj(Obj* o) {
 
         char* name;
         if(b->method->type == OBJ_CLOSURE) {
-            name = ((ObjClosure*)b->method)->fn->c.name->data;
+            name = ((ObjClosure*)b->method)->fn->proto.name->data;
         } else {
-            name = ((ObjNative*)b->method)->c.name->data;
+            name = ((ObjNative*)b->method)->proto.name->data;
         }
 
         printf("<bound method ");

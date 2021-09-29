@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "builtins.h"
 #include "const.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
-#include "modules.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
@@ -44,7 +44,7 @@ static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative nat,
     ObjString* strName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(strName));
     ObjNative* native = newNative(vm, m, argc, 0, false);
-    native->c.name = strName;
+    native->proto.name = strName;
     native->fn = nat;
     pop(vm);
     hashTablePut(&cls->methods, strName, OBJ_VAL(native));
@@ -67,7 +67,9 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
         push(vm, v1[i]);
         push(vm, v2[i]);
 
-        if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
+        if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) {
+            return false;
+        }
 
         bool res = valueToBool(pop(vm));
         if(!res) {
@@ -127,7 +129,7 @@ void initCoreModule(JStarVM* vm) {
     ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
 
     push(vm, OBJ_VAL(coreModName));
-    ObjModule* core = newModule(vm, coreModName);
+    ObjModule* core = newModule(vm, JSR_CORE_MODULE, coreModName);
     setModule(vm, core->name, core);
     vm->core = core;
     pop(vm);
@@ -284,48 +286,72 @@ JSR_NATIVE(jsr_Null_string) {
 //
 
 // class Function
-JSR_NATIVE(jsr_Function_string) {
-    const char* fnType = NULL;
-    FnCommon* fn = NULL;
-
-    Obj* obj = AS_OBJ(vm->apiStack[0]);
-    switch(obj->type) {
+static Prototype* getPrototype(Obj* functionObj) {
+    switch(functionObj->type) {
     case OBJ_CLOSURE:
-        fnType = "function";
-        fn = &AS_CLOSURE(vm->apiStack[0])->fn->c;
+        return &((ObjClosure*)functionObj)->fn->proto;
         break;
     case OBJ_NATIVE:
-        fnType = "native";
-        fn = &AS_NATIVE(vm->apiStack[0])->c;
+        return &((ObjNative*)functionObj)->proto;
         break;
     case OBJ_BOUND_METHOD:
-        fnType = "bound method";
-        ObjBoundMethod* b = AS_BOUND_METHOD(vm->apiStack[0]);
-        if(b->method->type == OBJ_CLOSURE) {
-            fn = &((ObjClosure*)b->method)->fn->c;
-        } else {
-            fn = &((ObjNative*)b->method)->c;
-        }
-        break;
+        return getPrototype(((ObjBoundMethod*)functionObj)->method);
     default:
         UNREACHABLE();
         break;
+    }
+    return NULL;
+}
+
+JSR_NATIVE(jsr_Function_string) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+    Prototype* proto = getPrototype(fn);
+
+    const char* fnType = NULL;
+    if(fn->type == OBJ_CLOSURE) {
+        fnType = "function";
+    } else if(fn->type == OBJ_NATIVE) {
+        fnType = "native";
+    } else {
+        fnType = "bound method";
     }
 
     JStarBuffer str;
     jsrBufferInit(vm, &str);
 
-    void* objPtr = (void*)obj;
-    bool isCoreModule = strcmp(fn->module->name->data, JSR_CORE_MODULE) == 0;
-
-    if(isCoreModule) {
-        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, fn->name->data, objPtr);
+    if(strcmp(proto->module->name->data, JSR_CORE_MODULE) == 0) {
+        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, proto->name->data, (void*)fn);
     } else {
-        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, fn->module->name->data, fn->name->data,
-                         objPtr);
+        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, proto->module->name->data,
+                         proto->name->data, (void*)fn);
     }
 
     jsrBufferPush(&str);
+    return true;
+}
+
+JSR_NATIVE(jsr_Function_arity) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+    Prototype* prototype = getPrototype(fn);
+    jsrPushNumber(vm, prototype->argsCount);
+    return true;
+}
+
+JSR_NATIVE(jsr_Function_vararg) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+    Prototype* prototype = getPrototype(fn);
+    jsrPushBoolean(vm, prototype->vararg);
+    return true;
+}
+
+JSR_NATIVE(jsr_Function_defaults) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+    Prototype* prototype = getPrototype(fn);
+    ObjTuple* defaultTuple = newTuple(vm, prototype->defCount);
+    push(vm, OBJ_VAL(defaultTuple));
+    if(prototype->defCount) {
+        memcpy(defaultTuple->arr, prototype->defaults, prototype->defCount * sizeof(Value));
+    }
     return true;
 }
 // end
@@ -335,8 +361,25 @@ JSR_NATIVE(jsr_Module_string) {
     ObjModule* m = AS_MODULE(vm->apiStack[0]);
     JStarBuffer str;
     jsrBufferInit(vm, &str);
-    jsrBufferAppendf(&str, "<module %s@%p>", m->name->data, (void*)m);
+    jsrBufferAppendf(&str, "<module %s@%s>", m->name->data, m->path->data);
     jsrBufferPush(&str);
+    return true;
+}
+
+JSR_NATIVE(jsr_Module_globals) {
+    ObjModule* module = AS_MODULE(vm->apiStack[0]);
+    const HashTable* globals = &module->globals;
+
+    jsrPushTable(vm);
+    for(const Entry* e = globals->entries; e < globals->entries + globals->sizeMask + 1; e++) {
+        if(e->key) {
+            push(vm, OBJ_VAL(e->key));
+            push(vm, e->value);
+            if(!jsrSubscriptSet(vm, -3)) return false;
+            pop(vm);
+        }
+    }
+
     return true;
 }
 // end
@@ -1440,84 +1483,79 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "_valueName"
 
-static bool checkEnumElem(JStarVM* vm, int slot) {
-    if(!jsrIsString(vm, slot)) {
-        JSR_RAISE(vm, "TypeException", "Enum element must be a String");
+static bool checkEnumElem(JStarVM* vm) {
+    if(!IS_STRING(peek(vm))) {
+        JSR_RAISE(vm, "TypeException", "Enum element must be a String, got %s",
+                  getClass(vm, peek(vm))->name->data);
     }
 
     ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
-    const char* enumElem = jsrGetString(vm, slot);
-    size_t enumElemLen = jsrGetStringSz(vm, slot);
+    ObjString* enumElem = AS_STRING(peek(vm));
 
-    if(isalpha(enumElem[0])) {
-        for(size_t i = 1; i < enumElemLen; i++) {
-            char c = enumElem[i];
+    if(isalpha(enumElem->data[0])) {
+        for(size_t i = 1; i < enumElem->length; i++) {
+            char c = enumElem->data[i];
             if(!isalpha(c) && !isdigit(c) && c != '_') {
-                JSR_RAISE(vm, "InvalidArgException", "Invalid Enum element `%s`", enumElem);
+                JSR_RAISE(vm, "InvalidArgException", "Enum element `%s` is not a valid identifier",
+                          enumElem->data);
             }
         }
 
-        ObjString* str = AS_STRING(apiStackSlot(vm, slot));
-        if(hashTableContainsKey(&inst->fields, str)) {
-            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem);
+        if(hashTableContainsKey(&inst->fields, enumElem)) {
+            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 
         return true;
     }
 
-    JSR_RAISE(vm, "InvalidArgException", "Invalid Enum element `%s`", enumElem);
+    JSR_RAISE(vm, "InvalidArgException", "Enum element `%s` is not a valid identifier",
+              enumElem->data);
 }
 
 JSR_NATIVE(jsr_Enum_new) {
-    jsrPushTable(vm);
-    jsrSetField(vm, 0, M_VALUE_NAME);
-    jsrPop(vm);
-
     if(jsrTupleGetLength(vm, 1) == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     }
 
+    jsrPushTable(vm);
+    jsrSetField(vm, 0, M_VALUE_NAME);
+    jsrPop(vm);
+
     jsrTupleGet(vm, 0, 1);
-    bool customEnum = jsrIsTable(vm, -1);
-    if(!customEnum) {
+    bool isCustom = jsrIsTable(vm, -1);
+
+    if(!isCustom) {
         jsrPop(vm);
         jsrPushValue(vm, 1);
     }
 
-    int i = 0;
+    int iota = 0;
     JSR_FOREACH(2, {
-        if(!checkEnumElem(vm, -1)) return false;
+        if(!checkEnumElem(vm)) return false;
 
-        if(customEnum) {
-            jsrPushValue(vm, 2);
-            jsrPushValue(vm, -2);
-            if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
+        if(isCustom) {
+            jsrPushValue(vm, -1);
+            if(!jsrSubscriptGet(vm, 2)) return false;
         } else {
-            jsrPushNumber(vm, i);
+            jsrPushNumber(vm, iota);
         }
 
         jsrSetField(vm, 0, jsrGetString(vm, -2));
+
+        jsrGetField(vm, 0, M_VALUE_NAME);
+        jsrPushValue(vm, -2);
+        jsrPushValue(vm, -4);
+        if(!jsrSubscriptSet(vm, -3)) return false;
         jsrPop(vm);
-
-        if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
-
-        if(customEnum) {
-            jsrPushValue(vm, 2);
-            jsrPushValue(vm, -3);
-            if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
-        } else {
-            jsrPushNumber(vm, i);
-        }
-
-        jsrPushValue(vm, -3);
-        if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
         jsrPop(vm);
 
         jsrPop(vm);
-        i++;
+        jsrPop(vm);
+
+        iota++;
     },);
 
-    if(i == 0) {
+    if(iota == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     }
 
@@ -1633,21 +1671,13 @@ JSR_NATIVE(jsr_eval) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
 
-    Obj* prevFn = vm->frames[vm->frameCount - 2].fn;
-
-    ObjModule* mod = NULL;
-    if(prevFn->type == OBJ_CLOSURE) {
-        mod = ((ObjClosure*)prevFn)->fn->c.module;
-    } else {
-        mod = ((ObjNative*)prevFn)->c.module;
-    }
-
     JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
-    ObjFunction* fn = compileWithModule(vm, "<eval>", mod->name, program);
+    Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
+    ObjFunction* fn = compileModule(vm, "<eval>", proto->module->name, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {
@@ -1692,9 +1722,11 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
     if(IS_STACK_TRACE(stacktraceVal)) {
         Value cause = NULL_VAL;
         hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+
         if(isInstance(vm, cause, vm->excClass)) {
             push(vm, cause);
-            jsrCallMethod(vm, "printStacktrace", 0);
+            if(jsrCallMethod(vm, "printStacktrace", 0) != JSR_SUCCESS)
+                return false;
             pop(vm);
             fprintf(stderr, "\nAbove Excetption caused:\n");
         }
@@ -1760,9 +1792,11 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     if(IS_STACK_TRACE(stval)) {
         Value cause = NULL_VAL;
         hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+
         if(isInstance(vm, cause, vm->excClass)) {
             push(vm, cause);
-            jsrCallMethod(vm, "getStacktrace", 0);
+            if(jsrCallMethod(vm, "getStacktrace", 0) != JSR_SUCCESS)
+                return false;
             Value stackTrace = peek(vm);
             if(IS_STRING(stackTrace)) {
                 jsrBufferAppend(&buf, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);

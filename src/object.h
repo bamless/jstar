@@ -32,21 +32,19 @@ extern const char* ObjTypeNames[];
 // OBJECT MACROS
 // -----------------------------------------------------------------------------
 
-#define OBJ_TYPE(o) (AS_OBJ(o)->type)
-
-#define IS_BOUND_METHOD(o) (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_BOUND_METHOD)
-#define IS_LIST(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_LIST)
-#define IS_STRING(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STRING)
-#define IS_FUNC(o)         (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_FUNCTION)
-#define IS_NATIVE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_NATIVE)
-#define IS_CLASS(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLASS)
-#define IS_INSTANCE(o)     (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_INST)
-#define IS_MODULE(o)       (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_MODULE)
-#define IS_CLOSURE(o)      (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_CLOSURE)
-#define IS_TUPLE(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TUPLE)
-#define IS_STACK_TRACE(o)  (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_STACK_TRACE)
-#define IS_TABLE(o)        (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_TABLE)
-#define IS_USERDATA(o)     (IS_OBJ(o) && OBJ_TYPE(o) == OBJ_USERDATA)
+#define IS_BOUND_METHOD(o) (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_BOUND_METHOD)
+#define IS_LIST(o)         (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_LIST)
+#define IS_STRING(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STRING)
+#define IS_FUNC(o)         (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_FUNCTION)
+#define IS_NATIVE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_NATIVE)
+#define IS_CLASS(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLASS)
+#define IS_INSTANCE(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_INST)
+#define IS_MODULE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_MODULE)
+#define IS_CLOSURE(o)      (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLOSURE)
+#define IS_TUPLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TUPLE)
+#define IS_STACK_TRACE(o)  (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STACK_TRACE)
+#define IS_TABLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TABLE)
+#define IS_USERDATA(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_USERDATA)
 
 #define AS_BOUND_METHOD(o) ((ObjBoundMethod*)AS_OBJ(o))
 #define AS_LIST(o)         ((ObjList*)AS_OBJ(o))
@@ -120,7 +118,7 @@ struct ObjString {
 
 // Native C extension. It contains the handle to the dynamic library and resolved
 // symbol to a native registry.
-typedef struct NativeExt {
+typedef struct {
     void* dynlib;
     JStarNativeReg* registry;
 } NativeExt;
@@ -128,12 +126,13 @@ typedef struct NativeExt {
 typedef struct ObjModule {
     Obj base;
     ObjString* name;    // Name of the module
+    ObjString* path;    // The path to the module file
     HashTable globals;  // HashTable containing the global variables of the module
     NativeExt natives;  // Natives registered in this module
 } ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)
-typedef struct FnCommon {
+typedef struct {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -141,18 +140,18 @@ typedef struct FnCommon {
     Value* defaults;    // Array of default arguments (NULL if no defaults)
     ObjModule* module;  // The module of the function
     ObjString* name;    // The name of the function
-} FnCommon;
+} Prototype;
 
 // A compiled J* function
 typedef struct ObjFunction {
-    FnCommon c;
+    Prototype proto;
     Code code;             // The actual code chunk containing bytecodes
     uint8_t upvalueCount;  // The number of upvalues the function closes over
 } ObjFunction;
 
 // A C function callable from J*
 typedef struct ObjNative {
-    FnCommon c;
+    Prototype proto;
     JStarNative fn;  // The C function that gets called
 } ObjNative;
 
@@ -183,7 +182,7 @@ typedef struct ObjTuple {
     Value arr[];  // Tuple elements (flexible array)
 } ObjTuple;
 
-typedef struct TableEntry {
+typedef struct {
     Value key;  // The key of the entry
     Value val;  // The actual value
 } TableEntry;
@@ -227,7 +226,7 @@ typedef struct ObjClosure {
     ObjUpvalue* upvalues[];  // the actual Upvalues
 } ObjClosure;
 
-typedef struct FrameRecord {
+typedef struct {
     int line;
     ObjString* moduleName;
     ObjString* funcName;
@@ -262,10 +261,10 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCou
 ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
+ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name);
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value b, Obj* method);
 ObjInstance* newInstance(JStarVM* vm, ObjClass* cls);
 ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn);
-ObjModule* newModule(JStarVM* vm, ObjString* name);
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr);
 ObjList* newList(JStarVM* vm, size_t capacity);
 ObjTuple* newTuple(JStarVM* vm, size_t size);

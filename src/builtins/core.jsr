@@ -27,10 +27,14 @@ end
 
 class Function
     native __string__()
+    native arity()
+    native vararg()
+    native defaults()
 end
 
 class Module
     native __string__()
+    native globals()
 end
 
 class StackTrace end

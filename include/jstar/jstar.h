@@ -237,7 +237,8 @@ JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
 JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
 
 // Check if a value is of a certain class.
-// Returns true if the object is an instance of the class
+// Returns true if the object is an instance of the class, false if it's not
+// or if `classSlot` doesn't point to a Class object
 JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
 
 // -----------------------------------------------------------------------------

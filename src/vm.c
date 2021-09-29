@@ -3,14 +3,14 @@
 #include <math.h>
 #include <string.h>
 
+#include "builtins/builtins.h"
+#include "builtins/core.h"
 #include "code.h"
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
 #include "opcode.h"
 #include "profiler.h"
-#include "std/core.h"
-#include "std/modules.h"
 
 static const char* const methodSyms[SYM_END] = {
     [SYM_CTOR] = CTOR_STR,        [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",
@@ -44,12 +44,6 @@ static void resetStack(JStarVM* vm) {
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
     vm->module = NULL;
-}
-
-static void initMainModule(JStarVM* vm) {
-    PROFILE_FUNC()
-    ObjString* mainModuleName = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
-    compileWithModule(vm, "<main>", mainModuleName, NULL);  // Empty main module
 }
 
 static size_t roundUp(size_t num, size_t multiple) {
@@ -86,9 +80,6 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     // Core module bootstrap
     initCoreModule(vm);
 
-    // Init empty main module
-    initMainModule(vm);
-
     // Create empty tuple singleton
     vm->emptyTup = newTuple(vm, 0);
 
@@ -97,7 +88,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
 void jsrFreeVM(JStarVM* vm) {
     PROFILE_FUNC()
-    
+
     resetStack(vm);
 
     {
@@ -122,27 +113,27 @@ void jsrFreeVM(JStarVM* vm) {
 // VM IMPLEMENTATION
 // -----------------------------------------------------------------------------
 
-static Frame* getFrame(JStarVM* vm, FnCommon* c) {
+static Frame* getFrame(JStarVM* vm, Prototype* proto) {
     if(vm->frameCount + 1 == vm->frameSz) {
         vm->frameSz *= 2;
         vm->frames = realloc(vm->frames, sizeof(Frame) * vm->frameSz);
     }
 
     Frame* callFrame = &vm->frames[vm->frameCount++];
-    callFrame->stack = vm->sp - (c->argsCount + 1) - (int)c->vararg;
+    callFrame->stack = vm->sp - (proto->argsCount + 1) - (int)proto->vararg;
     callFrame->handlerc = 0;
     return callFrame;
 }
 
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
-    Frame* callFrame = getFrame(vm, &closure->fn->c);
+    Frame* callFrame = getFrame(vm, &closure->fn->proto);
     callFrame->fn = (Obj*)closure;
     callFrame->ip = closure->fn->code.bytecode;
     return callFrame;
 }
 
 static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
-    Frame* callFrame = getFrame(vm, &native->c);
+    Frame* callFrame = getFrame(vm, &native->proto);
     callFrame->fn = (Obj*)native;
     callFrame->ip = NULL;
     return callFrame;
@@ -173,7 +164,7 @@ static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
 }
 
 static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
-    if(vm->upvalues == NULL) {
+    if(!vm->upvalues) {
         vm->upvalues = newUpvalue(vm, addr);
         return vm->upvalues;
     }
@@ -181,26 +172,28 @@ static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
     ObjUpvalue* prev = NULL;
     ObjUpvalue* upvalue = vm->upvalues;
 
-    while(upvalue != NULL && upvalue->addr > addr) {
+    while(upvalue && upvalue->addr > addr) {
         prev = upvalue;
         upvalue = upvalue->next;
     }
 
-    if(upvalue != NULL && upvalue->addr == addr) return upvalue;
-
-    ObjUpvalue* createdUpvalue = newUpvalue(vm, addr);
-    if(prev == NULL) {
-        vm->upvalues = createdUpvalue;
-    } else {
-        prev->next = createdUpvalue;
+    if(upvalue && upvalue->addr == addr) {
+        return upvalue;
     }
 
-    createdUpvalue->next = upvalue;
-    return createdUpvalue;
+    ObjUpvalue* created = newUpvalue(vm, addr);
+    if(!prev) {
+        vm->upvalues = created;
+    } else {
+        prev->next = created;
+    }
+
+    created->next = upvalue;
+    return created;
 }
 
 static void closeUpvalues(JStarVM* vm, Value* last) {
-    while(vm->upvalues != NULL && vm->upvalues->addr >= last) {
+    while(vm->upvalues && vm->upvalues->addr >= last) {
         ObjUpvalue* upvalue = vm->upvalues;
         upvalue->closed = *upvalue->addr;
         upvalue->addr = &upvalue->closed;
@@ -216,29 +209,29 @@ static void packVarargs(JStarVM* vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static void argumentError(JStarVM* vm, FnCommon* c, int expected, int supplied,
+static void argumentError(JStarVM* vm, Prototype* proto, int expected, int supplied,
                           const char* quantity) {
     jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.",
-             c->module->name->data, c->name->data, quantity, expected, supplied);
+             proto->module->name->data, proto->name->data, quantity, expected, supplied);
 }
 
-static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
-    uint8_t most = c->argsCount, least = most - c->defCount;
+static bool adjustArguments(JStarVM* vm, Prototype* p, uint8_t argc) {
+    uint8_t most = p->argsCount, least = most - p->defCount;
 
-    if(!c->vararg && argc > most) {
-        argumentError(vm, c, c->argsCount, argc, most == least ? "exactly" : "at most");
+    if(!p->vararg && argc > most) {
+        argumentError(vm, p, p->argsCount, argc, most == least ? "exactly" : "at most");
         return false;
     } else if(argc < least) {
-        argumentError(vm, c, least, argc, (most == least && !c->vararg) ? "exactly" : "at least");
+        argumentError(vm, p, least, argc, (most == least && !p->vararg) ? "exactly" : "at least");
         return false;
     }
 
     // Push remaining args taking the default value
-    for(uint8_t i = argc - least; i < c->defCount; i++) {
-        push(vm, c->defaults[i]);
+    for(uint8_t i = argc - least; i < p->defCount; i++) {
+        push(vm, p->defaults[i]);
     }
 
-    if(c->vararg) {
+    if(p->vararg) {
         packVarargs(vm, argc > most ? argc - most : 0);
     }
 
@@ -246,12 +239,12 @@ static bool adjustArguments(JStarVM* vm, FnCommon* c, uint8_t argc) {
 }
 
 static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
-    if(vm->frameCount + 1 == RECURSION_LIMIT) {
-        jsrRaise(vm, "StackOverflowException", NULL);
+    if(vm->frameCount + 1 == MAX_FRAMES) {
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
         return false;
     }
 
-    if(!adjustArguments(vm, &closure->fn->c, argc)) {
+    if(!adjustArguments(vm, &closure->fn->proto, argc)) {
         return false;
     }
 
@@ -260,18 +253,18 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
     // worst case bound
     reserveStack(vm, UINT8_MAX);
     appendCallFrame(vm, closure);
-    vm->module = closure->fn->c.module;
+    vm->module = closure->fn->proto.module;
 
     return true;
 }
 
 static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
-    if(vm->frameCount + 1 == RECURSION_LIMIT) {
-        jsrRaise(vm, "StackOverflowException", NULL);
+    if(vm->frameCount + 1 == MAX_FRAMES) {
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
         return false;
     }
 
-    if(!adjustArguments(vm, &native->c, argc)) {
+    if(!adjustArguments(vm, &native->proto, argc)) {
         return false;
     }
 
@@ -279,23 +272,22 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
-    size_t apiStackOffset = vm->apiStack - vm->stack;
+    size_t savedApiStack = vm->apiStack - vm->stack;
 
-    vm->module = native->c.module;
+    vm->module = native->proto.module;
     vm->apiStack = frame->stack;
 
     if(!native->fn(vm)) {
         vm->module = oldModule;
-        vm->apiStack = vm->stack + apiStackOffset;
+        vm->apiStack = vm->stack + savedApiStack;
         return false;
     }
 
     Value ret = pop(vm);
-
     vm->frameCount--;
     vm->sp = vm->apiStack;
     vm->module = oldModule;
-    vm->apiStack = vm->stack + apiStackOffset;
+    vm->apiStack = vm->stack + savedApiStack;
 
     push(vm, ret);
     return true;
@@ -564,7 +556,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 bool getValueField(JStarVM* vm, ObjString* name) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
+        switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             Value field;
             ObjInstance* inst = AS_INSTANCE(val);
@@ -620,7 +612,7 @@ bool getValueField(JStarVM* vm, ObjString* name) {
 bool setValueField(JStarVM* vm, ObjString* name) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
+        switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
             hashTablePut(&inst->fields, name, peek(vm));
@@ -645,7 +637,7 @@ bool setValueField(JStarVM* vm, ObjString* name) {
 bool getValueSubscript(JStarVM* vm) {
     if(IS_OBJ(peek2(vm))) {
         Value operand = peek2(vm);
-        switch(OBJ_TYPE(operand)) {
+        switch(AS_OBJ(operand)->type) {
         case OBJ_LIST:
             return getListSubscript(vm);
         case OBJ_TUPLE:
@@ -690,7 +682,7 @@ bool setValueSubscript(JStarVM* vm) {
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
-        switch(OBJ_TYPE(callee)) {
+        switch(AS_OBJ(callee)->type) {
         case OBJ_CLOSURE:
             return callFunction(vm, AS_CLOSURE(callee), argc);
         case OBJ_NATIVE:
@@ -744,7 +736,7 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
-        switch(OBJ_TYPE(val)) {
+        switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
@@ -928,13 +920,13 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(!res) UNWIND_STACK(vm);                   \
     } while(0)
 
-#define RESTORE_HANDLER(h, frame, cause, excVal) \
-    do {                                         \
-        frame->ip = h->address;                  \
-        vm->sp = h->savedSp;                     \
-        closeUpvalues(vm, vm->sp);               \
-        push(vm, excVal);                        \
-        push(vm, NUM_VAL(cause));                \
+#define RESTORE_HANDLER(vm, h, frame, cause, exc) \
+    do {                                          \
+        frame->ip = h->address;                   \
+        vm->sp = h->savedSp;                      \
+        closeUpvalues(vm, vm->sp);                \
+        push(vm, exc);                            \
+        push(vm, NUM_VAL(cause));                 \
     } while(0)
 
 #define UNWIND_STACK(vm)                  \
@@ -1305,7 +1297,7 @@ op_return:
         while(frame->handlerc > 0) {
             Handler* h = &frame->handlers[--frame->handlerc];
             if(h->type == HANDLER_ENSURE) {
-                RESTORE_HANDLER(h, frame, CAUSE_RETURN, ret);
+                RESTORE_HANDLER(vm, h, frame, CAUSE_RETURN, ret);
                 LOAD_STATE();
                 DISPATCH();
             }
@@ -1320,7 +1312,7 @@ op_return:
         }
 
         LOAD_STATE();
-        vm->module = fn->c.module;
+        vm->module = fn->proto.module;
 
         DISPATCH();
     }
@@ -1428,7 +1420,7 @@ op_return:
                      getClass(vm, peek(vm))->name->data);
             UNWIND_STACK(vm);
         }
-        if(!unpackObject(vm, AS_OBJ(pop(vm)),  NEXT_CODE())) {
+        if(!unpackObject(vm, AS_OBJ(pop(vm)), NEXT_CODE())) {
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1449,7 +1441,7 @@ op_return:
         ObjNative* native = AS_NATIVE(GET_CONST());
         native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
         if(native->fn == NULL) {
-            jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->c.name->data);
+            jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->proto.name->data);
             UNWIND_STACK(vm);
         }
         hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
@@ -1462,7 +1454,7 @@ op_return:
         nat->fn = resolveNative(vm->module, NULL, name->data);
         if(nat->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native function %s.%s.", 
-                     vm->module->name->data, nat->c.name->data);
+                     vm->module->name->data, nat->proto.name->data);
             UNWIND_STACK(vm);
         }
         DISPATCH();
@@ -1523,7 +1515,6 @@ op_return:
                 break;
             }
         }
-        // The exception has been handled, resume normal execution flow
         DISPATCH();
     }
 
@@ -1612,12 +1603,12 @@ bool unwindStack(JStarVM* vm, int depth) {
         switch(frame->fn->type) {
         case OBJ_CLOSURE: {
             ObjClosure* closure = (ObjClosure*)frame->fn;
-            vm->module = closure->fn->c.module;
+            vm->module = closure->fn->proto.module;
             break;
         }
         case OBJ_NATIVE: {
             ObjNative* native = (ObjNative*)frame->fn;
-            vm->module = native->c.module;
+            vm->module = native->proto.module;
             break;
         }
         default:
@@ -1631,7 +1622,7 @@ bool unwindStack(JStarVM* vm, int depth) {
         if(frame->handlerc > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerc];
-            RESTORE_HANDLER(h, frame, CAUSE_EXCEPT, exc);
+            RESTORE_HANDLER(vm, h, frame, CAUSE_EXCEPT, exc);
             return true;
         }
 
@@ -1651,5 +1642,3 @@ extern inline Value peek2(JStarVM* vm);
 extern inline Value peekn(JStarVM* vm, int n);
 extern inline ObjClass* getClass(JStarVM* vm, Value v);
 extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
-extern inline int apiStackIndex(JStarVM* vm, int slot);
-extern inline Value apiStackSlot(JStarVM* vm, int slot);

@@ -12,7 +12,8 @@
 #include "profiler.h"
 #include "util.h"
 
-#define MAX_ERR_SIZE 512
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define MAX_ERR_SIZE    512
 
 typedef struct Parser {
     JStarLex lex;
@@ -965,7 +966,7 @@ static JStarExpr* postfixExpr(Parser* p) {
     JStarExpr* lit = literal(p);
 
     JStarTokType tokens[] = {TOK_LPAREN, TOK_LCURLY, TOK_DOT, TOK_LSQUARE};
-    while(matchAny(p, tokens, sizeof(tokens) / sizeof(JStarTokType))) {
+    while(matchAny(p, tokens, ARRAY_SIZE(tokens))) {
         int line = p->peek.line;
         switch(p->peek.type) {
         case TOK_DOT: {
@@ -1026,7 +1027,7 @@ static JStarExpr* powExpr(Parser* p) {
 static JStarExpr* unaryExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_TILDE, TOK_BANG, TOK_MINUS, TOK_HASH, TOK_HASH_HASH};
 
-    if(matchAny(p, tokens, sizeof(tokens) / sizeof(JStarTokType))) {
+    if(matchAny(p, tokens, ARRAY_SIZE(tokens))) {
         JStarTok op = advance(p);
         skipNewLines(p);
         return jsrUnaryExpr(op.line, op.type, unaryExpr(p));
@@ -1051,47 +1052,47 @@ static JStarExpr* parseBinary(Parser* p, JStarTokType* tokens, int count,
 
 static JStarExpr* multiplicativeExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_MULT, TOK_DIV, TOK_MOD};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), unaryExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), unaryExpr);
 }
 
 static JStarExpr* additiveExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_PLUS, TOK_MINUS};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), multiplicativeExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), multiplicativeExpr);
 }
 
 static JStarExpr* shiftExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_LSHIFT, TOK_RSHIFT};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), additiveExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), additiveExpr);
 }
 
 static JStarExpr* bandExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_AMPER};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), shiftExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), shiftExpr);
 }
 
 static JStarExpr* xorExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_TILDE};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), bandExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), bandExpr);
 }
 
 static JStarExpr* borExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_PIPE};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), xorExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), xorExpr);
 }
 
 static JStarExpr* relationalExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_EQUAL_EQUAL, TOK_BANG_EQ, TOK_GT, TOK_GE, TOK_LT, TOK_LE, TOK_IS};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), borExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), borExpr);
 }
 
 static JStarExpr* andExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_AND};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), relationalExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), relationalExpr);
 }
 
 static JStarExpr* orExpr(Parser* p) {
     JStarTokType tokens[] = {TOK_OR};
-    return parseBinary(p, tokens, sizeof(tokens) / sizeof(JStarTokType), andExpr);
+    return parseBinary(p, tokens, ARRAY_SIZE(tokens), andExpr);
 }
 
 static JStarExpr* ternaryExpr(Parser* p) {
@@ -1214,11 +1215,11 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void*
     return program;
 }
 
-JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* udata) {
+JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, errFn, udata);
+    initParser(&p, path, src, errFn, data);
 
     JStarExpr* expr = expression(&p, true);
     skipNewLines(&p);

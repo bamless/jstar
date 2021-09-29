@@ -106,20 +106,20 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     switch(o->type) {
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        reachObject(vm, (Obj*)n->c.name);
-        reachObject(vm, (Obj*)n->c.module);
-        for(uint8_t i = 0; i < n->c.defCount; i++) {
-            reachValue(vm, n->c.defaults[i]);
+        reachObject(vm, (Obj*)n->proto.name);
+        reachObject(vm, (Obj*)n->proto.module);
+        for(uint8_t i = 0; i < n->proto.defCount; i++) {
+            reachValue(vm, n->proto.defaults[i]);
         }
         break;
     }
     case OBJ_FUNCTION: {
         ObjFunction* func = (ObjFunction*)o;
-        reachObject(vm, (Obj*)func->c.name);
-        reachObject(vm, (Obj*)func->c.module);
+        reachObject(vm, (Obj*)func->proto.name);
+        reachObject(vm, (Obj*)func->proto.module);
         reachValueArray(vm, &func->code.consts);
-        for(uint8_t i = 0; i < func->c.defCount; i++) {
-            reachValue(vm, func->c.defaults[i]);
+        for(uint8_t i = 0; i < func->proto.defCount; i++) {
+            reachValue(vm, func->proto.defaults[i]);
         }
         break;
     }
@@ -138,6 +138,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     case OBJ_MODULE: {
         ObjModule* m = (ObjModule*)o;
         reachObject(vm, (Obj*)m->name);
+        reachObject(vm, (Obj*)m->path);
         reachHashTable(vm, &m->globals);
         break;
     }

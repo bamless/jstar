@@ -15,16 +15,14 @@
 #include "value.h"
 
 // Enum encoding special method names needed at runtime
+// Mainly used for operator overloading
 // See methodSyms array in vm.c
 typedef enum MethodSymbol {
-    // Constructor method
     SYM_CTOR,
 
-    // Iterator methods
     SYM_ITER,
     SYM_NEXT,
 
-    // Binary overloads
     SYM_ADD,
     SYM_SUB,
     SYM_MUL,
@@ -36,7 +34,6 @@ typedef enum MethodSymbol {
     SYM_LSHFT,
     SYM_RSHFT,
 
-    // Reverse binary overloads
     SYM_RADD,
     SYM_RSUB,
     SYM_RMUL,
@@ -48,31 +45,26 @@ typedef enum MethodSymbol {
     SYM_RLSHFT,
     SYM_RRSHFT,
 
-    // Subscript overloads
     SYM_GET,
     SYM_SET,
 
-    // Unary overloads
     SYM_NEG,
     SYM_INV,
 
-    // Comparison and ordering overloads
     SYM_EQ,
     SYM_LT,
     SYM_LE,
     SYM_GT,
     SYM_GE,
 
-    // `^` operator
     SYM_POW,
     SYM_RPOW,
 
-    // Sentinel
     SYM_END
 } MethodSymbol;
 
-// This stores the info needed to jump
-// to handler code and to restore the
+// Struct that stores the info needed to
+// jump to handler code and to restore the
 // VM state when handling exceptions
 typedef struct Handler {
     enum {
@@ -80,7 +72,7 @@ typedef struct Handler {
         HANDLER_EXCEPT,
     } type;            // The type of the handler block
     uint8_t* address;  // The address of handler code
-    Value* savedSp;    // Stack pointer to restore before executing the code at `address`
+    Value* savedSp;    // Saved stack state before the try block was enterd
 } Handler;
 
 // Stackframe of a function executing in
@@ -140,6 +132,9 @@ struct JStarVM {
     // Frame stack
     Frame* frames;
     int frameSz, frameCount;
+
+    // Number of reentrant calls made into the VM
+    int reentrantCalls;
 
     // Stack used during native function calls
     Value* apiStack;
@@ -215,7 +210,7 @@ inline ObjClass* getClass(JStarVM* vm, Value v) {
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
     if(IS_NUM(v)) return vm->numClass;
 
-    switch(TAG_BITS(v)) {
+    switch(BITS_TAG(v)) {
     case HANDLE_BITS:
     case NULL_BITS:
         return vm->nullClass;
@@ -251,21 +246,6 @@ inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
         }
     }
     return false;
-}
-
-inline int apiStackIndex(JStarVM* vm, int slot) {
-    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
-    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0) return vm->sp + slot - vm->apiStack;
-    return slot;
-}
-
-// Get the value at API stack slot "slot"
-inline Value apiStackSlot(JStarVM* vm, int slot) {
-    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
-    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0) return vm->sp[slot];
-    return vm->apiStack[slot];
 }
 
 #endif

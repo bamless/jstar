@@ -1,4 +1,6 @@
-#include "modules.h"
+#include "builtins.h"
+
+#include <string.h>
 
 #include "core.h"
 #include "core.jsc.inc"
@@ -27,8 +29,6 @@
     #include "re.h"
     #include "re.jsc.inc"
 #endif
-
-#include <string.h>
 
 typedef enum { TYPE_FUNC, TYPE_CLASS } Type;
 
@@ -99,9 +99,13 @@ static Module builtInModules[] = {
         ENDCLASS
         CLASS(Function)
             METHOD(__string__, jsr_Function_string)
+            METHOD(arity,      jsr_Function_arity)
+            METHOD(vararg,     jsr_Function_vararg)
+            METHOD(defaults,   jsr_Function_defaults)
         ENDCLASS
         CLASS(Module)
             METHOD(__string__, jsr_Module_string)
+            METHOD(globals,    jsr_Module_globals)
         ENDCLASS
         CLASS(Iterable)
             METHOD(join,       jsr_Iterable_join)
