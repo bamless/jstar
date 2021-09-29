@@ -1677,7 +1677,7 @@ JSR_NATIVE(jsr_eval) {
     }
 
     Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
-    ObjFunction* fn = compileWithModule(vm, "<eval>", proto->module->name, program);
+    ObjFunction* fn = compileModule(vm, "<eval>", proto->module->name, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {

@@ -81,7 +81,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     }
 
     ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = compileWithModule(vm, path, name, program);
+    ObjFunction* fn = compileModule(vm, path, name, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {
@@ -117,7 +117,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
 
     JStarResult err;
     ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = deserializeWithModule(vm, path, name, code, &err);
+    ObjFunction* fn = deserializeModule(vm, path, name, code, &err);
 
     if(fn == NULL) {
         return err;
@@ -166,7 +166,7 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
 
     JStarResult ret;
     ObjString* dummy = copyString(vm, "", 0);  // Use dummy module since the code won't be executed
-    ObjFunction* fn = deserializeWithModule(vm, path, dummy, code, &ret);
+    ObjFunction* fn = deserializeModule(vm, path, dummy, code, &ret);
 
     if(ret == JSR_SUCCESS) {
         disassembleFunction(fn);

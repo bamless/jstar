@@ -35,15 +35,15 @@ static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* na
     return module;
 }
 
-ObjFunction* compileWithModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program) {
+ObjFunction* compileModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program) {
     PROFILE_FUNC()
     ObjModule* module = getOrCreateModule(vm, path, name);
     ObjFunction* fn = compile(vm, path, module, program);
     return fn;
 }
 
-ObjFunction* deserializeWithModule(JStarVM* vm, const char* path, ObjString* name,
-                                   const JStarBuffer* code, JStarResult* err) {
+ObjFunction* deserializeModule(JStarVM* vm, const char* path, ObjString* name,
+                               const JStarBuffer* code, JStarResult* err) {
     PROFILE_FUNC()
     ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, path, name), code, err);
     if(*err == JSR_VERSION_ERR) {
@@ -122,7 +122,7 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
         return NULL;
     }
 
-    ObjFunction* fn = compileWithModule(vm, path, name, program);
+    ObjFunction* fn = compileModule(vm, path, name, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {
@@ -140,7 +140,7 @@ static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
     PROFILE_FUNC()
 
     JStarResult res;
-    ObjFunction* fn = deserializeWithModule(vm, path, name, code, &res);
+    ObjFunction* fn = deserializeModule(vm, path, name, code, &res);
     if(res != JSR_SUCCESS) {
         return NULL;
     }
