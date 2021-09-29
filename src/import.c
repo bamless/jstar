@@ -151,34 +151,38 @@ static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
     return fn->proto.module;
 }
 
-typedef enum ImportRes {
-    IMPORT_OK,
-    IMPORT_ERR,
-    IMPORT_NOT_FOUND,
+typedef struct {
+    enum {
+        IMPORT_OK,
+        IMPORT_ERR,
+        IMPORT_NOT_FOUND,
+    } status;
+    ObjModule *module;
 } ImportRes;
 
-static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name, ObjModule** res) {
+static ImportRes importFromPath(JStarVM* vm, JStarBuffer* path, ObjString* name) {
     PROFILE_FUNC()
 
     JStarBuffer src;
     if(!jsrReadFile(vm, path->data, &src)) {
-        return IMPORT_NOT_FOUND;
+        return (ImportRes){IMPORT_NOT_FOUND, NULL};
     }
 
+    ImportRes res;
     if(isCompiledCode(&src)) {
-        *res = importBinary(vm, path->data, name, &src);
+        res.module = importBinary(vm, path->data, name, &src);
     } else {
-        *res = importSource(vm, path->data, name, src.data);
+        res.module = importSource(vm, path->data, name, src.data);
     }
 
     jsrBufferFree(&src);
 
-    if(*res == NULL) {
-        return IMPORT_ERR;
+    if(res.module == NULL) {
+        return (ImportRes){IMPORT_ERR, NULL};
     }
 
     loadNativeExtension(vm, path, name);
-    return IMPORT_OK;
+    return res;
 }
 
 static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
@@ -204,45 +208,44 @@ static ObjModule* importModuleOrPackage(JStarVM* vm, ObjString* name) {
         jsrBufferReplaceChar(&fullPath, moduleStart, '.', PATH_SEP_CHAR);
 
         ImportRes res;
-        ObjModule* mod;
 
         // Try to load a binary package (__package__.jsc file in a directory)
         jsrBufferAppendStr(&fullPath, PATH_SEP_STR PACKAGE_FILE JSC_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, name);
 
-        if(res != IMPORT_NOT_FOUND) {
+        if(res.status != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
-            return res == IMPORT_OK ? mod : NULL;
+            return res.module;
         }
 
         // Try to load a source package (__package__.jsr file in a directory)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, PATH_SEP_STR PACKAGE_FILE JSR_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, name);
 
-        if(res != IMPORT_NOT_FOUND) {
+        if(res.status != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
-            return res == IMPORT_OK ? mod : NULL;
+            return res.module;
         }
 
         // If there is no package try to load compiled module (i.e. `.jsc` file)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSC_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, name);
 
-        if(res != IMPORT_NOT_FOUND) {
+        if(res.status != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
-            return res == IMPORT_OK ? mod : NULL;
+            return res.module;
         }
 
         // No binary module found, finally try with source module (i.e. `.jsr` file)
         jsrBufferTrunc(&fullPath, moduleEnd);
         jsrBufferAppendStr(&fullPath, JSR_EXT);
-        res = importFromPath(vm, &fullPath, name, &mod);
+        res = importFromPath(vm, &fullPath, name);
 
-        if(res != IMPORT_NOT_FOUND) {
+        if(res.status != IMPORT_NOT_FOUND) {
             jsrBufferFree(&fullPath);
-            return res == IMPORT_OK ? mod : NULL;
+            return res.module;
         }
 
         jsrBufferClear(&fullPath);
