@@ -12,7 +12,6 @@
 #include <string.h>
 
 #include "builtins.h"
-#include "const.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"

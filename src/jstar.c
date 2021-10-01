@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "compiler.h"
+#include "builtins/core.h"
 #include "const.h"
 #include "disassemble.h"
 #include "hashtable.h"
@@ -55,7 +56,7 @@ static void parseError(const char* file, int line, const char* error, void* udat
 JStarConf jsrGetConf(void) {
     JStarConf conf;
     conf.stackSize = STACK_SZ;
-    conf.initGC = INIT_GC;
+    conf.initGC = FIRST_GC;
     conf.heapGrowRate = HEAP_GROW_RATE;
     conf.errorCallback = &jsrPrintErrorCB;
     conf.customData = NULL;

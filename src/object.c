@@ -3,11 +3,17 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "const.h"
 #include "dynload.h"
 #include "gc.h"
 #include "util.h"
 #include "vm.h"
+
+#define MOD_NAME "__name__"
+#define MOD_PATH "__path__"
+#define MOD_THIS "__this__"
+
+#define LIST_DEFAULT_CAPACITY 8
+#define LIST_GROW_RATE        2
 
 // -----------------------------------------------------------------------------
 // OBJECT ALLOCATION FUNCTIONS
@@ -295,7 +301,7 @@ void freeObject(JStarVM* vm, Obj* o) {
 // -----------------------------------------------------------------------------
 
 static void growList(JStarVM* vm, ObjList* lst) {
-    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEF_CAP;
+    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEFAULT_CAPACITY;
     lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->capacity, sizeof(Value) * newCap);
     lst->capacity = newCap;
 }

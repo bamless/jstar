@@ -31,6 +31,9 @@
 #define CONTINUE_MARK 1
 #define BREAK_MARK    2
 
+#define THIS_STR "this"
+#define ANON_STR "anon:"
+
 typedef struct Variable {
     enum { VAR_LOCAL, VAR_GLOBAL, VAR_ERR } scope;
     union {

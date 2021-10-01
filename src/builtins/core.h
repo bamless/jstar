@@ -3,6 +3,11 @@
 
 #include "jstar.h"
 
+// Excepttion class fields
+#define EXC_ERR   "_err"
+#define EXC_CAUSE "_cause"
+#define EXC_TRACE "_stacktrace"
+
 // J* core module bootstrap
 void initCoreModule(JStarVM* vm);
 

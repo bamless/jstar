@@ -5,7 +5,6 @@
 
 #include "builtins/builtins.h"
 #include "compiler.h"
-#include "const.h"
 #include "dynload.h"
 #include "hashtable.h"
 #include "jstar.h"
@@ -16,12 +15,32 @@
 #include "value.h"
 #include "vm.h"
 
+#define PACKAGE_FILE "__package__"
+#define JSR_EXT      ".jsr"
+#define JSC_EXT      ".jsc"
+
+// Platform specific path separator
 #ifdef JSTAR_WINDOWS
     #define PATH_SEP_CHAR '\\'
     #define PATH_SEP_STR  "\\"
 #else
     #define PATH_SEP_CHAR '/'
     #define PATH_SEP_STR  "/"
+#endif
+
+// Platform specific shared library prefix and suffix
+#if defined(JSTAR_WINDOWS)
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ".dll"
+#elif defined(JSTAR_MACOS) || defined(JSTAR_IOS)
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ".dylib"
+#elif defined(JSTAR_POSIX)
+    #define DL_PREFIX "lib"
+    #define DL_SUFFIX ".so"
+#else
+    #define DL_PREFIX ""
+    #define DL_SUFFIX ""
 #endif
 
 static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* name) {

@@ -4,12 +4,15 @@
 #include "re.h"
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "object.h"
+#include "util.h"
 #include "value.h"
 #include "vm.h"
 
