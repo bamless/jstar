@@ -403,13 +403,13 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     return true;
 }
 
-ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* err) {
+ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* res) {
     PROFILE_FUNC()
 
     ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
     Deserializer d = {vm, buf, mod, 0};
 
-    *err = JSR_DESERIALIZE_ERR;
+    *res = JSR_DESERIALIZE_ERR;
 
     char header[SERIALIZED_HEADER_SZ];
     if(!read(&d, header, SERIALIZED_HEADER_SZ)) return NULL;
@@ -420,7 +420,7 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
     if(!deserializeByte(&d, &versionMinor)) return NULL;
 
     if(versionMajor != JSTAR_VERSION_MAJOR || versionMinor != JSTAR_VERSION_MINOR) {
-        *err = JSR_VERSION_ERR;
+        *res = JSR_VERSION_ERR;
         return NULL;
     }
 
@@ -433,7 +433,7 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
         return NULL;
     }
 
-    *err = JSR_SUCCESS;
+    *res = JSR_SUCCESS;
     return fn;
 }
 
