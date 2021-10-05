@@ -17,7 +17,7 @@
 #define MAX_REENTRANT 1000
 
 // Maximum number of nested try-excepts allowed.
-// Increasing this value will enable nesting more try-excepts, the memory consuption will be
+// Increasing this value will enable nesting more try-excepts, but the memory consuption will be
 // increased for each stack frame, leading to an overall increase in memory usage by the VM.
 #define MAX_HANDLERS 6
 
