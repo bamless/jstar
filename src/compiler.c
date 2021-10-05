@@ -7,9 +7,9 @@
 #include <string.h>
 
 #include "code.h"
-#include "const.h"
 #include "gc.h"
 #include "jstar.h"
+#include "jstar_limits.h"
 #include "opcode.h"
 #include "parse/lex.h"
 #include "parse/vector.h"
@@ -31,6 +31,10 @@
 #define CONTINUE_MARK 1
 #define BREAK_MARK    2
 
+// Max number of inline opcode arguments for a function call
+#define MAX_INLINE_ARGS 10
+
+// String constants
 #define THIS_STR "this"
 #define ANON_STR "anon:"
 
@@ -426,9 +430,9 @@ static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line
     c->tryBlocks = exc;
     c->tryDepth += numHandlers;
 
-    if(c->tryDepth > MAX_TRY_DEPTH) {
+    if(c->tryDepth > MAX_HANDLERS) {
         error(c, line, "Exceeded max number of nested exception handlers: max %d, got %d",
-              MAX_TRY_DEPTH, c->tryDepth);
+              MAX_HANDLERS, c->tryDepth);
     }
 }
 
@@ -1495,9 +1499,13 @@ static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName
     bool vararg = s->as.funcDecl.isVararg;
 
     c->func = newFunction(c->vm, mod, arity, defCount, vararg);
-    addConstant(&c->func->code, NULL_VAL);  // This const will hold the superclass at runtime
+
+    // Dummy constant that will be replaced at runtime with the method 
+    // superclass, in order to correctly implement `super` calls
+    addConstant(&c->func->code, NULL_VAL);
     addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
 
+    // Create method name by prepending its class name and a dot
     c->func->proto.name = createMethodName(c, clsName, name);
 
     // if in costructor change the type

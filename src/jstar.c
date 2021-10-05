@@ -5,12 +5,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "compiler.h"
 #include "builtins/core.h"
-#include "const.h"
+#include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
+#include "jstar_limits.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
@@ -54,10 +54,11 @@ static void parseError(const char* file, int line, const char* error, void* udat
 }
 
 JStarConf jsrGetConf(void) {
+    // Default configuration
     JStarConf conf;
-    conf.stackSize = STACK_SZ;
-    conf.initGC = FIRST_GC;
-    conf.heapGrowRate = HEAP_GROW_RATE;
+    conf.startingStackSize = 100;
+    conf.firstGCCollectionPoint = 1024 * 1024 * 20; // 20 MiB
+    conf.heapGrowRate = 2;
     conf.errorCallback = &jsrPrintErrorCB;
     conf.customData = NULL;
     return conf;

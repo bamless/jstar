@@ -58,14 +58,14 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     vm->customData = conf->customData;
 
     // VM program stack
-    vm->stackSz = roundUp(conf->stackSize, MAX_LOCALS + 1);
+    vm->stackSz = roundUp(conf->startingStackSize, MAX_LOCALS + 1);
     vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
     vm->stack = malloc(sizeof(Value) * vm->stackSz);
     vm->frames = malloc(sizeof(Frame) * vm->frameSz);
     resetStack(vm);
 
     // GC Values
-    vm->nextGC = conf->initGC;
+    vm->nextGC = conf->firstGCCollectionPoint;
     vm->heapGrowRate = conf->heapGrowRate;
 
     // Module cache and interned string pool

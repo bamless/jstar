@@ -58,11 +58,11 @@ JSTAR_API void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, i
                                const char* error);
 
 typedef struct JstarConf {
-    size_t stackSize;            // Initial stack size in bytes
-    size_t initGC;               // first GC threshold point
-    int heapGrowRate;            // The rate at which the heap will grow after a succesful GC
-    JStarErrorCB errorCallback;  // Error callback
-    void* customData;            // Custom data associated with the VM
+    size_t startingStackSize;       // Initial stack size in bytes
+    size_t firstGCCollectionPoint;  // first GC collection point in bytes
+    int heapGrowRate;               // The rate at which the heap will grow after a GC pass
+    JStarErrorCB errorCallback;     // Error callback
+    void* customData;               // Custom data associated with the VM
 } JStarConf;
 
 // Retuns a JStarConf struct initialized with default values

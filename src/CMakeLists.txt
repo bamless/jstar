@@ -26,7 +26,6 @@ set(JSTAR_SOURCES
     code.h
     compiler.c
     compiler.h
-    const.h
     disassemble.c
     disassemble.h
     dynload.h
@@ -37,6 +36,7 @@ set(JSTAR_SOURCES
     import.c
     import.h
     jstar.c
+    jstar_limits.h
     object.c
     object.h
     opcode.h

@@ -7,9 +7,9 @@
 #include <stdlib.h>
 
 #include "compiler.h"
-#include "const.h"
 #include "hashtable.h"
 #include "jstar.h"
+#include "jstar_limits.h"
 #include "object.h"
 #include "util.h"
 #include "value.h"
@@ -78,11 +78,11 @@ typedef struct Handler {
 // Stackframe of a function executing in
 // the virtual machine
 typedef struct Frame {
-    uint8_t* ip;                    // Instruction pointer
-    Value* stack;                   // Base of stack for current frame
-    Obj* fn;                        // Function associated with the frame (ObjClosure or ObjNative)
-    Handler handlers[HANDLER_MAX];  // Exception handlers
-    uint8_t handlerc;               // Exception handlers count
+    uint8_t* ip;                     // Instruction pointer
+    Value* stack;                    // Base of stack for current frame
+    Obj* fn;                         // Function associated with the frame (ObjClosure or ObjNative)
+    Handler handlers[MAX_HANDLERS];  // Exception handlers
+    uint8_t handlerc;                // Exception handlers count
 } Frame;
 
 // The J* VM. This struct stores all the
