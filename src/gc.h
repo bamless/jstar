@@ -6,7 +6,7 @@
 #include "jstar.h"
 #include "value.h"
 
-// Macros to simplify object allocation
+// Macros to simplify memory allocation
 #define GC_ALLOC(vm, size)                  gcAlloc(vm, NULL, 0, size)
 #define GC_FREE(vm, t, obj)                 gcAlloc(vm, obj, sizeof(t), 0)
 #define GC_FREE_ARRAY(vm, t, obj, count)    gcAlloc(vm, obj, sizeof(t) * (count), 0)
