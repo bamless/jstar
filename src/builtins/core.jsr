@@ -344,7 +344,7 @@ class ReversedSequence is Sequence
         try
             return this._sequence[this._size - i - 1]
         except IndexOutOfBoundException e
-            raise IndexOutOfBoundException(##i)
+            raise IndexOutOfBoundException(##i, e)
         end
     end
 
@@ -414,9 +414,9 @@ class FilterIter is Iterable
 
     fun __iter__(iter)
         while iter = this._iterable.__iter__(iter)
-            var val = this._iterable.__next__(iter)
-            if this._predicate(val)
-                this._next = val
+            var value = this._iterable.__next__(iter)
+            if this._predicate(value)
+                this._next = value
                 return iter
             end
         end
@@ -454,12 +454,12 @@ class SkipIter is Iterable
             return this._iterable.__iter__(iter)
         end
 
+        var toSkip = this._count
         var iterator = this._iterable.__iter__(iter)
-        var count = this._count
 
-        while count > 0
+        while toSkip > 0 and iterator
             iterator = this._iterable.__iter__(iterator)
-            count -= 1
+            toSkip -= 1
         end
 
         return iterator
