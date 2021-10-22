@@ -30,6 +30,7 @@ class Function
     native arity()
     native vararg()
     native defaults()
+    native getName()
 end
 
 class Module
@@ -96,11 +97,11 @@ class Iterable
     end
 
     fun map(fn)
-        return MapIter(fn, this)
+        return MapIter(this, fn)
     end
 
-    fun filter(fn) 
-        return FilterIter(fn, this)
+    fun filter(predicate) 
+        return FilterIter(this, predicate)
     end
 
     fun skip(count)
@@ -119,6 +120,10 @@ class Iterable
         var lst = List(this)
         lst.sort()
         return lst
+    end
+
+    fun apply(transformIter, ...)
+        return transformIter(this, args)...
     end
 end
 
@@ -406,7 +411,7 @@ class ConcatIter is Iterable
 end
 
 class FilterIter is Iterable
-    fun new(predicate, iterable)
+    fun new(iterable, predicate)
         this._predicate = predicate
         this._iterable = iterable
         this._next = null
@@ -429,7 +434,7 @@ class FilterIter is Iterable
 end
 
 class MapIter is Iterable
-    fun new(fn, iterable)
+    fun new(iterable, fn)
         this._fn = fn
         this._iterable = iterable
     end
