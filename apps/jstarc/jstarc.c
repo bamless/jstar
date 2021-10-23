@@ -18,8 +18,13 @@ typedef struct Options {
     bool disassemble;
     bool compileOnly;
     bool recursive;
+    bool showVersion;
     bool list;
 } Options;
+
+// -----------------------------------------------------------------------------
+// APP STATE
+// -----------------------------------------------------------------------------
 
 static Options opts;
 static JStarVM* vm;
@@ -45,6 +50,12 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
+
+// Print the J* version along with its compilation environment.
+static void printVersion(void) {
+    printf("J* Version %s\n", JSTAR_VERSION_STRING);
+    printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
+}
 
 // Returns whether `path` is a directory or not.
 static bool isDirectory(const char* path) {
@@ -197,7 +208,7 @@ static bool isRelPath(const char* path) {
     return strcmp(path, ".") == 0 || strcmp(path, "..") == 0;
 }
 
-// Walk a directory (recursively, if `-r` was specified) and process 
+// Walk a directory (recursively, if `-r` was specified) and process
 // all files that end in a `.jsr` or `.jsc` extension.
 // Returns true on success, false on failure.
 static bool walkDirectory(const char* root, const char* currDir, const char* outDir) {
@@ -264,9 +275,10 @@ static bool processDirectory(const char* dir, const char* out) {
 }
 
 // -----------------------------------------------------------------------------
-// ARGUMENT PARSE
+// APP INITIALIZATION AND MAIN FUNCTION
 // -----------------------------------------------------------------------------
 
+// Parse the app arguments into an Options struct
 static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
@@ -285,14 +297,14 @@ static void parseArguments(int argc, char** argv) {
                     "argument is a <file>",
                     0, 0, 0),
         OPT_BOOLEAN('l', "list", &opts.list,
-                    "List the compiled bytecode instead of saving it on file. Listing compiled "
-                    "bytecode is useful to learn about the J* VM",
-                    0, 0, 0),
+                    "List the compiled bytecode instead of saving it on file", 0, 0, 0),
         OPT_BOOLEAN('d', "disassemble", &opts.disassemble,
                     "Disassemble already compiled jsc files and list their content", 0, 0, 0),
         OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
                     "Compile files but do not generate output files. Used for syntax checking", 0,
                     0, 0),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
+                    0),
         OPT_END(),
     };
 
@@ -300,6 +312,12 @@ static void parseArguments(int argc, char** argv) {
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse, "jstarc compiles J* source files to bytecode", NULL);
     int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
+
+    // Bail out early if we only need to show the version
+    if(opts.showVersion) {
+        printVersion();
+        exit(EXIT_SUCCESS);
+    }
 
     if(nonOpts != 1) {
         argparse_usage(&argparse);
@@ -309,22 +327,18 @@ static void parseArguments(int argc, char** argv) {
     opts.input = argv[0];
 }
 
-// -----------------------------------------------------------------------------
-// APP INITIALIZATION AND MAIN FUNCTION
-// -----------------------------------------------------------------------------
-
+// Init the app state by parsing arguments and initializing the J* vm
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
     PROFILE_BEGIN_SESSION("jstar-init.json")
-
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
-
     PROFILE_END_SESSION()
 }
 
+// Free the app state
 static void freeApp(void) {
     PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);

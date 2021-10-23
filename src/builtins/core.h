@@ -3,6 +3,11 @@
 
 #include "jstar.h"
 
+// Excepttion class fields
+#define EXC_ERR   "_err"
+#define EXC_CAUSE "_cause"
+#define EXC_TRACE "_stacktrace"
+
 // J* core module bootstrap
 void initCoreModule(JStarVM* vm);
 
@@ -27,10 +32,14 @@ JSR_NATIVE(jsr_Null_string);
 
 // class Function
 JSR_NATIVE(jsr_Function_string);
+JSR_NATIVE(jsr_Function_arity);
+JSR_NATIVE(jsr_Function_vararg);
+JSR_NATIVE(jsr_Function_defaults);
 // end
 
 // class Module
 JSR_NATIVE(jsr_Module_string);
+JSR_NATIVE(jsr_Module_globals);
 // end
 
 // class Iterable

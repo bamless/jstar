@@ -1,4 +1,5 @@
 #include <argparse.h>
+#include <cwalk.h>
 #include <errno.h>
 #include <replxx.h>
 #include <signal.h>
@@ -9,11 +10,21 @@
 
 #include "console_print.h"
 #include "highlighter.h"
+#include "hints.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
 #include "profiler.h"
+
+#if defined(JSTAR_POSIX)
+    #include <unistd.h>
+    #define PATH_SEP ':'
+#elif defined(JSTAR_WINDOWS)
+    #include <direct.h>
+    #define getcwd   _getcwd
+    #define PATH_SEP ';'
+#endif
 
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
@@ -47,10 +58,15 @@ typedef struct Options {
     bool interactive;
     bool ignoreEnv;
     bool disableColors;
+    bool disableHints;
     char* execStmt;
     char** args;
     int argsCount;
 } Options;
+
+// -----------------------------------------------------------------------------
+// APP STATE
+// -----------------------------------------------------------------------------
 
 static Options opts;
 static JStarVM* vm;
@@ -73,7 +89,7 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln
 }
 
 // Replxx autocompletion hook with indentation support
-static void completion(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
+static void indent(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
     Replxx* replxx = ud;
     jsrBufferClear(&completionBuf);
 
@@ -102,32 +118,22 @@ static void printVersion(void) {
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-// Init the J* importPaths list using a custom path and the `JSTARPATH` env variable.
-// The custom path is appended first.
-static void initImportPaths(const char* path) {
-    jsrAddImportPath(vm, path);
-    if(opts.ignoreEnv) return;
-
-    const char* jstarPath = getenv(JSTAR_PATH);
-    if(!jstarPath) return;
-
-    JStarBuffer buf;
-    jsrBufferInit(vm, &buf);
-
-    size_t last = 0;
-    size_t pathLen = strlen(jstarPath);
-    for(size_t i = 0; i < pathLen; i++) {
-        if(jstarPath[i] == ':') {
-            jsrBufferAppend(&buf, jstarPath + last, i - last);
-            jsrAddImportPath(vm, buf.data);
-            jsrBufferClear(&buf);
-            last = i + 1;
+// Returns the current working directory.
+// The returned buffer is malloc'd and should be freed by the user.
+static char* getCurrentDirectory(void) {
+    size_t cwdLen = 128;
+    char* cwd = malloc(cwdLen);
+    while(!getcwd(cwd, cwdLen)) {
+        if(errno != ERANGE) {
+            int saveErrno = errno;
+            free(cwd);
+            errno = saveErrno;
+            return NULL;
         }
+        cwdLen *= 2;
+        cwd = realloc(cwd, cwdLen);
     }
-
-    jsrBufferAppend(&buf, jstarPath + last, pathLen - last);
-    jsrAddImportPath(vm, buf.data);
-    jsrBufferFree(&buf);
+    return cwd;
 }
 
 // SIGINT handler to break evaluation on CTRL-C.
@@ -138,21 +144,25 @@ static void sigintHandler(int sig) {
 
 // Wrapper function to evaluate source or binary J* code.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluate(const char* name, const JStarBuffer* src) {
+static JStarResult evaluate(const char* path, const JStarBuffer* src) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEval(vm, name, src);
+    JStarResult res = jsrEval(vm, path, src);
     signal(SIGINT, SIG_DFL);
     return res;
 }
 
 // Wrapper function to evaluate J* source code passed in as a c-string.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluateString(const char* name, const char* src) {
+static JStarResult evaluateString(const char* path, const char* src) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEvalString(vm, name, src);
+    JStarResult res = jsrEvalString(vm, path, src);
     signal(SIGINT, SIG_DFL);
     return res;
 }
+
+// -----------------------------------------------------------------------------
+// SCRIPT EXECUTION
+// -----------------------------------------------------------------------------
 
 // Execute a J* source or compiled file from disk.
 static JStarResult execScript(const char* script, int argc, char** args) {
@@ -162,20 +172,6 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     {
         PROFILE_FUNC()
 
-        jsrInitCommandLineArgs(vm, argc, (const char**)args);
-
-        // set base import path to script's directory
-        char* directory = strrchr(script, '/');
-        if(directory != NULL) {
-            size_t length = directory - script + 1;
-            char* path = calloc(length + 1, 1);
-            memcpy(path, script, length);
-            initImportPaths(path);
-            free(path);
-        } else {
-            initImportPaths("./");
-        }
-
         JStarBuffer src;
         if(!jsrReadFile(vm, script, &src)) {
             fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
@@ -183,7 +179,22 @@ static JStarResult execScript(const char* script, int argc, char** args) {
             exit(EXIT_FAILURE);
         }
 
-        res = evaluate(script, &src);
+        char* currentDir = getCurrentDirectory();
+        if(!currentDir) {
+            fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
+                          strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        // Convert the script path to an absolute one
+        char absolutePath[FILENAME_MAX];
+        cwk_path_get_absolute(currentDir, script, absolutePath, FILENAME_MAX);
+        free(currentDir);
+
+        // Execute the script; make sure to use the absolute path for consistency
+        jsrInitCommandLineArgs(vm, argc, (const char**)args);
+        res = evaluate(absolutePath, &src);
+
         jsrBufferFree(&src);
     }
 
@@ -241,8 +252,11 @@ static bool replPrint(JStarVM* vm) {
     return true;
 }
 
-// Registers the custom replPrint function in the VM.
+// Register the custom `replPrint` function in the __main__ module.
 static void registerPrintFunction(void) {
+    // Make sure to initialize an empty __main__ module
+    jsrEvalModuleString(vm, "<repl>", JSR_MAIN_MODULE, "");
+    // Register it
     jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
     jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
     jsrPop(vm);
@@ -269,7 +283,6 @@ static JStarResult doRepl(void) {
         PROFILE_FUNC()
 
         if(!opts.skipVersion) printVersion();
-        initImportPaths("./");
         registerPrintFunction();
 
         JStarBuffer src;
@@ -289,7 +302,6 @@ static JStarResult doRepl(void) {
             }
 
             addReplPrint(&src);
-
             res = evaluateString("<stdin>", src.data);
             jsrBufferClear(&src);
         }
@@ -302,9 +314,10 @@ static JStarResult doRepl(void) {
 }
 
 // -----------------------------------------------------------------------------
-// ARGUMENT PARSE
+// APP INITIALIZATION AND MAIN FUNCTION
 // -----------------------------------------------------------------------------
 
+// Parse the app arguments into an Option struct
 static void parseArguments(int argc, char** argv) {
     opts = (Options){0};
 
@@ -316,8 +329,6 @@ static void parseArguments(int argc, char** argv) {
     struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
-        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
-                    0),
         OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
                     "Don't print version information when entering the REPL", 0, 0, 0),
         OPT_STRING('e', "exec", &opts.execStmt,
@@ -327,7 +338,11 @@ static void parseArguments(int argc, char** argv) {
                     "Enter the REPL after executing 'script' and/or '-e' statement", 0, 0, 0),
         OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
                     "Ignore environment variables such as JSTARPATH", 0, 0, 0),
-        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring", 0, 0, 0),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
+                    "Disable output coloring. Hints are disabled as well", 0, 0, 0),
+        OPT_BOOLEAN('H', "no-hints", &opts.disableHints, "Disable hinting support", 0, 0, 0),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
+                    0),
         OPT_END(),
     };
 
@@ -335,6 +350,12 @@ static void parseArguments(int argc, char** argv) {
     argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
     argparse_describe(&argparse, "J* a lightweight scripting language", NULL);
     int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
+
+    // Bail out early if we only need to show the version
+    if(opts.showVersion) {
+        printVersion();
+        exit(EXIT_SUCCESS);
+    }
 
     if(nonOpts > 0) {
         opts.script = argv[0];
@@ -346,43 +367,32 @@ static void parseArguments(int argc, char** argv) {
     }
 }
 
-// -----------------------------------------------------------------------------
-// APP INITIALIZATION AND MAIN FUNCTION
-// -----------------------------------------------------------------------------
-
+// Init the app state by parsing arguments and initializing J* and replxx
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
-    // Bail out early if we only need to show the version
-    if(opts.showVersion) {
-        printVersion();
-        exit(EXIT_SUCCESS);
-    }
-
     // Init the J* VM
     PROFILE_BEGIN_SESSION("jstar-init.json")
-
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
     jsrBufferInit(vm, &completionBuf);
-
     PROFILE_END_SESSION()
 
-    // Init replxx for repl and output coloring supprt
+    // Init replxx for repl and output coloring/hints support
     replxx = replxx_init();
-    replxx_set_completion_callback(replxx, &completion, replxx);
-    replxx_set_highlighter_callback(replxx, &highlighter, replxx);
-    if(opts.disableColors) replxx_set_no_color(replxx, true);
+    replxx_set_completion_callback(replxx, &indent, replxx);
+    replxx_set_no_color(replxx, opts.disableColors);
+    if(!opts.disableColors) replxx_set_highlighter_callback(replxx, &highlighter, replxx);
+    if(!opts.disableColors && !opts.disableHints) replxx_set_hint_callback(replxx, &hints, vm);
 }
 
+// Free the app state
 static void freeApp(void) {
     // Free  the J* VM
     PROFILE_BEGIN_SESSION("jstar-free.json")
-
     jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
-
     PROFILE_END_SESSION()
 
     // Free replxx
@@ -390,9 +400,65 @@ static void freeApp(void) {
     replxx_end(replxx);
 }
 
+// Init the J* `importPaths` list by appending the script directory (or the current working
+// directory if no script was provided) and all the paths present in the JSTARPATH env variable.
+// All paths are converted to absolute ones.
+static void initImportPaths(void) {
+    char absolutePath[FILENAME_MAX];
+    
+    char* currentDir = getCurrentDirectory();
+    if(!currentDir) {
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
+                      strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    // Compute the absolute main import path
+    size_t directory = 0;
+    if(opts.script) {
+        cwk_path_get_dirname(opts.script, &directory);
+    }
+
+    char* mainImportPath;
+    if(directory) {
+        mainImportPath = calloc(directory + 1, 1);
+        memcpy(mainImportPath, opts.script, directory);
+    } else {
+        mainImportPath = calloc(strlen("./") + 1, 1);
+        memcpy(mainImportPath, "./", 2);
+    }
+
+    cwk_path_get_absolute(currentDir, mainImportPath, absolutePath, FILENAME_MAX);
+    jsrAddImportPath(vm, absolutePath);
+    free(mainImportPath);
+
+    // Add all other paths appearing in the JSTARPATH env variable
+    const char* jstarPath;
+    if(!opts.ignoreEnv && (jstarPath = getenv(JSTAR_PATH))) {
+        JStarBuffer buf;
+        jsrBufferInit(vm, &buf);
+
+        size_t pathLen = strlen(jstarPath);
+        for(size_t i = 0, last = 0; i <= pathLen; i++) {
+            if(jstarPath[i] == PATH_SEP || i == pathLen) {
+                jsrBufferAppend(&buf, jstarPath + last, i - last);
+                cwk_path_get_absolute(currentDir, buf.data, absolutePath, FILENAME_MAX);
+                jsrAddImportPath(vm, absolutePath);
+                jsrBufferClear(&buf);
+                last = i + 1;
+            }
+        }
+
+        jsrBufferFree(&buf);
+    }
+
+    free(currentDir);
+}
+
 int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
+    initImportPaths();
 
     if(opts.execStmt) {
         JStarResult res = evaluateString("<string>", opts.execStmt);

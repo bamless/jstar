@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 // Reinterprets the bits of the value `v` from type F to type T
-#define REINTERPRET_CAST(F, T, v) ((union {F f; T t;}){.f = (v)}.t)
+#define REINTERPRET_CAST(F, T, v) ((union {F from; T to;}){.from = (v)}.to)
 
 // Compute the approximate maximal length of an integral type in base 10
 // The computed value is an integer constant in order to permit stack buffer allocation

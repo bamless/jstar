@@ -58,11 +58,11 @@ JSTAR_API void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, i
                                const char* error);
 
 typedef struct JstarConf {
-    size_t stackSize;            // Initial stack size in bytes
-    size_t initGC;               // first GC threshold point
-    int heapGrowRate;            // The rate at which the heap will grow after a succesful GC
-    JStarErrorCB errorCallback;  // Error callback
-    void* customData;            // Custom data associated with the VM
+    size_t startingStackSize;       // Initial stack size in bytes
+    size_t firstGCCollectionPoint;  // first GC collection point in bytes
+    int heapGrowRate;               // The rate at which the heap will grow after a GC pass
+    JStarErrorCB errorCallback;     // Error callback
+    void* customData;               // Custom data associated with the VM
 } JStarConf;
 
 // Retuns a JStarConf struct initialized with default values
@@ -237,7 +237,8 @@ JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
 JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
 
 // Check if a value is of a certain class.
-// Returns true if the object is an instance of the class
+// Returns true if the object is an instance of the class, false if it's not
+// or if `classSlot` doesn't point to a Class object
 JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
 
 // -----------------------------------------------------------------------------

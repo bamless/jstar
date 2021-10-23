@@ -5,11 +5,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "builtins/core.h"
 #include "compiler.h"
-#include "const.h"
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
+#include "jstar_limits.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
@@ -23,6 +24,20 @@
 // API - The bulk of the API (jstar.h) implementation
 // JStarNewVM and JStarFreeVM functions are implemented in vm.c
 // -----------------------------------------------------------------------------
+
+static int apiStackIndex(JStarVM* vm, int slot) {
+    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
+    if(slot < 0) return vm->sp + slot - vm->apiStack;
+    return slot;
+}
+
+static Value apiStackSlot(JStarVM* vm, int slot) {
+    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
+    if(slot < 0) return vm->sp[slot];
+    return vm->apiStack[slot];
+}
 
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
     if(line >= 0) {
@@ -39,10 +54,11 @@ static void parseError(const char* file, int line, const char* error, void* udat
 }
 
 JStarConf jsrGetConf(void) {
+    // Default configuration
     JStarConf conf;
-    conf.stackSize = STACK_SZ;
-    conf.initGC = INIT_GC;
-    conf.heapGrowRate = HEAP_GROW_RATE;
+    conf.startingStackSize = 100;
+    conf.firstGCCollectionPoint = 1024 * 1024 * 20; // 20 MiB
+    conf.heapGrowRate = 2;
     conf.errorCallback = &jsrPrintErrorCB;
     conf.customData = NULL;
     return conf;
@@ -67,7 +83,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     }
 
     ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = compileWithModule(vm, path, name, program);
+    ObjFunction* fn = compileModule(vm, path, name, program);
     jsrStmtFree(program);
 
     if(fn == NULL) {
@@ -81,7 +97,7 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
         vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
-        jsrPop(vm);
+        pop(vm);
     }
 
     pop(vm);
@@ -103,7 +119,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
 
     JStarResult err;
     ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = deserializeWithModule(vm, path, name, code, &err);
+    ObjFunction* fn = deserializeModule(vm, path, name, code, &err);
 
     if(fn == NULL) {
         return err;
@@ -116,7 +132,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
         vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
-        jsrPop(vm);
+        pop(vm);
     }
 
     pop(vm);
@@ -152,7 +168,8 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
 
     JStarResult ret;
     ObjString* dummy = copyString(vm, "", 0);  // Use dummy module since the code won't be executed
-    ObjFunction* fn = deserializeWithModule(vm, path, dummy, code, &ret);
+    ObjFunction* fn = deserializeModule(vm, path, dummy, code, &ret);
+
     if(ret == JSR_SUCCESS) {
         disassembleFunction(fn);
     }
@@ -160,51 +177,86 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
     return ret;
 }
 
-static JStarResult executeCall(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
-    if(vm->frameCount > evalDepth && !runEval(vm, evalDepth)) {
-        // Exception was thrown, push it as result
-        Value exc = pop(vm);
-        vm->sp = vm->stack + stackPtrOffset;
-        push(vm, exc);
-        return JSR_RUNTIME_ERR;
+static bool executeCall(JStarVM* vm, int evalDepth, size_t base) {
+    // Nothing to do, must have been a native call
+    if(vm->frameCount <= evalDepth) return true;
+
+    // Eval the function
+    if(!runEval(vm, evalDepth)) {
+        // Exception was thrown, push it as a result
+        Value exception = pop(vm);
+        vm->sp = vm->stack + base;
+        push(vm, exception);
+        return false;
     }
-    return JSR_SUCCESS;
+
+    return true;
 }
 
-static void finishUnwind(JStarVM* vm, int evalDepth, size_t stackPtrOffset) {
-    PROFILE_FUNC()
-
-    // Finish to unwind the stack
+static void finishUnwind(JStarVM* vm, int evalDepth, size_t base) {
+    // If needed, finish to unwind the stack
     if(vm->frameCount > evalDepth) {
         unwindStack(vm, evalDepth);
-        Value exc = pop(vm);
-        vm->sp = vm->stack + stackPtrOffset;
-        push(vm, exc);
     }
+
+    // Push the exception as a result
+    Value exception = pop(vm);
+    vm->sp = vm->stack + base;
+    push(vm, exception);
 }
 
 JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
     int evalDepth = vm->frameCount;
-    size_t stackPtrOffset = vm->sp - vm->stack - argc - 1;
+    size_t base = vm->sp - vm->stack - argc - 1;
 
-    if(!callValue(vm, peekn(vm, argc), argc)) {
-        finishUnwind(vm, evalDepth, stackPtrOffset);
+    if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
+        vm->sp = vm->stack + base;
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         return JSR_RUNTIME_ERR;
     }
 
-    return executeCall(vm, evalDepth, stackPtrOffset);
+    vm->reentrantCalls++;
+
+    if(!callValue(vm, peekn(vm, argc), argc)) {
+        vm->reentrantCalls--;
+        finishUnwind(vm, evalDepth, base);
+        return JSR_RUNTIME_ERR;
+    }
+
+    if(!executeCall(vm, evalDepth, base)) {
+        vm->reentrantCalls--;
+        return JSR_RUNTIME_ERR;
+    }
+
+    vm->reentrantCalls--;
+    return JSR_SUCCESS;
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
-    size_t stackPtrOffset = vm->sp - vm->stack - argc - 1;
+    size_t base = vm->sp - vm->stack - argc - 1;
 
-    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
-        finishUnwind(vm, evalDepth, stackPtrOffset);
+    if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
+        vm->sp = vm->stack + base;
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         return JSR_RUNTIME_ERR;
     }
 
-    return executeCall(vm, evalDepth, stackPtrOffset);
+    vm->reentrantCalls++;
+
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
+        vm->reentrantCalls--;
+        finishUnwind(vm, evalDepth, base);
+        return JSR_RUNTIME_ERR;
+    }
+
+    if(!executeCall(vm, evalDepth, base)) {
+        vm->reentrantCalls--;
+        return JSR_RUNTIME_ERR;
+    }
+
+    vm->reentrantCalls--;
+    return JSR_SUCCESS;
 }
 
 void jsrEvalBreak(JStarVM* vm) {
@@ -217,8 +269,13 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
-    jsrCallMethod(vm, "printStacktrace", 0);
-    jsrPop(vm);
+
+    // Can fail with a stack overflow (for example if there is a cycle in exception causes)
+    if(jsrCallMethod(vm, "printStacktrace", 0) != JSR_SUCCESS) {
+        jsrPrintStacktrace(vm, -1);
+    }
+
+    pop(vm);
 }
 
 void jsrGetStacktrace(JStarVM* vm, int slot) {
@@ -227,26 +284,39 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
-    jsrCallMethod(vm, "getStacktrace", 0);
+
+    // Can fail with a stack overflow (for example if there is a cycle in exception causes)
+    if(jsrCallMethod(vm, "getStacktrace", 0) != JSR_SUCCESS) {
+        jsrGetStacktrace(vm, -1);
+    }
 }
 
 void jsrRaiseException(JStarVM* vm, int slot) {
     PROFILE_FUNC()
 
-    Value exc = apiStackSlot(vm, slot);
-    if(!isInstance(vm, exc, vm->excClass)) {
-        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+    Value excVal = apiStackSlot(vm, slot);
+    if(!isInstance(vm, excVal, vm->excClass)) {
+        jsrRaise(vm, "TypeException", "Can only raise Exception instances");
         return;
     }
 
-    ObjInstance* exception = (ObjInstance*)AS_OBJ(exc);
-    ObjStackTrace* st = newStackTrace(vm);
-    push(vm, OBJ_VAL(st));
-    hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
+    ObjInstance* exception = (ObjInstance*)AS_OBJ(excVal);
+
+    ObjString* stField = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
+    push(vm, OBJ_VAL(stField));
+
+    Value value = NULL_VAL;
+    hashTableGet(&exception->fields, stField, &value);
+    ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
+    st->lastTracedFrame = -1;
+
+    hashTablePut(&exception->fields, stField, OBJ_VAL(st));
     pop(vm);
 
     // Place the exception on top of the stack if not already
-    if(!valueEquals(exc, vm->sp[-1])) push(vm, exc);
+    if(!valueEquals(excVal, vm->sp[-1])) {
+        push(vm, excVal);
+    }
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
@@ -260,6 +330,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     }
 
     push(vm, OBJ_VAL(exception));
+
     ObjStackTrace* st = newStackTrace(vm);
     push(vm, OBJ_VAL(st));
     hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
@@ -347,10 +418,6 @@ error:
     return false;
 }
 
-static void validateStack(JStarVM* vm) {
-    ASSERT((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
-}
-
 bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
     Value v1 = apiStackSlot(vm, slot1);
     Value v2 = apiStackSlot(vm, slot2);
@@ -360,6 +427,7 @@ bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
 bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
     Value v1 = apiStackSlot(vm, slot1);
     Value v2 = apiStackSlot(vm, slot2);
+
     if(IS_NUM(v1) || IS_NULL(v1) || IS_BOOL(v1)) {
         return valueEquals(v1, v2);
     }
@@ -370,11 +438,10 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
         push(vm, v1);
         push(vm, v2);
         JStarResult res = jsrCallMethod(vm, "__eq__", 1);
-        if(res == JSR_SUCCESS) {
+        if(res == JSR_SUCCESS)
             return valueToBool(pop(vm));
-        } else {
+        else
             return pop(vm), false;
-        }
     } else {
         return valueEquals(v1, v2);
     }
@@ -383,8 +450,11 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
 bool jsrIs(JStarVM* vm, int slot, int classSlot) {
     Value v = apiStackSlot(vm, slot);
     Value cls = apiStackSlot(vm, classSlot);
-    if(!IS_CLASS(cls)) return false;
-    return isInstance(vm, v, AS_CLASS(cls));
+    return IS_CLASS(cls) ? isInstance(vm, v, AS_CLASS(cls)) : false;
+}
+
+static void validateStack(JStarVM* vm) {
+    ASSERT((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
 }
 
 void jsrPushNumber(JStarVM* vm, double number) {
@@ -451,12 +521,12 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
                    uint8_t argc) {
     validateStack(vm);
     ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module)));
-    ASSERT(mod, "Module doesn't exist");
+    ASSERT(mod, "Cannot find module");
 
     ObjString* nativeName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(nativeName));
     ObjNative* native = newNative(vm, mod, argc, 0, false);
-    native->c.name = nativeName;
+    native->proto.name = nativeName;
     native->fn = nat;
     pop(vm);
 
@@ -487,12 +557,14 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
         return *err = true;
     }
     if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
-        jsrPop(vm);
+        pop(vm);
         return false;
     }
 
     Value resVal = pop(vm);
     vm->apiStack[apiStackIndex(vm, res)] = resVal;
+
+    *err = false;
     return true;
 }
 
@@ -573,7 +645,8 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
     }
 
     size_t size = jsrGetNumber(vm, -1);
-    jsrPop(vm);
+    pop(vm);
+
     return size;
 }
 
@@ -607,7 +680,7 @@ void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     Value nat = apiStackSlot(vm, natSlot);
     ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
     ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
-    hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->c.name, nat);
+    hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->proto.name, nat);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {

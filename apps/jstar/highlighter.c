@@ -9,12 +9,12 @@
 // COLOR THEME DEFINITION
 // -----------------------------------------------------------------------------
 
-#define IDENTIFIER_DEFINITION_COLOR REPLXX_COLOR_YELLOW
-#define IDENTIFIER_CALL_COLOR       REPLXX_COLOR_YELLOW
+#define CLASS_NAME_COLOR      REPLXX_COLOR_YELLOW
+#define IDENTIFIER_CALL_COLOR REPLXX_COLOR_YELLOW
 
 static const ReplxxColor theme[TOK_EOF] = {
-// Keywords
-#define KEYWORD_COLOR REPLXX_COLOR_BLUE
+    // Keywords
+    #define KEYWORD_COLOR REPLXX_COLOR_BLUE
     [TOK_AND] = KEYWORD_COLOR,
     [TOK_OR] = KEYWORD_COLOR,
     [TOK_CLASS] = KEYWORD_COLOR,
@@ -40,17 +40,17 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_CONTINUE] = KEYWORD_COLOR,
     [TOK_BREAK] = KEYWORD_COLOR,
 
-// `this` and `super` keywords
-#define METHOD_KEYWORD_COLOR REPLXX_COLOR_BLUE
+    // `this` and `super` keywords
+    #define METHOD_KEYWORD_COLOR REPLXX_COLOR_BLUE
     [TOK_SUPER] = METHOD_KEYWORD_COLOR,
 
-// Storage keywords
-#define STORAGE_KEYWORD_COLOR REPLXX_COLOR_BLUE
+    // Storage keywords
+    #define STORAGE_KEYWORD_COLOR REPLXX_COLOR_BLUE
     [TOK_VAR] = STORAGE_KEYWORD_COLOR,
     [TOK_STATIC] = STORAGE_KEYWORD_COLOR,
 
-// Punctuation
-#define PUNCTUATION_COLOR REPLXX_COLOR_GRAY
+    // Punctuation
+    #define PUNCTUATION_COLOR REPLXX_COLOR_GRAY
     [TOK_SEMICOLON] = PUNCTUATION_COLOR,
     [TOK_PIPE] = PUNCTUATION_COLOR,
     [TOK_LPAREN] = PUNCTUATION_COLOR,
@@ -105,16 +105,14 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
         ReplxxColor themeColor = theme[tok.type];
 
         if(tok.type == TOK_IDENTIFIER && (prev.type == TOK_CLASS || prev.type == TOK_IS)) {
-            themeColor = IDENTIFIER_DEFINITION_COLOR;
+            themeColor = CLASS_NAME_COLOR;
         }
         if(tok.type == TOK_IDENTIFIER && tok.length == strlen("this") &&
            strncmp(tok.lexeme, "this", (size_t)tok.length) == 0) {
             themeColor = METHOD_KEYWORD_COLOR;
         }
 
-        if(themeColor) {
-            setTokColor(input, &tok, themeColor, colors);
-        }
+        if(themeColor) setTokColor(input, &tok, themeColor, colors);
 
         prev = tok;
         jsrNextToken(&lex, &tok);

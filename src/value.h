@@ -67,17 +67,17 @@ typedef uint64_t Value;
 
 // The last two bits of of a Value that has the NaN 
 // bits set indentify its type, also called its `tag`
-enum {
-    HANDLE_BITS,
-    NULL_BITS,
-    FALSE_BITS,
-    TRUE_BITS,
-    END_BITS
+enum Tag {
+    HANDLE_BITS, // 00
+    NULL_BITS,   // 01
+    FALSE_BITS,  // 10
+    TRUE_BITS,   // 11
+    END_BITS     // End marker used to compute a mask
 };
 
 // Retrieve the tag bits of a Value
 #define BITS_MASK      (END_BITS - 1)
-#define TAG_BITS(val)  ((val) & BITS_MASK)
+#define BITS_TAG(val)  ((val) & BITS_MASK)
 
 // Value checking macros
 #define IS_NULL(val)   ((val) == NULL_VAL)
@@ -105,7 +105,7 @@ enum {
 
 // clang-format on
 
-// Perform a raw equality test, i.e. wihtout calling __eq__ overloads
+// Perform a raw equality test of two values
 inline bool valueEquals(Value v1, Value v2) {
     return IS_NUM(v1) && IS_NUM(v2) ? AS_NUM(v1) == AS_NUM(v2) : v1 == v2;
 }
@@ -154,6 +154,7 @@ typedef struct Value {
 
 // clang-format on
 
+// Perform a raw equality test of two values
 inline bool valueEquals(Value v1, Value v2) {
     if(v1.type != v2.type) return false;
 

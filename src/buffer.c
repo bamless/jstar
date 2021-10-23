@@ -3,13 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "const.h"
 #include "gc.h"
 #include "jstar.h"
 #include "object.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
+
+#define JSR_BUF_DEFAULT_CAPACITY 16
 
 static void bufferGrow(JStarBuffer* b, size_t len) {
     size_t newSize = b->capacity;
@@ -22,11 +23,11 @@ static void bufferGrow(JStarBuffer* b, size_t len) {
 }
 
 void jsrBufferInit(JStarVM* vm, JStarBuffer* b) {
-    jsrBufferInitCapacity(vm, b, JSR_BUF_DEF_CAP);
+    jsrBufferInitCapacity(vm, b, JSR_BUF_DEFAULT_CAPACITY);
 }
 
 void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity) {
-    if(capacity < JSR_BUF_DEF_CAP) capacity = JSR_BUF_DEF_CAP;
+    if(capacity < JSR_BUF_DEFAULT_CAPACITY) capacity = JSR_BUF_DEFAULT_CAPACITY;
     b->vm = vm;
     b->capacity = capacity;
     b->size = 0;

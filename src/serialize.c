@@ -82,22 +82,22 @@ static void serializeConstLiteral(JStarBuffer* buf, Value c) {
     }
 }
 
-static void serializeCommon(JStarBuffer* buf, FnCommon* c) {
-    serializeByte(buf, c->argsCount);
-    serializeByte(buf, c->vararg);
+static void serializePrototype(JStarBuffer* buf, Prototype* proto) {
+    serializeByte(buf, proto->argsCount);
+    serializeByte(buf, proto->vararg);
 
-    serializeString(buf, c->name);
+    serializeString(buf, proto->name);
 
-    serializeByte(buf, c->defCount);
-    for(int i = 0; i < c->defCount; i++) {
-        serializeConstLiteral(buf, c->defaults[i]);
+    serializeByte(buf, proto->defCount);
+    for(int i = 0; i < proto->defCount; i++) {
+        serializeConstLiteral(buf, proto->defaults[i]);
     }
 }
 
 static void serializeFunction(JStarBuffer* buf, ObjFunction* f);
 
 static void serializeNative(JStarBuffer* buf, ObjNative* n) {
-    serializeCommon(buf, &n->c);
+    serializePrototype(buf, &n->proto);
 }
 
 static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
@@ -129,7 +129,7 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
 }
 
 static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
-    serializeCommon(buf, &f->c);
+    serializePrototype(buf, &f->proto);
     serializeByte(buf, f->upvalueCount);
     serializeCode(buf, &f->code);
 }
@@ -277,26 +277,26 @@ static bool deserializeConstLiteral(Deserializer* d, ConstType type, Value* out)
     }
 }
 
-static bool deserializeCommon(Deserializer* d, FnCommon* c) {
-    if(!deserializeByte(d, &c->argsCount)) return false;
+static bool deserializePrototype(Deserializer* d, Prototype* proto) {
+    if(!deserializeByte(d, &proto->argsCount)) return false;
 
     uint8_t vararg;
     if(!deserializeByte(d, &vararg)) return false;
-    c->vararg = (bool)vararg;
+    proto->vararg = (bool)vararg;
 
-    if(!deserializeString(d, &c->name)) return false;
+    if(!deserializeString(d, &proto->name)) return false;
 
     uint8_t defCount;
     if(!deserializeByte(d, &defCount)) return false;
 
-    c->defaults = GC_ALLOC(d->vm, sizeof(Value) * defCount);
-    zeroValueArray(c->defaults, defCount);
-    c->defCount = defCount;
+    proto->defaults = GC_ALLOC(d->vm, sizeof(Value) * defCount);
+    zeroValueArray(proto->defaults, defCount);
+    proto->defCount = defCount;
 
     for(int i = 0; i < defCount; i++) {
         uint8_t valueType;
         if(!deserializeByte(d, &valueType)) return false;
-        if(!deserializeConstLiteral(d, valueType, &c->defaults[i])) return false;
+        if(!deserializeConstLiteral(d, valueType, &proto->defaults[i])) return false;
     }
 
     return true;
@@ -313,7 +313,7 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
     ObjNative* nat = newNative(vm, mod, 0, 0, false);
     push(vm, OBJ_VAL(nat));
 
-    if(!deserializeCommon(d, &nat->c)) {
+    if(!deserializePrototype(d, &nat->proto)) {
         pop(vm);
         return false;
     }
@@ -382,7 +382,7 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     ObjFunction* fn = newFunction(vm, mod, 0, 0, false);
     push(vm, OBJ_VAL(fn));
 
-    if(!deserializeCommon(d, &fn->c)) {
+    if(!deserializePrototype(d, &fn->proto)) {
         pop(vm);
         return false;
     }
@@ -403,13 +403,13 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     return true;
 }
 
-ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* err) {
+ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* res) {
     PROFILE_FUNC()
 
     ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
     Deserializer d = {vm, buf, mod, 0};
 
-    *err = JSR_DESERIALIZE_ERR;
+    *res = JSR_DESERIALIZE_ERR;
 
     char header[SERIALIZED_HEADER_SZ];
     if(!read(&d, header, SERIALIZED_HEADER_SZ)) return NULL;
@@ -420,7 +420,7 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
     if(!deserializeByte(&d, &versionMinor)) return NULL;
 
     if(versionMajor != JSTAR_VERSION_MAJOR || versionMinor != JSTAR_VERSION_MINOR) {
-        *err = JSR_VERSION_ERR;
+        *res = JSR_VERSION_ERR;
         return NULL;
     }
 
@@ -433,7 +433,7 @@ ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JS
         return NULL;
     }
 
-    *err = JSR_SUCCESS;
+    *res = JSR_SUCCESS;
     return fn;
 }
 
