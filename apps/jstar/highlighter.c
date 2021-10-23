@@ -112,7 +112,9 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
             themeColor = METHOD_KEYWORD_COLOR;
         }
 
-        if(themeColor) setTokColor(input, &tok, themeColor, colors);
+        if(themeColor) {
+            setTokColor(input, &tok, themeColor, colors);
+        }
 
         prev = tok;
         jsrNextToken(&lex, &tok);
