@@ -98,11 +98,12 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
     prev = tok;
 
     while(tok.type != TOK_EOF && tok.type != TOK_NEWLINE) {
-        ReplxxColor themeColor = theme[tok.type];
-
         if(tok.type == TOK_LPAREN && prev.type == TOK_IDENTIFIER) {
             setTokColor(input, &prev, IDENTIFIER_CALL_COLOR, colors);
         }
+        
+        ReplxxColor themeColor = theme[tok.type];
+
         if(tok.type == TOK_IDENTIFIER && (prev.type == TOK_CLASS || prev.type == TOK_IS)) {
             themeColor = CLASS_NAME_COLOR;
         }
@@ -111,7 +112,9 @@ void highlighter(const char* input, ReplxxColor* colors, int size, void* userDat
             themeColor = METHOD_KEYWORD_COLOR;
         }
 
-        if(themeColor) setTokColor(input, &tok, themeColor, colors);
+        if(themeColor) {
+            setTokColor(input, &tok, themeColor, colors);
+        }
 
         prev = tok;
         jsrNextToken(&lex, &tok);
