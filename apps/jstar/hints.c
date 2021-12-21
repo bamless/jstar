@@ -59,12 +59,15 @@ static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hint
 }
 
 void hints(const char* input, replxx_hints* hints, int* ctxLen, ReplxxColor* color, void* ud) {
-    if(!*ctxLen) return;
+    if(!*ctxLen) {
+        return;
+    }
 
-    *color = REPLXX_COLOR_GRAY;
     JStarVM* vm = ud;
-
     const char* ctxStart = input + strlen(input) - *ctxLen;
+
     hintNames(vm, ctxStart, *ctxLen, hints);
     hintKeywords(ctxStart, *ctxLen, hints);
+    
+    *color = REPLXX_COLOR_GRAY;
 }

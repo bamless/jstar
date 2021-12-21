@@ -353,6 +353,13 @@ JSR_NATIVE(jsr_Function_defaults) {
     }
     return true;
 }
+
+JSR_NATIVE(jsr_Function_getName) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+    Prototype* prototype = getPrototype(fn);
+    push(vm, OBJ_VAL(prototype->name));
+    return true;
+}
 // end
 
 // class Module

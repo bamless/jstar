@@ -102,6 +102,7 @@ static Module builtInModules[] = {
             METHOD(arity,      jsr_Function_arity)
             METHOD(vararg,     jsr_Function_vararg)
             METHOD(defaults,   jsr_Function_defaults)
+            METHOD(getName,    jsr_Function_getName)
         ENDCLASS
         CLASS(Module)
             METHOD(__string__, jsr_Module_string)
