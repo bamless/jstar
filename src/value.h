@@ -72,7 +72,7 @@ enum Tag {
     NULL_BITS,   // 01
     FALSE_BITS,  // 10
     TRUE_BITS,   // 11
-    END_BITS     // End marker used to compute a mask
+    END_BITS     // End marker
 };
 
 // Retrieve the tag bits of a Value

@@ -313,20 +313,20 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
 
     if(!inGlobalScope(c) && forceLocal) {
         error(c, line, "static declaration can only appear in global scope");
-        return (Variable){VAR_ERR, {{0}}};
+        return (Variable){.scope = VAR_ERR};
     }
 
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
         if(jsrIdentifierEq(&c->locals[i].id, id)) {
             error(c, line, "Variable `%.*s` already declared", id->length, id->name);
-            return (Variable){VAR_ERR, {{0}}};
+            return (Variable){.scope = VAR_ERR};
         }
     }
 
     int index = addLocal(c, id, line);
     if(index == -1) {
-        return (Variable){VAR_ERR, {{0}}};
+        return (Variable){.scope = VAR_ERR};
     }
 
     Variable var;
@@ -335,8 +335,9 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
     return var;
 }
 
-static void markInitialized(Compiler* c, int idx) {
-    c->locals[idx].depth = c->depth;
+static void setAsInitialized(Compiler* c, const Variable* var) {
+    ASSERT(var->scope == VAR_LOCAL, "Only local variables can be marked initialized");
+    c->locals[var->as.local.index].depth = c->depth;
 }
 
 static void defineVar(Compiler* c, Variable* var, int line) {
@@ -346,7 +347,7 @@ static void defineVar(Compiler* c, Variable* var, int line) {
         emitShort(c, identifierConst(c, &var->as.global.id, line), line);
         break;
     case VAR_LOCAL:
-        markInitialized(c, var->as.local.index);
+        setAsInitialized(c, var);
         break;
     case VAR_ERR:
         break;
@@ -1681,8 +1682,11 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
     Variable clsVar = declareVar(c, &s->as.classDecl.id, s->as.classDecl.isStatic, s->line);
+
     // If local initialize the variable in order to permit the class to reference itself
-    if(clsVar.scope == VAR_LOCAL) markInitialized(c, clsVar.as.local.index);
+    if(clsVar.scope == VAR_LOCAL) {
+        setAsInitialized(c, &clsVar);
+    }
 
     if(s->as.classDecl.sup != NULL) {
         compileExpr(c, s->as.classDecl.sup);
@@ -1699,8 +1703,12 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
     Variable funVar = declareVar(c, &s->as.funcDecl.id, s->as.funcDecl.isStatic, s->line);
+
     // If local initialize the variable in order to permit the function to reference itself
-    if(funVar.scope == VAR_LOCAL) markInitialized(c, funVar.as.local.index);
+    if(funVar.scope == VAR_LOCAL) {
+        setAsInitialized(c, &funVar);
+    }
+
     compileFunction(c, s);
     defineVar(c, &funVar, s->line);
 }
