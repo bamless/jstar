@@ -383,7 +383,6 @@ static void initApp(int argc, char** argv) {
     replxx = replxx_init();
     replxx_set_completion_callback(replxx, &indent, replxx);
     replxx_set_no_color(replxx, opts.disableColors);
-    replxx_bind_key_internal(replxx, REPLXX_KEY_RIGHT, "hint_next");
     if(!opts.disableColors) replxx_set_highlighter_callback(replxx, &highlighter, replxx);
     if(!opts.disableColors && !opts.disableHints) replxx_set_hint_callback(replxx, &hints, vm);
 }
