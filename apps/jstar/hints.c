@@ -37,6 +37,7 @@ static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hint
 
     bool err;
     jsrPushNull(vm);
+
     while(jsrIter(vm, -2, -1, &err)) {
         assert(!err);
         
@@ -58,16 +59,15 @@ static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hint
     jsrPop(vm);
 }
 
-void hints(const char* input, replxx_hints* hints, int* ctxLen, ReplxxColor* color, void* ud) {
+void hints(const char* input, replxx_hints* hints, int* ctxLen, ReplxxColor* color, void* udata) {
     if(!*ctxLen) {
         return;
     }
 
-    JStarVM* vm = ud;
+    JStarVM* vm = udata;
+    *color = REPLXX_COLOR_GRAY;
     const char* ctxStart = input + strlen(input) - *ctxLen;
 
     hintNames(vm, ctxStart, *ctxLen, hints);
     hintKeywords(ctxStart, *ctxLen, hints);
-    
-    *color = REPLXX_COLOR_GRAY;
 }
