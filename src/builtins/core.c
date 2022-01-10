@@ -307,12 +307,20 @@ JSR_NATIVE(jsr_Function_string) {
     Prototype* proto = getPrototype(fn);
 
     const char* fnType = NULL;
-    if(fn->type == OBJ_CLOSURE) {
+    
+    switch(fn->type) {
+    case OBJ_CLOSURE:
         fnType = "function";
-    } else if(fn->type == OBJ_NATIVE) {
+        break;
+    case OBJ_NATIVE:
         fnType = "native";
-    } else {
+        break;
+    case OBJ_BOUND_METHOD:
         fnType = "bound method";
+        break;
+    default:
+        UNREACHABLE();
+        break;
     }
 
     JStarBuffer str;
@@ -429,6 +437,7 @@ JSR_NATIVE(jsr_List_new) {
         jsrPushList(vm);
     } else if(jsrIsInteger(vm, 1)) {
         double count = jsrGetNumber(vm, 1);
+
         if(count < 0) {
             JSR_RAISE(vm, "TypeException", "size must be >= 0");
         }
@@ -562,7 +571,9 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, a);
         push(vm, b);
 
-        if(jsrCallMethod(vm, "__le__", 1) != JSR_SUCCESS) return false;
+        if(jsrCallMethod(vm, "__le__", 1) != JSR_SUCCESS) {
+            return false;
+        }
 
         *out = valueToBool(pop(vm));
     }
@@ -674,6 +685,13 @@ JSR_NATIVE(jsr_Tuple_new) {
         return true;
     }
 
+    // If provided input is another tuple, return that tuple
+    if(IS_TUPLE(vm->apiStack[1])) {
+        push(vm, vm->apiStack[1]);
+        return true;
+    }
+
+    // Consume the iterable into list
     if(!IS_LIST(vm->apiStack[1])) {
         jsrPushList(vm);
         JSR_FOREACH(1, {
@@ -682,13 +700,15 @@ JSR_NATIVE(jsr_Tuple_new) {
         },)
     }
 
-    ObjList* lst = AS_LIST(vm->sp[-1]);
-    ObjTuple* tup = newTuple(vm, lst->size);
-    if(lst->size > 0) {
-        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->size);
+    // Convert the list to a tuple
+    ObjList* list = AS_LIST(vm->sp[-1]);
+    ObjTuple* tuple = newTuple(vm, list->size);
+    
+    if(list->size > 0) {
+        memcpy(tuple->arr, list->arr, sizeof(Value) * list->size);
     }
 
-    push(vm, OBJ_VAL(tup));
+    push(vm, OBJ_VAL(tuple));
     return true;
 }
 
@@ -789,24 +809,24 @@ JSR_NATIVE(jsr_Tuple_hash) {
 
 // class String
 JSR_NATIVE(jsr_String_new) {
-    JStarBuffer string;
-    jsrBufferInit(vm, &string);
+    JStarBuffer stringBuf;
+    jsrBufferInit(vm, &stringBuf);
 
     JSR_FOREACH(1, {
         if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
-            jsrBufferFree(&string);
+            jsrBufferFree(&stringBuf);
             return false;
         }
         if(!jsrIsString(vm, -1)) {
-            jsrBufferFree(&string);
+            jsrBufferFree(&stringBuf);
             JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
         }
-        jsrBufferAppendStr(&string, jsrGetString(vm, -1));
+        jsrBufferAppendStr(&stringBuf, jsrGetString(vm, -1));
         jsrPop(vm);
     },
-    jsrBufferFree(&string));
+    jsrBufferFree(&stringBuf));
 
-    jsrBufferPush(&string);
+    jsrBufferPush(&stringBuf);
     return true;
 }
 
@@ -962,7 +982,10 @@ JSR_NATIVE(jsr_String_escaped) {
                 break;
             }
         }
-        if(j == numEscapes) jsrBufferAppendChar(&buf, str[i]);
+        
+        if(j == numEscapes) {
+            jsrBufferAppendChar(&buf, str[i]);
+        }
     }
 
     jsrBufferPush(&buf);
@@ -1215,7 +1238,7 @@ JSR_NATIVE(jsr_Table_new) {
     ObjTable* table = newTable(vm);
     push(vm, OBJ_VAL(table));
 
-    if(IS_TABLE(vm->apiStack[1])) {
+    if(IS_TABLE(vm->apiStack[1]) && AS_TABLE(vm->apiStack[1])->size) {
         ObjTable* other = AS_TABLE(vm->apiStack[1]);
         for(size_t i = 0; i <= other->capacityMask; i++) {
             TableEntry* e = &other->entries[i];
@@ -1230,8 +1253,9 @@ JSR_NATIVE(jsr_Table_new) {
     } else if(!IS_NULL(vm->apiStack[1])) {
         JSR_FOREACH(1, {
             if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-                JSR_RAISE(vm, "TypeException", "Can only unpack List or Tuple, got %s", 
-                          getClass(vm, peek(vm))->name->data);
+                JSR_RAISE(vm, "TypeException",
+                          "Iterable elements in table costructor must be either a List or a "
+                          "Tuple, got %s", getClass(vm, peek(vm))->name->data);
             }
             
             size_t size;
