@@ -1,5 +1,4 @@
 {
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
     "C_Cpp.default.cStandard": "c99",
     "editor.formatOnSave": false,
