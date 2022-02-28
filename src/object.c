@@ -90,7 +90,7 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     mod->natives.dynlib = NULL;
     mod->natives.registry = NULL;
     initHashTable(&mod->globals);
-    
+
     // Implicitly import core
     if(vm->core) {
         hashTableMerge(&mod->globals, &vm->core->globals);
@@ -427,7 +427,7 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     s->data = data;
     s->hash = 0;
     s->data[s->length] = '\0';
-    memset(b, 0, sizeof(JStarBuffer));
+    *b = (JStarBuffer){0};
     return s;
 }
 
@@ -472,7 +472,8 @@ void printObj(Obj* o) {
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
         if(f->proto.module->name->length != 0) {
-            printf("<func %s.%s:%d>", f->proto.module->name->data, f->proto.name->data, f->proto.argsCount);
+            printf("<func %s.%s:%d>", f->proto.module->name->data, f->proto.name->data,
+                   f->proto.argsCount);
         } else {
             printf("<func %s:%d>", f->proto.name->data, f->proto.argsCount);
         }
@@ -481,7 +482,8 @@ void printObj(Obj* o) {
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
         if(n->proto.module->name->length != 0) {
-            printf("<native %s.%s:%d>", n->proto.module->name->data, n->proto.name->data, n->proto.argsCount);
+            printf("<native %s.%s:%d>", n->proto.module->name->data, n->proto.name->data,
+                   n->proto.argsCount);
         } else {
             printf("<native %s:%d>", n->proto.name->data, n->proto.argsCount);
         }

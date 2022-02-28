@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -247,9 +248,16 @@ JSR_NATIVE(jsr_Number_isInt) {
 }
 
 JSR_NATIVE(jsr_Number_string) {
-    char string[24];  // enough for .*g with DBL_DIG
-    snprintf(string, sizeof(string), "%.*g", DBL_DIG, jsrGetNumber(vm, 0));
-    jsrPushString(vm, string);
+    double num = AS_NUM(vm->apiStack[0]);
+    if(trunc(num) == num) {
+        char string[STRLEN_FOR_INT(int64_t)];
+        int written = sprintf(string, "%" PRId64, (int64_t)num);
+        jsrPushStringSz(vm, string, written);
+    } else {
+        char string[24];  // enough for .*g with DBL_DIG
+        int written = sprintf(string, "%.*g", DBL_DIG, num);
+        jsrPushStringSz(vm, string, written);
+    }
     return true;
 }
 

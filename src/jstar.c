@@ -57,7 +57,7 @@ JStarConf jsrGetConf(void) {
     // Default configuration
     JStarConf conf;
     conf.startingStackSize = 100;
-    conf.firstGCCollectionPoint = 1024 * 1024 * 20; // 20 MiB
+    conf.firstGCCollectionPoint = 1024 * 1024 * 20;  // 20 MiB
     conf.heapGrowRate = 2;
     conf.errorCallback = &jsrPrintErrorCB;
     conf.customData = NULL;
@@ -469,7 +469,10 @@ void jsrPushBoolean(JStarVM* vm, bool boolean) {
 
 void jsrPushStringSz(JStarVM* vm, const char* string, size_t length) {
     validateStack(vm);
-    push(vm, OBJ_VAL(copyString(vm, string, length)));
+    // TODO: Rework string interning
+    ObjString* str = allocateString(vm, length);
+    memcpy(str->data, string, length);
+    push(vm, OBJ_VAL(str));
 }
 
 void jsrPushString(JStarVM* vm, const char* string) {

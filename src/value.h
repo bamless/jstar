@@ -1,6 +1,7 @@
 #ifndef VALUE_H
 #define VALUE_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -178,7 +179,9 @@ inline bool valueEquals(Value v1, Value v2) {
 
 // Check wheter a Value is an integral Number
 inline bool valueIsInt(Value val) {
-    return IS_NUM(val) && (int64_t)AS_NUM(val) == AS_NUM(val);
+    if(!IS_NUM(val)) return false;
+    double num = AS_NUM(val);
+    return trunc(num) == num;
 }
 
 // Return the truth value of a Value
