@@ -74,6 +74,7 @@ bool hashTablePut(HashTable* t, ObjString* key, Value val) {
 
     // is it a true empty entry or a tombstone?
     bool newEntry = !e->key;
+
     if(newEntry && IS_NULL(e->value)) {
         t->numEntries++;
     }
@@ -107,7 +108,7 @@ void hashTableMerge(HashTable* t, HashTable* o) {
     if(o->entries == NULL) return;
     for(size_t i = 0; i <= o->sizeMask; i++) {
         Entry* e = &o->entries[i];
-        if(e->key != NULL) {
+        if(e->key) {
             hashTablePut(t, e->key, e->value);
         }
     }
@@ -143,8 +144,8 @@ void sweepStrings(HashTable* t) {
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
         Entry* e = &t->entries[i];
-        if(e->key != NULL && !e->key->base.reached) {
-            hashTableDel(t, e->key);
+        if(e->key && !e->key->base.reached) {
+            *e = (Entry){NULL, TOMB_MARKER};
         }
     }
 }
