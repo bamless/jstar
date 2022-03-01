@@ -14,6 +14,9 @@
 #define STRLEN_FOR_SIGNED(t)   (STRLEN_FOR_UNSIGNED(t) + 1)
 #define STRLEN_FOR_UNSIGNED(t) (((((sizeof(t) * CHAR_BIT)) * 1233) >> 12) + 1)
 
+// Returns whether `num` has a valid integer representation
+#define HAS_INT_REPR(num) ((num) >= (double)INT64_MIN && (num) < -(double)INT64_MIN) 
+
 // Utility function to hash arbitrary data
 static inline uint32_t hashBytes(const void* data, size_t length) {
     const char* str = data;

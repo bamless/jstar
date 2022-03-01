@@ -24,6 +24,8 @@
 #include "value.h"
 #include "vm.h"
 
+#define INT_PRINT_CUTOFF (INT64_C(1) << DBL_MANT_DIG)
+
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
     ObjString* n = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(n));
@@ -249,7 +251,7 @@ JSR_NATIVE(jsr_Number_isInt) {
 
 JSR_NATIVE(jsr_Number_string) {
     double num = AS_NUM(vm->apiStack[0]);
-    if(trunc(num) == num) {
+    if(trunc(num) == num && num > -INT_PRINT_CUTOFF && num < INT_PRINT_CUTOFF) {
         char string[STRLEN_FOR_INT(int64_t)];
         int written = sprintf(string, "%" PRId64, (int64_t)num);
         jsrPushStringSz(vm, string, written);

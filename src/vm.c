@@ -889,16 +889,20 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(!res) UNWIND_STACK(vm);                          \
     } while(0)
 
-#define BITWISE(name, op, overload, reverse)          \
-    do {                                              \
-        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {   \
-            uint32_t b = (uint32_t)AS_NUM(pop(vm));   \
-            uint32_t a = (uint32_t)AS_NUM(pop(vm));   \
-            push(vm, NUM_VAL(a op b));                \
-        } else {                                      \
-            BINARY_OVERLOAD(name, overload, reverse); \
-        }                                             \
-        DISPATCH();                                   \
+#define BITWISE(name, op, overload, reverse)                                           \
+    do {                                                                               \
+        if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {                                    \
+            double b = AS_NUM(pop(vm));                                                \
+            double a = AS_NUM(pop(vm));                                                \
+            if(!HAS_INT_REPR(a) || !HAS_INT_REPR(b)) {                                 \
+                jsrRaise(vm, "TypeException", "Number has no integer representation"); \
+                UNWIND_STACK(vm);                                                      \
+            }                                                                          \
+            push(vm, NUM_VAL((int64_t)a op (int64_t)b));                               \
+        } else {                                                                       \
+            BINARY_OVERLOAD(name, overload, reverse);                                  \
+        }                                                                              \
+        DISPATCH();                                                                    \
     } while(0)
 
 #define UNARY(type, op, overload)               \
@@ -1039,7 +1043,12 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_INVERT): {
         if(IS_NUM(peek(vm))) {
-            push(vm, NUM_VAL(~(uint32_t)AS_NUM(pop(vm))));
+            double x = AS_NUM(pop(vm));
+            if(!HAS_INT_REPR(x)) {
+                jsrRaise(vm, "TypeException", "Number has no integer representation");
+                UNWIND_STACK(vm);
+            }
+            push(vm, NUM_VAL(~(int64_t)x));
         } else {
             UNARY_OVERLOAD(NUM_VAL, ~, SYM_INV);
         }
