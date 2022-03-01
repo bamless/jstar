@@ -100,6 +100,7 @@ STDLIB_MATH_FUN_X(sinh)
 STDLIB_MATH_FUN_X(sqrt)
 STDLIB_MATH_FUN_X(tan)
 STDLIB_MATH_FUN_X(tanh)
+STDLIB_MATH_FUN_X(round)
 
 JSR_NATIVE(jsr_modf) {
     JSR_CHECK(Number, 1, "x");

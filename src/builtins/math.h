@@ -28,6 +28,7 @@ JSR_NATIVE(jsr_tan);
 JSR_NATIVE(jsr_tanh);
 JSR_NATIVE(jsr_modf);
 JSR_NATIVE(jsr_random);
+JSR_NATIVE(jsr_round);
 JSR_NATIVE(jsr_seed);
 JSR_NATIVE(jsr_math_init);
 

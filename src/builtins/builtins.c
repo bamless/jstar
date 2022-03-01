@@ -237,6 +237,7 @@ static Module builtInModules[] = {
         FUNCTION(tanh,   jsr_tanh)
         FUNCTION(modf,   jsr_modf)
         FUNCTION(random, jsr_random)
+        FUNCTION(round,  jsr_round)
         FUNCTION(seed,   jsr_seed)
         FUNCTION(init,   jsr_math_init)
     ENDMODULE

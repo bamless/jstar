@@ -23,6 +23,7 @@ native tan(x)
 native tanh(x)
 native modf(x)
 native random()
+native round(x)
 native seed(s)
 
 fun randint(a, b=null)
