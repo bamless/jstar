@@ -121,7 +121,7 @@ static Frame* getFrame(JStarVM* vm, Prototype* proto) {
 
     Frame* callFrame = &vm->frames[vm->frameCount++];
     callFrame->stack = vm->sp - (proto->argsCount + 1) - (int)proto->vararg;
-    callFrame->handlerc = 0;
+    callFrame->handlerCount = 0;
     return callFrame;
 }
 
@@ -814,7 +814,7 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
         for(int i = 0; i < vm->frameCount; i++) {
             Frame* frame = &vm->frames[i];
             frame->stack = vm->stack + (frame->stack - oldStack);
-            for(int j = 0; j < frame->handlerc; j++) {
+            for(int j = 0; j < frame->handlerCount; j++) {
                 Handler* h = &frame->handlers[j];
                 h->savedSp = vm->stack + (h->savedSp - oldStack);
             }
@@ -1303,8 +1303,8 @@ op_return:
         Value ret = pop(vm);
         CHECK_EVAL_BREAK(vm);
 
-        while(frame->handlerc > 0) {
-            Handler* h = &frame->handlers[--frame->handlerc];
+        while(frame->handlerCount > 0) {
+            Handler* h = &frame->handlers[--frame->handlerCount];
             if(h->type == HANDLER_ENSURE) {
                 RESTORE_HANDLER(vm, h, frame, CAUSE_RETURN, ret);
                 LOAD_STATE();
@@ -1501,7 +1501,7 @@ op_return:
     TARGET(OP_SETUP_EXCEPT): 
     TARGET(OP_SETUP_ENSURE): {
         uint16_t offset = NEXT_SHORT();
-        Handler* handler = &frame->handlers[frame->handlerc++];
+        Handler* handler = &frame->handlers[frame->handlerCount++];
         handler->type = op == OP_SETUP_ENSURE ? HANDLER_ENSURE : HANDLER_EXCEPT;
         handler->address = ip + offset;
         handler->savedSp = vm->sp;
@@ -1528,7 +1528,7 @@ op_return:
     }
 
     TARGET(OP_POP_HANDLER): {
-        frame->handlerc--;
+        frame->handlerCount--;
         DISPATCH();
     }
     
@@ -1628,9 +1628,9 @@ bool unwindStack(JStarVM* vm, int depth) {
         stacktraceDump(vm, stacktrace, frame, vm->frameCount);
 
         // If current frame has except or ensure handlers restore handler state and exit
-        if(frame->handlerc > 0) {
+        if(frame->handlerCount > 0) {
             Value exc = pop(vm);
-            Handler* h = &frame->handlers[--frame->handlerc];
+            Handler* h = &frame->handlers[--frame->handlerCount];
             RESTORE_HANDLER(vm, h, frame, CAUSE_EXCEPT, exc);
             return true;
         }

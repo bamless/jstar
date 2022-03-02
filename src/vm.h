@@ -82,7 +82,7 @@ typedef struct Frame {
     Value* stack;                    // Base of stack for current frame
     Obj* fn;                         // Function associated with the frame (ObjClosure or ObjNative)
     Handler handlers[MAX_HANDLERS];  // Exception handlers
-    uint8_t handlerc;                // Exception handlers count
+    uint8_t handlerCount;            // Exception handlers count
 } Frame;
 
 // The J* VM. This struct stores all the
