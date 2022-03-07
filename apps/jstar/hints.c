@@ -11,7 +11,7 @@ static const char* keywords[] = {
     "or",     "if",     "in",     "as",     "is",     "and",      "for",   "fun",
     "var",    "end",    "try",    "else",   "elif",   "null",     "true",  "with",
     "class",  "false",  "super",  "while",  "begin",  "raise",    "break", "native",
-    "return", "import", "ensure", "except", "static", "continue", NULL,
+    "return", "yield", "import", "ensure", "except", "static", "continue", NULL,
 };
 
 // Add all matching keywords to the hints array.
