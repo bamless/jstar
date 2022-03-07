@@ -86,6 +86,13 @@ JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs) {
     return a;
 }
 
+JStarExpr* jsrYieldExpr(int line, JStarExpr* expr) {
+    JStarExpr* e = newExpr(line, JSR_YIELD);
+    e->as.yield.expr = expr;
+    return e;
+}
+
+
 JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs) {
     JStarExpr* a = newExpr(line, JSR_TUPLE);
     a->as.tuple.exprs = exprs;

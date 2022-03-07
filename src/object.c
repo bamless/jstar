@@ -121,6 +121,18 @@ ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
     return c;
 }
 
+ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize) {
+    ObjGenerator* gen = (ObjGenerator*)newVarObj(vm, sizeof(*gen), sizeof(Value), stackSize,
+                                                 NULL /*TODO: generator class*/, OBJ_GENERATOR);
+    gen->frame.closure = closure;
+    // First two instructions are generator setup
+    gen->frame.ip = closure->fn->code.bytecode + 2;
+    gen->frame.handlerCount = 0;
+    gen->frame.stackTop = 0;
+    gen->stackSize = stackSize;
+    return gen;
+}
+
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
     ObjUpvalue* upvalue = (ObjUpvalue*)newObj(vm, sizeof(*upvalue), NULL, OBJ_UPVALUE);
     upvalue->addr = addr;
@@ -282,6 +294,10 @@ void freeObject(JStarVM* vm, Obj* o) {
         GC_FREE_VAR(vm, ObjClosure, ObjUpvalue*, closure->upvalueCount, o);
         break;
     }
+    case OBJ_GENERATOR:
+        ObjGenerator* gen = (ObjGenerator*)o;
+        GC_FREE_VAR(vm, ObjGenerator, Value, gen->stackSize, o);
+        break;
     case OBJ_UPVALUE: {
         ObjUpvalue* upvalue = (ObjUpvalue*)o;
         GC_FREE(vm, ObjUpvalue, upvalue);
@@ -560,6 +576,9 @@ void printObj(Obj* o) {
         break;
     case OBJ_CLOSURE:
         printf("<closure %p>", (void*)o);
+        break;
+    case OBJ_GENERATOR:
+        printf("<generator %p>", (void*)o);
         break;
     case OBJ_UPVALUE:
         printf("<upvalue %p>", (void*)o);

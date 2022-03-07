@@ -30,6 +30,7 @@ typedef enum JStarExprType {
     JSR_POWER,
     JSR_SUPER,
     JSR_ACCESS,
+    JSR_YIELD,
     JSR_ARRAY,
     JSR_TUPLE,
     JSR_TABLE,
@@ -80,6 +81,9 @@ struct JStarExpr {
             JStarExpr* left;
             JStarExpr* index;
         } arrayAccess;
+        struct {
+            JStarExpr* expr;
+        } yield;
         struct {
             JStarExpr* exprs;
         } array;
@@ -240,9 +244,11 @@ JSTAR_API JStarExpr* jsrExprList(int line, Vector* exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(int line, bool boolean);
 JSTAR_API JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs);
 JSTAR_API JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs);
+JSTAR_API JStarExpr* jsrYieldExpr(int line, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrNumLiteral(int line, double num);
 JSTAR_API JStarExpr* jsrNullLiteral(int line);
 JSTAR_API void jsrExprFree(JStarExpr* e);
+
 
 // -----------------------------------------------------------------------------
 // STATEMENTS ALLOCATION

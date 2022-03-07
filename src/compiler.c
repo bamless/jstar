@@ -955,6 +955,9 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
     case JSR_ARR_ACCESS:
         compileArraryAccExpression(c, e);
         break;
+    case JSR_YIELD:
+        // TODO: Compile yield!!
+        break;
     case JSR_POWER:
         compilePowExpr(c, e);
         break;

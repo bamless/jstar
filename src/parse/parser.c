@@ -259,7 +259,7 @@ static bool isExpressionStart(JStarTok* tok) {
     return t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||
            t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN ||
            t == TOK_LSQUARE || t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN || t == TOK_HASH ||
-           t == TOK_HASH_HASH || t == TOK_LCURLY;
+           t == TOK_HASH_HASH || t == TOK_LCURLY || t == TOK_YIELD;
 }
 
 static bool isAssign(JStarTok* tok) {
@@ -1145,9 +1145,21 @@ static JStarExpr* funcLiteral(Parser* p) {
     return ternaryExpr(p);
 }
 
+static JStarExpr* yieldExpr(Parser* p) {
+    if(match(p, TOK_YIELD)) {
+        JStarTok yield = advance(p);
+        JStarExpr* expr = NULL;
+        if(!isStatementEnd(&p->peek)) {
+            expr = expression(p, false);
+        }
+        return jsrYieldExpr(yield.line, expr);
+    }
+    return funcLiteral(p);
+}
+
 static JStarExpr* tupleLiteral(Parser* p) {
     int line = p->peek.line;
-    JStarExpr* e = funcLiteral(p);
+    JStarExpr* e = yieldExpr(p);
 
     if(match(p, TOK_COMMA)) {
         Vector exprs = vecNew();
@@ -1156,7 +1168,7 @@ static JStarExpr* tupleLiteral(Parser* p) {
         while(match(p, TOK_COMMA)) {
             advance(p);
             if(!isExpressionStart(&p->peek)) break;
-            vecPush(&exprs, funcLiteral(p));
+            vecPush(&exprs, yieldExpr(p));
         }
 
         e = jsrTupleLiteral(line, jsrExprList(line, &exprs));
@@ -1181,7 +1193,7 @@ static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple) {
 }
 
 static JStarExpr* expression(Parser* p, bool parseTuple) {
-    JStarExpr* l = parseTuple ? tupleLiteral(p) : funcLiteral(p);
+    JStarExpr* l = parseTuple ? tupleLiteral(p) : yieldExpr(p);
 
     if(isAssign(&p->peek)) {
         return assignmentExpr(p, l, parseTuple);

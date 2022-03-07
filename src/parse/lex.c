@@ -30,6 +30,7 @@ static Keyword keywords[] = {
     {"elif",     4, TOK_ELIF},
     {"null",     4, TOK_NULL},
     {"return",   6, TOK_RETURN},
+    {"yield",    5, TOK_YIELD},
     {"super",    5, TOK_SUPER},
     {"true",     4, TOK_TRUE},
     {"var",      3, TOK_VAR},

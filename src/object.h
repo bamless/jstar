@@ -8,8 +8,10 @@
 #include "code.h"
 #include "hashtable.h"
 #include "jstar.h"
+#include "jstar_limits.h"
 #include "value.h"
 
+// Forward declarations
 struct Frame;
 
 #ifdef JSTAR_DBG_PRINT_GC
@@ -80,6 +82,7 @@ extern const char* ObjTypeNames[];
     X(OBJ_BOUND_METHOD) \
     X(OBJ_STACK_TRACE)  \
     X(OBJ_CLOSURE)      \
+    X(OBJ_GENERATOR)    \
     X(OBJ_UPVALUE)      \
     X(OBJ_TUPLE)        \
     X(OBJ_TABLE)        \
@@ -227,6 +230,28 @@ typedef struct ObjClosure {
 } ObjClosure;
 
 typedef struct {
+    int type;
+    uint8_t* address;
+    size_t spOffset;
+} SavedHandler;
+
+typedef struct {
+    uint8_t* ip;
+    ObjClosure* closure;
+    uint8_t handlerCount;
+    SavedHandler handlers[MAX_HANDLERS];
+    size_t stackTop;
+} SupsendedFrame;
+
+// TODO: Documentation
+typedef struct ObjGenerator {
+    Obj base;
+    SupsendedFrame frame;
+    size_t stackSize;    // The size of the generator stack
+    Value savedStack[];  // The saved stack of the generator function
+} ObjGenerator;
+
+typedef struct {
     int line;
     ObjString* moduleName;
     ObjString* funcName;
@@ -259,6 +284,7 @@ typedef struct ObjUserdata {
 // bookkeping information needed by the GC (see struct Obj)
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
+ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
 ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name);
@@ -314,4 +340,4 @@ JStarBuffer jsrBufferWrap(struct JStarVM* vm, const void* data, size_t len);
 // Prints an Obj in a human readable form
 void printObj(Obj* o);
 
-#endif // OBJECT_H
+#endif  // OBJECT_H

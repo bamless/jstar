@@ -180,6 +180,14 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         }
         break;
     }
+    case OBJ_GENERATOR: {
+        ObjGenerator* gen = (ObjGenerator*)o;
+        reachObject(vm, (Obj*)gen->frame.closure);
+        for(size_t i = 0; i < gen->frame.stackTop; i++) {
+            reachValue(vm, gen->savedStack[i]);
+        }
+        break;
+    }
     case OBJ_UPVALUE: {
         ObjUpvalue* upvalue = (ObjUpvalue*)o;
         reachValue(vm, *upvalue->addr);
