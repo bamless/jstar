@@ -89,58 +89,27 @@ class Iterable
     end
 
     fun enumerate(start=0) 
-        // return EnumerateIter(this, start)
-        var i = start
-        for var e in this
-            yield (i, e)
-        end
+        return EnumerateIter(this, start)
     end
 
     fun concat(iterable)
-        // return ConcatIter(this, iterable)
-        for var e in this
-            yield e
-        end
-        for var e in iterable
-            yield e
-        end
+        return ConcatIter(this, iterable)
     end
 
     fun map(fn)
-        // return MapIter(this, fn)
-        for var e in this
-            yield fn(e)
-        end
+        return MapIter(this, fn)
     end
 
     fun filter(predicate)
-        // return FilterIter(this, predicate)
-        for var e in this
-            if predicate(e)
-                yield e
-            end
-        end
+        return FilterIter(this, predicate)
     end
 
     fun skip(count)
-        // return SkipIter(this, count)
-        for var e in this
-            if count != 0
-                count -= 1
-                continue
-            end
-            yield e
-        end
+        return SkipIter(this, count)
     end
 
     fun take(count)
-        // return TakeIter(this, count)
-        for var e in this
-            yield e
-            if (count -=1) == 0
-                break
-            end
-        end
+        return TakeIter(this, count)
     end
 
     fun zip(iterable)
@@ -197,10 +166,7 @@ class Sequence is Iterable
     end
 
     fun reversed()
-        // return ReversedSequence(this)
-        for var i = #this - 1; i >= 0; i -= 1
-            yield this[i]
-        end
+        return ReversedSequence(this)
     end
 
     fun __eq__(other)
@@ -552,7 +518,7 @@ class ZipIter is Iterable
     end
 
     fun __iter__(iters)
-        var iter1, iter2
+        var iter1, iter2 = null, null
         if iters != null
             iter1, iter2 = iters
         end

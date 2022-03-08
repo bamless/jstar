@@ -239,9 +239,9 @@ typedef struct {
 
 typedef struct {
     uint8_t* ip;
+    size_t stackTop;
     uint8_t handlerCount;
     SavedHandler handlers[MAX_HANDLERS];
-    size_t stackTop;
 } SupsendedFrame;
 
 // TODO: Documentation
