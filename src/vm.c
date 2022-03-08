@@ -130,8 +130,8 @@ static Frame* initFrame(JStarVM* vm, Prototype* proto) {
 
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = initFrame(vm, &closure->fn->proto);
-    callFrame->fn = (Obj*)closure;
     callFrame->gen = NULL;
+    callFrame->fn = (Obj*)closure;
     callFrame->ip = closure->fn->code.bytecode;
     return callFrame;
 }
