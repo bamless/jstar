@@ -172,6 +172,7 @@ struct JStarStmt {
             Vector formalArgs, defArgs;
             bool isVararg;
             bool isStatic;
+            bool isGenerator;
             JStarStmt* body;
         } funcDecl;
         struct {
@@ -224,8 +225,8 @@ JSTAR_API bool jsrIdentifierEq(JStarIdentifier* id1, JStarIdentifier* id2);
 // EXPRESSIONS ALLOCATION
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool vararg,
-                                    JStarStmt* body);
+JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool isVararg,
+                                    bool isGenerator, JStarStmt* body);
 JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr,
                                     JStarExpr* elseExpr);
 JSTAR_API JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval);
@@ -255,7 +256,7 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                                 bool vararg, JStarStmt* body);
+                                 bool isVararg, bool isGenerator, JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
                                    bool vararg);
 JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,

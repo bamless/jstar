@@ -143,6 +143,11 @@ static void closureInstruction(Code* c, int indent, size_t i) {
     }
 }
 
+static void generatorInstruction(Code* c, int indent, size_t i) {
+    int arg = readShortAt(c->bytecode, i + 1);
+    printf("%d", arg);
+}
+
 void disassembleInstr(Code* c, int indent, size_t instr) {
     for(int i = 0; i < indent; i++) {
         printf(" ");
@@ -218,6 +223,9 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
         break;
     case OP_CLOSURE:
         closureInstruction(c, indent, instr);
+        break;
+    case OP_GENERATOR:
+        generatorInstruction(c, indent, instr);
         break;
     default:
         break;

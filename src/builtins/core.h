@@ -38,6 +38,11 @@ JSR_NATIVE(jsr_Function_defaults);
 JSR_NATIVE(jsr_Function_getName);
 // end
 
+// class Generator
+JSR_NATIVE(jsr_Generator_isDone);
+JSR_NATIVE(jsr_Generator_next);
+//end
+
 // class Module
 JSR_NATIVE(jsr_Module_string);
 JSR_NATIVE(jsr_Module_globals);

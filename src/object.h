@@ -43,6 +43,7 @@ extern const char* ObjTypeNames[];
 #define IS_INSTANCE(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_INST)
 #define IS_MODULE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_MODULE)
 #define IS_CLOSURE(o)      (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLOSURE)
+#define IS_GENERATOR(o)    (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_GENERATOR)
 #define IS_TUPLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TUPLE)
 #define IS_STACK_TRACE(o)  (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STACK_TRACE)
 #define IS_TABLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TABLE)
@@ -57,6 +58,7 @@ extern const char* ObjTypeNames[];
 #define AS_INSTANCE(o)     ((ObjInstance*)AS_OBJ(o))
 #define AS_MODULE(o)       ((ObjModule*)AS_OBJ(o))
 #define AS_CLOSURE(o)      ((ObjClosure*)AS_OBJ(o))
+#define AS_GENERATOR(o)    ((ObjGenerator*)AS_OBJ(o))
 #define AS_TUPLE(o)        ((ObjTuple*)AS_OBJ(o))
 #define AS_STACK_TRACE(o)  ((ObjStackTrace*)AS_OBJ(o))
 #define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
@@ -237,7 +239,6 @@ typedef struct {
 
 typedef struct {
     uint8_t* ip;
-    ObjClosure* closure;
     uint8_t handlerCount;
     SavedHandler handlers[MAX_HANDLERS];
     size_t stackTop;
@@ -246,6 +247,13 @@ typedef struct {
 // TODO: Documentation
 typedef struct ObjGenerator {
     Obj base;
+    enum {
+        GEN_STARTED,
+        GEN_SUSPENDED,
+        GEN_DONE,
+    } state;
+    ObjClosure* closure;
+    Value lastYield; // TODO: visit during GC?
     SupsendedFrame frame;
     size_t stackSize;    // The size of the generator stack
     Value savedStack[];  // The saved stack of the generator function

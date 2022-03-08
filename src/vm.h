@@ -81,6 +81,7 @@ typedef struct Frame {
     uint8_t* ip;                     // Instruction pointer
     Value* stack;                    // Base of stack for current frame
     Obj* fn;                         // Function associated with the frame (ObjClosure or ObjNative)
+    ObjGenerator* gen;               // Generator of this frame (if any)
     Handler handlers[MAX_HANDLERS];  // Exception handlers
     uint8_t handlerCount;            // Exception handlers count
 } Frame;
@@ -99,6 +100,7 @@ struct JStarVM {
     ObjClass* lstClass;
     ObjClass* numClass;
     ObjClass* funClass;
+    ObjClass* genClass;
     ObjClass* modClass;
     ObjClass* nullClass;
     ObjClass* stClass;

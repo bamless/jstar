@@ -64,13 +64,13 @@ typedef struct Upvalue {
 typedef struct Loop {
     int depth;
     size_t start;
-    struct Loop* next;
+    struct Loop* parent;
 } Loop;
 
 typedef struct TryExcept {
     int depth;
     int numHandlers;
-    struct TryExcept* next;
+    struct TryExcept* parent;
 } TryExcept;
 
 typedef enum FuncType {
@@ -92,7 +92,7 @@ struct Compiler {
 
     FuncType type;
     ObjFunction* func;
-    JStarStmt* ast;
+    JStarStmt* fnNode;
 
     uint8_t localsCount;
     Local locals[MAX_LOCALS];
@@ -105,13 +105,13 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType type,
-                         JStarStmt* ast) {
+                         JStarStmt* fnNode) {
     c->vm = vm;
     c->file = file;
     c->prev = prev;
     c->type = type;
     c->func = NULL;
-    c->ast = ast;
+    c->fnNode = fnNode;
     c->depth = 0;
     c->localsCount = 0;
     c->loops = NULL;
@@ -390,7 +390,7 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
 static void startLoop(Compiler* c, Loop* loop) {
     loop->depth = c->depth;
     loop->start = getCurrentAddr(c);
-    loop->next = c->loops;
+    loop->parent = c->loops;
     c->loops = loop;
 }
 
@@ -413,8 +413,9 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_
 }
 
 static void endLoop(Compiler* c) {
+    ASSERT(c->loops, "Mismatched `startLoop` and `endLoop`");
     patchLoopExitStmts(c, c->loops->start, c->loops->start, getCurrentAddr(c));
-    c->loops = c->loops->next;
+    c->loops = c->loops->parent;
 }
 
 static void emitMethodCall(Compiler* c, const char* name, int args) {
@@ -427,7 +428,7 @@ static void emitMethodCall(Compiler* c, const char* name, int args) {
 static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line) {
     exc->depth = c->depth;
     exc->numHandlers = numHandlers;
-    exc->next = c->tryBlocks;
+    exc->parent = c->tryBlocks;
     c->tryBlocks = exc;
     c->tryDepth += numHandlers;
 
@@ -438,8 +439,9 @@ static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line
 }
 
 static void exitTryBlock(Compiler* c) {
+    ASSERT(c->tryBlocks, "Mismatched `enterTryBlock` and `exitTryBlock`");
     c->tryDepth -= c->tryBlocks->numHandlers;
-    c->tryBlocks = c->tryBlocks->next;
+    c->tryBlocks = c->tryBlocks->parent;
 }
 
 static ObjString* readString(Compiler* c, JStarExpr* e) {
@@ -854,7 +856,7 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
     if(e->as.sup.name.name != NULL) {
         nameConst = identifierConst(c, &e->as.sup.name, e->line);
     } else {
-        nameConst = identifierConst(c, &c->ast->as.funcDecl.id, e->line);
+        nameConst = identifierConst(c, &c->fnNode->as.funcDecl.id, e->line);
     }
 
     if(e->as.sup.args != NULL) {
@@ -920,6 +922,20 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
     }
 }
 
+static void compileYield(Compiler* c, JStarExpr* e) {
+    if(c->type == TYPE_CTOR) {
+        error(c, e->line, "Cannot use yield in constructor");
+    }
+
+    if(e->as.yield.expr != NULL) {
+        compileExpr(c, e->as.yield.expr);
+    } else {
+        emitBytecode(c, OP_NULL, e->line);
+    }
+
+    emitBytecode(c, OP_YIELD, e->line);
+}
+
 static void emitValueConst(Compiler* c, Value val, int line) {
     emitBytecode(c, OP_GET_CONST, line);
     emitShort(c, createConst(c, val, line), line);
@@ -956,7 +972,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileArraryAccExpression(c, e);
         break;
     case JSR_YIELD:
-        // TODO: Compile yield!!
+        compileYield(c, e);
         break;
     case JSR_POWER:
         compilePowExpr(c, e);
@@ -1012,9 +1028,6 @@ static void compileStatements(Compiler* c, Vector* stmts) {
 }
 
 static void compileReturnStatement(Compiler* c, JStarStmt* s) {
-    if(c->prev == NULL) {
-        error(c, s->line, "Cannot use return outside a function");
-    }
     if(c->type == TYPE_CTOR) {
         error(c, s->line, "Cannot use return in constructor");
     }
@@ -1478,6 +1491,12 @@ static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
         defineVar(c, &vararg, s->line);
     }
 
+    // TODO: refactor and extend to methods
+    if(s->as.funcDecl.isGenerator) {
+        emitBytecode(c, OP_GENERATOR, s->line);
+        emitShort(c, 0, s->line);
+    }
+
     JStarStmt* body = s->as.funcDecl.body;
     compileStatements(c, &body->as.blockStmt.stmts);
 
@@ -1533,6 +1552,12 @@ static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName
         JStarIdentifier args = createIdentifier("args");
         Variable vararg = declareVar(c, &args, false, s->line);
         defineVar(c, &vararg, s->line);
+    }
+
+    // TODO: refactor and extend to methods
+    if(s->as.funcDecl.isGenerator) {
+        emitBytecode(c, OP_GENERATOR, s->line);
+        emitShort(c, 0, s->line);
     }
 
     JStarStmt* body = s->as.funcDecl.body;

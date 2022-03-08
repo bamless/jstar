@@ -123,13 +123,14 @@ ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
 
 ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize) {
     ObjGenerator* gen = (ObjGenerator*)newVarObj(vm, sizeof(*gen), sizeof(Value), stackSize,
-                                                 NULL /*TODO: generator class*/, OBJ_GENERATOR);
-    gen->frame.closure = closure;
-    // First two instructions are generator setup
-    gen->frame.ip = closure->fn->code.bytecode + 2;
+                                                 vm->genClass, OBJ_GENERATOR);
+    gen->state = GEN_STARTED;
+    gen->closure = closure;
+    gen->lastYield = NULL_VAL;
+    gen->stackSize = stackSize;
+    gen->frame.ip = 0;
     gen->frame.handlerCount = 0;
     gen->frame.stackTop = 0;
-    gen->stackSize = stackSize;
     return gen;
 }
 

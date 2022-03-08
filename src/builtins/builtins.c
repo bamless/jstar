@@ -104,6 +104,10 @@ static Module builtInModules[] = {
             METHOD(defaults,   jsr_Function_defaults)
             METHOD(getName,    jsr_Function_getName)
         ENDCLASS
+        CLASS(Generator)
+            METHOD(isDone,     jsr_Generator_isDone)
+            METHOD(__next__,   jsr_Generator_next)
+        ENDCLASS
         CLASS(Module)
             METHOD(__string__, jsr_Module_string)
             METHOD(globals,    jsr_Module_globals)

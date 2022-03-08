@@ -113,27 +113,31 @@ void jsrFreeVM(JStarVM* vm) {
 // VM IMPLEMENTATION
 // -----------------------------------------------------------------------------
 
-static Frame* getFrame(JStarVM* vm, Prototype* proto) {
+static Frame* getFrame(JStarVM* vm) {
     if(vm->frameCount + 1 == vm->frameSz) {
         vm->frameSz *= 2;
         vm->frames = realloc(vm->frames, sizeof(Frame) * vm->frameSz);
     }
+    return &vm->frames[vm->frameCount++];
+}
 
-    Frame* callFrame = &vm->frames[vm->frameCount++];
+static Frame* initFrame(JStarVM* vm, Prototype* proto) {
+    Frame* callFrame = getFrame(vm);
     callFrame->stack = vm->sp - (proto->argsCount + 1) - (int)proto->vararg;
     callFrame->handlerCount = 0;
     return callFrame;
 }
 
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
-    Frame* callFrame = getFrame(vm, &closure->fn->proto);
+    Frame* callFrame = initFrame(vm, &closure->fn->proto);
     callFrame->fn = (Obj*)closure;
+    callFrame->gen = NULL;
     callFrame->ip = closure->fn->code.bytecode;
     return callFrame;
 }
 
 static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
-    Frame* callFrame = getFrame(vm, &native->proto);
+    Frame* callFrame = initFrame(vm, &native->proto);
     callFrame->fn = (Obj*)native;
     callFrame->ip = NULL;
     return callFrame;
@@ -290,6 +294,52 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     vm->apiStack = vm->stack + savedApiStack;
 
     push(vm, ret);
+    return true;
+}
+
+static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
+    if(gen->state == GEN_DONE) {
+        jsrRaise(vm, "Exception", "Iterator done"); // TODO: rework
+        return false;
+    }
+
+    if(vm->frameCount + 1 == MAX_FRAMES) {
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
+        return false;
+    }
+
+    Frame *frame = getFrame(vm);
+    const SupsendedFrame* suspended = &gen->frame;
+
+    Value send = NULL_VAL;
+    if(argc && gen->state == GEN_SUSPENDED) {
+        send = pop(vm);
+    }
+
+    frame->gen = gen;
+    frame->fn = (Obj*)gen->closure;
+    frame->ip = suspended->ip;
+    frame->stack = vm->sp - 1;
+
+    // Restore handlers
+    frame->handlerCount = suspended->handlerCount;
+    for(int i = 0; i < suspended->handlerCount; i++) {
+        Handler* handler = &frame->handlers[i];
+        const SavedHandler* savedHandler = &gen->frame.handlers[i];
+
+        handler->type = savedHandler->type;
+        handler->address = savedHandler->address;
+        handler->savedSp = vm->sp - argc - 1 + savedHandler->spOffset;
+    }
+
+    // Restore stack
+    memcpy(frame->stack, gen->savedStack, suspended->stackTop * sizeof(Value));
+    vm->sp = frame->stack + suspended->stackTop;
+
+    if(gen->state == GEN_SUSPENDED) {
+        push(vm, send);
+    }
+    
     return true;
 }
 
@@ -722,6 +772,10 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             }
 
             return true;
+        }
+        case OBJ_GENERATOR: {
+            ObjGenerator* gen = AS_GENERATOR(callee);
+            return resumeGenerator(vm, gen, argc);
         }
         default:
             break;
@@ -1312,6 +1366,50 @@ op_return:
             }
         }
 
+        // TODO: Remove
+        if(frame->gen) {
+            frame->gen->state = GEN_DONE;
+        }
+
+        closeUpvalues(vm, frameStack);
+        vm->sp = frameStack;
+        push(vm, ret);
+
+        if(--vm->frameCount == evalDepth) {
+            return true;
+        }
+
+        LOAD_STATE();
+        vm->module = fn->proto.module;
+
+        DISPATCH();
+    }
+
+    TARGET(OP_YIELD): {
+        ObjGenerator* gen = frame->gen;
+        gen->state = GEN_SUSPENDED;
+
+        Value ret = pop(vm);
+        gen->lastYield = ret;
+        // TODO: Maybe check eval break?
+        
+        // TODO: move in function
+        size_t stackTop = (size_t)(ptrdiff_t)(vm->sp - frameStack);
+        gen->frame.ip = ip;
+        gen->frame.stackTop = stackTop;
+
+        // Copy stack
+        memcpy(gen->savedStack, frameStack, stackTop * sizeof(Value));
+
+        // Copy handlers
+        for(int i = 0; i < frame->handlerCount; i++) {
+            const Handler* handler = &frame->handlers[i];
+            SavedHandler* saved = &gen->frame.handlers[i];
+            saved->type = handler->type;
+            saved->address = handler->address;
+            saved->spOffset = (size_t)(ptrdiff_t)(handler->savedSp - frameStack);
+        }
+
         closeUpvalues(vm, frameStack);
         vm->sp = frameStack;
         push(vm, ret);
@@ -1402,6 +1500,19 @@ op_return:
             }
         }
         DISPATCH();
+    }
+
+    TARGET(OP_GENERATOR): {
+        size_t stackSize = NEXT_SHORT();
+        ObjGenerator* gen = newGenerator(vm, closure, 256 /*TODO: Use argument*/);
+
+        // TODO: find a better way to copy
+        gen->frame.ip = ip;
+        gen->frame.stackTop = vm->sp - frameStack;
+        memcpy(gen->savedStack, frameStack, gen->frame.stackTop * sizeof(Value));
+
+        push(vm, OBJ_VAL(gen));
+        goto op_return;
     }
 
     TARGET(OP_NEW_CLASS): {

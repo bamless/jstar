@@ -157,10 +157,11 @@ JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarEx
     return e;
 }
 
-JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool vararg, JStarStmt* body) {
+JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool isVararg, bool isGenerator,
+                          JStarStmt* body) {
     JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
     JStarTok name = {0};  // Empty name
-    e->as.funLit.func = jsrFuncDecl(line, &name, args, defArgs, vararg, body);
+    e->as.funLit.func = jsrFuncDecl(line, &name, args, defArgs, isVararg, isGenerator, body);
     return e;
 }
 
@@ -252,14 +253,15 @@ static JStarStmt* newStmt(int line, JStarStmtType type) {
     return s;
 }
 
-JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg,
-                       JStarStmt* body) {
+JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool isVararg,
+                       bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newStmt(line, JSR_FUNCDECL);
     f->as.funcDecl.id.name = name->lexeme;
     f->as.funcDecl.id.length = name->length;
     f->as.funcDecl.formalArgs = vecMove(args);
     f->as.funcDecl.defArgs = vecMove(defArgs);
-    f->as.funcDecl.isVararg = vararg;
+    f->as.funcDecl.isVararg = isVararg;
+    f->as.funcDecl.isGenerator = isGenerator;
     f->as.funcDecl.isStatic = false;
     f->as.funcDecl.body = body;
     return f;

@@ -182,7 +182,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_GENERATOR: {
         ObjGenerator* gen = (ObjGenerator*)o;
-        reachObject(vm, (Obj*)gen->frame.closure);
+        reachObject(vm, (Obj*)gen->closure);
         for(size_t i = 0; i < gen->frame.stackTop; i++) {
             reachValue(vm, gen->savedStack[i]);
         }
