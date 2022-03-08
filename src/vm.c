@@ -297,9 +297,61 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     return true;
 }
 
+static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f) {
+    PROFILE_FUNC()
+
+    size_t stackTop = (size_t)(ptrdiff_t)(sp - f->stack);
+    gen->frame.ip = ip;
+    gen->frame.stackTop = stackTop;
+
+    // Save function stack
+    memcpy(gen->savedStack, f->stack, stackTop * sizeof(Value));
+
+    // Save exception handlers
+    for(int i = 0; i < f->handlerCount; i++) {
+        const Handler* handler = &f->handlers[i];
+        SavedHandler* saved = &gen->frame.handlers[i];
+        saved->type = handler->type;
+        saved->address = handler->address;
+        saved->spOffset = (size_t)(ptrdiff_t)(handler->savedSp - f->stack);
+    }
+}
+
+static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
+    PROFILE_FUNC()
+
+    f->gen = gen;
+    f->fn = (Obj*)gen->closure;
+    f->ip = gen->frame.ip;
+    f->stack = sp;
+
+    // Restore function stack
+    memcpy(f->stack, gen->savedStack, gen->frame.stackTop * sizeof(Value));
+
+    // Restore exception handlers
+    f->handlerCount = gen->frame.handlerCount;
+    for(int i = 0; i < f->handlerCount; i++) {
+        Handler* handler = &f->handlers[i];
+        const SavedHandler* savedHandler = &gen->frame.handlers[i];
+        handler->type = savedHandler->type;
+        handler->address = savedHandler->address;
+        handler->savedSp = sp + savedHandler->spOffset;
+    }
+
+    // New stack pointer
+    return f->stack + gen->frame.stackTop;
+}
+
 static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
+    PROFILE_FUNC()
+
     if(gen->state == GEN_DONE) {
-        jsrRaise(vm, "Exception", "Iterator done"); // TODO: rework
+        jsrRaise(vm, "Exception", "Iterator done"); // TODO: launch another exception
+        return false;
+    }
+
+    if(argc > 2) {
+        jsrRaise(vm, "TypeException", "Generator takes at most 2 argument, %d supplied", (int)argc);
         return false;
     }
 
@@ -308,35 +360,27 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         return false;
     }
 
-    Frame *frame = getFrame(vm);
-    const SupsendedFrame* suspended = &gen->frame;
+    Value exc = NULL_VAL;
+    if(argc > 1) {
+        exc = pop(vm);
+    }
 
     Value send = NULL_VAL;
-    if(argc && gen->state == GEN_SUSPENDED) {
+    if(argc > 0) {
         send = pop(vm);
     }
 
-    frame->gen = gen;
-    frame->fn = (Obj*)gen->closure;
-    frame->ip = suspended->ip;
-    frame->stack = vm->sp - 1;
+    // TODO: reserveStack
 
-    // Restore handlers
-    frame->handlerCount = suspended->handlerCount;
-    for(int i = 0; i < suspended->handlerCount; i++) {
-        Handler* handler = &frame->handlers[i];
-        const SavedHandler* savedHandler = &gen->frame.handlers[i];
-
-        handler->type = savedHandler->type;
-        handler->address = savedHandler->address;
-        handler->savedSp = vm->sp - argc - 1 + savedHandler->spOffset;
-    }
-
-    // Restore stack
-    memcpy(frame->stack, gen->savedStack, suspended->stackTop * sizeof(Value));
-
-    vm->sp = frame->stack + suspended->stackTop;
+    Frame *frame = getFrame(vm);
+    vm->sp = restoreFrame(gen, vm->sp - 1, frame);
     vm->module = gen->closure->fn->proto.module;
+
+    if(argc > 1) {
+        push(vm, exc);
+        jsrRaiseException(vm, -1);
+        return false;
+    }
 
     if(gen->state == GEN_SUSPENDED) {
         push(vm, send);
@@ -1386,29 +1430,13 @@ op_return:
     }
 
     TARGET(OP_YIELD): {
-        ObjGenerator* gen = frame->gen;
-        gen->state = GEN_SUSPENDED;
-
         Value ret = pop(vm);
+        // TODO: check eval break?
+
+        ObjGenerator* gen = frame->gen;
+        saveFrame(frame->gen, ip, vm->sp, frame);
+        gen->state = GEN_SUSPENDED;
         gen->lastYield = ret;
-        // TODO: Maybe check eval break?
-        
-        // TODO: move in function
-        size_t stackTop = (size_t)(ptrdiff_t)(vm->sp - frameStack);
-        gen->frame.ip = ip;
-        gen->frame.stackTop = stackTop;
-
-        // Copy stack
-        memcpy(gen->savedStack, frameStack, stackTop * sizeof(Value));
-
-        // Copy handlers
-        for(int i = 0; i < frame->handlerCount; i++) {
-            const Handler* handler = &frame->handlers[i];
-            SavedHandler* saved = &gen->frame.handlers[i];
-            saved->type = handler->type;
-            saved->address = handler->address;
-            saved->spOffset = (size_t)(ptrdiff_t)(handler->savedSp - frameStack);
-        }
 
         closeUpvalues(vm, frameStack);
         vm->sp = frameStack;
