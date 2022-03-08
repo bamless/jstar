@@ -295,10 +295,11 @@ void freeObject(JStarVM* vm, Obj* o) {
         GC_FREE_VAR(vm, ObjClosure, ObjUpvalue*, closure->upvalueCount, o);
         break;
     }
-    case OBJ_GENERATOR:
+    case OBJ_GENERATOR: {
         ObjGenerator* gen = (ObjGenerator*)o;
         GC_FREE_VAR(vm, ObjGenerator, Value, gen->stackSize, o);
         break;
+    }
     case OBJ_UPVALUE: {
         ObjUpvalue* upvalue = (ObjUpvalue*)o;
         GC_FREE(vm, ObjUpvalue, upvalue);
