@@ -388,6 +388,15 @@ JSR_NATIVE(jsr_Generator_isDone) {
     return true;
 }
 
+JSR_NATIVE(jsr_Generator_string) {
+    ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
+    JStarBuffer str;
+    jsrBufferInit(vm, &str);
+    jsrBufferAppendf(&str, "<generator@%p>", (void*)gen);
+    jsrBufferPush(&str);
+    return true;
+}
+
 JSR_NATIVE(jsr_Generator_next) {
     ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
     push(vm, gen->lastYield);

@@ -106,6 +106,7 @@ static Module builtInModules[] = {
         ENDCLASS
         CLASS(Generator)
             METHOD(isDone,     jsr_Generator_isDone)
+            METHOD(__string__, jsr_Generator_string)
             METHOD(__next__,   jsr_Generator_next)
         ENDCLASS
         CLASS(Module)

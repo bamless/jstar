@@ -334,7 +334,9 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
 
     // Restore stack
     memcpy(frame->stack, gen->savedStack, suspended->stackTop * sizeof(Value));
+
     vm->sp = frame->stack + suspended->stackTop;
+    vm->module = gen->closure->fn->proto.module;
 
     if(gen->state == GEN_SUSPENDED) {
         push(vm, send);
@@ -1670,9 +1672,7 @@ op_return:
 
     TARGET(OP_POPN): {
         uint8_t n = NEXT_CODE();
-        for(uint8_t i = 0; i < n; i++) {
-            pop(vm);
-        }
+        vm->sp -= n;
         closeUpvalues(vm, vm->sp);
         DISPATCH();
     }

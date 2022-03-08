@@ -40,6 +40,7 @@ JSR_NATIVE(jsr_Function_getName);
 
 // class Generator
 JSR_NATIVE(jsr_Generator_isDone);
+JSR_NATIVE(jsr_Generator_string);
 JSR_NATIVE(jsr_Generator_next);
 //end
 

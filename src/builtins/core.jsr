@@ -190,17 +190,12 @@ end
 
 class Generator is Iterable
     native isDone()
+    native __string__()
     native __next__(_)
 
     fun __iter__(_)
         this()
         return !this.isDone()
-    end
-
-
-    // TODO: move to native
-    fun __string__()
-        return "<Generator@xxxx>"
     end
 end
 
