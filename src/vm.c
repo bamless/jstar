@@ -739,6 +739,8 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             return callFunction(vm, AS_CLOSURE(callee), argc);
         case OBJ_NATIVE:
             return callNative(vm, AS_NATIVE(callee), argc);
+        case OBJ_GENERATOR:
+            return resumeGenerator(vm, AS_GENERATOR(callee), argc);
         case OBJ_BOUND_METHOD: {
             ObjBoundMethod* m = AS_BOUND_METHOD(callee);
             vm->sp[-argc - 1] = m->bound;
@@ -774,10 +776,6 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             }
 
             return true;
-        }
-        case OBJ_GENERATOR: {
-            ObjGenerator* gen = AS_GENERATOR(callee);
-            return resumeGenerator(vm, gen, argc);
         }
         default:
             break;
