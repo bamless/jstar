@@ -1533,12 +1533,7 @@ op_return:
     TARGET(OP_GENERATOR): {
         size_t stackSize = NEXT_SHORT();
         ObjGenerator* gen = newGenerator(vm, closure, 256 /*TODO: Use argument*/);
-
-        // TODO: find a better way to copy
-        gen->frame.ip = ip;
-        gen->frame.stackTop = vm->sp - frameStack;
-        memcpy(gen->savedStack, frameStack, gen->frame.stackTop * sizeof(Value));
-
+        saveFrame(gen, ip, vm->sp, frame);
         push(vm, OBJ_VAL(gen));
         goto op_return;
     }
