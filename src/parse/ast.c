@@ -235,6 +235,9 @@ void jsrExprFree(JStarExpr* e) {
     case JSR_SUPER:
         jsrExprFree(e->as.sup.args);
         break;
+    case JSR_YIELD:
+        jsrExprFree(e->as.yield.expr);
+        break;
     default:
         break;
     }
