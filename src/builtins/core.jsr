@@ -193,6 +193,14 @@ class Generator is Iterable
     native __string__()
     native __next__(_)
 
+    fun send(value=null)
+        return this(value)
+    end
+
+    fun throw(exc)
+        this(null, exc)
+    end
+
     fun __iter__(_)
         this()
         return !this.isDone()

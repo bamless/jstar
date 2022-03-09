@@ -1460,50 +1460,109 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
     emitBytecode(c, 0, s->line);
 }
 
-static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
-    JStarIdentifier* name = &s->as.funcDecl.id;
-    size_t defaults = vecSize(&s->as.funcDecl.defArgs);
-    size_t arity = vecSize(&s->as.funcDecl.formalArgs);
-    bool vararg = s->as.funcDecl.isVararg;
+static ObjFunction* compileBody(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
+    size_t defaults = vecSize(&node->as.funcDecl.defArgs);
+    size_t arity = vecSize(&node->as.funcDecl.formalArgs);
+    bool vararg = node->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, arity, defaults, vararg);
-    addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
+    push(c->vm, OBJ_VAL(name));
+    c->func = newFunction(c->vm, m, arity, defaults, vararg);
+    c->func->proto.name = name;
+    pop(c->vm);
 
-    if(name->length != 0) {
-        c->func->proto.name = copyString(c->vm, name->name, name->length);
-    } else {
-        c->func->proto.name = copyString(c->vm, "<main>", strlen("<main>"));
+    if(c->type != TYPE_FUNC) {
+        // Dummy constant that will be replaced at runtime with the method 
+        // superclass, in order to correctly implement `super` calls
+        addConstant(&c->func->code, NULL_VAL);
     }
 
-    // add phony variable for function receiver (in the case of functions the
-    // receiver is the function itself but it ins't accessible)
-    JStarIdentifier id = createIdentifier("");
-    addLocal(c, &id, s->line);
+    addFunctionDefaults(c, &c->func->proto, &node->as.funcDecl.defArgs);
 
-    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
-        Variable arg = declareVar(c, *it, false, s->line);
-        defineVar(c, &arg, s->line);
+    // Add the receiver. 
+    // In the case of functions the receiver is the function itself but it isnt't accessible (we
+    // use an empty name).
+    // In the case of methods the receiver is assigned a name of `this` and points to the class
+    // instance on which the method was called.
+    JStarIdentifier receiver = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
+    Variable receiverVar = declareVar(c, &receiver, false, node->line);
+    defineVar(c, &receiverVar, node->line);
+
+    vecForeach(JStarIdentifier** it, node->as.funcDecl.formalArgs) {
+        Variable arg = declareVar(c, *it, false, node->line);
+        defineVar(c, &arg, node->line);
     }
 
-    if(s->as.funcDecl.isVararg) {
+    if(node->as.funcDecl.isVararg) {
         JStarIdentifier args = createIdentifier("args");
-        Variable vararg = declareVar(c, &args, false, s->line);
-        defineVar(c, &vararg, s->line);
+        Variable vararg = declareVar(c, &args, false, node->line);
+        defineVar(c, &vararg, node->line);
     }
 
-    // TODO: refactor and extend to methods
-    if(s->as.funcDecl.isGenerator) {
-        emitBytecode(c, OP_GENERATOR, s->line);
-        emitShort(c, 0, s->line);
+    if(node->as.funcDecl.isGenerator) {
+        emitBytecode(c, OP_GENERATOR, node->line);
+        emitShort(c, 0, node->line);
     }
 
-    JStarStmt* body = s->as.funcDecl.body;
+    JStarStmt* body = node->as.funcDecl.body;
     compileStatements(c, &body->as.blockStmt.stmts);
 
-    emitBytecode(c, OP_NULL, 0);
+    switch(c->type) {
+    case TYPE_FUNC:
+    case TYPE_METHOD:
+        emitBytecode(c, OP_NULL, 0);
+        break;
+    case TYPE_CTOR:
+        emitBytecode(c, OP_GET_LOCAL, 0);
+        emitBytecode(c, 0, 0);
+        break;
+    }
+
     emitBytecode(c, OP_RETURN, 0);
 
     return c->func;
+}
+
+static void compileFunction(Compiler* c, JStarStmt* node) {
+    Compiler funCompiler;
+    initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, node);
+
+    JStarIdentifier* id = &node->as.funcDecl.id;
+    ObjString* name = copyString(c->vm, id->name, id->length);
+
+    enterFunctionScope(&funCompiler);
+    ObjFunction* func = compileBody(&funCompiler, c->func->proto.module, name, node);
+    exitFunctionScope(&funCompiler);
+
+    emitBytecode(c, OP_CLOSURE, node->line);
+    emitShort(c, createConst(c, OBJ_VAL(func), node->line), node->line);
+
+    for(uint8_t i = 0; i < func->upvalueCount; i++) {
+        emitBytecode(c, funCompiler.upvalues[i].isLocal ? 1 : 0, node->line);
+        emitBytecode(c, funCompiler.upvalues[i].index, node->line);
+    }
+
+    endCompiler(&funCompiler);
+}
+
+static void compileNative(Compiler* c, JStarStmt* node) {
+    JStarIdentifier* name = &node->as.nativeDecl.id;
+    size_t defCount = vecSize(&node->as.nativeDecl.defArgs);
+    size_t arity = vecSize(&node->as.nativeDecl.formalArgs);
+    bool vararg = node->as.nativeDecl.isVararg;
+
+    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
+    push(c->vm, OBJ_VAL(native));
+
+    addFunctionDefaults(c, &native->proto, &node->as.nativeDecl.defArgs);
+    native->proto.name = copyString(c->vm, name->name, name->length);
+
+    emitBytecode(c, OP_GET_CONST, node->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
+
+    emitBytecode(c, OP_NATIVE, node->line);
+    emitShort(c, identifierConst(c, name, node->line), node->line);
+
+    pop(c->vm);
 }
 
 static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIdentifier* methId) {
@@ -1515,140 +1574,50 @@ static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIde
     return name;
 }
 
-static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName, JStarStmt* s) {
-    JStarIdentifier* name = &s->as.funcDecl.id;
-    size_t defCount = vecSize(&s->as.funcDecl.defArgs);
-    size_t arity = vecSize(&s->as.funcDecl.formalArgs);
-    bool vararg = s->as.funcDecl.isVararg;
-
-    c->func = newFunction(c->vm, mod, arity, defCount, vararg);
-
-    // Dummy constant that will be replaced at runtime with the method 
-    // superclass, in order to correctly implement `super` calls
-    addConstant(&c->func->code, NULL_VAL);
-    addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
-
-    // Create method name by prepending its class name and a dot
-    c->func->proto.name = createMethodName(c, clsName, name);
-
-    // if in costructor change the type
+static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
+    FuncType type = TYPE_METHOD;
     JStarIdentifier ctor = createIdentifier(CTOR_STR);
-    if(jsrIdentifierEq(&s->as.funcDecl.id, &ctor)) {
-        c->type = TYPE_CTOR;
+    if(jsrIdentifierEq(&node->as.funcDecl.id, &ctor)) {
+        type = TYPE_CTOR;
     }
 
-    // add `this` for method receiver (the object from which was called)
-    JStarIdentifier thisId = createIdentifier(THIS_STR);
-    Variable thisVar = declareVar(c, &thisId, false, s->line);
-    defineVar(c, &thisVar, s->line);
-
-    // define and declare arguments
-    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
-        Variable arg = declareVar(c, *it, false, s->line);
-        defineVar(c, &arg, s->line);
-    }
-
-    if(s->as.funcDecl.isVararg) {
-        JStarIdentifier args = createIdentifier("args");
-        Variable vararg = declareVar(c, &args, false, s->line);
-        defineVar(c, &vararg, s->line);
-    }
-
-    // TODO: refactor and extend to methods
-    if(s->as.funcDecl.isGenerator) {
-        emitBytecode(c, OP_GENERATOR, s->line);
-        emitShort(c, 0, s->line);
-    }
-
-    JStarStmt* body = s->as.funcDecl.body;
-    compileStatements(c, &body->as.blockStmt.stmts);
-
-    // if in constructor return the instance
-    if(c->type == TYPE_CTOR) {
-        emitBytecode(c, OP_GET_LOCAL, 0);
-        emitBytecode(c, 0, 0);
-    } else {
-        emitBytecode(c, OP_NULL, 0);
-    }
-
-    emitBytecode(c, OP_RETURN, 0);
-    return c->func;
-}
-
-static void compileFunction(Compiler* c, JStarStmt* s) {
-    Compiler funCompiler;
-    initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, s);
-
-    enterFunctionScope(&funCompiler);
-    ObjFunction* func = function(&funCompiler, c->func->proto.module, s);
-    exitFunctionScope(&funCompiler);
-
-    emitBytecode(c, OP_CLOSURE, s->line);
-    emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
-
-    for(uint8_t i = 0; i < func->upvalueCount; i++) {
-        emitBytecode(c, funCompiler.upvalues[i].isLocal ? 1 : 0, s->line);
-        emitBytecode(c, funCompiler.upvalues[i].index, s->line);
-    }
-
-    endCompiler(&funCompiler);
-}
-
-static void compileNative(Compiler* c, JStarStmt* s) {
-    JStarIdentifier* name = &s->as.nativeDecl.id;
-    size_t defCount = vecSize(&s->as.nativeDecl.defArgs);
-    size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
-    bool vararg = s->as.nativeDecl.isVararg;
-
-    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
-    push(c->vm, OBJ_VAL(native));
-
-    addFunctionDefaults(c, &native->proto, &s->as.nativeDecl.defArgs);
-    native->proto.name = copyString(c->vm, name->name, name->length);
-
-    emitBytecode(c, OP_GET_CONST, s->line);
-    emitShort(c, createConst(c, OBJ_VAL(native), s->line), s->line);
-
-    emitBytecode(c, OP_NATIVE, s->line);
-    emitShort(c, identifierConst(c, name, s->line), s->line);
-
-    pop(c->vm);
-}
-
-static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
     Compiler methodCompiler;
-    initCompiler(&methodCompiler, c->vm, c->file, c, TYPE_METHOD, m);
+    initCompiler(&methodCompiler, c->vm, c->file, c, type, node);
+
+    JStarIdentifier* id = &node->as.funcDecl.id;
+    JStarIdentifier* clsId = &cls->as.classDecl.id;
+    ObjString* name = createMethodName(c, clsId, id);
 
     enterFunctionScope(&methodCompiler);
-    ObjFunction* meth = method(&methodCompiler, c->func->proto.module, &cls->as.classDecl.id, m);
+    ObjFunction* meth = compileBody(&methodCompiler, c->func->proto.module, name, node);
     exitFunctionScope(&methodCompiler);
 
-    emitBytecode(c, OP_CLOSURE, m->line);
-    emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
+    emitBytecode(c, OP_CLOSURE, node->line);
+    emitShort(c, createConst(c, OBJ_VAL(meth), node->line), node->line);
 
     for(uint8_t i = 0; i < meth->upvalueCount; i++) {
-        emitBytecode(c, methodCompiler.upvalues[i].isLocal ? 1 : 0, m->line);
-        emitBytecode(c, methodCompiler.upvalues[i].index, m->line);
+        emitBytecode(c, methodCompiler.upvalues[i].isLocal ? 1 : 0, node->line);
+        emitBytecode(c, methodCompiler.upvalues[i].index, node->line);
     }
 
     emitBytecode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
+    emitShort(c, identifierConst(c, &node->as.funcDecl.id, node->line), cls->line);
     endCompiler(&methodCompiler);
 }
 
-static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
-    size_t defaults = vecSize(&m->as.nativeDecl.defArgs);
-    size_t arity = vecSize(&m->as.nativeDecl.formalArgs);
-    bool vararg = m->as.nativeDecl.isVararg;
+static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
+    size_t defaults = vecSize(&node->as.nativeDecl.defArgs);
+    size_t arity = vecSize(&node->as.nativeDecl.formalArgs);
+    bool vararg = node->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defaults, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->proto, &m->as.nativeDecl.defArgs);
-    native->proto.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
+    addFunctionDefaults(c, &native->proto, &node->as.nativeDecl.defArgs);
+    native->proto.name = createMethodName(c, &cls->as.classDecl.id, &node->as.funcDecl.id);
 
     emitBytecode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &m->as.nativeDecl.id, m->line), cls->line);
+    emitShort(c, identifierConst(c, &node->as.nativeDecl.id, node->line), cls->line);
     emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
 
     pop(c->vm);
@@ -1817,7 +1786,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStar
 
     Compiler c;
     initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast);
-    ObjFunction* func = function(&c, module, ast);
+    ObjFunction* func = compileBody(&c, module, copyString(vm, "<main>", 6), ast);
     endCompiler(&c);
 
     return c.hadError ? NULL : func;
