@@ -653,10 +653,9 @@ static void compileFunction(Compiler* c, JStarStmt* s);
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(name == NULL) {
-        char funcName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
-        sprintf(funcName, ANON_STR "%d", func->line);
-
-        func->as.funcDecl.id = createIdentifier(funcName);
+        char anonymousName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
+        sprintf(anonymousName, ANON_STR "%d", func->line);
+        func->as.funcDecl.id = createIdentifier(anonymousName);
         compileFunction(c, func);
     } else {
         func->as.funcDecl.id = *name;
