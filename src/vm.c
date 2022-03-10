@@ -304,6 +304,7 @@ static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f)
     size_t stackTop = (size_t)(ptrdiff_t)(sp - f->stack);
     gen->frame.ip = ip;
     gen->frame.stackTop = stackTop;
+    gen->frame.handlerCount = f->handlerCount;
 
     // Save function stack
     memcpy(gen->savedStack, f->stack, stackTop * sizeof(Value));
@@ -325,12 +326,12 @@ static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
     f->fn = (Obj*)gen->closure;
     f->ip = gen->frame.ip;
     f->stack = sp;
+    f->handlerCount = gen->frame.handlerCount;
 
     // Restore function stack
     memcpy(f->stack, gen->savedStack, gen->frame.stackTop * sizeof(Value));
 
     // Restore exception handlers
-    f->handlerCount = gen->frame.handlerCount;
     for(int i = 0; i < f->handlerCount; i++) {
         Handler* handler = &f->handlers[i];
         const SavedHandler* savedHandler = &gen->frame.handlers[i];
