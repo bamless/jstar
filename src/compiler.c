@@ -476,6 +476,18 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
     return copyString(c->vm, sb->data, sb->size);
 }
 
+static JStarExpr* getExpressions(JStarExpr* unpackable) {
+    switch(unpackable->type) {
+    case JSR_ARRAY:
+        return unpackable->as.array.exprs;
+    case JSR_TUPLE:
+        return unpackable->as.tuple.exprs;
+    default:
+        UNREACHABLE();
+        return NULL;
+    }
+}
+
 static void addFunctionDefaults(Compiler* c, Prototype* proto, Vector* defaultArgs) {
     int i = 0;
     vecForeach(JStarExpr** it, *defaultArgs) {
@@ -713,18 +725,6 @@ static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int lvals, Vect
     }
 }
 
-static JStarExpr* getUnpackableExprs(JStarExpr* unpackable) {
-    switch(unpackable->type) {
-    case JSR_ARRAY:
-        return unpackable->as.array.exprs;
-    case JSR_TUPLE:
-        return unpackable->as.tuple.exprs;
-    default:
-        UNREACHABLE();
-        return NULL;
-    }
-}
-
 // Compile an unpack assignment of the form: a, b, ..., z = ...
 static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
     JStarExpr* lvals = e->as.assign.lval->as.tuple.exprs;
@@ -736,7 +736,7 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
 
     JStarExpr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
-        JStarExpr* exprs = getUnpackableExprs(rval);
+        JStarExpr* exprs = getExpressions(rval);
         compileConstUnpackLst(c, exprs, lvalCount, NULL);
     } else {
         compileRval(c, rval, NULL);
@@ -1653,7 +1653,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
         bool isUnpack = s->as.varDecl.isUnpack;
 
         if(isUnpack && IS_CONST_UNPACK(init->type)) {
-            JStarExpr* exprs = getUnpackableExprs(init);
+            JStarExpr* exprs = getExpressions(init);
             compileConstUnpackLst(c, exprs, varsCount, &s->as.varDecl.ids);
         } else {
             compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
