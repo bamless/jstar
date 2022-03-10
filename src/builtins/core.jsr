@@ -198,7 +198,7 @@ class Generator is Iterable
     end
 
     fun throw(exc)
-        this(null, exc)
+        return this(null, exc)
     end
 
     fun __iter__(_)

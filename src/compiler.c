@@ -1037,6 +1037,10 @@ static void compileReturnStatement(Compiler* c, JStarStmt* s) {
         emitBytecode(c, OP_NULL, s->line);
     }
 
+    if(c->fnNode->as.funcDecl.isGenerator) {
+        emitBytecode(c, OP_GENERATOR_CLOSE, s->line);
+    }
+
     emitBytecode(c, OP_RETURN, s->line);
 }
 
@@ -1499,7 +1503,6 @@ static ObjFunction* compileBody(Compiler* c, ObjModule* m, ObjString* name, JSta
 
     if(node->as.funcDecl.isGenerator) {
         emitBytecode(c, OP_GENERATOR, node->line);
-        emitShort(c, 0, node->line);
     }
 
     JStarStmt* body = node->as.funcDecl.body;
@@ -1509,6 +1512,9 @@ static ObjFunction* compileBody(Compiler* c, ObjModule* m, ObjString* name, JSta
     case TYPE_FUNC:
     case TYPE_METHOD:
         emitBytecode(c, OP_NULL, 0);
+        if(node->as.funcDecl.isGenerator) {
+            emitBytecode(c, OP_GENERATOR_CLOSE, 0);
+        }
         break;
     case TYPE_CTOR:
         emitBytecode(c, OP_GET_LOCAL, 0);

@@ -348,7 +348,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     PROFILE_FUNC()
 
     if(gen->state == GEN_DONE) {
-        jsrRaise(vm, "Exception", "Iterator done"); // TODO: launch another exception
+        jsrRaise(vm, "Exception", "Generator has completed"); // TODO: launch another exception
         return false;
     }
 
@@ -1412,11 +1412,6 @@ op_return:
             }
         }
 
-        // TODO: Remove
-        if(frame->gen) {
-            frame->gen->state = GEN_DONE;
-        }
-
         closeUpvalues(vm, frameStack);
         vm->sp = frameStack;
         push(vm, ret);
@@ -1533,11 +1528,15 @@ op_return:
     }
 
     TARGET(OP_GENERATOR): {
-        size_t stackSize = NEXT_SHORT();
-        ObjGenerator* gen = newGenerator(vm, closure, 256 /*TODO: Use argument*/);
+        ObjGenerator* gen = newGenerator(vm, closure, 256 /*TODO: Track in compiler*/);
         saveFrame(gen, ip, vm->sp, frame);
         push(vm, OBJ_VAL(gen));
         goto op_return;
+    }
+
+    TARGET(OP_GENERATOR_CLOSE): {
+        frame->gen->state = GEN_DONE;
+        DISPATCH();
     }
 
     TARGET(OP_NEW_CLASS): {
@@ -1767,6 +1766,11 @@ bool unwindStack(JStarVM* vm, int depth) {
             Handler* h = &frame->handlers[--frame->handlerCount];
             RESTORE_HANDLER(vm, h, frame, CAUSE_EXCEPT, exc);
             return true;
+        }
+
+        // If this a generator function set it as completed
+        if(frame->gen) {
+            frame->gen->state = GEN_DONE;
         }
 
         closeUpvalues(vm, frame->stack);
