@@ -1427,6 +1427,7 @@ op_return:
     }
 
     TARGET(OP_YIELD): {
+        ASSERT(frame->gen, "Current function is not a Generator");
         Value ret = pop(vm);
         // TODO: check eval break?
 
@@ -1535,6 +1536,7 @@ op_return:
     }
 
     TARGET(OP_GENERATOR_CLOSE): {
+        ASSERT(frame->gen, "Current function isn't a Generator");
         frame->gen->state = GEN_DONE;
         DISPATCH();
     }
