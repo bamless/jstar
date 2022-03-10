@@ -686,12 +686,12 @@ static void compileLval(Compiler* c, JStarExpr* e) {
     }
 }
 
-// The `boundName` argument is the name of the variable to which we are assigning to.
+// The `name` argument is the name of the variable to which we are assigning to.
 // In case of a function literal we use it to give the function a meaningful name, instead
 // of just using the default name for anonymous functions (that is: `anon:<line_number>`)
-static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
+static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     if(e->type == JSR_FUNC_LIT) {
-        compileFunLiteral(c, e, boundName);
+        compileFunLiteral(c, e, name);
     } else {
         compileExpr(c, e);
     }
