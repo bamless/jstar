@@ -476,18 +476,6 @@ static ObjString* readString(Compiler* c, JStarExpr* e) {
     return copyString(c->vm, sb->data, sb->size);
 }
 
-static JStarExpr* getExpressions(JStarExpr* unpackable) {
-    switch(unpackable->type) {
-    case JSR_ARRAY:
-        return unpackable->as.array.exprs;
-    case JSR_TUPLE:
-        return unpackable->as.tuple.exprs;
-    default:
-        UNREACHABLE();
-        return NULL;
-    }
-}
-
 static void addFunctionDefaults(Compiler* c, Prototype* proto, Vector* defaultArgs) {
     int i = 0;
     vecForeach(JStarExpr** it, *defaultArgs) {
@@ -509,6 +497,18 @@ static void addFunctionDefaults(Compiler* c, Prototype* proto, Vector* defaultAr
             UNREACHABLE();
             break;
         }
+    }
+}
+
+static JStarExpr* getExpressions(JStarExpr* unpackable) {
+    switch(unpackable->type) {
+    case JSR_ARRAY:
+        return unpackable->as.array.exprs;
+    case JSR_TUPLE:
+        return unpackable->as.tuple.exprs;
+    default:
+        UNREACHABLE();
+        return NULL;
     }
 }
 
