@@ -612,7 +612,6 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
         return false;
     }
 
-    reserveStack(vm, size);
     for(int i = 0; i < n; i++) {
         push(vm, array[i]);
     }
@@ -1529,7 +1528,8 @@ op_return:
     }
 
     TARGET(OP_GENERATOR): {
-        ObjGenerator* gen = newGenerator(vm, closure, fn->stackUsage + fn->proto.argsCount);
+        const Prototype* p = &fn->proto;
+        ObjGenerator* gen = newGenerator(vm, closure, fn->stackUsage + p->argsCount + p->vararg);
         saveFrame(gen, ip, vm->sp, frame);
         push(vm, OBJ_VAL(gen));
         goto op_return;

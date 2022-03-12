@@ -771,6 +771,7 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
         compileRval(c, rval, NULL);
         emitOpcode(c, OP_UNPACK, e->line);
         emitByte(c, (uint8_t)lvalCount, e->line);
+        adjustStackUsage(c, lvalCount - 1);
     }
 
     // compile lvals in reverse order in order to assign
@@ -838,7 +839,7 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
 
     if(isUnpack) {
         emitOpcode(c, callUnpack, args->line);
-        emitOpcode(c, argsCount, args->line);
+        emitByte(c, argsCount, args->line);
     } else if(argsCount <= MAX_INLINE_ARGS) {
         emitOpcode(c, callInline + argsCount, args->line);
     } else {
@@ -1195,6 +1196,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     if(varDecl->as.varDecl.isUnpack) {
         emitOpcode(c, OP_UNPACK, s->line);
         emitByte(c, numDecls, s->line);
+        adjustStackUsage(c, numDecls);
     }
 
     JStarStmt* body = s->as.forEach.body;
@@ -1697,6 +1699,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
             if(isUnpack) {
                 emitOpcode(c, OP_UNPACK, s->line);
                 emitByte(c, (uint8_t)varsCount, s->line);
+                adjustStackUsage(c, varsCount - 1);
             }
         }
     } else {
