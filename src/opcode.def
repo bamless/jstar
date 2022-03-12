@@ -1,6 +1,5 @@
 // Format:
 // Opcpde - Number of arguments - Number of values added (or removed) to the stack
-
 OPCODE(OP_ADD, 0, -1)
 OPCODE(OP_SUB, 0, -1)
 OPCODE(OP_MUL, 0, -1)
