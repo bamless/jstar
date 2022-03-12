@@ -152,6 +152,7 @@ typedef struct ObjFunction {
     Prototype proto;
     Code code;             // The actual code chunk containing bytecodes
     uint8_t upvalueCount;  // The number of upvalues the function closes over
+    int stackUsage;
 } ObjFunction;
 
 // A C function callable from J*

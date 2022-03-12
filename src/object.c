@@ -62,6 +62,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCou
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
     initProto(&fun->proto, m, args, defaults, defCount, varg);
     fun->upvalueCount = 0;
+    fun->stackUsage = 0;
     initCode(&fun->code);
     return fun;
 }

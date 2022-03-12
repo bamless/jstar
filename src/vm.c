@@ -253,10 +253,7 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
         return false;
     }
 
-    // TODO: modify compiler to track actual usage of stack so
-    // we can allocate the right amount of memory rather than a
-    // worst case bound
-    reserveStack(vm, UINT8_MAX);
+    reserveStack(vm, closure->fn->stackUsage);
     appendCallFrame(vm, closure);
     vm->module = closure->fn->proto.module;
 
@@ -302,6 +299,8 @@ static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f)
     PROFILE_FUNC()
 
     size_t stackTop = (size_t)(ptrdiff_t)(sp - f->stack);
+    ASSERT(stackTop <= gen->stackSize, "Insufficient generator stak size");
+
     gen->frame.ip = ip;
     gen->frame.stackTop = stackTop;
     gen->frame.handlerCount = f->handlerCount;
@@ -573,7 +572,7 @@ static bool unaryOverload(JStarVM* vm, const char* op, MethodSymbol overload) {
     return false;
 }
 
-static bool unpackCall(JStarVM* vm, uint8_t argc, uint8_t* out) {
+static bool unpackArgs(JStarVM* vm, uint8_t argc, uint8_t* out) {
     if(argc == 0) {
         jsrRaise(vm, "TypeException", "No argument to unpack");
         return false;
@@ -613,6 +612,7 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
         return false;
     }
 
+    reserveStack(vm, size);
     for(int i = 0; i < n; i++) {
         push(vm, array[i]);
     }
@@ -1069,7 +1069,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 #ifdef JSTAR_COMPUTED_GOTOS
     // create jumptable
     static void* opJmpTable[] = {
-    #define OPCODE(opcode, _) &&TARGET_##opcode,
+    #define OPCODE(opcode, args, stack) &&TARGET_##opcode,
     #include "opcode.def"
     };
 
@@ -1297,7 +1297,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         goto call;
 
     TARGET(OP_CALL_UNPACK):
-        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto call;
@@ -1332,7 +1332,7 @@ call:
         goto invoke;
 
     TARGET(OP_INVOKE_UNPACK):
-        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto invoke;
@@ -1368,7 +1368,7 @@ invoke:;
         goto supinvoke;
 
     TARGET(OP_SUPER_UNPACK):
-        if(!unpackCall(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
             UNWIND_STACK(vm);
         }
         goto supinvoke;
@@ -1529,7 +1529,7 @@ op_return:
     }
 
     TARGET(OP_GENERATOR): {
-        ObjGenerator* gen = newGenerator(vm, closure, 256 /*TODO: Track in compiler*/);
+        ObjGenerator* gen = newGenerator(vm, closure, fn->stackUsage + fn->proto.argsCount);
         saveFrame(gen, ip, vm->sp, frame);
         push(vm, OBJ_VAL(gen));
         goto op_return;
