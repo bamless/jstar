@@ -200,9 +200,9 @@ static bool inGlobalScope(Compiler* c) {
 
 static void discardLocal(Compiler* c, Local* local) {
     if(local->isUpvalue) {
-        emitOpcode(c, OP_CLOSE_UPVALUE, 0);
+        emitByte(c, OP_CLOSE_UPVALUE, 0);
     } else {
-        emitOpcode(c, OP_POP, 0);
+        emitByte(c, OP_POP, 0);
     }
 }
 
@@ -219,7 +219,7 @@ static int discardScopes(Compiler* c, int depth) {
     int toPop = c->localsCount - locals;
 
     if(toPop > 1) {
-        emitOpcode(c, OP_POPN, 0);
+        emitByte(c, OP_POPN, 0);
         emitByte(c, toPop, 0);
     } else if(toPop == 1) {
         discardLocal(c, &c->locals[locals]);
@@ -229,7 +229,9 @@ static int discardScopes(Compiler* c, int depth) {
 }
 
 static void exitScope(Compiler* c) {
-    c->localsCount -= discardScopes(c, --c->depth);
+    int popped = discardScopes(c, --c->depth);
+    c->localsCount -= popped;
+    c->stackUsage -= popped;
 }
 
 static void enterFunctionScope(Compiler* c) {
