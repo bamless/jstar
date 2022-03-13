@@ -323,7 +323,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
 static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f) {
     PROFILE_FUNC()
 
-    size_t stackTop = (size_t)(ptrdiff_t)(sp - f->stack);
+    size_t stackTop = (size_t)(sp - f->stack);
     ASSERT(stackTop <= gen->stackSize, "Insufficient generator stak size");
 
     gen->frame.ip = ip;
@@ -339,7 +339,7 @@ static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f)
         SavedHandler* saved = &gen->frame.handlers[i];
         saved->type = handler->type;
         saved->address = handler->address;
-        saved->spOffset = (size_t)(ptrdiff_t)(handler->savedSp - f->stack);
+        saved->spOffset = (size_t)(handler->savedSp - f->stack);
     }
 }
 
