@@ -197,6 +197,8 @@ void initCoreModule(JStarVM* vm) {
         // Patch up the class field of any object that was allocated
         // before the creation of its corresponding class object
         for(Obj* o = vm->objects; o != NULL; o = o->next) {
+            if(o->type == OBJ_UPVALUE) continue;
+            
             if(o->type == OBJ_STRING) {
                 o->cls = vm->strClass;
             } else if(o->type == OBJ_LIST) {

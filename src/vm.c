@@ -27,6 +27,16 @@ static const char* const methodSyms[SYM_END] = {
     [SYM_RPOW] = "__rpow__",
 };
 
+// Prepare an exception or ensure handler in the vm for execution
+#define RESTORE_HANDLER(vm, h, frame, cause, exc) \
+    do {                                          \
+        frame->ip = h->address;                   \
+        vm->sp = h->savedSp;                      \
+        closeUpvalues(vm, vm->sp);                \
+        push(vm, exc);                            \
+        push(vm, NUM_VAL(cause));                 \
+    } while(0)
+
 // Enumeration encoding the cause of stack unwinding.
 // Used during unwinding to correctly handle the execution
 // of except/ensure handlers on return and exception
@@ -34,6 +44,15 @@ typedef enum UnwindCause {
     CAUSE_EXCEPT,
     CAUSE_RETURN,
 } UnwindCause;
+
+// Enumeration encoding the action to be taken upon generator reusme.
+// WARNING: This enumeration is synchronized to GenSend, GenThrow and 
+// GenClose variables in core.jsr
+typedef enum GenAction {
+    GEN_SEND,
+    GEN_THROW,
+    GEN_CLOSE
+} GenAction;
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
@@ -243,9 +262,16 @@ static bool adjustArguments(JStarVM* vm, Prototype* p, uint8_t argc) {
     return true;
 }
 
-static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
-    if(vm->frameCount + 1 == MAX_FRAMES) {
+static bool checkStackOverflow(JStarVM* vm) {
+    if(vm->frameCount + 1 >= MAX_FRAMES) {
         jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
+        return false;
+    }
+    return true;
+}
+
+static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
+    if(!checkStackOverflow(vm)) {
         return false;
     }
 
@@ -261,8 +287,7 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
 }
 
 static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
-    if(vm->frameCount + 1 == MAX_FRAMES) {
-        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
+    if(!checkStackOverflow(vm)) {
         return false;
     }
 
@@ -351,47 +376,64 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         return false;
     }
 
-    if(argc > 2) {
-        jsrRaise(vm, "TypeException", "Generator takes at most 2 argument, %d supplied", (int)argc);
-        return false;
-    }
-
-    if(gen == vm->frames[vm->frameCount - 1].gen) {
+    if(gen->state == GEN_RUNNING) {
         jsrRaise(vm, "Exception", "Generator already running"); // TODO: launch another exception
         return false;
     }
 
-    if(vm->frameCount + 1 == MAX_FRAMES) {
-        jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
+    bool inCoreModule = vm->module == vm->core;
+    if(!inCoreModule && argc > 1) {
+        jsrRaise(vm, "TypeException", "Generator takes at most 1 argument, %d supplied", (int)argc);
         return false;
     }
 
-    Value exc = NULL_VAL;
-    if(argc > 1) {
-        exc = pop(vm);
+    GenAction action = GEN_SEND;
+    if(inCoreModule) {
+        ASSERT(IS_NUM(peek(vm)), "Action is not an integer");
+        action = AS_NUM(pop(vm));
     }
 
-    Value send = NULL_VAL;
-    if(argc > 0) {
-        send = pop(vm);
+    Value value = NULL_VAL;
+    if(argc) {
+        value = pop(vm);
     }
-
-    reserveStack(vm, gen->frame.stackTop);
 
     Frame *frame = getFrame(vm);
+    reserveStack(vm, gen->frame.stackTop);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
     vm->module = gen->closure->fn->proto.module;
 
-    if(argc > 1) {
-        push(vm, exc);
-        jsrRaiseException(vm, -1);
+    if(!checkStackOverflow(vm)) {
         return false;
     }
 
-    if(gen->state == GEN_SUSPENDED) {
-        push(vm, send);
+    switch(action) {
+    case GEN_SEND:
+        gen->state = GEN_RUNNING;
+        if(gen->state == GEN_SUSPENDED) {
+            push(vm, value);
+        }
+        return true;
+    case GEN_THROW:
+        push(vm, value);
+        jsrRaiseException(vm, -1);
+        return false;
+    case GEN_CLOSE:
+        gen->state = GEN_DONE;
+
+        while(frame->handlerCount > 0) {
+            Handler* h = &frame->handlers[--frame->handlerCount];
+            if(h->type == HANDLER_ENSURE) {
+                RESTORE_HANDLER(vm, h, frame, CAUSE_RETURN, value);
+                return true;
+            }
+        }
+
+        push(vm, value);
+        return true;
     }
-    
+
+    UNREACHABLE();
     return true;
 }
 
@@ -1026,15 +1068,6 @@ bool runEval(JStarVM* vm, int evalDepth) {
         bool res = unaryOverload(vm, #op, overload); \
         LOAD_STATE();                                \
         if(!res) UNWIND_STACK(vm);                   \
-    } while(0)
-
-#define RESTORE_HANDLER(vm, h, frame, cause, exc) \
-    do {                                          \
-        frame->ip = h->address;                   \
-        vm->sp = h->savedSp;                      \
-        closeUpvalues(vm, vm->sp);                \
-        push(vm, exc);                            \
-        push(vm, NUM_VAL(cause));                 \
     } while(0)
 
 #define UNWIND_STACK(vm)                  \

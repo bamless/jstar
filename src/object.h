@@ -250,6 +250,7 @@ typedef struct ObjGenerator {
     Obj base;
     enum {
         GEN_STARTED,
+        GEN_RUNNING,
         GEN_SUSPENDED,
         GEN_DONE,
     } state;

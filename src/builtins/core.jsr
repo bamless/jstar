@@ -188,23 +188,29 @@ class Sequence is Iterable
     end
 end
 
-class Generator is Iterable
-    native isDone()
-    native __string__()
-    native __next__(_)
+static var GenSend, GenThrow, GenReturn = 0, 1, 2
 
-    fun send(value=null)
-        return this(value)
+class Generator is Iterable
+    fun send(val=null)
+        return this(val, GenSend)
+    end
+
+    fun close(val=null)
+        return this(val, GenReturn)
     end
 
     fun throw(exc)
-        return this(null, exc)
+        return this(exc, GenThrow)
     end
 
     fun __iter__(_)
         this()
         return !this.isDone()
     end
+
+    native isDone()
+    native __next__(_)
+    native __string__()
 end
 
 class String is Sequence
