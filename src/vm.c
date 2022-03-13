@@ -409,14 +409,15 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
 
     switch(action) {
     case GEN_SEND:
-        gen->state = GEN_RUNNING;
         if(gen->state == GEN_SUSPENDED) {
             push(vm, value);
         }
+        gen->state = GEN_RUNNING;
         return true;
     case GEN_THROW:
         push(vm, value);
         jsrRaiseException(vm, -1);
+        gen->state = GEN_RUNNING;
         return false;
     case GEN_CLOSE:
         gen->state = GEN_DONE;
