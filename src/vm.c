@@ -356,6 +356,11 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         return false;
     }
 
+    if(gen == vm->frames[vm->frameCount - 1].gen) {
+        jsrRaise(vm, "Exception", "Generator already running"); // TODO: launch another exception
+        return false;
+    }
+
     if(vm->frameCount + 1 == MAX_FRAMES) {
         jsrRaise(vm, "StackOverflowException", "Exceeded maximum recursion depth");
         return false;
@@ -371,7 +376,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         send = pop(vm);
     }
 
-    // TODO: reserveStack
+    reserveStack(vm, gen->frame.stackTop);
 
     Frame *frame = getFrame(vm);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
