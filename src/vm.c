@@ -388,7 +388,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     }
 
     GenAction action = GEN_SEND;
-    if(inCoreModule) {
+    if(inCoreModule && argc > 0) {
         ASSERT(IS_NUM(peek(vm)), "Action is not an integer");
         action = AS_NUM(pop(vm));
     }

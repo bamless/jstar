@@ -88,32 +88,32 @@ class Iterable
         return true
     end
 
-    fun enumerate(start=0) 
-        return EnumerateIter(this, start)
+    fun enumerate(start=0)
+        return enumerate(this, start)
     end
 
     fun concat(iterable)
-        return ConcatIter(this, iterable)
+        return concat(this, iterable)
     end
 
     fun map(fn)
-        return MapIter(this, fn)
+        return map(this, fn)
     end
 
     fun filter(predicate)
-        return FilterIter(this, predicate)
+        return filter(this, predicate)
     end
 
     fun skip(count)
-        return SkipIter(this, count)
+        return skip(this, count)
     end
 
     fun take(count)
-        return TakeIter(this, count)
+        return take(this, count)
     end
 
     fun zip(iterable)
-        return ZipIter(this, iterable)
+        return zip(this, iterable)
     end
 
     fun sorted()
@@ -394,133 +394,57 @@ class ReversedSequence is Sequence
     end
 end
 
-class EnumerateIter is Iterable
-    fun new(iterable, start=0)
-        this._iterable = iterable
-        this._idx = start
-    end
-
-    fun __iter__(iter)
-        return this._iterable.__iter__(iter)
-    end
-
-    fun __next__(iter)
-        var ret = this._idx, this._iterable.__next__(iter)
-        this._idx += 1
-        return ret
+fun enumerate(iterable, start=0)
+    for var e in iterable
+        yield (start, e)
+        start += 1
     end
 end
 
-class ConcatIter is Iterable
-    fun new(iterable1, iterable2)
-        this._currIter = iterable1
-        this._nextIter = iterable2
+fun concat(iter1, iter2)
+    for var e in iter1
+        yield e
     end
+    for var e in iter2
+        yield e
+    end
+end
 
-    fun __iter__(iter)
-        var iterator = this._currIter.__iter__(iter)
+fun map(iterable, fn)
+    for var e in iterable
+        yield fn(e)
+    end
+end
 
-        if iterator
-            return iterator
-        elif this._nextIter
-            this._currIter, this._nextIter = this._nextIter, null
-            return this._currIter.__iter__(null)
+fun filter(iterable, predicate)
+    for var e in iterable
+        if predicate(e)
+            yield e
         end
-        
-        return false
-    end
-
-    fun __next__(iter)
-        return this._currIter.__next__(iter)
     end
 end
 
-class FilterIter is Iterable
-    fun new(iterable, predicate)
-        this._predicate = predicate
-        this._iterable = iterable
-        this._next = null
-    end
-
-    fun __iter__(iter)
-        while iter = this._iterable.__iter__(iter)
-            var value = this._iterable.__next__(iter)
-            if this._predicate(value)
-                this._next = value
-                return iter
-            end
+fun skip(iterable, count)
+    for var e in iterable
+        if count != 0
+            count -= 1
+            continue
         end
-        return false
-    end
-
-    fun __next__(_)
-        return this._next
+        yield e
     end
 end
 
-class MapIter is Iterable
-    fun new(iterable, fn)
-        this._fn = fn
-        this._iterable = iterable
-    end
-
-    fun __iter__(iter)
-        return this._iterable.__iter__(iter)
-    end
-
-    fun __next__(iter)
-        return this._fn(this._iterable.__next__(iter))
-    end
-end
-
-class SkipIter is Iterable
-    fun new(iterable, count)
-        this._iterable = iterable
-        this._count = count
-    end
-
-    fun __iter__(iter)
-        if iter
-            return this._iterable.__iter__(iter)
+fun take(iterable, count)
+    for var e in iterable
+        if count == 0
+            break
         end
-
-        var toSkip = this._count
-        var iterator = this._iterable.__iter__(iter)
-
-        while toSkip > 0 and iterator
-            iterator = this._iterable.__iter__(iterator)
-            toSkip -= 1
-        end
-
-        return iterator
-    end
-
-    fun __next__(iter)
-        return this._iterable.__next__(iter)
+        yield e
+        count -= 1
     end
 end
 
-class TakeIter is Iterable
-    fun new(iterable, count)
-        this._iterable = iterable
-        this._count = count
-    end
-
-    fun __iter__(iter)
-        if this._count <= 0 
-            return false
-        end
-
-        this._count -= 1
-        return this._iterable.__iter__(iter)
-    end
-
-    fun __next__(iter)
-        return this._iterable.__next__(iter)
-    end
-end
-
-class ZipIter is Iterable
+class zip is Iterable
     fun new(iterable1, iterable2)
         this._iterable1 = iterable1
         this._iterable2 = iterable2
