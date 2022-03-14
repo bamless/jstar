@@ -279,7 +279,7 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
         return false;
     }
 
-    reserveStack(vm, closure->fn->stackUsage);
+    reserveStack(vm, MAX_LOCALS);
     appendCallFrame(vm, closure);
     vm->module = closure->fn->proto.module;
 
