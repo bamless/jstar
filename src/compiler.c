@@ -1564,12 +1564,12 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     return c->func;
 }
 
-static void emitClosure(Compiler* c, ObjFunction* fn, int line) {
+static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, int line) {
     emitOpcode(c, OP_CLOSURE, line);
     emitShort(c, createConst(c, OBJ_VAL(fn), line), line);
     for(uint8_t i = 0; i < fn->upvalueCount; i++) {
-        emitByte(c, c->upvalues[i].isLocal ? 1 : 0, line);
-        emitByte(c, c->upvalues[i].index, line);
+        emitByte(c, upvalues[i].isLocal ? 1 : 0, line);
+        emitByte(c, upvalues[i].index, line);
     }
 }
 
@@ -1584,7 +1584,7 @@ static void compileFunction(Compiler* c, JStarStmt* node) {
     ObjFunction* func = function(&funCompiler, c->func->proto.module, name, node);
     exitFunctionScope(&funCompiler);
 
-    emitClosure(c, func, node->line);
+    emitClosure(c, func, funCompiler.upvalues, node->line);
 
     endCompiler(&funCompiler);
 }
@@ -1616,7 +1616,7 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     ObjFunction* meth = function(&methodCompiler, c->func->proto.module, name, node);
     exitFunctionScope(&methodCompiler);
 
-    emitClosure(c, meth, node->line);
+    emitClosure(c, meth, methodCompiler.upvalues, node->line);
 
     emitOpcode(c, OP_DEF_METHOD, cls->line);
     emitShort(c, identifierConst(c, &node->as.funcDecl.id, node->line), cls->line);
