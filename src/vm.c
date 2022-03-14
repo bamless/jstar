@@ -401,6 +401,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     Frame *frame = getFrame(vm);
     reserveStack(vm, gen->frame.stackTop);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
+    ObjModule* oldModule = vm->module;
     vm->module = gen->closure->fn->proto.module;
 
     if(!checkStackOverflow(vm)) {
@@ -430,7 +431,13 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
             }
         }
 
+        closeUpvalues(vm, frame->stack);
+        vm->sp = frame->stack;
         push(vm, value);
+        
+        vm->frameCount--;
+        vm->module = oldModule;
+
         return true;
     }
 

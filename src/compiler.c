@@ -363,9 +363,13 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
     return var;
 }
 
-static void setAsInitialized(Compiler* c, const Variable* var) {
+static void localInitialized(Compiler* c, int idx) {
+    c->locals[idx].depth = c->depth;
+}
+
+static void setInitialized(Compiler* c, const Variable* var) {
     ASSERT(var->scope == VAR_LOCAL, "Only local variables can be marked initialized");
-    c->locals[var->as.local.index].depth = c->depth;
+    localInitialized(c, var->as.local.index);
 }
 
 static void defineVar(Compiler* c, Variable* var, int line) {
@@ -375,7 +379,7 @@ static void defineVar(Compiler* c, Variable* var, int line) {
         emitShort(c, identifierConst(c, &var->as.global.id, line), line);
         break;
     case VAR_LOCAL:
-        setAsInitialized(c, var);
+        setInitialized(c, var);
         break;
     case VAR_ERR:
         break;
@@ -1520,8 +1524,8 @@ static ObjFunction* compileBody(Compiler* c, ObjModule* m, ObjString* name, JSta
     // In the case of methods the receiver is assigned a name of `this` and points to the class
     // instance on which the method was called.
     JStarIdentifier receiver = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
-    Variable receiverVar = declareVar(c, &receiver, true, node->line);
-    defineVar(c, &receiverVar, node->line);
+    int receiverLocal = addLocal(c, &receiver, node->line);
+    localInitialized(c, receiverLocal);
 
     vecForeach(JStarIdentifier** it, node->as.funcDecl.formalArgs) {
         Variable arg = declareVar(c, *it, false, node->line);
@@ -1721,7 +1725,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 
     // If local initialize the variable in order to permit the class to reference itself
     if(clsVar.scope == VAR_LOCAL) {
-        setAsInitialized(c, &clsVar);
+        setInitialized(c, &clsVar);
     }
 
     if(s->as.classDecl.sup != NULL) {
@@ -1742,7 +1746,7 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
 
     // If local initialize the variable in order to permit the function to reference itself
     if(funVar.scope == VAR_LOCAL) {
-        setAsInitialized(c, &funVar);
+        setInitialized(c, &funVar);
     }
 
     compileFunction(c, s);
