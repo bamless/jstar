@@ -1520,7 +1520,7 @@ static ObjFunction* compileBody(Compiler* c, ObjModule* m, ObjString* name, JSta
     // In the case of methods the receiver is assigned a name of `this` and points to the class
     // instance on which the method was called.
     JStarIdentifier receiver = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
-    Variable receiverVar = declareVar(c, &receiver, false, node->line);
+    Variable receiverVar = declareVar(c, &receiver, true, node->line);
     defineVar(c, &receiverVar, node->line);
 
     vecForeach(JStarIdentifier** it, node->as.funcDecl.formalArgs) {
