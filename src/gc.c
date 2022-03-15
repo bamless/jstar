@@ -168,7 +168,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_BOUND_METHOD: {
         ObjBoundMethod* b = (ObjBoundMethod*)o;
-        reachValue(vm, b->bound);
+        reachValue(vm, b->receiver);
         reachObject(vm, (Obj*)b->method);
         break;
     }

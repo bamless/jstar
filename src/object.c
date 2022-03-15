@@ -145,7 +145,7 @@ ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
 
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value bound, Obj* method) {
     ObjBoundMethod* bm = (ObjBoundMethod*)newObj(vm, sizeof(*bm), vm->funClass, OBJ_BOUND_METHOD);
-    bm->bound = bound;
+    bm->receiver = bound;
     bm->method = method;
     return bm;
 }
@@ -570,7 +570,7 @@ void printObj(Obj* o) {
         }
 
         printf("<bound method ");
-        printValue(b->bound);
+        printValue(b->receiver);
         printf(":%s>", name);
         break;
     }

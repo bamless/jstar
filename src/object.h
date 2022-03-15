@@ -204,8 +204,8 @@ typedef struct ObjTable {
 // A bound method. It contains a method with an associated target.
 typedef struct ObjBoundMethod {
     Obj base;
-    Value bound;  // The value to which the method is bound
-    Obj* method;  // The actual method
+    Value receiver;  // The receiver to which the method is bound
+    Obj* method;     // The actual method
 } ObjBoundMethod;
 
 // An upvalue is a variable captured from an outer scope by a closure.
@@ -245,7 +245,15 @@ typedef struct {
     SavedHandler handlers[MAX_HANDLERS];
 } SupsendedFrame;
 
-// TODO: Documentation
+// A generator is a special iterator-like object that has the 
+// ability to suspend its execution via a `yield` expression.
+// Each time it is called, execution resumes from the last
+// evaluated yield or, in case it is the first time calling
+// it, from the start of the function. On resume, the yield
+// expression evaluates to the Value passed in by the caller,
+// making it possible for generators to emulate (stackless)
+// coroutines. All the state needed to support suspension and
+// resume is stored here (see `SuspendedFrame` and `savedStack`)
 typedef struct ObjGenerator {
     Obj base;
     enum {
@@ -255,10 +263,10 @@ typedef struct ObjGenerator {
         GEN_DONE,
     } state;
     ObjClosure* closure;
-    Value lastYield; // TODO: visit during GC?
-    SupsendedFrame frame;
-    size_t stackSize;    // The size of the generator stack
-    Value savedStack[];  // The saved stack of the generator function
+    Value lastYield;
+    SupsendedFrame frame; // Saved generator frame
+    size_t stackSize;     // The size of the generator stack
+    Value savedStack[];   // The saved stack of the generator function
 } ObjGenerator;
 
 typedef struct {

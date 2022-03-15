@@ -46,13 +46,9 @@ typedef enum UnwindCause {
 } UnwindCause;
 
 // Enumeration encoding the action to be taken upon generator reusme.
-// WARNING: This enumeration is synchronized to GenSend, GenThrow and 
+// WARNING: This enumeration is synchronized to GenSend, GenThrow and
 // GenClose variables in core.jsr
-typedef enum GenAction {
-    GEN_SEND,
-    GEN_THROW,
-    GEN_CLOSE
-} GenAction;
+typedef enum GenAction { GEN_SEND, GEN_THROW, GEN_CLOSE } GenAction;
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
@@ -324,7 +320,7 @@ static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f)
     PROFILE_FUNC()
 
     size_t stackTop = (size_t)(sp - f->stack);
-    ASSERT(stackTop <= gen->stackSize, "Insufficient generator stak size");
+    ASSERT(stackTop <= gen->stackSize, "Insufficient generator stack size");
 
     gen->frame.ip = ip;
     gen->frame.stackTop = stackTop;
@@ -357,8 +353,8 @@ static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
 
     // Restore exception handlers
     for(int i = 0; i < f->handlerCount; i++) {
-        Handler* handler = &f->handlers[i];
         const SavedHandler* savedHandler = &gen->frame.handlers[i];
+        Handler* handler = &f->handlers[i];
         handler->type = savedHandler->type;
         handler->address = savedHandler->address;
         handler->savedSp = sp + savedHandler->spOffset;
@@ -371,13 +367,10 @@ static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
 static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     PROFILE_FUNC()
 
-    if(gen->state == GEN_DONE) {
-        jsrRaise(vm, "Exception", "Generator has completed"); // TODO: launch another exception
-        return false;
-    }
-
-    if(gen->state == GEN_RUNNING) {
-        jsrRaise(vm, "Exception", "Generator already running"); // TODO: launch another exception
+    if(gen->state == GEN_DONE || gen->state == GEN_RUNNING) {
+        jsrRaise(vm, "GeneratorException",
+                 gen->state == GEN_DONE ? "Generator has completed"
+                                        : "Generator is already running");
         return false;
     }
 
@@ -388,7 +381,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     }
 
     GenAction action = GEN_SEND;
-    if(inCoreModule && argc > 0) {
+    if(inCoreModule && argc) {
         ASSERT(IS_NUM(peek(vm)), "Action is not an integer");
         action = AS_NUM(pop(vm));
     }
@@ -398,7 +391,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         value = pop(vm);
     }
 
-    Frame *frame = getFrame(vm);
+    Frame* frame = getFrame(vm);
     reserveStack(vm, gen->frame.stackTop);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
     ObjModule* oldModule = vm->module;
@@ -434,7 +427,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         closeUpvalues(vm, frame->stack);
         vm->sp = frame->stack;
         push(vm, value);
-        
+
         vm->frameCount--;
         vm->module = oldModule;
 
@@ -843,7 +836,7 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             return resumeGenerator(vm, AS_GENERATOR(callee), argc);
         case OBJ_BOUND_METHOD: {
             ObjBoundMethod* m = AS_BOUND_METHOD(callee);
-            vm->sp[-argc - 1] = m->bound;
+            vm->sp[-argc - 1] = m->receiver;
             if(m->method->type == OBJ_CLOSURE) {
                 return callFunction(vm, (ObjClosure*)m->method, argc);
             } else {
@@ -1052,7 +1045,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
                 jsrRaise(vm, "TypeException", "Number has no integer representation"); \
                 UNWIND_STACK(vm);                                                      \
             }                                                                          \
-            push(vm, NUM_VAL((int64_t)a op (int64_t)b));                               \
+            push(vm, NUM_VAL((int64_t)a op(int64_t) b));                               \
         } else {                                                                       \
             BINARY_OVERLOAD(name, overload, reverse);                                  \
         }                                                                              \
@@ -1473,8 +1466,10 @@ op_return:
 
     TARGET(OP_YIELD): {
         ASSERT(frame->gen, "Current function is not a Generator");
+        ASSERT(frame->gen->state != GEN_STARTED && frame->gen->state != GEN_SUSPENDED,
+               "Invalid generator state");
+
         Value ret = pop(vm);
-        // TODO: check eval break?
 
         ObjGenerator* gen = frame->gen;
         saveFrame(frame->gen, ip, vm->sp, frame);
@@ -1579,12 +1574,6 @@ op_return:
         saveFrame(gen, ip, vm->sp, frame);
         push(vm, OBJ_VAL(gen));
         goto op_return;
-    }
-
-    TARGET(OP_GENERATOR_CLOSE): {
-        ASSERT(frame->gen, "Current function isn't a Generator");
-        frame->gen->state = GEN_DONE;
-        DISPATCH();
     }
 
     TARGET(OP_NEW_CLASS): {
@@ -1714,10 +1703,16 @@ op_return:
         frame->handlerCount--;
         DISPATCH();
     }
-    
+
     TARGET(OP_RAISE): {
         jsrRaiseException(vm, -1);
         UNWIND_STACK(vm);
+    }
+
+    TARGET(OP_GENERATOR_CLOSE): {
+        ASSERT(frame->gen, "Current function isn't a Generator");
+        frame->gen->state = GEN_DONE;
+        DISPATCH();
     }
 
     TARGET(OP_GET_LOCAL): {

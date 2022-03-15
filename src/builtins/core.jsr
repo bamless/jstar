@@ -506,6 +506,7 @@ class ImportException is Exception end
 class StackOverflowException is Exception end
 class SyntaxException is Exception end
 class InvalidArgException is Exception end
+class GeneratorException is Exception end
 class IndexOutOfBoundException is Exception end
 class AssertException is Exception end
 class NotImplementedException is Exception end
