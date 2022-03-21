@@ -208,26 +208,15 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
     int evalDepth = vm->frameCount;
     size_t stackBase = vm->sp - vm->stack - argc - 1;
 
-    if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
-        vm->sp = vm->stack + stackBase;
-        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
-        return JSR_RUNTIME_ERR;
-    }
-
-    vm->reentrantCalls++;
-
     if(!callValue(vm, peekn(vm, argc), argc)) {
-        vm->reentrantCalls--;
         finishUnwind(vm, evalDepth, stackBase);
         return JSR_RUNTIME_ERR;
     }
 
     if(!executeCall(vm, evalDepth, stackBase)) {
-        vm->reentrantCalls--;
         return JSR_RUNTIME_ERR;
     }
 
-    vm->reentrantCalls--;
     return JSR_SUCCESS;
 }
 
@@ -235,26 +224,15 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
     size_t stackBase = vm->sp - vm->stack - argc - 1;
 
-    if(vm->reentrantCalls + 1 == MAX_REENTRANT) {
-        vm->sp = vm->stack + stackBase;
-        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
-        return JSR_RUNTIME_ERR;
-    }
-
-    vm->reentrantCalls++;
-
     if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
-        vm->reentrantCalls--;
         finishUnwind(vm, evalDepth, stackBase);
         return JSR_RUNTIME_ERR;
     }
 
     if(!executeCall(vm, evalDepth, stackBase)) {
-        vm->reentrantCalls--;
         return JSR_RUNTIME_ERR;
     }
 
-    vm->reentrantCalls--;
     return JSR_SUCCESS;
 }
 

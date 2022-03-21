@@ -140,12 +140,12 @@ static Frame* initFrame(JStarVM* vm, Prototype* proto) {
     Frame* callFrame = getFrame(vm);
     callFrame->stack = vm->sp - (proto->argsCount + 1) - (int)proto->vararg;
     callFrame->handlerCount = 0;
+    callFrame->gen = NULL;
     return callFrame;
 }
 
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = initFrame(vm, &closure->fn->proto);
-    callFrame->gen = NULL;
     callFrame->fn = (Obj*)closure;
     callFrame->ip = closure->fn->code.bytecode;
     return callFrame;
@@ -292,7 +292,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     }
 
     reserveStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
-    Frame* frame = appendNativeFrame(vm, native);
+    const Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
     size_t savedApiStack = vm->apiStack - vm->stack;
@@ -1016,6 +1016,8 @@ bool runEval(JStarVM* vm, int evalDepth) {
 #define GET_CONST()  (fn->code.consts.arr[NEXT_SHORT()])
 #define GET_STRING() (AS_STRING(GET_CONST()))
 
+#define UNWIND_STACK() goto stack_unwind;
+
 #define BINARY(type, op, overload, reverse)         \
     do {                                            \
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) { \
@@ -1033,7 +1035,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();                                       \
         bool res = binOverload(vm, #op, overload, reverse); \
         LOAD_STATE();                                       \
-        if(!res) UNWIND_STACK(vm);                          \
+        if(!res) UNWIND_STACK();                          \
     } while(0)
 
 #define BITWISE(name, op, overload, reverse)                                           \
@@ -1043,7 +1045,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));                                                \
             if(!HAS_INT_REPR(a) || !HAS_INT_REPR(b)) {                                 \
                 jsrRaise(vm, "TypeException", "Number has no integer representation"); \
-                UNWIND_STACK(vm);                                                      \
+                UNWIND_STACK();                                                      \
             }                                                                          \
             push(vm, NUM_VAL((int64_t)a op(int64_t) b));                               \
         } else {                                                                       \
@@ -1068,17 +1070,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();                                \
         bool res = unaryOverload(vm, #op, overload); \
         LOAD_STATE();                                \
-        if(!res) UNWIND_STACK(vm);                   \
-    } while(0)
-
-#define UNWIND_STACK(vm)                  \
-    do {                                  \
-        SAVE_STATE();                     \
-        if(!unwindStack(vm, evalDepth)) { \
-            return false;                 \
-        }                                 \
-        LOAD_STATE();                     \
-        DISPATCH();                       \
+        if(!res) UNWIND_STACK();                   \
     } while(0)
 
 #define CHECK_EVAL_BREAK(vm)                        \
@@ -1086,7 +1078,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(vm->evalBreak) {                         \
             vm->evalBreak = 0;                      \
             jsrRaise(vm, "ProgramInterrupt", NULL); \
-            UNWIND_STACK(vm);                       \
+            UNWIND_STACK();                       \
         }                                           \
     } while(0)
 
@@ -1133,6 +1125,12 @@ bool runEval(JStarVM* vm, int evalDepth) {
     LOAD_STATE();
 
     uint8_t op;
+
+    if(++vm->reentrantCalls >= MAX_REENTRANT) {
+        jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
+        UNWIND_STACK();
+    }
+    
     DECODE(op) {
 
     TARGET(OP_ADD): {
@@ -1184,7 +1182,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double x = AS_NUM(pop(vm));
             if(!HAS_INT_REPR(x)) {
                 jsrRaise(vm, "TypeException", "Number has no integer representation");
-                UNWIND_STACK(vm);
+                UNWIND_STACK();
             }
             push(vm, NUM_VAL(~(int64_t)x));
         } else {
@@ -1215,7 +1213,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
             jsrRaise(vm, "TypeException", "Right operand of `is` must be a Class");
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         Value b = pop(vm);
         Value a = pop(vm);
@@ -1227,7 +1225,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();
         bool res = getValueSubscript(vm);
         LOAD_STATE();
-        if(!res) UNWIND_STACK(vm);
+        if(!res) UNWIND_STACK();
         DISPATCH();
     }
 
@@ -1235,20 +1233,20 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();
         bool res = setValueSubscript(vm);
         LOAD_STATE();
-        if(!res) UNWIND_STACK(vm);
+        if(!res) UNWIND_STACK();
         DISPATCH();
     }
 
     TARGET(OP_GET_FIELD): {
         if(!getValueField(vm, GET_STRING())) {
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         DISPATCH();
     }
 
     TARGET(OP_SET_FIELD): {
         if(!setValueField(vm, GET_STRING())) {
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         DISPATCH();
     }
@@ -1278,7 +1276,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
            !hashTableGet(&cls->methods, vm->methodSyms[SYM_NEXT], &vm->sp[1])) {
             jsrRaise(vm, "MethodException", "Class %s does not implement __iter__ and __next__",
                      cls->name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         vm->sp += 2;
         DISPATCH();
@@ -1291,7 +1289,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();
         bool res = callValue(vm, vm->sp[-4], 1); // sp[-4] holds the cached __iter__ method
         LOAD_STATE();
-        if(!res) UNWIND_STACK(vm);
+        if(!res) UNWIND_STACK();
         DISPATCH();
     }
 
@@ -1305,7 +1303,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             SAVE_STATE();
             bool res = callValue(vm, vm->sp[-3], 1); // sp[-3] holds the cached __next__ method
             LOAD_STATE();
-            if(!res) UNWIND_STACK(vm);
+            if(!res) UNWIND_STACK();
         } else {
             ip += off;
         }
@@ -1336,7 +1334,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_CALL_UNPACK):
         if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         goto call;
 
@@ -1348,7 +1346,7 @@ call:
         SAVE_STATE();
         bool res = callValue(vm, peekn(vm, argc), argc);
         LOAD_STATE();
-        if(!res) UNWIND_STACK(vm);
+        if(!res) UNWIND_STACK();
         DISPATCH();
     }
 
@@ -1371,7 +1369,7 @@ call:
 
     TARGET(OP_INVOKE_UNPACK):
         if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         goto invoke;
 
@@ -1384,7 +1382,7 @@ invoke:;
         SAVE_STATE();
         bool res = invokeValue(vm, name, argc);
         LOAD_STATE();
-        if(!res) UNWIND_STACK(vm);
+        if(!res) UNWIND_STACK();
         DISPATCH();
     }
     
@@ -1403,25 +1401,25 @@ invoke:;
     TARGET(OP_SUPER_9):
     TARGET(OP_SUPER_10):
         argc = op - OP_SUPER_0;
-        goto supinvoke;
+        goto super_invoke;
 
     TARGET(OP_SUPER_UNPACK):
         if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
-        goto supinvoke;
+        goto super_invoke;
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
-        goto supinvoke;
+        goto super_invoke;
 
-supinvoke:;
+super_invoke:;
         ObjString* name = GET_STRING();
         ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
         SAVE_STATE();
         bool res = invokeMethod(vm, superCls, name, argc);
         LOAD_STATE();
-        if(!res) UNWIND_STACK(vm);
+        if(!res) UNWIND_STACK();
         DISPATCH();
     }
 
@@ -1431,7 +1429,7 @@ supinvoke:;
         if(!bindMethod(vm, superCls, name)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
                      name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         DISPATCH();
     }
@@ -1455,7 +1453,7 @@ op_return:
         push(vm, ret);
 
         if(--vm->frameCount == evalDepth) {
-            return true;
+            goto exit_eval;
         }
 
         LOAD_STATE();
@@ -1481,7 +1479,7 @@ op_return:
         push(vm, ret);
 
         if(--vm->frameCount == evalDepth) {
-            return true;
+            goto exit_eval;
         }
 
         LOAD_STATE();
@@ -1497,7 +1495,7 @@ op_return:
 
         if(module == NULL) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
 
         if(op == OP_IMPORT) {
@@ -1521,7 +1519,7 @@ op_return:
         if(!hashTableGet(&module->globals, name, vm->sp)) {
             jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
                      name->data, module->name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         vm->sp++;
         DISPATCH();
@@ -1584,12 +1582,12 @@ op_return:
     TARGET(OP_NEW_SUBCLASS): {
         if(!IS_CLASS(peek(vm))) {
             jsrRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         ObjClass* cls = AS_CLASS(pop(vm));
         if(isBuiltinClass(vm, cls)) {
             jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         createClass(vm, GET_STRING(), cls);
         DISPATCH();
@@ -1599,10 +1597,10 @@ op_return:
         if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
             jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
                      getClass(vm, peek(vm))->name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         if(!unpackObject(vm, AS_OBJ(pop(vm)), NEXT_CODE())) {
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         DISPATCH();
     }
@@ -1623,7 +1621,7 @@ op_return:
         native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
         if(native->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->proto.name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
         DISPATCH();
@@ -1636,7 +1634,7 @@ op_return:
         if(nat->fn == NULL) {
             jsrRaise(vm, "Exception", "Cannot resolve native function %s.%s.", 
                      vm->module->name->data, nat->proto.name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         DISPATCH();
     }
@@ -1655,7 +1653,7 @@ op_return:
         ObjString* name = GET_STRING();
         if(!hashTableGet(&vm->module->globals, name, vm->sp)) {
             jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         vm->sp++;
         DISPATCH();
@@ -1665,7 +1663,7 @@ op_return:
         ObjString* name = GET_STRING();
         if(hashTablePut(&vm->module->globals, name, peek(vm))) {
             jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
-            UNWIND_STACK(vm);
+            UNWIND_STACK();
         }
         DISPATCH();
     }
@@ -1686,7 +1684,7 @@ op_return:
             switch(cause) {
             case CAUSE_EXCEPT:
                 // Continue unwinding
-                UNWIND_STACK(vm); 
+                UNWIND_STACK(); 
                 break;
             case CAUSE_RETURN:
                 // OP_RETURN will execute ensure handlers
@@ -1706,7 +1704,7 @@ op_return:
 
     TARGET(OP_RAISE): {
         jsrRaiseException(vm, -1);
-        UNWIND_STACK(vm);
+        UNWIND_STACK();
     }
 
     TARGET(OP_GENERATOR_CLOSE): {
@@ -1764,6 +1762,19 @@ op_return:
     }
 
     }
+
+stack_unwind:
+    SAVE_STATE();
+    if(!unwindStack(vm, evalDepth)) {
+        vm->reentrantCalls--;
+        return false;
+    }
+    LOAD_STATE();
+    DISPATCH();
+
+exit_eval:
+    vm->reentrantCalls--;
+    return true;
 
     // clang-format on
 
