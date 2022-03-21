@@ -1775,11 +1775,6 @@ stack_unwind:
 exit_eval:
     vm->reentrantCalls--;
     return true;
-
-    // clang-format on
-
-    UNREACHABLE();
-    return false;
 }
 
 bool unwindStack(JStarVM* vm, int depth) {
