@@ -315,10 +315,6 @@ static Prototype* getPrototype(Obj* functionObj) {
     return NULL;
 }
 
-JSR_NATIVE(jsr_Function_apply) {
-    
-}
-
 JSR_NATIVE(jsr_Function_string) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
     Prototype* proto = getPrototype(fn);
