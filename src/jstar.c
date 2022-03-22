@@ -236,6 +236,7 @@ void jsrEvalBreak(JStarVM* vm) {
     if(vm->frameCount) vm->evalBreak = 1;
 }
 
+// TODO: unify with getStacktrace
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
 
@@ -251,6 +252,7 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
     pop(vm);
 }
 
+// TODO: unify with printStacktrace
 void jsrGetStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
 
