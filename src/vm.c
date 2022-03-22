@@ -1763,6 +1763,8 @@ op_return:
 
     }
 
+    UNREACHABLE();
+
 stack_unwind:
     SAVE_STATE();
     if(!unwindStack(vm, evalDepth)) {
