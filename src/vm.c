@@ -46,8 +46,8 @@ typedef enum UnwindCause {
 } UnwindCause;
 
 // Enumeration encoding the action to be taken upon generator reusme.
-// WARNING: This enumeration is synchronized to GenSend, GenThrow and
-// GenClose variables in core.jsr
+// WARNING: This enumeration is synchronized to GEN_SEND, GEN_THROW
+// and GenClose variables in core.jsr
 typedef enum GenAction {
     GEN_SEND,
     GEN_THROW,
