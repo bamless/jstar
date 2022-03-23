@@ -48,7 +48,11 @@ typedef enum UnwindCause {
 // Enumeration encoding the action to be taken upon generator reusme.
 // WARNING: This enumeration is synchronized to GenSend, GenThrow and
 // GenClose variables in core.jsr
-typedef enum GenAction { GEN_SEND, GEN_THROW, GEN_CLOSE } GenAction;
+typedef enum GenAction {
+    GEN_SEND,
+    GEN_THROW,
+    GEN_CLOSE,
+} GenAction;
 
 // -----------------------------------------------------------------------------
 // VM INITIALIZATION AND DESTRUCTION
@@ -1035,7 +1039,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();                                       \
         bool res = binOverload(vm, #op, overload, reverse); \
         LOAD_STATE();                                       \
-        if(!res) UNWIND_STACK();                          \
+        if(!res) UNWIND_STACK();                            \
     } while(0)
 
 #define BITWISE(name, op, overload, reverse)                                           \
@@ -1045,7 +1049,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));                                                \
             if(!HAS_INT_REPR(a) || !HAS_INT_REPR(b)) {                                 \
                 jsrRaise(vm, "TypeException", "Number has no integer representation"); \
-                UNWIND_STACK();                                                      \
+                UNWIND_STACK();                                                        \
             }                                                                          \
             push(vm, NUM_VAL((int64_t)a op(int64_t) b));                               \
         } else {                                                                       \
@@ -1070,7 +1074,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         SAVE_STATE();                                \
         bool res = unaryOverload(vm, #op, overload); \
         LOAD_STATE();                                \
-        if(!res) UNWIND_STACK();                   \
+        if(!res) UNWIND_STACK();                     \
     } while(0)
 
 #define CHECK_EVAL_BREAK(vm)                        \
@@ -1078,7 +1082,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(vm->evalBreak) {                         \
             vm->evalBreak = 0;                      \
             jsrRaise(vm, "ProgramInterrupt", NULL); \
-            UNWIND_STACK();                       \
+            UNWIND_STACK();                         \
         }                                           \
     } while(0)
 
