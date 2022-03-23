@@ -1767,6 +1767,8 @@ op_return:
 
     }
 
+    // clang-format on
+
     UNREACHABLE();
 
 stack_unwind:
@@ -1786,16 +1788,20 @@ exit_eval:
 bool unwindStack(JStarVM* vm, int depth) {
     PROFILE_FUNC()
 
+    ASSERT(vm->frameCount > depth, "No frame to unwind");
     ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
+
     ObjInstance* exception = AS_INSTANCE(peek(vm));
 
     Value stacktraceVal = NULL_VAL;
     hashTableGet(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
+
     ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
+    Frame* frame;
     for(; vm->frameCount > depth; vm->frameCount--) {
-        Frame* frame = &vm->frames[vm->frameCount - 1];
+        frame = &vm->frames[vm->frameCount - 1];
 
         switch(frame->fn->type) {
         case OBJ_CLOSURE: {
@@ -1823,7 +1829,7 @@ bool unwindStack(JStarVM* vm, int depth) {
             return true;
         }
 
-        // If this a generator function set it as completed
+        // Set generators as completed
         if(frame->gen) {
             frame->gen->state = GEN_DONE;
         }
@@ -1833,6 +1839,9 @@ bool unwindStack(JStarVM* vm, int depth) {
 
     // We have reached the end of the stack or a native/function boundary,
     // return from evaluation leaving the exception on top of the stack
+    Value exc = pop(vm);
+    vm->sp = frame->stack;
+    push(vm, exc);
     return false;
 }
 

@@ -177,39 +177,29 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
     return ret;
 }
 
-static bool executeCall(JStarVM* vm, int evalDepth, size_t stackBase) {
-    if(vm->frameCount > evalDepth && !runEval(vm, evalDepth)) {
-        // Exception was thrown, push it as a result
-        Value exception = pop(vm);
-        vm->sp = vm->stack + stackBase;
-        push(vm, exception);
-        return false;
+static bool executeCall(JStarVM* vm, int evalDepth) {
+    if(vm->frameCount > evalDepth) {
+        return runEval(vm, evalDepth);
     }
     return true;
 }
 
-static void finishUnwind(JStarVM* vm, int evalDepth, size_t stackBase) {
+static void finishUnwind(JStarVM* vm, int evalDepth) {
     // If needed, finish to unwind the stack
     if(vm->frameCount > evalDepth) {
         unwindStack(vm, evalDepth);
     }
-
-    // Push the exception as a result
-    Value exception = pop(vm);
-    vm->sp = vm->stack + stackBase;
-    push(vm, exception);
 }
 
 JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
     int evalDepth = vm->frameCount;
-    size_t stackBase = vm->sp - vm->stack - argc - 1;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
-        finishUnwind(vm, evalDepth, stackBase);
+        finishUnwind(vm, evalDepth);
         return JSR_RUNTIME_ERR;
     }
 
-    if(!executeCall(vm, evalDepth, stackBase)) {
+    if(!executeCall(vm, evalDepth)) {
         return JSR_RUNTIME_ERR;
     }
 
@@ -218,14 +208,13 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
-    size_t stackBase = vm->sp - vm->stack - argc - 1;
 
     if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
-        finishUnwind(vm, evalDepth, stackBase);
+        finishUnwind(vm, evalDepth);
         return JSR_RUNTIME_ERR;
     }
 
-    if(!executeCall(vm, evalDepth, stackBase)) {
+    if(!executeCall(vm, evalDepth)) {
         return JSR_RUNTIME_ERR;
     }
 
