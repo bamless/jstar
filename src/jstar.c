@@ -184,7 +184,12 @@ static bool executeCall(JStarVM* vm, int evalDepth) {
     return true;
 }
 
-static void finishUnwind(JStarVM* vm, int evalDepth) {
+static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {
+    // Restore stack and push the exception on the top 
+    Value exception = pop(vm);
+    vm->sp -= argc + 1;
+    push(vm, exception);
+
     // If needed, finish to unwind the stack
     if(vm->frameCount > evalDepth) {
         unwindStack(vm, evalDepth);
@@ -195,7 +200,7 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
     int evalDepth = vm->frameCount;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
-        finishUnwind(vm, evalDepth);
+        callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
     }
 
@@ -210,7 +215,7 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
 
     if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
-        finishUnwind(vm, evalDepth);
+        callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
     }
 
