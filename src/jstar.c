@@ -177,13 +177,6 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer*
     return ret;
 }
 
-static bool executeCall(JStarVM* vm, int evalDepth) {
-    if(vm->frameCount > evalDepth) {
-        return runEval(vm, evalDepth);
-    }
-    return true;
-}
-
 static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {
     // Restore stack and push the exception on top of it
     Value exception = pop(vm);
@@ -194,6 +187,13 @@ static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {
     if(vm->frameCount > evalDepth) {
         unwindStack(vm, evalDepth);
     }
+}
+
+static bool executeCall(JStarVM* vm, int evalDepth) {
+    if(vm->frameCount > evalDepth) {
+        return runEval(vm, evalDepth);
+    }
+    return true;
 }
 
 JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
