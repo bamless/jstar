@@ -185,7 +185,7 @@ static bool executeCall(JStarVM* vm, int evalDepth) {
 }
 
 static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {
-    // Restore stack and push the exception on the top 
+    // Restore stack and push the exception on top of it
     Value exception = pop(vm);
     vm->sp -= argc + 1;
     push(vm, exception);
