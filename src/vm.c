@@ -1799,7 +1799,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
-    Frame* frame;
+    Frame* frame = NULL;
     for(; vm->frameCount > depth; vm->frameCount--) {
         frame = &vm->frames[vm->frameCount - 1];
 
