@@ -1128,13 +1128,12 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     LOAD_STATE();
 
-    uint8_t op;
-
     if(++vm->reentrantCalls >= MAX_REENTRANT) {
         jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         UNWIND_STACK();
     }
     
+    uint8_t op;
     DECODE(op) {
 
     TARGET(OP_ADD): {
