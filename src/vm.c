@@ -1686,14 +1686,12 @@ op_return:
         if(!IS_NULL(peek(vm))) { // Is the exception still unhandled?
             UnwindCause cause = AS_NUM(pop(vm));
             switch(cause) {
-            case CAUSE_EXCEPT: {
+            case CAUSE_EXCEPT:
                 UNWIND_STACK(); // Continue unwinding
                 break;
-            }
-            case CAUSE_RETURN: {
+            case CAUSE_RETURN:
                 if(frame->gen) frame->gen->state = GEN_DONE; // Set generators as completed
                 goto op_return;                              // Return will execute ensure handlers
-            }
             default:
                 UNREACHABLE();
                 break;
@@ -1832,7 +1830,6 @@ bool unwindStack(JStarVM* vm, int depth) {
 
         // Set generators as completed
         if(frame->gen) frame->gen->state = GEN_DONE;
-
         closeUpvalues(vm, frame->stack);
     }
 
