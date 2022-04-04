@@ -1820,7 +1820,7 @@ bool unwindStack(JStarVM* vm, int depth) {
 
         stacktraceDump(vm, stacktrace, frame, vm->frameCount);
 
-        // If current frame has except or ensure handlers restore handler state and exit
+        // Execute exception handlers if present
         if(frame->handlerCount > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerCount];
