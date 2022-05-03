@@ -1008,6 +1008,8 @@ bool runEval(JStarVM* vm, int evalDepth) {
     ASSERT(vm->frameCount != 0, "No frame to evaluate");
     ASSERT(vm->frameCount >= evalDepth, "Too few frame to evaluate");
 
+    // The following macros are intended to be used only in this function
+
 #define LOAD_STATE()                             \
     do {                                         \
         frame = &vm->frames[vm->frameCount - 1]; \
