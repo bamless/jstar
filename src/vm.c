@@ -27,16 +27,6 @@ static const char* const methodSyms[SYM_END] = {
     [SYM_RPOW] = "__rpow__",
 };
 
-// Prepare an exception or ensure handler in the vm for execution
-#define RESTORE_HANDLER(vm, h, frame, cause, exc) \
-    do {                                          \
-        frame->ip = h->address;                   \
-        vm->sp = h->savedSp;                      \
-        closeUpvalues(vm, vm->sp);                \
-        push(vm, exc);                            \
-        push(vm, NUM_VAL(cause));                 \
-    } while(0)
-
 // Enumeration encoding the cause of stack unwinding.
 // Used during unwinding to correctly handle the execution
 // of except/ensure handlers on return and exception
@@ -225,6 +215,18 @@ static void closeUpvalues(JStarVM* vm, Value* last) {
     }
 }
 
+// Prepare an except or ensure handler for execution in the VM
+static void restoreHandler(JStarVM* vm, Frame* f, const Handler* h, UnwindCause cause, Value exc) {
+    f->ip = h->address;
+    vm->sp = h->savedSp;
+    closeUpvalues(vm, vm->sp);
+
+    // The exception and unwinding cause must be on top 
+    // of the stack during the execution of an handler
+    push(vm, exc);
+    push(vm, NUM_VAL(cause));
+}
+
 static void packVarargs(JStarVM* vm, uint8_t count) {
     ObjTuple* args = newTuple(vm, count);
     for(int i = count - 1; i >= 0; i--) {
@@ -390,14 +392,16 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         action = AS_NUM(pop(vm));
     }
 
-    Value value = NULL_VAL;
+    Value arg = NULL_VAL;
     if(argc) {
-        value = pop(vm);
+        arg = pop(vm);
     }
 
     Frame* frame = getFrame(vm);
     reserveStack(vm, gen->frame.stackTop);
+
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
+    
     ObjModule* oldModule = vm->module;
     vm->module = gen->closure->fn->proto.module;
 
@@ -408,12 +412,12 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     switch(action) {
     case GEN_SEND:
         if(gen->state == GEN_SUSPENDED) {
-            push(vm, value);
+            push(vm, arg);
         }
         gen->state = GEN_RUNNING;
         return true;
     case GEN_THROW:
-        push(vm, value);
+        push(vm, arg);
         jsrRaiseException(vm, -1);
         gen->state = GEN_RUNNING;
         return false;
@@ -423,14 +427,14 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
             Handler* h = &frame->handlers[--frame->handlerCount];
             if(h->type == HANDLER_ENSURE) {
                 gen->state = GEN_RUNNING;
-                RESTORE_HANDLER(vm, h, frame, CAUSE_RETURN, value);
+                restoreHandler(vm, frame, h, CAUSE_RETURN, arg);
                 return true;
             }
         }
 
         closeUpvalues(vm, frame->stack);
         vm->sp = frame->stack;
-        push(vm, value);
+        push(vm, arg);
 
         vm->frameCount--;
         vm->module = oldModule;
@@ -1446,7 +1450,7 @@ op_return:
         while(frame->handlerCount > 0) {
             Handler* h = &frame->handlers[--frame->handlerCount];
             if(h->type == HANDLER_ENSURE) {
-                RESTORE_HANDLER(vm, h, frame, CAUSE_RETURN, ret);
+                restoreHandler(vm, frame, h, CAUSE_RETURN, ret);
                 LOAD_STATE();
                 DISPATCH();
             }
@@ -1824,7 +1828,7 @@ bool unwindStack(JStarVM* vm, int depth) {
         if(frame->handlerCount > 0) {
             Value exc = pop(vm);
             Handler* h = &frame->handlers[--frame->handlerCount];
-            RESTORE_HANDLER(vm, h, frame, CAUSE_EXCEPT, exc);
+            restoreHandler(vm, frame, h, CAUSE_EXCEPT, exc);
             return true;
         }
 
