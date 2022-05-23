@@ -1696,8 +1696,12 @@ op_return:
                 UNWIND_STACK(); // Continue unwinding
                 break;
             case CAUSE_RETURN:
-                if(frame->gen) frame->gen->state = GEN_DONE; // Set generators as completed
-                goto op_return;                              // Return will execute ensure handlers
+                // Set generators as completed
+                if(frame->gen) {
+                    frame->gen->state = GEN_DONE; 
+                }
+                // Return will execute ensure handlers
+                goto op_return;
             default:
                 UNREACHABLE();
                 break;
@@ -1835,7 +1839,10 @@ bool unwindStack(JStarVM* vm, int depth) {
         }
 
         // Set generators as completed
-        if(frame->gen) frame->gen->state = GEN_DONE;
+        if(frame->gen) {
+            frame->gen->state = GEN_DONE;
+        }
+
         closeUpvalues(vm, frame->stack);
     }
 
