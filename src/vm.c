@@ -216,15 +216,26 @@ static void closeUpvalues(JStarVM* vm, Value* last) {
 }
 
 // Prepare an except or ensure handler for execution in the VM
-static void restoreHandler(JStarVM* vm, Frame* f, const Handler* h, UnwindCause cause, Value exc) {
+static void restoreHandler(JStarVM* vm, Frame* f, const Handler* h, UnwindCause cause, Value val) {
     f->ip = h->address;
     vm->sp = h->savedSp;
     closeUpvalues(vm, vm->sp);
-
-    // The exception and unwinding cause must be on top 
-    // of the stack during the execution of an handler
-    push(vm, exc);
+    // The exception (or result) and unwinding cause must be on
+    // top of the stack during the execution of an handler
+    push(vm, val);
     push(vm, NUM_VAL(cause));
+}
+
+// Unwinds all handlers of the current frame, restoring the state of HANDLER_ENSUREs if encountered
+static bool unwindHandlers(JStarVM* vm, Frame* frame, Value retVal) {
+    while(frame->handlerCount > 0) {
+        Handler* h = &frame->handlers[--frame->handlerCount];
+        if(h->type == HANDLER_ENSURE) {
+            restoreHandler(vm, frame, h, CAUSE_RETURN, retVal);
+            return true;
+        }
+    }
+    return false;
 }
 
 static void packVarargs(JStarVM* vm, uint8_t count) {
@@ -423,13 +434,8 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         return false;
     case GEN_CLOSE:
         // Execute ensure handlers if present
-        while(frame->handlerCount > 0) {
-            Handler* h = &frame->handlers[--frame->handlerCount];
-            if(h->type == HANDLER_ENSURE) {
-                gen->state = GEN_RUNNING;
-                restoreHandler(vm, frame, h, CAUSE_RETURN, arg);
-                return true;
-            }
+        if(unwindHandlers(vm, frame, arg)) {
+            return true;
         }
 
         closeUpvalues(vm, frame->stack);
@@ -1449,13 +1455,9 @@ op_return:
         Value ret = pop(vm);
         CHECK_EVAL_BREAK(vm);
 
-        while(frame->handlerCount > 0) {
-            Handler* h = &frame->handlers[--frame->handlerCount];
-            if(h->type == HANDLER_ENSURE) {
-                restoreHandler(vm, frame, h, CAUSE_RETURN, ret);
-                LOAD_STATE();
-                DISPATCH();
-            }
+        if(unwindHandlers(vm, frame, ret)) {
+            LOAD_STATE();
+            DISPATCH();
         }
 
         closeUpvalues(vm, frameStack);
