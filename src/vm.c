@@ -1699,9 +1699,7 @@ op_return:
                 break;
             case CAUSE_RETURN:
                 // Set generators as completed
-                if(frame->gen) {
-                    frame->gen->state = GEN_DONE; 
-                }
+                if(frame->gen) frame->gen->state = GEN_DONE;
                 // Return will execute ensure handlers
                 goto op_return;
             default:
