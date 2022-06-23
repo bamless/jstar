@@ -1005,11 +1005,12 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
 bool runEval(JStarVM* vm, int evalDepth) {
     PROFILE_FUNC()
 
-    register Frame* frame;
-    register Value* frameStack;
-    register ObjClosure* closure;
-    register ObjFunction* fn;
-    register uint8_t* ip;
+    // Keep frequently used variables in locals
+    Frame* frame;
+    Value* frameStack;
+    ObjClosure* closure;
+    ObjFunction* fn;
+    uint8_t* ip;
 
     ASSERT(vm->frameCount != 0, "No frame to evaluate");
     ASSERT(vm->frameCount >= evalDepth, "Too few frame to evaluate");
@@ -1572,7 +1573,7 @@ op_return:
             if(isLocal) {
                 c->upvalues[i] = captureUpvalue(vm, frame->stack + index);
             } else {
-                c->upvalues[i] = ((ObjClosure*)frame->fn)->upvalues[index];
+                c->upvalues[i] = closure->upvalues[index];
             }
         }
         DISPATCH();
