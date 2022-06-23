@@ -15,9 +15,15 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define MAX_ERR_SIZE    512
 
+typedef struct Function {
+    bool isGenerator;
+    struct Function* parent;
+} Function;
+
 typedef struct Parser {
     JStarLex lex;
     JStarTok peek;
+    Function* function;
     const char* path;
     const char* lineStart;
     ParseErrorCB errorCallback;
@@ -29,12 +35,28 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
                        void* data) {
     p->panic = false;
     p->hadError = false;
+    p->function = NULL;
     p->path = path;
     p->errorCallback = errFn;
     p->userData = data;
     jsrInitLexer(&p->lex, src);
     jsrNextToken(&p->lex, &p->peek);
     p->lineStart = p->peek.lexeme;
+}
+
+static void beginFunction(Parser* p, Function* fn) {
+    fn->isGenerator = false;
+    fn->parent = p->function;
+    p->function = fn;
+}
+
+static void markCurrentAsGenerator(Parser* p) {
+    if(p->function) p->function->isGenerator = true;
+}
+
+static void endFunction(Parser* p) {
+    ASSERT(p->function, "Mismatched `beginFunction` and `endFunction`");
+    p->function = p->function->parent;
 }
 
 // -----------------------------------------------------------------------------
@@ -259,7 +281,7 @@ static bool isExpressionStart(JStarTok* tok) {
     return t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||
            t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN ||
            t == TOK_LSQUARE || t == TOK_BANG || t == TOK_MINUS || t == TOK_FUN || t == TOK_HASH ||
-           t == TOK_HASH_HASH || t == TOK_LCURLY;
+           t == TOK_HASH_HASH || t == TOK_LCURLY || t == TOK_YIELD;
 }
 
 static bool isAssign(JStarTok* tok) {
@@ -283,7 +305,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    vecForeach(JStarExpr * *it, lvals->as.list) {
+    vecForeach(JStarExpr **it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "Left hand side of unpack assignment must be composed of lvalues");
@@ -416,6 +438,7 @@ static JStarStmt* ifBody(Parser* p, int line) {
 
 static JStarStmt* ifStmt(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -427,6 +450,7 @@ static JStarStmt* ifStmt(Parser* p) {
 
 static JStarStmt* whileStmt(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -439,6 +463,7 @@ static JStarStmt* whileStmt(Parser* p) {
 
 static JStarStmt* varDecl(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -484,6 +509,7 @@ static JStarStmt* forEach(Parser* p, JStarStmt* var, int line) {
 
 static JStarStmt* forStmt(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -517,6 +543,10 @@ static JStarStmt* forStmt(Parser* p) {
 }
 
 static JStarStmt* returnStmt(Parser* p) {
+    if(!p->function) {
+        error(p, "Cannot use return outside a function");
+    }
+
     int line = p->peek.line;
     advance(p);
 
@@ -531,6 +561,7 @@ static JStarStmt* returnStmt(Parser* p) {
 
 static JStarStmt* importStmt(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -605,6 +636,7 @@ static JStarStmt* tryStmt(Parser* p) {
 
 static JStarStmt* raiseStmt(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -616,6 +648,7 @@ static JStarStmt* raiseStmt(Parser* p) {
 
 static JStarStmt* withStmt(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -630,7 +663,11 @@ static JStarStmt* withStmt(Parser* p) {
 }
 
 static JStarStmt* funcDecl(Parser* p) {
+    Function fn;
+    beginFunction(p, &fn);
+
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -641,11 +678,17 @@ static JStarStmt* funcDecl(Parser* p) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrFuncDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg, body);
+    JStarStmt* decl = jsrFuncDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg,
+                                  p->function->isGenerator, body);
+
+    endFunction(p);
+
+    return decl;
 }
 
 static JStarStmt* nativeDecl(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -660,6 +703,7 @@ static JStarStmt* nativeDecl(Parser* p) {
 
 static JStarStmt* classDecl(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -720,7 +764,7 @@ static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple);
 static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
-    if(!isAssign(&p->peek) && !isCallExpression(l)) {
+    if(!isAssign(&p->peek) && !isCallExpression(l) && l->type != JSR_YIELD) {
         error(p, "Invalid syntax");
     }
 
@@ -798,7 +842,7 @@ static JStarStmt* parseProgram(Parser* p) {
     }
 
     // Top level function doesn't have name or arguments, so pass them empty
-    return jsrFuncDecl(0, &(JStarTok){0}, &(Vector){0}, &(Vector){0}, false,
+    return jsrFuncDecl(0, &(JStarTok){0}, &(Vector){0}, &(Vector){0}, false, false,
                        jsrBlockStmt(0, &stmts));
 }
 
@@ -808,6 +852,7 @@ static JStarStmt* parseProgram(Parser* p) {
 
 static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close) {
     int line = p->peek.line;
+
     require(p, open);
     skipNewLines(p);
 
@@ -826,6 +871,7 @@ static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close
 
 static JStarExpr* parseTableLiteral(Parser* p) {
     int line = p->peek.line;
+
     advance(p);
     skipNewLines(p);
 
@@ -1117,7 +1163,11 @@ static JStarExpr* ternaryExpr(Parser* p) {
 
 static JStarExpr* funcLiteral(Parser* p) {
     if(match(p, TOK_FUN)) {
+        Function fn;
+        beginFunction(p, &fn);
+
         int line = p->peek.line;
+
         require(p, TOK_FUN);
         skipNewLines(p);
 
@@ -1125,9 +1175,17 @@ static JStarExpr* funcLiteral(Parser* p) {
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        return jsrFuncLiteral(line, &args.arguments, &args.defaults, args.isVararg, body);
+        JStarExpr* lit = jsrFuncLiteral(line, &args.arguments, &args.defaults, args.isVararg,
+                                        p->function->isGenerator, body);
+
+        endFunction(p);
+
+        return lit;
     }
     if(match(p, TOK_PIPE)) {
+        Function fn;
+        beginFunction(p, &fn);
+
         int line = p->peek.line;
         FormalArgs args = formalArgs(p, TOK_PIPE, TOK_PIPE);
         skipNewLines(p);
@@ -1140,14 +1198,39 @@ static JStarExpr* funcLiteral(Parser* p) {
         vecPush(&anonFuncStmts, jsrReturnStmt(line, e));
         JStarStmt* body = jsrBlockStmt(line, &anonFuncStmts);
 
-        return jsrFuncLiteral(line, &args.arguments, &args.defaults, args.isVararg, body);
+        JStarExpr* lit = jsrFuncLiteral(line, &args.arguments, &args.defaults, args.isVararg,
+                                        p->function->isGenerator, body);
+
+        endFunction(p);
+
+        return lit;
     }
     return ternaryExpr(p);
 }
 
+static JStarExpr* yieldExpr(Parser* p) {
+    if(match(p, TOK_YIELD)) {
+        if(!p->function) {
+            error(p, "Cannot use yield outside of a function");
+        }
+
+        markCurrentAsGenerator(p);
+
+        JStarTok yield = advance(p);
+        JStarExpr* expr = NULL;
+        
+        if(isExpressionStart(&p->peek)) {
+            expr = expression(p, false);
+        }
+        
+        return jsrYieldExpr(yield.line, expr);
+    }
+    return funcLiteral(p);
+}
+
 static JStarExpr* tupleLiteral(Parser* p) {
     int line = p->peek.line;
-    JStarExpr* e = funcLiteral(p);
+    JStarExpr* e = yieldExpr(p);
 
     if(match(p, TOK_COMMA)) {
         Vector exprs = vecNew();
@@ -1156,7 +1239,7 @@ static JStarExpr* tupleLiteral(Parser* p) {
         while(match(p, TOK_COMMA)) {
             advance(p);
             if(!isExpressionStart(&p->peek)) break;
-            vecPush(&exprs, funcLiteral(p));
+            vecPush(&exprs, yieldExpr(p));
         }
 
         e = jsrTupleLiteral(line, jsrExprList(line, &exprs));
@@ -1181,7 +1264,7 @@ static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple) {
 }
 
 static JStarExpr* expression(Parser* p, bool parseTuple) {
-    JStarExpr* l = parseTuple ? tupleLiteral(p) : funcLiteral(p);
+    JStarExpr* l = parseTuple ? tupleLiteral(p) : yieldExpr(p);
 
     if(isAssign(&p->peek)) {
         return assignmentExpr(p, l, parseTuple);

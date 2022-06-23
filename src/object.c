@@ -62,6 +62,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCou
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
     initProto(&fun->proto, m, args, defaults, defCount, varg);
     fun->upvalueCount = 0;
+    fun->stackUsage = 0;
     initCode(&fun->code);
     return fun;
 }
@@ -121,6 +122,19 @@ ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
     return c;
 }
 
+ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize) {
+    ObjGenerator* gen = (ObjGenerator*)newVarObj(vm, sizeof(*gen), sizeof(Value), stackSize,
+                                                 vm->genClass, OBJ_GENERATOR);
+    gen->state = GEN_STARTED;
+    gen->closure = closure;
+    gen->lastYield = NULL_VAL;
+    gen->stackSize = stackSize;
+    gen->frame.ip = 0;
+    gen->frame.handlerCount = 0;
+    gen->frame.stackTop = 0;
+    return gen;
+}
+
 ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
     ObjUpvalue* upvalue = (ObjUpvalue*)newObj(vm, sizeof(*upvalue), NULL, OBJ_UPVALUE);
     upvalue->addr = addr;
@@ -131,7 +145,7 @@ ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
 
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value bound, Obj* method) {
     ObjBoundMethod* bm = (ObjBoundMethod*)newObj(vm, sizeof(*bm), vm->funClass, OBJ_BOUND_METHOD);
-    bm->bound = bound;
+    bm->receiver = bound;
     bm->method = method;
     return bm;
 }
@@ -280,6 +294,11 @@ void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)o;
         GC_FREE_VAR(vm, ObjClosure, ObjUpvalue*, closure->upvalueCount, o);
+        break;
+    }
+    case OBJ_GENERATOR: {
+        ObjGenerator* gen = (ObjGenerator*)o;
+        GC_FREE_VAR(vm, ObjGenerator, Value, gen->stackSize, o);
         break;
     }
     case OBJ_UPVALUE: {
@@ -551,7 +570,7 @@ void printObj(Obj* o) {
         }
 
         printf("<bound method ");
-        printValue(b->bound);
+        printValue(b->receiver);
         printf(":%s>", name);
         break;
     }
@@ -560,6 +579,9 @@ void printObj(Obj* o) {
         break;
     case OBJ_CLOSURE:
         printf("<closure %p>", (void*)o);
+        break;
+    case OBJ_GENERATOR:
+        printf("<generator %p>", (void*)o);
         break;
     case OBJ_UPVALUE:
         printf("<upvalue %p>", (void*)o);

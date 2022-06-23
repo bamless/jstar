@@ -168,7 +168,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_BOUND_METHOD: {
         ObjBoundMethod* b = (ObjBoundMethod*)o;
-        reachValue(vm, b->bound);
+        reachValue(vm, b->receiver);
         reachObject(vm, (Obj*)b->method);
         break;
     }
@@ -177,6 +177,14 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)closure->fn);
         for(uint8_t i = 0; i < closure->upvalueCount; i++) {
             reachObject(vm, (Obj*)closure->upvalues[i]);
+        }
+        break;
+    }
+    case OBJ_GENERATOR: {
+        ObjGenerator* gen = (ObjGenerator*)o;
+        reachObject(vm, (Obj*)gen->closure);
+        for(size_t i = 0; i < gen->frame.stackTop; i++) {
+            reachValue(vm, gen->savedStack[i]);
         }
         break;
     }

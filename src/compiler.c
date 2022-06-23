@@ -38,6 +38,11 @@
 #define THIS_STR "this"
 #define ANON_STR "anon:"
 
+static const int opcodeStackUsage[] = {
+  #define OPCODE(opcode, args, stack) stack,
+  #include "opcode.def"
+};
+
 typedef struct Variable {
     enum { VAR_LOCAL, VAR_GLOBAL, VAR_ERR } scope;
     union {
@@ -64,13 +69,13 @@ typedef struct Upvalue {
 typedef struct Loop {
     int depth;
     size_t start;
-    struct Loop* next;
+    struct Loop* parent;
 } Loop;
 
 typedef struct TryExcept {
     int depth;
     int numHandlers;
-    struct TryExcept* next;
+    struct TryExcept* parent;
 } TryExcept;
 
 typedef enum FuncType {
@@ -92,11 +97,13 @@ struct Compiler {
 
     FuncType type;
     ObjFunction* func;
-    JStarStmt* ast;
+    JStarStmt* fnNode;
 
     uint8_t localsCount;
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
+
+    int stackUsage;
 
     int tryDepth;
     TryExcept* tryBlocks;
@@ -105,15 +112,16 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType type,
-                         JStarStmt* ast) {
+                         JStarStmt* fnNode) {
     c->vm = vm;
     c->file = file;
     c->prev = prev;
     c->type = type;
     c->func = NULL;
-    c->ast = ast;
+    c->fnNode = fnNode;
     c->depth = 0;
     c->localsCount = 0;
+    c->stackUsage = 1; // For the receiver
     c->loops = NULL;
     c->tryDepth = 0;
     c->tryBlocks = NULL;
@@ -151,16 +159,34 @@ static void error(Compiler* c, int line, const char* format, ...) {
     }
 }
 
-static size_t emitBytecode(Compiler* c, uint8_t b, int line) {
-    if(line == 0 && c->func->code.lineSize > 0) {
-        line = c->func->code.lines[c->func->code.lineSize - 1];
+static void adjustStackUsage(Compiler* c, int num) {
+    c->stackUsage += num;
+    if(c->stackUsage > c->func->stackUsage) {
+        c->func->stackUsage = c->stackUsage;
     }
+}
+
+static void correctLineNumber(Compiler* c, int* line) {
+    if(*line == 0 && c->func->code.lineSize > 0) {
+        *line = c->func->code.lines[c->func->code.lineSize - 1];
+    }
+}
+
+static size_t emitOpcode(Compiler* c, Opcode op, int line) {
+    correctLineNumber(c, &line);
+    adjustStackUsage(c, opcodeStackUsage[op]);
+    return writeByte(&c->func->code, op, line);
+}
+
+static size_t emitByte(Compiler* c, uint8_t b, int line) {
+    correctLineNumber(c, &line);
     return writeByte(&c->func->code, b, line);
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
-    size_t addr = emitBytecode(c, (s >> 8) & 0xff, line);
-    emitBytecode(c, s & 0xff, line);
+    correctLineNumber(c, &line);
+    size_t addr = emitByte(c, (s >> 8) & 0xff, line);
+    emitByte(c, s & 0xff, line);
     return addr;
 }
 
@@ -174,9 +200,9 @@ static bool inGlobalScope(Compiler* c) {
 
 static void discardLocal(Compiler* c, Local* local) {
     if(local->isUpvalue) {
-        emitBytecode(c, OP_CLOSE_UPVALUE, 0);
+        emitByte(c, OP_CLOSE_UPVALUE, 0);
     } else {
-        emitBytecode(c, OP_POP, 0);
+        emitByte(c, OP_POP, 0);
     }
 }
 
@@ -185,25 +211,27 @@ static void enterScope(Compiler* c) {
 }
 
 static int discardScopes(Compiler* c, int depth) {
-    int localsCount = c->localsCount;
-
-    int toPop = 0;
-    while(localsCount > 0 && c->locals[localsCount - 1].depth > depth) {
-        toPop++, localsCount--;
+    int locals = c->localsCount;
+    while(locals > 0 && c->locals[locals - 1].depth > depth) {
+        locals--;
     }
+
+    int toPop = c->localsCount - locals;
 
     if(toPop > 1) {
-        emitBytecode(c, OP_POPN, 0);
-        emitBytecode(c, toPop, 0);
+        emitByte(c, OP_POPN, 0);
+        emitByte(c, toPop, 0);
     } else if(toPop == 1) {
-        discardLocal(c, &c->locals[localsCount]);
+        discardLocal(c, &c->locals[locals]);
     }
 
-    return localsCount;
+    return toPop;
 }
 
 static void exitScope(Compiler* c) {
-    c->localsCount = discardScopes(c, --c->depth);
+    int popped = discardScopes(c, --c->depth);
+    c->localsCount -= popped;
+    c->stackUsage -= popped;
 }
 
 static void enterFunctionScope(Compiler* c) {
@@ -335,19 +363,23 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
     return var;
 }
 
-static void setAsInitialized(Compiler* c, const Variable* var) {
+static void localInitialized(Compiler* c, int idx) {
+    c->locals[idx].depth = c->depth;
+}
+
+static void setInitialized(Compiler* c, const Variable* var) {
     ASSERT(var->scope == VAR_LOCAL, "Only local variables can be marked initialized");
-    c->locals[var->as.local.index].depth = c->depth;
+    localInitialized(c, var->as.local.index);
 }
 
 static void defineVar(Compiler* c, Variable* var, int line) {
     switch(var->scope) {
     case VAR_GLOBAL:
-        emitBytecode(c, OP_DEFINE_GLOBAL, line);
+        emitOpcode(c, OP_DEFINE_GLOBAL, line);
         emitShort(c, identifierConst(c, &var->as.global.id, line), line);
         break;
     case VAR_LOCAL:
-        setAsInitialized(c, var);
+        setInitialized(c, var);
         break;
     case VAR_ERR:
         break;
@@ -368,7 +400,7 @@ static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
         error(c, line, "Too much code to jump over");
     }
 
-    size_t jmpAddr = emitBytecode(c, jmpOp, line);
+    size_t jmpAddr = emitOpcode(c, jmpOp, line);
     emitShort(c, (uint16_t)offset, line);
     return jmpAddr;
 }
@@ -390,7 +422,7 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
 static void startLoop(Compiler* c, Loop* loop) {
     loop->depth = c->depth;
     loop->start = getCurrentAddr(c);
-    loop->next = c->loops;
+    loop->parent = c->loops;
     c->loops = loop;
 }
 
@@ -403,6 +435,7 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_
             // Patch jump with correct offset to break loop
             int mark = c->func->code.bytecode[i + 1];
             ASSERT(mark == CONTINUE_MARK || mark == BREAK_MARK, "Unknown loop breaking marker");
+
             setJumpTo(c, i, mark == CONTINUE_MARK ? contAddr : brkAddr, 0);
 
             i += opcodeArgsNumber(OP_JUMP);
@@ -413,21 +446,22 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_
 }
 
 static void endLoop(Compiler* c) {
+    ASSERT(c->loops, "Mismatched `startLoop` and `endLoop`");
     patchLoopExitStmts(c, c->loops->start, c->loops->start, getCurrentAddr(c));
-    c->loops = c->loops->next;
+    c->loops = c->loops->parent;
 }
 
 static void emitMethodCall(Compiler* c, const char* name, int args) {
     ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
     JStarIdentifier meth = createIdentifier(name);
-    emitBytecode(c, OP_INVOKE_0 + args, 0);
+    emitOpcode(c, OP_INVOKE_0 + args, 0);
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
 static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line) {
     exc->depth = c->depth;
     exc->numHandlers = numHandlers;
-    exc->next = c->tryBlocks;
+    exc->parent = c->tryBlocks;
     c->tryBlocks = exc;
     c->tryDepth += numHandlers;
 
@@ -438,8 +472,9 @@ static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line
 }
 
 static void exitTryBlock(Compiler* c) {
+    ASSERT(c->tryBlocks, "Mismatched `enterTryBlock` and `exitTryBlock`");
     c->tryDepth -= c->tryBlocks->numHandlers;
-    c->tryBlocks = c->tryBlocks->next;
+    c->tryBlocks = c->tryBlocks->parent;
 }
 
 static ObjString* readString(Compiler* c, JStarExpr* e) {
@@ -498,6 +533,18 @@ static void addFunctionDefaults(Compiler* c, Prototype* proto, Vector* defaultAr
     }
 }
 
+static JStarExpr* getExpressions(JStarExpr* unpackable) {
+    switch(unpackable->type) {
+    case JSR_ARRAY:
+        return unpackable->as.array.exprs;
+    case JSR_TUPLE:
+        return unpackable->as.tuple.exprs;
+    default:
+        UNREACHABLE();
+        return NULL;
+    }
+}
+
 // -----------------------------------------------------------------------------
 // EXPRESSION COMPILE
 // -----------------------------------------------------------------------------
@@ -509,56 +556,56 @@ static void compileBinaryExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.binary.right);
     switch(e->as.binary.op) {
     case TOK_PLUS:
-        emitBytecode(c, OP_ADD, e->line);
+        emitOpcode(c, OP_ADD, e->line);
         break;
     case TOK_MINUS:
-        emitBytecode(c, OP_SUB, e->line);
+        emitOpcode(c, OP_SUB, e->line);
         break;
     case TOK_MULT:
-        emitBytecode(c, OP_MUL, e->line);
+        emitOpcode(c, OP_MUL, e->line);
         break;
     case TOK_DIV:
-        emitBytecode(c, OP_DIV, e->line);
+        emitOpcode(c, OP_DIV, e->line);
         break;
     case TOK_MOD:
-        emitBytecode(c, OP_MOD, e->line);
+        emitOpcode(c, OP_MOD, e->line);
         break;
     case TOK_AMPER:
-        emitBytecode(c, OP_BAND, e->line);
+        emitOpcode(c, OP_BAND, e->line);
         break;
     case TOK_PIPE:
-        emitBytecode(c, OP_BOR, e->line);
+        emitOpcode(c, OP_BOR, e->line);
         break;
     case TOK_TILDE:
-        emitBytecode(c, OP_XOR, e->line);
+        emitOpcode(c, OP_XOR, e->line);
         break;
     case TOK_LSHIFT:
-        emitBytecode(c, OP_LSHIFT, e->line);
+        emitOpcode(c, OP_LSHIFT, e->line);
         break;
     case TOK_RSHIFT:
-        emitBytecode(c, OP_RSHIFT, e->line);
+        emitOpcode(c, OP_RSHIFT, e->line);
         break;
     case TOK_EQUAL_EQUAL:
-        emitBytecode(c, OP_EQ, e->line);
+        emitOpcode(c, OP_EQ, e->line);
         break;
     case TOK_GT:
-        emitBytecode(c, OP_GT, e->line);
+        emitOpcode(c, OP_GT, e->line);
         break;
     case TOK_GE:
-        emitBytecode(c, OP_GE, e->line);
+        emitOpcode(c, OP_GE, e->line);
         break;
     case TOK_LT:
-        emitBytecode(c, OP_LT, e->line);
+        emitOpcode(c, OP_LT, e->line);
         break;
     case TOK_LE:
-        emitBytecode(c, OP_LE, e->line);
+        emitOpcode(c, OP_LE, e->line);
         break;
     case TOK_IS:
-        emitBytecode(c, OP_IS, e->line);
+        emitOpcode(c, OP_IS, e->line);
         break;
     case TOK_BANG_EQ:
-        emitBytecode(c, OP_EQ, e->line);
-        emitBytecode(c, OP_NOT, e->line);
+        emitOpcode(c, OP_EQ, e->line);
+        emitOpcode(c, OP_NOT, e->line);
         break;
     default:
         UNREACHABLE();
@@ -568,13 +615,13 @@ static void compileBinaryExpr(Compiler* c, JStarExpr* e) {
 
 static void compileLogicExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.binary.left);
-    emitBytecode(c, OP_DUP, e->line);
+    emitOpcode(c, OP_DUP, e->line);
 
     Opcode jmpOp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
-    size_t shortCircuit = emitBytecode(c, jmpOp, 0);
+    size_t shortCircuit = emitOpcode(c, jmpOp, 0);
     emitShort(c, 0, 0);
 
-    emitBytecode(c, OP_POP, e->line);
+    emitOpcode(c, OP_POP, e->line);
     compileExpr(c, e->as.binary.right);
 
     setJumpTo(c, shortCircuit, getCurrentAddr(c), e->line);
@@ -584,13 +631,13 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.unary.operand);
     switch(e->as.unary.op) {
     case TOK_MINUS:
-        emitBytecode(c, OP_NEG, e->line);
+        emitOpcode(c, OP_NEG, e->line);
         break;
     case TOK_BANG:
-        emitBytecode(c, OP_NOT, e->line);
+        emitOpcode(c, OP_NOT, e->line);
         break;
     case TOK_TILDE:
-        emitBytecode(c, OP_INVERT, e->line);
+        emitOpcode(c, OP_INVERT, e->line);
         break;
     case TOK_HASH:
         emitMethodCall(c, "__len__", 0);
@@ -607,11 +654,11 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
 static void compileTernaryExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.ternary.cond);
 
-    size_t falseJmp = emitBytecode(c, OP_JUMPF, e->line);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, e->line);
     emitShort(c, 0, 0);
 
     compileExpr(c, e->as.ternary.thenExpr);
-    size_t exitJmp = emitBytecode(c, OP_JUMP, e->line);
+    size_t exitJmp = emitOpcode(c, OP_JUMP, e->line);
     emitShort(c, 0, 0);
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), e->line);
@@ -624,23 +671,23 @@ static void compileVariable(Compiler* c, JStarIdentifier* id, bool set, int line
     int idx = resolveVariable(c, id, line);
     if(idx != -1) {
         if(set) {
-            emitBytecode(c, OP_SET_LOCAL, line);
+            emitOpcode(c, OP_SET_LOCAL, line);
         } else {
-            emitBytecode(c, OP_GET_LOCAL, line);
+            emitOpcode(c, OP_GET_LOCAL, line);
         }
-        emitBytecode(c, idx, line);
+        emitByte(c, idx, line);
     } else if((idx = resolveUpvalue(c, id, line)) != -1) {
         if(set) {
-            emitBytecode(c, OP_SET_UPVALUE, line);
+            emitOpcode(c, OP_SET_UPVALUE, line);
         } else {
-            emitBytecode(c, OP_GET_UPVALUE, line);
+            emitOpcode(c, OP_GET_UPVALUE, line);
         }
-        emitBytecode(c, idx, line);
+        emitByte(c, idx, line);
     } else {
         if(set) {
-            emitBytecode(c, OP_SET_GLOBAL, line);
+            emitOpcode(c, OP_SET_GLOBAL, line);
         } else {
-            emitBytecode(c, OP_GET_GLOBAL, line);
+            emitOpcode(c, OP_GET_GLOBAL, line);
         }
         emitShort(c, identifierConst(c, id, line), line);
     }
@@ -651,10 +698,9 @@ static void compileFunction(Compiler* c, JStarStmt* s);
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(name == NULL) {
-        char funcName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
-        sprintf(funcName, ANON_STR "%d", func->line);
-
-        func->as.funcDecl.id = createIdentifier(funcName);
+        char anonymousName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
+        sprintf(anonymousName, ANON_STR "%d", func->line);
+        func->as.funcDecl.id = createIdentifier(anonymousName);
         compileFunction(c, func);
     } else {
         func->as.funcDecl.id = *name;
@@ -669,14 +715,14 @@ static void compileLval(Compiler* c, JStarExpr* e) {
         break;
     case JSR_ACCESS: {
         compileExpr(c, e->as.access.left);
-        emitBytecode(c, OP_SET_FIELD, e->line);
+        emitOpcode(c, OP_SET_FIELD, e->line);
         emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
         break;
     }
     case JSR_ARR_ACCESS: {
         compileExpr(c, e->as.arrayAccess.index);
         compileExpr(c, e->as.arrayAccess.left);
-        emitBytecode(c, OP_SUBSCR_SET, e->line);
+        emitOpcode(c, OP_SUBSCR_SET, e->line);
         break;
     }
     default:
@@ -685,12 +731,12 @@ static void compileLval(Compiler* c, JStarExpr* e) {
     }
 }
 
-// The `boundName` argument is the name of the variable to which we are assigning to.
+// The `name` argument is the name of the variable to which we are assigning to.
 // In case of a function literal we use it to give the function a meaningful name, instead
 // of just using the default name for anonymous functions (that is: `anon:<line_number>`)
-static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* boundName) {
+static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     if(e->type == JSR_FUNC_LIT) {
-        compileFunLiteral(c, e, boundName);
+        compileFunLiteral(c, e, name);
     } else {
         compileExpr(c, e);
     }
@@ -708,19 +754,7 @@ static void compileConstUnpackLst(Compiler* c, JStarExpr* exprs, int lvals, Vect
         if(names && i < lvals) name = vecGet(names, i);
         compileRval(c, *it, name);
         
-        if(++i > lvals) emitBytecode(c, OP_POP, 0);
-    }
-}
-
-static JStarExpr* getUnpackableExprs(JStarExpr* unpackable) {
-    switch(unpackable->type) {
-    case JSR_ARRAY:
-        return unpackable->as.array.exprs;
-    case JSR_TUPLE:
-        return unpackable->as.tuple.exprs;
-    default:
-        UNREACHABLE();
-        return NULL;
+        if(++i > lvals) emitOpcode(c, OP_POP, 0);
     }
 }
 
@@ -735,12 +769,13 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
 
     JStarExpr* rval = e->as.assign.rval;
     if(IS_CONST_UNPACK(rval->type)) {
-        JStarExpr* exprs = getUnpackableExprs(rval);
+        JStarExpr* exprs = getExpressions(rval);
         compileConstUnpackLst(c, exprs, lvalCount, NULL);
     } else {
         compileRval(c, rval, NULL);
-        emitBytecode(c, OP_UNPACK, e->line);
-        emitBytecode(c, (uint8_t)lvalCount, e->line);
+        emitOpcode(c, OP_UNPACK, e->line);
+        emitByte(c, (uint8_t)lvalCount, e->line);
+        adjustStackUsage(c, lvalCount - 1);
     }
 
     // compile lvals in reverse order in order to assign
@@ -748,7 +783,7 @@ static void compileUnpackAssign(Compiler* c, JStarExpr* e) {
     for(int n = lvalCount - 1; n >= 0; n--) {
         JStarExpr* lval = vecGet(&lvals->as.list, n);
         compileLval(c, lval);
-        if(n != 0) emitBytecode(c, OP_POP, e->line);
+        if(n != 0) emitOpcode(c, OP_POP, e->line);
     }
 }
 
@@ -807,13 +842,13 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
     }
 
     if(isUnpack) {
-        emitBytecode(c, callUnpack, args->line);
-        emitBytecode(c, argsCount, args->line);
+        emitOpcode(c, callUnpack, args->line);
+        emitByte(c, argsCount, args->line);
     } else if(argsCount <= MAX_INLINE_ARGS) {
-        emitBytecode(c, callInline + argsCount, args->line);
+        emitOpcode(c, callInline + argsCount, args->line);
     } else {
-        emitBytecode(c, callCode, args->line);
-        emitBytecode(c, argsCount, args->line);
+        emitOpcode(c, callCode, args->line);
+        emitByte(c, argsCount, args->line);
     }
 }
 
@@ -847,48 +882,48 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
         return;
     }
 
-    emitBytecode(c, OP_GET_LOCAL, e->line);
-    emitBytecode(c, 0, e->line);
+    emitOpcode(c, OP_GET_LOCAL, e->line);
+    emitByte(c, 0, e->line);
 
     uint16_t nameConst;
     if(e->as.sup.name.name != NULL) {
         nameConst = identifierConst(c, &e->as.sup.name, e->line);
     } else {
-        nameConst = identifierConst(c, &c->ast->as.funcDecl.id, e->line);
+        nameConst = identifierConst(c, &c->fnNode->as.funcDecl.id, e->line);
     }
 
     if(e->as.sup.args != NULL) {
         finishCall(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, e->as.sup.args, e->as.sup.unpackArg);
         emitShort(c, nameConst, e->line);
     } else {
-        emitBytecode(c, OP_SUPER_BIND, e->line);
+        emitOpcode(c, OP_SUPER_BIND, e->line);
         emitShort(c, nameConst, e->line);
     }
 }
 
 static void compileAccessExpression(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.access.left);
-    emitBytecode(c, OP_GET_FIELD, e->line);
+    emitOpcode(c, OP_GET_FIELD, e->line);
     emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
 }
 
 static void compileArraryAccExpression(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.arrayAccess.left);
     compileExpr(c, e->as.arrayAccess.index);
-    emitBytecode(c, OP_SUBSCR_GET, e->line);
+    emitOpcode(c, OP_SUBSCR_GET, e->line);
 }
 
 static void compilePowExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.pow.base);
     compileExpr(c, e->as.pow.exp);
-    emitBytecode(c, OP_POW, e->line);
+    emitOpcode(c, OP_POW, e->line);
 }
 
 static void CompileListLit(Compiler* c, JStarExpr* e) {
-    emitBytecode(c, OP_NEW_LIST, e->line);
+    emitOpcode(c, OP_NEW_LIST, e->line);
     vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
         compileExpr(c, *it);
-        emitBytecode(c, OP_APPEND_LIST, e->line);
+        emitOpcode(c, OP_APPEND_LIST, e->line);
     }
 }
 
@@ -899,29 +934,43 @@ static void compileTupleLit(Compiler* c, JStarExpr* e) {
 
     size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
     if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in Tuple literal");
-    emitBytecode(c, OP_NEW_TUPLE, e->line);
-    emitBytecode(c, tupleSize, e->line);
+    emitOpcode(c, OP_NEW_TUPLE, e->line);
+    emitByte(c, tupleSize, e->line);
 }
 
 static void compileTableLit(Compiler* c, JStarExpr* e) {
-    emitBytecode(c, OP_NEW_TABLE, e->line);
+    emitOpcode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.table.keyVals;
     for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list); it += 2) {
         JStarExpr* key = *it;
         JStarExpr* val = *(it + 1);
 
-        emitBytecode(c, OP_DUP, e->line);
+        emitOpcode(c, OP_DUP, e->line);
         compileExpr(c, key);
         compileExpr(c, val);
         
         emitMethodCall(c, "__set__", 2);
-        emitBytecode(c, OP_POP, e->line);
+        emitOpcode(c, OP_POP, e->line);
     }
 }
 
+static void compileYield(Compiler* c, JStarExpr* e) {
+    if(c->type == TYPE_CTOR) {
+        error(c, e->line, "Cannot use yield in constructor");
+    }
+
+    if(e->as.yield.expr != NULL) {
+        compileExpr(c, e->as.yield.expr);
+    } else {
+        emitOpcode(c, OP_NULL, e->line);
+    }
+
+    emitOpcode(c, OP_YIELD, e->line);
+}
+
 static void emitValueConst(Compiler* c, Value val, int line) {
-    emitBytecode(c, OP_GET_CONST, line);
+    emitOpcode(c, OP_GET_CONST, line);
     emitShort(c, createConst(c, val, line), line);
 }
 
@@ -955,6 +1004,9 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
     case JSR_ARR_ACCESS:
         compileArraryAccExpression(c, e);
         break;
+    case JSR_YIELD:
+        compileYield(c, e);
+        break;
     case JSR_POWER:
         compilePowExpr(c, e);
         break;
@@ -971,7 +1023,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileVariable(c, &e->as.var.id, false, e->line);
         break;
     case JSR_NULL:
-        emitBytecode(c, OP_NULL, e->line);
+        emitOpcode(c, OP_NULL, e->line);
         break;
     case JSR_ARRAY:
         CompileListLit(c, e);
@@ -1009,9 +1061,6 @@ static void compileStatements(Compiler* c, Vector* stmts) {
 }
 
 static void compileReturnStatement(Compiler* c, JStarStmt* s) {
-    if(c->prev == NULL) {
-        error(c, s->line, "Cannot use return outside a function");
-    }
     if(c->type == TYPE_CTOR) {
         error(c, s->line, "Cannot use return in constructor");
     }
@@ -1019,23 +1068,27 @@ static void compileReturnStatement(Compiler* c, JStarStmt* s) {
     if(s->as.returnStmt.e != NULL) {
         compileExpr(c, s->as.returnStmt.e);
     } else {
-        emitBytecode(c, OP_NULL, s->line);
+        emitOpcode(c, OP_NULL, s->line);
     }
 
-    emitBytecode(c, OP_RETURN, s->line);
+    if(c->fnNode->as.funcDecl.isGenerator) {
+        emitOpcode(c, OP_GENERATOR_CLOSE, s->line);
+    }
+
+    emitOpcode(c, OP_RETURN, s->line);
 }
 
 static void compileIfStatement(Compiler* c, JStarStmt* s) {
     compileExpr(c, s->as.ifStmt.cond);
 
-    size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
     compileStatement(c, s->as.ifStmt.thenStmt);
 
     size_t exitJmp = 0;
     if(s->as.ifStmt.elseStmt != NULL) {
-        exitJmp = emitBytecode(c, OP_JUMP, 0);
+        exitJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
@@ -1056,7 +1109,7 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
 
     size_t firstJmp = 0;
     if(s->as.forStmt.act != NULL) {
-        firstJmp = emitBytecode(c, OP_JUMP, 0);
+        firstJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
@@ -1065,14 +1118,14 @@ static void compileForStatement(Compiler* c, JStarStmt* s) {
 
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
-        emitBytecode(c, OP_POP, 0);
+        emitOpcode(c, OP_POP, 0);
         setJumpTo(c, firstJmp, getCurrentAddr(c), 0);
     }
 
     size_t exitJmp = 0;
     if(s->as.forStmt.cond != NULL) {
         compileExpr(c, s->as.forStmt.cond);
-        exitJmp = emitBytecode(c, OP_JUMPF, 0);
+        exitJmp = emitOpcode(c, OP_JUMPF, 0);
         emitShort(c, 0, 0);
     }
 
@@ -1114,10 +1167,10 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarIdentifier iterator = createIdentifier(".iter");
     Variable iterVar = declareVar(c, &iterator, false, s->line);
     defineVar(c, &iterVar, s->line);
-    emitBytecode(c, OP_NULL, 0);  // initialize `.iter` to null
+    emitOpcode(c, OP_NULL, 0);  // initialize `.iter` to null
 
     // FOR_PREP will cache the __iter__ and __next__ methods as locals
-    emitBytecode(c, OP_FOR_PREP, 0);
+    emitOpcode(c, OP_FOR_PREP, 0);
 
     // Declare variables for cached methods
     JStarIdentifier iterMeth = createIdentifier(".__iter__");
@@ -1131,8 +1184,8 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     Loop l;
     startLoop(c, &l);
 
-    emitBytecode(c, OP_FOR_ITER, s->line);
-    size_t exitJmp = emitBytecode(c, OP_FOR_NEXT, 0);
+    emitOpcode(c, OP_FOR_ITER, s->line);
+    size_t exitJmp = emitOpcode(c, OP_FOR_NEXT, 0);
     emitShort(c, 0, 0);
 
     JStarStmt* varDecl = s->as.forEach.var;
@@ -1145,8 +1198,9 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
 
     uint8_t numDecls = vecSize(&varDecl->as.varDecl.ids);
     if(varDecl->as.varDecl.isUnpack) {
-        emitBytecode(c, OP_UNPACK, s->line);
-        emitBytecode(c, numDecls, s->line);
+        emitOpcode(c, OP_UNPACK, s->line);
+        emitByte(c, numDecls, s->line);
+        adjustStackUsage(c, numDecls);
     }
 
     JStarStmt* body = s->as.forEach.body;
@@ -1166,7 +1220,7 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
     startLoop(c, &l);
 
     compileExpr(c, s->as.whileStmt.cond);
-    size_t exitJmp = emitBytecode(c, OP_JUMPF, 0);
+    size_t exitJmp = emitOpcode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
     compileStatement(c, s->as.whileStmt.body);
@@ -1197,15 +1251,15 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         jsrBufferAppend(&nameBuf, subMod->name, subMod->length);
 
         if(importAs && vecIsIterEnd(modules, it)) {
-            emitBytecode(c, OP_IMPORT, s->line);
+            emitOpcode(c, OP_IMPORT, s->line);
         } else if(it == vecBegin(modules) && !(importAs || importFor)) {
-            emitBytecode(c, OP_IMPORT, s->line);
+            emitOpcode(c, OP_IMPORT, s->line);
         } else {
-            emitBytecode(c, OP_IMPORT_FROM, s->line);
+            emitOpcode(c, OP_IMPORT_FROM, s->line);
         }
 
         emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
-        emitBytecode(c, OP_POP, s->line);
+        emitOpcode(c, OP_POP, s->line);
         
         if(!vecIsIterEnd(modules, it)) jsrBufferAppendChar(&nameBuf, '.');
     }
@@ -1214,7 +1268,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         vecForeach(JStarIdentifier** it, *names) {
             JStarIdentifier* name = *it;
 
-            emitBytecode(c, OP_IMPORT_NAME, s->line);
+            emitOpcode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
 
@@ -1235,12 +1289,13 @@ static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
     compileVariable(c, &exception, false, except->line);
 
     compileExpr(c, except->as.excStmt.cls);
-    emitBytecode(c, OP_IS, 0);
+    emitOpcode(c, OP_IS, 0);
 
-    size_t falseJmp = emitBytecode(c, OP_JUMPF, 0);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
     enterScope(c);
+    adjustStackUsage(c, 1);
 
     compileVariable(c, &exception, false, except->line);
     Variable excVar = declareVar(c, &except->as.excStmt.var, false, except->line);
@@ -1251,15 +1306,16 @@ static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
 
     // Set the exception cause to `null` to signal that the exception has been handled
     JStarIdentifier cause = createIdentifier(".cause");
-    emitBytecode(c, OP_NULL, except->line);
+    emitOpcode(c, OP_NULL, except->line);
     compileVariable(c, &cause, true, except->line);
-    emitBytecode(c, OP_POP, except->line);
+    emitOpcode(c, OP_POP, except->line);
 
+    adjustStackUsage(c, -1);
     exitScope(c);
 
     size_t exitJmp = 0;
     if(n < vecSize(excepts) - 1) {
-        exitJmp = emitBytecode(c, OP_JUMP, 0);
+        exitJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
@@ -1282,27 +1338,27 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     size_t ensSetup = 0, excSetup = 0;
 
     if(hasEnsure) {
-        ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
+        ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
         emitShort(c, 0, 0);
     }
 
     if(hasExcepts) {
-        excSetup = emitBytecode(c, OP_SETUP_EXCEPT, s->line);
+        excSetup = emitOpcode(c, OP_SETUP_EXCEPT, s->line);
         emitShort(c, 0, 0);
     }
 
     compileStatement(c, s->as.tryStmt.block);
 
     if(hasExcepts) {
-        emitBytecode(c, OP_POP_HANDLER, s->line);
+        emitOpcode(c, OP_POP_HANDLER, s->line);
     }
 
     if(hasEnsure) {
-        emitBytecode(c, OP_POP_HANDLER, s->line);
+        emitOpcode(c, OP_POP_HANDLER, s->line);
         // Reached end of try block during normal execution flow, set exception and unwind
         // cause to null to signal the ensure handler that no exception was raised
-        emitBytecode(c, OP_NULL, s->line);
-        emitBytecode(c, OP_NULL, s->line);
+        emitOpcode(c, OP_NULL, s->line);
+        emitOpcode(c, OP_NULL, s->line);
     }
 
     enterScope(c);
@@ -1316,16 +1372,16 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     defineVar(c, &causeVar, 0);
 
     if(hasExcepts) {
-        size_t excJmp = emitBytecode(c, OP_JUMP, 0);
+        size_t excJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
         setJumpTo(c, excSetup, getCurrentAddr(c), s->line);
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
-            emitBytecode(c, OP_POP_HANDLER, 0);
+            emitOpcode(c, OP_POP_HANDLER, 0);
         } else {
-            emitBytecode(c, OP_END_HANDLER, 0);
+            emitOpcode(c, OP_END_HANDLER, 0);
             exitScope(c);
         }
 
@@ -1335,7 +1391,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     if(hasEnsure) {
         setJumpTo(c, ensSetup, getCurrentAddr(c), s->line);
         compileStatement(c, s->as.tryStmt.ensure);
-        emitBytecode(c, OP_END_HANDLER, 0);
+        emitOpcode(c, OP_END_HANDLER, 0);
         exitScope(c);
     }
 
@@ -1344,7 +1400,7 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
 static void compileRaiseStmt(Compiler* c, JStarStmt* s) {
     compileExpr(c, s->as.raiseStmt.exc);
-    emitBytecode(c, OP_RAISE, s->line);
+    emitOpcode(c, OP_RAISE, s->line);
 }
 
 /*
@@ -1366,7 +1422,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     enterScope(c);
 
     // var x
-    emitBytecode(c, OP_NULL, s->line);
+    emitOpcode(c, OP_NULL, s->line);
     Variable var = declareVar(c, &s->as.withStmt.var, false, s->line);
     defineVar(c, &var, s->line);
 
@@ -1374,7 +1430,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     TryExcept tryBlock;
     enterTryBlock(c, &tryBlock, 1, s->line);
 
-    size_t ensSetup = emitBytecode(c, OP_SETUP_ENSURE, s->line);
+    size_t ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
     emitShort(c, 0, 0);
 
     // x = closable
@@ -1383,14 +1439,14 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
                         .type = JSR_ASSIGN,
                         .as = {.assign = {.lval = &lval, .rval = s->as.withStmt.e}}};
     compileExpr(c, &assign);
-    emitBytecode(c, OP_POP, s->line);
+    emitOpcode(c, OP_POP, s->line);
 
     // code
     compileStatement(c, s->as.withStmt.block);
 
-    emitBytecode(c, OP_POP_HANDLER, s->line);
-    emitBytecode(c, OP_NULL, s->line);
-    emitBytecode(c, OP_NULL, s->line);
+    emitOpcode(c, OP_POP_HANDLER, s->line);
+    emitOpcode(c, OP_NULL, s->line);
+    emitOpcode(c, OP_NULL, s->line);
 
     // ensure
     enterScope(c);
@@ -1407,16 +1463,16 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
 
     // if x then x.close() end
     compileVariable(c, &s->as.withStmt.var, false, s->line);
-    size_t falseJmp = emitBytecode(c, OP_JUMPF, s->line);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, s->line);
     emitShort(c, 0, 0);
 
     compileVariable(c, &s->as.withStmt.var, false, s->line);
     emitMethodCall(c, "close", 0);
-    emitBytecode(c, OP_POP, s->line);
+    emitOpcode(c, OP_POP, s->line);
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
 
-    emitBytecode(c, OP_END_HANDLER, 0);
+    emitOpcode(c, OP_END_HANDLER, 0);
     exitScope(c);
 
     exitTryBlock(c);
@@ -1439,49 +1495,98 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 
     // Emit place-holder instruction that will be patched at the end of loop compilation,
     // when we know the offset to emit for a break or continue jump
-    emitBytecode(c, OP_END, s->line);
-    emitBytecode(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->line);
-    emitBytecode(c, 0, s->line);
+    emitOpcode(c, OP_END, s->line);
+    emitByte(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->line);
+    emitByte(c, 0, s->line);
 }
 
-static ObjFunction* function(Compiler* c, ObjModule* module, JStarStmt* s) {
-    JStarIdentifier* name = &s->as.funcDecl.id;
-    size_t defaults = vecSize(&s->as.funcDecl.defArgs);
-    size_t arity = vecSize(&s->as.funcDecl.formalArgs);
-    bool vararg = s->as.funcDecl.isVararg;
+static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
+    size_t defaults = vecSize(&node->as.funcDecl.defArgs);
+    size_t arity = vecSize(&node->as.funcDecl.formalArgs);
+    bool vararg = node->as.funcDecl.isVararg;
 
-    c->func = newFunction(c->vm, module, arity, defaults, vararg);
-    addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
+    push(c->vm, OBJ_VAL(name));
+    c->func = newFunction(c->vm, m, arity, defaults, vararg);
+    c->func->proto.name = name;
+    pop(c->vm);
 
-    if(name->length != 0) {
-        c->func->proto.name = copyString(c->vm, name->name, name->length);
-    } else {
-        c->func->proto.name = copyString(c->vm, "<main>", strlen("<main>"));
+    if(c->type != TYPE_FUNC) {
+        // Dummy constant that will be replaced at runtime with the method 
+        // superclass, in order to correctly implement `super` calls
+        addConstant(&c->func->code, NULL_VAL);
     }
 
-    // add phony variable for function receiver (in the case of functions the
-    // receiver is the function itself but it ins't accessible)
-    JStarIdentifier id = createIdentifier("");
-    addLocal(c, &id, s->line);
+    addFunctionDefaults(c, &c->func->proto, &node->as.funcDecl.defArgs);
 
-    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
-        Variable arg = declareVar(c, *it, false, s->line);
-        defineVar(c, &arg, s->line);
+    // Add the receiver. 
+    // In the case of functions the receiver is the function itself but it 
+    // isnt't accessible (we use an empty name).
+    // In the case of methods the receiver is assigned a name of `this` and
+    // points to the class instance on which the method was called.
+    JStarIdentifier receiver = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
+    int receiverLocal = addLocal(c, &receiver, node->line);
+    localInitialized(c, receiverLocal);
+
+    vecForeach(JStarIdentifier** it, node->as.funcDecl.formalArgs) {
+        Variable arg = declareVar(c, *it, false, node->line);
+        defineVar(c, &arg, node->line);
     }
 
-    if(s->as.funcDecl.isVararg) {
+    if(node->as.funcDecl.isVararg) {
         JStarIdentifier args = createIdentifier("args");
-        Variable vararg = declareVar(c, &args, false, s->line);
-        defineVar(c, &vararg, s->line);
+        Variable vararg = declareVar(c, &args, false, node->line);
+        defineVar(c, &vararg, node->line);
     }
 
-    JStarStmt* body = s->as.funcDecl.body;
+    if(node->as.funcDecl.isGenerator) {
+        emitOpcode(c, OP_GENERATOR, node->line);
+    }
+
+    JStarStmt* body = node->as.funcDecl.body;
     compileStatements(c, &body->as.blockStmt.stmts);
 
-    emitBytecode(c, OP_NULL, 0);
-    emitBytecode(c, OP_RETURN, 0);
+    switch(c->type) {
+    case TYPE_FUNC:
+    case TYPE_METHOD:
+        emitOpcode(c, OP_NULL, 0);
+        if(node->as.funcDecl.isGenerator) {
+            emitOpcode(c, OP_GENERATOR_CLOSE, 0);
+        }
+        break;
+    case TYPE_CTOR:
+        emitOpcode(c, OP_GET_LOCAL, 0);
+        emitByte(c, 0, 0);
+        break;
+    }
+
+    emitOpcode(c, OP_RETURN, 0);
 
     return c->func;
+}
+
+static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, int line) {
+    emitOpcode(c, OP_CLOSURE, line);
+    emitShort(c, createConst(c, OBJ_VAL(fn), line), line);
+    for(uint8_t i = 0; i < fn->upvalueCount; i++) {
+        emitByte(c, upvalues[i].isLocal ? 1 : 0, line);
+        emitByte(c, upvalues[i].index, line);
+    }
+}
+
+static void compileFunction(Compiler* c, JStarStmt* node) {
+    Compiler funCompiler;
+    initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, node);
+
+    JStarIdentifier* id = &node->as.funcDecl.id;
+    ObjString* name = copyString(c->vm, id->name, id->length);
+
+    enterFunctionScope(&funCompiler);
+    ObjFunction* func = function(&funCompiler, c->func->proto.module, name, node);
+    exitFunctionScope(&funCompiler);
+
+    emitClosure(c, func, funCompiler.upvalues, node->line);
+
+    endCompiler(&funCompiler);
 }
 
 static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIdentifier* methId) {
@@ -1493,134 +1598,66 @@ static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIde
     return name;
 }
 
-static ObjFunction* method(Compiler* c, ObjModule* mod, JStarIdentifier* clsName, JStarStmt* s) {
-    JStarIdentifier* name = &s->as.funcDecl.id;
-    size_t defCount = vecSize(&s->as.funcDecl.defArgs);
-    size_t arity = vecSize(&s->as.funcDecl.formalArgs);
-    bool vararg = s->as.funcDecl.isVararg;
-
-    c->func = newFunction(c->vm, mod, arity, defCount, vararg);
-
-    // Dummy constant that will be replaced at runtime with the method 
-    // superclass, in order to correctly implement `super` calls
-    addConstant(&c->func->code, NULL_VAL);
-    addFunctionDefaults(c, &c->func->proto, &s->as.funcDecl.defArgs);
-
-    // Create method name by prepending its class name and a dot
-    c->func->proto.name = createMethodName(c, clsName, name);
-
-    // if in costructor change the type
+static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
+    FuncType type = TYPE_METHOD;
     JStarIdentifier ctor = createIdentifier(CTOR_STR);
-    if(jsrIdentifierEq(&s->as.funcDecl.id, &ctor)) {
-        c->type = TYPE_CTOR;
+    if(jsrIdentifierEq(&node->as.funcDecl.id, &ctor)) {
+        type = TYPE_CTOR;
     }
 
-    // add `this` for method receiver (the object from which was called)
-    JStarIdentifier thisId = createIdentifier(THIS_STR);
-    Variable thisVar = declareVar(c, &thisId, false, s->line);
-    defineVar(c, &thisVar, s->line);
+    Compiler methodCompiler;
+    initCompiler(&methodCompiler, c->vm, c->file, c, type, node);
 
-    // define and declare arguments
-    vecForeach(JStarIdentifier** it, s->as.funcDecl.formalArgs) {
-        Variable arg = declareVar(c, *it, false, s->line);
-        defineVar(c, &arg, s->line);
-    }
+    JStarIdentifier* id = &node->as.funcDecl.id;
+    JStarIdentifier* clsId = &cls->as.classDecl.id;
+    ObjString* name = createMethodName(c, clsId, id);
 
-    if(s->as.funcDecl.isVararg) {
-        JStarIdentifier args = createIdentifier("args");
-        Variable vararg = declareVar(c, &args, false, s->line);
-        defineVar(c, &vararg, s->line);
-    }
+    enterFunctionScope(&methodCompiler);
+    ObjFunction* meth = function(&methodCompiler, c->func->proto.module, name, node);
+    exitFunctionScope(&methodCompiler);
 
-    JStarStmt* body = s->as.funcDecl.body;
-    compileStatements(c, &body->as.blockStmt.stmts);
+    emitClosure(c, meth, methodCompiler.upvalues, node->line);
 
-    // if in constructor return the instance
-    if(c->type == TYPE_CTOR) {
-        emitBytecode(c, OP_GET_LOCAL, 0);
-        emitBytecode(c, 0, 0);
-    } else {
-        emitBytecode(c, OP_NULL, 0);
-    }
+    emitOpcode(c, OP_DEF_METHOD, cls->line);
+    emitShort(c, identifierConst(c, &node->as.funcDecl.id, node->line), cls->line);
 
-    emitBytecode(c, OP_RETURN, 0);
-    return c->func;
+    endCompiler(&methodCompiler);
 }
 
-static void compileFunction(Compiler* c, JStarStmt* s) {
-    Compiler funCompiler;
-    initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, s);
-
-    enterFunctionScope(&funCompiler);
-    ObjFunction* func = function(&funCompiler, c->func->proto.module, s);
-    exitFunctionScope(&funCompiler);
-
-    emitBytecode(c, OP_CLOSURE, s->line);
-    emitShort(c, createConst(c, OBJ_VAL(func), s->line), s->line);
-
-    for(uint8_t i = 0; i < func->upvalueCount; i++) {
-        emitBytecode(c, funCompiler.upvalues[i].isLocal ? 1 : 0, s->line);
-        emitBytecode(c, funCompiler.upvalues[i].index, s->line);
-    }
-
-    endCompiler(&funCompiler);
-}
-
-static void compileNative(Compiler* c, JStarStmt* s) {
-    JStarIdentifier* name = &s->as.nativeDecl.id;
-    size_t defCount = vecSize(&s->as.nativeDecl.defArgs);
-    size_t arity = vecSize(&s->as.nativeDecl.formalArgs);
-    bool vararg = s->as.nativeDecl.isVararg;
+static void compileNative(Compiler* c, JStarStmt* node) {
+    JStarIdentifier* name = &node->as.nativeDecl.id;
+    size_t defCount = vecSize(&node->as.nativeDecl.defArgs);
+    size_t arity = vecSize(&node->as.nativeDecl.formalArgs);
+    bool vararg = node->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->proto, &s->as.nativeDecl.defArgs);
+    addFunctionDefaults(c, &native->proto, &node->as.nativeDecl.defArgs);
     native->proto.name = copyString(c->vm, name->name, name->length);
 
-    emitBytecode(c, OP_GET_CONST, s->line);
-    emitShort(c, createConst(c, OBJ_VAL(native), s->line), s->line);
+    emitOpcode(c, OP_GET_CONST, node->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
 
-    emitBytecode(c, OP_NATIVE, s->line);
-    emitShort(c, identifierConst(c, name, s->line), s->line);
+    emitOpcode(c, OP_NATIVE, node->line);
+    emitShort(c, identifierConst(c, name, node->line), node->line);
 
     pop(c->vm);
 }
 
-static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
-    Compiler methodCompiler;
-    initCompiler(&methodCompiler, c->vm, c->file, c, TYPE_METHOD, m);
-
-    enterFunctionScope(&methodCompiler);
-    ObjFunction* meth = method(&methodCompiler, c->func->proto.module, &cls->as.classDecl.id, m);
-    exitFunctionScope(&methodCompiler);
-
-    emitBytecode(c, OP_CLOSURE, m->line);
-    emitShort(c, createConst(c, OBJ_VAL(meth), m->line), m->line);
-
-    for(uint8_t i = 0; i < meth->upvalueCount; i++) {
-        emitBytecode(c, methodCompiler.upvalues[i].isLocal ? 1 : 0, m->line);
-        emitBytecode(c, methodCompiler.upvalues[i].index, m->line);
-    }
-
-    emitBytecode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &m->as.funcDecl.id, m->line), cls->line);
-    endCompiler(&methodCompiler);
-}
-
-static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* m) {
-    size_t defaults = vecSize(&m->as.nativeDecl.defArgs);
-    size_t arity = vecSize(&m->as.nativeDecl.formalArgs);
-    bool vararg = m->as.nativeDecl.isVararg;
+static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
+    size_t defaults = vecSize(&node->as.nativeDecl.defArgs);
+    size_t arity = vecSize(&node->as.nativeDecl.formalArgs);
+    bool vararg = node->as.nativeDecl.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defaults, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->proto, &m->as.nativeDecl.defArgs);
-    native->proto.name = createMethodName(c, &cls->as.classDecl.id, &m->as.funcDecl.id);
+    addFunctionDefaults(c, &native->proto, &node->as.nativeDecl.defArgs);
+    native->proto.name = createMethodName(c, &cls->as.classDecl.id, &node->as.funcDecl.id);
 
-    emitBytecode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &m->as.nativeDecl.id, m->line), cls->line);
+    emitOpcode(c, OP_NAT_METHOD, cls->line);
+    emitShort(c, identifierConst(c, &node->as.nativeDecl.id, node->line), cls->line);
     emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
 
     pop(c->vm);
@@ -1657,19 +1694,20 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
         bool isUnpack = s->as.varDecl.isUnpack;
 
         if(isUnpack && IS_CONST_UNPACK(init->type)) {
-            JStarExpr* exprs = getUnpackableExprs(init);
+            JStarExpr* exprs = getExpressions(init);
             compileConstUnpackLst(c, exprs, varsCount, &s->as.varDecl.ids);
         } else {
             compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
             if(isUnpack) {
-                emitBytecode(c, OP_UNPACK, s->line);
-                emitBytecode(c, (uint8_t)varsCount, s->line);
+                emitOpcode(c, OP_UNPACK, s->line);
+                emitByte(c, (uint8_t)varsCount, s->line);
+                adjustStackUsage(c, varsCount - 1);
             }
         }
     } else {
         // Default initialize the variables to null
         for(int i = 0; i < varsCount; i++) {
-            emitBytecode(c, OP_NULL, s->line);
+            emitOpcode(c, OP_NULL, s->line);
         }
     }
 
@@ -1685,14 +1723,14 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 
     // If local initialize the variable in order to permit the class to reference itself
     if(clsVar.scope == VAR_LOCAL) {
-        setAsInitialized(c, &clsVar);
+        setInitialized(c, &clsVar);
     }
 
     if(s->as.classDecl.sup != NULL) {
         compileExpr(c, s->as.classDecl.sup);
-        emitBytecode(c, OP_NEW_SUBCLASS, s->line);
+        emitOpcode(c, OP_NEW_SUBCLASS, s->line);
     } else {
-        emitBytecode(c, OP_NEW_CLASS, s->line);
+        emitOpcode(c, OP_NEW_CLASS, s->line);
     }
 
     emitShort(c, identifierConst(c, &s->as.classDecl.id, s->line), s->line);
@@ -1706,7 +1744,7 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
 
     // If local initialize the variable in order to permit the function to reference itself
     if(funVar.scope == VAR_LOCAL) {
-        setAsInitialized(c, &funVar);
+        setInitialized(c, &funVar);
     }
 
     compileFunction(c, s);
@@ -1759,7 +1797,7 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
         break;
     case JSR_EXPR_STMT:
         compileExpr(c, s->as.exprStmt);
-        emitBytecode(c, OP_POP, 0);
+        emitOpcode(c, OP_POP, 0);
         break;
     case JSR_VARDECL:
         compileVarDecl(c, s);
@@ -1789,7 +1827,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStar
 
     Compiler c;
     initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast);
-    ObjFunction* func = function(&c, module, ast);
+    ObjFunction* func = function(&c, module, copyString(vm, "<main>", 6), ast);
     endCompiler(&c);
 
     return c.hadError ? NULL : func;

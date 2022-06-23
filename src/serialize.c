@@ -131,6 +131,7 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
 static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
     serializePrototype(buf, &f->proto);
     serializeByte(buf, f->upvalueCount);
+    serializeShort(buf, f->stackUsage);
     serializeCode(buf, &f->code);
 }
 
@@ -391,6 +392,13 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
         pop(vm);
         return false;
     }
+
+    uint16_t stackUsage;
+    if(!deserializeShort(d, &stackUsage)) {
+        pop(vm);
+        return false;
+    }
+    fn->stackUsage = stackUsage;
 
     if(!deserializeCode(d, &fn->code)) {
         pop(vm);

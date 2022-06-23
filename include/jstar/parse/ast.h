@@ -30,6 +30,7 @@ typedef enum JStarExprType {
     JSR_POWER,
     JSR_SUPER,
     JSR_ACCESS,
+    JSR_YIELD,
     JSR_ARRAY,
     JSR_TUPLE,
     JSR_TABLE,
@@ -80,6 +81,9 @@ struct JStarExpr {
             JStarExpr* left;
             JStarExpr* index;
         } arrayAccess;
+        struct {
+            JStarExpr* expr;
+        } yield;
         struct {
             JStarExpr* exprs;
         } array;
@@ -168,6 +172,7 @@ struct JStarStmt {
             Vector formalArgs, defArgs;
             bool isVararg;
             bool isStatic;
+            bool isGenerator;
             JStarStmt* body;
         } funcDecl;
         struct {
@@ -220,8 +225,8 @@ JSTAR_API bool jsrIdentifierEq(JStarIdentifier* id1, JStarIdentifier* id2);
 // EXPRESSIONS ALLOCATION
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool vararg,
-                                    JStarStmt* body);
+JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool isVararg,
+                                    bool isGenerator, JStarStmt* body);
 JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr,
                                     JStarExpr* elseExpr);
 JSTAR_API JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval);
@@ -240,16 +245,18 @@ JSTAR_API JStarExpr* jsrExprList(int line, Vector* exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(int line, bool boolean);
 JSTAR_API JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs);
 JSTAR_API JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs);
+JSTAR_API JStarExpr* jsrYieldExpr(int line, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrNumLiteral(int line, double num);
 JSTAR_API JStarExpr* jsrNullLiteral(int line);
 JSTAR_API void jsrExprFree(JStarExpr* e);
+
 
 // -----------------------------------------------------------------------------
 // STATEMENTS ALLOCATION
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                                 bool vararg, JStarStmt* body);
+                                 bool isVararg, bool isGenerator, JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
                                    bool vararg);
 JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,

@@ -4,7 +4,7 @@
 extern const char* OpcodeNames[];
 
 typedef enum Opcode {
-#define OPCODE(opcode, _) opcode,
+#define OPCODE(opcode, args, stack) opcode,
 #include "opcode.def"
 } Opcode;
 

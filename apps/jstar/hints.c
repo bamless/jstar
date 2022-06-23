@@ -8,10 +8,10 @@
 
 // NULL terminated array of all J* keywords.
 static const char* keywords[] = {
-    "or",     "if",     "in",     "as",     "is",     "and",      "for",   "fun",
-    "var",    "end",    "try",    "else",   "elif",   "null",     "true",  "with",
-    "class",  "false",  "super",  "while",  "begin",  "raise",    "break", "native",
-    "return", "import", "ensure", "except", "static", "continue", NULL,
+    "or",     "if",    "in",     "as",     "is",     "and",    "for",      "fun",
+    "var",    "end",   "try",    "else",   "elif",   "null",   "true",     "with",
+    "class",  "false", "super",  "while",  "begin",  "raise",  "break",    "native",
+    "return", "yield", "import", "ensure", "except", "static", "continue", NULL,
 };
 
 // Add all matching keywords to the hints array.
@@ -29,21 +29,23 @@ static void hintKeywords(const char* ctxStart, int ctxLen, replxx_hints* hints) 
 static void hintNames(JStarVM* vm, const char* ctxStart, int ctxLen, replxx_hints* hints) {
     bool ok = jsrGetGlobal(vm, JSR_MAIN_MODULE, "__this__");
     assert(ok);
-    (void) ok;
+    (void)ok;
 
     JStarResult res = jsrCallMethod(vm, "globals", 0);
-    assert(res == JSR_SUCCESS);
-    (void) res;
+    if(res != JSR_SUCCESS) {
+        jsrPop(vm);
+        return;
+    }
 
     bool err;
     jsrPushNull(vm);
 
     while(jsrIter(vm, -2, -1, &err)) {
         assert(!err);
-        
+
         bool ok = jsrNext(vm, -2, -1);
         assert(ok && jsrIsString(vm, -1));
-        (void) ok;
+        (void)ok;
 
         const char* global = jsrGetString(vm, -1);
         int globalLen = jsrGetStringSz(vm, -1);

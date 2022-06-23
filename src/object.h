@@ -8,8 +8,10 @@
 #include "code.h"
 #include "hashtable.h"
 #include "jstar.h"
+#include "jstar_limits.h"
 #include "value.h"
 
+// Forward declarations
 struct Frame;
 
 #ifdef JSTAR_DBG_PRINT_GC
@@ -41,6 +43,7 @@ extern const char* ObjTypeNames[];
 #define IS_INSTANCE(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_INST)
 #define IS_MODULE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_MODULE)
 #define IS_CLOSURE(o)      (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLOSURE)
+#define IS_GENERATOR(o)    (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_GENERATOR)
 #define IS_TUPLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TUPLE)
 #define IS_STACK_TRACE(o)  (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STACK_TRACE)
 #define IS_TABLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TABLE)
@@ -55,6 +58,7 @@ extern const char* ObjTypeNames[];
 #define AS_INSTANCE(o)     ((ObjInstance*)AS_OBJ(o))
 #define AS_MODULE(o)       ((ObjModule*)AS_OBJ(o))
 #define AS_CLOSURE(o)      ((ObjClosure*)AS_OBJ(o))
+#define AS_GENERATOR(o)    ((ObjGenerator*)AS_OBJ(o))
 #define AS_TUPLE(o)        ((ObjTuple*)AS_OBJ(o))
 #define AS_STACK_TRACE(o)  ((ObjStackTrace*)AS_OBJ(o))
 #define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
@@ -80,6 +84,7 @@ extern const char* ObjTypeNames[];
     X(OBJ_BOUND_METHOD) \
     X(OBJ_STACK_TRACE)  \
     X(OBJ_CLOSURE)      \
+    X(OBJ_GENERATOR)    \
     X(OBJ_UPVALUE)      \
     X(OBJ_TUPLE)        \
     X(OBJ_TABLE)        \
@@ -147,6 +152,7 @@ typedef struct ObjFunction {
     Prototype proto;
     Code code;             // The actual code chunk containing bytecodes
     uint8_t upvalueCount;  // The number of upvalues the function closes over
+    int stackUsage;
 } ObjFunction;
 
 // A C function callable from J*
@@ -198,8 +204,8 @@ typedef struct ObjTable {
 // A bound method. It contains a method with an associated target.
 typedef struct ObjBoundMethod {
     Obj base;
-    Value bound;  // The value to which the method is bound
-    Obj* method;  // The actual method
+    Value receiver;  // The receiver to which the method is bound
+    Obj* method;     // The actual method
 } ObjBoundMethod;
 
 // An upvalue is a variable captured from an outer scope by a closure.
@@ -225,6 +231,42 @@ typedef struct ObjClosure {
     uint8_t upvalueCount;    // The number of Upvalues the function closes over
     ObjUpvalue* upvalues[];  // the actual Upvalues
 } ObjClosure;
+
+typedef struct {
+    int type;
+    uint8_t* address;
+    size_t spOffset;
+} SavedHandler;
+
+typedef struct {
+    uint8_t* ip;
+    size_t stackTop;
+    uint8_t handlerCount;
+    SavedHandler handlers[MAX_HANDLERS];
+} SupsendedFrame;
+
+// A generator is a special iterator-like object that has the ability 
+// to suspend its execution via a `yield` expression. Each time it is 
+// called, execution resumes from the last evaluated yield or, in case
+// it is the first time calling it, from the start of the function. On 
+// resume, the yield expression evaluates to the Value passed in by the
+// caller, making it possible for generators to emulate (stackless)
+// coroutines. All the state needed to support suspension and resume is 
+// stored here (see `SuspendedFrame` and `savedStack`)
+typedef struct ObjGenerator {
+    Obj base;
+    enum {
+        GEN_STARTED,
+        GEN_RUNNING,
+        GEN_SUSPENDED,
+        GEN_DONE,
+    } state;
+    ObjClosure* closure;
+    Value lastYield;
+    SupsendedFrame frame; // Saved generator frame
+    size_t stackSize;     // The size of the generator stack
+    Value savedStack[];   // The saved stack of the generator function
+} ObjGenerator;
 
 typedef struct {
     int line;
@@ -259,6 +301,7 @@ typedef struct ObjUserdata {
 // bookkeping information needed by the GC (see struct Obj)
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
 ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
+ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
 ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name);
@@ -314,4 +357,4 @@ JStarBuffer jsrBufferWrap(struct JStarVM* vm, const void* data, size_t len);
 // Prints an Obj in a human readable form
 void printObj(Obj* o);
 
-#endif // OBJECT_H
+#endif  // OBJECT_H

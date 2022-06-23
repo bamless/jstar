@@ -176,6 +176,7 @@ void initCoreModule(JStarVM* vm) {
         vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
         vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
         vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
+        vm->genClass = AS_CLASS(getDefinedName(vm, core, "Generator"));
         vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
         vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
         vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
@@ -196,6 +197,8 @@ void initCoreModule(JStarVM* vm) {
         // Patch up the class field of any object that was allocated
         // before the creation of its corresponding class object
         for(Obj* o = vm->objects; o != NULL; o = o->next) {
+            if(o->type == OBJ_UPVALUE) continue;
+            
             if(o->type == OBJ_STRING) {
                 o->cls = vm->strClass;
             } else if(o->type == OBJ_LIST) {
@@ -376,6 +379,29 @@ JSR_NATIVE(jsr_Function_getName) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
     Prototype* prototype = getPrototype(fn);
     push(vm, OBJ_VAL(prototype->name));
+    return true;
+}
+// end
+
+// class Generator
+JSR_NATIVE(jsr_Generator_isDone) {
+    ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
+    push(vm, BOOL_VAL(gen->state == GEN_DONE));
+    return true;
+}
+
+JSR_NATIVE(jsr_Generator_string) {
+    ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
+    JStarBuffer str;
+    jsrBufferInit(vm, &str);
+    jsrBufferAppendf(&str, "<generator@%p>", (void*)gen);
+    jsrBufferPush(&str);
+    return true;
+}
+
+JSR_NATIVE(jsr_Generator_next) {
+    ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
+    push(vm, gen->lastYield);
     return true;
 }
 // end
