@@ -1282,21 +1282,25 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     jsrBufferFree(&nameBuf);
 }
 
-static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
-    JStarStmt* except = vecGet(excepts, n);
+static void compileExcepts(Compiler* c, Vector* excepts, size_t curr) {
+    JStarStmt* except = vecGet(excepts, curr);
 
+    // Retrieve the exception by using its phny variable name
     JStarIdentifier exception = createIdentifier(".exception");
     compileVariable(c, &exception, false, except->line);
 
+    // Test the exception's class
     compileExpr(c, except->as.excStmt.cls);
     emitOpcode(c, OP_IS, 0);
 
     size_t falseJmp = emitOpcode(c, OP_JUMPF, 0);
     emitShort(c, 0, 0);
 
+    // Compile the handler code
     enterScope(c);
     adjustStackUsage(c, 1);
 
+    // Retrieve the exception again, this time binding it to a local
     compileVariable(c, &exception, false, except->line);
     Variable excVar = declareVar(c, &except->as.excStmt.var, false, except->line);
     defineVar(c, &excVar, except->line);
@@ -1314,15 +1318,16 @@ static void compileExcepts(Compiler* c, Vector* excepts, size_t n) {
     exitScope(c);
 
     size_t exitJmp = 0;
-    if(n < vecSize(excepts) - 1) {
+    if(curr < vecSize(excepts) - 1) {
         exitJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), except->line);
 
-    if(n < vecSize(excepts) - 1) {
-        compileExcepts(c, excepts, n + 1);
+    // Compile the next handler
+    if(curr < vecSize(excepts) - 1) {
+        compileExcepts(c, excepts, curr + 1);
         setJumpTo(c, exitJmp, getCurrentAddr(c), except->line);
     }
 }
@@ -1335,15 +1340,15 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
     TryExcept tryBlock;
     enterTryBlock(c, &tryBlock, numHandlers, s->line);
 
-    size_t ensSetup = 0, excSetup = 0;
+    size_t ensureSetup = 0, exceptSetup = 0;
 
     if(hasEnsure) {
-        ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
+        ensureSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
         emitShort(c, 0, 0);
     }
 
     if(hasExcepts) {
-        excSetup = emitOpcode(c, OP_SETUP_EXCEPT, s->line);
+        exceptSetup = emitOpcode(c, OP_SETUP_EXCEPT, s->line);
         emitShort(c, 0, 0);
     }
 
@@ -1363,19 +1368,22 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
 
     enterScope(c);
 
+    // Phony variable for the exception
     JStarIdentifier exc = createIdentifier(".exception");
     Variable excVar = declareVar(c, &exc, false, 0);
     defineVar(c, &excVar, 0);
 
+    // Phony variable for the unwing cause enum
     JStarIdentifier cause = createIdentifier(".cause");
     Variable causeVar = declareVar(c, &cause, false, 0);
     defineVar(c, &causeVar, 0);
 
+    // Compile excepts (if any)
     if(hasExcepts) {
         size_t excJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
-        setJumpTo(c, excSetup, getCurrentAddr(c), s->line);
+        setJumpTo(c, exceptSetup, getCurrentAddr(c), s->line);
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
@@ -1388,8 +1396,9 @@ static void compileTryExcept(Compiler* c, JStarStmt* s) {
         setJumpTo(c, excJmp, getCurrentAddr(c), 0);
     }
 
+    // Compile ensure block (if any)
     if(hasEnsure) {
-        setJumpTo(c, ensSetup, getCurrentAddr(c), s->line);
+        setJumpTo(c, ensureSetup, getCurrentAddr(c), s->line);
         compileStatement(c, s->as.tryStmt.ensure);
         emitOpcode(c, OP_END_HANDLER, 0);
         exitScope(c);
@@ -1493,7 +1502,7 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 
     discardScopes(c, c->loops->depth);
 
-    // Emit place-holder instruction that will be patched at the end of loop compilation,
+    // Emit place-holder instruction that will be patched at the end of loop compilation
     // when we know the offset to emit for a break or continue jump
     emitOpcode(c, OP_END, s->line);
     emitByte(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->line);
