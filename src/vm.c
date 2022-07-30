@@ -220,7 +220,7 @@ static void restoreHandler(JStarVM* vm, Frame* f, const Handler* h, UnwindCause 
     f->ip = h->address;
     vm->sp = h->savedSp;
     closeUpvalues(vm, vm->sp);
-    // The exception (or result) and unwinding cause must be on top of the stack
+    // The exception/result and unwinding cause must be on top of the stack
     push(vm, val);
     push(vm, NUM_VAL(cause));
 }
