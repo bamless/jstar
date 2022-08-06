@@ -1,0 +1,20 @@
+fun decorator(number)
+	return fun(fn)
+		return fun(...)
+			print(##number + " calling " + fn.getName() + "...")
+			return fn(args)...
+		end
+	end
+end
+
+@decorator("CLASS")
+class Test
+	@decorator("METHOD")
+	fun test()
+		print("Test.test() called")
+	end
+end
+
+var t = Test()
+// print(t)
+// t.test()

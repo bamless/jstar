@@ -1617,6 +1617,7 @@ op_return:
         DISPATCH();
     }
     
+    // TODO: rework super with upvalue
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
         ObjString* methodName = GET_STRING();

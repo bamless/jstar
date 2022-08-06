@@ -36,7 +36,7 @@
 
 // String constants
 #define THIS_STR "this"
-#define ANON_STR "anon:"
+#define ANON_FMT "anonymous[line:%d]"
 
 static const int opcodeStackUsage[] = {
   #define OPCODE(opcode, args, stack) stack,
@@ -698,8 +698,8 @@ static void compileFunction(Compiler* c, JStarStmt* s);
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(!name) {
-        char anonymousName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
-        sprintf(anonymousName, ANON_STR "%d", func->line);
+        char anonymousName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) + 1];
+        sprintf(anonymousName, ANON_FMT, func->line);
         func->as.decl.as.fun.id = createIdentifier(anonymousName);
         compileFunction(c, func);
     } else {
@@ -1051,6 +1051,8 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
 // -----------------------------------------------------------------------------
 // STATEMENT COMPILE
 // -----------------------------------------------------------------------------
+
+// Control flow statements
 
 static void compileStatement(Compiler* c, JStarStmt* s);
 
@@ -1509,6 +1511,8 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
     emitByte(c, 0, s->line);
 }
 
+// Declarations
+
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
     size_t defaults = vecSize(&node->as.decl.as.fun.defArgs);
     size_t arity = vecSize(&node->as.decl.as.fun.formalArgs);
@@ -1598,6 +1602,41 @@ static void compileFunction(Compiler* c, JStarStmt* node) {
     endCompiler(&funCompiler);
 }
 
+static void compileNative(Compiler* c, JStarStmt* node) {
+    JStarIdentifier* name = &node->as.decl.as.native.id;
+    size_t defCount = vecSize(&node->as.decl.as.native.defArgs);
+    size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
+    bool vararg = node->as.decl.as.native.isVararg;
+
+    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
+    push(c->vm, OBJ_VAL(native));
+
+    addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
+    native->proto.name = copyString(c->vm, name->name, name->length);
+
+    emitOpcode(c, OP_GET_CONST, node->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
+
+    emitOpcode(c, OP_NATIVE, node->line);
+    emitShort(c, identifierConst(c, name, node->line), node->line);
+
+    pop(c->vm);
+}
+
+static void compileDecorators(Compiler* c, Vector* decorators) {
+    vecForeach(JStarExpr** e, *decorators) {
+        JStarExpr* decorator = *e;
+        compileExpr(c, decorator);
+    }
+}
+
+static void callDecorators(Compiler* c, Vector* decorators) {
+    vecForeach(JStarExpr** e, *decorators) {
+        JStarExpr* decorator = *e;
+        emitOpcode(c, OP_CALL_1, decorator->line);
+    }
+}
+
 static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIdentifier* methId) {
     size_t length = clsId->length + methId->length + 1;
     ObjString* name = allocateString(c->vm, length);
@@ -1625,7 +1664,11 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     ObjFunction* meth = function(&methodCompiler, c->func->proto.module, name, node);
     exitFunctionScope(&methodCompiler);
 
+    Vector* decorators = &node->as.decl.decorators;
+    
+    compileDecorators(c, decorators);
     emitClosure(c, meth, methodCompiler.upvalues, node->line);
+    callDecorators(c, decorators);
 
     emitOpcode(c, OP_DEF_METHOD, cls->line);
     emitShort(c, identifierConst(c, &node->as.decl.as.fun.id, node->line), cls->line);
@@ -1633,27 +1676,7 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     endCompiler(&methodCompiler);
 }
 
-static void compileNative(Compiler* c, JStarStmt* node) {
-    JStarIdentifier* name = &node->as.decl.as.native.id;
-    size_t defCount = vecSize(&node->as.decl.as.native.defArgs);
-    size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
-    bool vararg = node->as.decl.as.native.isVararg;
-
-    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
-    push(c->vm, OBJ_VAL(native));
-
-    addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
-    native->proto.name = copyString(c->vm, name->name, name->length);
-
-    emitOpcode(c, OP_GET_CONST, node->line);
-    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
-
-    emitOpcode(c, OP_NATIVE, node->line);
-    emitShort(c, identifierConst(c, name, node->line), node->line);
-
-    pop(c->vm);
-}
-
+// TODO: Need to rework how native methods are bound to a class in order to play nicely with decorators
 static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     size_t defaults = vecSize(&node->as.decl.as.native.defArgs);
     size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
@@ -1692,16 +1715,27 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
+    
     vecForeach(JStarIdentifier** it, s->as.decl.as.var.ids) {
         Variable var = declareVar(c, *it, s->as.decl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;
         vars[varsCount++] = var;
     }
 
+    Vector* decorators = &s->as.decl.decorators;
+
+    if(varsCount != 1 && vecSize(decorators)) {
+        JStarExpr* decorator = vecGet(decorators, 0);
+        error(c, decorator->line, "Unpacking declaration cannot be decorated");
+    }
+
+    compileDecorators(c, decorators);
+
     if(s->as.decl.as.var.init != NULL) {
         JStarExpr* init = s->as.decl.as.var.init;
         bool isUnpack = s->as.decl.as.var.isUnpack;
 
+        // Optimize constant unpacks by removing tuple allocation
         if(isUnpack && IS_CONST_UNPACK(init->type)) {
             JStarExpr* exprs = getExpressions(init);
             compileConstUnpackLst(c, exprs, varsCount, &s->as.decl.as.var.ids);
@@ -1720,6 +1754,8 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
         }
     }
 
+    callDecorators(c, decorators);
+
     // define in reverse order in order to assign correct
     // values to variables in case of a const unpack
     for(int i = varsCount - 1; i >= 0; i--) {
@@ -1735,6 +1771,9 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
         setInitialized(c, &clsVar);
     }
 
+    Vector* decorators = &s->as.decl.decorators;
+    compileDecorators(c, decorators);
+
     if(s->as.decl.as.cls.sup != NULL) {
         compileExpr(c, s->as.decl.as.cls.sup);
         emitOpcode(c, OP_NEW_SUBCLASS, s->line);
@@ -1744,6 +1783,8 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 
     emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->line), s->line);
     compileMethods(c, s);
+
+    callDecorators(c, decorators);
 
     defineVar(c, &clsVar, s->line);
 }
@@ -1756,16 +1797,29 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
         setInitialized(c, &funVar);
     }
 
+    Vector* decorators = &s->as.decl.decorators;
+
+    compileDecorators(c, decorators);
     compileFunction(c, s);
+    callDecorators(c, decorators);
+
     defineVar(c, &funVar, s->line);
 }
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
     Variable natVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
+
+    
+    Vector* decorators = &s->as.decl.decorators;
+
+    compileDecorators(c, decorators);
     compileNative(c, s);
+    callDecorators(c, decorators);
+
     defineVar(c, &natVar, s->line);
 }
 
+// Compiles a generic statement
 static void compileStatement(Compiler* c, JStarStmt* s) {
     switch(s->type) {
     case JSR_IF:
