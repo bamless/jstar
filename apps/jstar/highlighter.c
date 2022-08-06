@@ -74,6 +74,7 @@ static const ReplxxColor theme[TOK_EOF] = {
 
     // Misc
     [TOK_ARROW] = REPLXX_COLOR_RED,
+    [TOK_AT] = REPLXX_COLOR_RED,
 
     // Error
     [TOK_ERR] = REPLXX_COLOR_RED,
