@@ -243,25 +243,6 @@ static bool isDeclaration(JStarTok* tok) {
     return t == TOK_FUN || t == TOK_NAT || t == TOK_CLASS || t == TOK_VAR;
 }
 
-static void setStaticDecl(JStarStmt* decl) {
-    switch(decl->type) {
-    case JSR_VARDECL:
-        decl->as.varDecl.isStatic = true;
-        break;
-    case JSR_FUNCDECL:
-        decl->as.funcDecl.isStatic = true;
-        break;
-    case JSR_NATIVEDECL:
-        decl->as.nativeDecl.isStatic = true;
-        break;
-    case JSR_CLASSDECL:
-        decl->as.classDecl.isStatic = true;
-        break;
-    default:
-        break;
-    }
-}
-
 static bool isCallExpression(JStarExpr* e) {
     return (e->type == JSR_CALL) || (e->type == JSR_SUPER && e->as.sup.args);
 }
@@ -493,7 +474,7 @@ static JStarStmt* varDecl(Parser* p) {
 }
 
 static JStarStmt* forEach(Parser* p, JStarStmt* var, int line) {
-    if(var->as.varDecl.init != NULL) {
+    if(var->as.decl.as.var.init != NULL) {
         error(p, "Variable declaration in foreach cannot have initializer");
     }
 
@@ -754,7 +735,7 @@ static JStarStmt* parseStaticDecl(Parser* p) {
     }
 
     JStarStmt* decl = parseStmt(p);
-    setStaticDecl(decl);
+    decl->as.decl.isStatic = true;
 
     return decl;
 }

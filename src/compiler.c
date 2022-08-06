@@ -697,13 +697,13 @@ static void compileFunction(Compiler* c, JStarStmt* s);
 
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
-    if(name == NULL) {
+    if(!name) {
         char anonymousName[sizeof(ANON_STR) + STRLEN_FOR_INT(int) + 1];
         sprintf(anonymousName, ANON_STR "%d", func->line);
-        func->as.funcDecl.id = createIdentifier(anonymousName);
+        func->as.decl.as.fun.id = createIdentifier(anonymousName);
         compileFunction(c, func);
     } else {
-        func->as.funcDecl.id = *name;
+        func->as.decl.as.fun.id = *name;
         compileFunction(c, func);
     }
 }
@@ -889,7 +889,7 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
     if(e->as.sup.name.name != NULL) {
         nameConst = identifierConst(c, &e->as.sup.name, e->line);
     } else {
-        nameConst = identifierConst(c, &c->fnNode->as.funcDecl.id, e->line);
+        nameConst = identifierConst(c, &c->fnNode->as.decl.as.fun.id, e->line);
     }
 
     if(e->as.sup.args != NULL) {
@@ -1071,7 +1071,7 @@ static void compileReturnStatement(Compiler* c, JStarStmt* s) {
         emitOpcode(c, OP_NULL, s->line);
     }
 
-    if(c->fnNode->as.funcDecl.isGenerator) {
+    if(c->fnNode->as.decl.as.fun.isGenerator) {
         emitOpcode(c, OP_GENERATOR_CLOSE, s->line);
     }
 
@@ -1191,13 +1191,13 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    vecForeach(JStarIdentifier** id, varDecl->as.varDecl.ids) {
+    vecForeach(JStarIdentifier** id, varDecl->as.decl.as.var.ids) {
         Variable var = declareVar(c, *id, false, s->line);
         defineVar(c, &var, s->line);
     }
 
-    uint8_t numDecls = vecSize(&varDecl->as.varDecl.ids);
-    if(varDecl->as.varDecl.isUnpack) {
+    uint8_t numDecls = vecSize(&varDecl->as.decl.as.var.ids);
+    if(varDecl->as.decl.as.var.isUnpack) {
         emitOpcode(c, OP_UNPACK, s->line);
         emitByte(c, numDecls, s->line);
         adjustStackUsage(c, numDecls);
@@ -1510,9 +1510,9 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
-    size_t defaults = vecSize(&node->as.funcDecl.defArgs);
-    size_t arity = vecSize(&node->as.funcDecl.formalArgs);
-    bool vararg = node->as.funcDecl.isVararg;
+    size_t defaults = vecSize(&node->as.decl.as.fun.defArgs);
+    size_t arity = vecSize(&node->as.decl.as.fun.formalArgs);
+    bool vararg = node->as.decl.as.fun.isVararg;
 
     push(c->vm, OBJ_VAL(name));
     c->func = newFunction(c->vm, m, arity, defaults, vararg);
@@ -1525,7 +1525,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
         addConstant(&c->func->code, NULL_VAL);
     }
 
-    addFunctionDefaults(c, &c->func->proto, &node->as.funcDecl.defArgs);
+    addFunctionDefaults(c, &c->func->proto, &node->as.decl.as.fun.defArgs);
 
     // Add the receiver. 
     // In the case of functions the receiver is the function itself but it 
@@ -1536,29 +1536,29 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     int receiverLocal = addLocal(c, &receiver, node->line);
     localInitialized(c, receiverLocal);
 
-    vecForeach(JStarIdentifier** it, node->as.funcDecl.formalArgs) {
+    vecForeach(JStarIdentifier** it, node->as.decl.as.fun.formalArgs) {
         Variable arg = declareVar(c, *it, false, node->line);
         defineVar(c, &arg, node->line);
     }
 
-    if(node->as.funcDecl.isVararg) {
+    if(node->as.decl.as.fun.isVararg) {
         JStarIdentifier args = createIdentifier("args");
         Variable vararg = declareVar(c, &args, false, node->line);
         defineVar(c, &vararg, node->line);
     }
 
-    if(node->as.funcDecl.isGenerator) {
+    if(node->as.decl.as.fun.isGenerator) {
         emitOpcode(c, OP_GENERATOR, node->line);
     }
 
-    JStarStmt* body = node->as.funcDecl.body;
+    JStarStmt* body = node->as.decl.as.fun.body;
     compileStatements(c, &body->as.blockStmt.stmts);
 
     switch(c->type) {
     case TYPE_FUNC:
     case TYPE_METHOD:
         emitOpcode(c, OP_NULL, 0);
-        if(node->as.funcDecl.isGenerator) {
+        if(node->as.decl.as.fun.isGenerator) {
             emitOpcode(c, OP_GENERATOR_CLOSE, 0);
         }
         break;
@@ -1586,7 +1586,7 @@ static void compileFunction(Compiler* c, JStarStmt* node) {
     Compiler funCompiler;
     initCompiler(&funCompiler, c->vm, c->file, c, TYPE_FUNC, node);
 
-    JStarIdentifier* id = &node->as.funcDecl.id;
+    JStarIdentifier* id = &node->as.decl.as.fun.id;
     ObjString* name = copyString(c->vm, id->name, id->length);
 
     enterFunctionScope(&funCompiler);
@@ -1610,15 +1610,15 @@ static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIde
 static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     FuncType type = TYPE_METHOD;
     JStarIdentifier ctor = createIdentifier(CTOR_STR);
-    if(jsrIdentifierEq(&node->as.funcDecl.id, &ctor)) {
+    if(jsrIdentifierEq(&node->as.decl.as.fun.id, &ctor)) {
         type = TYPE_CTOR;
     }
 
     Compiler methodCompiler;
     initCompiler(&methodCompiler, c->vm, c->file, c, type, node);
 
-    JStarIdentifier* id = &node->as.funcDecl.id;
-    JStarIdentifier* clsId = &cls->as.classDecl.id;
+    JStarIdentifier* id = &node->as.decl.as.fun.id;
+    JStarIdentifier* clsId = &cls->as.decl.as.cls.id;
     ObjString* name = createMethodName(c, clsId, id);
 
     enterFunctionScope(&methodCompiler);
@@ -1628,21 +1628,21 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     emitClosure(c, meth, methodCompiler.upvalues, node->line);
 
     emitOpcode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &node->as.funcDecl.id, node->line), cls->line);
+    emitShort(c, identifierConst(c, &node->as.decl.as.fun.id, node->line), cls->line);
 
     endCompiler(&methodCompiler);
 }
 
 static void compileNative(Compiler* c, JStarStmt* node) {
-    JStarIdentifier* name = &node->as.nativeDecl.id;
-    size_t defCount = vecSize(&node->as.nativeDecl.defArgs);
-    size_t arity = vecSize(&node->as.nativeDecl.formalArgs);
-    bool vararg = node->as.nativeDecl.isVararg;
+    JStarIdentifier* name = &node->as.decl.as.native.id;
+    size_t defCount = vecSize(&node->as.decl.as.native.defArgs);
+    size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
+    bool vararg = node->as.decl.as.native.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->proto, &node->as.nativeDecl.defArgs);
+    addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
     native->proto.name = copyString(c->vm, name->name, name->length);
 
     emitOpcode(c, OP_GET_CONST, node->line);
@@ -1655,25 +1655,25 @@ static void compileNative(Compiler* c, JStarStmt* node) {
 }
 
 static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
-    size_t defaults = vecSize(&node->as.nativeDecl.defArgs);
-    size_t arity = vecSize(&node->as.nativeDecl.formalArgs);
-    bool vararg = node->as.nativeDecl.isVararg;
+    size_t defaults = vecSize(&node->as.decl.as.native.defArgs);
+    size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
+    bool vararg = node->as.decl.as.native.isVararg;
 
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defaults, vararg);
     push(c->vm, OBJ_VAL(native));
 
-    addFunctionDefaults(c, &native->proto, &node->as.nativeDecl.defArgs);
-    native->proto.name = createMethodName(c, &cls->as.classDecl.id, &node->as.funcDecl.id);
+    addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
+    native->proto.name = createMethodName(c, &cls->as.decl.as.cls.id, &node->as.decl.as.fun.id);
 
     emitOpcode(c, OP_NAT_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &node->as.nativeDecl.id, node->line), cls->line);
+    emitShort(c, identifierConst(c, &node->as.decl.as.native.id, node->line), cls->line);
     emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
 
     pop(c->vm);
 }
 
 static void compileMethods(Compiler* c, JStarStmt* cls) {
-    vecForeach(JStarStmt** it, cls->as.classDecl.methods) {
+    vecForeach(JStarStmt** it, cls->as.decl.as.cls.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
@@ -1692,21 +1692,21 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
-    vecForeach(JStarIdentifier** it, s->as.varDecl.ids) {
-        Variable var = declareVar(c, *it, s->as.varDecl.isStatic, s->line);
+    vecForeach(JStarIdentifier** it, s->as.decl.as.var.ids) {
+        Variable var = declareVar(c, *it, s->as.decl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;
         vars[varsCount++] = var;
     }
 
-    if(s->as.varDecl.init != NULL) {
-        JStarExpr* init = s->as.varDecl.init;
-        bool isUnpack = s->as.varDecl.isUnpack;
+    if(s->as.decl.as.var.init != NULL) {
+        JStarExpr* init = s->as.decl.as.var.init;
+        bool isUnpack = s->as.decl.as.var.isUnpack;
 
         if(isUnpack && IS_CONST_UNPACK(init->type)) {
             JStarExpr* exprs = getExpressions(init);
-            compileConstUnpackLst(c, exprs, varsCount, &s->as.varDecl.ids);
+            compileConstUnpackLst(c, exprs, varsCount, &s->as.decl.as.var.ids);
         } else {
-            compileRval(c, init, vecGet(&s->as.varDecl.ids, 0));
+            compileRval(c, init, vecGet(&s->as.decl.as.var.ids, 0));
             if(isUnpack) {
                 emitOpcode(c, OP_UNPACK, s->line);
                 emitByte(c, (uint8_t)varsCount, s->line);
@@ -1728,28 +1728,28 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
 }
 
 static void compileClassDecl(Compiler* c, JStarStmt* s) {
-    Variable clsVar = declareVar(c, &s->as.classDecl.id, s->as.classDecl.isStatic, s->line);
+    Variable clsVar = declareVar(c, &s->as.decl.as.cls.id, s->as.decl.isStatic, s->line);
 
     // If local initialize the variable in order to permit the class to reference itself
     if(clsVar.scope == VAR_LOCAL) {
         setInitialized(c, &clsVar);
     }
 
-    if(s->as.classDecl.sup != NULL) {
-        compileExpr(c, s->as.classDecl.sup);
+    if(s->as.decl.as.cls.sup != NULL) {
+        compileExpr(c, s->as.decl.as.cls.sup);
         emitOpcode(c, OP_NEW_SUBCLASS, s->line);
     } else {
         emitOpcode(c, OP_NEW_CLASS, s->line);
     }
 
-    emitShort(c, identifierConst(c, &s->as.classDecl.id, s->line), s->line);
+    emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->line), s->line);
     compileMethods(c, s);
 
     defineVar(c, &clsVar, s->line);
 }
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
-    Variable funVar = declareVar(c, &s->as.funcDecl.id, s->as.funcDecl.isStatic, s->line);
+    Variable funVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
 
     // If local initialize the variable in order to permit the function to reference itself
     if(funVar.scope == VAR_LOCAL) {
@@ -1761,7 +1761,7 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
 }
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
-    Variable natVar = declareVar(c, &s->as.funcDecl.id, s->as.nativeDecl.isStatic, s->line);
+    Variable natVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
     compileNative(c, s);
     defineVar(c, &natVar, s->line);
 }

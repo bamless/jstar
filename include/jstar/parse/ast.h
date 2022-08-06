@@ -137,6 +137,35 @@ struct JStarStmt {
     int line;
     JStarStmtType type;
     union {
+        // Declarations
+        struct {
+            bool isStatic;
+            union {
+                struct {
+                    bool isUnpack;
+                    Vector ids;
+                    JStarExpr* init;
+                } var;
+                struct {
+                    JStarIdentifier id;
+                    Vector formalArgs, defArgs;
+                    bool isVararg;
+                    bool isGenerator;
+                    JStarStmt* body;
+                } fun;
+                struct {
+                    JStarIdentifier id;
+                    Vector formalArgs, defArgs;
+                    bool isVararg;
+                } native;
+                struct {
+                    JStarIdentifier id;
+                    JStarExpr* sup;
+                    Vector methods;
+                } cls;
+            } as;
+        } decl;
+        // Control flow statements
         struct {
             JStarExpr* cond;
             JStarStmt *thenStmt, *elseStmt;
@@ -161,32 +190,6 @@ struct JStarStmt {
         struct {
             Vector stmts;
         } blockStmt;
-        struct {
-            bool isUnpack;
-            bool isStatic;
-            Vector ids;
-            JStarExpr* init;
-        } varDecl;
-        struct {
-            JStarIdentifier id;
-            Vector formalArgs, defArgs;
-            bool isVararg;
-            bool isStatic;
-            bool isGenerator;
-            JStarStmt* body;
-        } funcDecl;
-        struct {
-            JStarIdentifier id;
-            Vector formalArgs, defArgs;
-            bool isVararg;
-            bool isStatic;
-        } nativeDecl;
-        struct {
-            bool isStatic;
-            JStarIdentifier id;
-            JStarExpr* sup;
-            Vector methods;
-        } classDecl;
         struct {
             Vector modules;
             JStarIdentifier as;
