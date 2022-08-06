@@ -225,7 +225,7 @@ JSTAR_API JStarIdentifier* jsrNewIdentifier(size_t length, const char* name);
 JSTAR_API bool jsrIdentifierEq(JStarIdentifier* id1, JStarIdentifier* id2);
 
 // -----------------------------------------------------------------------------
-// EXPRESSIONS ALLOCATION
+// EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool isVararg,
@@ -255,7 +255,7 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 
 
 // -----------------------------------------------------------------------------
-// STATEMENTS ALLOCATION
+// STATEMENT NODES
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
