@@ -140,6 +140,7 @@ struct JStarStmt {
     union {
         struct {
             bool isStatic;
+            Vector decorators;
             union {
                 struct {
                     bool isUnpack;

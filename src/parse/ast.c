@@ -261,6 +261,7 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
            type == JSR_NATIVEDECL, "Not a declaration");
     JStarStmt* s = newStmt(line, type);
     s->as.decl.isStatic = false;
+    s->as.decl.decorators = vecNew();
     return s;
 }
 
@@ -449,29 +450,41 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_FUNCDECL: {
+        vecForeach(JStarExpr** e, s->as.decl.decorators) {
+            jsrExprFree(*e);
+        }
+        vecFree(&s->as.decl.decorators);
         vecForeach(JStarIdentifier** id, s->as.decl.as.fun.formalArgs) {
             free(*id);
         }
+        vecFree(&s->as.decl.as.fun.formalArgs);
         vecForeach(JStarExpr** e, s->as.decl.as.fun.defArgs) {
             jsrExprFree(*e);
         }
-        vecFree(&s->as.decl.as.fun.formalArgs);
         vecFree(&s->as.decl.as.fun.defArgs);
         jsrStmtFree(s->as.decl.as.fun.body);
         break;
     }
     case JSR_NATIVEDECL: {
+        vecForeach(JStarExpr** e, s->as.decl.decorators) {
+            jsrExprFree(*e);
+        }
+        vecFree(&s->as.decl.decorators);
         vecForeach(JStarIdentifier** id, s->as.decl.as.native.formalArgs) {
             free(*id);
         }
+        vecFree(&s->as.decl.as.native.formalArgs);
         vecForeach(JStarExpr** e, s->as.decl.as.native.defArgs) {
             jsrExprFree(*e);
         }
-        vecFree(&s->as.decl.as.native.formalArgs);
         vecFree(&s->as.decl.as.native.defArgs);
         break;
     }
     case JSR_CLASSDECL: {
+        vecForeach(JStarExpr** e, s->as.decl.decorators) {
+            jsrExprFree(*e);
+        }
+        vecFree(&s->as.decl.decorators);
         jsrExprFree(s->as.decl.as.cls.sup);
         vecForeach(JStarStmt** stmt, s->as.decl.as.cls.methods) {
             jsrStmtFree(*stmt);
@@ -480,6 +493,10 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_VARDECL: {
+        vecForeach(JStarExpr** e, s->as.decl.decorators) {
+            jsrExprFree(*e);
+        }
+        vecFree(&s->as.decl.decorators);
         jsrExprFree(s->as.decl.as.var.init);
         vecForeach(JStarIdentifier** id, s->as.decl.as.var.ids) {
             free(*id);

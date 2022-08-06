@@ -286,7 +286,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    vecForeach(JStarExpr **it, lvals->as.list) {
+    vecForeach(JStarExpr * *it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "Left hand side of unpack assignment must be composed of lvalues");
@@ -726,16 +726,41 @@ static JStarStmt* classDecl(Parser* p) {
     return jsrClassDecl(line, &clsName, sup, &methods);
 }
 
-static JStarStmt* parseStaticDecl(Parser* p) {
+static JStarStmt* staticDecl(Parser* p) {
     advance(p);
     skipNewLines(p);
 
     if(!isDeclaration(&p->peek)) {
-        error(p, "Only a declaration can be annotated `static`", p->peek.line);
+        error(p, "Only a declaration can be annotated as `static`", p->peek.line);
+        return NULL;
     }
 
     JStarStmt* decl = parseStmt(p);
     decl->as.decl.isStatic = true;
+
+    return decl;
+}
+
+static JStarStmt* decoratedDecl(Parser* p) {
+    Vector decorators = vecNew();
+    
+    while(match(p, TOK_AT)) {
+        advance(p);
+        vecPush(&decorators, expression(p, false));
+        skipNewLines(p);
+    }
+
+    if(!match(p, TOK_STATIC) && !isDeclaration(&p->peek)) {
+        error(p, "Decorators can only be applied to declarations");
+        vecForeach(JStarExpr** e, decorators) {
+            jsrExprFree(*e);
+        }
+        vecFree(&decorators);
+        return NULL;
+    }
+
+    JStarStmt* decl = parseStmt(p);
+    decl->as.decl.decorators = vecMove(&decorators);
 
     return decl;
 }
@@ -772,7 +797,9 @@ static JStarStmt* parseStmt(Parser* p) {
         return var;
     }
     case TOK_STATIC:
-        return parseStaticDecl(p);
+        return staticDecl(p);
+    case TOK_AT:
+        return decoratedDecl(p);
     case TOK_IF:
         return ifStmt(p);
     case TOK_FOR:
@@ -1199,11 +1226,11 @@ static JStarExpr* yieldExpr(Parser* p) {
 
         JStarTok yield = advance(p);
         JStarExpr* expr = NULL;
-        
+
         if(isExpressionStart(&p->peek)) {
             expr = expression(p, false);
         }
-        
+
         return jsrYieldExpr(yield.line, expr);
     }
     return funcLiteral(p);
