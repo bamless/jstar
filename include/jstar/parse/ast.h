@@ -136,8 +136,8 @@ typedef enum JStarStmtType {
 struct JStarStmt {
     int line;
     JStarStmtType type;
+    // Declarations
     union {
-        // Declarations
         struct {
             bool isStatic;
             union {
