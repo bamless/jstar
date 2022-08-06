@@ -412,6 +412,17 @@ JStarStmt* jsrBreakStmt(int line) {
     return s;
 }
 
+static void declarationFree(JStarStmt* s) {
+    JStarStmtType type = s->type;
+    ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
+           type == JSR_NATIVEDECL, "Not a declaration");
+    
+    vecForeach(JStarExpr** e, s->as.decl.decorators) {
+        jsrExprFree(*e);
+    }
+    vecFree(&s->as.decl.decorators);
+}
+
 void jsrStmtFree(JStarStmt* s) {
     if(s == NULL) return;
 
@@ -450,10 +461,7 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_FUNCDECL: {
-        vecForeach(JStarExpr** e, s->as.decl.decorators) {
-            jsrExprFree(*e);
-        }
-        vecFree(&s->as.decl.decorators);
+        declarationFree(s);
         vecForeach(JStarIdentifier** id, s->as.decl.as.fun.formalArgs) {
             free(*id);
         }
@@ -466,10 +474,7 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_NATIVEDECL: {
-        vecForeach(JStarExpr** e, s->as.decl.decorators) {
-            jsrExprFree(*e);
-        }
-        vecFree(&s->as.decl.decorators);
+        declarationFree(s);
         vecForeach(JStarIdentifier** id, s->as.decl.as.native.formalArgs) {
             free(*id);
         }
@@ -481,10 +486,7 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_CLASSDECL: {
-        vecForeach(JStarExpr** e, s->as.decl.decorators) {
-            jsrExprFree(*e);
-        }
-        vecFree(&s->as.decl.decorators);
+        declarationFree(s);
         jsrExprFree(s->as.decl.as.cls.sup);
         vecForeach(JStarStmt** stmt, s->as.decl.as.cls.methods) {
             jsrStmtFree(*stmt);
@@ -493,10 +495,7 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_VARDECL: {
-        vecForeach(JStarExpr** e, s->as.decl.decorators) {
-            jsrExprFree(*e);
-        }
-        vecFree(&s->as.decl.decorators);
+        declarationFree(s);
         jsrExprFree(s->as.decl.as.var.init);
         vecForeach(JStarIdentifier** id, s->as.decl.as.var.ids) {
             free(*id);
