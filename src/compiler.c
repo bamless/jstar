@@ -1629,11 +1629,9 @@ static void compileNative(Compiler* c, JStarStmt* node) {
     addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
     native->proto.name = copyString(c->vm, name->name, name->length);
 
-    emitOpcode(c, OP_GET_CONST, node->line);
-    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
-
     emitOpcode(c, OP_NATIVE, node->line);
     emitShort(c, identifierConst(c, name, node->line), node->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
 
     pop(c->vm);
 }
@@ -1692,7 +1690,6 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     endCompiler(&methodCompiler);
 }
 
-// TODO: Need to rework how native methods are bound to a class in order to play nicely with decorators
 static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     size_t defaults = vecSize(&node->as.decl.as.native.defArgs);
     size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
@@ -1704,9 +1701,25 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
     native->proto.name = createMethodName(c, &cls->as.decl.as.cls.id, &node->as.decl.as.fun.id);
 
-    emitOpcode(c, OP_NAT_METHOD, cls->line);
+    Vector* decorators = &node->as.decl.decorators;
+
+    emitOpcode(c, OP_NATIVE_METHOD, cls->line);
     emitShort(c, identifierConst(c, &node->as.decl.as.native.id, node->line), cls->line);
-    emitShort(c, createConst(c, OBJ_VAL(native), cls->line), cls->line);
+    emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
+
+    if(vecSize(decorators)) {
+        emitOpcode(c, OP_POP, cls->line);
+
+        compileDecorators(c, decorators);
+        
+        emitOpcode(c, OP_GET_CONST, cls->line);
+        emitShort(c, createConst(c, OBJ_VAL(native), node->line), node->line);
+        
+        callDecorators(c, decorators);
+    }
+
+    emitOpcode(c, OP_DEF_METHOD, cls->line);
+    emitShort(c, identifierConst(c, &node->as.decl.as.native.id, node->line), cls->line);
 
     pop(c->vm);
 }
@@ -1786,7 +1799,6 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
     Variable natVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
-
     
     Vector* decorators = &s->as.decl.decorators;
 

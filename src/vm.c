@@ -1632,29 +1632,31 @@ op_return:
         hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }
-    
-    TARGET(OP_NAT_METHOD): {
+
+    TARGET(OP_NATIVE_METHOD): {
         ObjClass* cls = AS_CLASS(peek(vm));
-        ObjString* methodName = GET_STRING();
+        ObjString* method = GET_STRING();
         ObjNative* native = AS_NATIVE(GET_CONST());
-        native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
-        if(native->fn == NULL) {
-            jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->proto.name->data);
+        native->fn = resolveNative(vm->module, cls->name->data, method->data);
+        if(!native->fn) {
+            jsrRaise(vm, "Exception", "Cannot resolve native method %s.%s.%s().", 
+                     vm->module->name->data, method->data, native->proto.name->data);
             UNWIND_STACK();
         }
-        hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
+        push(vm, OBJ_VAL(native));
         DISPATCH();
     }
 
     TARGET(OP_NATIVE): {
         ObjString* name = GET_STRING();
-        ObjNative* nat  = AS_NATIVE(peek(vm));
-        nat->fn = resolveNative(vm->module, NULL, name->data);
-        if(nat->fn == NULL) {
+        ObjNative* native = AS_NATIVE(GET_CONST());
+        native->fn = resolveNative(vm->module, NULL, name->data);
+        if(!native->fn) {
             jsrRaise(vm, "Exception", "Cannot resolve native function %s.%s.", 
-                     vm->module->name->data, nat->proto.name->data);
+                     vm->module->name->data, native->proto.name->data);
             UNWIND_STACK();
         }
+        push(vm, OBJ_VAL(native));
         DISPATCH();
     }
     
