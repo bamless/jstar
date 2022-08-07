@@ -1755,6 +1755,16 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
     emitOpcode(c, OP_POP, s->line);
 
     exitScope(c);
+
+    Vector* decorators = &s->as.decl.decorators;
+    if(vecSize(decorators)) {
+        compileDecorators(c, decorators);
+        compileVariable(c, &s->as.decl.as.cls.id, false, s->line);
+        callDecorators(c, decorators);
+
+        compileVariable(c, &s->as.decl.as.cls.id, true, s->line);
+        emitOpcode(c, OP_POP, s->line);
+    }
 }
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
