@@ -451,7 +451,7 @@ static void endLoop(Compiler* c) {
     c->loops = c->loops->parent;
 }
 
-static void emitMethodCall(Compiler* c, const char* name, int args) {
+static void methodCall(Compiler* c, const char* name, int args) {
     ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
     JStarIdentifier meth = createIdentifier(name);
     emitOpcode(c, OP_INVOKE_0 + args, 0);
@@ -640,10 +640,10 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
         emitOpcode(c, OP_INVERT, e->line);
         break;
     case TOK_HASH:
-        emitMethodCall(c, "__len__", 0);
+        methodCall(c, "__len__", 0);
         break;
     case TOK_HASH_HASH:
-        emitMethodCall(c, "__string__", 0);
+        methodCall(c, "__string__", 0);
         break;
     default:
         UNREACHABLE();
@@ -829,8 +829,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
     compileAssignExpr(c, &assignment);
 }
 
-static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
-                       JStarExpr* args, bool isUnpack) {
+static uint8_t compileArguments(Compiler* c, JStarExpr* args) {
     vecForeach(JStarExpr** it, args->as.list) {
         compileExpr(c, *it);
     }
@@ -841,14 +840,19 @@ static void finishCall(Compiler* c, Opcode callCode, Opcode callInline, Opcode c
               (int)UINT8_MAX, c->func->proto.name->data);
     }
 
-    if(isUnpack) {
-        emitOpcode(c, callUnpack, args->line);
-        emitByte(c, argsCount, args->line);
+    return argsCount;
+}
+
+static void emitCallOp(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
+                       uint8_t argsCount, bool isUnpackCall, int line) {
+    if(isUnpackCall) {
+        emitOpcode(c, callUnpack, line);
+        emitByte(c, argsCount, line);
     } else if(argsCount <= MAX_INLINE_ARGS) {
-        emitOpcode(c, callInline + argsCount, args->line);
+        emitOpcode(c, callInline + argsCount, line);
     } else {
-        emitOpcode(c, callCode, args->line);
-        emitByte(c, argsCount, args->line);
+        emitOpcode(c, callCode, line);
+        emitByte(c, argsCount, line);
     }
 }
 
@@ -869,7 +873,10 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
         compileExpr(c, callee);
     }
 
-    finishCall(c, callCode, callInline, callUnpack, e->as.call.args, e->as.call.unpackArg);
+    uint8_t argsCount = compileArguments(c, e->as.call.args);
+    bool isUnpack = e->as.call.unpackArg;
+
+    emitCallOp(c, callCode, callInline, callUnpack, argsCount, isUnpack, e->line);
 
     if(isMethod) {
         emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
@@ -877,6 +884,7 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
 }
 
 static void compileSuper(Compiler* c, JStarExpr* e) {
+    // TODO: replace check to support super calls in closure nested in methods
     if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
         error(c, e->line, "Can only use `super` in method call");
         return;
@@ -885,19 +893,26 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_GET_LOCAL, e->line);
     emitByte(c, 0, e->line);
 
-    uint16_t nameConst;
+    uint16_t superMethodName;
     if(e->as.sup.name.name != NULL) {
-        nameConst = identifierConst(c, &e->as.sup.name, e->line);
+        superMethodName = identifierConst(c, &e->as.sup.name, e->line);
     } else {
-        nameConst = identifierConst(c, &c->fnNode->as.decl.as.fun.id, e->line);
+        superMethodName = identifierConst(c, &c->fnNode->as.decl.as.fun.id, e->line);
     }
 
+    JStarIdentifier superId = createIdentifier("super");
+
     if(e->as.sup.args != NULL) {
-        finishCall(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, e->as.sup.args, e->as.sup.unpackArg);
-        emitShort(c, nameConst, e->line);
+        uint8_t argsCount = compileArguments(c, e->as.sup.args);
+        bool isUnpack = e->as.sup.unpackArg;
+
+        compileVariable(c, &superId, false, e->line);
+        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, isUnpack, e->line);
+        emitShort(c, superMethodName, e->line);
     } else {
+        compileVariable(c, &superId, false, e->line);
         emitOpcode(c, OP_SUPER_BIND, e->line);
-        emitShort(c, nameConst, e->line);
+        emitShort(c, superMethodName, e->line);
     }
 }
 
@@ -950,7 +965,7 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
         compileExpr(c, key);
         compileExpr(c, val);
         
-        emitMethodCall(c, "__set__", 2);
+        methodCall(c, "__set__", 2);
         emitOpcode(c, OP_POP, e->line);
     }
 }
@@ -1478,7 +1493,7 @@ static void compileWithStatement(Compiler* c, JStarStmt* s) {
     emitShort(c, 0, 0);
 
     compileVariable(c, &s->as.withStmt.var, false, s->line);
-    emitMethodCall(c, "close", 0);
+    methodCall(c, "close", 0);
     emitOpcode(c, OP_POP, s->line);
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
@@ -1648,6 +1663,7 @@ static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsId, JStarIde
 
 static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     FuncType type = TYPE_METHOD;
+
     JStarIdentifier ctor = createIdentifier(CTOR_STR);
     if(jsrIdentifierEq(&node->as.decl.as.fun.id, &ctor)) {
         type = TYPE_CTOR;
@@ -1712,6 +1728,65 @@ static void compileMethods(Compiler* c, JStarStmt* cls) {
     }
 }
 
+static void compileClassDecl(Compiler* c, JStarStmt* s) {
+    emitOpcode(c, OP_NEW_CLASS, s->line);
+    emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->line), s->line);
+
+    Variable clsVar = declareVar(c, &s->as.decl.as.cls.id, s->as.decl.isStatic, s->line);
+    defineVar(c, &clsVar, s->line);
+
+    enterScope(c);
+
+    JStarIdentifier superId = createIdentifier("super");
+    Variable sup = declareVar(c, &superId, false, s->line);
+    defineVar(c, &sup, s->line);
+
+    if(!s->as.decl.as.cls.sup) {
+        emitOpcode(c, OP_GET_OBJECT, s->line);
+    } else {
+        compileExpr(c, s->as.decl.as.cls.sup);
+    }
+
+    compileVariable(c, &s->as.decl.as.cls.id, false, s->line);
+    emitOpcode(c, OP_SUBCLASS, s->line);
+
+    compileMethods(c, s);
+
+    emitOpcode(c, OP_POP, s->line);
+
+    exitScope(c);
+}
+
+static void compileFunDecl(Compiler* c, JStarStmt* s) {
+    Variable funVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
+
+    // If local initialize the variable in order to permit the function to reference itself
+    if(funVar.scope == VAR_LOCAL) {
+        setInitialized(c, &funVar);
+    }
+
+    Vector* decorators = &s->as.decl.decorators;
+
+    compileDecorators(c, decorators);
+    compileFunction(c, s);
+    callDecorators(c, decorators);
+
+    defineVar(c, &funVar, s->line);
+}
+
+static void compileNativeDecl(Compiler* c, JStarStmt* s) {
+    Variable natVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
+
+    
+    Vector* decorators = &s->as.decl.decorators;
+
+    compileDecorators(c, decorators);
+    compileNative(c, s);
+    callDecorators(c, decorators);
+
+    defineVar(c, &natVar, s->line);
+}
+
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
@@ -1761,62 +1836,6 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
     for(int i = varsCount - 1; i >= 0; i--) {
         defineVar(c, &vars[i], s->line);
     }
-}
-
-static void compileClassDecl(Compiler* c, JStarStmt* s) {
-    Variable clsVar = declareVar(c, &s->as.decl.as.cls.id, s->as.decl.isStatic, s->line);
-
-    // If local initialize the variable in order to permit the class to reference itself
-    if(clsVar.scope == VAR_LOCAL) {
-        setInitialized(c, &clsVar);
-    }
-
-    Vector* decorators = &s->as.decl.decorators;
-    compileDecorators(c, decorators);
-
-    if(s->as.decl.as.cls.sup != NULL) {
-        compileExpr(c, s->as.decl.as.cls.sup);
-        emitOpcode(c, OP_NEW_SUBCLASS, s->line);
-    } else {
-        emitOpcode(c, OP_NEW_CLASS, s->line);
-    }
-
-    emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->line), s->line);
-    compileMethods(c, s);
-
-    callDecorators(c, decorators);
-
-    defineVar(c, &clsVar, s->line);
-}
-
-static void compileFunDecl(Compiler* c, JStarStmt* s) {
-    Variable funVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
-
-    // If local initialize the variable in order to permit the function to reference itself
-    if(funVar.scope == VAR_LOCAL) {
-        setInitialized(c, &funVar);
-    }
-
-    Vector* decorators = &s->as.decl.decorators;
-
-    compileDecorators(c, decorators);
-    compileFunction(c, s);
-    callDecorators(c, decorators);
-
-    defineVar(c, &funVar, s->line);
-}
-
-static void compileNativeDecl(Compiler* c, JStarStmt* s) {
-    Variable natVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
-
-    
-    Vector* decorators = &s->as.decl.decorators;
-
-    compileDecorators(c, decorators);
-    compileNative(c, s);
-    callDecorators(c, decorators);
-
-    defineVar(c, &natVar, s->line);
 }
 
 // Compiles a generic statement

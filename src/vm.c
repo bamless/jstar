@@ -171,10 +171,8 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
-    ObjClass* cls = newClass(vm, name, superCls);
-    hashTableMerge(&cls->methods, &superCls->methods);
-    push(vm, OBJ_VAL(cls));
+static void createClass(JStarVM* vm, ObjString* name) {
+    push(vm, OBJ_VAL(newClass(vm, name, NULL)));
 }
 
 static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
@@ -1431,7 +1429,7 @@ invoke:;
 
 super_invoke:;
         ObjString* name = GET_STRING();
-        ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
+        ObjClass* superCls = AS_CLASS(pop(vm));
         SAVE_STATE();
         bool res = invokeMethod(vm, superCls, name, argc);
         LOAD_STATE();
@@ -1441,7 +1439,7 @@ super_invoke:;
 
     TARGET(OP_SUPER_BIND): {
         ObjString* name = GET_STRING();
-        ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
+        ObjClass* superCls = AS_CLASS(pop(vm));
         if(!bindMethod(vm, superCls, name)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
                      name->data);
@@ -1586,22 +1584,32 @@ op_return:
         goto op_return;
     }
 
-    TARGET(OP_NEW_CLASS): {
-        createClass(vm, GET_STRING(), vm->objClass);
+    TARGET(OP_GET_OBJECT): {
+        push(vm, OBJ_VAL(vm->objClass));
         DISPATCH();
     }
 
-    TARGET(OP_NEW_SUBCLASS): {
-        if(!IS_CLASS(peek(vm))) {
+    TARGET(OP_NEW_CLASS): {
+        createClass(vm, GET_STRING());
+        DISPATCH();
+    }
+
+    TARGET(OP_SUBCLASS): {
+        if(!IS_CLASS(peek2(vm))) {
             jsrRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
             UNWIND_STACK();
         }
-        ObjClass* cls = AS_CLASS(pop(vm));
-        if(isBuiltinClass(vm, cls)) {
-            jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
+
+        ObjClass* superCls = AS_CLASS(peek2(vm));
+        if(isBuiltinClass(vm, superCls)) {
+            jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", superCls->name->data);
             UNWIND_STACK();
         }
-        createClass(vm, GET_STRING(), cls);
+
+        ObjClass* cls = AS_CLASS(peek(vm));
+        cls->superCls = superCls;
+        hashTableMerge(&cls->methods, &superCls->methods);
+
         DISPATCH();
     }
 
@@ -1621,8 +1629,6 @@ op_return:
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
         ObjString* methodName = GET_STRING();
-        // Set the super-class as a const in the method
-        AS_CLOSURE(peek(vm))->fn->code.consts.arr[SUPER_SLOT] = OBJ_VAL(cls->superCls);
         hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }

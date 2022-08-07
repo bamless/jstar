@@ -156,7 +156,6 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_GET_FIELD:
     case OP_SET_FIELD:
     case OP_NEW_CLASS:
-    case OP_NEW_SUBCLASS:
     case OP_DEF_METHOD:
     case OP_INVOKE_0:
     case OP_INVOKE_1:
