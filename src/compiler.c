@@ -1770,6 +1770,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
     exitScope(c);
 
     Vector* decorators = &s->as.decl.decorators;
+
     if(vecSize(decorators)) {
         compileDecorators(c, decorators);
         compileVariable(c, &s->as.decl.as.cls.id, false, s->line);
@@ -1820,8 +1821,7 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
     }
 
     Vector* decorators = &s->as.decl.decorators;
-
-    if(varsCount != 1 && vecSize(decorators)) {
+    if(s->as.decl.as.var.isUnpack && vecSize(decorators)) {
         JStarExpr* decorator = vecGet(decorators, 0);
         error(c, decorator->line, "Unpacking declaration cannot be decorated");
     }
