@@ -253,8 +253,8 @@ static JStarIdentifier createIdentifier(const char* name) {
 }
 
 static uint16_t stringConst(Compiler* c, const char* str, size_t length, int line) {
-    ObjString* idStr = copyString(c->vm, str, length);
-    return createConst(c, OBJ_VAL(idStr), line);
+    ObjString* string = copyString(c->vm, str, length);
+    return createConst(c, OBJ_VAL(string), line);
 }
 
 static uint16_t identifierConst(Compiler* c, JStarIdentifier* id, int line) {
@@ -361,7 +361,7 @@ static Variable declareVar(Compiler* c, JStarIdentifier* id, bool forceLocal, in
 }
 
 static void initializeLocal(Compiler* c, int idx) {
-    // Setting the depth fields signals the local as initialized
+    // Setting the depth field signals the local as initialized
     c->locals[idx].depth = c->depth;
 }
 
