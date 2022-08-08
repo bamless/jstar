@@ -1532,17 +1532,17 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 // DECLARATIONS
 // -----------------------------------------------------------------------------
 
-static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
-    size_t defaults = vecSize(&node->as.decl.as.fun.defArgs);
-    size_t arity = vecSize(&node->as.decl.as.fun.formalArgs);
-    bool vararg = node->as.decl.as.fun.isVararg;
+static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
+    size_t defaults = vecSize(&s->as.decl.as.fun.defArgs);
+    size_t arity = vecSize(&s->as.decl.as.fun.formalArgs);
+    bool vararg = s->as.decl.as.fun.isVararg;
 
     push(c->vm, OBJ_VAL(name));
     c->func = newFunction(c->vm, m, arity, defaults, vararg);
     c->func->proto.name = name;
     pop(c->vm);
 
-    addFunctionDefaults(c, &c->func->proto, &node->as.decl.as.fun.defArgs);
+    addFunctionDefaults(c, &c->func->proto, &s->as.decl.as.fun.defArgs);
 
     // Add the receiver. 
     // In the case of functions the receiver is the function itself but it 
@@ -1550,32 +1550,32 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     // In the case of methods the receiver is assigned a name of `this` and
     // points to the class instance on which the method was called.
     JStarIdentifier receiverName = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
-    int receiverLocal = addLocal(c, &receiverName, node->line);
+    int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
 
-    vecForeach(JStarIdentifier** argName, node->as.decl.as.fun.formalArgs) {
-        Variable arg = declareVar(c, *argName, false, node->line);
-        defineVar(c, &arg, node->line);
+    vecForeach(JStarIdentifier** argName, s->as.decl.as.fun.formalArgs) {
+        Variable arg = declareVar(c, *argName, false, s->line);
+        defineVar(c, &arg, s->line);
     }
 
-    if(node->as.decl.as.fun.isVararg) {
+    if(s->as.decl.as.fun.isVararg) {
         JStarIdentifier varArgsName = createIdentifier("args");
-        Variable vararg = declareVar(c, &varArgsName, false, node->line);
-        defineVar(c, &vararg, node->line);
+        Variable vararg = declareVar(c, &varArgsName, false, s->line);
+        defineVar(c, &vararg, s->line);
     }
 
-    if(node->as.decl.as.fun.isGenerator) {
-        emitOpcode(c, OP_GENERATOR, node->line);
+    if(s->as.decl.as.fun.isGenerator) {
+        emitOpcode(c, OP_GENERATOR, s->line);
     }
 
-    JStarStmt* body = node->as.decl.as.fun.body;
+    JStarStmt* body = s->as.decl.as.fun.body;
     compileStatements(c, &body->as.blockStmt.stmts);
 
     switch(c->type) {
     case TYPE_FUNC:
     case TYPE_METHOD:
         emitOpcode(c, OP_NULL, 0);
-        if(node->as.decl.as.fun.isGenerator) {
+        if(s->as.decl.as.fun.isGenerator) {
             emitOpcode(c, OP_GENERATOR_CLOSE, 0);
         }
         break;
@@ -1590,10 +1590,10 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     return c->func;
 }
 
-static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
-    size_t defCount = vecSize(&node->as.decl.as.native.defArgs);
-    size_t arity = vecSize(&node->as.decl.as.native.formalArgs);
-    bool vararg = node->as.decl.as.native.isVararg;
+static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
+    size_t defCount = vecSize(&s->as.decl.as.native.defArgs);
+    size_t arity = vecSize(&s->as.decl.as.native.formalArgs);
+    bool vararg = s->as.decl.as.native.isVararg;
 
     push(c->vm, OBJ_VAL(name));
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
@@ -1601,7 +1601,7 @@ static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* 
     pop(c->vm);
 
     push(c->vm, OBJ_VAL(native));
-    addFunctionDefaults(c, &native->proto, &node->as.decl.as.native.defArgs);
+    addFunctionDefaults(c, &native->proto, &s->as.decl.as.native.defArgs);
     pop(c->vm);
 
     return native;
@@ -1616,30 +1616,30 @@ static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, int lin
     }
 }
 
-static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* node) {
+static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* s) {
     Compiler compiler;
-    initCompiler(&compiler, c->vm, c->file, c, type, node);
+    initCompiler(&compiler, c->vm, c->file, c, type, s);
 
     enterFunctionScope(&compiler);
-    ObjFunction* func = function(&compiler, c->func->proto.module, name, node);
+    ObjFunction* func = function(&compiler, c->func->proto.module, name, s);
     exitFunctionScope(&compiler);
 
-    emitClosure(c, func, compiler.upvalues, node->line);
+    emitClosure(c, func, compiler.upvalues, s->line);
 
     endCompiler(&compiler);
 }
 
-static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, JStarStmt* node) {
+static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, JStarStmt* s) {
     ASSERT(nativeOp == OP_NATIVE || nativeOp == OP_NATIVE_METHOD, "Not a native opcode");
 
-    ObjNative* nat = native(c, c->func->proto.module, name, node);
+    ObjNative* nat = native(c, c->func->proto.module, name, s);
 
-    JStarIdentifier* nativeName = &node->as.decl.as.native.id;
-    uint16_t nativeConst = createConst(c, OBJ_VAL(nat), node->line);
+    JStarIdentifier* nativeName = &s->as.decl.as.native.id;
+    uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->line);
 
-    emitOpcode(c, nativeOp, node->line);
-    emitShort(c, identifierConst(c, nativeName, node->line), node->line);
-    emitShort(c, nativeConst, node->line);
+    emitOpcode(c, nativeOp, s->line);
+    emitShort(c, identifierConst(c, nativeName, s->line), s->line);
+    emitShort(c, nativeConst, s->line);
 
     return nativeConst;
 }
@@ -1667,56 +1667,55 @@ static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsName, JStarI
     return name;
 }
 
-static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
+static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
     FuncType type = TYPE_METHOD;
+    JStarIdentifier* clsName = &cls->as.decl.as.cls.id;
+    JStarIdentifier* methName = &s->as.decl.as.fun.id;
 
     JStarIdentifier ctorName = createIdentifier(CTOR_STR);
-    if(jsrIdentifierEq(&node->as.decl.as.fun.id, &ctorName)) {
+    if(jsrIdentifierEq(methName, &ctorName)) {
         type = TYPE_CTOR;
     }
 
-    Vector* decorators = &node->as.decl.decorators;
-
-    JStarIdentifier* clsName = &cls->as.decl.as.cls.id;
-    JStarIdentifier* methName = &node->as.decl.as.fun.id;
+    Vector* decorators = &s->as.decl.decorators;
 
     compileDecorators(c, decorators);
-    compileFunction(c, type, createMethodName(c, clsName, methName), node);
+    compileFunction(c, type, createMethodName(c, clsName, methName), s);
     callDecorators(c, decorators);
 
     emitOpcode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, methName, node->line), cls->line);
+    emitShort(c, identifierConst(c, methName, s->line), cls->line);
 }
 
-static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
-    ObjString* name = createMethodName(c, &cls->as.decl.as.cls.id, &node->as.decl.as.fun.id);
-    uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, node);
+static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
+    ObjString* name = createMethodName(c, &cls->as.decl.as.cls.id, &s->as.decl.as.fun.id);
+    uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, s);
 
-    Vector* decorators = &node->as.decl.decorators;
+    Vector* decorators = &s->as.decl.decorators;
     if(vecSize(decorators)) {
         emitOpcode(c, OP_POP, cls->line);
 
         compileDecorators(c, decorators);
   
         emitOpcode(c, OP_GET_CONST, cls->line);
-        emitShort(c, nativeConst, node->line);
+        emitShort(c, nativeConst, s->line);
         
         callDecorators(c, decorators);
     }
 
     emitOpcode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &node->as.decl.as.native.id, node->line), cls->line);
+    emitShort(c, identifierConst(c, &s->as.decl.as.native.id, s->line), cls->line);
 }
 
-static void compileMethods(Compiler* c, JStarStmt* cls) {
-    vecForeach(JStarStmt** it, cls->as.decl.as.cls.methods) {
+static void compileMethods(Compiler* c, JStarStmt* s) {
+    vecForeach(JStarStmt** it, s->as.decl.as.cls.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
-            compileMethod(c, cls, method);
+            compileMethod(c, s, method);
             break;
         case JSR_NATIVEDECL:
-            compileNativeMethod(c, cls, method);
+            compileNativeMethod(c, s, method);
             break;
         default:
             UNREACHABLE();
@@ -1765,7 +1764,8 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 }
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
-    Variable funVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
+    JStarIdentifier *funName = &s->as.decl.as.fun.id;
+    Variable funVar = declareVar(c, funName, s->as.decl.isStatic, s->line);
 
     // If local initialize the variable in order to permit the function to reference itself
     if(funVar.scope == VAR_LOCAL) {
@@ -1773,25 +1773,24 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
     }
 
     Vector* decorators = &s->as.decl.decorators;
-    compileDecorators(c, decorators);
-
-    JStarIdentifier *name = &s->as.decl.as.fun.id;
-    compileFunction(c, TYPE_FUNC, copyString(c->vm, name->name, name->length), s);
     
+    compileDecorators(c, decorators);
+    compileFunction(c, TYPE_FUNC, copyString(c->vm, funName->name, funName->length), s);
     callDecorators(c, decorators);
+
     defineVar(c, &funVar, s->line);
 }
 
 static void compileNativeDecl(Compiler* c, JStarStmt* s) {
-    Variable natVar = declareVar(c, &s->as.decl.as.fun.id, s->as.decl.isStatic, s->line);
+    JStarIdentifier* natName = &s->as.decl.as.native.id;
+    Variable natVar = declareVar(c, natName, s->as.decl.isStatic, s->line);
 
     Vector* decorators = &s->as.decl.decorators;
+    
     compileDecorators(c, decorators);
-    
-    JStarIdentifier* name = &s->as.decl.as.native.id;
-    compileNative(c, copyString(c->vm, name->name, name->length), OP_NATIVE, s);
-    
+    compileNative(c, copyString(c->vm, natName->name, natName->length), OP_NATIVE, s);
     callDecorators(c, decorators);
+    
     defineVar(c, &natVar, s->line);
 }
 
