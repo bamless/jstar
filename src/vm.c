@@ -1633,29 +1633,24 @@ op_return:
         DISPATCH();
     }
 
+    TARGET(OP_NATIVE):
     TARGET(OP_NATIVE_METHOD): {
-        ObjClass* cls = AS_CLASS(peek(vm));
         ObjString* method = GET_STRING();
         ObjNative* native = AS_NATIVE(GET_CONST());
-        native->fn = resolveNative(vm->module, cls->name->data, method->data);
-        if(!native->fn) {
-            jsrRaise(vm, "Exception", "Cannot resolve native method %s.%s.%s().", 
-                     vm->module->name->data, method->data, native->proto.name->data);
-            UNWIND_STACK();
-        }
-        push(vm, OBJ_VAL(native));
-        DISPATCH();
-    }
 
-    TARGET(OP_NATIVE): {
-        ObjString* name = GET_STRING();
-        ObjNative* native = AS_NATIVE(GET_CONST());
-        native->fn = resolveNative(vm->module, NULL, name->data);
+        const char* className = NULL;
+        if(op == OP_NATIVE_METHOD) {
+            ObjClass* cls = AS_CLASS(peek(vm));
+            className = cls->name->data;
+        }
+
+        native->fn = resolveNative(vm->module, className, method->data);
         if(!native->fn) {
-            jsrRaise(vm, "Exception", "Cannot resolve native function %s.%s.", 
-                     vm->module->name->data, native->proto.name->data);
+            jsrRaise(vm, "Exception", "Cannot resolve native %s.%s().", vm->module->name->data,
+                     native->proto.name->data);
             UNWIND_STACK();
         }
+
         push(vm, OBJ_VAL(native));
         DISPATCH();
     }
@@ -1708,7 +1703,9 @@ op_return:
                 break;
             case CAUSE_RETURN:
                 // Set generators as completed
-                if(frame->gen) frame->gen->state = GEN_DONE;
+                if(frame->gen) {
+                    frame->gen->state = GEN_DONE;
+                }
                 // Return will execute ensure handlers
                 goto op_return;
             default:
