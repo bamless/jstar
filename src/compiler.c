@@ -886,7 +886,7 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
 }
 
 static void compileSuper(Compiler* c, JStarExpr* e) {
-    // TODO: replace check to support super calls in closure nested in methods
+    // TODO: replace check to support super calls in closures nested in methods
     if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
         error(c, e->line, "Can only use `super` in method call");
         return;
@@ -1528,7 +1528,9 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
     emitByte(c, 0, s->line);
 }
 
-// Declarations
+// -----------------------------------------------------------------------------
+// DECLARATIONS
+// -----------------------------------------------------------------------------
 
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* node) {
     size_t defaults = vecSize(&node->as.decl.as.fun.defArgs);
