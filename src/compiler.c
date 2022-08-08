@@ -1693,7 +1693,6 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* node) {
     uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, node);
 
     Vector* decorators = &node->as.decl.decorators;
-
     if(vecSize(decorators)) {
         emitOpcode(c, OP_POP, cls->line);
 
