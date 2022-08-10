@@ -163,10 +163,6 @@ static bool isInstatiableBuiltin(JStarVM* vm, ObjClass* cls) {
            cls == vm->boolClass || cls == vm->strClass || cls == vm->tableClass;
 }
 
-static bool isBuiltinClass(JStarVM* vm, ObjClass* cls) {
-    return isNonInstantiableBuiltin(vm, cls) || isInstatiableBuiltin(vm, cls);
-}
-
 static bool isInt(double n) {
     return trunc(n) == n;
 }
@@ -993,6 +989,10 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
     Value tmp = vm->sp[a];
     vm->sp[a] = vm->sp[b];
     vm->sp[b] = tmp;
+}
+
+bool isBuiltinClass(JStarVM* vm, ObjClass* cls) {
+    return isNonInstantiableBuiltin(vm, cls) || isInstatiableBuiltin(vm, cls);
 }
 
 // -----------------------------------------------------------------------------

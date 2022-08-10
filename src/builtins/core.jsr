@@ -27,6 +27,7 @@ end
 
 class Function
     native __string__()
+    native bind(receiver)
     native arity()
     native vararg()
     native defaults()

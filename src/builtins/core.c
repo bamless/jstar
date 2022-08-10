@@ -350,6 +350,24 @@ JSR_NATIVE(jsr_Function_string) {
     return true;
 }
 
+JSR_NATIVE(jsr_Function_bind) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+
+    if(fn->type == OBJ_BOUND_METHOD) {
+        ObjBoundMethod* bm = (ObjBoundMethod*)fn;
+        if(isBuiltinClass(vm, getClass(vm, bm->receiver))) {
+            JSR_RAISE(vm, "TypeException", "Cannot bind built-in class bound method %s::%s",
+                      getClass(vm, bm->receiver)->name->data, getPrototype(bm->method)->name->data);
+        }
+        fn = bm->method;
+    }
+    
+    ObjBoundMethod* bound = newBoundMethod(vm, vm->apiStack[1], fn);
+    push(vm, OBJ_VAL(bound));
+
+    return true;
+}
+
 JSR_NATIVE(jsr_Function_arity) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
     Prototype* prototype = getPrototype(fn);
