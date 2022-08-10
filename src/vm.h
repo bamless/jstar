@@ -184,8 +184,6 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
 void reserveStack(JStarVM* vm, size_t needed);
 void swapStackSlots(JStarVM* vm, int a, int b);
 
-bool isBuiltinClass(JStarVM* vm, ObjClass* cls);
-
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);
 

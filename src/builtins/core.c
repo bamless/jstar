@@ -350,12 +350,30 @@ JSR_NATIVE(jsr_Function_string) {
     return true;
 }
 
+static bool checkBuiltin(JStarVM* vm, ObjClass* cls) {
+    return vm->clsClass == cls
+        || vm->objClass == cls
+        || vm->strClass == cls
+        || vm->boolClass == cls
+        || vm->lstClass == cls
+        || vm->numClass == cls
+        || vm->funClass == cls
+        || vm->genClass == cls
+        || vm->modClass == cls
+        || vm->nullClass == cls
+        || vm->stClass == cls
+        || vm->tupClass == cls
+        || vm->excClass == cls
+        || vm->tableClass == cls
+        || vm->udataClass == cls;
+}
+
 JSR_NATIVE(jsr_Function_bind) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
 
     if(fn->type == OBJ_BOUND_METHOD) {
         ObjBoundMethod* bm = (ObjBoundMethod*)fn;
-        if(isBuiltinClass(vm, getClass(vm, bm->receiver))) {
+        if(checkBuiltin(vm, getClass(vm, bm->receiver))) {
             JSR_RAISE(vm, "TypeException", "Cannot bind built-in class bound method %s::%s",
                       getClass(vm, bm->receiver)->name->data, getPrototype(bm->method)->name->data);
         }
