@@ -162,8 +162,8 @@ void freeImports(void) {
 static JStarNativeReg* loadNativeExtension(const char* modulePath) {
     jsrBufferAppendStr(&nativeExtBuilder, modulePath);
 
-    size_t extension = strrchr(modulePath, '.') - modulePath;
-    jsrBufferTrunc(&nativeExtBuilder, extension);
+    size_t ext = strrchr(modulePath, '.') - modulePath;
+    jsrBufferTrunc(&nativeExtBuilder, ext);
     jsrBufferAppendStr(&nativeExtBuilder, DL_SUFFIX);
 
     void* dynlib = dynload(nativeExtBuilder.data);
