@@ -48,6 +48,12 @@ typedef enum JStarResult {
     JSR_VERSION_ERR,      // Incompatible version of compiled code
 } JStarResult;
 
+// Import result struct
+typedef struct JStarImportResult JStarImportResult;
+
+// J* import callback. Called when executing `import`s in the vm
+typedef JStarImportResult (*JStarImportCB)(JStarVM* vm, const char* moduleName);
+
 // J* error function callback. Called when syntax, compilation, dederializtion
 // or syntax errors are encountered.
 typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int line,
@@ -62,7 +68,8 @@ typedef struct JstarConf {
     size_t firstGCCollectionPoint;  // first GC collection point in bytes
     int heapGrowRate;               // The rate at which the heap will grow after a GC pass
     JStarErrorCB errorCallback;     // Error callback
-    void* customData;               // Custom data associated with the VM
+    JStarImportCB importCallback;   // Import callback (can be NULL)
+    void* customData;               // Custom data associated with the VM (can be NULL)
 } JStarConf;
 
 // Retuns a JStarConf struct initialized with default values
@@ -154,9 +161,6 @@ JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
 // Init the sys.args list with a list of arguments (usually main arguments)
 JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
 
-// Add a path to be searched during module imports
-JSTAR_API void jsrAddImportPath(JStarVM* vm, const char* path);
-
 // Raises the axception at 'slot'. If the object at 'slot' is not an exception instance it
 // raises a TypeException instead
 JSTAR_API void jsrRaiseException(JStarVM* vm, int slot);
@@ -196,10 +200,11 @@ JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
 typedef bool (*JStarNative)(JStarVM* vm);
 
 // -----------------------------------------------------------------------------
-// NATIVE REGISTRY
+// MODULE IMPORTS AND NATIVE REGISTRATION
 // -----------------------------------------------------------------------------
 
-// J* native registry, used to associate names to native pointers in native c extension modules.
+// J* native registry, used to associate names to c function 
+// pointers during native resolution after module import.
 typedef struct JStarNativeReg {
     enum { REG_METHOD, REG_FUNCTION, REG_SENTINEL } type;
     union {
@@ -214,6 +219,16 @@ typedef struct JStarNativeReg {
         } function;
     } as;
 } JStarNativeReg;
+
+// Import result struct, contains a resolved module's code and native registry
+struct JStarImportResult {
+    const char* code;         // The resolved module code (source or binary)
+    size_t codeLength;        // Length of the code field
+    const char* path;         // The resolved module path (can be fictitious)
+    JStarNativeReg* reg;      // Resolved native registry for the module (can be NULL)
+    void (*finalize)(void*);  // Finalization callback. Called after a resolved import (can be NULL)
+    void* userData;           // Custom user data passed to the finalization function (can be NULL)   
+};
 
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
@@ -265,6 +280,9 @@ JSTAR_API void jsrPushNative(JStarVM* vm, const char* module, const char* name, 
 
 // Pop a value from the top of the stack
 JSTAR_API void jsrPop(JStarVM* vm);
+
+// Pop n values from the top of the stack
+JSTAR_API void jsrPopN(JStarVM* vm, int n);
 
 // The the top-most used api stack slot
 JSTAR_API int jsrTop(JStarVM* vm);

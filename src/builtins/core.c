@@ -187,7 +187,6 @@ void initCoreModule(JStarVM* vm) {
         core->base.cls = vm->modClass;
 
         // Cache core module global objects in vm
-        vm->importPaths = AS_LIST(getDefinedName(vm, core, "importPaths"));
         vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
     }
 

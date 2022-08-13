@@ -100,6 +100,7 @@
         "lex.h": "c",
         "highlighter.h": "c",
         "replxx.h": "c",
-        "version": "c"
+        "version": "c",
+        "profiler.h": "c"
     },
 }

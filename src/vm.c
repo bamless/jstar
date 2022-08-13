@@ -64,6 +64,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
     JStarVM* vm = calloc(1, sizeof(*vm));
     vm->errorCallback = conf->errorCallback;
+    vm->importCallback = conf->importCallback;
     vm->customData = conf->customData;
 
     // VM program stack
@@ -685,7 +686,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
         return n;
     }
 
-    JStarNativeReg* reg = m->natives.registry;
+    JStarNativeReg* reg = m->registry;
     if(reg != NULL) {
         for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
             if(reg[i].type == REG_METHOD && cls != NULL) {
@@ -1501,7 +1502,12 @@ op_return:
     TARGET(OP_IMPORT): 
     TARGET(OP_IMPORT_FROM): {
         ObjString* name = GET_STRING();
+
+        // The import callback in user code could be reentrant, so
+        // we need to save and restore the state during an import
+        SAVE_STATE();
         ObjModule* module = importModule(vm, name);
+        LOAD_STATE();
 
         if(module == NULL) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);

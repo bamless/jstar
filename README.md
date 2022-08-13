@@ -73,7 +73,7 @@ app. To see all of them alongside a description, simply pass the `-h` option to 
 In addition to being a useful tool to directly use the programming language, the command line 
 interface is also a good starting point to learn how **J\*** can be embedded in a program, as it 
 uses the API to implement all of its functionalities. You can find the code in 
-[**apps/jstar/cli.c**](https://github.com/bamless/jstar/blob/master/apps/jstar/cli.c).
+[**apps/jstar/**](https://github.com/bamless/jstar/blob/master/apps/jstar/).
 
 # The **jstarc** compiler
 Another application, called `jstarc`, is provided alongside the cli and the language runtime. As the

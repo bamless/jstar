@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "dynload.h"
 #include "gc.h"
 #include "util.h"
 #include "vm.h"
@@ -88,8 +87,7 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
 
     mod->name = name;
     mod->path = NULL;
-    mod->natives.dynlib = NULL;
-    mod->natives.registry = NULL;
+    mod->registry = NULL;
     initHashTable(&mod->globals);
 
     // Implicitly import core
@@ -255,7 +253,6 @@ void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_MODULE: {
         ObjModule* m = (ObjModule*)o;
         freeHashTable(&m->globals);
-        if(m->natives.dynlib) dynfree(m->natives.dynlib);
         GC_FREE(vm, ObjModule, m);
         break;
     }
