@@ -28,7 +28,6 @@ set(JSTAR_SOURCES
     compiler.h
     disassemble.c
     disassemble.h
-    dynload.h
     gc.c
     gc.h
     hashtable.c
@@ -95,7 +94,7 @@ endforeach()
 # set extra libraries that we need to link
 set(EXTRA_LIBS)
 if(UNIX)
-    set(EXTRA_LIBS dl m)
+    set(EXTRA_LIBS m)
 endif()
 
 if(JSTAR_COMPUTED_GOTOS)

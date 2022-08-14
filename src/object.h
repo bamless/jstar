@@ -121,19 +121,12 @@ struct ObjString {
     char* data;     // The actual data of the string (NUL terminated)
 };
 
-// Native C extension. It contains the handle to the dynamic library and resolved
-// symbol to a native registry.
-typedef struct {
-    void* dynlib;
-    JStarNativeReg* registry;
-} NativeExt;
-
 typedef struct ObjModule {
     Obj base;
-    ObjString* name;    // Name of the module
-    ObjString* path;    // The path to the module file
-    HashTable globals;  // HashTable containing the global variables of the module
-    NativeExt natives;  // Natives registered in this module
+    ObjString* name;           // Name of the module
+    ObjString* path;           // The path to the module file
+    HashTable globals;         // HashTable containing the global variables of the module
+    JStarNativeReg* registry;  // Natives registered in this module
 } ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)

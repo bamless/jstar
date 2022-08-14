@@ -89,9 +89,6 @@ typedef struct Frame {
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
 struct JStarVM {
-    // Paths searched for import
-    ObjList* importPaths;
-
     // Built in classes
     ObjClass* clsClass;
     ObjClass* objClass;
@@ -149,6 +146,9 @@ struct JStarVM {
 
     // Callback function to report errors
     JStarErrorCB errorCallback;
+
+    // Callback used to resolve `import`s
+    JStarImportCB importCallback;
 
     // If set, the VM will break the eval loop as soon as possible.
     // Can be set asynchronously by a signal handler

@@ -1,5 +1,5 @@
 # Executable
-add_executable(jstarc jstarc.c)
+add_executable(jstarc main.c)
 target_link_libraries(jstarc PRIVATE jstar argparse cwalk)
 target_include_directories(jstarc PRIVATE ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/profile)
 if(WIN32)

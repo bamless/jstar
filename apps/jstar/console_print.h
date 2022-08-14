@@ -1,5 +1,5 @@
-#ifndef CONSOLE_PRINT_H
-#define CONSOLE_PRINT_H
+#ifndef PRINT_H
+#define PRINT_H
 
 #include <replxx.h>
 #include <stdarg.h>

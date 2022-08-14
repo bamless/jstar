@@ -1,5 +1,5 @@
-#ifndef HIGHLIGHTING_H
-#define HIGHLIGHTING_H
+#ifndef HIGHLIGHTER_H
+#define HIGHLIGHTER_H
 
 #include <replxx.h>
 
