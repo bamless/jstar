@@ -233,7 +233,7 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
         char* data;
         size_t length;
 
-        // Try loading package (__package__ file inside a directory)
+        // Try loading a package (__package__ file inside a directory)
         pathJoinStr(&import, PACKAGE_FILE);
 
         // Try binary package
