@@ -11,5 +11,5 @@ target_include_directories(common
 
 # Enable link-time optimization if supported
 if(LTO)
-    set_target_properties(jstarc PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(common PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
