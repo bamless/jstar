@@ -9,7 +9,7 @@
 
 #if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
     #include <direct.h>
-    #define getcwd        _getcwd
+    #define getcwd _getcwd
 #else
     #include <unistd.h>
 #endif
