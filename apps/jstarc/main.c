@@ -165,13 +165,12 @@ static bool disassembleFile(const Path* path) {
 // It generates the the full file path and an output path using the input root directory,
 // output root directory, the current position in the directory tree and a file name.
 static Path makeOutputPath(const Path* in, const Path* out, const Path* curr, const char* fileName) {
-    size_t commonPath = pathIntersectOffset(in, curr);
-
     Path outPath = pathCopy(out);
+
+    size_t commonPath = pathIntersectOffset(in, curr);
     if(commonPath) {
         pathJoinStr(&outPath, curr->data + commonPath);
     }
-
     pathJoinStr(&outPath, fileName);
     pathChangeExtension(&outPath, JSC_EXT);
 
