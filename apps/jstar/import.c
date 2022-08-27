@@ -250,7 +250,7 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
             return createImportResult(data, length, &import);
         }
 
-        // If no package is found, try to load module
+        // If no package is found, try to load a module
         pathTruncate(&import, moduleEnd);
 
         // Try binary module
