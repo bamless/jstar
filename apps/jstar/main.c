@@ -1,5 +1,4 @@
 #include <argparse.h>
-#include <cwalk.h>
 #include <errno.h>
 #include <replxx.h>
 #include <signal.h>
