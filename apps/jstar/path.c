@@ -35,8 +35,11 @@ void pathFree(Path* p) {
 }
 
 static void ensureCapacity(Path* p, size_t cap) {
+    if(!p->capacity) {
+        p->capacity = INIT_CAPACITY;
+    }
     while(p->capacity < cap) {
-        p->capacity = p->capacity ? p->capacity * 2 : INIT_CAPACITY;
+        p->capacity *= 2;
     }
     p->data = realloc(p->data, p->capacity);
 }
