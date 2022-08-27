@@ -110,7 +110,6 @@ void initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
 void freeImports(void) {
     pathFree(&import);
     pathFree(&nativeExt);
-
     vecForeach(void** dynlib, sharedLibs) {
         dynfree(*dynlib);
     }
