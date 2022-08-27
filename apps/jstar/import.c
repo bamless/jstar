@@ -44,7 +44,7 @@ static Path nativeExt;
 // Vector that keeps track of loaded shared libraries. Used during shutdown to free resources.
 static Vector sharedLibs;
 
-// Init the J* `importPaths` list by appending the script directory (or the current working
+// Init the `importPaths` list by appending the script directory (or the current working
 // directory if no script was provided) and all the paths present in the JSTARPATH env variable.
 // All paths are converted to absolute ones.
 static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
