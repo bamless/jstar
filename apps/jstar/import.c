@@ -116,6 +116,7 @@ void freeImports(void) {
     vecFree(&sharedLibs);
 }
 
+// Loads a native extension module and returns its `native registry` to J*
 static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
     pathAppend(&nativeExt, modulePath->data, modulePath->size);
     pathChangeExtension(&nativeExt, DL_SUFFIX);
@@ -137,6 +138,7 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
     return (*registry)();
 }
 
+// Reads a whole file into memory and returns its content and length
 static char* readFile(const Path* p, size_t* length) {
     FILE* f = fopen(p->data, "r");
     if(!f) {
@@ -178,6 +180,8 @@ static char* readFile(const Path* p, size_t* length) {
     return data;
 }
 
+// Callback called by J* when an import statement is finished. 
+// Used to reset global state and free the previously read code.
 static void finalizeImport(void* userData) {
     pathClear(&import);
     pathClear(&nativeExt);
@@ -185,6 +189,8 @@ static void finalizeImport(void* userData) {
     free(data);
 }
 
+// Creates a `JStarImportResult` and sets all relevant fields such as 
+// the finalization callback and the native registry structure
 static JStarImportResult createImportResult(char* data, size_t length, const Path* path) {
     JStarImportResult res;
     res.finalize = &finalizeImport;

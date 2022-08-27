@@ -5,12 +5,11 @@
 
 /**
  * Wrap platform specific shared library load functions.
- * These will be used in the importCallback in order to resolve native module extensions.
+ * Used by the import system to resolve native module extensions.
  */
 
 #if defined(JSTAR_POSIX)
     #include <dlfcn.h>
-    
     #define dynload(path)          dlopen(path, RTLD_LAZY)
     #define dynfree(handle)        dlclose(handle)
     #define dynsim(handle, symbol) dlsym(handle, symbol)

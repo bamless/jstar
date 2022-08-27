@@ -25,6 +25,7 @@ typedef enum Color {
     COLOR_NONE,
 } Color;
 
+// Wraps replxx colored output functions with a more familiar printf-like syntax
 int vfConsolePrint(Replxx* replxx, ReplxxStdFile std, Color color, const char* fmt, va_list ap);
 int fConsolePrint(Replxx* replxx, ReplxxStdFile std, Color color, const char* fmt, ...);
 int consolePrint(Replxx* replxx, Color color, const char* fmt, ...);
