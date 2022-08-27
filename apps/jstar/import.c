@@ -9,13 +9,12 @@
 #include "jstar/parse/vector.h"
 #include "path.h"
 
+#define PACKAGE_FILE    "__package__"    // Name of the file executed during package imports
+#define JSR_EXT         ".jsr"           // Normal J* source file extension
+#define JSC_EXT         ".jsc"           // Compiled J* file extension
 #define JSTAR_PATH      "JSTARPATH"      // Env variable containing a list of import paths
-#define IMPORT_PATHS    "importPaths"    // Name of the global holding the import paths list in the core module
+#define IMPORT_PATHS    "importPaths"    // Name of the global holding the import paths list
 #define OPEN_NATIVE_EXT "jsrOpenModule"  // Function called when loading native extension modules
-
-#define PACKAGE_FILE "__package__"    // Name of the file executed during package imports
-#define JSR_EXT      ".jsr"           // Normal J* source file extension
-#define JSC_EXT      ".jsc"           // Compiled J* file extension
 
 // Platform specific separator for the `JSTARPATH` environment variable
 #ifdef JSTAR_WINDOWS
@@ -180,7 +179,7 @@ static char* readFile(const Path* p, size_t* length) {
     return data;
 }
 
-// Callback called by J* when an import statement is finished. 
+// Callback called by J* when an import statement is finished.
 // Used to reset global state and free the previously read code.
 static void finalizeImport(void* userData) {
     pathClear(&import);
@@ -189,7 +188,7 @@ static void finalizeImport(void* userData) {
     free(data);
 }
 
-// Creates a `JStarImportResult` and sets all relevant fields such as 
+// Creates a `JStarImportResult` and sets all relevant fields such as
 // the finalization callback and the native registry structure
 static JStarImportResult createImportResult(char* data, size_t length, const Path* path) {
     JStarImportResult res;

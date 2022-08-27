@@ -164,7 +164,8 @@ static bool disassembleFile(const Path* path) {
 
 // It generates the the full file path and an output path using the input root directory,
 // output root directory, the current position in the directory tree and a file name.
-static Path makeOutputPath(const Path* in, const Path* out, const Path* curr, const char* fileName) {
+static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
+                           const char* fileName) {
     Path outPath = pathCopy(out);
 
     size_t commonPath = pathIntersectOffset(in, curr);
@@ -180,7 +181,8 @@ static Path makeOutputPath(const Path* in, const Path* out, const Path* curr, co
 // Process a J* source file during directory compilation.
 // Compiles or disassembles the file based on application options.
 // Returns true on success, false on failure.
-static bool processDirFile(const Path* in, const Path* out, const Path* curr, const char* fileName) {
+static bool processDirFile(const Path* in, const Path* out, const Path* curr,
+                           const char* fileName) {
     Path filePath = pathCopy(curr);
     pathJoinStr(&filePath, fileName);
 
