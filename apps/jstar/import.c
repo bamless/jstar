@@ -140,7 +140,7 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
 
 // Reads a whole file into memory and returns its content and length
 static char* readFile(const Path* p, size_t* length) {
-    FILE* f = fopen(p->data, "r");
+    FILE* f = fopen(p->data, "rb");
     if(!f) {
         return NULL;
     }
