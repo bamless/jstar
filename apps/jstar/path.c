@@ -1,0 +1,167 @@
+#include "path.h"
+
+#include <assert.h>
+#include <cwalk.h>
+#include <errno.h>
+#include <string.h>
+
+#define INIT_CAPACITY 16
+
+#if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
+    #include <direct.h>
+    #define getcwd        _getcwd
+#else
+    #include <unistd.h>
+#endif
+
+Path pathNew(void) {
+    return (Path){0};
+}
+
+void pathInit(Path* p) {
+    *p = (Path){0};
+}
+
+Path pathCopy(const Path* o) {
+    Path p = *o;
+    p.data = malloc(p.capacity);
+    memcpy(p.data, o->data, p.size);
+    p.data[p.size] = '\0';
+    return p;
+}
+
+void pathFree(Path* p) {
+    free(p->data);
+}
+
+static void ensureCapacity(Path* p, size_t cap) {
+    while(p->capacity < cap) {
+        p->capacity = p->capacity ? p->capacity * 2 : INIT_CAPACITY;
+    }
+    p->data = realloc(p->data, p->capacity);
+}
+
+void pathClear(Path* p) {
+    p->size = 0;
+    if(p->data) p->data[0] = '\0';
+}
+
+void pathAppend(Path* p, const char* str, size_t length) {
+    ensureCapacity(p, p->size + length + 1);
+    memcpy(p->data + p->size, str, length);
+    p->size += length;
+    p->data[p->size] = '\0';
+}
+
+void pathAppendStr(Path* p, const char* str) {
+    pathAppend(p, str, strlen(str));
+}
+
+void pathJoinStr(Path* p, const char* str) {
+    if(p->size && p->data[p->size] != PATH_SEP_CHAR && *str != PATH_SEP_CHAR) {
+        pathAppend(p, PATH_SEP, 1);
+    }
+    pathAppendStr(p, str);
+}
+
+void pathJoin(Path* p, const Path* o) {
+    pathJoinStr(p, o->data);
+}
+
+void pathDirname(Path* p) {
+    size_t dirPos;
+    cwk_path_get_dirname(p->data, &dirPos);
+    p->size = dirPos;
+    p->data[p->size] = '\0';
+}
+
+const char* pathGetExtension(Path* p, size_t* length) {
+    const char* ext;
+    if(!cwk_path_get_extension(p->data, &ext, length)) {
+        return NULL;
+    }
+    return ext;
+}
+
+bool pathHasExtension(Path* p) {
+    return cwk_path_has_extension(p->data);
+}
+
+void pathChangeExtension(Path* p, const char* newExt) {
+    size_t newSize = 0;
+    do {
+        if(newSize) ensureCapacity(p, newSize + 1);
+        newSize = cwk_path_change_extension(p->data, newExt, p->data, p->capacity);
+    } while(newSize >= p->capacity);
+}
+
+void pathNormalize(Path* p) {
+    size_t newSize = 0;
+    do {
+        if(newSize) ensureCapacity(p, newSize + 1);
+        newSize = cwk_path_normalize(p->data, p->data, p->capacity);
+    } while(newSize >= p->capacity);
+}
+
+static char* getCurrentDirectory(void) {
+    size_t cwdLen = 128;
+    char* cwd = malloc(cwdLen);
+    while(!getcwd(cwd, cwdLen)) {
+        if(errno != ERANGE) {
+            int saveErrno = errno;
+            free(cwd);
+            errno = saveErrno;
+            return NULL;
+        }
+        cwdLen *= 2;
+        cwd = realloc(cwd, cwdLen);
+    }
+    return cwd;
+}
+
+void pathToAbsolute(Path* p) {
+    Path absolute = pathAbsolute(p);
+    free(p->data);
+    *p = absolute;
+}
+
+void pathReplace(Path* p, size_t off, char c, char r) {
+    assert(off <= p->size);
+    for(size_t i = off; i < p->size; i++) {
+        if(p->data[i] == c) {
+            p->data[i] = r;
+        }
+    }
+}
+
+void pathTruncate(Path* p, size_t off) {
+    assert(off <= p->size);
+    p->size = off;
+    p->data[p->size] = '\0';
+}
+
+Path pathAbsolute(const Path* p) {
+    char* cwd = getCurrentDirectory();
+    if(!cwd) {
+        return (Path){0};
+    }
+
+    Path absolute = pathNew();
+
+    size_t newSize = 0;
+    do {
+        if(newSize) ensureCapacity(&absolute, newSize + 1);
+        newSize = cwk_path_get_absolute(cwd, p->data, absolute.data, absolute.capacity);
+    } while(newSize >= absolute.capacity);
+
+    free(cwd);
+
+    return absolute;
+}
+
+Path pathIntersect(const Path* p1, const Path* p2) {
+    Path ret = pathNew();
+    size_t intersect = cwk_path_get_intersection(p1->data, p2->data);
+    pathAppend(&ret, p1->data, intersect);
+    return ret;
+}

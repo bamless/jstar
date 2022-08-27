@@ -10,6 +10,8 @@ add_executable(cli
     import.h
     import.c
     main.c
+    path.h
+    path.c
 )
 
 if(WIN32)
