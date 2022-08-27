@@ -61,7 +61,7 @@ void pathAppendStr(Path* p, const char* str) {
 }
 
 void pathJoinStr(Path* p, const char* str) {
-    if(p->size && p->data[p->size] != PATH_SEP_CHAR && *str != PATH_SEP_CHAR) {
+    if(p->size && p->data[p->size - 1] != PATH_SEP_CHAR && *str != PATH_SEP_CHAR) {
         pathAppend(p, PATH_SEP, 1);
     }
     pathAppendStr(p, str);
@@ -78,7 +78,7 @@ void pathDirname(Path* p) {
     p->data[p->size] = '\0';
 }
 
-const char* pathGetExtension(Path* p, size_t* length) {
+const char* pathGetExtension(const Path* p, size_t* length) {
     const char* ext;
     if(!cwk_path_get_extension(p->data, &ext, length)) {
         return NULL;
@@ -86,8 +86,16 @@ const char* pathGetExtension(Path* p, size_t* length) {
     return ext;
 }
 
-bool pathHasExtension(Path* p) {
-    return cwk_path_has_extension(p->data);
+bool pathHasExtension(const Path* p) {
+    return p && cwk_path_has_extension(p->data);
+}
+
+bool pathIsRelative(const Path* p) {
+    return p && cwk_path_is_relative(p->data);
+}
+
+bool pathIsAbsolute(const Path* p) {
+    return p && cwk_path_is_absolute(p->data);
 }
 
 void pathChangeExtension(Path* p, const char* newExt) {
@@ -143,6 +151,17 @@ void pathTruncate(Path* p, size_t off) {
     p->data[p->size] = '\0';
 }
 
+size_t pathIntersectOffset(const Path* p, const Path* o) {
+    return cwk_path_get_intersection(p->data, o->data);
+}
+
+Path pathIntersect(const Path* p1, const Path* p2) {
+    Path ret = pathNew();
+    size_t intersect = cwk_path_get_intersection(p1->data, p2->data);
+    pathAppend(&ret, p1->data, intersect);
+    return ret;
+}
+
 Path pathAbsolute(const Path* p) {
     char* cwd = getCurrentDirectory();
     if(!cwd) {
@@ -160,11 +179,4 @@ Path pathAbsolute(const Path* p) {
     free(cwd);
 
     return absolute;
-}
-
-Path pathIntersect(const Path* p1, const Path* p2) {
-    Path ret = pathNew();
-    size_t intersect = cwk_path_get_intersection(p1->data, p2->data);
-    pathAppend(&ret, p1->data, intersect);
-    return ret;
 }
