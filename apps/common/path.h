@@ -19,7 +19,6 @@ typedef struct Path {
 
 Path pathNew(void);
 Path pathCopy(const Path* o);
-void pathInit(Path* p);
 void pathFree(Path* p);
 
 void pathClear(Path* p);

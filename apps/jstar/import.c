@@ -102,8 +102,8 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
 
 void initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
     initImportPaths(vm, scriptPath, ignoreEnv);
-    pathInit(&import);
-    pathInit(&nativeExt);
+    import = pathNew();
+    nativeExt = pathNew();
     sharedLibs = vecNew();
 }
 

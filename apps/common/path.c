@@ -18,10 +18,6 @@ Path pathNew(void) {
     return (Path){0};
 }
 
-void pathInit(Path* p) {
-    *p = (Path){0};
-}
-
 Path pathCopy(const Path* o) {
     Path p = *o;
     p.data = malloc(p.capacity);
