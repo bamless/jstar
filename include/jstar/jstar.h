@@ -42,6 +42,9 @@ typedef struct JStarVM JStarVM;
 // J* native registry
 typedef struct JStarNativeReg JStarNativeReg;
 
+// A C function callable from J*
+typedef bool (*JStarNative)(JStarVM* vm);
+
 // Generic error code used by several J* API functions
 typedef enum JStarResult {
     JSR_SUCCESS,          // The VM successfully executed the code
@@ -440,9 +443,6 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
         jsrRaise(vm, cls, err, ##__VA_ARGS__); \
         return false;                          \
     } while(0)
-
-// A C function callable from J*
-typedef bool (*JStarNative)(JStarVM* vm);
 
 // Ensure `needed` slots are available on the stack
 JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);

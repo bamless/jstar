@@ -164,7 +164,7 @@ static bool disassembleFile(const Path* path) {
 // DIRECTORY COMPILATION
 // -----------------------------------------------------------------------------
 
-// It generates the the full file path and an output path using the input root directory,
+// Generates the the full file path and an output path using the input root directory,
 // output root directory, the current position in the directory tree and a file name.
 static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
                            const char* fileName) {
@@ -181,10 +181,10 @@ static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
     return outPath;
 }
 
-// Process a J* source file during directory compilation.
+// Compiles (or disassembles) a J* source file during directory compilation.
 // Compiles or disassembles the file based on application options.
 // Returns true on success, false on failure.
-static bool processDirFile(const Path* in, const Path* out, const Path* curr,
+static bool compileDirFile(const Path* in, const Path* out, const Path* curr,
                            const char* fileName) {
     Path filePath = pathCopy(curr);
     pathJoinStr(&filePath, fileName);
@@ -205,7 +205,7 @@ static bool processDirFile(const Path* in, const Path* out, const Path* curr,
 // Walk a directory (recursively, if `-r` was specified) and process
 // all files that end in a `.jsr` or `.jsc` extension.
 // Returns true on success, false on failure.
-static bool walkDirectory(const Path* in, const Path* out, const Path* curr) {
+static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
     DIR* directory = opendir(curr->data);
     if(directory == NULL) {
         fprintf(stderr, "Cannot open directory %s: %s\n", curr->data, strerror(errno));
@@ -224,7 +224,7 @@ static bool walkDirectory(const Path* in, const Path* out, const Path* curr) {
             if(opts.recursive) {
                 Path subDirectory = pathCopy(curr);
                 pathJoinStr(&subDirectory, dirent->d_name);
-                allok &= walkDirectory(in, out, &subDirectory);
+                allok &= compileDirectory(in, out, &subDirectory);
                 pathFree(&subDirectory);
             }
             break;
@@ -238,9 +238,8 @@ static bool walkDirectory(const Path* in, const Path* out, const Path* curr) {
             }
 
             if(extension && strcmp(extension, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
-                allok &= processDirFile(in, out, curr, dirent->d_name);
+                allok &= compileDirFile(in, out, curr, dirent->d_name);
             }
-
             break;
         }
         default:
@@ -333,6 +332,8 @@ int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
 
+    bool directoryCompile = isDirectory(opts.input);
+
     // Create input path
     Path inputPath = pathNew();
     pathAppendStr(&inputPath, opts.input);
@@ -345,14 +346,16 @@ int main(int argc, char** argv) {
         pathNormalize(&outputPath);
     } else {
         outputPath = pathCopy(&inputPath);
-        pathChangeExtension(&outputPath, JSC_EXT);
+        if(!directoryCompile) {
+            pathChangeExtension(&outputPath, JSC_EXT);
+        }
     }
 
     PROFILE_BEGIN_SESSION("jstar-run.json")
 
     bool ok;
-    if(isDirectory(opts.input)) {
-        ok = walkDirectory(&inputPath, &outputPath, &inputPath);
+    if(directoryCompile) {
+        ok = compileDirectory(&inputPath, &outputPath, &inputPath);
     } else if(opts.disassemble) {
         ok = disassembleFile(&inputPath);
     } else {
