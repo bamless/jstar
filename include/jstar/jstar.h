@@ -108,11 +108,11 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 // runtime initialization
 JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
 
-// Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
-JSTAR_API void jsrEvalBreak(JStarVM* vm);
-
 // Gets the custom data associated with the VM at configuration time (if any)
 JSTAR_API void* jsrGetCustomData(JStarVM* vm);
+
+// Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
+JSTAR_API void jsrEvalBreak(JStarVM* vm);
 
 // -----------------------------------------------------------------------------
 // CODE EXECUTION
@@ -158,98 +158,7 @@ JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
 // -----------------------------------------------------------------------------
-// CODE COMPILATION
-// -----------------------------------------------------------------------------
-
-/*
- * The following functions are safe to call without initializing the runtime, as they only
- * deal in code compilation or disassembly
- */
-
-// Compiles the provided source to bytecode, placing the result in `out`.
-// JSR_SUCCESS will be returned if the compilation completed normally.
-// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
-// All errors will be forwarded to the error callback as well.
-// The `path` argument is the file path that will passed to the forward callback on errors
-// Please note that the vm always compiles source code before execution, so using this function
-// just to immediately call jsrEval on the result is useless and less efficient than directly
-// calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
-// it over the network, etc...
-JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
-                                     JStarBuffer* out);
-
-// Disassembles the bytecode provided in `code` and prints it to stdout
-// The `path` argument is the file path that will passed to the forward callback on errors
-// Prints nothing if the provided `code` buffer doesn't contain valid bytecode
-JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code);
-
-// -----------------------------------------------------------------------------
-// UTILITY FUNCTIONS AND DEFINITIONS
-// -----------------------------------------------------------------------------
-
-// Main module and core module names
-#define JSR_MAIN_MODULE "__main__"
-#define JSR_CORE_MODULE "__core__"
-
-// Reads a J* source or compiled file, placing the output in out.
-// Returns true on success, false on error setting errno to the approriate value.
-// Tipically used alongside jsrEval to execute a J* source or compiled file.
-JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
-
-// -----------------------------------------------------------------------------
-// NATIVES AND NATIVE REGISTRATION
-// -----------------------------------------------------------------------------
-
-// The guaranteed stack space available in a native function call.
-// Use jsrEnusreStack if you need more
-#define JSTAR_MIN_NATIVE_STACK_SZ 20
-
-// Utility macro for declaring/defining a native function
-#define JSR_NATIVE(name) bool name(JStarVM* vm)
-
-// Utility macro for raising an exception from a native function.
-// It raises the exception and exits signaling the error.
-#define JSR_RAISE(vm, cls, err, ...)           \
-    do {                                       \
-        jsrRaise(vm, cls, err, ##__VA_ARGS__); \
-        return false;                          \
-    } while(0)
-
-// A C function callable from J*
-typedef bool (*JStarNative)(JStarVM* vm);
-
-// Ensure `needed` slots are available on the stack
-JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
-
-// J* native registry, used to associate names to c function
-// pointers during native resolution after module import.
-struct JStarNativeReg {
-    enum { REG_METHOD, REG_FUNCTION, REG_SENTINEL } type;
-    union {
-        struct {
-            const char* cls;
-            const char* name;
-            JStarNative meth;
-        } method;
-        struct {
-            const char* name;
-            JStarNative fun;
-        } function;
-    } as;
-};
-
-// Macros to simplify native registry creation
-#define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
-#define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
-#define JSR_REGEND                     \
-    {                                  \
-        REG_SENTINEL, {                \
-            .function = { NULL, NULL } \
-        }                              \
-    }
-
-// -----------------------------------------------------------------------------
-// C TO J* CONVERTING FUNCTIONS
+// C TO J* VALUE CONVERSION API
 // -----------------------------------------------------------------------------
 
 // The converted value is left on the top of the stack
@@ -280,7 +189,7 @@ JSTAR_API void jsrPopN(JStarVM* vm, int n);
 JSTAR_API int jsrTop(JStarVM* vm);
 
 // -----------------------------------------------------------------------------
-// J* TO C CONVERTING FUNCTIONS
+// J* TO C VALUE CONVERSION API
 // -----------------------------------------------------------------------------
 
 JSTAR_API double jsrGetNumber(JStarVM* vm, int slot);
@@ -508,5 +417,92 @@ JSTAR_API size_t jsrCheckIndex(JStarVM* vm, int slot, size_t max, const char* na
 // Returns the number casted to size_t if true, SIZE_MAX if false
 // leaving an exception on top of the stack.
 JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
+
+// -----------------------------------------------------------------------------
+// NATIVES AND NATIVE REGISTRATION
+// -----------------------------------------------------------------------------
+
+// Main module and core module names
+#define JSR_MAIN_MODULE "__main__"
+#define JSR_CORE_MODULE "__core__"
+
+// The guaranteed stack space available in a native function call.
+// Use jsrEnusreStack if you need more
+#define JSTAR_MIN_NATIVE_STACK_SZ 20
+
+// Utility macro for declaring/defining a native function
+#define JSR_NATIVE(name) bool name(JStarVM* vm)
+
+// Utility macro for raising an exception from a native function.
+// It raises the exception and exits signaling the error.
+#define JSR_RAISE(vm, cls, err, ...)           \
+    do {                                       \
+        jsrRaise(vm, cls, err, ##__VA_ARGS__); \
+        return false;                          \
+    } while(0)
+
+// A C function callable from J*
+typedef bool (*JStarNative)(JStarVM* vm);
+
+// Ensure `needed` slots are available on the stack
+JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
+
+// J* native registry, used to associate names to c function
+// pointers during native resolution after module import.
+struct JStarNativeReg {
+    enum { REG_METHOD, REG_FUNCTION, REG_SENTINEL } type;
+    union {
+        struct {
+            const char* cls;
+            const char* name;
+            JStarNative meth;
+        } method;
+        struct {
+            const char* name;
+            JStarNative fun;
+        } function;
+    } as;
+};
+
+// Macros to simplify native registry creation
+#define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
+#define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
+#define JSR_REGEND                     \
+    {                                  \
+        REG_SENTINEL, {                \
+            .function = { NULL, NULL } \
+        }                              \
+    }
+
+// -----------------------------------------------------------------------------
+// CODE COMPILATION
+// -----------------------------------------------------------------------------
+
+/*
+ * The following functions are safe to call without initializing the runtime,
+ * as they only deal in code compilation or disassembly
+ */
+
+// Compiles the provided source to bytecode, placing the result in `out`.
+// JSR_SUCCESS will be returned if the compilation completed normally.
+// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
+// All errors will be forwarded to the error callback as well.
+// The `path` argument is the file path that will passed to the forward callback on errors
+// Please note that the vm always compiles source code before execution, so using this function
+// just to immediately call jsrEval on the result is useless and less efficient than directly
+// calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
+// it over the network, etc...
+JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
+                                     JStarBuffer* out);
+
+// Disassembles the bytecode provided in `code` and prints it to stdout
+// The `path` argument is the file path that will passed to the forward callback on errors
+// Prints nothing if the provided `code` buffer doesn't contain valid bytecode
+JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code);
+
+// Reads a J* source or compiled file, placing the output in out.
+// Returns true on success, false on error setting errno to the approriate value.
+// Tipically used alongside jsrEval to execute a J* source or compiled file.
+JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
 
 #endif
