@@ -101,6 +101,7 @@
         "highlighter.h": "c",
         "replxx.h": "c",
         "version": "c",
-        "profiler.h": "c"
+        "profiler.h": "c",
+        "dirent.h": "c"
     },
 }

@@ -115,6 +115,7 @@ static bool compileFile(const Path* path, const Path* out) {
     JStarBuffer compiled;
     JStarResult res = jsrCompileCode(vm, path->data, src.data, &compiled);
     jsrBufferFree(&src);
+
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error compiling file %s\n", path->data);
         return false;
@@ -150,6 +151,7 @@ static bool disassembleFile(const Path* path) {
 
     JStarResult res = jsrDisassembleCode(vm, path->data, &code);
     jsrBufferFree(&code);
+
     if(res != JSR_SUCCESS) {
         fprintf(stderr, "Error disassembling file %s\n", path->data);
         return false;
@@ -172,6 +174,7 @@ static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
     if(commonPath) {
         pathJoinStr(&outPath, curr->data + commonPath);
     }
+
     pathJoinStr(&outPath, fileName);
     pathChangeExtension(&outPath, JSC_EXT);
 
