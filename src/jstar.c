@@ -22,7 +22,7 @@
 
 // -----------------------------------------------------------------------------
 // API - The bulk of the API (jstar.h) implementation
-// JStarNewVM and JStarFreeVM functions are implemented in vm.c
+// JStarNewVM, jsrInitRuntime and JStarFreeVM functions are implemented in vm.c
 // -----------------------------------------------------------------------------
 
 static int apiStackIndex(JStarVM* vm, int slot) {

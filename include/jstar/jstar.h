@@ -33,12 +33,16 @@
 #include "conf.h"    // IWYU pragma: export
 
 // -----------------------------------------------------------------------------
-// J* VM ENTRY POINTS
+// FORWARD DECLARATIONS
 // -----------------------------------------------------------------------------
 
 // The J* virtual machine
 typedef struct JStarVM JStarVM;
 
+// J* native registry
+typedef struct JStarNativeReg JStarNativeReg;
+
+// Generic error code used by several J* API functions
 typedef enum JStarResult {
     JSR_SUCCESS,          // The VM successfully executed the code
     JSR_SYNTAX_ERR,       // A syntax error has been encountered in parsing
@@ -48,13 +52,24 @@ typedef enum JStarResult {
     JSR_VERSION_ERR,      // Incompatible version of compiled code
 } JStarResult;
 
-// Import result struct
-typedef struct JStarImportResult JStarImportResult;
+// Import result struct, contains a resolved module's code and native registry
+typedef struct JStarImportResult {
+    const char* code;         // The resolved module code (source or binary)
+    size_t codeLength;        // Length of the code field
+    const char* path;         // The resolved module path (can be fictitious)
+    JStarNativeReg* reg;      // Resolved native registry for the module (can be NULL)
+    void (*finalize)(void*);  // Finalization callback. Called after a resolved import (can be NULL)
+    void* userData;           // Custom user data passed to the finalization function (can be NULL)
+} JStarImportResult;
 
-// J* import callback. Called when executing `import`s in the vm
+// -----------------------------------------------------------------------------
+// HOOKS AND CALLBAKCS
+// -----------------------------------------------------------------------------
+
+// J* import callback, invoked when executing `import`s in the VM
 typedef JStarImportResult (*JStarImportCB)(JStarVM* vm, const char* moduleName);
 
-// J* error function callback. Called when syntax, compilation, dederializtion
+// J* error function callback. Invoked when syntax, compilation, dederializtion
 // or syntax errors are encountered.
 typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int line,
                              const char* error);
@@ -63,6 +78,11 @@ typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int
 JSTAR_API void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line,
                                const char* error);
 
+// -----------------------------------------------------------------------------
+// J* VM INITIALIZATION
+// -----------------------------------------------------------------------------
+
+// Struct that holds the J* vm configuration options
 typedef struct JstarConf {
     size_t startingStackSize;       // Initial stack size in bytes
     size_t firstGCCollectionPoint;  // first GC collection point in bytes
@@ -75,14 +95,28 @@ typedef struct JstarConf {
 // Retuns a JStarConf struct initialized with default values
 JSTAR_API JStarConf jsrGetConf(void);
 
-// Allocate a new VM with all the state needed for code execution
+// Allocates a new VM with all the state needed for code execution. Does not initialize runtime
 JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
+
+// Inits the J* runtime, including the core and main module. Must be called prior to executing code
+JSTAR_API void jsrInitRuntime(JStarVM* vm);
 
 // Free a previously obtained VM along with all of its state
 JSTAR_API void jsrFreeVM(JStarVM* vm);
 
-// Get the custom data associated with the VM at configuration time (if any)
+// Inits the argv list with a list of arguments (usually main arguments). Must be called after
+// runtime initialization
+JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
+
+// Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
+JSTAR_API void jsrEvalBreak(JStarVM* vm);
+
+// Gets the custom data associated with the VM at configuration time (if any)
 JSTAR_API void* jsrGetCustomData(JStarVM* vm);
+
+// -----------------------------------------------------------------------------
+// CODE EXECUTION
+// -----------------------------------------------------------------------------
 
 // Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
@@ -101,28 +135,6 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 JSTAR_API JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src);
 JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                           const char* src);
-
-// Compiles the provided source to bytecode, placing the result in `out`.
-// JSR_SUCCESS will be returned if the compilation completed normally.
-// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
-// All errors will be forwarded to the error callback as well.
-// The `path` argument is the file path that will passed to the forward callback on errors
-// Please note that the vm always compiles source code before execution, so using this function
-// just to immediately call jsrEval on the result is useless and less efficient than directly
-// calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
-// it over the network, etc...
-JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
-                                     JStarBuffer* out);
-
-// Disassembles the bytecode provided in `code` and prints it to stdout
-// The `path` argument is the file path that will passed to the forward callback on errors
-// Prints nothing if the provided `code` buffer doesn't contain valid bytecode
-JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code);
-
-// Reads a J* source or compiled file, placing the output in out.
-// Returns true on success, false on error setting errno to the approriate value.
-// Tipically used alongside jsrEval to execute a J* source or compiled file.
-JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
 
 // Call any callable object (typically a function) that sits on the top of the stack along with its
 // arguments.
@@ -145,33 +157,47 @@ JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 // Similar to the above, but tries to call a method called `name` on an object.
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
-// Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
-JSTAR_API void jsrEvalBreak(JStarVM* vm);
+// -----------------------------------------------------------------------------
+// CODE COMPILATION
+// -----------------------------------------------------------------------------
 
-// Prints the the stacktrace of the exception at slot 'slot'. If the value at 'slot' is not an
-// Exception, it doesn't print anything ad returns successfully
-JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
+/*
+ * The following functions are safe to call without initializing the runtime, as they only
+ * deal in code compilation or disassembly
+ */
 
-// Get the stacktrace of the exception at 'slot' and leaves it on top of the stack.
-// The stacktrace is a formatted String containing the traceback and the exception error.
-// If the value at slot is not an Exception, it places An empty String on top of the stack
-// and returns succesfully
-JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
+// Compiles the provided source to bytecode, placing the result in `out`.
+// JSR_SUCCESS will be returned if the compilation completed normally.
+// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
+// All errors will be forwarded to the error callback as well.
+// The `path` argument is the file path that will passed to the forward callback on errors
+// Please note that the vm always compiles source code before execution, so using this function
+// just to immediately call jsrEval on the result is useless and less efficient than directly
+// calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
+// it over the network, etc...
+JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
+                                     JStarBuffer* out);
 
-// Init the sys.args list with a list of arguments (usually main arguments)
-JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
-
-// Raises the axception at 'slot'. If the object at 'slot' is not an exception instance it
-// raises a TypeException instead
-JSTAR_API void jsrRaiseException(JStarVM* vm, int slot);
-
-// Instantiate an exception from "cls" with "err" as an error string and raises
-// it, leaving it on top of the stack.
-// If "cls" cannot be found in current module a NameException is raised instead.
-JSTAR_API void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...);
+// Disassembles the bytecode provided in `code` and prints it to stdout
+// The `path` argument is the file path that will passed to the forward callback on errors
+// Prints nothing if the provided `code` buffer doesn't contain valid bytecode
+JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code);
 
 // -----------------------------------------------------------------------------
 // UTILITY FUNCTIONS AND DEFINITIONS
+// -----------------------------------------------------------------------------
+
+// Main module and core module names
+#define JSR_MAIN_MODULE "__main__"
+#define JSR_CORE_MODULE "__core__"
+
+// Reads a J* source or compiled file, placing the output in out.
+// Returns true on success, false on error setting errno to the approriate value.
+// Tipically used alongside jsrEval to execute a J* source or compiled file.
+JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
+
+// -----------------------------------------------------------------------------
+// NATIVES AND NATIVE REGISTRATION
 // -----------------------------------------------------------------------------
 
 // The guaranteed stack space available in a native function call.
@@ -189,23 +215,15 @@ JSTAR_API void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...);
         return false;                          \
     } while(0)
 
-// Main module and core module names
-#define JSR_MAIN_MODULE "__main__"
-#define JSR_CORE_MODULE "__core__"
+// A C function callable from J*
+typedef bool (*JStarNative)(JStarVM* vm);
 
 // Ensure `needed` slots are available on the stack
 JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
 
-// A C function callable from J*
-typedef bool (*JStarNative)(JStarVM* vm);
-
-// -----------------------------------------------------------------------------
-// MODULE IMPORTS AND NATIVE REGISTRATION
-// -----------------------------------------------------------------------------
-
-// J* native registry, used to associate names to c function 
+// J* native registry, used to associate names to c function
 // pointers during native resolution after module import.
-typedef struct JStarNativeReg {
+struct JStarNativeReg {
     enum { REG_METHOD, REG_FUNCTION, REG_SENTINEL } type;
     union {
         struct {
@@ -218,18 +236,9 @@ typedef struct JStarNativeReg {
             JStarNative fun;
         } function;
     } as;
-} JStarNativeReg;
-
-// Import result struct, contains a resolved module's code and native registry
-struct JStarImportResult {
-    const char* code;         // The resolved module code (source or binary)
-    size_t codeLength;        // Length of the code field
-    const char* path;         // The resolved module path (can be fictitious)
-    JStarNativeReg* reg;      // Resolved native registry for the module (can be NULL)
-    void (*finalize)(void*);  // Finalization callback. Called after a resolved import (can be NULL)
-    void* userData;           // Custom user data passed to the finalization function (can be NULL)   
 };
 
+// Macros to simplify native registry creation
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
 #define JSR_REGEND                     \
@@ -238,23 +247,6 @@ struct JStarImportResult {
             .function = { NULL, NULL } \
         }                              \
     }
-
-// -----------------------------------------------------------------------------
-// OVERLOADABLE OPERATOR API
-// -----------------------------------------------------------------------------
-
-// Check if two objects are the same. Doesn't call __eq__ overload.
-// Returns true if the two objects are the same
-JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
-
-// Check if two J* values are equal. May call the __eq__ overload.
-// Returns true if the two objects are the same, as defined by the __eq__ method
-JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
-
-// Check if a value is of a certain class.
-// Returns true if the object is an instance of the class, false if it's not
-// or if `classSlot` doesn't point to a Class object
-JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
 
 // -----------------------------------------------------------------------------
 // C TO J* CONVERTING FUNCTIONS
@@ -306,7 +298,66 @@ JSTAR_API size_t jsrGetStringSz(JStarVM* vm, int slot);
 JSTAR_API const char* jsrGetString(JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
-// ITERATOR PROTOCOL API
+// OPERATOR API
+// -----------------------------------------------------------------------------
+
+// Check if two objects are the same. Doesn't call __eq__ overload.
+// Returns true if the two objects are the same
+JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
+
+// Check if two J* values are equal. May call the __eq__ overload.
+// Returns true if the two objects are the same, as defined by the __eq__ method
+JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
+
+// Check if a value is of a certain class.
+// Returns true if the object is an instance of the class, false if it's not
+// or if `classSlot` doesn't point to a Class object
+JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
+
+// -----------------------------------------------------------------------------
+// EXCEPTION API
+// -----------------------------------------------------------------------------
+
+// Prints the the stacktrace of the exception at slot 'slot'. If the value at 'slot' is not an
+// Exception, it doesn't print anything ad returns successfully
+JSTAR_API void jsrPrintStacktrace(JStarVM* vm, int slot);
+
+// Get the stacktrace of the exception at 'slot' and leaves it on top of the stack.
+// The stacktrace is a formatted String containing the traceback and the exception error.
+// If the value at slot is not an Exception, it places An empty String on top of the stack
+// and returns succesfully
+JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
+
+// Raises the axception at 'slot'. If the object at 'slot' is not an exception instance it
+// raises a TypeException instead
+JSTAR_API void jsrRaiseException(JStarVM* vm, int slot);
+
+// Instantiate an exception from "cls" with "err" as an error string and raises
+// it, leaving it on top of the stack.
+// If "cls" cannot be found in current module a NameException is raised instead.
+JSTAR_API void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...);
+
+// -----------------------------------------------------------------------------
+// LIST API
+// -----------------------------------------------------------------------------
+
+// These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
+JSTAR_API void jsrListAppend(JStarVM* vm, int slot);
+JSTAR_API void jsrListInsert(JStarVM* vm, size_t i, int slot);
+JSTAR_API void jsrListRemove(JStarVM* vm, size_t i, int slot);
+JSTAR_API void jsrListGet(JStarVM* vm, size_t i, int slot);
+JSTAR_API size_t jsrListGetLength(JStarVM* vm, int slot);
+
+// -----------------------------------------------------------------------------
+// TUPLE API
+// -----------------------------------------------------------------------------
+
+// These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
+JSTAR_API void jsrTupleGet(JStarVM* vm, size_t i, int slot);
+JSTAR_API size_t jsrTupleGetLength(JStarVM* vm, int slot);
+
+// -----------------------------------------------------------------------------
+// ITERATOR API
 // -----------------------------------------------------------------------------
 
 // `iterable` is the slot in which the iterable object is sitting and `res` is the slot of the
@@ -338,26 +389,7 @@ JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
     }
 
 // -----------------------------------------------------------------------------
-// LIST MANIPULATION FUNCTIONS
-// -----------------------------------------------------------------------------
-
-// These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
-JSTAR_API void jsrListAppend(JStarVM* vm, int slot);
-JSTAR_API void jsrListInsert(JStarVM* vm, size_t i, int slot);
-JSTAR_API void jsrListRemove(JStarVM* vm, size_t i, int slot);
-JSTAR_API void jsrListGet(JStarVM* vm, size_t i, int slot);
-JSTAR_API size_t jsrListGetLength(JStarVM* vm, int slot);
-
-// -----------------------------------------------------------------------------
-// TUPLE MANIPULATION FUNCTIONS
-// -----------------------------------------------------------------------------
-
-// These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
-JSTAR_API void jsrTupleGet(JStarVM* vm, size_t i, int slot);
-JSTAR_API size_t jsrTupleGetLength(JStarVM* vm, int slot);
-
-// -----------------------------------------------------------------------------
-// SEQUENCE MANIPULATION FUNCTIONS
+// SEQUENCE API
 // -----------------------------------------------------------------------------
 
 // These functions are similar to jsrTupleGet, jsrListGet/jsrListSet and jsrList/jsrTupleGetLength
@@ -384,7 +416,7 @@ JSTAR_API bool jsrSubscriptSet(JStarVM* vm, int slot);
 JSTAR_API size_t jsrGetLength(JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
-// INSTANCE MANIPULATION FUNCTIONS
+// INSTANCE API
 // -----------------------------------------------------------------------------
 
 // Set the field `name` of the value at `slot` with the value on top of the stack
@@ -399,7 +431,7 @@ JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 
 // -----------------------------------------------------------------------------
-// MODULE MANIPULATION FUNCTIONS
+// MODULE API
 // -----------------------------------------------------------------------------
 
 // Set the global `name` of the module `module` with the value on top of the stack
@@ -414,7 +446,7 @@ JSTAR_API void jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
 JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 
 // -----------------------------------------------------------------------------
-// CLASS MANIPULATION FUNCTIONS
+// CLASS API
 // -----------------------------------------------------------------------------
 
 // Binds the native at `natSlot` to the class at `clsSlot`
@@ -423,7 +455,7 @@ JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 
 // -----------------------------------------------------------------------------
-// USERDATA MANIPULATION FUNCTIONS
+// USERDATA API
 // -----------------------------------------------------------------------------
 
 // Get the memory associated with the UserDatum at `slot`
