@@ -102,6 +102,8 @@
         "replxx.h": "c",
         "version": "c",
         "profiler.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "errno.h": "c"
     },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 }
