@@ -373,8 +373,8 @@ JSR_NATIVE(jsr_Function_bind) {
     if(fn->type == OBJ_BOUND_METHOD) {
         ObjBoundMethod* bm = (ObjBoundMethod*)fn;
         if(checkBuiltin(vm, getClass(vm, bm->receiver))) {
-            JSR_RAISE(vm, "TypeException", "Cannot bind built-in class bound method %s::%s",
-                      getClass(vm, bm->receiver)->name->data, getPrototype(bm->method)->name->data);
+            JSR_RAISE(vm, "TypeException", "Cannot bind built-in class method %s",
+                      getPrototype(bm->method)->name->data);
         }
         fn = bm->method;
     }
