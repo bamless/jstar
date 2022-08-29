@@ -1,10 +1,27 @@
 # Cli app
-add_executable(cli cli.c console_print.h console_print.c highlighter.h highlighter.c hints.h hints.c)
+add_executable(cli
+    console_print.h
+    console_print.c
+    dynload.h
+    highlighter.h
+    highlighter.c
+    hints.h
+    hints.c
+    import.h
+    import.c
+    main.c
+)
+
 if(WIN32)
     target_sources(cli PRIVATE icon.rc)
 endif()
 
-target_link_libraries(cli PRIVATE jstar replxx argparse cwalk)
+set(EXTRA_LIBS)
+if(UNIX)
+    set(EXTRA_LIBS dl)
+endif()
+
+target_link_libraries(cli PRIVATE jstar common replxx argparse ${EXTRA_LIBS})
 target_include_directories(cli PRIVATE ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/profile)
 set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 

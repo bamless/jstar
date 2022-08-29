@@ -3,6 +3,7 @@
 
 #include <replxx.h>
 
+// Replxx hints callback with global name resolution support
 void hints(const char* input, replxx_hints* hints, int* ctxLen, ReplxxColor* color, void* ud);
 
 #endif

@@ -1,7 +1,12 @@
 #ifndef DYNLOAD_H
 #define DYNLOAD_H
 
-#include "conf.h"
+#include "jstar/jstar.h"
+
+/**
+ * Wrap platform specific shared library load functions.
+ * Used by the import system to resolve native module extensions.
+ */
 
 #if defined(JSTAR_POSIX)
     #include <dlfcn.h>
@@ -14,6 +19,7 @@
     #define dynfree(handle)        FreeLibrary(handle)
     #define dynsim(handle, symbol) (void*)GetProcAddress(handle, symbol)
 #else
+    // Fallback for platforms for which we don't support shared library native extensions
     #define dynload(path)          ((void*)0)
     #define dynfree(handle)        ((void)0)
     #define dynsim(handle, symbol) ((void*)0)

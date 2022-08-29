@@ -222,9 +222,6 @@ void garbageCollect(JStarVM* vm) {
     {
         PROFILE("{reach-objects}::garbageCollect")
 
-        // reach import paths list
-        reachObject(vm, (Obj*)vm->importPaths);
-
         // reach builtin classes
         reachObject(vm, (Obj*)vm->clsClass);
         reachObject(vm, (Obj*)vm->objClass);

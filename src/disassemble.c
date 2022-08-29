@@ -150,13 +150,11 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     printf("%.4zu %s ", instr, OpcodeNames[c->bytecode[instr]]);
 
     switch(c->bytecode[instr]) {
-    case OP_NATIVE:
     case OP_IMPORT:
     case OP_IMPORT_FROM:
     case OP_GET_FIELD:
     case OP_SET_FIELD:
     case OP_NEW_CLASS:
-    case OP_NEW_SUBCLASS:
     case OP_DEF_METHOD:
     case OP_INVOKE_0:
     case OP_INVOKE_1:
@@ -189,6 +187,11 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_DEFINE_GLOBAL:
         constInstruction(c, instr);
         break;
+    case OP_IMPORT_NAME:
+    case OP_NATIVE:
+    case OP_NATIVE_METHOD:
+        const2Instruction(c, instr);
+        break;
     case OP_JUMP:
     case OP_JUMPT:
     case OP_JUMPF:
@@ -196,10 +199,6 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_SETUP_EXCEPT:
     case OP_SETUP_ENSURE:
         signedOffsetInstruction(c, instr);
-        break;
-    case OP_NAT_METHOD:
-    case OP_IMPORT_NAME:
-        const2Instruction(c, instr);
         break;
     case OP_INVOKE:
     case OP_SUPER:

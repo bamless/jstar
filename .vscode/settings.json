@@ -100,6 +100,10 @@
         "lex.h": "c",
         "highlighter.h": "c",
         "replxx.h": "c",
-        "version": "c"
+        "version": "c",
+        "profiler.h": "c",
+        "dirent.h": "c",
+        "errno.h": "c"
     },
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 }

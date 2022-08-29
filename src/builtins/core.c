@@ -187,7 +187,6 @@ void initCoreModule(JStarVM* vm) {
         core->base.cls = vm->modClass;
 
         // Cache core module global objects in vm
-        vm->importPaths = AS_LIST(getDefinedName(vm, core, "importPaths"));
         vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
     }
 
@@ -347,6 +346,42 @@ JSR_NATIVE(jsr_Function_string) {
     }
 
     jsrBufferPush(&str);
+    return true;
+}
+
+static bool checkBuiltin(JStarVM* vm, ObjClass* cls) {
+    return vm->clsClass == cls
+        || vm->objClass == cls
+        || vm->strClass == cls
+        || vm->boolClass == cls
+        || vm->lstClass == cls
+        || vm->numClass == cls
+        || vm->funClass == cls
+        || vm->genClass == cls
+        || vm->modClass == cls
+        || vm->nullClass == cls
+        || vm->stClass == cls
+        || vm->tupClass == cls
+        || vm->excClass == cls
+        || vm->tableClass == cls
+        || vm->udataClass == cls;
+}
+
+JSR_NATIVE(jsr_Function_bind) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+
+    if(fn->type == OBJ_BOUND_METHOD) {
+        ObjBoundMethod* bm = (ObjBoundMethod*)fn;
+        if(checkBuiltin(vm, getClass(vm, bm->receiver))) {
+            JSR_RAISE(vm, "TypeException", "Cannot bind built-in class method %s",
+                      getPrototype(bm->method)->name->data);
+        }
+        fn = bm->method;
+    }
+    
+    ObjBoundMethod* bound = newBoundMethod(vm, vm->apiStack[1], fn);
+    push(vm, OBJ_VAL(bound));
+
     return true;
 }
 

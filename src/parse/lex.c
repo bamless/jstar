@@ -294,6 +294,9 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
     case '^':
         makeToken(lex, tok, TOK_POW);
         break;
+    case '@':
+        makeToken(lex, tok, TOK_AT);
+        break;
     case '\'':
     case '"':
         string(lex, c, tok);

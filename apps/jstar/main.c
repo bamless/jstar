@@ -1,5 +1,4 @@
 #include <argparse.h>
-#include <cwalk.h>
 #include <errno.h>
 #include <replxx.h>
 #include <signal.h>
@@ -11,25 +10,16 @@
 #include "console_print.h"
 #include "highlighter.h"
 #include "hints.h"
+#include "import.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
 #include "jstar/parse/parser.h"
 #include "profiler.h"
 
-#if defined(JSTAR_POSIX)
-    #include <unistd.h>
-    #define PATH_SEP ':'
-#elif defined(JSTAR_WINDOWS)
-    #include <direct.h>
-    #define getcwd   _getcwd
-    #define PATH_SEP ';'
-#endif
-
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
 #define REPL_PRINT   "__replprint"
-#define JSTAR_PATH   "JSTARPATH"
 #define INDENT       "    "
 
 static const int tokenDepth[TOK_EOF] = {
@@ -118,24 +108,6 @@ static void printVersion(void) {
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-// Returns the current working directory.
-// The returned buffer is malloc'd and should be freed by the user.
-static char* getCurrentDirectory(void) {
-    size_t cwdLen = 128;
-    char* cwd = malloc(cwdLen);
-    while(!getcwd(cwd, cwdLen)) {
-        if(errno != ERANGE) {
-            int saveErrno = errno;
-            free(cwd);
-            errno = saveErrno;
-            return NULL;
-        }
-        cwdLen *= 2;
-        cwd = realloc(cwd, cwdLen);
-    }
-    return cwd;
-}
-
 // SIGINT handler to break evaluation on CTRL-C.
 static void sigintHandler(int sig) {
     signal(sig, SIG_DFL);
@@ -179,21 +151,9 @@ static JStarResult execScript(const char* script, int argc, char** args) {
             exit(EXIT_FAILURE);
         }
 
-        char* currentDir = getCurrentDirectory();
-        if(!currentDir) {
-            fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
-                          strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-
-        // Convert the script path to an absolute one
-        char absolutePath[FILENAME_MAX];
-        cwk_path_get_absolute(currentDir, script, absolutePath, FILENAME_MAX);
-        free(currentDir);
-
         // Execute the script; make sure to use the absolute path for consistency
         jsrInitCommandLineArgs(vm, argc, (const char**)args);
-        res = evaluate(absolutePath, &src);
+        res = evaluate(script, &src);
 
         jsrBufferFree(&src);
     }
@@ -254,9 +214,6 @@ static bool replPrint(JStarVM* vm) {
 
 // Register the custom `replPrint` function in the __main__ module.
 static void registerPrintFunction(void) {
-    // Make sure to initialize an empty __main__ module
-    jsrEvalModuleString(vm, "<repl>", JSR_MAIN_MODULE, "");
-    // Register it
     jsrPushNative(vm, JSR_MAIN_MODULE, REPL_PRINT, &replPrint, 1);
     jsrSetGlobal(vm, JSR_MAIN_MODULE, REPL_PRINT);
     jsrPop(vm);
@@ -371,13 +328,18 @@ static void parseArguments(int argc, char** argv) {
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
-    // Init the J* VM
-    PROFILE_BEGIN_SESSION("jstar-init.json")
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
+    conf.importCallback = &importCallback;
+
+    // Init the J* VM
+    PROFILE_BEGIN_SESSION("jstar-init.json")
     vm = jsrNewVM(&conf);
-    jsrBufferInit(vm, &completionBuf);
+    jsrInitRuntime(vm);
     PROFILE_END_SESSION()
+
+    jsrBufferInit(vm, &completionBuf);
+    initImports(vm, opts.script, opts.ignoreEnv);
 
     // Init replxx for repl and output coloring/hints support
     replxx = replxx_init();
@@ -389,9 +351,11 @@ static void initApp(int argc, char** argv) {
 
 // Free the app state
 static void freeApp(void) {
+    jsrBufferFree(&completionBuf);
+    freeImports();
+
     // Free  the J* VM
     PROFILE_BEGIN_SESSION("jstar-free.json")
-    jsrBufferFree(&completionBuf);
     jsrFreeVM(vm);
     PROFILE_END_SESSION()
 
@@ -400,65 +364,9 @@ static void freeApp(void) {
     replxx_end(replxx);
 }
 
-// Init the J* `importPaths` list by appending the script directory (or the current working
-// directory if no script was provided) and all the paths present in the JSTARPATH env variable.
-// All paths are converted to absolute ones.
-static void initImportPaths(void) {
-    char absolutePath[FILENAME_MAX];
-    
-    char* currentDir = getCurrentDirectory();
-    if(!currentDir) {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error retrieving cwd: %s\n",
-                      strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    // Compute the absolute main import path
-    size_t directory = 0;
-    if(opts.script) {
-        cwk_path_get_dirname(opts.script, &directory);
-    }
-
-    char* mainImportPath;
-    if(directory) {
-        mainImportPath = calloc(directory + 1, 1);
-        memcpy(mainImportPath, opts.script, directory);
-    } else {
-        mainImportPath = calloc(strlen("./") + 1, 1);
-        memcpy(mainImportPath, "./", 2);
-    }
-
-    cwk_path_get_absolute(currentDir, mainImportPath, absolutePath, FILENAME_MAX);
-    jsrAddImportPath(vm, absolutePath);
-    free(mainImportPath);
-
-    // Add all other paths appearing in the JSTARPATH env variable
-    const char* jstarPath;
-    if(!opts.ignoreEnv && (jstarPath = getenv(JSTAR_PATH))) {
-        JStarBuffer buf;
-        jsrBufferInit(vm, &buf);
-
-        size_t pathLen = strlen(jstarPath);
-        for(size_t i = 0, last = 0; i <= pathLen; i++) {
-            if(jstarPath[i] == PATH_SEP || i == pathLen) {
-                jsrBufferAppend(&buf, jstarPath + last, i - last);
-                cwk_path_get_absolute(currentDir, buf.data, absolutePath, FILENAME_MAX);
-                jsrAddImportPath(vm, absolutePath);
-                jsrBufferClear(&buf);
-                last = i + 1;
-            }
-        }
-
-        jsrBufferFree(&buf);
-    }
-
-    free(currentDir);
-}
-
 int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
-    initImportPaths();
 
     if(opts.execStmt) {
         JStarResult res = evaluateString("<string>", opts.execStmt);

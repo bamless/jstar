@@ -4,6 +4,7 @@
 
 #include "parse/lex.h"
 #include "parse/vector.h"
+#include "util.h"
 
 JStarIdentifier* jsrNewIdentifier(size_t length, const char* name) {
     JStarIdentifier* id = malloc(sizeof(*id));
@@ -91,7 +92,6 @@ JStarExpr* jsrYieldExpr(int line, JStarExpr* expr) {
     e->as.yield.expr = expr;
     return e;
 }
-
 
 JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs) {
     JStarExpr* a = newExpr(line, JSR_TUPLE);
@@ -199,8 +199,8 @@ void jsrExprFree(JStarExpr* e) {
         jsrExprFree(e->as.table.keyVals);
         break;
     case JSR_EXPR_LST: {
-        vecForeach(JStarExpr** expr, e->as.list) { 
-            jsrExprFree(*expr); 
+        vecForeach(JStarExpr** expr, e->as.list) {
+            jsrExprFree(*expr);
         }
         vecFree(&e->as.list);
         break;
@@ -256,49 +256,58 @@ static JStarStmt* newStmt(int line, JStarStmtType type) {
     return s;
 }
 
+static JStarStmt* newDecl(int line, JStarStmtType type) {
+    ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
+           type == JSR_NATIVEDECL, "Not a declaration");
+    JStarStmt* s = newStmt(line, type);
+    s->as.decl.isStatic = false;
+    s->as.decl.decorators = vecNew();
+    return s;
+}
+
+// Declarations
+
 JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool isVararg,
                        bool isGenerator, JStarStmt* body) {
-    JStarStmt* f = newStmt(line, JSR_FUNCDECL);
-    f->as.funcDecl.id.name = name->lexeme;
-    f->as.funcDecl.id.length = name->length;
-    f->as.funcDecl.formalArgs = vecMove(args);
-    f->as.funcDecl.defArgs = vecMove(defArgs);
-    f->as.funcDecl.isVararg = isVararg;
-    f->as.funcDecl.isGenerator = isGenerator;
-    f->as.funcDecl.isStatic = false;
-    f->as.funcDecl.body = body;
+    JStarStmt* f = newDecl(line, JSR_FUNCDECL);
+    f->as.decl.as.fun.id.name = name->lexeme;
+    f->as.decl.as.fun.id.length = name->length;
+    f->as.decl.as.fun.formalArgs = vecMove(args);
+    f->as.decl.as.fun.defArgs = vecMove(defArgs);
+    f->as.decl.as.fun.isVararg = isVararg;
+    f->as.decl.as.fun.isGenerator = isGenerator;
+    f->as.decl.as.fun.body = body;
     return f;
 }
 
 JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg) {
-    JStarStmt* n = newStmt(line, JSR_NATIVEDECL);
-    n->as.nativeDecl.id.name = name->lexeme;
-    n->as.nativeDecl.id.length = name->length;
-    n->as.nativeDecl.formalArgs = vecMove(args);
-    n->as.nativeDecl.isVararg = vararg;
-    n->as.nativeDecl.isStatic = false;
-    n->as.nativeDecl.defArgs = vecMove(defArgs);
+    JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
+    n->as.decl.as.native.id.name = name->lexeme;
+    n->as.decl.as.native.id.length = name->length;
+    n->as.decl.as.native.formalArgs = vecMove(args);
+    n->as.decl.as.native.isVararg = vararg;
+    n->as.decl.as.native.defArgs = vecMove(defArgs);
     return n;
 }
 
 JStarStmt* jsrClassDecl(int line, JStarTok* clsName, JStarExpr* sup, Vector* methods) {
-    JStarStmt* c = newStmt(line, JSR_CLASSDECL);
-    c->as.classDecl.sup = sup;
-    c->as.classDecl.isStatic = false;
-    c->as.classDecl.id.name = clsName->lexeme;
-    c->as.classDecl.id.length = clsName->length;
-    c->as.classDecl.methods = vecMove(methods);
+    JStarStmt* c = newDecl(line, JSR_CLASSDECL);
+    c->as.decl.as.cls.sup = sup;
+    c->as.decl.as.cls.id.name = clsName->lexeme;
+    c->as.decl.as.cls.id.length = clsName->length;
+    c->as.decl.as.cls.methods = vecMove(methods);
     return c;
 }
 
 JStarStmt* jsrVarDecl(int line, bool isUnpack, Vector* ids, JStarExpr* init) {
-    JStarStmt* s = newStmt(line, JSR_VARDECL);
-    s->as.varDecl.ids = vecMove(ids);
-    s->as.varDecl.isUnpack = isUnpack;
-    s->as.varDecl.isStatic = false;
-    s->as.varDecl.init = init;
+    JStarStmt* s = newDecl(line, JSR_VARDECL);
+    s->as.decl.as.var.ids = vecMove(ids);
+    s->as.decl.as.var.isUnpack = isUnpack;
+    s->as.decl.as.var.init = init;
     return s;
 }
+
+// Control flow statements
 
 JStarStmt* jsrWithStmt(int line, JStarExpr* e, JStarTok* varName, JStarStmt* block) {
     JStarStmt* w = newStmt(line, JSR_WITH);
@@ -403,6 +412,18 @@ JStarStmt* jsrBreakStmt(int line) {
     return s;
 }
 
+static void freeDeclaration(JStarStmt* s) {
+    JStarStmtType type = s->type;
+    ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
+           type == JSR_NATIVEDECL, "Not a declaration");
+    (void)type;
+    
+    vecForeach(JStarExpr** e, s->as.decl.decorators) {
+        jsrExprFree(*e);
+    }
+    vecFree(&s->as.decl.decorators);
+}
+
 void jsrStmtFree(JStarStmt* s) {
     if(s == NULL) return;
 
@@ -441,42 +462,46 @@ void jsrStmtFree(JStarStmt* s) {
         break;
     }
     case JSR_FUNCDECL: {
-        vecForeach(JStarIdentifier** id, s->as.funcDecl.formalArgs) {
+        freeDeclaration(s);
+        vecForeach(JStarIdentifier** id, s->as.decl.as.fun.formalArgs) {
             free(*id);
         }
-        vecForeach(JStarExpr** e, s->as.funcDecl.defArgs) {
+        vecFree(&s->as.decl.as.fun.formalArgs);
+        vecForeach(JStarExpr** e, s->as.decl.as.fun.defArgs) {
             jsrExprFree(*e);
         }
-        vecFree(&s->as.funcDecl.formalArgs);
-        vecFree(&s->as.funcDecl.defArgs);
-        jsrStmtFree(s->as.funcDecl.body);
+        vecFree(&s->as.decl.as.fun.defArgs);
+        jsrStmtFree(s->as.decl.as.fun.body);
         break;
     }
     case JSR_NATIVEDECL: {
-        vecForeach(JStarIdentifier** id, s->as.nativeDecl.formalArgs) {
+        freeDeclaration(s);
+        vecForeach(JStarIdentifier** id, s->as.decl.as.native.formalArgs) {
             free(*id);
         }
-        vecForeach(JStarExpr** e, s->as.nativeDecl.defArgs) {
+        vecFree(&s->as.decl.as.native.formalArgs);
+        vecForeach(JStarExpr** e, s->as.decl.as.native.defArgs) {
             jsrExprFree(*e);
         }
-        vecFree(&s->as.nativeDecl.formalArgs);
-        vecFree(&s->as.nativeDecl.defArgs);
+        vecFree(&s->as.decl.as.native.defArgs);
         break;
     }
     case JSR_CLASSDECL: {
-        jsrExprFree(s->as.classDecl.sup);
-        vecForeach(JStarStmt** stmt, s->as.classDecl.methods) {
+        freeDeclaration(s);
+        jsrExprFree(s->as.decl.as.cls.sup);
+        vecForeach(JStarStmt** stmt, s->as.decl.as.cls.methods) {
             jsrStmtFree(*stmt);
         }
-        vecFree(&s->as.classDecl.methods);
+        vecFree(&s->as.decl.as.cls.methods);
         break;
     }
     case JSR_VARDECL: {
-        jsrExprFree(s->as.varDecl.init);
-        vecForeach(JStarIdentifier** id, s->as.varDecl.ids) {
+        freeDeclaration(s);
+        jsrExprFree(s->as.decl.as.var.init);
+        vecForeach(JStarIdentifier** id, s->as.decl.as.var.ids) {
             free(*id);
         }
-        vecFree(&s->as.varDecl.ids);
+        vecFree(&s->as.decl.as.var.ids);
         break;
     }
     case JSR_TRY:

@@ -22,7 +22,7 @@
 
 // -----------------------------------------------------------------------------
 // API - The bulk of the API (jstar.h) implementation
-// JStarNewVM and JStarFreeVM functions are implemented in vm.c
+// JStarNewVM, jsrInitRuntime and JStarFreeVM functions are implemented in vm.c
 // -----------------------------------------------------------------------------
 
 static int apiStackIndex(JStarVM* vm, int slot) {
@@ -60,6 +60,7 @@ JStarConf jsrGetConf(void) {
     conf.firstGCCollectionPoint = 1024 * 1024 * 20;  // 20 MiB
     conf.heapGrowRate = 2;
     conf.errorCallback = &jsrPrintErrorCB;
+    conf.importCallback = NULL;
     conf.customData = NULL;
     return conf;
 }
@@ -329,10 +330,6 @@ void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
     }
 }
 
-void jsrAddImportPath(JStarVM* vm, const char* path) {
-    listAppend(vm, vm->importPaths, OBJ_VAL(copyString(vm, path, strlen(path))));
-}
-
 void jsrEnsureStack(JStarVM* vm, size_t needed) {
     reserveStack(vm, needed);
 }
@@ -508,6 +505,12 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
 void jsrPop(JStarVM* vm) {
     ASSERT(vm->sp > vm->apiStack, "Popping past frame boundary");
     pop(vm);
+}
+
+void jsrPopN(JStarVM* vm, int n) {
+    for(int i = 0; i < n; i++) {
+        jsrPop(vm);
+    }
 }
 
 int jsrTop(JStarVM* vm) {

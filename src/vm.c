@@ -64,6 +64,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
     JStarVM* vm = calloc(1, sizeof(*vm));
     vm->errorCallback = conf->errorCallback;
+    vm->importCallback = conf->importCallback;
     vm->customData = conf->customData;
 
     // VM program stack
@@ -86,13 +87,24 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
         vm->methodSyms[i] = copyString(vm, methodSyms[i], strlen(methodSyms[i]));
     }
 
+    return vm;
+}
+
+void jsrInitRuntime(JStarVM* vm) {
     // Core module bootstrap
     initCoreModule(vm);
 
+    // Init empty main module
+    ObjString *mainModuleName = copyString(vm, "__main__", 8);
+
+    push(vm, OBJ_VAL(mainModuleName));
+    ObjModule* mainModule = newModule(vm, "__main__", mainModuleName);
+    pop(vm);
+
+    setModule(vm, mainModuleName, mainModule);
+
     // Create empty tuple singleton
     vm->emptyTup = newTuple(vm, 0);
-
-    return vm;
 }
 
 void jsrFreeVM(JStarVM* vm) {
@@ -171,10 +183,8 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static void createClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
-    ObjClass* cls = newClass(vm, name, superCls);
-    hashTableMerge(&cls->methods, &superCls->methods);
-    push(vm, OBJ_VAL(cls));
+static void createClass(JStarVM* vm, ObjString* name) {
+    push(vm, OBJ_VAL(newClass(vm, name, NULL)));
 }
 
 static ObjUpvalue* captureUpvalue(JStarVM* vm, Value* addr) {
@@ -687,7 +697,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
         return n;
     }
 
-    JStarNativeReg* reg = m->natives.registry;
+    JStarNativeReg* reg = m->registry;
     if(reg != NULL) {
         for(int i = 0; reg[i].type != REG_SENTINEL; i++) {
             if(reg[i].type == REG_METHOD && cls != NULL) {
@@ -1431,7 +1441,7 @@ invoke:;
 
 super_invoke:;
         ObjString* name = GET_STRING();
-        ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
+        ObjClass* superCls = AS_CLASS(pop(vm));
         SAVE_STATE();
         bool res = invokeMethod(vm, superCls, name, argc);
         LOAD_STATE();
@@ -1441,7 +1451,7 @@ super_invoke:;
 
     TARGET(OP_SUPER_BIND): {
         ObjString* name = GET_STRING();
-        ObjClass* superCls = AS_CLASS(fn->code.consts.arr[SUPER_SLOT]);
+        ObjClass* superCls = AS_CLASS(pop(vm));
         if(!bindMethod(vm, superCls, name)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
                      name->data);
@@ -1503,7 +1513,12 @@ op_return:
     TARGET(OP_IMPORT): 
     TARGET(OP_IMPORT_FROM): {
         ObjString* name = GET_STRING();
+
+        // The import callback in user code could be reentrant, so
+        // we need to save and restore the state during an import
+        SAVE_STATE();
         ObjModule* module = importModule(vm, name);
+        LOAD_STATE();
 
         if(module == NULL) {
             jsrRaise(vm, "ImportException", "Cannot load module `%s`.", name->data);
@@ -1586,22 +1601,32 @@ op_return:
         goto op_return;
     }
 
-    TARGET(OP_NEW_CLASS): {
-        createClass(vm, GET_STRING(), vm->objClass);
+    TARGET(OP_GET_OBJECT): {
+        push(vm, OBJ_VAL(vm->objClass));
         DISPATCH();
     }
 
-    TARGET(OP_NEW_SUBCLASS): {
-        if(!IS_CLASS(peek(vm))) {
+    TARGET(OP_NEW_CLASS): {
+        createClass(vm, GET_STRING());
+        DISPATCH();
+    }
+
+    TARGET(OP_SUBCLASS): {
+        if(!IS_CLASS(peek2(vm))) {
             jsrRaise(vm, "TypeException", "Superclass in class declaration must be a Class.");
             UNWIND_STACK();
         }
-        ObjClass* cls = AS_CLASS(pop(vm));
-        if(isBuiltinClass(vm, cls)) {
-            jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", cls->name->data);
+
+        ObjClass* superCls = AS_CLASS(peek2(vm));
+        if(isBuiltinClass(vm, superCls)) {
+            jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", superCls->name->data);
             UNWIND_STACK();
         }
-        createClass(vm, GET_STRING(), cls);
+
+        ObjClass* cls = AS_CLASS(peek(vm));
+        cls->superCls = superCls;
+        hashTableMerge(&cls->methods, &superCls->methods);
+
         DISPATCH();
     }
 
@@ -1617,37 +1642,33 @@ op_return:
         DISPATCH();
     }
     
+    // TODO: rework super with upvalue
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
         ObjString* methodName = GET_STRING();
-        // Set the super-class as a const in the method
-        AS_CLOSURE(peek(vm))->fn->code.consts.arr[SUPER_SLOT] = OBJ_VAL(cls->superCls);
         hashTablePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }
-    
-    TARGET(OP_NAT_METHOD): {
-        ObjClass* cls = AS_CLASS(peek(vm));
-        ObjString* methodName = GET_STRING();
-        ObjNative* native = AS_NATIVE(GET_CONST());
-        native->fn = resolveNative(vm->module, cls->name->data, methodName->data);
-        if(native->fn == NULL) {
-            jsrRaise(vm, "Exception", "Cannot resolve native method %s().", native->proto.name->data);
-            UNWIND_STACK();
-        }
-        hashTablePut(&cls->methods, methodName, OBJ_VAL(native));
-        DISPATCH();
-    }
 
-    TARGET(OP_NATIVE): {
-        ObjString* name = GET_STRING();
-        ObjNative* nat  = AS_NATIVE(peek(vm));
-        nat->fn = resolveNative(vm->module, NULL, name->data);
-        if(nat->fn == NULL) {
-            jsrRaise(vm, "Exception", "Cannot resolve native function %s.%s.", 
-                     vm->module->name->data, nat->proto.name->data);
+    TARGET(OP_NATIVE):
+    TARGET(OP_NATIVE_METHOD): {
+        ObjString* method = GET_STRING();
+        ObjNative* native = AS_NATIVE(GET_CONST());
+
+        const char* className = NULL;
+        if(op == OP_NATIVE_METHOD) {
+            ObjClass* cls = AS_CLASS(peek(vm));
+            className = cls->name->data;
+        }
+
+        native->fn = resolveNative(vm->module, className, method->data);
+        if(!native->fn) {
+            jsrRaise(vm, "Exception", "Cannot resolve native %s.%s().", vm->module->name->data,
+                     native->proto.name->data);
             UNWIND_STACK();
         }
+
+        push(vm, OBJ_VAL(native));
         DISPATCH();
     }
     
@@ -1699,7 +1720,9 @@ op_return:
                 break;
             case CAUSE_RETURN:
                 // Set generators as completed
-                if(frame->gen) frame->gen->state = GEN_DONE;
+                if(frame->gen) {
+                    frame->gen->state = GEN_DONE;
+                }
                 // Return will execute ensure handlers
                 goto op_return;
             default:

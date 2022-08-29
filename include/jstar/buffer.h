@@ -23,6 +23,11 @@ typedef struct JStarBuffer {
 // JSTARBUFFER API
 // -----------------------------------------------------------------------------
 
+/*
+ * The following functions are safe to call prior to runtime initialization, with the obvious
+ * exception of `jsrBufferPush`.
+ */
+
 JSTAR_API void jsrBufferInit(struct JStarVM* vm, JStarBuffer* b);
 JSTAR_API void jsrBufferInitCapacity(struct JStarVM* vm, JStarBuffer* b, size_t capacity);
 JSTAR_API void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len);
@@ -38,11 +43,11 @@ JSTAR_API void jsrBufferAppendChar(JStarBuffer* b, char c);
 JSTAR_API void jsrBufferShrinkToFit(JStarBuffer* b);
 JSTAR_API void jsrBufferClear(JStarBuffer* b);
 
+// If not pushed with jsrBufferPush the buffer must be freed
+JSTAR_API void jsrBufferFree(JStarBuffer* b);
+
 // Once the buffer is pushed on the J* stack it becomes a String and can't be modified further
 // One can reuse the JStarBuffer struct by re-initializing it using the jsrBufferInit method.
 JSTAR_API void jsrBufferPush(JStarBuffer* b);
-
-// If not pushed with jsrBufferPush the buffer must be freed
-JSTAR_API void jsrBufferFree(JStarBuffer* b);
 
 #endif  // BUFFER_H

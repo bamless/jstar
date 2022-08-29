@@ -191,6 +191,7 @@ static void synchronize(Parser* p) {
     while(!match(p, TOK_EOF)) {
         switch(p->peek.type) {
         case TOK_FUN:
+        case TOK_AT:
         case TOK_VAR:
         case TOK_FOR:
         case TOK_IF:
@@ -212,6 +213,7 @@ static void classSynchronize(Parser* p) {
         switch(p->peek.type) {
         case TOK_FUN:
         case TOK_END:
+        case TOK_AT:
             return;
         default:
             break;
@@ -241,25 +243,6 @@ static JStarTokType assignToOperator(JStarTokType t) {
 static bool isDeclaration(JStarTok* tok) {
     JStarTokType t = tok->type;
     return t == TOK_FUN || t == TOK_NAT || t == TOK_CLASS || t == TOK_VAR;
-}
-
-static void setStaticDecl(JStarStmt* decl) {
-    switch(decl->type) {
-    case JSR_VARDECL:
-        decl->as.varDecl.isStatic = true;
-        break;
-    case JSR_FUNCDECL:
-        decl->as.funcDecl.isStatic = true;
-        break;
-    case JSR_NATIVEDECL:
-        decl->as.nativeDecl.isStatic = true;
-        break;
-    case JSR_CLASSDECL:
-        decl->as.classDecl.isStatic = true;
-        break;
-    default:
-        break;
-    }
 }
 
 static bool isCallExpression(JStarExpr* e) {
@@ -305,7 +288,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    vecForeach(JStarExpr **it, lvals->as.list) {
+    vecForeach(JStarExpr * *it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "Left hand side of unpack assignment must be composed of lvalues");
@@ -493,7 +476,7 @@ static JStarStmt* varDecl(Parser* p) {
 }
 
 static JStarStmt* forEach(Parser* p, JStarStmt* var, int line) {
-    if(var->as.varDecl.init != NULL) {
+    if(var->as.decl.as.var.init != NULL) {
         error(p, "Variable declaration in foreach cannot have initializer");
     }
 
@@ -662,6 +645,24 @@ static JStarStmt* withStmt(Parser* p) {
     return jsrWithStmt(line, e, &var, block);
 }
 
+static Vector parseDecorators(Parser* p) {
+    Vector decorators = vecNew();
+    while(match(p, TOK_AT)) {
+        advance(p);
+        vecPush(&decorators, expression(p, false));
+        skipNewLines(p);
+    }
+    return decorators;
+}
+
+static void freeDecorators(Vector* decorators) {
+    vecForeach(JStarExpr** e, *decorators) {
+        JStarExpr* decorator = *e;
+        jsrExprFree(decorator);
+    }
+    vecFree(decorators);
+}
+
 static JStarStmt* funcDecl(Parser* p) {
     Function fn;
     beginFunction(p, &fn);
@@ -725,18 +726,26 @@ static JStarStmt* classDecl(Parser* p) {
 
     Vector methods = vecNew();
     while(!match(p, TOK_END) && !match(p, TOK_EOF)) {
+        Vector decorators = parseDecorators(p);
+        JStarStmt* method = NULL;
+
         switch(p->peek.type) {
         case TOK_NAT:
-            vecPush(&methods, nativeDecl(p));
+            method = nativeDecl(p);
             break;
         case TOK_FUN:
-            vecPush(&methods, funcDecl(p));
+            method = funcDecl(p);
             break;
         default:
             error(p, "Expected function or native delcaration");
+            freeDecorators(&decorators);
             advance(p);
             break;
         }
+
+        method->as.decl.decorators = vecMove(&decorators);
+        vecPush(&methods, method);
+
         skipNewLines(p);
         if(p->panic) classSynchronize(p);
     }
@@ -745,16 +754,32 @@ static JStarStmt* classDecl(Parser* p) {
     return jsrClassDecl(line, &clsName, sup, &methods);
 }
 
-static JStarStmt* parseStaticDecl(Parser* p) {
+static JStarStmt* staticDecl(Parser* p) {
     advance(p);
     skipNewLines(p);
 
     if(!isDeclaration(&p->peek)) {
-        error(p, "Only a declaration can be annotated `static`", p->peek.line);
+        error(p, "Only a declaration can be annotated as `static`", p->peek.line);
+        return NULL;
     }
 
     JStarStmt* decl = parseStmt(p);
-    setStaticDecl(decl);
+    decl->as.decl.isStatic = true;
+
+    return decl;
+}
+
+static JStarStmt* decoratedDecl(Parser* p) {
+    Vector decorators = parseDecorators(p);
+
+    if(!match(p, TOK_STATIC) && !isDeclaration(&p->peek)) {
+        error(p, "Decorators can only be applied to declarations");
+        freeDecorators(&decorators);
+        return NULL;
+    }
+
+    JStarStmt* decl = parseStmt(p);
+    decl->as.decl.decorators = vecMove(&decorators);
 
     return decl;
 }
@@ -791,7 +816,9 @@ static JStarStmt* parseStmt(Parser* p) {
         return var;
     }
     case TOK_STATIC:
-        return parseStaticDecl(p);
+        return staticDecl(p);
+    case TOK_AT:
+        return decoratedDecl(p);
     case TOK_IF:
         return ifStmt(p);
     case TOK_FOR:
@@ -1218,11 +1245,11 @@ static JStarExpr* yieldExpr(Parser* p) {
 
         JStarTok yield = advance(p);
         JStarExpr* expr = NULL;
-        
+
         if(isExpressionStart(&p->peek)) {
             expr = expression(p, false);
         }
-        
+
         return jsrYieldExpr(yield.line, expr);
     }
     return funcLiteral(p);
