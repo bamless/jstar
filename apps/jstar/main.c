@@ -235,12 +235,18 @@ static void addReplPrint(JStarBuffer* sb) {
 static JStarResult doRepl(void) {
     PROFILE_BEGIN_SESSION("jstar-repl.json")
 
+
     JStarResult res = JSR_SUCCESS;
     {
         PROFILE_FUNC()
 
-        if(!opts.skipVersion) printVersion();
+        // Init empty main module
+        jsrEvalModuleString(vm, "<repl>", JSR_MAIN_MODULE, "");
         registerPrintFunction();
+        
+        if(!opts.skipVersion) {
+            printVersion();
+        }
 
         JStarBuffer src;
         jsrBufferInit(vm, &src);
@@ -338,8 +344,8 @@ static void initApp(int argc, char** argv) {
     jsrInitRuntime(vm);
     PROFILE_END_SESSION()
 
-    jsrBufferInit(vm, &completionBuf);
     initImports(vm, opts.script, opts.ignoreEnv);
+    jsrBufferInit(vm, &completionBuf);
 
     // Init replxx for repl and output coloring/hints support
     replxx = replxx_init();

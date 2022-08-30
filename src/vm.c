@@ -93,16 +93,6 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 void jsrInitRuntime(JStarVM* vm) {
     // Core module bootstrap
     initCoreModule(vm);
-
-    // Init empty main module
-    ObjString *mainModuleName = copyString(vm, "__main__", 8);
-
-    push(vm, OBJ_VAL(mainModuleName));
-    ObjModule* mainModule = newModule(vm, "__main__", mainModuleName);
-    pop(vm);
-
-    setModule(vm, mainModuleName, mainModule);
-
     // Create empty tuple singleton
     vm->emptyTup = newTuple(vm, 0);
 }
