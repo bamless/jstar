@@ -100,6 +100,7 @@ void pathChangeExtension(Path* p, const char* newExt) {
         if(newSize) ensureCapacity(p, newSize + 1);
         newSize = cwk_path_change_extension(p->data, newExt, p->data, p->capacity);
     } while(newSize >= p->capacity);
+    p->size = newSize;
 }
 
 void pathNormalize(Path* p) {
@@ -108,6 +109,7 @@ void pathNormalize(Path* p) {
         if(newSize) ensureCapacity(p, newSize + 1);
         newSize = cwk_path_normalize(p->data, p->data, p->capacity);
     } while(newSize >= p->capacity);
+    p->size = newSize;
 }
 
 static char* getCurrentDirectory(void) {
@@ -172,6 +174,7 @@ Path pathAbsolute(const Path* p) {
         newSize = cwk_path_get_absolute(cwd, p->data, absolute.data, absolute.capacity);
     } while(newSize >= absolute.capacity);
 
+    absolute.size = newSize;
     free(cwd);
 
     return absolute;

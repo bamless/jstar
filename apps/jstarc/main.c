@@ -164,8 +164,8 @@ static bool disassembleFile(const Path* path) {
 // DIRECTORY COMPILATION
 // -----------------------------------------------------------------------------
 
-// Generates the the full file path and an output path using the input root directory,
-// output root directory, the current position in the directory tree and a file name.
+// Generates the the full output path using the input root directory, output root directory,
+// the current position in the directory tree and a file name.
 static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
                            const char* fileName) {
     Path outPath = pathCopy(out);
