@@ -14,9 +14,10 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define MAX_ERR_SIZE    512
+#define CONSTRUCT_ID    "@construct"
 
 typedef struct Function {
-    bool isGenerator;
+    bool isGenerator, isCtor;
     struct Function* parent;
 } Function;
 
@@ -46,6 +47,7 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
 
 static void beginFunction(Parser* p, Function* fn) {
     fn->isGenerator = false;
+    fn->isCtor = false;
     fn->parent = p->function;
     p->function = fn;
 }
@@ -656,23 +658,36 @@ static Vector parseDecorators(Parser* p) {
 }
 
 static void freeDecorators(Vector* decorators) {
-    vecForeach(JStarExpr** e, *decorators) {
+    vecForeach(JStarExpr * *e, *decorators) {
         JStarExpr* decorator = *e;
         jsrExprFree(decorator);
     }
     vecFree(decorators);
 }
 
-static JStarStmt* funcDecl(Parser* p) {
+static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     Function fn;
     beginFunction(p, &fn);
 
     int line = p->peek.line;
 
-    advance(p);
+    JStarTok funTok = advance(p);
     skipNewLines(p);
 
-    JStarTok funcName = require(p, TOK_IDENTIFIER);
+    JStarTok funcName;
+    if(parseCtor && funTok.type == TOK_CTOR) {
+        fn.isCtor = true;
+
+        funcName = (JStarTok){
+            .line = line,
+            .type = TOK_IDENTIFIER,
+            .lexeme = CONSTRUCT_ID,
+            .length = strlen(CONSTRUCT_ID),
+        };
+    } else {
+        funcName = require(p, TOK_IDENTIFIER);
+    }
+
     skipNewLines(p);
 
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
@@ -687,13 +702,25 @@ static JStarStmt* funcDecl(Parser* p) {
     return decl;
 }
 
-static JStarStmt* nativeDecl(Parser* p) {
+static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     int line = p->peek.line;
 
     advance(p);
     skipNewLines(p);
 
-    JStarTok funcName = require(p, TOK_IDENTIFIER);
+    JStarTok funcName;
+    if(parseCtor && p->peek.type == TOK_CTOR) {
+        advance(p);
+        funcName = (JStarTok){
+            .line = line,
+            .type = TOK_IDENTIFIER,
+            .lexeme = CONSTRUCT_ID,
+            .length = strlen(CONSTRUCT_ID),
+        };
+    } else {
+        funcName = require(p, TOK_IDENTIFIER);
+    }
+
     skipNewLines(p);
 
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
@@ -731,10 +758,11 @@ static JStarStmt* classDecl(Parser* p) {
 
         switch(p->peek.type) {
         case TOK_NAT:
-            method = nativeDecl(p);
+            method = nativeDecl(p, true);
             break;
+        case TOK_CTOR:
         case TOK_FUN:
-            method = funcDecl(p);
+            method = funcDecl(p, true);
             break;
         default:
             error(p, "Expected function or native delcaration");
@@ -807,9 +835,9 @@ static JStarStmt* parseStmt(Parser* p) {
     case TOK_CLASS:
         return classDecl(p);
     case TOK_NAT:
-        return nativeDecl(p);
+        return nativeDecl(p, false);
     case TOK_FUN:
-        return funcDecl(p);
+        return funcDecl(p, false);
     case TOK_VAR: {
         JStarStmt* var = varDecl(p);
         requireStmtEnd(p);
@@ -1239,6 +1267,8 @@ static JStarExpr* yieldExpr(Parser* p) {
     if(match(p, TOK_YIELD)) {
         if(!p->function) {
             error(p, "Cannot use yield outside of a function");
+        } else if(p->function->isCtor) {
+            error(p, "Cannot yield inside a constructor");
         }
 
         markCurrentAsGenerator(p);
