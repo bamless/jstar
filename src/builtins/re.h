@@ -5,7 +5,7 @@
 
 JSR_NATIVE(jsr_re_match);
 JSR_NATIVE(jsr_re_find);
-JSR_NATIVE(jsr_re_gmatch);
-JSR_NATIVE(jsr_re_gsub);
+JSR_NATIVE(jsr_re_matchAll);
+JSR_NATIVE(jsr_re_substituteAll);
 
 #endif

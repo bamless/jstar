@@ -2,8 +2,8 @@ class RegexException is Exception end
 
 native match(str, regex, off=0)
 native find(str, regex, off=0)
-native gsub(str, regex, sub, num=0)
-native gmatch(str, regex)
+native substituteAll(str, regex, sub, num=0)
+native matchAll(str, regex)
 
 static class MatchIter is Iterable
     construct(string, regex)
@@ -43,6 +43,6 @@ static class MatchIter is Iterable
     end
 end
 
-fun igmatch(str, regex)
+fun lazyMatchAll(str, regex)
     return MatchIter(str, regex)
 end

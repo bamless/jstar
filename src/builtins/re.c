@@ -470,7 +470,7 @@ static bool madeProgress(const Substring* match, const char* lastMatch) {
     return match->start != lastMatch || match->length != 0;
 }
 
-JSR_NATIVE(jsr_re_gmatch) {
+JSR_NATIVE(jsr_re_matchAll) {
     JSR_CHECK(String, 1, "str");
     JSR_CHECK(String, 2, "regex");
 
@@ -568,7 +568,7 @@ static bool substituteCall(JStarVM* vm, RegexState* rs, JStarBuffer* b, int fnSl
     return true;
 }
 
-JSR_NATIVE(jsr_re_gsub) {
+JSR_NATIVE(jsr_re_substituteAll) {
     JSR_CHECK(String, 1, "str");
     JSR_CHECK(String, 2, "regex");
     JSR_CHECK(Int, 4, "num");

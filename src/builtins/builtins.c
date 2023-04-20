@@ -250,10 +250,10 @@ static Module builtInModules[] = {
 #endif
 #ifdef JSTAR_RE
     MODULE(re)
-        FUNCTION(match,  jsr_re_match)
-        FUNCTION(find,   jsr_re_find)
-        FUNCTION(gmatch, jsr_re_gmatch)
-        FUNCTION(gsub,   jsr_re_gsub)
+        FUNCTION(match,         jsr_re_match)
+        FUNCTION(find,          jsr_re_find)
+        FUNCTION(matchAll,      jsr_re_matchAll)
+        FUNCTION(substituteAll, jsr_re_substituteAll)
     ENDMODULE
 #endif
 #ifdef JSTAR_DEBUG
