@@ -13,7 +13,7 @@
 #include "profiler.h"
 
 static const char* const methodSyms[SYM_END] = {
-    [SYM_CTOR] = CTOR_STR,        [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",
+    [SYM_CTOR] = JSR_CONSTRUCT,   [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",
     [SYM_ADD] = "__add__",        [SYM_SUB] = "__sub__",        [SYM_MUL] = "__mul__",
     [SYM_DIV] = "__div__",        [SYM_MOD] = "__mod__",        [SYM_BAND] = "__band__",
     [SYM_BOR] = "__bor__",        [SYM_XOR] = "__xor__",        [SYM_LSHFT] = "__lshift__",
@@ -411,7 +411,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     reserveStack(vm, gen->frame.stackTop);
 
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
-    
+
     ObjModule* oldModule = vm->module;
     vm->module = gen->closure->fn->proto.module;
 

@@ -8,7 +8,7 @@ var Seek = Enum{
 }
 
 class File is Iterable
-    native new(path, mode, handle=null)
+    native construct(path, mode, handle=null)
 
     native tell()
     native seek(off, whence=0)
@@ -48,7 +48,7 @@ class File is Iterable
 end
 
 static class Popen is File
-    native new(name, mode)
+    native construct(name, mode)
     native close()
 end
 

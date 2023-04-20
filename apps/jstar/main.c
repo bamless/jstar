@@ -30,6 +30,7 @@ static const int tokenDepth[TOK_EOF] = {
     [TOK_CLASS] = 1,
     [TOK_WHILE] = 1,
     [TOK_WITH] = 1,
+    [TOK_CTOR] = 1,
     [TOK_FUN] = 1,
     [TOK_TRY] = 1,
     [TOK_FOR] = 1,

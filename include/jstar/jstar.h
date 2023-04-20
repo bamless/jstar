@@ -426,6 +426,7 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 // -----------------------------------------------------------------------------
 
 // Main module and core module names
+#define JSR_CONSTRUCT   "@construct"
 #define JSR_MAIN_MODULE "__main__"
 #define JSR_CORE_MODULE "__core__"
 

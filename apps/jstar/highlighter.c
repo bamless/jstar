@@ -21,6 +21,7 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_ELSE] = KEYWORD_COLOR,
     [TOK_FOR] = KEYWORD_COLOR,
     [TOK_FUN] = KEYWORD_COLOR,
+    [TOK_CTOR] = KEYWORD_COLOR,
     [TOK_NAT] = KEYWORD_COLOR,
     [TOK_IF] = KEYWORD_COLOR,
     [TOK_ELIF] = KEYWORD_COLOR,

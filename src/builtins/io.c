@@ -79,7 +79,7 @@ static int jsrSeek(FILE* file, long offset, int jsrWhence) {
 #define M_FILE_HANDLE "_handle"
 #define M_FILE_CLOSED "_closed"
 
-JSR_NATIVE(jsr_File_new) {
+JSR_NATIVE(jsr_File_construct) {
     if(jsrIsNull(vm, 3)) {
         JSR_CHECK(String, 1, "path");
         JSR_CHECK(String, 2, "mode");
@@ -289,7 +289,7 @@ JSR_NATIVE(jsr_File_flush) {
 // end
 
 // class Popen
-JSR_NATIVE(jsr_Popen_new) {
+JSR_NATIVE(jsr_Popen_construct) {
 #ifdef USE_POPEN
     JSR_CHECK(String, 1, "name");
     JSR_CHECK(String, 2, "mode");

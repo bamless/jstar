@@ -4,7 +4,7 @@
 #include "jstar.h"
 
 // class File
-JSR_NATIVE(jsr_File_new);
+JSR_NATIVE(jsr_File_construct);
 JSR_NATIVE(jsr_File_read);
 JSR_NATIVE(jsr_File_readAll);
 JSR_NATIVE(jsr_File_readLine);
@@ -17,7 +17,7 @@ JSR_NATIVE(jsr_File_flush);
 // end File
 
 // class Popen
-JSR_NATIVE(jsr_Popen_new);
+JSR_NATIVE(jsr_Popen_construct);
 JSR_NATIVE(jsr_Popen_close);
 // end Popen
 

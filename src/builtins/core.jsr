@@ -9,14 +9,14 @@ var argv = []
 // -----------------------------------------------------------------------------
 
 class Number
-    native new(n)
+    native construct(n)
     native isInt()
     native __string__()
     native __hash__()
 end
 
 class Boolean
-    native new(b)
+    native construct(b)
     native __string__()
     native __hash__()
 end
@@ -215,7 +215,7 @@ class Generator is Iterable
 end
 
 class String is Sequence
-    native new(...)
+    native construct(...)
     native charAt(idx)
     native startsWith(prefix, offset=0)
     native endsWith(suffix)
@@ -238,7 +238,7 @@ class String is Sequence
 end
 
 class List is Sequence
-    native new(n=0, init=null)
+    native construct(n=0, init=null)
     native add(e)
     native insert(i, e)
     native removeAt(i)
@@ -298,7 +298,7 @@ class List is Sequence
 end
 
 class Tuple is Sequence
-    native new(iterable=null)
+    native construct(iterable=null)
     native __len__()
     native __add__(other)
     native __eq__(other)
@@ -312,7 +312,7 @@ class Tuple is Sequence
 end
 
 class Table is Iterable
-    native new(iterable=null)
+    native construct(iterable=null)
     native delete(key)
     native clear()
     native contains(key)
@@ -327,7 +327,7 @@ class Table is Iterable
 end
 
 class Enum
-    native new(...)
+    native construct(...)
     native value(name)
     native name(value)
 end
@@ -373,7 +373,7 @@ native type(o)
 // -----------------------------------------------------------------------------
 
 class ReversedSequence is Sequence
-    fun new(sequence)
+    construct(sequence)
         this._sequence = sequence
         this._size = #sequence
     end
@@ -453,7 +453,7 @@ fun take(iterable, count)
 end
 
 class zip is Iterable
-    fun new(iterable1, iterable2)
+    construct(iterable1, iterable2)
         this._iterable1 = iterable1
         this._iterable2 = iterable2
     end
@@ -488,7 +488,7 @@ end
 // -----------------------------------------------------------------------------
 
 class Exception
-    fun new(err="", cause=null)
+    construct(err="", cause=null)
         this._err = err
         this._cause = cause
         this._stacktrace = null

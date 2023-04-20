@@ -1672,7 +1672,7 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
     JStarIdentifier* clsName = &cls->as.decl.as.cls.id;
     JStarIdentifier* methName = &s->as.decl.as.fun.id;
 
-    JStarIdentifier ctorName = createIdentifier(CTOR_STR);
+    JStarIdentifier ctorName = createIdentifier(JSR_CONSTRUCT);
     if(jsrIdentifierEq(methName, &ctorName)) {
         type = TYPE_CTOR;
     }

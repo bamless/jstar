@@ -6,7 +6,7 @@ native gsub(str, regex, sub, num=0)
 native gmatch(str, regex)
 
 static class MatchIter is Iterable
-    fun new(string, regex)
+    construct(string, regex)
         this.offset = 0
         this.lastMatch = null
         this.string = string

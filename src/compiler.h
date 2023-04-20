@@ -7,7 +7,6 @@
 #include "object.h"
 #include "parse/ast.h"
 
-#define CTOR_STR   "new"      // Special method name that signals a constructor
 #define MAX_LOCALS UINT8_MAX  // At most 255 local variables per frame
 
 typedef struct Compiler Compiler;

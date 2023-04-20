@@ -217,7 +217,7 @@ void initCoreModule(JStarVM* vm) {
 // -----------------------------------------------------------------------------
 
 // class Number
-JSR_NATIVE(jsr_Number_new) {
+JSR_NATIVE(jsr_Number_construct) {
     if(jsrIsNumber(vm, 1)) {
         jsrPushNumber(vm, jsrGetNumber(vm, 1));
         return true;
@@ -272,7 +272,7 @@ JSR_NATIVE(jsr_Number_hash) {
 // end
 
 // class Boolean
-JSR_NATIVE(jsr_Boolean_new) {
+JSR_NATIVE(jsr_Boolean_construct) {
     Value v = vm->apiStack[1];
     jsrPushBoolean(vm, valueToBool(v));
     return true;
@@ -503,7 +503,7 @@ JSR_NATIVE(jsr_Iterable_join) {
 // end
 
 // class List
-JSR_NATIVE(jsr_List_new) {
+JSR_NATIVE(jsr_List_construct) {
     if(jsrIsNull(vm, 1)) {
         jsrPushList(vm);
     } else if(jsrIsInteger(vm, 1)) {
@@ -750,7 +750,7 @@ JSR_NATIVE(jsr_List_next) {
 // end
 
 // class Tuple
-JSR_NATIVE(jsr_Tuple_new) {
+JSR_NATIVE(jsr_Tuple_construct) {
     if(IS_NULL(vm->apiStack[1])) {
         push(vm, OBJ_VAL(newTuple(vm, 0)));
         return true;
@@ -879,7 +879,7 @@ JSR_NATIVE(jsr_Tuple_hash) {
 // end
 
 // class String
-JSR_NATIVE(jsr_String_new) {
+JSR_NATIVE(jsr_String_construct) {
     JStarBuffer stringBuf;
     jsrBufferInit(vm, &stringBuf);
 
@@ -1305,7 +1305,7 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
     t->capacityMask = newCap - 1;
 }
 
-JSR_NATIVE(jsr_Table_new) {
+JSR_NATIVE(jsr_Table_construct) {
     ObjTable* table = newTable(vm);
     push(vm, OBJ_VAL(table));
 
@@ -1613,7 +1613,7 @@ static bool checkEnumElem(JStarVM* vm) {
               enumElem->data);
 }
 
-JSR_NATIVE(jsr_Enum_new) {
+JSR_NATIVE(jsr_Enum_construct) {
     if(jsrTupleGetLength(vm, 1) == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     }
