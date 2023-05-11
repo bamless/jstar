@@ -123,8 +123,8 @@ class Iterable
         return lst
     end
 
-    fun apply(transformIter, ...)
-        return transformIter(this, args)...
+    fun apply(collector, ...)
+        return collector(this, args)...
     end
 end
 
@@ -346,6 +346,19 @@ fun typeAssert(arg, cls, name)
     if !(arg is cls)
         var got, expected = cls.getName(), type(arg).getName()
         raise TypeException("{0} must be a {1}, got {2}" % (name, got, expected))
+    end
+end
+
+fun range(start, stop, step=1)
+    assert(step != 0, "step must be different than 0", InvalidArgException)
+    if step > 0
+        for var i = start; i < stop; i += step
+            yield i
+        end
+    else
+        for var i = start; i > stop; i += step
+            yield i
+        end
     end
 end
 
