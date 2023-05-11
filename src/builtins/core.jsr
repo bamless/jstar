@@ -349,19 +349,6 @@ fun typeAssert(arg, cls, name)
     end
 end
 
-fun range(start, stop, step=1)
-    assert(step != 0, "step must be different than 0", InvalidArgException)
-    if step > 0
-        for var i = start; i < stop; i += step
-            yield i
-        end
-    else
-        for var i = start; i > stop; i += step
-            yield i
-        end
-    end
-end
-
 fun partial(fn, arg, ...)
     var rest = args
     return (|...| => fn(arg, rest + args)...) if #rest != 0 else (|...| => fn(arg, args)...)
@@ -412,6 +399,19 @@ class ReversedSequence is Sequence
 
     fun __next__(idx)
         return this._sequence[this._size - idx - 1]
+    end
+end
+
+fun range(start, stop, step=1)
+    assert(step != 0, "step must be different than 0", InvalidArgException)
+    if step > 0
+        for var i = start; i < stop; i += step
+            yield i
+        end
+    else
+        for var i = start; i > stop; i += step
+            yield i
+        end
     end
 end
 
