@@ -402,8 +402,13 @@ class ReversedSequence is Sequence
     end
 end
 
-fun range(start, stop, step=1)
+fun range(start, stop=null, step=1)
     assert(step != 0, "step must be different than 0", InvalidArgException)
+
+    if !stop
+        start, stop = 0, start
+    end
+
     if step > 0
         for var i = start; i < stop; i += step
             yield i
