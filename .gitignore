@@ -3,3 +3,4 @@ out/
 *.jsc.inc
 /*.json
 test*
+.ccls*
