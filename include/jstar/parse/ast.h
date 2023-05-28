@@ -229,7 +229,7 @@ JSTAR_API bool jsrIdentifierEq(JStarIdentifier* id1, JStarIdentifier* id2);
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, const JStarTok* vararg,
+JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, JStarTok* vararg,
                                     bool isGenerator, JStarStmt* body);
 JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr,
                                     JStarExpr* elseExpr);
@@ -259,9 +259,9 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                                 const JStarTok* vararg, bool isGenerator, JStarStmt* body);
+                                 JStarTok* vararg, bool isGenerator, JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                                   const JStarTok* vararg);
+                                   JStarTok* vararg);
 JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
                                 JStarStmt* body);
 JSTAR_API JStarStmt* jsrIfStmt(int line, JStarExpr* cond, JStarStmt* thenStmt, JStarStmt* elseStmt);

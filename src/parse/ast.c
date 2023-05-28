@@ -157,11 +157,10 @@ JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarEx
     return e;
 }
 
-JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, const JStarTok* vararg,
+JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, JStarTok* vararg,
                           bool isGenerator, JStarStmt* body) {
     JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
-    JStarTok name = {0};  // Empty name
-    e->as.funLit.func = jsrFuncDecl(line, &name, args, defArgs, vararg, isGenerator, body);
+    e->as.funLit.func = jsrFuncDecl(line, &(JStarTok){0}, args, defArgs, vararg, isGenerator, body);
     return e;
 }
 
@@ -269,27 +268,25 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 // Declarations
 
 JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                       const JStarTok* varargName, bool isGenerator, JStarStmt* body) {
+                       JStarTok* varargName, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(line, JSR_FUNCDECL);
     f->as.decl.as.fun.id.name = name->lexeme;
     f->as.decl.as.fun.id.length = name->length;
     f->as.decl.as.fun.formalArgs = vecMove(args);
     f->as.decl.as.fun.defArgs = vecMove(defArgs);
-    f->as.decl.as.fun.vararg.name = varargName->lexeme;
-    f->as.decl.as.fun.vararg.length = varargName->length;
+    f->as.decl.as.fun.vararg = (JStarIdentifier){varargName->length, varargName->lexeme};
     f->as.decl.as.fun.isGenerator = isGenerator;
     f->as.decl.as.fun.body = body;
     return f;
 }
 
 JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                         const JStarTok* varargName) {
+                         JStarTok* varargName) {
     JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
     n->as.decl.as.native.id.name = name->lexeme;
     n->as.decl.as.native.id.length = name->length;
     n->as.decl.as.native.formalArgs = vecMove(args);
-    n->as.decl.as.fun.vararg.name = varargName->lexeme;
-    n->as.decl.as.fun.vararg.length = varargName->length;
+    n->as.decl.as.fun.vararg = (JStarIdentifier){varargName->length, varargName->lexeme};
     n->as.decl.as.native.defArgs = vecMove(defArgs);
     return n;
 }
@@ -316,8 +313,7 @@ JStarStmt* jsrVarDecl(int line, bool isUnpack, Vector* ids, JStarExpr* init) {
 JStarStmt* jsrWithStmt(int line, JStarExpr* e, JStarTok* varName, JStarStmt* block) {
     JStarStmt* w = newStmt(line, JSR_WITH);
     w->as.withStmt.e = e;
-    w->as.withStmt.var.name = varName->lexeme;
-    w->as.withStmt.var.length = varName->length;
+    w->as.withStmt.var = (JStarIdentifier){varName->length, varName->lexeme};
     w->as.withStmt.block = block;
     return w;
 }
@@ -370,8 +366,7 @@ JStarStmt* jsrImportStmt(int line, Vector* modules, Vector* impNames, JStarTok* 
     JStarStmt* s = newStmt(line, JSR_IMPORT);
     s->as.importStmt.modules = vecMove(modules);
     s->as.importStmt.impNames = vecMove(impNames);
-    s->as.importStmt.as.name = as->lexeme;
-    s->as.importStmt.as.length = as->length;
+    s->as.importStmt.as = (JStarIdentifier){as->length, as->lexeme};
     return s;
 }
 
@@ -393,8 +388,7 @@ JStarStmt* jsrExceptStmt(int line, JStarExpr* cls, JStarTok* varName, JStarStmt*
     JStarStmt* s = newStmt(line, JSR_EXCEPT);
     s->as.excStmt.block = block;
     s->as.excStmt.cls = cls;
-    s->as.excStmt.var.length = varName->length;
-    s->as.excStmt.var.name = varName->lexeme;
+    s->as.excStmt.var = (JStarIdentifier){varName->length, varName->lexeme};
     return s;
 }
 
