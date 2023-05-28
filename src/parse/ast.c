@@ -166,8 +166,7 @@ JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, JStarTok* var
 
 JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args, bool unpackArg) {
     JStarExpr* e = newExpr(line, JSR_SUPER);
-    e->as.sup.name.name = name->lexeme;
-    e->as.sup.name.length = name->length;
+    e->as.sup.name = (JStarIdentifier){name->length, name->lexeme};
     e->as.sup.unpackArg = unpackArg;
     e->as.sup.args = args;
     return e;
@@ -270,8 +269,7 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
                        JStarTok* varargName, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(line, JSR_FUNCDECL);
-    f->as.decl.as.fun.id.name = name->lexeme;
-    f->as.decl.as.fun.id.length = name->length;
+    f->as.decl.as.fun.id = (JStarIdentifier){name->length, name->lexeme};
     f->as.decl.as.fun.formalArgs = vecMove(args);
     f->as.decl.as.fun.defArgs = vecMove(defArgs);
     f->as.decl.as.fun.vararg = (JStarIdentifier){varargName->length, varargName->lexeme};
@@ -283,8 +281,7 @@ JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
 JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
                          JStarTok* varargName) {
     JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
-    n->as.decl.as.native.id.name = name->lexeme;
-    n->as.decl.as.native.id.length = name->length;
+    n->as.decl.as.native.id = (JStarIdentifier){name->length, name->lexeme};
     n->as.decl.as.native.formalArgs = vecMove(args);
     n->as.decl.as.fun.vararg = (JStarIdentifier){varargName->length, varargName->lexeme};
     n->as.decl.as.native.defArgs = vecMove(defArgs);
@@ -294,8 +291,7 @@ JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs
 JStarStmt* jsrClassDecl(int line, JStarTok* clsName, JStarExpr* sup, Vector* methods) {
     JStarStmt* c = newDecl(line, JSR_CLASSDECL);
     c->as.decl.as.cls.sup = sup;
-    c->as.decl.as.cls.id.name = clsName->lexeme;
-    c->as.decl.as.cls.id.length = clsName->length;
+    c->as.decl.as.cls.id = (JStarIdentifier){clsName->length, clsName->lexeme};
     c->as.decl.as.cls.methods = vecMove(methods);
     return c;
 }
