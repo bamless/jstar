@@ -157,11 +157,11 @@ JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarEx
     return e;
 }
 
-JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool isVararg, bool isGenerator,
-                          JStarStmt* body) {
+JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, const JStarTok* vararg,
+                          bool isGenerator, JStarStmt* body) {
     JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
     JStarTok name = {0};  // Empty name
-    e->as.funLit.func = jsrFuncDecl(line, &name, args, defArgs, isVararg, isGenerator, body);
+    e->as.funLit.func = jsrFuncDecl(line, &name, args, defArgs, vararg, isGenerator, body);
     return e;
 }
 
@@ -199,7 +199,7 @@ void jsrExprFree(JStarExpr* e) {
         jsrExprFree(e->as.table.keyVals);
         break;
     case JSR_EXPR_LST: {
-        vecForeach(JStarExpr** expr, e->as.list) {
+        vecForeach(JStarExpr * *expr, e->as.list) {
             jsrExprFree(*expr);
         }
         vecFree(&e->as.list);
@@ -258,7 +258,8 @@ static JStarStmt* newStmt(int line, JStarStmtType type) {
 
 static JStarStmt* newDecl(int line, JStarStmtType type) {
     ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
-           type == JSR_NATIVEDECL, "Not a declaration");
+               type == JSR_NATIVEDECL,
+           "Not a declaration");
     JStarStmt* s = newStmt(line, type);
     s->as.decl.isStatic = false;
     s->as.decl.decorators = vecNew();
@@ -267,25 +268,28 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool isVararg,
-                       bool isGenerator, JStarStmt* body) {
+JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
+                       const JStarTok* varargName, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(line, JSR_FUNCDECL);
     f->as.decl.as.fun.id.name = name->lexeme;
     f->as.decl.as.fun.id.length = name->length;
     f->as.decl.as.fun.formalArgs = vecMove(args);
     f->as.decl.as.fun.defArgs = vecMove(defArgs);
-    f->as.decl.as.fun.isVararg = isVararg;
+    f->as.decl.as.fun.vararg.name = varargName->lexeme;
+    f->as.decl.as.fun.vararg.length = varargName->length;
     f->as.decl.as.fun.isGenerator = isGenerator;
     f->as.decl.as.fun.body = body;
     return f;
 }
 
-JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs, bool vararg) {
+JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
+                         const JStarTok* varargName) {
     JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
     n->as.decl.as.native.id.name = name->lexeme;
     n->as.decl.as.native.id.length = name->length;
     n->as.decl.as.native.formalArgs = vecMove(args);
-    n->as.decl.as.native.isVararg = vararg;
+    n->as.decl.as.fun.vararg.name = varargName->lexeme;
+    n->as.decl.as.fun.vararg.length = varargName->length;
     n->as.decl.as.native.defArgs = vecMove(defArgs);
     return n;
 }
@@ -415,10 +419,11 @@ JStarStmt* jsrBreakStmt(int line) {
 static void freeDeclaration(JStarStmt* s) {
     JStarStmtType type = s->type;
     ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
-           type == JSR_NATIVEDECL, "Not a declaration");
+               type == JSR_NATIVEDECL,
+           "Not a declaration");
     (void)type;
-    
-    vecForeach(JStarExpr** e, s->as.decl.decorators) {
+
+    vecForeach(JStarExpr * *e, s->as.decl.decorators) {
         jsrExprFree(*e);
     }
     vecFree(&s->as.decl.decorators);
@@ -455,7 +460,7 @@ void jsrStmtFree(JStarStmt* s) {
         jsrExprFree(s->as.exprStmt);
         break;
     case JSR_BLOCK: {
-        vecForeach(JStarStmt** stmt, s->as.blockStmt.stmts) {
+        vecForeach(JStarStmt * *stmt, s->as.blockStmt.stmts) {
             jsrStmtFree(*stmt);
         }
         vecFree(&s->as.blockStmt.stmts);
@@ -463,11 +468,11 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_FUNCDECL: {
         freeDeclaration(s);
-        vecForeach(JStarIdentifier** id, s->as.decl.as.fun.formalArgs) {
+        vecForeach(JStarIdentifier * *id, s->as.decl.as.fun.formalArgs) {
             free(*id);
         }
         vecFree(&s->as.decl.as.fun.formalArgs);
-        vecForeach(JStarExpr** e, s->as.decl.as.fun.defArgs) {
+        vecForeach(JStarExpr * *e, s->as.decl.as.fun.defArgs) {
             jsrExprFree(*e);
         }
         vecFree(&s->as.decl.as.fun.defArgs);
@@ -476,11 +481,11 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_NATIVEDECL: {
         freeDeclaration(s);
-        vecForeach(JStarIdentifier** id, s->as.decl.as.native.formalArgs) {
+        vecForeach(JStarIdentifier * *id, s->as.decl.as.native.formalArgs) {
             free(*id);
         }
         vecFree(&s->as.decl.as.native.formalArgs);
-        vecForeach(JStarExpr** e, s->as.decl.as.native.defArgs) {
+        vecForeach(JStarExpr * *e, s->as.decl.as.native.defArgs) {
             jsrExprFree(*e);
         }
         vecFree(&s->as.decl.as.native.defArgs);
@@ -489,7 +494,7 @@ void jsrStmtFree(JStarStmt* s) {
     case JSR_CLASSDECL: {
         freeDeclaration(s);
         jsrExprFree(s->as.decl.as.cls.sup);
-        vecForeach(JStarStmt** stmt, s->as.decl.as.cls.methods) {
+        vecForeach(JStarStmt * *stmt, s->as.decl.as.cls.methods) {
             jsrStmtFree(*stmt);
         }
         vecFree(&s->as.decl.as.cls.methods);
@@ -498,7 +503,7 @@ void jsrStmtFree(JStarStmt* s) {
     case JSR_VARDECL: {
         freeDeclaration(s);
         jsrExprFree(s->as.decl.as.var.init);
-        vecForeach(JStarIdentifier** id, s->as.decl.as.var.ids) {
+        vecForeach(JStarIdentifier * *id, s->as.decl.as.var.ids) {
             free(*id);
         }
         vecFree(&s->as.decl.as.var.ids);
@@ -507,7 +512,7 @@ void jsrStmtFree(JStarStmt* s) {
     case JSR_TRY:
         jsrStmtFree(s->as.tryStmt.block);
         jsrStmtFree(s->as.tryStmt.ensure);
-        vecForeach(JStarStmt** stmt, s->as.tryStmt.excs) {
+        vecForeach(JStarStmt * *stmt, s->as.tryStmt.excs) {
             jsrStmtFree(*stmt);
         }
         vecFree(&s->as.tryStmt.excs);
@@ -524,10 +529,10 @@ void jsrStmtFree(JStarStmt* s) {
         jsrStmtFree(s->as.withStmt.block);
         break;
     case JSR_IMPORT: {
-        vecForeach(JStarIdentifier** id, s->as.importStmt.modules) {
+        vecForeach(JStarIdentifier * *id, s->as.importStmt.modules) {
             free(*id);
         }
-        vecForeach(JStarIdentifier** id, s->as.importStmt.impNames) {
+        vecForeach(JStarIdentifier * *id, s->as.importStmt.impNames) {
             free(*id);
         }
         vecFree(&s->as.importStmt.modules);

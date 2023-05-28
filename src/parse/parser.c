@@ -327,7 +327,7 @@ static JStarExpr* tupleLiteral(Parser* p);
 typedef struct FormalArgs {
     Vector arguments;
     Vector defaults;
-    bool isVararg;
+    JStarTok vararg;
 } FormalArgs;
 
 static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
@@ -381,7 +381,9 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
     if(match(p, TOK_VARARG)) {
         advance(p);
         skipNewLines(p);
-        args.isVararg = true;
+
+        args.vararg = require(p, TOK_IDENTIFIER);
+        skipNewLines(p);
     }
 
     require(p, close);
@@ -694,7 +696,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg,
+    JStarStmt* decl = jsrFuncDecl(line, &funcName, &args.arguments, &args.defaults, &args.vararg,
                                   p->function->isGenerator, body);
 
     endFunction(p);
@@ -726,7 +728,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return jsrNativeDecl(line, &funcName, &args.arguments, &args.defaults, args.isVararg);
+    return jsrNativeDecl(line, &funcName, &args.arguments, &args.defaults, &args.vararg);
 }
 
 static JStarStmt* classDecl(Parser* p) {
@@ -897,7 +899,7 @@ static JStarStmt* parseProgram(Parser* p) {
     }
 
     // Top level function doesn't have name or arguments, so pass them empty
-    return jsrFuncDecl(0, &(JStarTok){0}, &(Vector){0}, &(Vector){0}, false, false,
+    return jsrFuncDecl(0, &(JStarTok){0}, &(Vector){0}, &(Vector){0}, &(JStarTok){0}, false,
                        jsrBlockStmt(0, &stmts));
 }
 
@@ -1230,7 +1232,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        JStarExpr* lit = jsrFuncLiteral(line, &args.arguments, &args.defaults, args.isVararg,
+        JStarExpr* lit = jsrFuncLiteral(line, &args.arguments, &args.defaults, &args.vararg,
                                         p->function->isGenerator, body);
 
         endFunction(p);
@@ -1253,7 +1255,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         vecPush(&anonFuncStmts, jsrReturnStmt(line, e));
         JStarStmt* body = jsrBlockStmt(line, &anonFuncStmts);
 
-        JStarExpr* lit = jsrFuncLiteral(line, &args.arguments, &args.defaults, args.isVararg,
+        JStarExpr* lit = jsrFuncLiteral(line, &args.arguments, &args.defaults, &args.vararg,
                                         p->function->isGenerator, body);
 
         endFunction(p);

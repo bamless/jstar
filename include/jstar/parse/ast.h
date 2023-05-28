@@ -150,14 +150,14 @@ struct JStarStmt {
                 struct {
                     JStarIdentifier id;
                     Vector formalArgs, defArgs;
-                    bool isVararg;
+                    JStarIdentifier vararg;
                     bool isGenerator;
                     JStarStmt* body;
                 } fun;
                 struct {
                     JStarIdentifier id;
                     Vector formalArgs, defArgs;
-                    bool isVararg;
+                    JStarIdentifier vararg;
                 } native;
                 struct {
                     JStarIdentifier id;
@@ -229,7 +229,7 @@ JSTAR_API bool jsrIdentifierEq(JStarIdentifier* id1, JStarIdentifier* id2);
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, bool isVararg,
+JSTAR_API JStarExpr* jsrFuncLiteral(int line, Vector* args, Vector* defArgs, const JStarTok* vararg,
                                     bool isGenerator, JStarStmt* body);
 JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr,
                                     JStarExpr* elseExpr);
@@ -254,15 +254,14 @@ JSTAR_API JStarExpr* jsrNumLiteral(int line, double num);
 JSTAR_API JStarExpr* jsrNullLiteral(int line);
 JSTAR_API void jsrExprFree(JStarExpr* e);
 
-
 // -----------------------------------------------------------------------------
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                                 bool isVararg, bool isGenerator, JStarStmt* body);
+                                 const JStarTok* vararg, bool isGenerator, JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(int line, JStarTok* name, Vector* args, Vector* defArgs,
-                                   bool vararg);
+                                   const JStarTok* vararg);
 JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
                                 JStarStmt* body);
 JSTAR_API JStarStmt* jsrIfStmt(int line, JStarExpr* cond, JStarStmt* thenStmt, JStarStmt* elseStmt);

@@ -1535,10 +1535,11 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
     size_t defaults = vecSize(&s->as.decl.as.fun.defArgs);
     size_t arity = vecSize(&s->as.decl.as.fun.formalArgs);
-    bool vararg = s->as.decl.as.fun.isVararg;
+    JStarIdentifier* varargName = &s->as.decl.as.fun.vararg;
+    bool isVararg = varargName->name != NULL;
 
     push(c->vm, OBJ_VAL(name));
-    c->func = newFunction(c->vm, m, arity, defaults, vararg);
+    c->func = newFunction(c->vm, m, arity, defaults, isVararg);
     c->func->proto.name = name;
     pop(c->vm);
 
@@ -1558,9 +1559,8 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
         defineVar(c, &arg, s->line);
     }
 
-    if(s->as.decl.as.fun.isVararg) {
-        JStarIdentifier varArgsName = createIdentifier("args");
-        Variable vararg = declareVar(c, &varArgsName, false, s->line);
+    if(isVararg) {
+        Variable vararg = declareVar(c, varargName, false, s->line);
         defineVar(c, &vararg, s->line);
     }
 
@@ -1593,10 +1593,11 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
 static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
     size_t defCount = vecSize(&s->as.decl.as.native.defArgs);
     size_t arity = vecSize(&s->as.decl.as.native.formalArgs);
-    bool vararg = s->as.decl.as.native.isVararg;
+    JStarIdentifier* vararg = &s->as.decl.as.native.vararg; 
+    bool isVararg = vararg->name != NULL;
 
     push(c->vm, OBJ_VAL(name));
-    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, vararg);
+    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, isVararg);
     native->proto.name = name;
     pop(c->vm);
 

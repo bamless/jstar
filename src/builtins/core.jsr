@@ -123,7 +123,7 @@ class Iterable
         return lst
     end
 
-    fun apply(collector, ...)
+    fun apply(collector, ...args)
         return collector(this, args)...
     end
 end
@@ -215,7 +215,7 @@ class Generator is Iterable
 end
 
 class String is Sequence
-    native construct(...)
+    native construct(...args)
     native charAt(idx)
     native startsWith(prefix, offset=0)
     native endsWith(suffix)
@@ -327,7 +327,7 @@ class Table is Iterable
 end
 
 class Enum
-    native construct(...)
+    native construct(...args)
     native value(name)
     native name(value)
 end
@@ -349,15 +349,14 @@ fun typeAssert(arg, cls, name)
     end
 end
 
-fun partial(fn, arg, ...)
-    var rest = args
-    return (|...| => fn(arg, rest + args)...) if #rest != 0 else (|...| => fn(arg, args)...)
+fun partial(fn, arg, ...rest)
+    return (|...args| => fn(arg, rest + args)...) if #rest != 0 else (|...args| => fn(arg, args)...)
 end
 
-fun compose(fn1, fn2, ...)
+fun compose(fn1, fn2, ...args)
     var functions = args.reversed().concat((fn2, fn1)).collect(Tuple)
     var second, first = functions
-    return |...| => functions.skip(2).reduce(first(second(args)...), |ret, fn| => fn(ret))
+    return |...args| => functions.skip(2).reduce(first(second(args)...), |ret, fn| => fn(ret))
 end
 
 native ascii(num)
@@ -365,7 +364,7 @@ native char(c)
 native eval(source)
 native garbageCollect()
 native int(n)
-native print(s, ...)
+native print(s, ...args)
 native type(o)
 
 // -----------------------------------------------------------------------------
