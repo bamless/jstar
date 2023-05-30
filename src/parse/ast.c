@@ -255,8 +255,9 @@ static JStarStmt* newStmt(int line, JStarStmtType type) {
 }
 
 static JStarStmt* newDecl(int line, JStarStmtType type) {
-    ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
-           type == JSR_NATIVEDECL, "Not a declaration");
+    ASSERT((type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
+            type == JSR_NATIVEDECL),
+           "Not a declaration");
     JStarStmt* s = newStmt(line, type);
     s->as.decl.isStatic = false;
     s->as.decl.decorators = vecNew();
@@ -407,8 +408,9 @@ JStarStmt* jsrBreakStmt(int line) {
 
 static void freeDeclaration(JStarStmt* s) {
     JStarStmtType type = s->type;
-    ASSERT(type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
-           type == JSR_NATIVEDECL, "Not a declaration");
+    ASSERT((type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
+            type == JSR_NATIVEDECL),
+           "Not a declaration");
     (void)type;
 
     vecForeach(JStarExpr * *e, s->as.decl.decorators) {
