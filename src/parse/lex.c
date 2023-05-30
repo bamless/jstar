@@ -306,7 +306,7 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
         if(peekChar(lex) == '.' && peekChar2(lex) == '.') {
             advance(lex);
             advance(lex);
-            makeToken(lex, tok, TOK_VARARG);
+            makeToken(lex, tok, TOK_ELLIPSIS);
         } else {
             makeToken(lex, tok, TOK_DOT);
         }

@@ -646,6 +646,9 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
     case TOK_HASH_HASH:
         methodCall(c, "__string__", 0);
         break;
+    case TOK_ELLIPSIS:
+        // Spread operator compiles to 0 instructions
+        break;
     default:
         UNREACHABLE();
         break;
@@ -936,11 +939,25 @@ static void compilePowExpr(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_POW, e->line);
 }
 
-static void CompileListLit(Compiler* c, JStarExpr* e) {
+static void compileListLit(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
+
     vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
-        compileExpr(c, *it);
-        emitOpcode(c, OP_APPEND_LIST, e->line);
+        JStarExpr* expr = *it;
+        bool spreadArgument = expr->type == JSR_UNARY && expr->as.unary.op == TOK_ELLIPSIS; 
+
+        if(spreadArgument) {
+            emitOpcode(c, OP_DUP, expr->line);
+        }
+
+        compileExpr(c, expr);
+
+        if(spreadArgument) {
+            methodCall(c, "addAll", 1); 
+            emitOpcode(c, OP_POP, expr->line);
+        } else {
+            emitOpcode(c, OP_APPEND_LIST, e->line);
+        }
     }
 }
 
@@ -1043,7 +1060,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         emitOpcode(c, OP_NULL, e->line);
         break;
     case JSR_ARRAY:
-        CompileListLit(c, e);
+        compileListLit(c, e);
         break;
     case JSR_TUPLE:
         compileTupleLit(c, e);

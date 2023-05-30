@@ -378,7 +378,7 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
         }
     }
 
-    if(match(p, TOK_VARARG)) {
+    if(match(p, TOK_ELLIPSIS)) {
         advance(p);
         skipNewLines(p);
 
@@ -982,7 +982,7 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
 
     if(match(p, TOK_LPAREN)) {
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-        if(match(p, TOK_VARARG)) {
+        if(match(p, TOK_ELLIPSIS)) {
             advance(p);
             unpackArg = true;
         }
@@ -995,6 +995,38 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
     return jsrSuperLiteral(line, &name, args, unpackArg);
 }
 
+JStarExpr* parseListLiteral(Parser* p) {
+    int line = p->peek.line;
+    advance(p);
+    skipNewLines(p);
+
+    Vector exprs = vecNew();
+    while(!match(p, TOK_RSQUARE)) {
+        bool isSpread = false;
+
+        if(match(p, TOK_ELLIPSIS)) {
+            isSpread = true;
+            advance(p);
+        }
+        
+        JStarExpr* e = expression(p, false);
+        skipNewLines(p);
+
+        if(isSpread) {
+            e = jsrUnaryExpr(e->line, TOK_ELLIPSIS, e);
+        }
+
+        vecPush(&exprs, e);
+
+        if(!match(p, TOK_COMMA)) break;
+        advance(p);
+        skipNewLines(p);
+    }
+
+    require(p, TOK_RSQUARE);
+    return jsrArrLiteral(line, jsrExprList(line, &exprs));
+}
+
 static JStarExpr* literal(Parser* p) {
     int line = p->peek.line;
     JStarTok* tok = &p->peek;
@@ -1004,6 +1036,8 @@ static JStarExpr* literal(Parser* p) {
         return parseSuperLiteral(p);
     case TOK_LCURLY:
         return parseTableLiteral(p);
+    case TOK_LSQUARE: 
+        return parseListLiteral(p);
     case TOK_TRUE:
         advance(p);
         return jsrBoolLiteral(line, true);
@@ -1027,10 +1061,6 @@ static JStarExpr* literal(Parser* p) {
         JStarExpr* e = jsrStrLiteral(line, tok->lexeme + 1, tok->length - 2);
         advance(p);
         return e;
-    }
-    case TOK_LSQUARE: {
-        JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-        return jsrArrLiteral(line, exprs);
     }
     case TOK_LPAREN: {
         advance(p);
@@ -1089,7 +1119,7 @@ static JStarExpr* postfixExpr(Parser* p) {
         case TOK_LPAREN: {
             JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
             bool unpackArg = false;
-            if(match(p, TOK_VARARG)) {
+            if(match(p, TOK_ELLIPSIS)) {
                 advance(p);
                 unpackArg = true;
             }
