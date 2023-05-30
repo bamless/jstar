@@ -546,6 +546,10 @@ static JStarExpr* getExpressions(JStarExpr* unpackable) {
     }
 }
 
+bool isSpreadExpr(JStarExpr* e) {
+    return e->type == JSR_UNARY && e->as.unary.op == TOK_ELLIPSIS;
+}
+
 // -----------------------------------------------------------------------------
 // EXPRESSION COMPILE
 // -----------------------------------------------------------------------------
@@ -944,30 +948,56 @@ static void compileListLit(Compiler* c, JStarExpr* e) {
 
     vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
         JStarExpr* expr = *it;
-        bool spreadArgument = expr->type == JSR_UNARY && expr->as.unary.op == TOK_ELLIPSIS; 
-
-        if(spreadArgument) {
-            emitOpcode(c, OP_DUP, expr->line);
-        }
 
         compileExpr(c, expr);
 
-        if(spreadArgument) {
-            methodCall(c, "addAll", 1); 
-            emitOpcode(c, OP_POP, expr->line);
+        if(isSpreadExpr(e)) {
+            emitOpcode(c, OP_LIST_ADD_ALL, e->line);
         } else {
             emitOpcode(c, OP_APPEND_LIST, e->line);
         }
     }
 }
 
+static bool isSpreadTuple(Compiler* c, JStarExpr* e) {
+    vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
+        JStarExpr* e = *it;
+        if(isSpreadExpr(e)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void compileSpreadTupleLit(Compiler* c, JStarExpr* e) {
+        JStarExpr toList = (JStarExpr) {
+            e->line,
+            JSR_ARRAY,
+            .as = {
+                .array = {
+                    e->as.tuple.exprs
+                }
+            }
+        };
+        compileListLit(c, &toList);
+        emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
+}
+
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
+    if(isSpreadTuple(c, e)) {
+        compileSpreadTupleLit(c, e);
+        return;
+    }
+
     vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
         compileExpr(c, *it);
     }
 
     size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
-    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in Tuple literal");
+    if(tupleSize >= UINT8_MAX) {
+        error(c, e->line, "Too many elements in Tuple literal");
+    }
+
     emitOpcode(c, OP_NEW_TUPLE, e->line);
     emitByte(c, tupleSize, e->line);
 }

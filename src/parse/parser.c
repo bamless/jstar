@@ -316,6 +316,14 @@ static void requireStmtEnd(Parser* p) {
     }
 }
 
+static bool spreadOperator(Parser* p) {
+    if(match(p, TOK_ELLIPSIS)) {
+        advance(p);
+        return true;
+    }
+    return false;
+}
+
 // -----------------------------------------------------------------------------
 // STATEMENTS PARSE
 // -----------------------------------------------------------------------------
@@ -1002,13 +1010,7 @@ JStarExpr* parseListLiteral(Parser* p) {
 
     Vector exprs = vecNew();
     while(!match(p, TOK_RSQUARE)) {
-        bool isSpread = false;
-
-        if(match(p, TOK_ELLIPSIS)) {
-            isSpread = true;
-            advance(p);
-        }
-        
+        bool isSpread = spreadOperator(p);
         JStarExpr* e = expression(p, false);
         skipNewLines(p);
 
@@ -1018,7 +1020,10 @@ JStarExpr* parseListLiteral(Parser* p) {
 
         vecPush(&exprs, e);
 
-        if(!match(p, TOK_COMMA)) break;
+        if(!match(p, TOK_COMMA)) {
+            break;
+        }
+
         advance(p);
         skipNewLines(p);
     }
@@ -1327,8 +1332,19 @@ static JStarExpr* tupleLiteral(Parser* p) {
 
         while(match(p, TOK_COMMA)) {
             advance(p);
-            if(!isExpressionStart(&p->peek)) break;
-            vecPush(&exprs, yieldExpr(p));
+
+            if(!isExpressionStart(&p->peek) && p->peek.type != TOK_ELLIPSIS) {
+                break;
+            }
+
+            bool isSpread = spreadOperator(p);
+            JStarExpr* e = yieldExpr(p);
+
+            if(isSpread) {
+                e = jsrUnaryExpr(e->line, TOK_ELLIPSIS, e);
+            }
+            
+            vecPush(&exprs, e);
         }
 
         e = jsrTupleLiteral(line, jsrExprList(line, &exprs));
