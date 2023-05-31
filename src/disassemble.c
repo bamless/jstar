@@ -93,9 +93,9 @@ static void signedOffsetInstruction(Code* c, size_t i) {
 }
 
 static void constInstruction(Code* c, size_t i) {
-    int op = readShortAt(c->bytecode, i + 1);
-    printf("%d (", op);
-    printValue(c->consts.arr[op]);
+    int arg = readShortAt(c->bytecode, i + 1);
+    printf("%d (", arg);
+    printValue(c->consts.arr[arg]);
     printf(")");
 }
 
@@ -168,6 +168,7 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_INVOKE_9:
     case OP_INVOKE_10:
     case OP_INVOKE_UNPACK:
+    case OP_SUPER_UNPACK:
     case OP_SUPER_0:
     case OP_SUPER_1:
     case OP_SUPER_2:
@@ -180,7 +181,6 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
     case OP_SUPER_9:
     case OP_SUPER_10:
     case OP_SUPER_BIND:
-    case OP_SUPER_UNPACK:
     case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
@@ -206,8 +206,6 @@ void disassembleInstr(Code* c, int indent, size_t instr) {
         break;
     case OP_POPN:
     case OP_CALL:
-    case OP_CALL_UNPACK:
-    case OP_UNPACK:
     case OP_NEW_TUPLE:
     case OP_GET_LOCAL:
     case OP_SET_LOCAL:

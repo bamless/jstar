@@ -550,11 +550,24 @@ bool isSpreadExpr(JStarExpr* e) {
     return e->type == JSR_UNARY && e->as.unary.op == TOK_ELLIPSIS;
 }
 
+bool containsSpreadExpr(JStarExpr* exprs) {
+    ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
+    vecForeach(JStarExpr** it, exprs->as.list) {
+        JStarExpr* e = *it;
+        if(isSpreadExpr(e)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // -----------------------------------------------------------------------------
 // EXPRESSION COMPILE
 // -----------------------------------------------------------------------------
 
 static void compileExpr(Compiler* c, JStarExpr* e);
+static void compileListLit(Compiler* c, JStarExpr* e);
+static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* node);
 
 static void compileBinaryExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.binary.left);
@@ -701,8 +714,6 @@ static void compileVarLit(Compiler* c, JStarIdentifier* id, bool set, int line) 
     }
 }
 
-static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* node);
-
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(!name) {
@@ -838,7 +849,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
     compileAssignExpr(c, &assignment);
 }
 
-static uint8_t compileArguments(Compiler* c, JStarExpr* args) {
+static void compileArguments(Compiler* c, JStarExpr* args) {
     vecForeach(JStarExpr** it, args->as.list) {
         compileExpr(c, *it);
     }
@@ -848,15 +859,25 @@ static uint8_t compileArguments(Compiler* c, JStarExpr* args) {
         error(c, args->line, "Exceeded maximum number of arguments (%d) for function %s",
               (int)UINT8_MAX, c->func->proto.name->data);
     }
+}
 
-    return argsCount;
+static void compileUnpackArguments(Compiler* c, JStarExpr* args) {
+    JStarExpr argsList = (JStarExpr) {
+        args->line,
+        JSR_ARRAY,
+        .as = {
+            .array = {
+                args
+            }
+        }
+    };
+    compileListLit(c, &argsList);
 }
 
 static void emitCallOp(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
-                       uint8_t argsCount, bool isUnpackCall, int line) {
-    if(isUnpackCall) {
+                       uint8_t argsCount, bool unpackCall, int line) {
+    if(unpackCall) {
         emitOpcode(c, callUnpack, line);
-        emitByte(c, argsCount, line);
     } else if(argsCount <= MAX_INLINE_ARGS) {
         emitOpcode(c, callInline + argsCount, line);
     } else {
@@ -882,10 +903,17 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
         compileExpr(c, callee);
     }
 
-    uint8_t argsCount = compileArguments(c, e->as.call.args);
-    bool isUnpack = e->as.call.unpackArg;
+    JStarExpr* args = e->as.call.args;
+    bool unpackCall = containsSpreadExpr(args);
 
-    emitCallOp(c, callCode, callInline, callUnpack, argsCount, isUnpack, e->line);
+    if(unpackCall) {
+        compileUnpackArguments(c, args);
+    } else {
+        compileArguments(c, args);
+    }
+
+    uint8_t argsCount = vecSize(&args->as.list);
+    emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->line);
 
     if(isMethod) {
         emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
@@ -899,8 +927,9 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
         return;
     }
 
+    // place `this` on top of the stack
     emitOpcode(c, OP_GET_LOCAL, e->line);
-    emitByte(c, 0, e->line);
+    emitByte(c, 0, e->line); 
 
     uint16_t methodConst;
     if(e->as.sup.name.name != NULL) {
@@ -910,13 +939,20 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
     }
 
     JStarIdentifier superName = createIdentifier("super");
+    JStarExpr* args = e->as.sup.args;
 
-    if(e->as.sup.args != NULL) {
-        uint8_t argsCount = compileArguments(c, e->as.sup.args);
-        bool isUnpack = e->as.sup.unpackArg;
+    if(args != NULL) {
+        bool unpackCall = containsSpreadExpr(args);
 
+        if(unpackCall) {
+            compileUnpackArguments(c, args);
+        } else {
+            compileArguments(c, args);
+        }
+
+        uint8_t argsCount = vecSize(&args->as.list);
         compileVarLit(c, &superName, false, e->line);
-        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, isUnpack, e->line);
+        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->line);
         emitShort(c, methodConst, e->line);
     } else {
         compileVarLit(c, &superName, false, e->line);
@@ -964,16 +1000,6 @@ static void compileListLit(Compiler* c, JStarExpr* e) {
     }
 }
 
-static bool isSpreadTuple(Compiler* c, JStarExpr* e) {
-    vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
-        JStarExpr* e = *it;
-        if(isSpreadExpr(e)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static void compileSpreadTupleLit(Compiler* c, JStarExpr* e) {
         JStarExpr toList = (JStarExpr) {
             e->line,
@@ -989,7 +1015,7 @@ static void compileSpreadTupleLit(Compiler* c, JStarExpr* e) {
 }
 
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
-    if(isSpreadTuple(c, e)) {
+    if(containsSpreadExpr(e->as.tuple.exprs)) {
         compileSpreadTupleLit(c, e);
         return;
     }

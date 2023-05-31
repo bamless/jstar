@@ -68,7 +68,6 @@ struct JStarExpr {
         } var;
         struct {
             JStarExpr *callee, *args;
-            bool unpackArg;
         } call;
         struct {
             JStarExpr *base, *exp;
@@ -104,7 +103,6 @@ struct JStarExpr {
         struct {
             JStarIdentifier name;
             JStarExpr* args;
-            bool unpackArg;
         } sup;
         double num;
         bool boolean;
@@ -235,8 +233,8 @@ JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenEx
                                     JStarExpr* elseExpr);
 JSTAR_API JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval);
 JSTAR_API JStarExpr* jsrAccessExpr(int line, JStarExpr* left, const char* name, size_t length);
-JSTAR_API JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args, bool unpackArg);
-JSTAR_API JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args, bool unpackArg);
+JSTAR_API JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args);
+JSTAR_API JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args);
 JSTAR_API JStarExpr* jsrVarLiteral(int line, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrStrLiteral(int line, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrArrayAccExpr(int line, JStarExpr* left, JStarExpr* index);

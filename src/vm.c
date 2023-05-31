@@ -634,32 +634,20 @@ static bool unaryOverload(JStarVM* vm, const char* op, MethodSymbol overload) {
     return false;
 }
 
-static bool unpackArgs(JStarVM* vm, uint8_t argc, uint8_t* out) {
-    if(argc == 0) {
-        jsrRaise(vm, "TypeException", "No argument to unpack");
+static bool unpackArgs(JStarVM* vm, uint8_t* out) {
+    ObjList* args = AS_LIST(pop(vm));
+    size_t argsCount = args->size;
+
+    if(argsCount >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", argsCount);
         return false;
     }
 
-    if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-        jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
-                 getClass(vm, peek(vm))->name->data);
-        return false;
-    }
+    *out = (uint8_t)argsCount;
 
-    size_t size;
-    Value* array = getValues(AS_OBJ(pop(vm)), &size);
-
-    size_t totalArgc = argc + size - 1;
-    if(totalArgc >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", totalArgc);
-        return false;
-    }
-
-    *out = (uint8_t)totalArgc;
-
-    reserveStack(vm, size + 1);
-    for(size_t i = 0; i < size; i++) {
-        push(vm, array[i]);
+    reserveStack(vm, argsCount + 1);
+    for(size_t i = 0; i < argsCount; i++) {
+        push(vm, args->arr[i]);
     }
 
     return true;
@@ -1349,7 +1337,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         goto call;
 
     TARGET(OP_CALL_UNPACK):
-        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
         goto call;
@@ -1384,7 +1372,7 @@ call:
         goto invoke;
 
     TARGET(OP_INVOKE_UNPACK):
-        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
         goto invoke;
@@ -1420,7 +1408,7 @@ invoke:;
         goto super_invoke;
 
     TARGET(OP_SUPER_UNPACK):
-        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
         goto super_invoke;
