@@ -39,8 +39,8 @@
 #define ANON_FMT "anonymous[line:%d]"
 
 static const int opcodeStackUsage[] = {
-  #define OPCODE(opcode, args, stack) stack,
-  #include "opcode.def"
+#define OPCODE(opcode, args, stack) stack,
+#include "opcode.def"
 };
 
 typedef struct Variable {
@@ -120,7 +120,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* p
     c->fnNode = fnNode;
     c->depth = 0;
     c->localsCount = 0;
-    c->stackUsage = 1; // For the receiver
+    c->stackUsage = 1;  // For the receiver
     c->loops = NULL;
     c->tryDepth = 0;
     c->tryBlocks = NULL;
@@ -392,7 +392,7 @@ static void assertJumpOpcode(Opcode op) {
 
 static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
     assertJumpOpcode(jmpOp);
-    
+
     int32_t offset = target - (getCurrentAddr(c) + opcodeArgsNumber(jmpOp) + 1);
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over");
@@ -719,7 +719,8 @@ static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) 
     if(!name) {
         char anonymousName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) + 1];
         sprintf(anonymousName, ANON_FMT, func->line);
-        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonymousName, strlen(anonymousName)), func);
+        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonymousName, strlen(anonymousName)),
+                        func);
     } else {
         func->as.decl.as.fun.id = *name;
         compileFunction(c, TYPE_FUNC, copyString(c->vm, name->name, name->length), func);
@@ -762,7 +763,7 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
 
 static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, Vector* names) {
     if(vecSize(&exprs->as.list) < (size_t)lvals) {
-        error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals, 
+        error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals,
               vecSize(&exprs->as.list));
     }
 
@@ -771,7 +772,7 @@ static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, Vector*
         JStarIdentifier* name = NULL;
         if(names && i < lvals) name = vecGet(names, i);
         compileRval(c, *it, name);
-        
+
         if(++i > lvals) emitOpcode(c, OP_POP, 0);
     }
 }
@@ -862,15 +863,7 @@ static void compileArguments(Compiler* c, JStarExpr* args) {
 }
 
 static void compileUnpackArguments(Compiler* c, JStarExpr* args) {
-    JStarExpr argsList = (JStarExpr) {
-        args->line,
-        JSR_ARRAY,
-        .as = {
-            .array = {
-                args
-            }
-        }
-    };
+    JStarExpr argsList = (JStarExpr){args->line, JSR_ARRAY, .as = {.array = {args}}};
     compileListLit(c, &argsList);
 }
 
@@ -929,7 +922,7 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
 
     // place `this` on top of the stack
     emitOpcode(c, OP_GET_LOCAL, e->line);
-    emitByte(c, 0, e->line); 
+    emitByte(c, 0, e->line);
 
     uint16_t methodConst;
     if(e->as.sup.name.name != NULL) {
@@ -1001,17 +994,9 @@ static void compileListLit(Compiler* c, JStarExpr* e) {
 }
 
 static void compileSpreadTupleLit(Compiler* c, JStarExpr* e) {
-        JStarExpr toList = (JStarExpr) {
-            e->line,
-            JSR_ARRAY,
-            .as = {
-                .array = {
-                    e->as.tuple.exprs
-                }
-            }
-        };
-        compileListLit(c, &toList);
-        emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
+    JStarExpr toList = (JStarExpr){e->line, JSR_ARRAY, .as = {.array = {e->as.tuple.exprs}}};
+    compileListLit(c, &toList);
+    emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
 }
 
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
@@ -1039,7 +1024,7 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
     JStarExpr* keyVals = e->as.table.keyVals;
     for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list);) {
         JStarExpr* expr = *it;
-        
+
         if(isSpreadExpr(expr)) {
             emitOpcode(c, OP_DUP, e->line);
             compileExpr(c, expr);
@@ -1054,7 +1039,7 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
             emitOpcode(c, OP_DUP, e->line);
             compileExpr(c, key);
             compileExpr(c, val);
-            
+
             methodCall(c, "__set__", 2);
             emitOpcode(c, OP_POP, e->line);
 
@@ -1370,7 +1355,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
 
         emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
         emitOpcode(c, OP_POP, s->line);
-        
+
         if(!vecIsIterEnd(modules, it)) jsrBufferAppendChar(&nameBuf, '.');
     }
 
@@ -1636,8 +1621,8 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
 
     addFunctionDefaults(c, &c->func->proto, &s->as.decl.as.fun.defArgs);
 
-    // Add the receiver. 
-    // In the case of functions the receiver is the function itself but it 
+    // Add the receiver.
+    // In the case of functions the receiver is the function itself but it
     // isnt't accessible (we use an empty name).
     // In the case of methods the receiver is assigned a name of `this` and
     // points to the class instance on which the method was called.
@@ -1684,7 +1669,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
 static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
     size_t defCount = vecSize(&s->as.decl.as.native.defArgs);
     size_t arity = vecSize(&s->as.decl.as.native.formalArgs);
-    JStarIdentifier* vararg = &s->as.decl.as.native.vararg; 
+    JStarIdentifier* vararg = &s->as.decl.as.native.vararg;
     bool isVararg = vararg->name != NULL;
 
     push(c->vm, OBJ_VAL(name));
@@ -1750,7 +1735,8 @@ static void callDecorators(Compiler* c, Vector* decorators) {
     }
 }
 
-static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsName, JStarIdentifier* methName) {
+static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsName,
+                                   JStarIdentifier* methName) {
     size_t length = clsName->length + methName->length + 1;
     ObjString* name = allocateString(c->vm, length);
     memcpy(name->data, clsName->name, clsName->length);
@@ -1788,10 +1774,10 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
         emitOpcode(c, OP_POP, cls->line);
 
         compileDecorators(c, decorators);
-  
+
         emitOpcode(c, OP_GET_CONST, cls->line);
         emitShort(c, nativeConst, s->line);
-        
+
         callDecorators(c, decorators);
     }
 
@@ -1856,7 +1842,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 }
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
-    JStarIdentifier *funName = &s->as.decl.as.fun.id;
+    JStarIdentifier* funName = &s->as.decl.as.fun.id;
     Variable funVar = declareVar(c, funName, s->as.decl.isStatic, s->line);
 
     // If local initialize the variable in order to permit the function to reference itself
@@ -1865,7 +1851,7 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
     }
 
     Vector* decorators = &s->as.decl.decorators;
-    
+
     compileDecorators(c, decorators);
     compileFunction(c, TYPE_FUNC, copyString(c->vm, funName->name, funName->length), s);
     callDecorators(c, decorators);
@@ -1878,18 +1864,18 @@ static void compileNativeDecl(Compiler* c, JStarStmt* s) {
     Variable natVar = declareVar(c, natName, s->as.decl.isStatic, s->line);
 
     Vector* decorators = &s->as.decl.decorators;
-    
+
     compileDecorators(c, decorators);
     compileNative(c, copyString(c->vm, natName->name, natName->length), OP_NATIVE, s);
     callDecorators(c, decorators);
-    
+
     defineVar(c, &natVar, s->line);
 }
 
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
-    
+
     vecForeach(JStarIdentifier** varName, s->as.decl.as.var.ids) {
         Variable var = declareVar(c, *varName, s->as.decl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;
