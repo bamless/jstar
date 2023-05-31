@@ -1011,16 +1011,29 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.table.keyVals;
-    for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list); it += 2) {
-        JStarExpr* key = *it;
-        JStarExpr* val = *(it + 1);
-
-        emitOpcode(c, OP_DUP, e->line);
-        compileExpr(c, key);
-        compileExpr(c, val);
+    for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list);) {
+        JStarExpr* expr = *it;
         
-        methodCall(c, "__set__", 2);
-        emitOpcode(c, OP_POP, e->line);
+        if(isSpreadExpr(expr)) {
+            emitOpcode(c, OP_DUP, e->line);
+            compileExpr(c, expr);
+            methodCall(c, "addAll", 1);
+            emitOpcode(c, OP_POP, e->line);
+
+            it += 1;
+        } else {
+            JStarExpr* key = expr;
+            JStarExpr* val = *(it + 1);
+
+            emitOpcode(c, OP_DUP, e->line);
+            compileExpr(c, key);
+            compileExpr(c, val);
+            
+            methodCall(c, "__set__", 2);
+            emitOpcode(c, OP_POP, e->line);
+
+            it += 2;
+        }
     }
 }
 

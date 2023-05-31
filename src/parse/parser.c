@@ -953,26 +953,37 @@ static JStarExpr* parseTableLiteral(Parser* p) {
 
     Vector keyVals = vecNew();
     while(!match(p, TOK_RCURLY)) {
-        JStarExpr* key;
-        if(match(p, TOK_DOT)) {
-            advance(p);
-            JStarTok id = require(p, TOK_IDENTIFIER);
-            key = jsrStrLiteral(id.line, id.lexeme, id.length);
+        bool isSpread = consumeSpreadOp(p);
+        
+        if(isSpread) {
+            JStarExpr* expr = expression(p, false);
+            skipNewLines(p);
+            expr = jsrUnaryExpr(expr->line, TOK_ELLIPSIS, expr);
+            vecPush(&keyVals, expr);
         } else {
-            key = expression(p, false);
+            JStarExpr* key;
+            if(match(p, TOK_DOT)) {
+                advance(p);
+                JStarTok id = require(p, TOK_IDENTIFIER);
+                key = jsrStrLiteral(id.line, id.lexeme, id.length);
+            } else {
+                key = expression(p, false);
+            }
+
+            skipNewLines(p);
+            require(p, TOK_COLON);
+            skipNewLines(p);
+
+            JStarExpr* val = expression(p, false);
+            skipNewLines(p);
+
+            if(p->hadError) {
+                break;
+            }
+
+            vecPush(&keyVals, key);
+            vecPush(&keyVals, val);
         }
-
-        skipNewLines(p);
-        require(p, TOK_COLON);
-        skipNewLines(p);
-
-        JStarExpr* val = expression(p, false);
-        skipNewLines(p);
-
-        if(p->hadError) break;
-
-        vecPush(&keyVals, key);
-        vecPush(&keyVals, val);
 
         if(!match(p, TOK_RCURLY)) {
             require(p, TOK_COMMA);
