@@ -1392,6 +1392,7 @@ invoke:;
     
     {
         uint8_t argc;
+        ObjClass* superCls;
 
     TARGET(OP_SUPER_0):
     TARGET(OP_SUPER_1):
@@ -1405,21 +1406,27 @@ invoke:;
     TARGET(OP_SUPER_9):
     TARGET(OP_SUPER_10):
         argc = op - OP_SUPER_0;
-        goto super_invoke;
+        goto super_get_class;
 
-    TARGET(OP_SUPER_UNPACK):
+    TARGET(OP_SUPER_UNPACK): {
+        superCls = AS_CLASS(pop(vm));
+
         if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
+
         goto super_invoke;
+    }
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
-        goto super_invoke;
+        goto super_get_class;
+
+super_get_class:;
+        superCls = AS_CLASS(pop(vm));
 
 super_invoke:;
         ObjString* name = GET_STRING();
-        ObjClass* superCls = AS_CLASS(pop(vm));
         SAVE_STATE();
         bool res = invokeMethod(vm, superCls, name, argc);
         LOAD_STATE();
