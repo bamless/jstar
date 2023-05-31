@@ -949,10 +949,15 @@ static void compileListLit(Compiler* c, JStarExpr* e) {
     vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
         JStarExpr* expr = *it;
 
+        if(isSpreadExpr(expr)) {
+            emitOpcode(c, OP_DUP, e->line);
+        }
+
         compileExpr(c, expr);
 
-        if(isSpreadExpr(e)) {
-            emitOpcode(c, OP_LIST_ADD_ALL, e->line);
+        if(isSpreadExpr(expr)) {
+            methodCall(c, "addAll", 1);
+            emitOpcode(c, OP_POP, expr->line);
         } else {
             emitOpcode(c, OP_APPEND_LIST, e->line);
         }

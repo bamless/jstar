@@ -324,6 +324,22 @@ class Table is Iterable
     native __iter__(i)
     native __next__(i)
     native __string__()
+
+    fun addAll(other)
+        var changed = false
+        if other is Table
+            for var k in other
+                var r = (this[k] = other[k])
+                changed = changed or r
+            end
+        else
+            for var k, v in other
+                var r = (this[k] = v)
+                changed = changed or r
+            end
+        end
+        return changed
+    end
 end
 
 class Enum

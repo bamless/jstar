@@ -1552,6 +1552,16 @@ op_return:
         pop(vm);
         DISPATCH();
     }
+
+    TARGET(OP_LIST_TO_TUPLE): {
+        ASSERT(IS_LIST(peek(vm)), "Top of stack isn't a List");
+        ObjList* lst = AS_LIST(peek(vm));
+        ObjTuple* tup = newTuple(vm, lst->size);
+        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->size);
+        pop(vm);
+        push(vm, OBJ_VAL(tup));
+        DISPATCH();
+    }
     
     TARGET(OP_NEW_TUPLE): {
         uint8_t size = NEXT_CODE();
