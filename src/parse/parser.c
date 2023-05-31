@@ -675,11 +675,20 @@ static void freeDecorators(Vector* decorators) {
     vecFree(decorators);
 }
 
+static JStarTok ctorName(int line) {
+    return (JStarTok){
+        .line = line,
+        .type = TOK_IDENTIFIER,
+        .lexeme = CONSTRUCT_ID,
+        .length = strlen(CONSTRUCT_ID),
+    };
+}
+
 static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
+    int line = p->peek.line;
+
     Function fn;
     beginFunction(p, &fn);
-
-    int line = p->peek.line;
 
     JStarTok funTok = advance(p);
     skipNewLines(p);
@@ -687,13 +696,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarTok funcName;
     if(parseCtor && funTok.type == TOK_CTOR) {
         fn.isCtor = true;
-
-        funcName = (JStarTok){
-            .line = line,
-            .type = TOK_IDENTIFIER,
-            .lexeme = CONSTRUCT_ID,
-            .length = strlen(CONSTRUCT_ID),
-        };
+        funcName = ctorName(line);
     } else {
         funcName = require(p, TOK_IDENTIFIER);
     }
@@ -721,12 +724,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     JStarTok funcName;
     if(parseCtor && p->peek.type == TOK_CTOR) {
         advance(p);
-        funcName = (JStarTok){
-            .line = line,
-            .type = TOK_IDENTIFIER,
-            .lexeme = CONSTRUCT_ID,
-            .length = strlen(CONSTRUCT_ID),
-        };
+        funcName = ctorName(line);
     } else {
         funcName = require(p, TOK_IDENTIFIER);
     }
