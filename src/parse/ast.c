@@ -230,6 +230,9 @@ void jsrExprFree(JStarExpr* e) {
     case JSR_FUNC_LIT:
         jsrStmtFree(e->as.funLit.func);
         break;
+    case JSR_SPREAD:
+        jsrExprFree(e->as.spread.expr);
+        break;
     case JSR_POWER:
         jsrExprFree(e->as.pow.base);
         jsrExprFree(e->as.pow.exp);
@@ -239,9 +242,6 @@ void jsrExprFree(JStarExpr* e) {
         break;
     case JSR_YIELD:
         jsrExprFree(e->as.yield.expr);
-        break;
-    case JSR_SPREAD:
-        jsrExprFree(e->as.spread.expr);
         break;
     default:
         break;
