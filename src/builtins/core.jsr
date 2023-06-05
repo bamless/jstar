@@ -88,6 +88,47 @@ class Iterable
         end
         return true
     end
+    
+    fun find(predicate)
+        var idx = 0;
+        for var e in this
+            if predicate(e)
+                return idx
+            end
+            idx += 1
+        end
+        return null
+    end
+
+    fun max(comparator=null)
+        var max = null
+        for var e in this
+            if max
+                var greater = comparator(e, max) >= 0 if comparator else e >= max
+                if greater
+                    max = e 
+                end
+            else
+                max = e
+            end
+        end
+        return max
+    end
+
+    fun min(comparator=null)
+        var min = null
+        for var e in this
+            if min
+                var lesser = comparator(e, min) <= 0 if comparator else e <= min
+                if lesser
+                    min = e 
+                end
+            else
+                min = e
+            end
+        end
+        return min
+    end
 
     fun enumerate(start=0)
         return enumerate(this, start)
@@ -111,6 +152,10 @@ class Iterable
 
     fun take(count)
         return take(this, count)
+    end
+
+    fun flatten()
+        return flatten(this)
     end
 
     fun zip(iterable)
@@ -482,6 +527,19 @@ fun take(iterable, count)
         end
         yield e
         count -= 1
+    end
+end
+
+fun flatten(iterable)
+    for var outer in iterable
+        var cls = type(outer)
+        if cls.implements("__iter__") and cls.implements("__next__")
+            for var inner in outer
+                yield inner
+            end
+        else
+            yield outer
+        end
     end
 end
 

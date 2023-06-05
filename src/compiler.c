@@ -547,7 +547,7 @@ static JStarExpr* getExpressions(JStarExpr* unpackable) {
 }
 
 bool isSpreadExpr(JStarExpr* e) {
-    return e->type == JSR_UNARY && e->as.unary.op == TOK_ELLIPSIS;
+    return e->type == JSR_SPREAD;
 }
 
 bool containsSpreadExpr(JStarExpr* exprs) {
@@ -662,9 +662,6 @@ static void compileUnaryExpr(Compiler* c, JStarExpr* e) {
         break;
     case TOK_HASH_HASH:
         methodCall(c, "__string__", 0);
-        break;
-    case TOK_ELLIPSIS:
-        // Spread operator compiles to 0 instructions
         break;
     default:
         UNREACHABLE();
@@ -1132,6 +1129,9 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         break;
     case JSR_FUNC_LIT:
         compileFunLiteral(c, e, NULL);
+        break;
+    case JSR_SPREAD:
+        compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
         vecForeach(JStarExpr** it, e->as.list) {

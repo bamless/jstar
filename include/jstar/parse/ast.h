@@ -38,6 +38,7 @@ typedef enum JStarExprType {
     JSR_TERNARY,
     JSR_COMPUND_ASS,
     JSR_FUNC_LIT,
+    JSR_SPREAD,
 } JStarExprType;
 
 struct JStarExpr {
@@ -52,6 +53,9 @@ struct JStarExpr {
             JStarTokType op;
             JStarExpr* operand;
         } unary;
+        struct {
+            JStarExpr* expr;
+        } spread;
         struct {
             JStarExpr *lval, *rval;
         } assign;
@@ -243,6 +247,7 @@ JSTAR_API JStarExpr* jsrUnaryExpr(int line, JStarTokType op, JStarExpr* operand)
 JSTAR_API JStarExpr* jsrAssignExpr(int line, JStarExpr* lval, JStarExpr* rval);
 JSTAR_API JStarExpr* jsrPowExpr(int line, JStarExpr* base, JStarExpr* exp);
 JSTAR_API JStarExpr* jsrTableLiteral(int line, JStarExpr* keyVals);
+JSTAR_API JStarExpr* jsrSpreadExpr(int line, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrExprList(int line, Vector* exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(int line, bool boolean);
 JSTAR_API JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs);

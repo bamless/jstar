@@ -105,6 +105,12 @@ JStarExpr* jsrTableLiteral(int line, JStarExpr* keyVals) {
     return t;
 }
 
+JStarExpr* jsrSpreadExpr(int line, JStarExpr* expr) {
+    JStarExpr* s = newExpr(line, JSR_SPREAD);
+    s->as.spread.expr = expr;
+    return s;
+}
+
 JStarExpr* jsrExprList(int line, Vector* exprs) {
     JStarExpr* e = newExpr(line, JSR_EXPR_LST);
     e->as.list = vecMove(exprs);

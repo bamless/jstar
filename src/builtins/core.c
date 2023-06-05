@@ -114,6 +114,14 @@ static JSR_NATIVE(jsr_Class_getName) {
     return true;
 }
 
+static JSR_NATIVE(jsr_Class_implements) {
+    JSR_CHECK(String, 1, "method");
+    ObjClass* cls = AS_CLASS(vm->apiStack[0]);
+    ObjString* method = AS_STRING(vm->apiStack[1]);
+    push(vm, BOOL_VAL(hashTableContainsKey(&cls->methods, method)));
+    return true;
+}
+
 static JSR_NATIVE(jsr_Class_string) {
     Obj* o = AS_OBJ(vm->apiStack[0]);
     JStarBuffer str;
@@ -150,6 +158,7 @@ void initCoreModule(JStarVM* vm) {
     vm->clsClass->superCls = vm->objClass;
     hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
     defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_implements, "implements", 1);
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
 
     {

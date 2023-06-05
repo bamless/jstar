@@ -926,7 +926,7 @@ static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close
         skipNewLines(p);
 
         if(isSpread) {
-            e = jsrUnaryExpr(e->line, TOK_ELLIPSIS, e);
+            e = jsrSpreadExpr(line, e);
         }
 
         vecPush(&exprs, e);
@@ -956,7 +956,7 @@ static JStarExpr* parseTableLiteral(Parser* p) {
         if(isSpread) {
             JStarExpr* expr = expression(p, false);
             skipNewLines(p);
-            expr = jsrUnaryExpr(expr->line, TOK_ELLIPSIS, expr);
+            expr = jsrSpreadExpr(expr->line, expr);
             vecPush(&keyVals, expr);
         } else {
             JStarExpr* key;
@@ -1328,7 +1328,7 @@ static JStarExpr* tupleLiteral(Parser* p) {
             JStarExpr* e = yieldExpr(p);
 
             if(isSpread) {
-                e = jsrUnaryExpr(e->line, TOK_ELLIPSIS, e);
+                e = jsrSpreadExpr(e->line, e);
             }
             
             vecPush(&exprs, e);
