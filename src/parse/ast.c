@@ -240,6 +240,9 @@ void jsrExprFree(JStarExpr* e) {
     case JSR_YIELD:
         jsrExprFree(e->as.yield.expr);
         break;
+    case JSR_SPREAD:
+        jsrExprFree(e->as.spread.expr);
+        break;
     default:
         break;
     }
