@@ -2,8 +2,11 @@
 
 #include <string.h>
 
-#include "core.h"
-#include "core.jsc.inc"
+#include "core/core.h"
+#include "core/core.jsc.inc"
+
+#include "core/iter.h"
+#include "core/iter.jsc.inc"
 
 #ifdef JSTAR_SYS
     #include "sys.h"
@@ -59,14 +62,15 @@ typedef struct {
 
 // clang-format off
 
-#define ELEMS_END        {TYPE_FUNC, .as = { .function = METHODS_END } },
-#define MODULES_END      {NULL, NULL, 0, { ELEMS_END }}
-#define METHODS_END      {NULL, NULL}
+#define CORE             {"__core__", &core_jsc, &core_jsc_len, {
+#define CORE_ITER        {"__core__.iter", &iter_jsc, &iter_jsc_len, {
 
 #define MODULE(name)     { #name, &name##_jsc, &name##_jsc_len, {
 #define ENDMODULE        ELEMS_END } },
 
-#define COREMODULE       {"__core__", &core_jsc, &core_jsc_len, {
+#define ELEMS_END        {TYPE_FUNC, .as = { .function = METHODS_END } },
+#define MODULES_END      {NULL, NULL, 0, { ELEMS_END }}
+#define METHODS_END      {NULL, NULL}
 
 #define CLASS(name)      { TYPE_CLASS, .as = { .class = { #name, {
 #define METHOD(name, fn) { #name, fn },
@@ -75,7 +79,7 @@ typedef struct {
 #define FUNCTION(name, fn) { TYPE_FUNC, .as = { .function = { #name, fn } } },
 
 static Module builtInModules[] = {
-    COREMODULE
+    CORE
         FUNCTION(ascii,          jsr_ascii)
         FUNCTION(char,           jsr_char)
         FUNCTION(eval,           jsr_eval)
@@ -113,9 +117,6 @@ static Module builtInModules[] = {
         CLASS(Module)
             METHOD(__string__, jsr_Module_string)
             METHOD(globals,    jsr_Module_globals)
-        ENDCLASS
-        CLASS(Iterable)
-            METHOD(join,       jsr_Iterable_join)
         ENDCLASS
         CLASS(List)
             METHOD(@construct, jsr_List_construct)
@@ -179,6 +180,11 @@ static Module builtInModules[] = {
         CLASS(Exception)
             METHOD(printStacktrace, jsr_Exception_printStacktrace)
             METHOD(getStacktrace,   jsr_Exception_getStacktrace)
+        ENDCLASS
+    ENDMODULE
+    CORE_ITER
+        CLASS(Iterable)
+            METHOD(join, jsr_core_iter_Iterable_join)
         ENDCLASS
     ENDMODULE
 #ifdef JSTAR_SYS

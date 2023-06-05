@@ -50,10 +50,6 @@ JSR_NATIVE(jsr_Module_string);
 JSR_NATIVE(jsr_Module_globals);
 // end
 
-// class Iterable
-JSR_NATIVE(jsr_Iterable_join);
-// end
-
 // class List
 JSR_NATIVE(jsr_List_construct);
 JSR_NATIVE(jsr_List_add);

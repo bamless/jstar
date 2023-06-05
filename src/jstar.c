@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "builtins/core.h"
+#include "builtins/core/core.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"

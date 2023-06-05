@@ -1,0 +1,276 @@
+import __core__.iter
+
+// -----------------------------------------------------------------------------
+// BUILTIN OBJECTS
+// -----------------------------------------------------------------------------
+
+var argv = []
+
+// -----------------------------------------------------------------------------
+// BUILTIN CLASSES
+// -----------------------------------------------------------------------------
+
+class Number
+    native construct(n)
+    native isInt()
+    native __string__()
+    native __hash__()
+end
+
+class Boolean
+    native construct(b)
+    native __string__()
+    native __hash__()
+end
+
+class Null
+    native __string__()
+end
+
+class Function
+    native __string__()
+    native bind(receiver)
+    native arity()
+    native vararg()
+    native defaults()
+    native getName()
+end
+
+class Module
+    native __string__()
+    native globals()
+end
+
+static var GEN_SEND, GEN_THROW, GEN_RETURN = 0, 1, 2
+
+class Generator is iter.Iterable
+    fun send(val=null)
+        return this(val, GEN_SEND)
+    end
+
+    fun throw(exc)
+        return this(exc, GEN_THROW)
+    end
+
+    fun close(val=null)
+        return this(val, GEN_RETURN)
+    end
+
+    fun __iter__(_)
+        this()
+        return !this.isDone()
+    end
+
+    native __next__(_)
+    native __string__()
+    native isDone()
+end
+
+class String is iter.Sequence
+    native construct(...args)
+    native charAt(idx)
+    native startsWith(prefix, offset=0)
+    native endsWith(suffix)
+    native split(separator)
+    native strip()
+    native chomp()
+    native escaped()
+    native __mul__(reps)
+    native __mod__(args)
+    native __eq__(o)
+    native __len__()
+    native __iter__(iter)
+    native __next__(idx)
+    native __string__()
+    native __hash__()
+
+    fun __rmul__(reps)
+        return this.__mul__(reps)
+    end
+end
+
+class List is iter.Sequence
+    native construct(n=0, init=null)
+    native add(e)
+    native insert(i, e)
+    native removeAt(i)
+    native clear()
+    native sort(comparator=null)
+    native __len__()
+    native __add__(other)
+    native __eq__(other)
+    native __iter__(iter)
+    native __next__(idx)
+
+    fun addAll(iterable)
+        var changed = false
+        for var e in iterable
+            this.add(e)
+            changed = true
+        end
+        return changed
+    end
+
+    fun insertAll(iterable, i=0)
+        var changed = false
+        for var e in iterable
+            this.insert(i, e)
+            changed = true
+        end
+        return changed
+    end
+
+    fun remove(e)
+        var length = #this
+        for var i = 0; i < length; i += 1
+            if e == this[i]
+                this.removeAt(i)
+                return true
+            end
+        end
+        return false
+    end
+
+    fun removeAll(iterable)
+        var changed = false
+        for var e in iterable
+            var r = this.remove(e)
+            changed = changed or r
+        end
+        return changed
+    end
+
+    fun pop()
+        return this.removeAt(#this - 1)
+    end
+
+    fun __string__()
+        return "[" + this.join(", ") + "]"
+    end
+end
+
+class Tuple is iter.Sequence
+    native construct(iterable=null)
+    native __len__()
+    native __add__(other)
+    native __eq__(other)
+    native __iter__(iter)
+    native __next__(idx)
+    native __hash__()
+
+    fun __string__()
+        return "(" + this.join(", ") + ")"
+    end
+end
+
+class Table is iter.Iterable
+    native construct(iterable=null)
+    native delete(key)
+    native clear()
+    native contains(key)
+    native keys()
+    native values()
+    native __get__(key)
+    native __set__(key, val)
+    native __len__()
+    native __iter__(i)
+    native __next__(i)
+    native __string__()
+
+    fun addAll(other)
+        var changed = false
+        if other is Table
+            for var k in other
+                var r = (this[k] = other[k])
+                changed = changed or r
+            end
+        else
+            for var k, v in other
+                var r = (this[k] = v)
+                changed = changed or r
+            end
+        end
+        return changed
+    end
+end
+
+class Enum
+    native construct(...args)
+    native value(name)
+    native name(value)
+end
+
+class StackTrace end
+class Userdata end
+
+// -----------------------------------------------------------------------------
+// BUILTIN FUNCTIONS
+// -----------------------------------------------------------------------------
+
+fun assert(cond, msg="assertion failed", exception=null)
+    if !cond 
+        raise (exception(msg) if exception else AssertException(msg))
+    end
+end
+
+fun typeAssert(arg, cls, name)
+    if !(arg is cls)
+        var got, expected = cls.getName(), type(arg).getName()
+        raise TypeException("{0} must be a {1}, got {2}" % (name, got, expected))
+    end
+end
+
+fun partial(fn, arg, ...rest)
+    return (|...args| => fn(arg, ...(rest + args))) if #rest != 0 else (|...args| => fn(arg, ...args))
+end
+
+fun compose(fn1, fn2, ...args)
+    var functions = args.reversed().concat((fn2, fn1)).collect(Tuple)
+    var second, first = functions
+    return |...args| => functions.skip(2).reduce(first(second(...args)), |ret, fn| => fn(ret))
+end
+
+native ascii(num)
+native char(c)
+native eval(source)
+native garbageCollect()
+native int(n)
+native print(s, ...args)
+native type(o)
+
+// -----------------------------------------------------------------------------
+// BUILTIN EXCEPTIONS
+// -----------------------------------------------------------------------------
+
+class Exception
+    construct(err="", cause=null)
+        this._err = err
+        this._cause = cause
+        this._stacktrace = null
+    end
+
+    fun err()
+        return this._err
+    end
+
+    fun cause()
+        return this._cause
+    end
+
+    native printStacktrace()
+    native getStacktrace()
+end
+
+class TypeException is Exception end
+class NameException is Exception end
+class FieldException is Exception end
+class MethodException is Exception end
+class ImportException is Exception end
+class StackOverflowException is Exception end
+class SyntaxException is Exception end
+class InvalidArgException is Exception end
+class GeneratorException is Exception end
+class IndexOutOfBoundException is Exception end
+class AssertException is Exception end
+class NotImplementedException is Exception end
+class ProgramInterrupt is Exception end

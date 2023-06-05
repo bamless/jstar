@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtins.h"
+#include "../builtins.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
@@ -211,6 +211,8 @@ void initCoreModule(JStarVM* vm) {
                 o->cls = vm->strClass;
             } else if(o->type == OBJ_LIST) {
                 o->cls = vm->lstClass;
+            } else if(o->type == OBJ_MODULE) {
+                o->cls = vm->modClass;
             } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
                 o->cls = vm->funClass;
             }
@@ -474,39 +476,6 @@ JSR_NATIVE(jsr_Module_globals) {
         }
     }
 
-    return true;
-}
-// end
-
-// class Iterable
-JSR_NATIVE(jsr_Iterable_join) {
-    JSR_CHECK(String, 1, "sep");
-
-    JStarBuffer joined;
-    jsrBufferInit(vm, &joined);
-
-    JSR_FOREACH(0, {
-        if(!jsrIsString(vm, -1)) {
-            if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
-                jsrBufferFree(&joined);
-                return false;
-            }
-            if(!jsrIsString(vm, -1)) {
-                jsrBufferFree(&joined);
-                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
-            }
-        }
-        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-        jsrBufferAppend(&joined, jsrGetString(vm, 1), jsrGetStringSz(vm, 1));
-        jsrPop(vm);
-    },
-    jsrBufferFree(&joined))
-
-    if(joined.size > 0) {
-        jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 1));
-    }
-
-    jsrBufferPush(&joined);
     return true;
 }
 // end

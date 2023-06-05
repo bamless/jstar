@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "builtins/builtins.h"
-#include "builtins/core.h"
+#include "builtins/core/core.h"
 #include "code.h"
 #include "disassemble.h"
 #include "gc.h"
