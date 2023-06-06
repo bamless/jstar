@@ -384,6 +384,7 @@ class List is iter.Sequence
     end
 end
 
+/// Tuple is an immutable sequence of heterogeneous values
 class Tuple is iter.Sequence
     native construct(iterable=null)
     native __len__()
@@ -398,6 +399,7 @@ class Tuple is iter.Sequence
     end
 end
 
+/// Table is an hash-table associating arbitrary keys to arbitrary values
 class Table is iter.Iterable
     native construct(iterable=null)
     native delete(key)
