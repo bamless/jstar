@@ -18,6 +18,10 @@ set(JSTAR_SOURCES
 
     builtins/core/core.c
     builtins/core/core.h
+    builtins/core/std.h
+    builtins/core/std.c
+    builtins/core/excs.h
+    builtins/core/excs.c
     builtins/core/iter.h
     builtins/core/iter.c
     builtins/builtins.h
@@ -54,6 +58,8 @@ set(JSTAR_SOURCES
 # J* standard library files
 set(JSTAR_STDLIB 
     builtins/core/core.jsc
+    builtins/core/std.jsc
+    builtins/core/excs.jsc
     builtins/core/iter.jsc
 )
 

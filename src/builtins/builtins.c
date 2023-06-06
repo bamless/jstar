@@ -5,6 +5,12 @@
 #include "core/core.h"
 #include "core/core.jsc.inc"
 
+#include "core/std.h"
+#include "core/std.jsc.inc"
+
+#include "core/excs.h"
+#include "core/excs.jsc.inc"
+
 #include "core/iter.h"
 #include "core/iter.jsc.inc"
 
@@ -63,6 +69,8 @@ typedef struct {
 // clang-format off
 
 #define CORE             {"__core__", &core_jsc, &core_jsc_len, {
+#define CORE_STD         {"__core__.std", &std_jsc, &std_jsc_len, {
+#define CORE_EXCS        {"__core__.excs", &excs_jsc, &excs_jsc_len, {
 #define CORE_ITER        {"__core__.iter", &iter_jsc, &iter_jsc_len, {
 
 #define MODULE(name)     { #name, &name##_jsc, &name##_jsc_len, {
@@ -80,13 +88,6 @@ typedef struct {
 
 static Module builtInModules[] = {
     CORE
-        FUNCTION(ascii,          jsr_ascii)
-        FUNCTION(char,           jsr_char)
-        FUNCTION(eval,           jsr_eval)
-        FUNCTION(int,            jsr_int)
-        FUNCTION(print,          jsr_print)
-        FUNCTION(type,           jsr_type)
-        FUNCTION(garbageCollect, jsr_garbageCollect)
         CLASS(Number)
             METHOD(@construct, jsr_Number_construct)
             METHOD(isInt,      jsr_Number_isInt)
@@ -177,6 +178,17 @@ static Module builtInModules[] = {
             METHOD(value,      jsr_Enum_value)
             METHOD(name,       jsr_Enum_name)
         ENDCLASS
+    ENDMODULE
+    CORE_STD
+        FUNCTION(ascii,          jsr_ascii)
+        FUNCTION(char,           jsr_char)
+        FUNCTION(eval,           jsr_eval)
+        FUNCTION(int,            jsr_int)
+        FUNCTION(print,          jsr_print)
+        FUNCTION(type,           jsr_type)
+        FUNCTION(garbageCollect, jsr_garbageCollect)
+    ENDMODULE
+    CORE_EXCS
         CLASS(Exception)
             METHOD(printStacktrace, jsr_Exception_printStacktrace)
             METHOD(getStacktrace,   jsr_Exception_getStacktrace)

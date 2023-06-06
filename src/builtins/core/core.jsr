@@ -1,6 +1,9 @@
-/// Import the `iter` module. This module contains definitions for Iterable and Sequence classes as
-/// well as builtin iterator implementations
-import __core__.iter
+import __core__.excs for Exception, TypeException, NameException, FieldException, MethodException,
+    ImportException, StackOverflowException, SyntaxException, InvalidArgException, GeneratorException,
+    IndexOutOfBoundException, AssertException, NotImplementedException, ProgramInterrupt 
+
+import __core__.std for assert, print, type, typeAssert
+import __core__.iter as iter
 
 /// List containing program arguments. This List is initialized by the embedder, and tipically
 /// contains command line arguments
@@ -343,75 +346,3 @@ end
 
 class StackTrace end
 class Userdata end
-
-// -----------------------------------------------------------------------------
-// BUILTIN FUNCTIONS
-// -----------------------------------------------------------------------------
-
-fun assert(cond, msg="assertion failed", exception=null)
-    if !cond 
-        raise (exception(msg) if exception else AssertException(msg))
-    end
-end
-
-fun typeAssert(arg, cls, name)
-    if !(arg is cls)
-        var got, expected = cls.getName(), type(arg).getName()
-        raise TypeException("{0} must be a {1}, got {2}" % (name, got, expected))
-    end
-end
-
-fun partial(fn, arg, ...rest)
-    return (|...args| => fn(arg, ...(rest + args))) if #rest != 0 else (|...args| => fn(arg, ...args))
-end
-
-fun compose(fn1, fn2, ...args)
-    var functions = args.reversed().concat((fn2, fn1)).collect(Tuple)
-    var second, first = functions
-    return |...args| => functions.skip(2).reduce(first(second(...args)), |ret, fn| => fn(ret))
-end
-
-native ascii(num)
-native char(c)
-native eval(source)
-native garbageCollect()
-native int(n)
-native print(s, ...args)
-native type(o)
-
-// -----------------------------------------------------------------------------
-// BUILTIN EXCEPTIONS
-// -----------------------------------------------------------------------------
-
-class Exception
-    construct(err="", cause=null)
-        this._err = err
-        this._cause = cause
-        this._stacktrace = null
-    end
-
-    fun err()
-        return this._err
-    end
-
-    fun cause()
-        return this._cause
-    end
-
-    native printStacktrace()
-    native getStacktrace()
-end
-
-class TypeException is Exception end
-class NameException is Exception end
-class FieldException is Exception end
-class MethodException is Exception end
-class ImportException is Exception end
-class StackOverflowException is Exception end
-class SyntaxException is Exception end
-class InvalidArgException is Exception end
-class GeneratorException is Exception end
-class IndexOutOfBoundException is Exception end
-class AssertException is Exception end
-class NotImplementedException is Exception end
-class ProgramInterrupt is Exception end

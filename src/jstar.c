@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "builtins/core/core.h"
+#include "builtins/core/excs.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
