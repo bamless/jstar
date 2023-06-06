@@ -233,7 +233,7 @@ class String is iter.Sequence
     end
 end
 
-/// List is a sequence of heterogeneous values
+/// List is a mutable sequence of heterogeneous values
 class List is iter.Sequence
     /// Construct a new list using either and Iterable object, or a number of elements
     /// @param {Iterable|Number} [iterableOrN] - Either an Iterable object or an integer >= 0. In
