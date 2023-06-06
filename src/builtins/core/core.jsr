@@ -1,39 +1,68 @@
+/// Import the `iter` module. This module contains definitions for Iterable and Sequence classes as
+/// well as builtin iterator implementations
 import __core__.iter
 
-// -----------------------------------------------------------------------------
-// BUILTIN OBJECTS
-// -----------------------------------------------------------------------------
-
+/// List containing program arguments. This List is initialized by the embedder, and tipically
+/// contains command line arguments
 var argv = []
 
-// -----------------------------------------------------------------------------
-// BUILTIN CLASSES
-// -----------------------------------------------------------------------------
-
+/// Builtin Number represents a 64-bit IEEE 754 floating point number
 class Number
+    /// Constructs a new Number.
+    /// @param {String | Number} n - The value from which to construct the Number from. If it's a
+    ///        String, it will be interpreted as the base-10 string representation of the number
     native construct(n)
+
+    /// @return {Boolean} `true` if this Number hasn't a decimal part, `false` otherwise
     native isInt()
+
+    /// @return {String} The String representation of this Number
     native __string__()
+    
+    /// @return {Number} An integer representing a 32-bit hash of this Number
     native __hash__()
 end
 
+/// Builtin Boolean represents a boolean value
 class Boolean
+    /// Constructs a new boolean from a value.
+    /// @param {Object} b - The value from which to construct the boolean from. The constructed
+    ///        Boolean will be the truth value that is associated with `b`
     native construct(b)
+
+    /// @return {String} The String representation of this Boolean; i.e "true" or "false"
     native __string__()
+
+    /// @return {Number} An integer representing a 32-bit hash of this Boolean
     native __hash__()
 end
 
+/// Builtin Null represents the `null` constant
 class Null
+    /// @return {String} The string representation of Null; i.e "null"
     native __string__()
 end
 
+/// Builtin Function represents a callable function-like object.
+/// Values that are instances of the Function class include: functions, bound methods, native
+/// functions, native methods and generator functions/methods
 class Function
-    native __string__()
+    /// Bind this function to the given receiver.
+    /// @param {Object} receiver - The receiver this function object will be bound to
+    /// @return {Function} A bound method object that links the original function to the receiver
+    /// @throws {TypeException} If the Function could not be bound to the receiver. For example,
+    ///         builtin classes' methods can't generally be bound to arbitrary values, as they
+    ///         expect their receiver to be of a speific type
     native bind(receiver)
+
+    /// @return {Number} The number of arguments the function accepts. This includes only positional
+    ///         and default arguments. To check wether the function accepts a variable number of
+    ///         arguments @see{Function.vararg}
     native arity()
     native vararg()
     native defaults()
     native getName()
+    native __string__()
 end
 
 class Module
