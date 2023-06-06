@@ -7,7 +7,7 @@ var Seek = Enum{
     .END : 2
 }
 
-class File is Iterable
+class File is iter.Iterable
     native construct(path, mode, handle=null)
 
     native tell()

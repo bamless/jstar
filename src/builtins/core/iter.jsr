@@ -1,0 +1,333 @@
+class Iterable
+    native join(sep="")
+
+    fun collect(collector)
+        return collector(this)
+    end
+
+    fun forEach(func)
+        for var e in this
+            func(e)
+        end
+    end
+
+    fun sum()
+        var res = 0
+        for var e in this
+            res += e
+        end
+        return res
+    end
+
+    fun reduce(init, fn)
+        var acc = init
+        for var e in this
+            acc = fn(acc, e)
+        end
+        return acc
+    end
+
+    fun any(predicate)
+        for var e in this
+            if predicate(e)
+                return true
+            end
+        end
+        return false
+    end
+
+    fun all(predicate)
+        for var e in this
+            if !predicate(e)
+                return false
+            end
+        end
+        return true
+    end
+    
+    fun find(predicate)
+        var idx = 0;
+        for var e in this
+            if predicate(e)
+                return idx
+            end
+            idx += 1
+        end
+        return null
+    end
+
+    fun max(comparator=null)
+        var max = null
+        for var e in this
+            if max
+                var greater = comparator(e, max) >= 0 if comparator else e >= max
+                if greater
+                    max = e 
+                end
+            else
+                max = e
+            end
+        end
+        return max
+    end
+
+    fun min(comparator=null)
+        var min = null
+        for var e in this
+            if min
+                var lesser = comparator(e, min) <= 0 if comparator else e <= min
+                if lesser
+                    min = e 
+                end
+            else
+                min = e
+            end
+        end
+        return min
+    end
+
+    fun enumerate(start=0)
+        return enumerate(this, start)
+    end
+
+    fun concat(iterable)
+        return concat(this, iterable)
+    end
+
+    fun map(fn)
+        return map(this, fn)
+    end
+
+    fun filter(predicate)
+        return filter(this, predicate)
+    end
+
+    fun skip(count)
+        return skip(this, count)
+    end
+
+    fun take(count)
+        return take(this, count)
+    end
+
+    fun flatten()
+        return flatten(this)
+    end
+
+    fun zip(iterable)
+        return zip(this, iterable)
+    end
+
+    fun sorted()
+        var lst = List(this)
+        lst.sort()
+        return lst
+    end
+
+    fun apply(collector, ...args)
+        return collector(this, ...args)
+    end
+end
+
+class Sequence is Iterable
+    fun contains(e)
+        return this.indexOf(e) != -1
+    end
+
+    fun indexOf(e)
+        var length = #this
+        for var i = 0; i < length; i += 1
+            if this[i] == e
+                return i
+            end
+        end
+        return -1
+    end
+
+    fun indexOfLast(e)
+        for var i = #this - 1; i >= 0; i -= 1
+            if this[i] == e
+                return i
+            end
+        end
+        return -1
+    end
+
+    fun count(e)
+        var count = 0
+        for var o in this
+            if o == e 
+                count += 1
+            end
+        end
+        return count
+    end
+
+    fun empty()
+        return #this == 0
+    end
+
+    fun reversed()
+        return ReversedSequence(this)
+    end
+
+    fun __eq__(other)
+        if type(other) != type(this)
+            return false 
+        end
+
+        var length = #this
+        if length != #other
+            return false
+        end
+
+        for var i = 0; i < length; i += 1
+            if this[i] != other[i]
+                return false
+            end
+        end
+        return true
+    end
+end
+
+class ReversedSequence is Sequence
+    construct(sequence)
+        this._sequence = sequence
+        this._size = #sequence
+    end
+
+    fun __get__(i)
+        try
+            return this._sequence[this._size - i - 1]
+        except IndexOutOfBoundException e
+            raise IndexOutOfBoundException(##i, e)
+        end
+    end
+
+    fun __len__()
+        return this._size
+    end
+
+    fun __iter__(idx)
+        if idx == null
+            return 0 if this._size > 0 else false
+        end
+        return idx + 1 if idx < this._size - 1 else false
+    end
+
+    fun __next__(idx)
+        return this._sequence[this._size - idx - 1]
+    end
+end
+
+fun range(start, stop=null, step=1)
+    assert(step != 0, "step must be different than 0", InvalidArgException)
+
+    if !stop
+        start, stop = 0, start
+    end
+
+    if step > 0
+        for var i = start; i < stop; i += step
+            yield i
+        end
+    else
+        for var i = start; i > stop; i += step
+            yield i
+        end
+    end
+end
+
+fun enumerate(iterable, start=0)
+    for var e in iterable
+        yield (start, e)
+        start += 1
+    end
+end
+
+fun concat(iter1, iter2)
+    for var e in iter1
+        yield e
+    end
+    for var e in iter2
+        yield e
+    end
+end
+
+fun map(iterable, fn)
+    for var e in iterable
+        yield fn(e)
+    end
+end
+
+fun filter(iterable, predicate)
+    for var e in iterable
+        if predicate(e)
+            yield e
+        end
+    end
+end
+
+fun skip(iterable, count)
+    for var e in iterable
+        if count != 0
+            count -= 1
+            continue
+        end
+        yield e
+    end
+end
+
+fun take(iterable, count)
+    for var e in iterable
+        if count == 0
+            break
+        end
+        yield e
+        count -= 1
+    end
+end
+
+fun flatten(iterable)
+    for var outer in iterable
+        var cls = type(outer)
+        if cls.implements("__iter__") and cls.implements("__next__")
+            for var inner in outer
+                yield inner
+            end
+        else
+            yield outer
+        end
+    end
+end
+
+class zip is Iterable
+    construct(iterable1, iterable2)
+        this._iterable1 = iterable1
+        this._iterable2 = iterable2
+    end
+
+    fun __iter__(iters)
+        var iter1, iter2 = null, null
+        if iters != null
+            iter1, iter2 = iters
+        end
+
+        var res1 = this._iterable1.__iter__(iter1)
+        if !res1
+            return false
+        end
+
+        var res2 = this._iterable2.__iter__(iter2)
+        if !res2
+            return false
+        end
+
+        return res1, res2
+    end
+
+    fun __next__(iters)
+        var iter1, iter2 = iters
+        return this._iterable1.__next__(iter1), this._iterable2.__next__(iter2)
+    end
+end

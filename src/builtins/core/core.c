@@ -4,21 +4,17 @@
 #include <errno.h>
 #include <float.h>
 #include <inttypes.h>
-#include <limits.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtins.h"
+#include "../builtins.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
 #include "object.h"
-#include "parse/ast.h"
-#include "parse/parser.h"
 #include "profiler.h"
 #include "util.h"
 #include "value.h"
@@ -211,6 +207,8 @@ void initCoreModule(JStarVM* vm) {
                 o->cls = vm->strClass;
             } else if(o->type == OBJ_LIST) {
                 o->cls = vm->lstClass;
+            } else if(o->type == OBJ_MODULE) {
+                o->cls = vm->modClass;
             } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
                 o->cls = vm->funClass;
             }
@@ -306,23 +304,6 @@ JSR_NATIVE(jsr_Null_string) {
 //
 
 // class Function
-static Prototype* getPrototype(Obj* functionObj) {
-    switch(functionObj->type) {
-    case OBJ_CLOSURE:
-        return &((ObjClosure*)functionObj)->fn->proto;
-        break;
-    case OBJ_NATIVE:
-        return &((ObjNative*)functionObj)->proto;
-        break;
-    case OBJ_BOUND_METHOD:
-        return getPrototype(((ObjBoundMethod*)functionObj)->method);
-    default:
-        UNREACHABLE();
-        break;
-    }
-    return NULL;
-}
-
 JSR_NATIVE(jsr_Function_string) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
     Prototype* proto = getPrototype(fn);
@@ -478,39 +459,6 @@ JSR_NATIVE(jsr_Module_globals) {
 }
 // end
 
-// class Iterable
-JSR_NATIVE(jsr_Iterable_join) {
-    JSR_CHECK(String, 1, "sep");
-
-    JStarBuffer joined;
-    jsrBufferInit(vm, &joined);
-
-    JSR_FOREACH(0, {
-        if(!jsrIsString(vm, -1)) {
-            if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) {
-                jsrBufferFree(&joined);
-                return false;
-            }
-            if(!jsrIsString(vm, -1)) {
-                jsrBufferFree(&joined);
-                JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
-            }
-        }
-        jsrBufferAppend(&joined, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-        jsrBufferAppend(&joined, jsrGetString(vm, 1), jsrGetStringSz(vm, 1));
-        jsrPop(vm);
-    },
-    jsrBufferFree(&joined))
-
-    if(joined.size > 0) {
-        jsrBufferTrunc(&joined, joined.size - jsrGetStringSz(vm, 1));
-    }
-
-    jsrBufferPush(&joined);
-    return true;
-}
-// end
-
 // class List
 JSR_NATIVE(jsr_List_construct) {
     if(jsrIsNull(vm, 1)) {
@@ -525,7 +473,7 @@ JSR_NATIVE(jsr_List_construct) {
         ObjList* lst = newList(vm, count);
         push(vm, OBJ_VAL(lst));
 
-        if(IS_CLOSURE(vm->apiStack[2]) || IS_NATIVE(vm->apiStack[2])) {
+        if(jsrIsFunction(vm, 2)) {
             for(size_t i = 0; i < count; i++) {
                 jsrPushValue(vm, 2);
                 jsrPushNumber(vm, i);
@@ -538,6 +486,7 @@ JSR_NATIVE(jsr_List_construct) {
             }
         }
     } else {
+        JSR_CHECK(Null, 2, "init must be null when calling List with an Iterable");
         jsrPushList(vm);
         JSR_FOREACH(1, {
             jsrListAppend(vm, 3);
@@ -1684,285 +1633,6 @@ JSR_NATIVE(jsr_Enum_name) {
     if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
     jsrPushValue(vm, 1);
     if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
-    return true;
-}
-// end
-
-// -----------------------------------------------------------------------------
-// BUILTIN FUNCTIONS
-// -----------------------------------------------------------------------------
-
-JSR_NATIVE(jsr_int) {
-    if(jsrIsNumber(vm, 1)) {
-        jsrPushNumber(vm, trunc(jsrGetNumber(vm, 1)));
-        return true;
-    }
-    if(jsrIsString(vm, 1)) {
-        char* end = NULL;
-        const char* nstr = jsrGetString(vm, 1);
-        long long n = strtoll(nstr, &end, 10);
-
-        if((n == 0 && end == nstr) || *end != '\0') {
-            JSR_RAISE(vm, "InvalidArgException", "'%s'.", nstr);
-        }
-        if(n == LLONG_MAX) {
-            JSR_RAISE(vm, "InvalidArgException", "Overflow: '%s'.", nstr);
-        }
-        if(n == LLONG_MIN) {
-            JSR_RAISE(vm, "InvalidArgException", "Underflow: '%s'.", nstr);
-        }
-
-        jsrPushNumber(vm, n);
-        return true;
-    }
-    JSR_RAISE(vm, "TypeException", "Argument must be a number or a string.");
-}
-
-JSR_NATIVE(jsr_char) {
-    JSR_CHECK(String, 1, "c");
-    const char* str = jsrGetString(vm, 1);
-    if(jsrGetStringSz(vm, 1) != 1) {
-        JSR_RAISE(vm, "InvalidArgException", "c must be a String of length 1");
-    }
-    int c = str[0];
-    jsrPushNumber(vm, (double)c);
-    return true;
-}
-
-JSR_NATIVE(jsr_garbageCollect) {
-    garbageCollect(vm);
-    jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_ascii) {
-    JSR_CHECK(Int, 1, "num");
-    char c = jsrGetNumber(vm, 1);
-    jsrPushStringSz(vm, &c, 1);
-    return true;
-}
-
-JSR_NATIVE(jsr_print) {
-    jsrPushValue(vm, 1);
-    if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
-    if(!jsrIsString(vm, -1)) {
-        JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
-    }
-
-    fwrite(jsrGetString(vm, -1), 1, jsrGetStringSz(vm, -1), stdout);
-    jsrPop(vm);
-
-    JSR_FOREACH(2, {
-        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
-        if(!jsrIsString(vm, -1)) {
-            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-        }
-        
-        printf(" ");
-        fwrite(jsrGetString(vm, -1), 1, jsrGetStringSz(vm, -1), stdout);
-        jsrPop(vm);
-    },);
-
-    printf("\n");
-
-    jsrPushNull(vm);
-    return true;
-}
-
-static void parseError(const char* file, int line, const char* error, void* udata) {
-    JStarVM* vm = udata;
-    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
-}
-
-JSR_NATIVE(jsr_eval) {
-    JSR_CHECK(String, 1, "source");
-
-    if(vm->frameCount < 1) {
-        JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
-    }
-
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
-    if(program == NULL) {
-        JSR_RAISE(vm, "SyntaxException", "Syntax error");
-    }
-
-    Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
-    ObjFunction* fn = compileModule(vm, "<eval>", proto->module->name, program);
-    jsrStmtFree(program);
-
-    if(fn == NULL) {
-        JSR_RAISE(vm, "SyntaxException", "Syntax error");
-    }
-
-    push(vm, OBJ_VAL(fn));
-    ObjClosure* closure = newClosure(vm, fn);
-    pop(vm);
-
-    push(vm, OBJ_VAL(closure));
-    if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
-    pop(vm);
-
-    jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_type) {
-    push(vm, OBJ_VAL(getClass(vm, peek(vm))));
-    return true;
-}
-
-// -----------------------------------------------------------------------------
-// BUILTIN EXCEPTIONS
-// -----------------------------------------------------------------------------
-
-// class Exception
-#define INDENT "    "
-
-static bool recordEquals(FrameRecord* f1, FrameRecord* f2) {
-    return f1 && f2 && (strcmp(f1->moduleName->data, f2->moduleName->data) == 0) &&
-           (strcmp(f1->funcName->data, f2->funcName->data) == 0) && (f1->line == f2->line);
-}
-
-JSR_NATIVE(jsr_Exception_printStacktrace) {
-    ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
-
-    Value stacktraceVal = NULL_VAL;
-    hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
-
-    if(IS_STACK_TRACE(stacktraceVal)) {
-        Value cause = NULL_VAL;
-        hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
-
-        if(isInstance(vm, cause, vm->excClass)) {
-            push(vm, cause);
-            if(jsrCallMethod(vm, "printStacktrace", 0) != JSR_SUCCESS)
-                return false;
-            pop(vm);
-            fprintf(stderr, "\nAbove Excetption caused:\n");
-        }
-
-        ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
-
-        if(stacktrace->recordSize > 0) {
-            FrameRecord* lastRecord = NULL;
-
-            fprintf(stderr, "Traceback (most recent call last):\n");
-            for(int i = stacktrace->recordSize - 1; i >= 0; i--) {
-                FrameRecord* record = &stacktrace->records[i];
-
-                if(recordEquals(lastRecord, record)) {
-                    int repetitions = 1;
-                    while(i > 0) {
-                        record = &stacktrace->records[i - 1];
-                        if(!recordEquals(lastRecord, record)) break;
-                        repetitions++, i--;
-                    }
-                    fprintf(stderr, INDENT "...\n");
-                    fprintf(stderr, INDENT "[Previous line repeated %d times]\n", repetitions);
-                    continue;
-                }
-
-                fprintf(stderr, INDENT);
-
-                if(record->line >= 0) {
-                    fprintf(stderr, "[line %d]", record->line);
-                } else {
-                    fprintf(stderr, "[line ?]");
-                }
-                fprintf(stderr, " module %s in %s\n", record->moduleName->data,
-                        record->funcName->data);
-
-                lastRecord = record;
-            }
-        }
-    }
-
-    Value err = NULL_VAL;
-    hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
-
-    if(IS_STRING(err) && AS_STRING(err)->length > 0) {
-        fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(err)->data);
-    } else {
-        fprintf(stderr, "%s\n", exc->base.cls->name->data);
-    }
-
-    jsrPushNull(vm);
-    return true;
-}
-
-JSR_NATIVE(jsr_Exception_getStacktrace) {
-    ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
-
-    JStarBuffer buf;
-    jsrBufferInitCapacity(vm, &buf, 64);
-
-    Value stval = NULL_VAL;
-    hashTableGet(&exc->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
-
-    if(IS_STACK_TRACE(stval)) {
-        Value cause = NULL_VAL;
-        hashTableGet(&exc->fields, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
-
-        if(isInstance(vm, cause, vm->excClass)) {
-            push(vm, cause);
-            if(jsrCallMethod(vm, "getStacktrace", 0) != JSR_SUCCESS)
-                return false;
-            Value stackTrace = peek(vm);
-            if(IS_STRING(stackTrace)) {
-                jsrBufferAppend(&buf, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);
-                jsrBufferAppendStr(&buf, "\n\nAbove Exception caused:\n");
-            }
-            pop(vm);
-        }
-
-        ObjStackTrace* stacktrace = AS_STACK_TRACE(stval);
-
-        if(stacktrace->recordSize > 0) {
-            FrameRecord* lastRecord = NULL;
-
-            jsrBufferAppendf(&buf, "Traceback (most recent call last):\n");
-            for(int i = stacktrace->recordSize - 1; i >= 0; i--) {
-                FrameRecord* record = &stacktrace->records[i];
-
-                if(recordEquals(lastRecord, record)) {
-                    int repetitions = 1;
-                    while(i > 0) {
-                        record = &stacktrace->records[i - 1];
-                        if(!recordEquals(lastRecord, record)) break;
-                        repetitions++, i--;
-                    }
-                    jsrBufferAppendStr(&buf, INDENT "...\n");
-                    jsrBufferAppendf(&buf, INDENT "[Previous line repeated %d times]\n",
-                                     repetitions);
-                    continue;
-                }
-
-                jsrBufferAppendStr(&buf, "    ");
-
-                if(record->line >= 0) {
-                    jsrBufferAppendf(&buf, "[line %d]", record->line);
-                } else {
-                    jsrBufferAppendStr(&buf, "[line ?]");
-                }
-
-                jsrBufferAppendf(&buf, " module %s in %s\n", record->moduleName->data,
-                                 record->funcName->data);
-
-                lastRecord = record;
-            }
-        }
-    }
-
-    Value err = NULL_VAL;
-    hashTableGet(&exc->fields, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
-
-    if(IS_STRING(err) && AS_STRING(err)->length > 0) {
-        jsrBufferAppendf(&buf, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);
-    } else {
-        jsrBufferAppendf(&buf, "%s", exc->base.cls->name->data);
-    }
-
-    jsrBufferPush(&buf);
     return true;
 }
 // end

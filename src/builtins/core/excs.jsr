@@ -1,0 +1,32 @@
+class Exception
+    construct(err="", cause=null)
+        this._err = err
+        this._cause = cause
+        this._stacktrace = null
+    end
+
+    fun err()
+        return this._err
+    end
+
+    fun cause()
+        return this._cause
+    end
+
+    native printStacktrace()
+    native getStacktrace()
+end
+
+class TypeException is Exception end
+class NameException is Exception end
+class FieldException is Exception end
+class MethodException is Exception end
+class ImportException is Exception end
+class StackOverflowException is Exception end
+class SyntaxException is Exception end
+class InvalidArgException is Exception end
+class GeneratorException is Exception end
+class IndexOutOfBoundException is Exception end
+class AssertException is Exception end
+class NotImplementedException is Exception end
+class ProgramInterrupt is Exception end

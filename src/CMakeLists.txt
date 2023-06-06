@@ -16,8 +16,14 @@ set(JSTAR_SOURCES
     parse/parser.c
     parse/vector.c
 
-    builtins/core.c
-    builtins/core.h
+    builtins/core/core.c
+    builtins/core/core.h
+    builtins/core/std.h
+    builtins/core/std.c
+    builtins/core/excs.h
+    builtins/core/excs.c
+    builtins/core/iter.h
+    builtins/core/iter.c
     builtins/builtins.h
     builtins/builtins.c
 
@@ -51,7 +57,10 @@ set(JSTAR_SOURCES
 
 # J* standard library files
 set(JSTAR_STDLIB 
-    builtins/core.jsc
+    builtins/core/core.jsc
+    builtins/core/std.jsc
+    builtins/core/excs.jsc
+    builtins/core/iter.jsc
 )
 
 # Add optional module source files

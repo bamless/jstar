@@ -1,0 +1,30 @@
+native ascii(num)
+native char(c)
+native eval(source)
+native garbageCollect()
+native int(n)
+native print(s, ...args)
+native type(o)
+
+fun assert(cond, msg="assertion failed", exception=null)
+    if !cond 
+        raise (exception(msg) if exception else AssertException(msg))
+    end
+end
+
+fun typeAssert(arg, cls, name)
+    if !(arg is cls)
+        var got, expected = cls.getName(), type(arg).getName()
+        raise TypeException("{0} must be a {1}, got {2}" % (name, got, expected))
+    end
+end
+
+fun partial(fn, arg, ...rest)
+    return (|...args| => fn(arg, ...(rest + args))) if #rest != 0 else (|...args| => fn(arg, ...args))
+end
+
+fun compose(fn1, fn2, ...args)
+    var functions = args.reversed().concat((fn2, fn1)).collect(Tuple)
+    var second, first = functions
+    return |...args| => functions.skip(2).reduce(first(second(...args)), |ret, fn| => fn(ret))
+end

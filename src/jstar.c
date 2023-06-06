@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "builtins/core.h"
+#include "builtins/core/core.h"
+#include "builtins/core/excs.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
@@ -764,8 +765,13 @@ bool jsrCheckTuple(JStarVM* vm, int slot, const char* name) {
 }
 
 bool jsrCheckBoolean(JStarVM* vm, int slot, const char* name) {
-    if(!jsrIsBoolean(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a String.", name);
+    if(!jsrIsBoolean(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Boolean.", name);
     return true;
+}
+
+bool jsrCheckNull(JStarVM* vm, int slot, const char* name) {
+    if(!jsrIsNull(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be null.", name);
+    return false;
 }
 
 bool jsrCheckInstance(JStarVM* vm, int slot, const char* name) {

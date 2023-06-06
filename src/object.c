@@ -435,6 +435,21 @@ Value* getValues(Obj* obj, size_t* size) {
     }
 }
 
+Prototype* getPrototype(Obj* fn) {
+    switch(fn->type) {
+    case OBJ_CLOSURE:
+        return &((ObjClosure*)fn)->fn->proto;
+    case OBJ_NATIVE:
+        return &((ObjNative*)fn)->proto;
+    case OBJ_BOUND_METHOD:
+        return getPrototype(((ObjBoundMethod*)fn)->method);
+    default:
+        UNREACHABLE();
+        break;
+    }
+    return NULL;
+}
+
 ObjString* jsrBufferToString(JStarBuffer* b) {
     char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
