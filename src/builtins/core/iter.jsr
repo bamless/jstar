@@ -190,10 +190,6 @@ class Sequence is Iterable
     end
 end
 
-// -----------------------------------------------------------------------------
-// BUILTIN ITERATORS
-// -----------------------------------------------------------------------------
-
 class ReversedSequence is Sequence
     construct(sequence)
         this._sequence = sequence
