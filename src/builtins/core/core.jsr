@@ -150,7 +150,7 @@ class Generator is iter.Iterable
     native __string__()
 end
 
-/// String represents a sequence of raw bytes. Encoding is not assumed
+/// String is a sequence of raw bytes. Encoding is not assumed
 class String is iter.Sequence
     /// Constructs a new string by concatenating the string represetation of the arguments 
     /// @param {...Object} Variable number of arguments used to construct the String
@@ -233,19 +233,85 @@ class String is iter.Sequence
     end
 end
 
+/// List is a sequence of heterogeneous values
 class List is iter.Sequence
-    native construct(n=0, init=null)
+    /// Construct a new list using either and Iterable object, or a number of elements
+    /// @param {Iterable|Number} [iterableOrN] - Either an Iterable object or an integer >= 0. In
+    ///        case it is an Iterable, a new list containing all the elements of the iterable will
+    ///        be constructed. If its an integer, then a new List containing that number of elements
+    ///        will be constructed
+    /// @param {Function|Object} init - Either a function or an object. In case this is a normal
+    ///        object, its value will be used to populate all the elements of the list when
+    ///        constructed using an integer count. If it's a Function, then the it will be called
+    ///        and its return value will be used to initialize the List.
+    ///
+    /// When `init` is a Function, it should have the following signature:
+    /// @callback init
+    /// @param {Number} idx - The index of the List we're currently initializing
+    /// @return {Object} The value used to initialize the slot in the List
+    native construct(iterableOrN=null, init=null)
+
+    /// Appends an element to the end of the list
+    /// @param {Object} e - The element
     native add(e)
+
+    /// Insert an element at a specified indexed
+    /// @param {Number} i - An integer between [0, n] where n is the length of the list
+    /// @param {Object} e - The element to insert
+    /// @throws {TypeException} if `i` is not an integer
+    /// @throws {IndexOutOfBoundException} if `i` is outside the List's bounds
     native insert(i, e)
+
+    /// Removes an element at the specified index
+    /// @param {Number} i - An integer between [0, n) where n is the length of the list
+    /// @throws {TypeException} if `i` is not an integer
+    /// @throws {IndexOutOfBoundException} if `i` is outside the List's bounds
+    /// @return {Object} The removed object
     native removeAt(i)
+
+    /// Removes all the elements from the list
     native clear()
+
+    /// Sorts the list according to the element's natural order, or using a comparator. For a type
+    /// to be naturally orderable it must provide an `__le__` method
+    /// @param {Function} [comparator] - Optional comparator function to compare the list's elements
+    ///
+    /// When provided, the comparator function should have the following signature:
+    /// @callback comparator
+    /// @param {Object} a - The first element to compare
+    /// @param {Object} b - The second element to compare
+    /// @return {Number} An integer < 1 if a < b, > 1 if a > b, 0 otherwise
     native sort(comparator=null)
+
+    /// @return {Number} How many elements there are in the list
     native __len__()
+
+    /// `+` operator overload, in concatenates two lists
+    /// @param {List} other - The list to be concatenated
+    /// @return {List} A **new** List that is the concatenation of this list and `other`
     native __add__(other)
+
+    /// Test two lists for equality
+    /// @param {Object} other - The object against which to check for equality
+    /// @return {Boolean} `true` if `other` is a List and has the same content as this list, `false`
+    ///         otherwise
     native __eq__(other)
+
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
     native __iter__(iter)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index for List
+    /// @return {Object} The next value in the iteration. It is the element at index `idx`
     native __next__(idx)
 
+    /// Appends all the elements of an Iterable to the list
+    /// @param {iter.Iterable} iterable - The iterable object
+    /// @return {Boolean} `true` if at least one element has been added, `false` otherwise
     fun addAll(iterable)
         var changed = false
         for var e in iterable
@@ -255,6 +321,12 @@ class List is iter.Sequence
         return changed
     end
 
+    /// Inserts all the elements of an Iterable to the list at a specified index
+    /// @param {iter.Iterable} iterable - The iterable object
+    /// @param {Number} i - An integer between [0, n) where n is the length of the list
+    /// @throws {TypeException} if `i` is not an integer
+    /// @throws {IndexOutOfBoundException} if `i` is outside the List's bounds
+    /// @return {Boolean} `true` if at least one element has been added, `false` otherwise
     fun insertAll(iterable, i=0)
         var changed = false
         for var e in iterable
@@ -264,6 +336,10 @@ class List is iter.Sequence
         return changed
     end
 
+    /// Remove an element from the list by comparing it for equality to the elements inside the list.
+    /// Only the first one that is found to compare true is removed
+    /// @param {Object} e - The element to remove
+    /// @return {Boolean} `true` if an element has been removed, `false` otherwise
     fun remove(e)
         var length = #this
         for var i = 0; i < length; i += 1
@@ -275,6 +351,10 @@ class List is iter.Sequence
         return false
     end
 
+    /// Removes all the elements of an Iterable from the list by checking them for equality. Only
+    /// the first element that is found to compare equal is removed.
+    /// @param {iter.Iterable} iterable - the itreable object
+    /// @return {Boolean} `true` if at least one element has been removed, `false` otherwise
     fun removeAll(iterable)
         var changed = false
         for var e in iterable
@@ -284,10 +364,21 @@ class List is iter.Sequence
         return changed
     end
 
+    /// Removes and returns the last element of the list
+    /// @throws {IndexOutOfBoundException} If the list is empty
+    /// @return {Object} The last element of the list
     fun pop()
         return this.removeAt(#this - 1)
     end
 
+    /// Get the last element of the list without removing it
+    /// @throws {IndexOutOfBoundException} If the list is empty
+    /// @return {Object} The last element of the list
+    fun peek()
+        return this[#this - 1]
+    end
+
+    /// @return {String} The string representation of the list
     fun __string__()
         return "[" + this.join(", ") + "]"
     end

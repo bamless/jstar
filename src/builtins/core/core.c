@@ -473,7 +473,7 @@ JSR_NATIVE(jsr_List_construct) {
         ObjList* lst = newList(vm, count);
         push(vm, OBJ_VAL(lst));
 
-        if(IS_CLOSURE(vm->apiStack[2]) || IS_NATIVE(vm->apiStack[2])) {
+        if(jsrIsFunction(vm, 2)) {
             for(size_t i = 0; i < count; i++) {
                 jsrPushValue(vm, 2);
                 jsrPushNumber(vm, i);
@@ -486,6 +486,7 @@ JSR_NATIVE(jsr_List_construct) {
             }
         }
     } else {
+        JSR_CHECK(Null, 2, "init must be null when calling List with an Iterable");
         jsrPushList(vm);
         JSR_FOREACH(1, {
             jsrListAppend(vm, 3);
