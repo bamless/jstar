@@ -1,9 +1,13 @@
 class Iterable
-    native join(sep="")
-
-    fun collect(collector)
-        return collector(this)
+    fun __iter__(_)
+        raise NotImplementedException()
     end
+
+    fun __next__(_)
+        raise NotImplementedException()
+    end
+
+    native join(sep="")
 
     fun forEach(func)
         for var e in this
@@ -12,11 +16,7 @@ class Iterable
     end
 
     fun sum()
-        var res = 0
-        for var e in this
-            res += e
-        end
-        return res
+        return sum(this)
     end
 
     fun reduce(init, fn)
@@ -124,8 +124,8 @@ class Iterable
         return lst
     end
 
-    fun apply(collector, ...args)
-        return collector(this, ...args)
+    fun collect(collector, ...args)
+        return collector(this, ...args) if #args > 0 else collector(this)
     end
 end
 
@@ -189,6 +189,22 @@ class Sequence is Iterable
         return true
     end
 end
+
+// -----------------------------------------------------------------------------
+// TERMINAL COLLECTORS
+// -----------------------------------------------------------------------------
+
+fun sum(iterable)
+    var res = 0
+    for var e in iterable
+        res += e
+    end
+    return res
+end
+
+// -----------------------------------------------------------------------------
+// TRASFORMER COLLECTORS
+// -----------------------------------------------------------------------------
 
 class ReversedSequence is Sequence
     construct(sequence)
