@@ -386,14 +386,40 @@ end
 
 /// Tuple is an immutable sequence of heterogeneous values
 class Tuple is iter.Sequence
+    /// Contructs a new Tuple from an iterable object
+    /// If no iterable is provided, the empty Tuple will be returned
+    /// @param {iter.Iterable} iterable - The iterable object
     native construct(iterable=null)
+
+    /// @return {Number} The tuple length
     native __len__()
+    
+    /// `+` operator overload, in concatenates two tuples
+    /// @param {Tuple} other - The tuple to be concatenated
+    /// @return {Tuple} A **new** Tuple that is the concatenation of this tuple and `other`
     native __add__(other)
+
+    /// Test two tuples for equality
+    /// @param {Object} other - The object against which to check for equality
+    /// @return {Boolean} `true` if `other` is a Tuple and has the same content as this tuple,
+    ///         `false` otherwise
     native __eq__(other)
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
     native __iter__(iter)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index for the Tuple
+    /// @return {Object} The next value in the iteration. It is the element at index `idx`
     native __next__(idx)
+
+    /// @return {Number} A number representing the 32-bit hash for this tuple
     native __hash__()
 
+    /// @return {String} The string representation of this tuple
     fun __string__()
         return "(" + this.join(", ") + ")"
     end
@@ -401,19 +427,63 @@ end
 
 /// Table is an hash-table associating arbitrary keys to arbitrary values
 class Table is iter.Iterable
+    /// Constructs a new Table from an iterable.
+    /// If no Iterable is provided an empty table is constructed.
+    /// The iterable should be composed of 2-tuples representing pairs of (key, value)
+    /// @param {iter.Iterable<Tuple<Object, Object>>} iterable - The iterable object
     native construct(iterable=null)
+    
+    /// Deletes a (key, value) entry from the table
+    /// @param {Object} key - The key to delete
     native delete(key)
+
+    /// Removes all entries from the table
     native clear()
+
+    /// @return {Boolean} `true` if the table contains the given key, `false` otherwise
     native contains(key)
+    
+    /// @return {List} A list containing all of the keys that are present in the table
     native keys()
+
+    /// @return {List} A list containing all of the values associated to some key in the table
     native values()
+
+    /// `[]` operator overload
+    /// @param {Object} key - The key to search for
+    /// @return {Null|Object} The value associated with the key if it exists, `null` instead
     native __get__(key)
+
+    /// `[] =` operatori overload 
+    /// @param {Object} key - The key we want to add
+    /// @param {Object} valie = The value to be associated with `key`
+    /// @return {Boolean} `true` if there wasn't a key -> value entry in the table already (the key
+    ///         wasn't present in the table) `false` otherwise
     native __set__(key, val)
+
+    /// @return {Number} The number of entries in the table
     native __len__()
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
     native __iter__(i)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index of
+    ///        iteration inside the table
+    /// @return {Object} The next value in the iteration. It is the key of the current entry in the
+    ///         iteration
     native __next__(i)
+
+    /// @return {String} The string representation of this table
     native __string__()
 
+    /// Adds entries from another Table or an Iterator
+    /// @param {Table|iter.Iterable} other - The object containing the entries. If it is an Iterable
+    ///        it must be composed of 2-tuple representing a pair of (key, value)
+    /// @return {Boolean} `true` if at least one entry was added, `false` otherwise
     fun addAll(other)
         var changed = false
         if other is Table
@@ -431,11 +501,27 @@ class Table is iter.Iterable
     end
 end
 
+/// Enum is an association of strings to constant values
 class Enum
+    /// Constructs a new enumaration from constant names or from a table
+    /// @param {...String|Table} args - A list of constant names to be created in the enumeration,
+    ///        or a Table associating a constant name to a value (typically a Number)
     native construct(...args)
+
+    /// Get the constant value for `name`
+    /// @param {String} name - The name for which we want to retrieve the constant
+    /// @return {Object|Null} The constant associated with `name` if it exists, `null` otherwise
     native value(name)
+    
+    /// Get the name associated with a constant
+    /// @param {Object} value - The constant we want to retrieve the name for
+    /// @throws {FieldException} if there is no `name` in the enumeration
+    /// @return {String} The name associated with `value`
     native name(value)
 end
 
+/// Starcktrace represents the dump of the stack's frame during execution
 class StackTrace end
+
+/// Userdata is an handle to a garbage-collected chunk of generic memory
 class Userdata end
