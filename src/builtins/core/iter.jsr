@@ -49,6 +49,14 @@ class Iterable
         return nth(this, idx)
     end
 
+    fun first()
+        return first(this)
+    end
+
+    fun last()
+        return last(this)
+    end
+
     fun count()
         return count(this)
     end
@@ -113,6 +121,18 @@ end
 class Sequence is Iterable
     fun count()
         return #this
+    end
+
+    fun nth(idx)
+        return this[idx]
+    end
+
+    fun first()
+        return this[0]
+    end
+
+    fun last()
+        return this[#this - 1]
     end
 
     fun contains(e)
@@ -335,7 +355,9 @@ fun min(iterable, comparator=null)
 end
 
 fun nth(iterable, idx)
-    std.assert(idx >= 0, "idx must be greater or equal than 0", InvalidArgException)
+    if idx < 0
+        raise IndexOutOfBoundException(##idx)
+    end
 
     var count = 0
     for var e in iterable
@@ -346,6 +368,25 @@ fun nth(iterable, idx)
     end
 
     raise IndexOutOfBoundException(##count)
+end
+
+fun first(iterable)
+    for var e in iterable
+        return e
+    end
+    raise IndexOutOfBoundException()
+end
+
+fun last(iterable)
+    var found, elem = false, null
+    for var e in iterable
+       found = true
+       elem = e
+    end
+    if !found
+        raise IndexOutOfBoundException()
+    end
+    return last
 end
 
 fun count(iterable)
