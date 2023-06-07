@@ -195,9 +195,7 @@ static Module builtInModules[] = {
         ENDCLASS
     ENDMODULE
     CORE_ITER
-        CLASS(Iterable)
-            METHOD(join, jsr_core_iter_Iterable_join)
-        ENDCLASS
+        FUNCTION(join, jsr_core_iter_join)
     ENDMODULE
 #ifdef JSTAR_SYS
     MODULE(sys)

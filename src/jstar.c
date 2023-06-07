@@ -771,7 +771,7 @@ bool jsrCheckBoolean(JStarVM* vm, int slot, const char* name) {
 
 bool jsrCheckNull(JStarVM* vm, int slot, const char* name) {
     if(!jsrIsNull(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be null.", name);
-    return false;
+    return true;
 }
 
 bool jsrCheckInstance(JStarVM* vm, int slot, const char* name) {

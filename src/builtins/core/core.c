@@ -486,7 +486,7 @@ JSR_NATIVE(jsr_List_construct) {
             }
         }
     } else {
-        JSR_CHECK(Null, 2, "init must be null when calling List with an Iterable");
+        JSR_CHECK(Null, 2, "when calling List with an Iterable init");
         jsrPushList(vm);
         JSR_FOREACH(1, {
             jsrListAppend(vm, 3);

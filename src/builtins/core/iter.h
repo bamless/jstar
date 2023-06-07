@@ -4,7 +4,7 @@
 #include "jstar.h"
 
 // class Iterable
-JSR_NATIVE(jsr_core_iter_Iterable_join);
+JSR_NATIVE(jsr_core_iter_join);
 // end
 
 #endif
