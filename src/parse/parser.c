@@ -826,7 +826,7 @@ static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(&p->peek) && !isCallExpression(l) && l->type != JSR_YIELD) {
-        error(p, "Invalid syntax");
+        error(p, "Expression result unused. Consider adding a variable declaration");
     }
 
     if(isAssign(&p->peek)) {
@@ -1311,7 +1311,16 @@ static JStarExpr* yieldExpr(Parser* p) {
 
 static JStarExpr* tupleLiteral(Parser* p) {
     int line = p->peek.line;
+
+    bool isSpread = consumeSpreadOp(p);
     JStarExpr* e = yieldExpr(p);
+
+    if(isSpread) {
+        if(!match(p, TOK_COMMA)) {
+            error(p, "Cannot use spread operator here. Consider adding a `,` to make this a Tuple literal");
+        }
+        e = jsrSpreadExpr(e->line, e);
+    }
 
     if(match(p, TOK_COMMA)) {
         Vector exprs = vecNew();
