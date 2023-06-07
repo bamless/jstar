@@ -101,8 +101,8 @@ class Iterable
         return interleave(this, sep)
     end
 
-    fun sorted()
-        return sorted(this)
+    fun sorted(comparator=null)
+        return sorted(this, comparator)
     end
 
     fun collect(collector, ...args)
@@ -508,8 +508,8 @@ fun interleave(iterable, sep)
     end
 end
 
-fun sorted(iterable)
+fun sorted(iterable, comparator=null)
     var lst = [...iterable]
-    lst.sort()
+    lst.sort(comparator)
     return lst
 end
