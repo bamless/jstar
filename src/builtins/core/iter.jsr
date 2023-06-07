@@ -346,7 +346,7 @@ static fun maxMin(iterable, comparator, compare)
     return res
 end
 
-fun max(iterable, comparator)
+fun max(iterable, comparator=null)
     return maxMin(iterable, comparator, geCmp)
 end
 
