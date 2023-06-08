@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "builtins/builtins.h"
 #include "compiler.h"
 #include "hashtable.h"
 #include "jstar.h"
+#include "lib/builtins.h"
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"

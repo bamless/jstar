@@ -3,13 +3,13 @@
 #include <math.h>
 #include <string.h>
 
-#include "builtins/builtins.h"
-#include "builtins/core/core.h"
-#include "builtins/core/excs.h"
 #include "code.h"
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
+#include "lib/builtins.h"
+#include "lib/core/core.h"
+#include "lib/core/excs.h"
 #include "opcode.h"
 #include "profiler.h"
 

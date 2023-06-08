@@ -5,13 +5,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "builtins/core/core.h"
-#include "builtins/core/excs.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
 #include "jstar_limits.h"
+#include "lib/core/core.h"
+#include "lib/core/excs.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
