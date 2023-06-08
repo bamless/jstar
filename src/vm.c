@@ -911,14 +911,14 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            // Check if method shadows a function in the module
+            // Check if a method shadows a function in the module
             if(hashTableGet(&vm->modClass->methods, name, &func)) {
                 return callValue(vm, func, argc);
             }
 
-            // If no method is found on the ObjModule, try to get global variable
+            // If no method is found on the module object, try to get a global variable
             if(hashTableGet(&mod->globals, name, &func)) {
-                // This is a function call, swap the receiver from the modue to the function
+                // This is a function call, swap the receiver from the module to the function object
                 vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
             }

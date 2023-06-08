@@ -1614,6 +1614,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     JStarIdentifier* varargName = &s->as.decl.as.fun.vararg;
     bool isVararg = varargName->name != NULL;
 
+    // Allocate a new function. We need to push `name` on the stack in case a collection happens
     push(c->vm, OBJ_VAL(name));
     c->func = newFunction(c->vm, m, arity, defaults, isVararg);
     c->func->proto.name = name;
@@ -1622,10 +1623,8 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     addFunctionDefaults(c, &c->func->proto, &s->as.decl.as.fun.defArgs);
 
     // Add the receiver.
-    // In the case of functions the receiver is the function itself but it
-    // isnt't accessible (we use an empty name).
-    // In the case of methods the receiver is assigned a name of `this` and
-    // points to the class instance on which the method was called.
+    // In the case of functions the receiver is the function itself.
+    // In the case of methods the receiver is the class instance on which the method was called.
     JStarIdentifier receiverName = createIdentifier("this");
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
@@ -1672,11 +1671,13 @@ static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* 
     JStarIdentifier* vararg = &s->as.decl.as.native.vararg;
     bool isVararg = vararg->name != NULL;
 
+    // Allocate a new native. We need to push `name` on the stack in case a collection happens
     push(c->vm, OBJ_VAL(name));
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, isVararg);
     native->proto.name = name;
     pop(c->vm);
 
+    // Push the native on the stack in case `addFunctionDefaults` triggers a collection
     push(c->vm, OBJ_VAL(native));
     addFunctionDefaults(c, &native->proto, &s->as.decl.as.native.defArgs);
     pop(c->vm);
@@ -1710,7 +1711,6 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, JSt
     ASSERT(nativeOp == OP_NATIVE || nativeOp == OP_NATIVE_METHOD, "Not a native opcode");
 
     ObjNative* nat = native(c, c->func->proto.module, name, s);
-
     JStarIdentifier* nativeName = &s->as.decl.as.native.id;
     uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->line);
 
