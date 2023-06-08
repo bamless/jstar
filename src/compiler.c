@@ -39,8 +39,8 @@
 #define ANON_FMT "anonymous[line:%d]"
 
 static const int opcodeStackUsage[] = {
-  #define OPCODE(opcode, args, stack) stack,
-  #include "opcode.def"
+#define OPCODE(opcode, args, stack) stack,
+#include "opcode.def"
 };
 
 typedef struct Variable {
@@ -120,7 +120,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* p
     c->fnNode = fnNode;
     c->depth = 0;
     c->localsCount = 0;
-    c->stackUsage = 1; // For the receiver
+    c->stackUsage = 1;  // For the receiver
     c->loops = NULL;
     c->tryDepth = 0;
     c->tryBlocks = NULL;
@@ -392,7 +392,7 @@ static void assertJumpOpcode(Opcode op) {
 
 static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
     assertJumpOpcode(jmpOp);
-    
+
     int32_t offset = target - (getCurrentAddr(c) + opcodeArgsNumber(jmpOp) + 1);
     if(offset > INT16_MAX || offset < INT16_MIN) {
         error(c, line, "Too much code to jump over");
@@ -546,11 +546,28 @@ static JStarExpr* getExpressions(JStarExpr* unpackable) {
     }
 }
 
+bool isSpreadExpr(JStarExpr* e) {
+    return e->type == JSR_SPREAD;
+}
+
+bool containsSpreadExpr(JStarExpr* exprs) {
+    ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
+    vecForeach(JStarExpr** it, exprs->as.list) {
+        JStarExpr* e = *it;
+        if(isSpreadExpr(e)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // -----------------------------------------------------------------------------
 // EXPRESSION COMPILE
 // -----------------------------------------------------------------------------
 
 static void compileExpr(Compiler* c, JStarExpr* e);
+static void compileListLit(Compiler* c, JStarExpr* e);
+static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* node);
 
 static void compileBinaryExpr(Compiler* c, JStarExpr* e) {
     compileExpr(c, e->as.binary.left);
@@ -694,14 +711,13 @@ static void compileVarLit(Compiler* c, JStarIdentifier* id, bool set, int line) 
     }
 }
 
-static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* node);
-
 static void compileFunLiteral(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(!name) {
         char anonymousName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) + 1];
         sprintf(anonymousName, ANON_FMT, func->line);
-        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonymousName, strlen(anonymousName)), func);
+        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonymousName, strlen(anonymousName)),
+                        func);
     } else {
         func->as.decl.as.fun.id = *name;
         compileFunction(c, TYPE_FUNC, copyString(c->vm, name->name, name->length), func);
@@ -744,7 +760,7 @@ static void compileRval(Compiler* c, JStarExpr* e, JStarIdentifier* name) {
 
 static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, Vector* names) {
     if(vecSize(&exprs->as.list) < (size_t)lvals) {
-        error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals, 
+        error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals,
               vecSize(&exprs->as.list));
     }
 
@@ -753,7 +769,7 @@ static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, Vector*
         JStarIdentifier* name = NULL;
         if(names && i < lvals) name = vecGet(names, i);
         compileRval(c, *it, name);
-        
+
         if(++i > lvals) emitOpcode(c, OP_POP, 0);
     }
 }
@@ -831,7 +847,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
     compileAssignExpr(c, &assignment);
 }
 
-static uint8_t compileArguments(Compiler* c, JStarExpr* args) {
+static void compileArguments(Compiler* c, JStarExpr* args) {
     vecForeach(JStarExpr** it, args->as.list) {
         compileExpr(c, *it);
     }
@@ -841,15 +857,17 @@ static uint8_t compileArguments(Compiler* c, JStarExpr* args) {
         error(c, args->line, "Exceeded maximum number of arguments (%d) for function %s",
               (int)UINT8_MAX, c->func->proto.name->data);
     }
+}
 
-    return argsCount;
+static void compileUnpackArguments(Compiler* c, JStarExpr* args) {
+    JStarExpr argsList = (JStarExpr){args->line, JSR_ARRAY, .as = {.array = {args}}};
+    compileListLit(c, &argsList);
 }
 
 static void emitCallOp(Compiler* c, Opcode callCode, Opcode callInline, Opcode callUnpack,
-                       uint8_t argsCount, bool isUnpackCall, int line) {
-    if(isUnpackCall) {
+                       uint8_t argsCount, bool unpackCall, int line) {
+    if(unpackCall) {
         emitOpcode(c, callUnpack, line);
-        emitByte(c, argsCount, line);
     } else if(argsCount <= MAX_INLINE_ARGS) {
         emitOpcode(c, callInline + argsCount, line);
     } else {
@@ -875,10 +893,17 @@ static void compileCallExpr(Compiler* c, JStarExpr* e) {
         compileExpr(c, callee);
     }
 
-    uint8_t argsCount = compileArguments(c, e->as.call.args);
-    bool isUnpack = e->as.call.unpackArg;
+    JStarExpr* args = e->as.call.args;
+    bool unpackCall = containsSpreadExpr(args);
 
-    emitCallOp(c, callCode, callInline, callUnpack, argsCount, isUnpack, e->line);
+    if(unpackCall) {
+        compileUnpackArguments(c, args);
+    } else {
+        compileArguments(c, args);
+    }
+
+    uint8_t argsCount = vecSize(&args->as.list);
+    emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->line);
 
     if(isMethod) {
         emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
@@ -892,6 +917,7 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
         return;
     }
 
+    // place `this` on top of the stack
     emitOpcode(c, OP_GET_LOCAL, e->line);
     emitByte(c, 0, e->line);
 
@@ -903,13 +929,20 @@ static void compileSuper(Compiler* c, JStarExpr* e) {
     }
 
     JStarIdentifier superName = createIdentifier("super");
+    JStarExpr* args = e->as.sup.args;
 
-    if(e->as.sup.args != NULL) {
-        uint8_t argsCount = compileArguments(c, e->as.sup.args);
-        bool isUnpack = e->as.sup.unpackArg;
+    if(args != NULL) {
+        bool unpackCall = containsSpreadExpr(args);
 
+        if(unpackCall) {
+            compileUnpackArguments(c, args);
+        } else {
+            compileArguments(c, args);
+        }
+
+        uint8_t argsCount = vecSize(&args->as.list);
         compileVarLit(c, &superName, false, e->line);
-        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, isUnpack, e->line);
+        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->line);
         emitShort(c, methodConst, e->line);
     } else {
         compileVarLit(c, &superName, false, e->line);
@@ -936,21 +969,48 @@ static void compilePowExpr(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_POW, e->line);
 }
 
-static void CompileListLit(Compiler* c, JStarExpr* e) {
+static void compileListLit(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
+
     vecForeach(JStarExpr** it, e->as.array.exprs->as.list) {
-        compileExpr(c, *it);
-        emitOpcode(c, OP_APPEND_LIST, e->line);
+        JStarExpr* expr = *it;
+
+        if(isSpreadExpr(expr)) {
+            emitOpcode(c, OP_DUP, e->line);
+        }
+
+        compileExpr(c, expr);
+
+        if(isSpreadExpr(expr)) {
+            methodCall(c, "addAll", 1);
+            emitOpcode(c, OP_POP, expr->line);
+        } else {
+            emitOpcode(c, OP_APPEND_LIST, e->line);
+        }
     }
 }
 
+static void compileSpreadTupleLit(Compiler* c, JStarExpr* e) {
+    JStarExpr toList = (JStarExpr){e->line, JSR_ARRAY, .as = {.array = {e->as.tuple.exprs}}};
+    compileListLit(c, &toList);
+    emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
+}
+
 static void compileTupleLit(Compiler* c, JStarExpr* e) {
+    if(containsSpreadExpr(e->as.tuple.exprs)) {
+        compileSpreadTupleLit(c, e);
+        return;
+    }
+
     vecForeach(JStarExpr** it, e->as.tuple.exprs->as.list) {
         compileExpr(c, *it);
     }
 
     size_t tupleSize = vecSize(&e->as.tuple.exprs->as.list);
-    if(tupleSize >= UINT8_MAX) error(c, e->line, "Too many elements in Tuple literal");
+    if(tupleSize >= UINT8_MAX) {
+        error(c, e->line, "Too many elements in Tuple literal");
+    }
+
     emitOpcode(c, OP_NEW_TUPLE, e->line);
     emitByte(c, tupleSize, e->line);
 }
@@ -959,16 +1019,29 @@ static void compileTableLit(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.table.keyVals;
-    for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list); it += 2) {
-        JStarExpr* key = *it;
-        JStarExpr* val = *(it + 1);
+    for(JStarExpr** it = vecBegin(&keyVals->as.list); it != vecEnd(&keyVals->as.list);) {
+        JStarExpr* expr = *it;
 
-        emitOpcode(c, OP_DUP, e->line);
-        compileExpr(c, key);
-        compileExpr(c, val);
-        
-        methodCall(c, "__set__", 2);
-        emitOpcode(c, OP_POP, e->line);
+        if(isSpreadExpr(expr)) {
+            emitOpcode(c, OP_DUP, e->line);
+            compileExpr(c, expr);
+            methodCall(c, "addAll", 1);
+            emitOpcode(c, OP_POP, e->line);
+
+            it += 1;
+        } else {
+            JStarExpr* key = expr;
+            JStarExpr* val = *(it + 1);
+
+            emitOpcode(c, OP_DUP, e->line);
+            compileExpr(c, key);
+            compileExpr(c, val);
+
+            methodCall(c, "__set__", 2);
+            emitOpcode(c, OP_POP, e->line);
+
+            it += 2;
+        }
     }
 }
 
@@ -1043,7 +1116,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         emitOpcode(c, OP_NULL, e->line);
         break;
     case JSR_ARRAY:
-        CompileListLit(c, e);
+        compileListLit(c, e);
         break;
     case JSR_TUPLE:
         compileTupleLit(c, e);
@@ -1056,6 +1129,9 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         break;
     case JSR_FUNC_LIT:
         compileFunLiteral(c, e, NULL);
+        break;
+    case JSR_SPREAD:
+        compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
         vecForeach(JStarExpr** it, e->as.list) {
@@ -1279,7 +1355,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
 
         emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
         emitOpcode(c, OP_POP, s->line);
-        
+
         if(!vecIsIterEnd(modules, it)) jsrBufferAppendChar(&nameBuf, '.');
     }
 
@@ -1538,6 +1614,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     JStarIdentifier* varargName = &s->as.decl.as.fun.vararg;
     bool isVararg = varargName->name != NULL;
 
+    // Allocate a new function. We need to push `name` on the stack in case a collection happens
     push(c->vm, OBJ_VAL(name));
     c->func = newFunction(c->vm, m, arity, defaults, isVararg);
     c->func->proto.name = name;
@@ -1545,12 +1622,10 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
 
     addFunctionDefaults(c, &c->func->proto, &s->as.decl.as.fun.defArgs);
 
-    // Add the receiver. 
-    // In the case of functions the receiver is the function itself but it 
-    // isnt't accessible (we use an empty name).
-    // In the case of methods the receiver is assigned a name of `this` and
-    // points to the class instance on which the method was called.
-    JStarIdentifier receiverName = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
+    // Add the receiver.
+    // In the case of functions the receiver is the function itself.
+    // In the case of methods the receiver is the class instance on which the method was called.
+    JStarIdentifier receiverName = createIdentifier("this");
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
 
@@ -1593,14 +1668,16 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
 static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
     size_t defCount = vecSize(&s->as.decl.as.native.defArgs);
     size_t arity = vecSize(&s->as.decl.as.native.formalArgs);
-    JStarIdentifier* vararg = &s->as.decl.as.native.vararg; 
+    JStarIdentifier* vararg = &s->as.decl.as.native.vararg;
     bool isVararg = vararg->name != NULL;
 
+    // Allocate a new native. We need to push `name` on the stack in case a collection happens
     push(c->vm, OBJ_VAL(name));
     ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, isVararg);
     native->proto.name = name;
     pop(c->vm);
 
+    // Push the native on the stack in case `addFunctionDefaults` triggers a collection
     push(c->vm, OBJ_VAL(native));
     addFunctionDefaults(c, &native->proto, &s->as.decl.as.native.defArgs);
     pop(c->vm);
@@ -1634,7 +1711,6 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, JSt
     ASSERT(nativeOp == OP_NATIVE || nativeOp == OP_NATIVE_METHOD, "Not a native opcode");
 
     ObjNative* nat = native(c, c->func->proto.module, name, s);
-
     JStarIdentifier* nativeName = &s->as.decl.as.native.id;
     uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->line);
 
@@ -1659,7 +1735,8 @@ static void callDecorators(Compiler* c, Vector* decorators) {
     }
 }
 
-static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsName, JStarIdentifier* methName) {
+static ObjString* createMethodName(Compiler* c, JStarIdentifier* clsName,
+                                   JStarIdentifier* methName) {
     size_t length = clsName->length + methName->length + 1;
     ObjString* name = allocateString(c->vm, length);
     memcpy(name->data, clsName->name, clsName->length);
@@ -1697,10 +1774,10 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
         emitOpcode(c, OP_POP, cls->line);
 
         compileDecorators(c, decorators);
-  
+
         emitOpcode(c, OP_GET_CONST, cls->line);
         emitShort(c, nativeConst, s->line);
-        
+
         callDecorators(c, decorators);
     }
 
@@ -1765,7 +1842,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
 }
 
 static void compileFunDecl(Compiler* c, JStarStmt* s) {
-    JStarIdentifier *funName = &s->as.decl.as.fun.id;
+    JStarIdentifier* funName = &s->as.decl.as.fun.id;
     Variable funVar = declareVar(c, funName, s->as.decl.isStatic, s->line);
 
     // If local initialize the variable in order to permit the function to reference itself
@@ -1774,7 +1851,7 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
     }
 
     Vector* decorators = &s->as.decl.decorators;
-    
+
     compileDecorators(c, decorators);
     compileFunction(c, TYPE_FUNC, copyString(c->vm, funName->name, funName->length), s);
     callDecorators(c, decorators);
@@ -1787,18 +1864,18 @@ static void compileNativeDecl(Compiler* c, JStarStmt* s) {
     Variable natVar = declareVar(c, natName, s->as.decl.isStatic, s->line);
 
     Vector* decorators = &s->as.decl.decorators;
-    
+
     compileDecorators(c, decorators);
     compileNative(c, copyString(c->vm, natName->name, natName->length), OP_NATIVE, s);
     callDecorators(c, decorators);
-    
+
     defineVar(c, &natVar, s->line);
 }
 
 static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
-    
+
     vecForeach(JStarIdentifier** varName, s->as.decl.as.var.ids) {
         Variable var = declareVar(c, *varName, s->as.decl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;

@@ -3,12 +3,13 @@
 #include <math.h>
 #include <string.h>
 
-#include "builtins/builtins.h"
-#include "builtins/core.h"
 #include "code.h"
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
+#include "lib/builtins.h"
+#include "lib/core/core.h"
+#include "lib/core/excs.h"
 #include "opcode.h"
 #include "profiler.h"
 
@@ -634,32 +635,20 @@ static bool unaryOverload(JStarVM* vm, const char* op, MethodSymbol overload) {
     return false;
 }
 
-static bool unpackArgs(JStarVM* vm, uint8_t argc, uint8_t* out) {
-    if(argc == 0) {
-        jsrRaise(vm, "TypeException", "No argument to unpack");
+static bool unpackArgs(JStarVM* vm, uint8_t* out) {
+    ObjList* args = AS_LIST(pop(vm));
+    size_t argsCount = args->size;
+
+    if(argsCount >= UINT8_MAX) {
+        jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", argsCount);
         return false;
     }
 
-    if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-        jsrRaise(vm, "TypeException", "Can unpack only Tuple or List, got %s.",
-                 getClass(vm, peek(vm))->name->data);
-        return false;
-    }
+    *out = (uint8_t)argsCount;
 
-    size_t size;
-    Value* array = getValues(AS_OBJ(pop(vm)), &size);
-
-    size_t totalArgc = argc + size - 1;
-    if(totalArgc >= UINT8_MAX) {
-        jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", totalArgc);
-        return false;
-    }
-
-    *out = (uint8_t)totalArgc;
-
-    reserveStack(vm, size + 1);
-    for(size_t i = 0; i < size; i++) {
-        push(vm, array[i]);
+    reserveStack(vm, argsCount + 1);
+    for(size_t i = 0; i < argsCount; i++) {
+        push(vm, args->arr[i]);
     }
 
     return true;
@@ -922,13 +911,15 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            // Check if method shadows a function in the module
+            // Check if a method shadows a function in the module
             if(hashTableGet(&vm->modClass->methods, name, &func)) {
                 return callValue(vm, func, argc);
             }
 
-            // If no method is found on the ObjModule, try to get global variable
+            // If no method is found on the module object, try to get a global variable
             if(hashTableGet(&mod->globals, name, &func)) {
+                // This is a function call, swap the receiver from the module to the function object
+                vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
             }
 
@@ -1349,7 +1340,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         goto call;
 
     TARGET(OP_CALL_UNPACK):
-        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
         goto call;
@@ -1384,7 +1375,7 @@ call:
         goto invoke;
 
     TARGET(OP_INVOKE_UNPACK):
-        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
+        if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
         goto invoke;
@@ -1404,6 +1395,7 @@ invoke:;
     
     {
         uint8_t argc;
+        ObjClass* superCls;
 
     TARGET(OP_SUPER_0):
     TARGET(OP_SUPER_1):
@@ -1417,21 +1409,27 @@ invoke:;
     TARGET(OP_SUPER_9):
     TARGET(OP_SUPER_10):
         argc = op - OP_SUPER_0;
-        goto super_invoke;
+        goto super_get_class;
 
-    TARGET(OP_SUPER_UNPACK):
-        if(!unpackArgs(vm, NEXT_CODE(), &argc)) {
+    TARGET(OP_SUPER_UNPACK): {
+        superCls = AS_CLASS(pop(vm));
+
+        if(!unpackArgs(vm, &argc)) {
             UNWIND_STACK();
         }
+
         goto super_invoke;
+    }
 
     TARGET(OP_SUPER):
         argc = NEXT_CODE();
-        goto super_invoke;
+        goto super_get_class;
+
+super_get_class:;
+        superCls = AS_CLASS(pop(vm));
 
 super_invoke:;
         ObjString* name = GET_STRING();
-        ObjClass* superCls = AS_CLASS(pop(vm));
         SAVE_STATE();
         bool res = invokeMethod(vm, superCls, name, argc);
         LOAD_STATE();
@@ -1550,6 +1548,16 @@ op_return:
     TARGET(OP_APPEND_LIST): {
         listAppend(vm, AS_LIST(peek2(vm)), peek(vm));
         pop(vm);
+        DISPATCH();
+    }
+
+    TARGET(OP_LIST_TO_TUPLE): {
+        ASSERT(IS_LIST(peek(vm)), "Top of stack isn't a List");
+        ObjList* lst = AS_LIST(peek(vm));
+        ObjTuple* tup = newTuple(vm, lst->size);
+        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->size);
+        pop(vm);
+        push(vm, OBJ_VAL(tup));
         DISPATCH();
     }
     

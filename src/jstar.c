@@ -5,12 +5,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "builtins/core.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
 #include "jstar_limits.h"
+#include "lib/core/core.h"
+#include "lib/core/excs.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
@@ -764,7 +765,12 @@ bool jsrCheckTuple(JStarVM* vm, int slot, const char* name) {
 }
 
 bool jsrCheckBoolean(JStarVM* vm, int slot, const char* name) {
-    if(!jsrIsBoolean(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a String.", name);
+    if(!jsrIsBoolean(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be a Boolean.", name);
+    return true;
+}
+
+bool jsrCheckNull(JStarVM* vm, int slot, const char* name) {
+    if(!jsrIsNull(vm, slot)) JSR_RAISE(vm, "TypeException", "%s must be null.", name);
     return true;
 }
 

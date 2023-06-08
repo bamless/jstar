@@ -336,6 +336,9 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
 // Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* size);
 
+// Get the prototype field of a Function object
+Prototype* getPrototype(Obj* fn);
+
 // Convert a JStarBuffer to an ObjString
 ObjString* jsrBufferToString(JStarBuffer* b);
 

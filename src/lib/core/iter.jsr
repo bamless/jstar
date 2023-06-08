@@ -1,0 +1,556 @@
+class Iterable
+    fun __iter__(_)
+        raise NotImplementedException()
+    end
+
+    fun __next__(_)
+        raise NotImplementedException()
+    end
+
+    fun forEach(func)
+        for var e in this
+            func(e)
+        end
+    end
+
+    fun join(sep="")
+        return join(this, sep)
+    end
+
+    fun sum(start=0)
+        return sum(this, start)
+    end
+
+    fun any(predicate)
+        return any(this, predicate)
+    end
+
+    fun all(predicate)
+        return all(this, predicate)
+    end
+
+    fun reduce(init, fn)
+        return reduce(this, init, fn)
+    end
+    
+    fun find(predicate)
+        return find(this, predicate)
+    end
+
+    fun max(comparator=null)
+       return max(this, comparator) 
+    end
+
+    fun min(comparator=null)
+        return min(this, comparator)
+    end
+    
+    fun nth(idx)
+        return nth(this, idx)
+    end
+
+    fun first()
+        return first(this)
+    end
+
+    fun last()
+        return last(this)
+    end
+
+    fun count()
+        return count(this)
+    end
+
+    fun position(e)
+        return position(this, e)
+    end
+
+    fun enumerate(start=0)
+        return enumerate(this, start)
+    end
+
+    fun concat(iterable)
+        return concat(this, iterable)
+    end
+
+    fun map(fn)
+        return map(this, fn)
+    end
+
+    fun filter(predicate)
+        return filter(this, predicate)
+    end
+
+    fun skip(count)
+        return skip(this, count)
+    end
+
+    fun skipWhile(predicate)
+        return skipWhile(this, predicate)
+    end
+
+    fun take(count)
+        return take(this, count)
+    end
+
+    fun takeWhile(predicate)
+        return takeWhile(this, predicate)
+    end
+
+    fun flatten()
+        return flatten(this)
+    end
+
+    fun zip(iterable)
+        return zip(this, iterable)
+    end
+
+    fun interleave(sep)
+        return interleave(this, sep)
+    end
+
+    fun sorted(comparator=null)
+        return sorted(this, comparator)
+    end
+
+    fun collect(collector, ...args)
+        return collector(this, ...args) if #args > 0 else collector(this)
+    end
+end
+
+class Sequence is Iterable
+    fun count()
+        return #this
+    end
+
+    fun nth(idx)
+        return this[idx]
+    end
+
+    fun first()
+        return this[0]
+    end
+
+    fun last()
+        return this[#this - 1]
+    end
+
+    fun contains(e)
+        return this.indexOf(e) != -1
+    end
+
+    fun indexOf(e)
+        var length = #this
+        for var i = 0; i < length; i += 1
+            if this[i] == e
+                return i
+            end
+        end
+        return -1
+    end
+
+    fun indexOfLast(e)
+        for var i = #this - 1; i >= 0; i -= 1
+            if this[i] == e
+                return i
+            end
+        end
+        return -1
+    end
+
+    fun count(e)
+        var count = 0
+        for var o in this
+            if o == e 
+                count += 1
+            end
+        end
+        return count
+    end
+
+    fun empty()
+        return #this == 0
+    end
+
+    fun reversed()
+        return ReversedSequence(this)
+    end
+
+    fun __eq__(other)
+        if type(other) != type(this)
+            return false 
+        end
+
+        var length = #this
+        if length != #other
+            return false
+        end
+
+        for var i = 0; i < length; i += 1
+            if this[i] != other[i]
+                return false
+            end
+        end
+        return true
+    end
+end
+
+// ------------------------------------------------------------------------------
+// BUILT-IN ITERATORS
+// ------------------------------------------------------------------------------
+
+fun range(start, stop=null, step=1)
+    std.assert(step != 0, "step must be != 0", InvalidArgException)
+
+    if !stop
+        start, stop = 0, start
+    end
+
+    if step > 0
+        for var i = start; i < stop; i += step
+            yield i
+        end
+    else
+        for var i = start; i > stop; i += step
+            yield i
+        end
+    end
+end
+
+fun once(val)
+    yield val
+end
+
+fun onceWith(fn, ...args)
+    yield fn(...args)
+end
+
+fun repeat(val)
+    for ;;
+        yield val
+    end
+end
+
+fun repeatWith(fn, ...args)
+    for ;;
+        yield fn(...args)
+    end
+end
+
+fun fromFun(fn)
+    for ;;
+        var res = fn()
+        if res == null
+            break
+        end
+        yield res
+    end
+end
+
+class empty is Iterable
+    fun __iter__(_)
+        return false
+    end
+
+    fun __next__(_)
+        return null
+    end
+end
+
+fun successors(init, fn)
+    var e = init
+    if e != null
+        yield e
+    end
+
+    for ;;
+        e = fn(e)
+        if e == null
+            break
+        end
+        yield e
+    end
+end
+
+// ------------------------------------------------------------------------------
+// TERMINAL COLLECTORS - Iterators that consume the input to produce a result
+// ------------------------------------------------------------------------------
+
+native join(iterable, sep="")
+
+fun sum(iterable, start=0)
+    var res = start
+    for var e in iterable
+        res += e
+    end
+    return res
+end
+
+fun any(iterable, predicate)
+    for var e in iterable
+        if predicate(e)
+            return true
+        end
+    end
+    return false
+end
+
+fun all(iterable, predicate)
+    for var e in iterable
+        if !predicate(e)
+            return false
+        end
+    end
+    return true
+end
+
+fun reduce(iterable, init, fn)
+    var acc = init
+    for var e in iterable
+        acc = fn(acc, e)
+    end
+    return acc
+end
+
+fun find(iterable, predicate)
+    for var e in iterable
+        if predicate(e)
+            return e
+        end
+    end
+    return null
+end
+
+static fun geCmp(a, b, comparator)
+    return a >= b if !comparator else comparator(a, b) >= 0
+end
+
+static fun leCmp(a, b, comparator)
+    return a <= b if !comparator else comparator(a, b) <= 0
+end
+
+static fun maxMin(iterable, comparator, compare)
+    var res = null
+    var first = true
+    for var e in iterable
+        if first
+            first = false
+            res = e
+            continue
+        end
+        var cmp = compare(e, res, comparator)
+        if cmp
+            res = e
+        end
+    end
+    return res
+end
+
+fun max(iterable, comparator=null)
+    return maxMin(iterable, comparator, geCmp)
+end
+
+fun min(iterable, comparator=null)
+    return maxMin(iterable, comparator, leCmp)
+end
+
+fun nth(iterable, idx)
+    if idx < 0
+        raise IndexOutOfBoundException(##idx)
+    end
+
+    var count = 0
+    for var e in iterable
+        if count == idx
+            return e
+        end
+        count += 1
+    end
+
+    raise IndexOutOfBoundException(##count)
+end
+
+fun first(iterable)
+    for var e in iterable
+        return e
+    end
+    raise IndexOutOfBoundException()
+end
+
+fun last(iterable)
+    var found, elem = false, null
+    for var e in iterable
+       found = true
+       elem = e
+    end
+    if !found
+        raise IndexOutOfBoundException()
+    end
+    return last
+end
+
+fun count(iterable)
+    var count = 0
+    for var e in iterable
+        count += 1
+    end
+    return count
+end
+
+fun position(iterable, e)
+    var idx = 0
+    for var elem in iterable
+        if e == elem
+            return idx
+        end
+        idx += 1
+    end
+    return null
+end
+
+// -------------------------------------------------------------------------------
+// ADAPTER COLLECTORS - Iterators that wrap the input to produce a new iterator
+// -------------------------------------------------------------------------------
+
+class ReversedSequence is Sequence
+    construct(sequence)
+        this._sequence = sequence
+        this._size = #sequence
+    end
+
+    fun __get__(i)
+        try
+            return this._sequence[this._size - i - 1]
+        except IndexOutOfBoundException e
+            raise IndexOutOfBoundException(##i, e)
+        end
+    end
+
+    fun __len__()
+        return this._size
+    end
+
+    fun __iter__(idx)
+        if idx == null
+            return 0 if this._size > 0 else false
+        end
+        return idx + 1 if idx < this._size - 1 else false
+    end
+
+    fun __next__(idx)
+        return this._sequence[this._size - idx - 1]
+    end
+end
+
+fun enumerate(iterable, start=0)
+    for var e in iterable
+        yield (start, e)
+        start += 1
+    end
+end
+
+fun concat(iter1, iter2)
+    for var e in iter1
+        yield e
+    end
+    for var e in iter2
+        yield e
+    end
+end
+
+fun map(iterable, fn)
+    for var e in iterable
+        yield fn(e)
+    end
+end
+
+fun filter(iterable, predicate)
+    for var e in iterable
+        if predicate(e)
+            yield e
+        end
+    end
+end
+
+fun skip(iterable, count)
+    for var e in iterable
+        if count != 0
+            count -= 1
+            continue
+        end
+        yield e
+    end
+end
+
+fun skipWhile(iterable, predicate)
+    for var e in iterable
+        if predicate(e)
+            continue
+        end
+        yield e
+    end
+end
+
+fun take(iterable, count)
+    for var e in iterable
+        if count == 0
+            break
+        end
+        yield e
+        count -= 1
+    end
+end
+
+fun takeWhile(iterable, predicate)
+    for var e in iterable
+        if !predicate(e)
+            break
+        end
+        yield e
+    end
+end
+
+fun flatten(iterable)
+    for var outer in iterable
+        var cls = type(outer)
+        if cls.implements("__iter__") and cls.implements("__next__")
+            for var inner in outer
+                yield inner
+            end
+        else
+            yield outer
+        end
+    end
+end
+
+fun zip(iterable1, iterable2)
+    var i1, i2
+
+    for ;;
+        i1, i2 = iterable1.__iter__(i1), iterable2.__iter__(i2)
+        if !(i1 and i2)
+            break
+        end
+        yield (iterable1.__next__(i1), iterable2.__next__(i2))
+    end
+end
+
+fun interleave(iterable, sep)
+    var first = true
+    for var e in iterable
+        if first
+            first = false
+            yield e
+            continue
+        end
+        
+        yield sep
+        yield e
+    end
+end
+
+fun sorted(iterable, comparator=null)
+    var lst = [...iterable]
+    lst.sort(comparator)
+    return lst
+end

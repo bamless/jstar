@@ -38,6 +38,7 @@ typedef enum JStarExprType {
     JSR_TERNARY,
     JSR_COMPUND_ASS,
     JSR_FUNC_LIT,
+    JSR_SPREAD,
 } JStarExprType;
 
 struct JStarExpr {
@@ -52,6 +53,9 @@ struct JStarExpr {
             JStarTokType op;
             JStarExpr* operand;
         } unary;
+        struct {
+            JStarExpr* expr;
+        } spread;
         struct {
             JStarExpr *lval, *rval;
         } assign;
@@ -68,7 +72,6 @@ struct JStarExpr {
         } var;
         struct {
             JStarExpr *callee, *args;
-            bool unpackArg;
         } call;
         struct {
             JStarExpr *base, *exp;
@@ -104,7 +107,6 @@ struct JStarExpr {
         struct {
             JStarIdentifier name;
             JStarExpr* args;
-            bool unpackArg;
         } sup;
         double num;
         bool boolean;
@@ -235,8 +237,8 @@ JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenEx
                                     JStarExpr* elseExpr);
 JSTAR_API JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval);
 JSTAR_API JStarExpr* jsrAccessExpr(int line, JStarExpr* left, const char* name, size_t length);
-JSTAR_API JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args, bool unpackArg);
-JSTAR_API JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args, bool unpackArg);
+JSTAR_API JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args);
+JSTAR_API JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args);
 JSTAR_API JStarExpr* jsrVarLiteral(int line, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrStrLiteral(int line, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrArrayAccExpr(int line, JStarExpr* left, JStarExpr* index);
@@ -245,6 +247,7 @@ JSTAR_API JStarExpr* jsrUnaryExpr(int line, JStarTokType op, JStarExpr* operand)
 JSTAR_API JStarExpr* jsrAssignExpr(int line, JStarExpr* lval, JStarExpr* rval);
 JSTAR_API JStarExpr* jsrPowExpr(int line, JStarExpr* base, JStarExpr* exp);
 JSTAR_API JStarExpr* jsrTableLiteral(int line, JStarExpr* keyVals);
+JSTAR_API JStarExpr* jsrSpreadExpr(int line, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrExprList(int line, Vector* exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(int line, bool boolean);
 JSTAR_API JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs);

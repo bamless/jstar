@@ -400,6 +400,7 @@ JSTAR_API bool jsrCheckString(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckList(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckTuple(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckBoolean(JStarVM* vm, int slot, const char* name);
+JSTAR_API bool jsrCheckNull(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckInstance(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckHandle(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckTable(JStarVM* vm, int slot, const char* name);

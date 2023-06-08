@@ -316,6 +316,14 @@ static void requireStmtEnd(Parser* p) {
     }
 }
 
+static bool consumeSpreadOp(Parser* p) {
+    if(match(p, TOK_ELLIPSIS)) {
+        advance(p);
+        return true;
+    }
+    return false;
+}
+
 // -----------------------------------------------------------------------------
 // STATEMENTS PARSE
 // -----------------------------------------------------------------------------
@@ -378,7 +386,7 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
         }
     }
 
-    if(match(p, TOK_VARARG)) {
+    if(match(p, TOK_ELLIPSIS)) {
         advance(p);
         skipNewLines(p);
 
@@ -667,11 +675,20 @@ static void freeDecorators(Vector* decorators) {
     vecFree(decorators);
 }
 
+static JStarTok ctorName(int line) {
+    return (JStarTok){
+        .line = line,
+        .type = TOK_IDENTIFIER,
+        .lexeme = CONSTRUCT_ID,
+        .length = strlen(CONSTRUCT_ID),
+    };
+}
+
 static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
+    int line = p->peek.line;
+
     Function fn;
     beginFunction(p, &fn);
-
-    int line = p->peek.line;
 
     JStarTok funTok = advance(p);
     skipNewLines(p);
@@ -679,13 +696,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarTok funcName;
     if(parseCtor && funTok.type == TOK_CTOR) {
         fn.isCtor = true;
-
-        funcName = (JStarTok){
-            .line = line,
-            .type = TOK_IDENTIFIER,
-            .lexeme = CONSTRUCT_ID,
-            .length = strlen(CONSTRUCT_ID),
-        };
+        funcName = ctorName(line);
     } else {
         funcName = require(p, TOK_IDENTIFIER);
     }
@@ -713,12 +724,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     JStarTok funcName;
     if(parseCtor && p->peek.type == TOK_CTOR) {
         advance(p);
-        funcName = (JStarTok){
-            .line = line,
-            .type = TOK_IDENTIFIER,
-            .lexeme = CONSTRUCT_ID,
-            .length = strlen(CONSTRUCT_ID),
-        };
+        funcName = ctorName(line);
     } else {
         funcName = require(p, TOK_IDENTIFIER);
     }
@@ -820,7 +826,7 @@ static JStarStmt* exprStmt(Parser* p) {
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(&p->peek) && !isCallExpression(l) && l->type != JSR_YIELD) {
-        error(p, "Invalid syntax");
+        error(p, "Expression result unused. Consider adding a variable declaration");
     }
 
     if(isAssign(&p->peek)) {
@@ -915,9 +921,20 @@ static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close
 
     Vector exprs = vecNew();
     while(!match(p, close)) {
-        vecPush(&exprs, expression(p, false));
+        bool isSpread = consumeSpreadOp(p);
+        JStarExpr* e = expression(p, false);
         skipNewLines(p);
-        if(!match(p, TOK_COMMA)) break;
+
+        if(isSpread) {
+            e = jsrSpreadExpr(line, e);
+        }
+
+        vecPush(&exprs, e);
+
+        if(!match(p, TOK_COMMA)) {
+            break;
+        }
+
         advance(p);
         skipNewLines(p);
     }
@@ -934,26 +951,37 @@ static JStarExpr* parseTableLiteral(Parser* p) {
 
     Vector keyVals = vecNew();
     while(!match(p, TOK_RCURLY)) {
-        JStarExpr* key;
-        if(match(p, TOK_DOT)) {
-            advance(p);
-            JStarTok id = require(p, TOK_IDENTIFIER);
-            key = jsrStrLiteral(id.line, id.lexeme, id.length);
+        bool isSpread = consumeSpreadOp(p);
+        
+        if(isSpread) {
+            JStarExpr* expr = expression(p, false);
+            skipNewLines(p);
+            expr = jsrSpreadExpr(expr->line, expr);
+            vecPush(&keyVals, expr);
         } else {
-            key = expression(p, false);
+            JStarExpr* key;
+            if(match(p, TOK_DOT)) {
+                advance(p);
+                JStarTok id = require(p, TOK_IDENTIFIER);
+                key = jsrStrLiteral(id.line, id.lexeme, id.length);
+            } else {
+                key = expression(p, false);
+            }
+
+            skipNewLines(p);
+            require(p, TOK_COLON);
+            skipNewLines(p);
+
+            JStarExpr* val = expression(p, false);
+            skipNewLines(p);
+
+            if(p->hadError) {
+                break;
+            }
+
+            vecPush(&keyVals, key);
+            vecPush(&keyVals, val);
         }
-
-        skipNewLines(p);
-        require(p, TOK_COLON);
-        skipNewLines(p);
-
-        JStarExpr* val = expression(p, false);
-        skipNewLines(p);
-
-        if(p->hadError) break;
-
-        vecPush(&keyVals, key);
-        vecPush(&keyVals, val);
 
         if(!match(p, TOK_RCURLY)) {
             require(p, TOK_COMMA);
@@ -978,21 +1006,21 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
         name = require(p, TOK_IDENTIFIER);
     }
 
-    bool unpackArg = false;
-
     if(match(p, TOK_LPAREN)) {
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-        if(match(p, TOK_VARARG)) {
-            advance(p);
-            unpackArg = true;
-        }
     } else if(match(p, TOK_LCURLY)) {
         Vector tableCallArgs = vecNew();
         vecPush(&tableCallArgs, parseTableLiteral(p));
         args = jsrExprList(line, &tableCallArgs);
     }
 
-    return jsrSuperLiteral(line, &name, args, unpackArg);
+    return jsrSuperLiteral(line, &name, args);
+}
+
+JStarExpr* parseListLiteral(Parser* p) {
+    int line = p->peek.line;
+    JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
+    return jsrArrLiteral(line, exprs);
 }
 
 static JStarExpr* literal(Parser* p) {
@@ -1004,6 +1032,8 @@ static JStarExpr* literal(Parser* p) {
         return parseSuperLiteral(p);
     case TOK_LCURLY:
         return parseTableLiteral(p);
+    case TOK_LSQUARE: 
+        return parseListLiteral(p);
     case TOK_TRUE:
         advance(p);
         return jsrBoolLiteral(line, true);
@@ -1028,10 +1058,6 @@ static JStarExpr* literal(Parser* p) {
         advance(p);
         return e;
     }
-    case TOK_LSQUARE: {
-        JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-        return jsrArrLiteral(line, exprs);
-    }
     case TOK_LPAREN: {
         advance(p);
         skipNewLines(p);
@@ -1045,6 +1071,7 @@ static JStarExpr* literal(Parser* p) {
 
         skipNewLines(p);
         require(p, TOK_RPAREN);
+
         return e;
     }
     case TOK_UNTERMINATED_STR:
@@ -1083,17 +1110,7 @@ static JStarExpr* postfixExpr(Parser* p) {
             Vector tableCallArgs = vecNew();
             vecPush(&tableCallArgs, parseTableLiteral(p));
             JStarExpr* args = jsrExprList(line, &tableCallArgs);
-            lit = jsrCallExpr(line, lit, args, false);
-            break;
-        }
-        case TOK_LPAREN: {
-            JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-            bool unpackArg = false;
-            if(match(p, TOK_VARARG)) {
-                advance(p);
-                unpackArg = true;
-            }
-            lit = jsrCallExpr(line, lit, args, unpackArg);
+            lit = jsrCallExpr(line, lit, args);
             break;
         }
         case TOK_LSQUARE: {
@@ -1102,6 +1119,11 @@ static JStarExpr* postfixExpr(Parser* p) {
             lit = jsrArrayAccExpr(line, lit, expression(p, true));
             skipNewLines(p);
             require(p, TOK_RSQUARE);
+            break;
+        }
+        case TOK_LPAREN: {
+            JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+            lit = jsrCallExpr(line, lit, args);
             break;
         }
         default:
@@ -1289,7 +1311,16 @@ static JStarExpr* yieldExpr(Parser* p) {
 
 static JStarExpr* tupleLiteral(Parser* p) {
     int line = p->peek.line;
+
+    bool isSpread = consumeSpreadOp(p);
     JStarExpr* e = yieldExpr(p);
+
+    if(isSpread) {
+        if(!match(p, TOK_COMMA)) {
+            error(p, "Cannot use spread operator here. Consider adding a `,` to make this a Tuple literal");
+        }
+        e = jsrSpreadExpr(e->line, e);
+    }
 
     if(match(p, TOK_COMMA)) {
         Vector exprs = vecNew();
@@ -1297,8 +1328,19 @@ static JStarExpr* tupleLiteral(Parser* p) {
 
         while(match(p, TOK_COMMA)) {
             advance(p);
-            if(!isExpressionStart(&p->peek)) break;
-            vecPush(&exprs, yieldExpr(p));
+
+            if(!isExpressionStart(&p->peek) && p->peek.type != TOK_ELLIPSIS) {
+                break;
+            }
+
+            bool isSpread = consumeSpreadOp(p);
+            JStarExpr* e = yieldExpr(p);
+
+            if(isSpread) {
+                e = jsrSpreadExpr(e->line, e);
+            }
+            
+            vecPush(&exprs, e);
         }
 
         e = jsrTupleLiteral(line, jsrExprList(line, &exprs));

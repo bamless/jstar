@@ -1,0 +1,527 @@
+import __core__.excs for Exception, TypeException, NameException, FieldException, MethodException,
+    ImportException, StackOverflowException, SyntaxException, InvalidArgException, GeneratorException,
+    IndexOutOfBoundException, AssertException, NotImplementedException, ProgramInterrupt 
+
+import __core__.std for assert, print, type, typeAssert
+import __core__.iter as iter
+
+/// List containing program arguments. This List is initialized by the embedder, and tipically
+/// contains command line arguments
+var argv = []
+
+/// Builtin Number represents a 64-bit IEEE 754 floating point number
+class Number
+    /// Constructs a new Number.
+    /// @param {String | Number} n - The value from which to construct the Number from. If it's a
+    ///        String, it will be interpreted as the base-10 string representation of the number
+    native construct(n)
+
+    /// @return {Boolean} `true` if this Number hasn't a decimal part, `false` otherwise
+    native isInt()
+
+    /// @return {String} The String representation of this Number
+    native __string__()
+    
+    /// @return {Number} An integer representing a 32-bit hash of this Number
+    native __hash__()
+end
+
+/// Builtin Boolean represents a boolean value
+class Boolean
+    /// Constructs a new boolean from a value.
+    /// @param {Object} b - The value from which to construct the boolean from. The constructed
+    ///        Boolean will be the truth value that is associated with `b`
+    native construct(b)
+
+    /// @return {String} The String representation of this Boolean; i.e "true" or "false"
+    native __string__()
+
+    /// @return {Number} An integer representing a 32-bit hash of this Boolean
+    native __hash__()
+end
+
+/// Builtin Null represents the `null` constant
+class Null
+    /// @return {String} The string representation of Null; i.e "null"
+    native __string__()
+end
+
+/// Builtin Function represents a callable function-like object.
+/// Values that are instances of the Function class include: functions, bound methods, native
+/// functions, native methods and generator functions/methods
+class Function
+    /// Bind this function to the given receiver.
+    /// @param {Object} receiver - The receiver this function object will be bound to
+    /// @return {Function} A bound method object that links the original function to the receiver
+    /// @throws {TypeException} If the Function could not be bound to the receiver. For example,
+    ///         builtin classes' methods can't generally be bound to arbitrary values, as they
+    ///         expect their receiver to be of a speific type
+    native bind(receiver)
+
+    /// @return {Number} The number of arguments the function accepts. This includes only positional
+    ///         and default arguments. To check wether the function accepts a variable number of
+    ///         arguments @see{Function.vararg}
+    native arity()
+
+    /// @return {Boolean} `true` if the function accepts a variable number of arguments, `false`
+    /// otherwise
+    native vararg()
+
+    /// @return {Tuple<Object>} A Tuple containing the values of all of the function's default
+    /// arguments. The empty Tuple is returned if this Function doesn't have default arguments
+    native defaults()
+
+    /// @return {String} The `simple name` (name without fully qualified module path) of the function
+    native getName()
+
+    /// @return {String} The string representation of this function
+    native __string__()
+end
+
+/// Module represents a J* imported module
+class Module
+    /// @return {Table<String, Object>} A Table containing all of the global values defined in the
+    ///         Module, indexed by their name
+    native globals()
+
+    /// @return {String} The string representation od the module
+    native __string__()
+end
+
+// Internal - Marker values used to signal the action to take upon generation resume
+// WARNING: Keep this synchronized with `GenAction` enum in the vm implementation
+static var GEN_SEND, GEN_THROW, GEN_RETURN = 0, 1, 2
+
+/// Generator represents a suspendable function.
+/// The underlying function can be resumed from the last point of suspension by calling the Generator
+/// or by using its `send` method.
+/// Generator also implements the iterator protocol, so it can be iterated over with a `for in` loop
+class Generator is iter.Iterable
+    /// Resume a suspended generator function and send to it the provided value
+    /// @param {Object} val - The value to be sent to the generator function upon resume. the
+    ///        function's `yield` expression will evaluate to this
+    /// @throws {GeneratorException} if the generator has been closed (`Generator.isDone()` returns
+    ///         `false`)
+    fun send(val=null)
+        return this(val, GEN_SEND)
+    end
+
+    /// Throws an Exception from the point the generator function is suspended in
+    /// @param {Exception} exc - The exception that will be thrown
+    /// @trhows {Exception} The passed in exception or any other Exception the function throws in
+    ///                     the case of a try-except clause catching it and overriding it by
+    ///                     re-throwing
+    /// @throws {TypeException} If `exc` is not an Exception subclass
+    /// @return {Object} Any object the function `yield`s or `return`s in case a try-except catches
+    ///         the thrown Exception and overrides it
+    fun throw(exc)
+        return this(exc, GEN_THROW)
+    end
+
+    /// Close the generator function from the point it is suspended in. this method will act as the
+    /// function returning, and so it will correctly call any `ensure` clause the function is inside
+    /// of in its suspended point.
+    /// @param {Object} val - The value that the generator will return
+    /// @return {Object} `val` or any other object the function returns in the case an ensure clause
+    ///         inside of it returns, overriding it
+    fun close(val=null)
+        return this(val, GEN_RETURN)
+    end
+
+    /// Iterator protocol step method. It steps the iterator forward
+    /// @returns {Boolean} `false` if there aren't any other values the generator will yield, `true`
+    ///          otherwise
+    fun __iter__(_)
+        this()
+        return !this.isDone()
+    end
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @return {Object} The next value in the iteration
+    native __next__(_)
+
+    /// Returns wether the generator is done or not, i.e. if it has encountered a return or if its
+    /// close method has been called
+    /// @return `true` if the generator is 'done', i.e. it will not yield anything else. `false`
+    ///         otherwise
+    native isDone()
+
+    /// @return {String} the string representation of the generator
+    native __string__()
+end
+
+/// String is a sequence of raw bytes. Encoding is not assumed
+class String is iter.Sequence
+    /// Constructs a new string by concatenating the string represetation of the arguments 
+    /// @param {...Object} Variable number of arguments used to construct the String
+    native construct(...args)
+
+    /// @return {Number} The ascii representation of the character at `idx`
+    native charAt(idx)
+
+    /// Test if the string starts with the specified prefix
+    /// @param {String} prefix - The prefix to test for
+    /// @param {Number} [offset] - Optional integer used to offset the prefix test
+    /// @return {Boolean} `true` if the string starts with `prefix` starting from `offset`, `false`
+    ///         otherwise
+    native startsWith(prefix, offset=0)
+
+    /// Test if the string ends with the specified suffix
+    /// @return `true` if the string ends with `suffix`, `false` instead
+    native endsWith(suffix)
+
+    /// Splits the string on the given separator
+    /// @param {String} separator - The separator used to split the string
+    /// @throws {InvalidArgException} If the provided delimiter is an empty String
+    /// @return {List[String]} The list of strings computed by splitting the string using the
+    ///         provided separator
+    native split(separator)
+    
+    /// Removes space characters (space, '\f', '\n', '\r', '\t', '\v') from the start and end of the
+    /// string
+    /// @return {String} A copy of this String, but with space characters removed from each end
+    native strip()
+
+    /// Removes space characters (space, '\f', '\n', '\r', '\t', '\v') from the end of the string
+    /// @return {String} a copy of the string, but with space characters removed from the end
+    native chomp()
+
+    /// Escapes all escapable characters
+    /// @return {String} A copy of the string with all escapable characters escaped
+    native escaped()
+
+    /// Repeat the string `reps` time
+    /// @param {Number} reps - How many times to repeat the string. The provided value is clamped
+    ///        to zero
+    /// @return {String} A string composed of `reps` repetions of this string
+    native __mul__(reps)
+
+    /// Format the string
+    /// @param {Object|Tuple<Object>} - The values to be used when formatting the string
+    /// @return {String} The formatted string
+    native __mod__(args)
+
+    /// Test this string for equality against o
+    /// @param {Object} o - The object against which to check for equality
+    /// @return {Boolean} `true` if `o` is a String and has the same content as this string, false
+    ///         otherwise
+    native __eq__(o)
+
+    /// @return {Number} The length of the string in bytes
+    native __len__()
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
+    native __iter__(iter)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index for String
+    /// @return {String} The next value in the iteration. It is a String of size 1
+    native __next__(idx)
+
+    /// @return {String} Returns this string
+    native __string__()
+
+    /// @return {Number} A number representing the 32-bit hash for this string
+    native __hash__()
+
+    /// Reverse `__mul__` method. @see{String.__mul__}
+    fun __rmul__(reps)
+        return this.__mul__(reps)
+    end
+end
+
+/// List is a mutable sequence of heterogeneous values
+class List is iter.Sequence
+    /// Construct a new list using either and Iterable object, or a number of elements
+    /// @param {Iterable|Number} [iterableOrN] - Either an Iterable object or an integer >= 0. In
+    ///        case it is an Iterable, a new list containing all the elements of the iterable will
+    ///        be constructed. If its an integer, then a new List containing that number of elements
+    ///        will be constructed
+    /// @param {Function|Object} init - Either a function or an object. In case this is a normal
+    ///        object, its value will be used to populate all the elements of the list when
+    ///        constructed using an integer count. If it's a Function, then the it will be called
+    ///        and its return value will be used to initialize the List.
+    ///
+    /// When `init` is a Function, it should have the following signature:
+    /// @callback init
+    /// @param {Number} idx - The index of the List we're currently initializing
+    /// @return {Object} The value used to initialize the slot in the List
+    native construct(iterableOrN=null, init=null)
+
+    /// Appends an element to the end of the list
+    /// @param {Object} e - The element
+    native add(e)
+
+    /// Insert an element at a specified indexed
+    /// @param {Number} i - An integer between [0, n] where n is the length of the list
+    /// @param {Object} e - The element to insert
+    /// @throws {TypeException} if `i` is not an integer
+    /// @throws {IndexOutOfBoundException} if `i` is outside the List's bounds
+    native insert(i, e)
+
+    /// Removes an element at the specified index
+    /// @param {Number} i - An integer between [0, n) where n is the length of the list
+    /// @throws {TypeException} if `i` is not an integer
+    /// @throws {IndexOutOfBoundException} if `i` is outside the List's bounds
+    /// @return {Object} The removed object
+    native removeAt(i)
+
+    /// Removes all the elements from the list
+    native clear()
+
+    /// Sorts the list according to the element's natural order, or using a comparator. For a type
+    /// to be naturally orderable it must provide an `__le__` method
+    /// @param {Function} [comparator] - Optional comparator function to compare the list's elements
+    ///
+    /// When provided, the comparator function should have the following signature:
+    /// @callback comparator
+    /// @param {Object} a - The first element to compare
+    /// @param {Object} b - The second element to compare
+    /// @return {Number} An integer < 1 if a < b, > 1 if a > b, 0 otherwise
+    native sort(comparator=null)
+
+    /// @return {Number} How many elements there are in the list
+    native __len__()
+
+    /// `+` operator overload, in concatenates two lists
+    /// @param {List} other - The list to be concatenated
+    /// @return {List} A **new** List that is the concatenation of this list and `other`
+    native __add__(other)
+
+    /// Test two lists for equality
+    /// @param {Object} other - The object against which to check for equality
+    /// @return {Boolean} `true` if `other` is a List and has the same content as this list, `false`
+    ///         otherwise
+    native __eq__(other)
+
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
+    native __iter__(iter)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index for List
+    /// @return {Object} The next value in the iteration. It is the element at index `idx`
+    native __next__(idx)
+
+    /// Appends all the elements of an Iterable to the list
+    /// @param {iter.Iterable} iterable - The iterable object
+    /// @return {Boolean} `true` if at least one element has been added, `false` otherwise
+    fun addAll(iterable)
+        var changed = false
+        for var e in iterable
+            this.add(e)
+            changed = true
+        end
+        return changed
+    end
+
+    /// Inserts all the elements of an Iterable to the list at a specified index
+    /// @param {iter.Iterable} iterable - The iterable object
+    /// @param {Number} i - An integer between [0, n) where n is the length of the list
+    /// @throws {TypeException} if `i` is not an integer
+    /// @throws {IndexOutOfBoundException} if `i` is outside the List's bounds
+    /// @return {Boolean} `true` if at least one element has been added, `false` otherwise
+    fun insertAll(iterable, i=0)
+        var changed = false
+        for var e in iterable
+            this.insert(i, e)
+            changed = true
+        end
+        return changed
+    end
+
+    /// Remove an element from the list by comparing it for equality to the elements inside the list.
+    /// Only the first one that is found to compare true is removed
+    /// @param {Object} e - The element to remove
+    /// @return {Boolean} `true` if an element has been removed, `false` otherwise
+    fun remove(e)
+        var length = #this
+        for var i = 0; i < length; i += 1
+            if e == this[i]
+                this.removeAt(i)
+                return true
+            end
+        end
+        return false
+    end
+
+    /// Removes all the elements of an Iterable from the list by checking them for equality. Only
+    /// the first element that is found to compare equal is removed.
+    /// @param {iter.Iterable} iterable - the itreable object
+    /// @return {Boolean} `true` if at least one element has been removed, `false` otherwise
+    fun removeAll(iterable)
+        var changed = false
+        for var e in iterable
+            var r = this.remove(e)
+            changed = changed or r
+        end
+        return changed
+    end
+
+    /// Removes and returns the last element of the list
+    /// @throws {IndexOutOfBoundException} If the list is empty
+    /// @return {Object} The last element of the list
+    fun pop()
+        return this.removeAt(#this - 1)
+    end
+
+    /// Get the last element of the list without removing it
+    /// @throws {IndexOutOfBoundException} If the list is empty
+    /// @return {Object} The last element of the list
+    fun peek()
+        return this[#this - 1]
+    end
+
+    /// @return {String} The string representation of the list
+    fun __string__()
+        return "[" + this.join(", ") + "]"
+    end
+end
+
+/// Tuple is an immutable sequence of heterogeneous values
+class Tuple is iter.Sequence
+    /// Contructs a new Tuple from an iterable object
+    /// If no iterable is provided, the empty Tuple will be returned
+    /// @param {iter.Iterable} iterable - The iterable object
+    native construct(iterable=null)
+
+    /// @return {Number} The tuple length
+    native __len__()
+    
+    /// `+` operator overload, in concatenates two tuples
+    /// @param {Tuple} other - The tuple to be concatenated
+    /// @return {Tuple} A **new** Tuple that is the concatenation of this tuple and `other`
+    native __add__(other)
+
+    /// Test two tuples for equality
+    /// @param {Object} other - The object against which to check for equality
+    /// @return {Boolean} `true` if `other` is a Tuple and has the same content as this tuple,
+    ///         `false` otherwise
+    native __eq__(other)
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
+    native __iter__(iter)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index for the Tuple
+    /// @return {Object} The next value in the iteration. It is the element at index `idx`
+    native __next__(idx)
+
+    /// @return {Number} A number representing the 32-bit hash for this tuple
+    native __hash__()
+
+    /// @return {String} The string representation of this tuple
+    fun __string__()
+        return "(" + this.join(", ") + ")"
+    end
+end
+
+/// Table is an hash-table associating arbitrary keys to arbitrary values
+class Table is iter.Iterable
+    /// Constructs a new Table from an iterable.
+    /// If no Iterable is provided an empty table is constructed.
+    /// The iterable should be composed of 2-tuples representing pairs of (key, value)
+    /// @param {iter.Iterable<Tuple<Object, Object>>} iterable - The iterable object
+    native construct(iterable=null)
+    
+    /// Deletes a (key, value) entry from the table
+    /// @param {Object} key - The key to delete
+    native delete(key)
+
+    /// Removes all entries from the table
+    native clear()
+
+    /// @return {Boolean} `true` if the table contains the given key, `false` otherwise
+    native contains(key)
+    
+    /// @return {List} A list containing all of the keys that are present in the table
+    native keys()
+
+    /// @return {List} A list containing all of the values associated to some key in the table
+    native values()
+
+    /// `[]` operator overload
+    /// @param {Object} key - The key to search for
+    /// @return {Null|Object} The value associated with the key if it exists, `null` instead
+    native __get__(key)
+
+    /// `[] =` operatori overload 
+    /// @param {Object} key - The key we want to add
+    /// @param {Object} valie = The value to be associated with `key`
+    /// @return {Boolean} `true` if there wasn't a key -> value entry in the table already (the key
+    ///         wasn't present in the table) `false` otherwise
+    native __set__(key, val)
+
+    /// @return {Number} The number of entries in the table
+    native __len__()
+
+    /// Iterator protocol step method. It advances the iterator to the next item
+    /// @param {Null|Number} iter - The iterator value. Should be `null` the first time calling and
+    ///        the result of a previous `__iter__` call the next
+    /// @return {Null|Number} The advanced iterator or `null` if the iteration is over
+    native __iter__(i)
+
+    /// Iterator protocol next method. It returns the next value in the iteration
+    /// @param {Number} idx - The iterator value. It is an integer representing the index of
+    ///        iteration inside the table
+    /// @return {Object} The next value in the iteration. It is the key of the current entry in the
+    ///         iteration
+    native __next__(i)
+
+    /// @return {String} The string representation of this table
+    native __string__()
+
+    /// Adds entries from another Table or an Iterator
+    /// @param {Table|iter.Iterable} other - The object containing the entries. If it is an Iterable
+    ///        it must be composed of 2-tuple representing a pair of (key, value)
+    /// @return {Boolean} `true` if at least one entry was added, `false` otherwise
+    fun addAll(other)
+        var changed = false
+        if other is Table
+            for var k in other
+                var r = (this[k] = other[k])
+                changed = changed or r
+            end
+        else
+            for var k, v in other
+                var r = (this[k] = v)
+                changed = changed or r
+            end
+        end
+        return changed
+    end
+end
+
+/// Enum is an association of strings to constant values
+class Enum
+    /// Constructs a new enumaration from constant names or from a table
+    /// @param {...String|Table} args - A list of constant names to be created in the enumeration,
+    ///        or a Table associating a constant name to a value (typically a Number)
+    native construct(...args)
+
+    /// Get the constant value for `name`
+    /// @param {String} name - The name for which we want to retrieve the constant
+    /// @return {Object|Null} The constant associated with `name` if it exists, `null` otherwise
+    native value(name)
+    
+    /// Get the name associated with a constant
+    /// @param {Object} value - The constant we want to retrieve the name for
+    /// @throws {FieldException} if there is no `name` in the enumeration
+    /// @return {String} The name associated with `value`
+    native name(value)
+end
+
+/// Starcktrace represents the dump of the stack's frame during execution
+class StackTrace end
+
+/// Userdata is an handle to a garbage-collected chunk of generic memory
+class Userdata end

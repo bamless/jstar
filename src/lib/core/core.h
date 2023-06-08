@@ -3,11 +3,6 @@
 
 #include "jstar.h"
 
-// Excepttion class fields
-#define EXC_ERR   "_err"
-#define EXC_CAUSE "_cause"
-#define EXC_TRACE "_stacktrace"
-
 // J* core module bootstrap
 void initCoreModule(JStarVM* vm);
 
@@ -48,10 +43,6 @@ JSR_NATIVE(jsr_Generator_next);
 // class Module
 JSR_NATIVE(jsr_Module_string);
 JSR_NATIVE(jsr_Module_globals);
-// end
-
-// class Iterable
-JSR_NATIVE(jsr_Iterable_join);
 // end
 
 // class List
@@ -116,20 +107,6 @@ JSR_NATIVE(jsr_Table_string);
 JSR_NATIVE(jsr_Enum_construct);
 JSR_NATIVE(jsr_Enum_value);
 JSR_NATIVE(jsr_Enum_name);
-// end
-
-// Builtin functions
-JSR_NATIVE(jsr_ascii);
-JSR_NATIVE(jsr_char);
-JSR_NATIVE(jsr_eval);
-JSR_NATIVE(jsr_garbageCollect);
-JSR_NATIVE(jsr_int);
-JSR_NATIVE(jsr_print);
-JSR_NATIVE(jsr_type);
-
-// class Exception
-JSR_NATIVE(jsr_Exception_printStacktrace);
-JSR_NATIVE(jsr_Exception_getStacktrace);
 // end
 
 #endif // CORE_H

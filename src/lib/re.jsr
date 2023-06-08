@@ -5,7 +5,8 @@ native find(str, regex, off=0)
 native substituteAll(str, regex, sub, num=0)
 native matchAll(str, regex)
 
-static class MatchIter is Iterable
+// TODO: rework as generator
+static class MatchIter is iter.Iterable
     construct(string, regex)
         this.offset = 0
         this.lastMatch = null
