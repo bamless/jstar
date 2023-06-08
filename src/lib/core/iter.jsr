@@ -119,6 +119,18 @@ class Iterable
 end
 
 class Sequence is Iterable
+    fun __get__(_idx)
+        raise NotImplementedException()
+    end
+
+    fun __set__(_idx, _val)
+        raise NotImplementedException()
+    end
+
+    fun __len__()
+        raise NotImplementedException()
+    end
+
     fun count()
         return #this
     end
