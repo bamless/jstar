@@ -1626,7 +1626,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     // isnt't accessible (we use an empty name).
     // In the case of methods the receiver is assigned a name of `this` and
     // points to the class instance on which the method was called.
-    JStarIdentifier receiverName = createIdentifier(c->type == TYPE_FUNC ? "" : "this");
+    JStarIdentifier receiverName = createIdentifier("this");
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
 

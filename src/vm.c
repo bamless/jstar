@@ -918,6 +918,8 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
 
             // If no method is found on the ObjModule, try to get global variable
             if(hashTableGet(&mod->globals, name, &func)) {
+                // This is a function call, swap the receiver from the modue to the function
+                vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
             }
 
