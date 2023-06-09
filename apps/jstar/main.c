@@ -359,12 +359,13 @@ static void initApp(int argc, char** argv) {
 // Free the app state
 static void freeApp(void) {
     jsrBufferFree(&completionBuf);
-    freeImports();
 
     // Free  the J* VM
     PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);
     PROFILE_END_SESSION()
+
+    freeImports();
 
     // Free replxx
     replxx_history_clear(replxx);
