@@ -10,7 +10,7 @@
 
 #if defined(JSTAR_POSIX)
     #include <dlfcn.h>
-    #define dynload(path)          dlopen(path, RTLD_LAZY)
+    #define dynload(path)          dlopen(path, RTLD_NOW)
     #define dynfree(handle)        dlclose(handle)
     #define dynsim(handle, symbol) dlsym(handle, symbol)
 #elif defined(JSTAR_WINDOWS)
