@@ -305,7 +305,9 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_USERDATA: {
         ObjUserdata* udata = (ObjUserdata*)o;
-        if(udata->finalize) udata->finalize((void*)udata->data);
+        if(udata->finalize) {
+            udata->finalize((void*)udata->data);
+        }
         GC_FREE_VAR(vm, ObjUserdata, uint8_t, udata->size, udata);
         break;
     }
