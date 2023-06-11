@@ -58,6 +58,10 @@ static void registerInParent(JStarVM* vm, ObjModule* module) {
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
     ASSERT(parent, "Submodule parent could not be found.");
 
+    if(!module->registry) {
+        module->registry = parent->registry;
+    }
+
     hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
 }
 
