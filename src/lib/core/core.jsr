@@ -71,8 +71,11 @@ class Function
     /// arguments. The empty Tuple is returned if this Function doesn't have default arguments
     native defaults()
 
-    /// @return {String} The `simple name` (name without fully qualified module path) of the function
+    /// @return {String} The fully qualified function name
     native getName()
+
+    /// @return {String} The `simple name` (name without fully qualified module path) of the function
+    native getSimpleName()
 
     /// @return {String} The string representation of this function
     native __string__()

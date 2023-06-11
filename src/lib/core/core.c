@@ -403,6 +403,19 @@ JSR_NATIVE(jsr_Function_defaults) {
 JSR_NATIVE(jsr_Function_getName) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
     Prototype* prototype = getPrototype(fn);
+    ObjModule* mod = prototype->module;
+
+    JStarBuffer buf;
+    jsrBufferInitCapacity(vm, &buf, prototype->name->length + mod->name->length + 1);
+    jsrBufferAppendf(&buf, "%s.%s", mod->name->data, prototype->name->data);
+    jsrBufferPush(&buf);
+
+    return true;
+}
+
+JSR_NATIVE(jsr_Function_getSimpleName) {
+    Obj* fn = AS_OBJ(vm->apiStack[0]);
+    Prototype* prototype = getPrototype(fn);
     push(vm, OBJ_VAL(prototype->name));
     return true;
 }

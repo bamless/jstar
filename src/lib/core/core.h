@@ -32,6 +32,7 @@ JSR_NATIVE(jsr_Function_arity);
 JSR_NATIVE(jsr_Function_vararg);
 JSR_NATIVE(jsr_Function_defaults);
 JSR_NATIVE(jsr_Function_getName);
+JSR_NATIVE(jsr_Function_getSimpleName);
 // end
 
 // class Generator
