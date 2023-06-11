@@ -167,6 +167,9 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
         return NULL;
     }
 
-    module->registry = res.reg;
+    if(res.reg) {
+        module->registry = res.reg;
+    }
+
     return module;
 }
