@@ -341,12 +341,14 @@ static void initApp(int argc, char** argv) {
 
     // Init the J* VM
     PROFILE_BEGIN_SESSION("jstar-init.json")
+
     vm = jsrNewVM(&conf);
     jsrInitRuntime(vm);
-    PROFILE_END_SESSION()
 
     initImports(vm, opts.script, opts.ignoreEnv);
     jsrBufferInit(vm, &completionBuf);
+
+    PROFILE_END_SESSION()
 
     // Init replxx for repl and output coloring/hints support
     replxx = replxx_init();

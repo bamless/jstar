@@ -5,6 +5,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include "profiler.h"
+
 #define INIT_CAPACITY 16
 
 #if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
@@ -57,6 +59,7 @@ void pathAppendStr(Path* p, const char* str) {
 }
 
 void pathJoinStr(Path* p, const char* str) {
+    PROFILE_FUNC()
     if(p->size && p->data[p->size - 1] != PATH_SEP_CHAR && *str != PATH_SEP_CHAR) {
         pathAppend(p, PATH_SEP, 1);
     }
@@ -64,6 +67,7 @@ void pathJoinStr(Path* p, const char* str) {
 }
 
 void pathJoin(Path* p, const Path* o) {
+    PROFILE_FUNC()
     pathJoinStr(p, o->data);
 }
 

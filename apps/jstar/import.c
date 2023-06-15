@@ -8,6 +8,7 @@
 #include "dynload.h"
 #include "jstar/parse/vector.h"
 #include "path.h"
+#include "profiler.h"
 
 #define PACKAGE_FILE    "__package__"    // Name of the file executed during package imports
 #define JSR_EXT         ".jsr"           // Normal J* source file extension
@@ -117,18 +118,27 @@ void freeImports(void) {
 
 // Loads a native extension module and returns its `native registry` to J*
 static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
+    PROFILE_FUNC()
     pathAppend(&nativeExt, modulePath->data, modulePath->size);
     pathChangeExtension(&nativeExt, DL_SUFFIX);
 
-    void* dynlib = dynload(nativeExt.data);
-    if(!dynlib) {
-        return NULL;
+    void* dynlib;
+    {
+        PROFILE("loadNativeExtension::dynload")
+        dynlib = dynload(nativeExt.data);
+        if(!dynlib) {
+            return NULL;
+        }
     }
 
-    JStarNativeReg* (*registry)(void) = dynsim(dynlib, OPEN_NATIVE_EXT);
-    if(!registry) {
-        dynfree(dynlib);
-        return NULL;
+    JStarNativeReg* (*registry)(void);
+    {
+        PROFILE("loadNativeExtension::dynsim")
+        registry = dynsim(dynlib, OPEN_NATIVE_EXT);
+        if(!registry) {
+            dynfree(dynlib);
+            return NULL;
+        }
     }
 
     // Track the loaded shared library in the global list of all open shared libraries
@@ -139,6 +149,7 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
 
 // Reads a whole file into memory and returns its content and length
 static char* readFile(const Path* p, size_t* length) {
+    PROFILE_FUNC()
     FILE* f = fopen(p->data, "rb");
     if(!f) {
         return NULL;
@@ -191,6 +202,7 @@ static void finalizeImport(void* userData) {
 // Creates a `JStarImportResult` and sets all relevant fields such as
 // the finalization callback and the native registry structure
 static JStarImportResult createImportResult(char* data, size_t length, const Path* path) {
+    PROFILE_FUNC()
     JStarImportResult res;
     res.finalize = &finalizeImport;
     res.code = data;
@@ -202,6 +214,8 @@ static JStarImportResult createImportResult(char* data, size_t length, const Pat
 }
 
 JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
+    PROFILE_FUNC()
+
     // Retrieve the import paths list from the core module
     if(!jsrGetGlobal(vm, JSR_CORE_MODULE, IMPORT_PATHS)) {
         jsrPop(vm);
@@ -214,60 +228,65 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
     }
 
     size_t importLen = jsrListGetLength(vm, -1);
-    for(size_t i = 0; i < importLen; i++) {
-        jsrListGet(vm, i, -1);
-        if(!jsrIsString(vm, -1)) {
+
+    {
+        PROFILE("importCallback::resolutionLoop")
+
+        for(size_t i = 0; i < importLen; i++) {
+            jsrListGet(vm, i, -1);
+            if(!jsrIsString(vm, -1)) {
+                jsrPop(vm);
+                continue;
+            }
+
+            pathAppend(&import, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+            size_t moduleStart = import.size;
+
+            pathJoinStr(&import, moduleName);
+            size_t moduleEnd = import.size;
+
+            pathReplace(&import, moduleStart, '.', PATH_SEP_CHAR);
+
+            char* data;
+            size_t length;
+
+            // Try loading a package (__package__ file inside a directory)
+            pathJoinStr(&import, PACKAGE_FILE);
+
+            // Try binary package
+            pathChangeExtension(&import, JSC_EXT);
+            if((data = readFile(&import, &length)) != NULL) {
+                jsrPopN(vm, 2);
+                return createImportResult(data, length, &import);
+            }
+
+            // Try source package
+            pathChangeExtension(&import, JSR_EXT);
+            if((data = readFile(&import, &length)) != NULL) {
+                jsrPopN(vm, 2);
+                return createImportResult(data, length, &import);
+            }
+
+            // If no package is found, try to load a module
+            pathTruncate(&import, moduleEnd);
+
+            // Try binary module
+            pathChangeExtension(&import, JSC_EXT);
+            if((data = readFile(&import, &length)) != NULL) {
+                jsrPopN(vm, 2);
+                return createImportResult(data, length, &import);
+            }
+
+            // Try source module
+            pathChangeExtension(&import, JSR_EXT);
+            if((data = readFile(&import, &length)) != NULL) {
+                jsrPopN(vm, 2);
+                return createImportResult(data, length, &import);
+            }
+
+            pathClear(&import);
             jsrPop(vm);
-            continue;
         }
-
-        pathAppend(&import, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-        size_t moduleStart = import.size;
-
-        pathJoinStr(&import, moduleName);
-        size_t moduleEnd = import.size;
-
-        pathReplace(&import, moduleStart, '.', PATH_SEP_CHAR);
-
-        char* data;
-        size_t length;
-
-        // Try loading a package (__package__ file inside a directory)
-        pathJoinStr(&import, PACKAGE_FILE);
-
-        // Try binary package
-        pathChangeExtension(&import, JSC_EXT);
-        if((data = readFile(&import, &length)) != NULL) {
-            jsrPopN(vm, 2);
-            return createImportResult(data, length, &import);
-        }
-
-        // Try source package
-        pathChangeExtension(&import, JSR_EXT);
-        if((data = readFile(&import, &length)) != NULL) {
-            jsrPopN(vm, 2);
-            return createImportResult(data, length, &import);
-        }
-
-        // If no package is found, try to load a module
-        pathTruncate(&import, moduleEnd);
-
-        // Try binary module
-        pathChangeExtension(&import, JSC_EXT);
-        if((data = readFile(&import, &length)) != NULL) {
-            jsrPopN(vm, 2);
-            return createImportResult(data, length, &import);
-        }
-
-        // Try source module
-        pathChangeExtension(&import, JSR_EXT);
-        if((data = readFile(&import, &length)) != NULL) {
-            jsrPopN(vm, 2);
-            return createImportResult(data, length, &import);
-        }
-
-        pathClear(&import);
-        jsrPop(vm);
     }
 
     jsrPop(vm);

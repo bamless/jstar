@@ -139,12 +139,7 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
         return NULL;
     }
 
-    JStarImportResult res;
-
-    {
-        PROFILE("importModule::importCallback")
-        res = vm->importCallback(vm, name->data);
-    }
+    JStarImportResult res = vm->importCallback(vm, name->data);
 
     if(!res.code) {
         return NULL;
