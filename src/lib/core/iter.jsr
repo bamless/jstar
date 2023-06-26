@@ -170,7 +170,7 @@ class Sequence is Iterable
         return -1
     end
 
-    fun count(e)
+    fun countElements(e)
         var count = 0
         for var o in this
             if o == e 
