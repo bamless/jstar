@@ -936,7 +936,6 @@ JSR_NATIVE(jsr_String_rfindSubstr) {
     }
 
     for(size_t i = stop - substringLen; i != (size_t)(start - 1); i--) {
-        printf("%zu\n", i);
         if(memcmp(thisStr + i, substring, substringLen) == 0) {
             jsrPushNumber(vm, i);
             return true;
