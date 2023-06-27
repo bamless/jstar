@@ -935,7 +935,7 @@ JSR_NATIVE(jsr_String_rfindSubstr) {
         JSR_RAISE(vm, "InvalidArgException", "start must be <= stop");
     }
 
-    for(size_t i = stop - 1 - substringLen; i != start - 1; i--) {
+    for(size_t i = stop - 1 - substringLen; i != (size_t)(start - 1); i--) {
         if(memcmp(thisStr + i, substring, substringLen) == 0) {
             jsrPushNumber(vm, i);
             return true;
