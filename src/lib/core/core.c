@@ -872,6 +872,81 @@ JSR_NATIVE(jsr_String_construct) {
     return true;
 }
 
+JSR_NATIVE(jsr_String_findSubstr) {
+    JSR_CHECK(String, 1, "substring");
+    if(!jsrIsNull(vm, 2)) {
+        JSR_CHECK(Int, 2, "start");
+    }
+    if(!jsrIsNull(vm, 3)) {
+        JSR_CHECK(Int, 3, "stop");
+    }
+
+    const char* thisStr = jsrGetString(vm, 0);
+    size_t thisLen = jsrGetStringSz(vm, 0);
+    const char* substring = jsrGetString(vm, 1);
+    size_t substringLen = jsrGetStringSz(vm, 1);
+    double start = jsrIsNull(vm, 2) ? 0 : jsrGetNumber(vm, 2);
+    double stop = jsrIsNull(vm, 3) ? thisLen : jsrGetNumber(vm, 3);
+
+    if(start < 0) {
+        JSR_RAISE(vm, "InvalidArgException", "start must be >= 0");
+    }
+    if(stop > thisLen) {
+        JSR_RAISE(vm, "InvalidArgException", "stop must be <= the length of the string");
+    }
+    if(start > stop) {
+        JSR_RAISE(vm, "InvalidArgException", "start must be <= stop");
+    }
+
+    for(size_t i = start; i <= stop - substringLen; i++) {
+        if(memcmp(thisStr + i, substring, substringLen) == 0) {
+            jsrPushNumber(vm, i);
+            return true;
+        }
+    }
+
+    jsrPushNumber(vm, -1);
+    return true;
+}
+
+JSR_NATIVE(jsr_String_rfindSubstr) {
+    JSR_CHECK(String, 1, "substring");
+    if(!jsrIsNull(vm, 2)) {
+        JSR_CHECK(Int, 2, "start");
+    }
+    if(!jsrIsNull(vm, 3)) {
+        JSR_CHECK(Int, 3, "stop");
+    }
+
+    const char* thisStr = jsrGetString(vm, 0);
+    size_t thisLen = jsrGetStringSz(vm, 0);
+    const char* substring = jsrGetString(vm, 1);
+    size_t substringLen = jsrGetStringSz(vm, 1);
+    double start = jsrIsNull(vm, 2) ? 0 : jsrGetNumber(vm, 2);
+    double stop = jsrIsNull(vm, 3) ? thisLen : jsrGetNumber(vm, 3);
+
+    if(start < 0) {
+        JSR_RAISE(vm, "InvalidArgException", "start must be >= 0");
+    }
+    if(stop > thisLen) {
+        JSR_RAISE(vm, "InvalidArgException", "stop must be <= the length of the string");
+    }
+    if(start > stop) {
+        JSR_RAISE(vm, "InvalidArgException", "start must be <= stop");
+    }
+
+    for(size_t i = stop - 1 - substringLen; i != start - 1; i--) {
+        if(memcmp(thisStr + i, substring, substringLen) == 0) {
+            jsrPushNumber(vm, i);
+            return true;
+        }
+    }
+
+    jsrPushNumber(vm, -1);
+    return true;
+}
+
+
 JSR_NATIVE(jsr_String_charAt) {
     JSR_CHECK(Int, 1, "idx");
 

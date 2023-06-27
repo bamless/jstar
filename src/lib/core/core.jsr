@@ -159,6 +159,20 @@ class String is iter.Sequence
     /// @param {...Object} Variable number of arguments used to construct the String
     native construct(...args)
 
+    /// Return the index of the first occurrence of `substring` from the left
+    /// @param {String} substring The sustring to search
+    /// @param {Number} [start] Left-most index of the search
+    /// @param {Number} [stop] Right-most index of the search
+    /// @return {Number} The index of the first occurrence of `substring` from the left or -1
+    native findSubstr(substring, start=null, stop=null)
+
+    /// Return the index of the first occurrence of `substring` from the right
+    /// @param {String} substring The sustring to search
+    /// @param {Number} [start] Left-most index of the search
+    /// @param {Number} [stop] Right-most index of the search
+    /// @return {Number} The index of the first occurrence of `substring` from the right or -1
+    native rfindSubstr(substring, start=null, stop=null)
+
     /// @return {Number} The ascii representation of the character at `idx`
     native charAt(idx)
 

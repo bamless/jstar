@@ -72,6 +72,8 @@ JSR_NATIVE(jsr_Tuple_hash);
 
 // class String
 JSR_NATIVE(jsr_String_construct);
+JSR_NATIVE(jsr_String_findSubstr);
+JSR_NATIVE(jsr_String_rfindSubstr);
 JSR_NATIVE(jsr_String_charAt);
 JSR_NATIVE(jsr_String_startsWith);
 JSR_NATIVE(jsr_String_endsWith);

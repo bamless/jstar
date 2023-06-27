@@ -48,7 +48,7 @@ typedef struct {
 
 typedef struct {
     const char* name;
-    Func methods[17];
+    Func methods[19];
 } Class;
 
 typedef struct {
@@ -143,22 +143,24 @@ static Module builtInModules[] = {
             METHOD(__hash__,   jsr_Tuple_hash)
         ENDCLASS
         CLASS(String)
-            METHOD(@construct, jsr_String_construct)
-            METHOD(charAt,     jsr_String_charAt)
-            METHOD(startsWith, jsr_String_startsWith)
-            METHOD(endsWith,   jsr_String_endsWith)
-            METHOD(split,      jsr_String_split)
-            METHOD(strip,      jsr_String_strip)
-            METHOD(chomp,      jsr_String_chomp)
-            METHOD(escaped,    jsr_String_escaped)
-            METHOD(__mul__,    jsr_String_mul)
-            METHOD(__mod__,    jsr_String_mod)
-            METHOD(__eq__,     jsr_String_eq)
-            METHOD(__len__,    jsr_String_len)
-            METHOD(__hash__,   jsr_String_hash)
-            METHOD(__iter__,   jsr_String_iter)
-            METHOD(__next__,   jsr_String_next)
-            METHOD(__string__, jsr_String_string)
+            METHOD(@construct,  jsr_String_construct)
+            METHOD(findSubstr,  jsr_String_findSubstr)
+            METHOD(rfindSubstr, jsr_String_rfindSubstr)
+            METHOD(charAt,      jsr_String_charAt)
+            METHOD(startsWith,  jsr_String_startsWith)
+            METHOD(endsWith,    jsr_String_endsWith)
+            METHOD(split,       jsr_String_split)
+            METHOD(strip,       jsr_String_strip)
+            METHOD(chomp,       jsr_String_chomp)
+            METHOD(escaped,     jsr_String_escaped)
+            METHOD(__mul__,     jsr_String_mul)
+            METHOD(__mod__,     jsr_String_mod)
+            METHOD(__eq__,      jsr_String_eq)
+            METHOD(__len__,     jsr_String_len)
+            METHOD(__hash__,    jsr_String_hash)
+            METHOD(__iter__,    jsr_String_iter)
+            METHOD(__next__,    jsr_String_next)
+            METHOD(__string__,  jsr_String_string)
         ENDCLASS
         CLASS(Table)
             METHOD(@construct, jsr_Table_construct)
