@@ -778,9 +778,11 @@ static JStarStmt* classDecl(Parser* p) {
             advance(p);
             break;
         }
-
-        method->as.decl.decorators = vecMove(&decorators);
-        vecPush(&methods, method);
+        
+        if(!p->hadError) {
+            method->as.decl.decorators = vecMove(&decorators);
+            vecPush(&methods, method);
+        }
 
         skipNewLines(p);
         if(p->panic) classSynchronize(p);
