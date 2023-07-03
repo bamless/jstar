@@ -7,4 +7,4 @@
 [submodule "extern/replxx"]
 	path = extern/replxx
 	url = https://github.com/bamless/replxx.git
-    branch = jstar
+	branch = jstar
