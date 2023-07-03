@@ -91,7 +91,7 @@ foreach(jsr ${JSTAR_STDLIB})
     list(APPEND JSTAR_STDLIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc)
     add_custom_command(
         OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
-        COMMAND python ${PROJECT_SOURCE_DIR}/scripts/bin2incl.py ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
+        COMMAND ${Python_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/bin2incl.py ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}
     )
 endforeach()

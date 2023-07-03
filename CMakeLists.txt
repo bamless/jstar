@@ -76,6 +76,9 @@ elseif(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267 /wd5105 /wd4116")
 endif()
 
+# Find Python, needed to run build-time scripts
+find_package(Python COMPONENTS Interpreter)
+
 # Instrumentation
 add_subdirectory(profile)
 
