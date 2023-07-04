@@ -13,6 +13,7 @@
     #define USE_POPEN
     #define popen  _popen
     #define pclose _pclose
+    #define fileno _fileno
 #endif
 
 // Synchronized to Seek enum in io.jsr
@@ -284,6 +285,51 @@ JSR_NATIVE(jsr_File_flush) {
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
     if(fflush(f) == EOF) JSR_RAISE(vm, "IOException", strerror(errno));
     jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_File_reopen) {
+    JSR_CHECK(String, 1, "path");
+    JSR_CHECK(String, 2, "mode");
+
+    jsrPushBoolean(vm, false);
+    jsrSetField(vm, 0, M_FILE_CLOSED);
+    jsrPop(vm);
+
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
+
+    const char* path = jsrGetString(vm, 1);
+    const char* mode = jsrGetString(vm, 2);
+
+    if(!freopen(path, mode, f)) {
+        if(errno == ENOENT) {
+            JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`", path);
+        } else if (errno == EINVAL) {
+            JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
+        } else {
+            JSR_RAISE(vm, "IOException", "%s: %s", path, strerror(errno));
+        }
+    }
+
+    jsrPushNull(vm);
+    return true;
+}
+
+JSR_NATIVE(jsr_File_fileno) {
+    if(!checkClosed(vm)) return false;
+    if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
+    JSR_CHECK(Handle, -1, M_FILE_HANDLE);
+    FILE* f = (FILE*)jsrGetHandle(vm, -1);
+
+    int fd = fileno(f);
+    if(fd < 0) {
+        JSR_RAISE(vm, "IOException", strerror(errno));
+        return false;
+    }
+
+    jsrPushNumber(vm, fd);
     return true;
 }
 // end

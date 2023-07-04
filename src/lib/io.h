@@ -14,6 +14,8 @@ JSR_NATIVE(jsr_File_seek);
 JSR_NATIVE(jsr_File_tell);
 JSR_NATIVE(jsr_File_rewind);
 JSR_NATIVE(jsr_File_flush);
+JSR_NATIVE(jsr_File_reopen);
+JSR_NATIVE(jsr_File_fileno);
 // end File
 
 // class Popen

@@ -20,6 +20,8 @@ class File is iter.Iterable
     native write(data)
     native close()
     native flush()
+    native reopen(path, mode)
+    native fileno()
 
     fun writeln(data)
         this.write(data)

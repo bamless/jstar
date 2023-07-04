@@ -225,6 +225,8 @@ static Module builtInModules[] = {
             METHOD(tell,     jsr_File_tell)
             METHOD(rewind,   jsr_File_rewind)
             METHOD(flush,    jsr_File_flush)
+            METHOD(reopen,   jsr_File_reopen)
+            METHOD(fileno,   jsr_File_fileno)
         ENDCLASS
         CLASS(Popen)
             METHOD(@construct,   jsr_Popen_construct)
