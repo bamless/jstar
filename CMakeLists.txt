@@ -95,6 +95,8 @@ add_subdirectory(extern)
 # -----------------------------------------------------------------------------
 
 if(JSTAR_INSTALL)
+    include(GNUInstallDirs)
+
     # Install J* library targets
     install(TARGETS jstar jstar_static
         EXPORT  jstar-export
