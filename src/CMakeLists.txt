@@ -56,7 +56,7 @@ set(JSTAR_SOURCES
 )
 
 # J* standard library files
-set(JSTAR_STDLIB 
+set(JSTAR_STDLIB
     lib/core/core.jsc
     lib/core/std.jsc
     lib/core/excs.jsc
@@ -121,7 +121,7 @@ endif()
 add_library(jstar_static STATIC ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
 target_compile_definitions(jstar_static PUBLIC JSTAR_STATIC)
 target_link_libraries(jstar_static PUBLIC ${EXTRA_LIBS})
-target_include_directories(jstar_static 
+target_include_directories(jstar_static
     PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -131,15 +131,17 @@ target_include_directories(jstar_static
         ${PROJECT_SOURCE_DIR}/profile
         ${PROJECT_BINARY_DIR}
 )
-set_target_properties(jstar_static PROPERTIES 
-    OUTPUT_NAME "jstars"
-    VERSION     ${JSTAR_VERSION}
-)
+if(NOT WIN32)
+    set_target_properties(jstar_static PROPERTIES
+        OUTPUT_NAME "jstar"
+        VERSION     ${JSTAR_VERSION}
+    )
+endif()
 
 #shared library
 add_library(jstar SHARED ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
 target_link_libraries(jstar PUBLIC ${EXTRA_LIBS})
-target_include_directories(jstar 
+target_include_directories(jstar
     PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -164,26 +166,4 @@ endif()
 if(LTO)
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-
-# -----------------------------------------------------------------------------
-# Installation
-# -----------------------------------------------------------------------------
-
-# Install target
-if(JSTAR_INSTALL)
-    # Install J* library
-    install(TARGETS jstar jstar_static
-        EXPORT  jstar-export
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-    )
-
-    # Install header files
-    install(DIRECTORY
-        ${PROJECT_SOURCE_DIR}/include/ 
-        DESTINATION include
-        PATTERN "*.h.in" EXCLUDE
-    )
 endif()

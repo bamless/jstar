@@ -26,6 +26,6 @@ if(JSTAR_INSTALL)
 
     install(TARGETS jstarc
         EXPORT jstar-export
-        RUNTIME DESTINATION bin
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endif()

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.9)
+
 project(jstar)
+set(CMAKE_PROJECT_DESCRIPTION "A lightweight embeddable scripting language")
+set(CMAKE_PROJECT_HOMEPAGE_URL "https://bamless.github.io/jstar/")
 
 set(JSTAR_VERSION_MAJOR 1)
 set(JSTAR_VERSION_MINOR 9)
@@ -87,25 +90,53 @@ add_subdirectory(src)
 add_subdirectory(apps)
 add_subdirectory(extern)
 
+# -----------------------------------------------------------------------------
+# Installation
+# -----------------------------------------------------------------------------
+
 if(JSTAR_INSTALL)
+    # Install J* library targets
+    install(TARGETS jstar jstar_static
+        EXPORT  jstar-export
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+
+    # Install header files
+    install(DIRECTORY
+        ${PROJECT_SOURCE_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PATTERN "*.h.in" EXCLUDE
+    )
+
     # Install export files
     install(EXPORT jstar-export
         FILE        JStarTargets.cmake
         NAMESPACE   jstar::
-        DESTINATION lib/cmake/jstar
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/jstar
     )
-
     include(CMakePackageConfigHelpers)
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
         VERSION ${JSTAR_VERSION}
         COMPATIBILITY AnyNewerVersion
     )
-
     install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/JStarConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/JStarConfigVersion.cmake
-        DESTINATION lib/cmake/jstar
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/jstar
+    )
+
+    # Configure and install pkg-config file
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/cmake/jstar.pc.in
+        ${CMAKE_BINARY_DIR}/jstar.pc
+        @ONLY
+    )
+    install(
+        FILES ${CMAKE_BINARY_DIR}/jstar.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )
 
     # Install license files

@@ -169,7 +169,6 @@ JSTAR_API void jsrPushNumber(JStarVM* vm, double number);
 JSTAR_API void jsrPushBoolean(JStarVM* vm, bool boolean);
 JSTAR_API void jsrPushStringSz(JStarVM* vm, const char* string, size_t size);
 JSTAR_API void jsrPushString(JStarVM* vm, const char* string);
-JSTAR_API void jsrPushBoolean(JStarVM* vm, bool b);
 JSTAR_API void jsrPushHandle(JStarVM* vm, void* handle);
 JSTAR_API void jsrPushNull(JStarVM* vm);
 JSTAR_API void jsrPushList(JStarVM* vm);
