@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "code.h"
-#include "disassemble.h"
 #include "gc.h"
 #include "import.h"
 #include "lib/builtins.h"
@@ -12,6 +11,10 @@
 #include "lib/core/excs.h"
 #include "opcode.h"
 #include "profiler.h"
+
+#ifdef JSTAR_DBG_PRINT_GC
+#include "disassemble.h"
+#endif
 
 static const char* const methodSyms[SYM_END] = {
     [SYM_CTOR] = JSR_CONSTRUCT,   [SYM_ITER] = "__iter__",      [SYM_NEXT] = "__next__",

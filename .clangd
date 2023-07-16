@@ -1,0 +1,6 @@
+Diagnostics:
+  UnusedIncludes: Strict
+
+CompileFlags:
+  Add: -Wno-unknown-warning-option
+  Remove: [-m*, -f*]
