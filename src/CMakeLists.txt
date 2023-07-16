@@ -199,6 +199,6 @@ if(JSTAR_INSTALL)
     )
     install(
         FILES ${CMAKE_BINARY_DIR}/jstar.pc
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkg-config
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     )
 endif()
