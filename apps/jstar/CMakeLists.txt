@@ -36,11 +36,13 @@ endif()
 
 # Install target
 if(JSTAR_INSTALL)
+    include(GNUInstallDirs)
+
     # Setup relative rpath on unix and macos
     if(APPLE)
-        set_target_properties(cli PROPERTIES INSTALL_RPATH "@executable_path/../lib")
+        set_target_properties(cli PROPERTIES INSTALL_RPATH "@executable_path/../${CMAKE_INSTALL_LIBDIR}")
     elseif(UNIX)
-        set_target_properties(cli PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
+        set_target_properties(cli PROPERTIES INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
     endif()
     
     install(TARGETS cli

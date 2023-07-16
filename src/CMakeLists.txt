@@ -167,3 +167,38 @@ if(LTO)
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
+
+# -----------------------------------------------------------------------------
+# Installation
+# -----------------------------------------------------------------------------
+
+# Install target
+if(JSTAR_INSTALL)
+    include(GNUInstallDirs)
+
+    # Install J* library
+    install(TARGETS jstar jstar_static
+        EXPORT  jstar-export
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+
+    # Install header files
+    install(DIRECTORY
+        ${PROJECT_SOURCE_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PATTERN "*.h.in" EXCLUDE
+    )
+
+    # Configure and install pkg-config file
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/cmake/jstar.pc.in
+        ${CMAKE_BINARY_DIR}/jstar.pc
+        @ONLY
+    )
+    install(
+        FILES ${CMAKE_BINARY_DIR}/jstar.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkg-config
+    )
+endif()
