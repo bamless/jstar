@@ -38,7 +38,7 @@ static bool validateStack(JStarVM* vm) {
 
 static int apiStackIndex(JStarVM* vm, int slot) {
     if(slot < 0) {
-        ASSERT(vm->sp + slot >= vm->apiStack, "API stack slot would be negative");
+        ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
         return vm->sp + slot - vm->apiStack;
     }
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
@@ -47,7 +47,7 @@ static int apiStackIndex(JStarVM* vm, int slot) {
 
 static Value apiStackSlot(JStarVM* vm, int slot) {
     if(slot < 0) {
-        ASSERT(vm->sp + slot >= vm->apiStack, "API stack slot would be negative");
+        ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
         return vm->sp[slot];
     }
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");

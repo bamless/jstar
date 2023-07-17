@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "console_print.h"
 #include "dynload.h"
 #include "jstar/parse/vector.h"
 #include "path.h"
