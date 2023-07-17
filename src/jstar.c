@@ -24,17 +24,33 @@
 // JStarNewVM, jsrInitRuntime and JStarFreeVM functions are implemented in vm.c
 // -----------------------------------------------------------------------------
 
+static bool validateSlot(JStarVM* vm, int slot) {
+    if(slot < 0) {
+        return vm->sp + slot >= vm->apiStack;
+    } else {
+        return vm->apiStack + slot < vm->sp;
+    }
+}
+
+static bool validateStack(JStarVM* vm) {
+    return (size_t)(vm->sp - vm->stack) <= vm->stackSz;
+}
+
 static int apiStackIndex(JStarVM* vm, int slot) {
-    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    if(slot < 0) {
+        ASSERT(vm->sp + slot >= vm->apiStack, "API stack slot would be negative");
+        return vm->sp + slot - vm->apiStack;
+    }
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0) return vm->sp + slot - vm->apiStack;
     return slot;
 }
 
 static Value apiStackSlot(JStarVM* vm, int slot) {
-    ASSERT(vm->sp - slot > vm->apiStack, "API stack slot would be negative");
+    if(slot < 0) {
+        ASSERT(vm->sp + slot >= vm->apiStack, "API stack slot would be negative");
+        return vm->sp[slot];
+    }
     ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
-    if(slot < 0) return vm->sp[slot];
     return vm->apiStack[slot];
 }
 
@@ -333,6 +349,14 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
     reserveStack(vm, needed);
 }
 
+bool jsrValidateSlot(JStarVM* vm, int slot) {
+    return validateSlot(vm, slot);
+}
+
+bool jsrValidateStack(JStarVM* vm) {
+    return validateStack(vm);
+}
+
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
     int saveErrno;
     size_t read;
@@ -418,22 +442,22 @@ bool jsrIs(JStarVM* vm, int slot, int classSlot) {
     return IS_CLASS(cls) ? isInstance(vm, v, AS_CLASS(cls)) : false;
 }
 
-static void validateStack(JStarVM* vm) {
-    ASSERT((size_t)(vm->sp - vm->stack) <= vm->stackSz, "Stack overflow");
+static void checkStack(JStarVM* vm) {
+    ASSERT(validateStack(vm), "API Stack overflow");
 }
 
 void jsrPushNumber(JStarVM* vm, double number) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, NUM_VAL(number));
 }
 
 void jsrPushBoolean(JStarVM* vm, bool boolean) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, BOOL_VAL(boolean));
 }
 
 void jsrPushStringSz(JStarVM* vm, const char* string, size_t length) {
-    validateStack(vm);
+    checkStack(vm);
     // TODO: Rework string interning
     ObjString* str = allocateString(vm, length);
     memcpy(str->data, string, length);
@@ -445,22 +469,22 @@ void jsrPushString(JStarVM* vm, const char* string) {
 }
 
 void jsrPushHandle(JStarVM* vm, void* handle) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, HANDLE_VAL(handle));
 }
 
 void jsrPushNull(JStarVM* vm) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, NULL_VAL);
 }
 
 void jsrPushList(JStarVM* vm) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, OBJ_VAL(newList(vm, 16)));
 }
 
 void jsrPushTuple(JStarVM* vm, size_t size) {
-    validateStack(vm);
+    checkStack(vm);
     ObjTuple* tup = newTuple(vm, size);
     for(size_t i = 1; i <= size; i++) {
         tup->arr[size - i] = pop(vm);
@@ -469,17 +493,17 @@ void jsrPushTuple(JStarVM* vm, size_t size) {
 }
 
 void jsrPushTable(JStarVM* vm) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, OBJ_VAL(newTable(vm)));
 }
 
 void jsrPushValue(JStarVM* vm, int slot) {
-    validateStack(vm);
+    checkStack(vm);
     push(vm, apiStackSlot(vm, slot));
 }
 
 void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
-    validateStack(vm);
+    checkStack(vm);
     ObjUserdata* udata = newUserData(vm, size, finalize);
     push(vm, OBJ_VAL(udata));
     return (void*)udata->data;
@@ -487,7 +511,7 @@ void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
 
 void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
                    uint8_t argc) {
-    validateStack(vm);
+    checkStack(vm);
     ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module)));
     ASSERT(mod, "Cannot find module");
 
@@ -502,11 +526,12 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
 }
 
 void jsrPop(JStarVM* vm) {
-    ASSERT(vm->sp > vm->apiStack, "Popping past frame boundary");
+    ASSERT(validateSlot(vm, -1), "Popping past frame boundary");
     pop(vm);
 }
 
 void jsrPopN(JStarVM* vm, int n) {
+    ASSERT(validateSlot(vm, -n), "Popping past frame boundary");
     for(int i = 0; i < n; i++) {
         jsrPop(vm);
     }

@@ -448,6 +448,14 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 // Ensure `needed` slots are available on the stack
 JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
 
+// Returns `true` if the provided slot is valid, i.e. it doesn't overflow or underflow the native
+// stack, false otherwise
+JSTAR_API bool jsrValidateSlot(JStarVM* vm, int slot);
+
+// Returns `true` if the stack has space for one element, i.e. pushing one element will not overflow
+// the native stack
+JSTAR_API bool jsrValidateStack(JStarVM* vm);
+
 // J* native registry, used to associate names to c function
 // pointers during native resolution after module import.
 struct JStarNativeReg {
