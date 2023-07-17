@@ -9,8 +9,6 @@
 #include "disassemble.h"
 #include "hashtable.h"
 #include "import.h"
-#include "jstar_limits.h"
-#include "lib/core/core.h"
 #include "lib/core/excs.h"
 #include "object.h"
 #include "parse/ast.h"
