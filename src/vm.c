@@ -5,6 +5,7 @@
 
 #include "code.h"
 #include "gc.h"
+#include "hashtable.h"
 #include "import.h"
 #include "lib/builtins.h"
 #include "lib/core/core.h"
@@ -709,41 +710,43 @@ bool getValueField(JStarVM* vm, ObjString* name) {
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
-            Value field;
             ObjInstance* inst = AS_INSTANCE(val);
 
-            // Try top find a field
-            if(!hashTableGet(&inst->fields, name, &field)) {
-                // No field, try to bind method
-                if(!bindMethod(vm, inst->base.cls, name)) {
-                    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
-                             inst->base.cls->name->data, name->data);
-                    return false;
-                }
+            // Try to find a field
+            Value field;
+            if(hashTableGet(&inst->fields, name, &field)) {
+                pop(vm);
+                push(vm, field);
                 return true;
             }
 
-            pop(vm);
-            push(vm, field);
+            // No field, try to bind method
+            if(!bindMethod(vm, inst->base.cls, name)) {
+                jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
+                         inst->base.cls->name->data, name->data);
+                return false;
+            }
+
             return true;
         }
         case OBJ_MODULE: {
-            Value global;
             ObjModule* mod = AS_MODULE(val);
 
             // Try to find global variable
-            if(!hashTableGet(&mod->globals, name, &global)) {
-                // No global, try to bind method
-                if(!bindMethod(vm, mod->base.cls, name)) {
-                    jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
-                             name->data, mod->name->data);
-                    return false;
-                }
+            Value global;
+            if(hashTableGet(&mod->globals, name, &global)) {
+                pop(vm);
+                push(vm, global);
                 return true;
             }
 
-            pop(vm);
-            push(vm, global);
+            // No global, try to bind method
+            if(!bindMethod(vm, mod->base.cls, name)) {
+                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
+                         name->data, mod->name->data);
+                return false;
+            }
+
             return true;
         }
         default:

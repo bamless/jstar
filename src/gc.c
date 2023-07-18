@@ -215,14 +215,12 @@ void garbageCollect(JStarVM* vm) {
     puts("*--- Starting GC ---*");
 #endif
 
-    // init reached object stack
     vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
     vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
     {
         PROFILE("{reach-objects}::garbageCollect")
 
-        // reach builtin classes
         reachObject(vm, (Obj*)vm->clsClass);
         reachObject(vm, (Obj*)vm->objClass);
         reachObject(vm, (Obj*)vm->strClass);
@@ -238,52 +236,41 @@ void garbageCollect(JStarVM* vm) {
         reachObject(vm, (Obj*)vm->tableClass);
         reachObject(vm, (Obj*)vm->udataClass);
 
-        // reach script argument llist
         reachObject(vm, (Obj*)vm->argv);
 
         for(int i = 0; i < SYM_END; i++) {
             reachObject(vm, (Obj*)vm->methodSyms[i]);
         }
 
-        // reach empty Tuple singleton
         reachObject(vm, (Obj*)vm->emptyTup);
-
-        // reach loaded modules
         reachHashTable(vm, &vm->modules);
 
-        // reach elements on the stack
         for(Value* v = vm->stack; v < vm->sp; v++) {
             reachValue(vm, *v);
         }
 
-        // reach elements on the frame stack
         for(int i = 0; i < vm->frameCount; i++) {
             reachObject(vm, vm->frames[i].fn);
         }
 
-        // reach open upvalues
         for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
             reachObject(vm, (Obj*)upvalue);
         }
 
-        // reach the compiler objects
         reachCompilerRoots(vm, vm->currCompiler);
     }
 
     {
         PROFILE("{recursively-reach}::garbageCollect")
 
-        // recursevely reach objects held by other reached objects
         while(vm->reachedCount != 0) {
             recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
         }
     }
 
-    // free unreached objects
     sweepStrings(&vm->stringPool);
     sweepObjects(vm);
 
-    // free the reached objects stack
     free(vm->reachedStack);
     vm->reachedStack = NULL;
     vm->reachedCapacity = 0;
