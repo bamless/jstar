@@ -7,6 +7,7 @@
 #include "hashtable.h"
 #include "jstar.h"
 #include "lib/builtins.h"
+#include "object.h"
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
@@ -32,17 +33,17 @@ ObjFunction* compileModule(JStarVM* vm, const char* path, ObjString* name, JStar
     return fn;
 }
 
-ObjFunction* deserializeModule(JStarVM* vm, const char* path, ObjString* name,
-                               const JStarBuffer* code, JStarResult* err) {
+JStarResult deserializeModule(JStarVM* vm, const char* path, ObjString* name,
+                              const void* code, size_t len, ObjFunction** out) {
     PROFILE_FUNC()
-    ObjFunction* fn = deserialize(vm, getOrCreateModule(vm, path, name), code, err);
-    if(*err == JSR_VERSION_ERR) {
-        vm->errorCallback(vm, *err, path, -1, "Incompatible binary file version");
+    JStarResult err = deserialize(vm, getOrCreateModule(vm, path, name), code, len, out);
+    if(err == JSR_VERSION_ERR) {
+        vm->errorCallback(vm, err, path, -1, "Incompatible binary file version");
     }
-    if(*err == JSR_DESERIALIZE_ERR) {
-        vm->errorCallback(vm, *err, path, -1, "Malformed binary file");
+    if(err == JSR_DESERIALIZE_ERR) {
+        vm->errorCallback(vm, err, path, -1, "Malformed binary file");
     }
-    return fn;
+    return JSR_SUCCESS;
 }
 
 static void registerInParent(JStarVM* vm, ObjModule* module) {
@@ -83,10 +84,11 @@ static void parseError(const char* file, int line, const char* error, void* udat
     vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
 }
 
-static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src) {
+static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src,
+                               size_t len) {
     PROFILE_FUNC()
 
-    JStarStmt* program = jsrParse(path, src, parseError, vm);
+    JStarStmt* program = jsrParse(path, src, len, parseError, vm);
     if(program == NULL) {
         return NULL;
     }
@@ -105,18 +107,18 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
 }
 
 static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
-                               const JStarBuffer* code) {
+                               const void* code, size_t len) {
     PROFILE_FUNC()
+    ASSERT(isCompiledCode(code, len), "`code` must be a valid compiled chunk");
 
-    JStarResult res;
-    ObjFunction* fn = deserializeModule(vm, path, name, code, &res);
+    ObjFunction* fn;
+    JStarResult res = deserializeModule(vm, path, name, code, len, &fn);
     if(res != JSR_SUCCESS) {
         return NULL;
     }
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
-
     return fn->proto.module;
 }
 
@@ -129,10 +131,9 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
     }
 
     size_t len;
-    const char* builtinBytecode = readBuiltInModule(name->data, &len);
-    if(builtinBytecode != NULL) {
-        JStarBuffer code = jsrBufferWrap(vm, builtinBytecode, len);
-        return importBinary(vm, name->data, name, &code);
+    const void* bltinCode = readBuiltInModule(name->data, &len);
+    if(bltinCode != NULL) {
+        return importBinary(vm, name->data, name, bltinCode, len);
     }
 
     if(!vm->importCallback) {
@@ -145,13 +146,11 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
         return NULL;
     }
 
-    JStarBuffer code = jsrBufferWrap(vm, res.code, res.codeLength);
-
     ObjModule* module;
-    if(isCompiledCode(&code)) {
-        module = importBinary(vm, res.path, name, &code);
+    if(isCompiledCode(res.code, res.codeLength)) {
+        module = importBinary(vm, res.path, name, res.code, res.codeLength);
     } else {
-        module = importSource(vm, res.path, name, res.code);
+        module = importSource(vm, res.path, name, res.code, res.codeLength);
     }
 
     if(res.finalize) {

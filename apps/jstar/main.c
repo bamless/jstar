@@ -117,9 +117,9 @@ static void sigintHandler(int sig) {
 
 // Wrapper function to evaluate source or binary J* code.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluate(const char* path, const JStarBuffer* src) {
+static JStarResult evaluate(const char* path, const JStarBuffer* code) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEval(vm, path, src);
+    JStarResult res = jsrEval(vm, path, code->data, code->size);
     signal(SIGINT, SIG_DFL);
     return res;
 }
@@ -145,8 +145,8 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     {
         PROFILE_FUNC()
 
-        JStarBuffer src;
-        if(!jsrReadFile(vm, script, &src)) {
+        JStarBuffer code;
+        if(!jsrReadFile(vm, script, &code)) {
             fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
                           script, strerror(errno));
             exit(EXIT_FAILURE);
@@ -154,9 +154,9 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 
         // Execute the script; make sure to use the absolute path for consistency
         jsrInitCommandLineArgs(vm, argc, (const char**)args);
-        res = evaluate(script, &src);
+        res = evaluate(script, &code);
 
-        jsrBufferFree(&src);
+        jsrBufferFree(&code);
     }
 
     PROFILE_END_SESSION()
@@ -175,7 +175,7 @@ static int countBlocks(const char* line) {
     JStarLex lex;
     JStarTok tok;
 
-    jsrInitLexer(&lex, line);
+    jsrInitLexer(&lex, line, strlen(line));
     jsrNextToken(&lex, &tok);
 
     if(!tokenDepth[tok.type]) return 0;
@@ -224,7 +224,7 @@ static void registerPrintFunction(void) {
 // Also, the current expression is assigned to `_` in order to permit calculation chaining.
 static void addReplPrint(JStarBuffer* sb) {
     PROFILE_FUNC()
-    JStarExpr* e = jsrParseExpression("<repl>", sb->data, NULL, NULL);
+    JStarExpr* e = jsrParseExpression("<repl>", sb->data, sb->size, NULL, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
         jsrBufferAppendf(sb, ";%s(_)", REPL_PRINT);

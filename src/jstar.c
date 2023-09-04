@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "buffer.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
@@ -84,16 +85,9 @@ void* jsrGetCustomData(JStarVM* vm) {
     return vm->customData;
 }
 
-JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
-    PROFILE_FUNC()
-    return jsrEvalModuleString(vm, path, JSR_MAIN_MODULE, src);
-}
-
-JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
-                                const char* src) {
-    PROFILE_FUNC()
-
-    JStarStmt* program = jsrParse(path, src, parseError, vm);
+static JStarResult evalStringLen(JStarVM* vm, const char* path, const char* module, const char* src,
+                                 size_t len) {
+    JStarStmt* program = jsrParse(path, src, len, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -120,31 +114,41 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
     return res;
 }
 
-JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code) {
+JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
     PROFILE_FUNC()
-    return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code);
+    return jsrEvalModuleString(vm, path, JSR_MAIN_MODULE, src);
 }
 
-JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
-                          const JStarBuffer* code) {
+JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
+                                const char* src) {
+    return evalStringLen(vm, path, module, src, strlen(src));
+}
+
+JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len) {
+    PROFILE_FUNC()
+    return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code, len);
+}
+
+JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, const void* code,
+                          size_t len) {
     PROFILE_FUNC()
 
-    if(!isCompiledCode(code)) {
-        return jsrEvalModuleString(vm, path, module, code->data);
+    if(!isCompiledCode(code, len)) {
+        return evalStringLen(vm, path, module, code, len);
     }
 
-    JStarResult err;
+    ObjFunction* fn;
     ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = deserializeModule(vm, path, name, code, &err);
+    JStarResult res = deserializeModule(vm, path, name, code, len, &fn);
 
-    if(fn == NULL) {
-        return err;
+    if(res != JSR_SUCCESS) {
+        return res;
     }
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
-    JStarResult res = jsrCall(vm, 0);
+    res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
         vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
@@ -158,7 +162,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
     PROFILE_FUNC()
 
-    JStarStmt* program = jsrParse(path, src, parseError, vm);
+    JStarStmt* program = jsrParse(path, src, strlen(src), parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
     }
@@ -175,22 +179,22 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStar
     return JSR_SUCCESS;
 }
 
-JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code) {
+JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, size_t len) {
     PROFILE_FUNC()
 
-    if(!isCompiledCode(code)) {
+    if(!isCompiledCode(code, len)) {
         return JSR_DESERIALIZE_ERR;
     }
 
-    JStarResult ret;
+    ObjFunction* fn;
     ObjString* dummy = copyString(vm, "", 0);  // Use dummy module since the code won't be executed
-    ObjFunction* fn = deserializeModule(vm, path, dummy, code, &ret);
+    JStarResult res = deserializeModule(vm, path, dummy, code, len, &fn);
 
-    if(ret == JSR_SUCCESS) {
+    if(res == JSR_SUCCESS) {
         disassembleFunction(fn);
     }
 
-    return ret;
+    return res;
 }
 
 static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {

@@ -94,7 +94,7 @@ static void setTokColor(const char* in, const JStarTok* tok, ReplxxColor color, 
 
 void highlighter(const char* input, ReplxxColor* colors, int size, void* userData) {
     JStarLex lex;
-    jsrInitLexer(&lex, input);
+    jsrInitLexer(&lex, input, strlen(input));
 
     JStarTok prev, tok;
     jsrNextToken(&lex, &tok);

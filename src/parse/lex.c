@@ -66,7 +66,7 @@ static char peekChar(JStarLex* lex) {
 }
 
 static bool isAtEnd(JStarLex* lex) {
-    return peekChar(lex) == '\0';
+    return (size_t)(lex->current - lex->source) == lex->sourceLen;
 }
 
 static char peekChar2(JStarLex* lex) {
@@ -83,8 +83,9 @@ static bool match(JStarLex* lex, char c) {
     return false;
 }
 
-void jsrInitLexer(JStarLex* lex, const char* src) {
+void jsrInitLexer(JStarLex* lex, const char* src, size_t len) {
     lex->source = src;
+    lex->sourceLen = len;
     lex->tokenStart = src;
     lex->current = src;
     lex->currLine = 1;

@@ -7,6 +7,7 @@
 #include "code.h"
 #include "endianness.h"
 #include "gc.h"
+#include "jstar.h"
 #include "object.h"
 #include "profiler.h"
 #include "util.h"
@@ -162,22 +163,23 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
 
 typedef struct Deserializer {
     JStarVM* vm;
-    const JStarBuffer* buf;
+    const void* code;
+    size_t len;
     ObjModule* mod;
     size_t ptr;
 } Deserializer;
 
 static bool read(Deserializer* d, void* dest, size_t size) {
-    if(d->ptr + size > d->buf->capacity) {
+    if(d->ptr + size > d->len) {
         return false;
     }
-    memcpy(dest, d->buf->data + d->ptr, size);
+    memcpy(dest, d->code + d->ptr, size);
     d->ptr += size;
     return true;
 }
 
 static bool isExausted(Deserializer* d) {
-    return d->ptr == d->buf->size;
+    return d->ptr == d->len;
 }
 
 static void zeroValueArray(Value* vals, int size) {
@@ -411,43 +413,42 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     return true;
 }
 
-ObjFunction* deserialize(JStarVM* vm, ObjModule* mod, const JStarBuffer* buf, JStarResult* res) {
+JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t len,
+                        ObjFunction** out) {
     PROFILE_FUNC()
 
-    ASSERT(vm == buf->vm, "JStarBuffer isn't owned by provided vm");
-    Deserializer d = {vm, buf, mod, 0};
-
-    *res = JSR_DESERIALIZE_ERR;
+    Deserializer d = {vm, code, len, mod, 0};
 
     char header[SERIALIZED_HEADER_SZ];
-    if(!read(&d, header, SERIALIZED_HEADER_SZ)) return NULL;
+    if(!read(&d, header, SERIALIZED_HEADER_SZ)) {
+        return JSR_DESERIALIZE_ERR;
+    }
+
     ASSERT(memcmp(header, SERIALIZED_HEADER, SERIALIZED_HEADER_SZ) == 0, "Header error");
 
     uint8_t versionMajor, versionMinor;
-    if(!deserializeByte(&d, &versionMajor)) return NULL;
-    if(!deserializeByte(&d, &versionMinor)) return NULL;
-
-    if(versionMajor != JSTAR_VERSION_MAJOR || versionMinor != JSTAR_VERSION_MINOR) {
-        *res = JSR_VERSION_ERR;
-        return NULL;
+    if(!deserializeByte(&d, &versionMajor) || !deserializeByte(&d, &versionMinor)) {
+        return JSR_DESERIALIZE_ERR;
     }
 
-    ObjFunction* fn;
-    if(!deserializeFunction(&d, &fn)) {
-        return NULL;
+    if(versionMajor != JSTAR_VERSION_MAJOR || versionMinor != JSTAR_VERSION_MINOR) {
+        return JSR_VERSION_ERR;
+    }
+
+    if(!deserializeFunction(&d, out)) {
+        return JSR_DESERIALIZE_ERR;
     }
 
     if(!isExausted(&d)) {
-        return NULL;
+        return JSR_DESERIALIZE_ERR;
     }
 
-    *res = JSR_SUCCESS;
-    return fn;
+    return JSR_SUCCESS;
 }
 
-bool isCompiledCode(const JStarBuffer* buf) {
-    if(buf->size >= SERIALIZED_HEADER_SZ) {
-        return memcmp(SERIALIZED_HEADER, buf->data, SERIALIZED_HEADER_SZ) == 0;
+bool isCompiledCode(const void* code, size_t len) {
+    if(len >= SERIALIZED_HEADER_SZ) {
+        return memcmp(SERIALIZED_HEADER, code, SERIALIZED_HEADER_SZ) == 0;
     }
     return false;
 }

@@ -5,6 +5,7 @@
 
 #include "gc.h"
 #include "import.h"
+#include "jstar.h"
 #include "object.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
@@ -99,7 +100,10 @@ JSR_NATIVE(jsr_eval) {
         JSR_RAISE(vm, "Exception", "eval() can only be called by another function");
     }
 
-    JStarStmt* program = jsrParse("<eval>", jsrGetString(vm, 1), parseError, vm);
+    const char* src = jsrGetString(vm, 1);
+    size_t len = jsrGetStringSz(vm, 1);
+
+    JStarStmt* program = jsrParse("<eval>", src, len, parseError, vm);
     if(program == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }

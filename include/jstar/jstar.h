@@ -57,7 +57,7 @@ typedef enum JStarResult {
 
 // Import result struct, contains a resolved module's code and native registry
 typedef struct JStarImportResult {
-    const char* code;         // The resolved module code (source or binary)
+    const void* code;         // The resolved module code (source or binary)
     size_t codeLength;        // Length of the code field
     const char* path;         // The resolved module path (can be fictitious)
     JStarNativeReg* reg;      // Resolved native registry for the module (can be NULL)
@@ -127,9 +127,9 @@ JSTAR_API void jsrEvalBreak(JStarVM* vm);
 // will be returned.
 // All errors will be forwared to the error callback as well.
 // The `path` argument is the file path that will passed to the forward callback on errors
-JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const JStarBuffer* code);
+JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len);
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
-                                    const JStarBuffer* code);
+                                    const void* code, size_t len);
 
 // Similar to the `jsrEval` family of functions, but takes in a c string of the J* source code to
 // evaluate.
@@ -507,7 +507,8 @@ JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* 
 // Disassembles the bytecode provided in `code` and prints it to stdout
 // The `path` argument is the file path that will passed to the forward callback on errors
 // Prints nothing if the provided `code` buffer doesn't contain valid bytecode
-JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const JStarBuffer* code);
+JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code,
+                                         size_t len);
 
 // Reads a J* source or compiled file, placing the output in out.
 // Returns true on success, false on error setting errno to the approriate value.

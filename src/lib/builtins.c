@@ -345,7 +345,7 @@ JStarNative resolveBuiltIn(const char* module, const char* cls, const char* name
     return getNativeMethod(c, name);
 }
 
-const char* readBuiltInModule(const char* name, size_t* len) {
+const void* readBuiltInModule(const char* name, size_t* len) {
     Module* m = getModule(name);
     if(m != NULL) {
         *len = *m->len;

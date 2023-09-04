@@ -162,14 +162,13 @@ void initCoreModule(JStarVM* vm) {
 
         // Read core module
         size_t len;
-        const char* coreBytecode = readBuiltInModule(JSR_CORE_MODULE, &len);
+        const char* code = readBuiltInModule(JSR_CORE_MODULE, &len);
 
         // Execute core module
-        JStarBuffer code = jsrBufferWrap(vm, coreBytecode, len);
-        JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, &code);
+        JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, code, len);
         
         ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
-        (void)res; // Not actually used aside from the assert
+        (void)res;  // Not actually used aside from the assert
     }
 
     // Cache builtin class objects in JStarVM

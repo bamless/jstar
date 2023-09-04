@@ -122,7 +122,7 @@ static bool compileFile(const Path* path, const Path* out) {
     }
 
     if(opts.list) {
-        jsrDisassembleCode(vm, path->data, &compiled);
+        jsrDisassembleCode(vm, path->data, compiled.data, compiled.size);
     } else if(!opts.compileOnly) {
         if(!writeToFile(&compiled, out)) {
             fprintf(stderr, "Failed to write %s: %s\n", out->data, strerror(errno));
@@ -149,7 +149,7 @@ static bool disassembleFile(const Path* path) {
     printf("Disassembling %s...\n", path->data);
     fflush(stdout);
 
-    JStarResult res = jsrDisassembleCode(vm, path->data, &code);
+    JStarResult res = jsrDisassembleCode(vm, path->data, code.data, code.size);
     jsrBufferFree(&code);
 
     if(res != JSR_SUCCESS) {

@@ -32,7 +32,7 @@ typedef struct Parser {
     bool panic, hadError;
 } Parser;
 
-static void initParser(Parser* p, const char* path, const char* src, ParseErrorCB errFn,
+static void initParser(Parser* p, const char* path, const char* src, size_t len, ParseErrorCB errFn,
                        void* data) {
     p->panic = false;
     p->hadError = false;
@@ -40,7 +40,7 @@ static void initParser(Parser* p, const char* path, const char* src, ParseErrorC
     p->path = path;
     p->errorCallback = errFn;
     p->userData = data;
-    jsrInitLexer(&p->lex, src);
+    jsrInitLexer(&p->lex, src, len);
     jsrNextToken(&p->lex, &p->peek);
     p->lineStart = p->peek.lexeme;
 }
@@ -778,7 +778,7 @@ static JStarStmt* classDecl(Parser* p) {
             advance(p);
             break;
         }
-        
+
         if(!p->hadError) {
             method->as.decl.decorators = vecMove(&decorators);
             vecPush(&methods, method);
@@ -954,7 +954,7 @@ static JStarExpr* parseTableLiteral(Parser* p) {
     Vector keyVals = vecNew();
     while(!match(p, TOK_RCURLY)) {
         bool isSpread = consumeSpreadOp(p);
-        
+
         if(isSpread) {
             JStarExpr* expr = expression(p, false);
             skipNewLines(p);
@@ -1034,7 +1034,7 @@ static JStarExpr* literal(Parser* p) {
         return parseSuperLiteral(p);
     case TOK_LCURLY:
         return parseTableLiteral(p);
-    case TOK_LSQUARE: 
+    case TOK_LSQUARE:
         return parseListLiteral(p);
     case TOK_TRUE:
         advance(p);
@@ -1319,7 +1319,9 @@ static JStarExpr* tupleLiteral(Parser* p) {
 
     if(isSpread) {
         if(!match(p, TOK_COMMA)) {
-            error(p, "Cannot use spread operator here. Consider adding a `,` to make this a Tuple literal");
+            error(p,
+                  "Cannot use spread operator here. Consider adding a `,` to make this a Tuple "
+                  "literal");
         }
         e = jsrSpreadExpr(e->line, e);
     }
@@ -1341,7 +1343,7 @@ static JStarExpr* tupleLiteral(Parser* p) {
             if(isSpread) {
                 e = jsrSpreadExpr(e->line, e);
             }
-            
+
             vecPush(&exprs, e);
         }
 
@@ -1380,11 +1382,11 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
 // API
 // -----------------------------------------------------------------------------
 
-JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void* data) {
+JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB errFn, void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, errFn, data);
+    initParser(&p, path, src, len, errFn, data);
 
     JStarStmt* program = parseProgram(&p);
     skipNewLines(&p);
@@ -1401,11 +1403,12 @@ JStarStmt* jsrParse(const char* path, const char* src, ParseErrorCB errFn, void*
     return program;
 }
 
-JStarExpr* jsrParseExpression(const char* path, const char* src, ParseErrorCB errFn, void* data) {
+JStarExpr* jsrParseExpression(const char* path, const char* src, size_t len, ParseErrorCB errFn,
+                              void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, errFn, data);
+    initParser(&p, path, src, len, errFn, data);
 
     JStarExpr* expr = expression(&p, true);
     skipNewLines(&p);
