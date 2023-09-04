@@ -133,7 +133,7 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
     size_t len;
     const void* bltinCode = readBuiltInModule(name->data, &len);
     if(bltinCode != NULL) {
-        return importBinary(vm, name->data, name, bltinCode, len);
+        return importBinary(vm, "builtin", name, bltinCode, len);
     }
 
     if(!vm->importCallback) {
