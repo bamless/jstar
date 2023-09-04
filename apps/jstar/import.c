@@ -1,5 +1,6 @@
 #include "import.h"
 
+#include <bits/stdint-uintn.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -172,7 +173,7 @@ static void* readFile(const Path* p, size_t* length) {
         return NULL;
     }
 
-    char* data = malloc(size + 1);
+    uint8_t* data = malloc(size);
     if(!data) {
         fclose(f);
         return NULL;
@@ -182,8 +183,6 @@ static void* readFile(const Path* p, size_t* length) {
         fclose(f);
         return NULL;
     }
-
-    data[size] = '\0';
 
     fclose(f);
     return data;

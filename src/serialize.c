@@ -1,5 +1,6 @@
 #include "serialize.h"
 
+#include <bits/stdint-uintn.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,7 +164,7 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
 
 typedef struct Deserializer {
     JStarVM* vm;
-    const void* code;
+    const uint8_t* code;
     size_t len;
     ObjModule* mod;
     size_t ptr;
