@@ -1,6 +1,5 @@
 #include "serialize.h"
 
-#include <bits/stdint-uintn.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
