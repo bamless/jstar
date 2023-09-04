@@ -147,7 +147,7 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
 }
 
 // Reads a whole file into memory and returns its content and length
-static char* readFile(const Path* p, size_t* length) {
+static void* readFile(const Path* p, size_t* length) {
     PROFILE_FUNC()
     FILE* f = fopen(p->data, "rb");
     if(!f) {
