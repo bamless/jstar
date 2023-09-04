@@ -61,12 +61,13 @@ static char advance(JStarLex* lex) {
     return lex->current[-1];
 }
 
-static char peekChar(JStarLex* lex) {
-    return *lex->current;
-}
-
 static bool isAtEnd(JStarLex* lex) {
     return (size_t)(lex->current - lex->source) == lex->sourceLen;
+}
+
+static char peekChar(JStarLex* lex) {
+    if(isAtEnd(lex)) return '\0';
+    return *lex->current;
 }
 
 static char peekChar2(JStarLex* lex) {

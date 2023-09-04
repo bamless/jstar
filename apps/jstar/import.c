@@ -1,6 +1,5 @@
 #include "import.h"
 
-#include <bits/stdint-uintn.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
