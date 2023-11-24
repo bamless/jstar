@@ -14,7 +14,6 @@ set(JSTAR_SOURCES
     parse/ast.c
     parse/lex.c
     parse/parser.c
-    parse/vector.c
 
     lib/core/core.c
     lib/core/core.h

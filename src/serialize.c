@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "conf.h"
 #include "code.h"
 #include "endianness.h"
 #include "gc.h"
@@ -79,7 +80,7 @@ static void serializeConstLiteral(JStarBuffer* buf, Value c) {
         serializeByte(buf, CONST_STR);
         serializeString(buf, AS_STRING(c));
     } else {
-        UNREACHABLE();
+        JSR_UNREACHABLE();
     }
 }
 
@@ -424,7 +425,7 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
         return JSR_DESERIALIZE_ERR;
     }
 
-    ASSERT(memcmp(header, SERIALIZED_HEADER, SERIALIZED_HEADER_SZ) == 0, "Header error");
+    JSR_ASSERT(memcmp(header, SERIALIZED_HEADER, SERIALIZED_HEADER_SZ) == 0, "Header error");
 
     uint8_t versionMajor, versionMinor;
     if(!deserializeByte(&d, &versionMajor) || !deserializeByte(&d, &versionMinor)) {

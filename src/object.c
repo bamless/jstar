@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "conf.h"
 #include "gc.h"
 #include "util.h"
 #include "vm.h"
@@ -409,7 +410,7 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         break;
     }
     default:
-        UNREACHABLE();
+        JSR_UNREACHABLE();
         break;
     }
 
@@ -419,7 +420,7 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
 }
 
 Value* getValues(Obj* obj, size_t* size) {
-    ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
+    JSR_ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
     switch(obj->type) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj;
@@ -432,7 +433,7 @@ Value* getValues(Obj* obj, size_t* size) {
         return tup->arr;
     }
     default:
-        UNREACHABLE();
+        JSR_UNREACHABLE();
         return *size = 0, NULL;
     }
 }
@@ -446,7 +447,7 @@ Prototype* getPrototype(Obj* fn) {
     case OBJ_BOUND_METHOD:
         return getPrototype(((ObjBoundMethod*)fn)->method);
     default:
-        UNREACHABLE();
+        JSR_UNREACHABLE();
         break;
     }
     return NULL;

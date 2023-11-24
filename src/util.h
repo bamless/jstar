@@ -28,24 +28,4 @@ static inline uint32_t hashBytes(const void* data, size_t length) {
     return hash;
 }
 
-// Debug assertions
-#ifndef NDEBUG
-    #include <stdio.h>
-    #include <stdlib.h>
-
-    #define ASSERT(cond, msg)                                                                    \
-        ((cond) ?                                                                                \
-         ((void)0) :                                                                             \
-         (fprintf(stderr, "%s [line:%d] in %s(): %s failed: %s\n", __FILE__, __LINE__, __func__, \
-                  #cond, msg), abort()))
-
-    #define UNREACHABLE() \
-        (fprintf(stderr, "%s [line:%d] in %s(): Reached unreachable code.\n", __FILE__, __LINE__, \
-                 __func__), abort())
-
-#else
-    #define ASSERT(cond, msg) ((void)0)
-    #define UNREACHABLE()     ((void)0)
-#endif
-
 #endif

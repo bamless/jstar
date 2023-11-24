@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "conf.h"
 #include "compiler.h"
 #include "hashtable.h"
 #include "jstar.h"
@@ -11,7 +12,6 @@
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
-#include "util.h"
 #include "value.h"
 #include "vm.h"
 
@@ -57,7 +57,7 @@ static void registerInParent(JStarVM* vm, ObjModule* module) {
 
     const char* simpleName = lastDot + 1;
     ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
-    ASSERT(parent, "Submodule parent could not be found.");
+    JSR_ASSERT(parent, "Submodule parent could not be found.");
 
     if(!module->registry) {
         module->registry = parent->registry;
@@ -109,7 +109,7 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
 static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
                                const void* code, size_t len) {
     PROFILE_FUNC()
-    ASSERT(isCompiledCode(code, len), "`code` must be a valid compiled chunk");
+    JSR_ASSERT(isCompiledCode(code, len), "`code` must be a valid compiled chunk");
 
     ObjFunction* fn;
     JStarResult res = deserializeModule(vm, path, name, code, len, &fn);

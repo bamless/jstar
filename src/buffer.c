@@ -61,7 +61,7 @@ void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap) {
         availableSpace = b->capacity - b->size;
         va_copy(cpy, ap);
         written = vsnprintf(&b->data[b->size], availableSpace, fmt, cpy);
-        ASSERT(written < availableSpace, "Buffer still to small");
+        JSR_ASSERT(written < availableSpace, "Buffer still to small");
         va_end(cpy);
     }
 

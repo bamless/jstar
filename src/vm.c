@@ -341,7 +341,7 @@ static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f)
     PROFILE_FUNC()
 
     size_t stackTop = (size_t)(sp - f->stack);
-    ASSERT(stackTop <= gen->stackSize, "Insufficient generator stack size");
+    JSR_ASSERT(stackTop <= gen->stackSize, "Insufficient generator stack size");
 
     gen->frame.ip = ip;
     gen->frame.stackTop = stackTop;
@@ -403,7 +403,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
 
     GenAction action = GEN_SEND;
     if(inCoreModule && argc) {
-        ASSERT(IS_NUM(peek(vm)), "Action is not an integer");
+        JSR_ASSERT(IS_NUM(peek(vm)), "Action is not an integer");
         action = AS_NUM(pop(vm));
     }
 
@@ -453,7 +453,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         return true;
     }
 
-    UNREACHABLE();
+    JSR_UNREACHABLE();
     return true;
 }
 
@@ -1008,8 +1008,8 @@ bool runEval(JStarVM* vm, int evalDepth) {
     ObjFunction* fn;
     uint8_t* ip;
 
-    ASSERT(vm->frameCount != 0, "No frame to evaluate");
-    ASSERT(vm->frameCount >= evalDepth, "Too few frame to evaluate");
+    JSR_ASSERT(vm->frameCount != 0, "No frame to evaluate");
+    JSR_ASSERT(vm->frameCount >= evalDepth, "Too few frame to evaluate");
 
     // The following macros are intended to be used only in this function
 
@@ -1479,8 +1479,8 @@ op_return:
     }
 
     TARGET(OP_YIELD): {
-        ASSERT(frame->gen, "Current function is not a Generator");
-        ASSERT(frame->gen->state != GEN_STARTED && frame->gen->state != GEN_SUSPENDED,
+        JSR_ASSERT(frame->gen, "Current function is not a Generator");
+        JSR_ASSERT(frame->gen->state != GEN_STARTED && frame->gen->state != GEN_SUSPENDED,
                "Invalid generator state");
 
         Value ret = pop(vm);
@@ -1558,7 +1558,7 @@ op_return:
     }
 
     TARGET(OP_LIST_TO_TUPLE): {
-        ASSERT(IS_LIST(peek(vm)), "Top of stack isn't a List");
+        JSR_ASSERT(IS_LIST(peek(vm)), "Top of stack isn't a List");
         ObjList* lst = AS_LIST(peek(vm));
         ObjTuple* tup = newTuple(vm, lst->size);
         memcpy(tup->arr, lst->arr, sizeof(Value) * lst->size);
@@ -1730,7 +1730,7 @@ op_return:
                 // Return will execute ensure handlers
                 goto op_return;
             default:
-                UNREACHABLE();
+                JSR_UNREACHABLE();
                 break;
             }
         }
@@ -1748,7 +1748,7 @@ op_return:
     }
 
     TARGET(OP_GENERATOR_CLOSE): {
-        ASSERT(frame->gen, "Current function isn't a Generator");
+        JSR_ASSERT(frame->gen, "Current function isn't a Generator");
         frame->gen->state = GEN_DONE;
         DISPATCH();
     }
@@ -1798,14 +1798,14 @@ op_return:
     }
 
     TARGET(OP_END): {
-        UNREACHABLE();
+        JSR_UNREACHABLE();
     }
 
     }
 
     // clang-format on
 
-    UNREACHABLE();
+    JSR_UNREACHABLE();
 
 stack_unwind:
     SAVE_STATE();
@@ -1824,15 +1824,15 @@ exit_eval:
 bool unwindStack(JStarVM* vm, int depth) {
     PROFILE_FUNC()
 
-    ASSERT(vm->frameCount > depth, "No frame to unwind");
-    ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
+    JSR_ASSERT(vm->frameCount > depth, "No frame to unwind");
+    JSR_ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
 
     ObjInstance* exception = AS_INSTANCE(peek(vm));
 
     Value stacktraceVal = NULL_VAL;
     hashTableGet(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
 
-    ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
+    JSR_ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
     Frame* frame = NULL;
@@ -1851,7 +1851,7 @@ bool unwindStack(JStarVM* vm, int depth) {
             break;
         }
         default:
-            UNREACHABLE();
+            JSR_UNREACHABLE();
             break;
         }
 

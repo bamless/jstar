@@ -1,6 +1,6 @@
 #include "opcode.h"
 
-#include "util.h"
+#include "conf.h"
 
 // Create string names of opcodes
 const char* OpcodeNames[] = {
@@ -15,6 +15,6 @@ int opcodeArgsNumber(Opcode op) {
     #include "opcode.def"
     }
     // clang-format on
-    UNREACHABLE();
+    JSR_UNREACHABLE();
     return -1;
 }

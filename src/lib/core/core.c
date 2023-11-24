@@ -167,7 +167,7 @@ void initCoreModule(JStarVM* vm) {
         // Execute core module
         JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, code, len);
         
-        ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
+        JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
         (void)res;  // Not actually used aside from the assert
     }
 
@@ -213,7 +213,7 @@ void initCoreModule(JStarVM* vm) {
             }
 
             // Ensure all allocated object do actually have a class reference!
-            ASSERT(o->cls, "Object without class reference");
+            JSR_ASSERT(o->cls, "Object without class reference");
         }
     }
 }
@@ -320,7 +320,7 @@ JSR_NATIVE(jsr_Function_string) {
         fnType = "bound method";
         break;
     default:
-        UNREACHABLE();
+        JSR_UNREACHABLE();
         break;
     }
 

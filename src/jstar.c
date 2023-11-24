@@ -39,19 +39,19 @@ static bool validateStack(JStarVM* vm) {
 
 static int apiStackIndex(JStarVM* vm, int slot) {
     if(slot < 0) {
-        ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
+        JSR_ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
         return vm->sp + slot - vm->apiStack;
     }
-    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
+    JSR_ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
     return slot;
 }
 
 static Value apiStackSlot(JStarVM* vm, int slot) {
     if(slot < 0) {
-        ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
+        JSR_ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
         return vm->sp[slot];
     }
-    ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
+    JSR_ASSERT(vm->apiStack + slot < vm->sp, "API stack overflow");
     return vm->apiStack[slot];
 }
 
@@ -255,7 +255,7 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
 
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
-    ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
+    JSR_ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
 
     // Can fail with a stack overflow (for example if there is a cycle in exception causes)
@@ -271,7 +271,7 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
     PROFILE_FUNC()
 
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
-    ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
+    JSR_ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
     push(vm, exc);
 
     // Can fail with a stack overflow (for example if there is a cycle in exception causes)
@@ -447,7 +447,7 @@ bool jsrIs(JStarVM* vm, int slot, int classSlot) {
 }
 
 static void checkStack(JStarVM* vm) {
-    ASSERT(validateStack(vm), "API Stack overflow");
+    JSR_ASSERT(validateStack(vm), "API Stack overflow");
 }
 
 void jsrPushNumber(JStarVM* vm, double number) {
@@ -517,7 +517,7 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
                    uint8_t argc) {
     checkStack(vm);
     ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module)));
-    ASSERT(mod, "Cannot find module");
+    JSR_ASSERT(mod, "Cannot find module");
 
     ObjString* nativeName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(nativeName));
@@ -530,12 +530,12 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
 }
 
 void jsrPop(JStarVM* vm) {
-    ASSERT(validateSlot(vm, -1), "Popping past frame boundary");
+    JSR_ASSERT(validateSlot(vm, -1), "Popping past frame boundary");
     pop(vm);
 }
 
 void jsrPopN(JStarVM* vm, int n) {
-    ASSERT(validateSlot(vm, -n), "Popping past frame boundary");
+    JSR_ASSERT(validateSlot(vm, -n), "Popping past frame boundary");
     for(int i = 0; i < n; i++) {
         jsrPop(vm);
     }
@@ -547,7 +547,7 @@ int jsrTop(JStarVM* vm) {
 
 void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
-    ASSERT(mod, "Module doesn't exist");
+    JSR_ASSERT(mod, "Module doesn't exist");
     hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
 }
 
@@ -580,51 +580,51 @@ bool jsrNext(JStarVM* vm, int iterable, int res) {
 
 void jsrListAppend(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
-    ASSERT(IS_LIST(lst), "Not a list");
+    JSR_ASSERT(IS_LIST(lst), "Not a list");
     listAppend(vm, AS_LIST(lst), peek(vm));
 }
 
 void jsrListInsert(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
-    ASSERT(IS_LIST(lstVal), "Not a list");
+    JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->size, "Out of bounds");
+    JSR_ASSERT(i < lst->size, "Out of bounds");
     listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
 void jsrListRemove(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
-    ASSERT(IS_LIST(lstVal), "Not a list");
+    JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->size, "Out of bounds");
+    JSR_ASSERT(i < lst->size, "Out of bounds");
     listRemove(vm, lst, (size_t)i);
 }
 
 void jsrListGet(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
-    ASSERT(IS_LIST(lstVal), "Not a list");
+    JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    ASSERT(i < lst->size, "Out of bounds");
+    JSR_ASSERT(i < lst->size, "Out of bounds");
     push(vm, lst->arr[i]);
 }
 
 size_t jsrListGetLength(JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
-    ASSERT(IS_LIST(lst), "Not a list");
+    JSR_ASSERT(IS_LIST(lst), "Not a list");
     return AS_LIST(lst)->size;
 }
 
 void jsrTupleGet(JStarVM* vm, size_t i, int slot) {
     Value tupVal = apiStackSlot(vm, slot);
-    ASSERT(IS_TUPLE(tupVal), "Not a tuple");
+    JSR_ASSERT(IS_TUPLE(tupVal), "Not a tuple");
     ObjTuple* tuple = AS_TUPLE(tupVal);
-    ASSERT(i < tuple->size, "Out of bounds");
+    JSR_ASSERT(i < tuple->size, "Out of bounds");
     push(vm, tuple->arr[i]);
 }
 
 size_t jsrTupleGetLength(JStarVM* vm, int slot) {
     Value tup = apiStackSlot(vm, slot);
-    ASSERT(IS_TUPLE(tup), "Not a tuple");
+    JSR_ASSERT(IS_TUPLE(tup), "Not a tuple");
     return AS_TUPLE(tup)->size;
 }
 
@@ -665,7 +665,7 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
-    ASSERT(mod, "Module doesn't exist");
+    JSR_ASSERT(mod, "Module doesn't exist");
 
     Value res;
     ObjString* nameStr = copyString(vm, name, strlen(name));
@@ -681,38 +681,38 @@ bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
 void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     Value cls = apiStackSlot(vm, clsSlot);
     Value nat = apiStackSlot(vm, natSlot);
-    ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
-    ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
+    JSR_ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
+    JSR_ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
     hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->proto.name, nat);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {
-    ASSERT(IS_USERDATA(apiStackSlot(vm, slot)), "slot is not a Userdatum");
+    JSR_ASSERT(IS_USERDATA(apiStackSlot(vm, slot)), "slot is not a Userdatum");
     return (void*)AS_USERDATA(apiStackSlot(vm, slot))->data;
 }
 
 double jsrGetNumber(JStarVM* vm, int slot) {
-    ASSERT(IS_NUM(apiStackSlot(vm, slot)), "slot is not a Number");
+    JSR_ASSERT(IS_NUM(apiStackSlot(vm, slot)), "slot is not a Number");
     return AS_NUM(apiStackSlot(vm, slot));
 }
 
 const char* jsrGetString(JStarVM* vm, int slot) {
-    ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
+    JSR_ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
     return AS_STRING(apiStackSlot(vm, slot))->data;
 }
 
 size_t jsrGetStringSz(JStarVM* vm, int slot) {
-    ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
+    JSR_ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
     return AS_STRING(apiStackSlot(vm, slot))->length;
 }
 
 bool jsrGetBoolean(JStarVM* vm, int slot) {
-    ASSERT(IS_BOOL(apiStackSlot(vm, slot)), "slot is not a Boolean");
+    JSR_ASSERT(IS_BOOL(apiStackSlot(vm, slot)), "slot is not a Boolean");
     return AS_BOOL(apiStackSlot(vm, slot));
 }
 
 void* jsrGetHandle(JStarVM* vm, int slot) {
-    ASSERT(IS_HANDLE(apiStackSlot(vm, slot)), "slot is not an Handle");
+    JSR_ASSERT(IS_HANDLE(apiStackSlot(vm, slot)), "slot is not an Handle");
     return AS_HANDLE(apiStackSlot(vm, slot));
 }
 

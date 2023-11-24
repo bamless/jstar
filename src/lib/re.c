@@ -55,7 +55,7 @@ static void setError(RegexState* rs, const char* fmt, ...) {
     va_start(args, fmt);
     int written = vsnprintf(rs->errorMessage, MAX_ERROR, fmt, args);
     va_end(args);
-    ASSERT(written < MAX_ERROR, "Error message was truncated");
+    JSR_ASSERT(written < MAX_ERROR, "Error message was truncated");
     (void)written;
 }
 

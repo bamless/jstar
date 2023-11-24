@@ -48,7 +48,7 @@ size_t writeByte(Code* c, uint8_t b, int line) {
 
 int getBytecodeSrcLine(Code* c, size_t index) {
     if(c->lines == NULL) return -1;
-    ASSERT(index < c->lineSize, "Line buffer overflow");
+    JSR_ASSERT(index < c->lineSize, "Line buffer overflow");
     return c->lines[index];
 }
 

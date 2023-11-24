@@ -7,11 +7,11 @@
 #include <stdlib.h>
 
 #include "compiler.h"
+#include "conf.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object.h"
-#include "util.h"
 #include "value.h"
 
 // Enum encoding special method names needed at runtime
@@ -220,7 +220,7 @@ inline ObjClass* getClass(JStarVM* vm, Value v) {
     case TRUE_BITS:
         return vm->boolClass;
     default:
-        UNREACHABLE();
+        JSR_UNREACHABLE();
         return NULL;
     }
 #else
@@ -235,7 +235,7 @@ inline ObjClass* getClass(JStarVM* vm, Value v) {
     case VAL_NULL:
         return vm->nullClass;
     default:
-        UNREACHABLE();
+        JSR_UNREACHABLE();
         return NULL;
     }
 #endif
