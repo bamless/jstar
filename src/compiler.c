@@ -79,11 +79,6 @@ typedef struct Upvalue {
     uint8_t index;
 } Upvalue;
 
-typedef struct FwdRef {
-    JStarIdentifier id;
-    int line;
-} FwdRef;
-
 typedef struct Loop {
     int depth;
     size_t start;
