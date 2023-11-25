@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "conf.h"
 #include "code.h"
+#include "conf.h"
 #include "gc.h"
 #include "jstar.h"
 #include "jstar_limits.h"
@@ -412,8 +412,8 @@ static void defineVar(Compiler* c, Variable* var, int line) {
 
 static void assertJumpOpcode(Opcode op) {
     JSR_ASSERT((op == OP_JUMP || op == OP_JUMPT || op == OP_JUMPF || op == OP_FOR_NEXT ||
-            op == OP_SETUP_EXCEPT || op == OP_SETUP_ENSURE),
-           "Not a jump opcode");
+                op == OP_SETUP_EXCEPT || op == OP_SETUP_ENSURE),
+               "Not a jump opcode");
 }
 
 static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
@@ -536,9 +536,9 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
     return string;
 }
 
-static void addFunctionDefaults(Compiler* c, Prototype* proto, ext_vector(JStarExpr*) const defaultArgs) {
+static void addFunctionDefaults(Compiler* c, Prototype* proto, ext_vector(JStarExpr*) defaultArgs) {
     int i = 0;
-    ext_vec_foreach(JStarExpr **it, defaultArgs) {
+    ext_vec_foreach(JStarExpr * *it, defaultArgs) {
         const JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -578,7 +578,7 @@ bool isSpreadExpr(JStarExpr* e) {
 
 bool containsSpreadExpr(JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
-    ext_vec_foreach(JStarExpr **it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr * *it, exprs->as.list) {
         JStarExpr* e = *it;
         if(isSpreadExpr(e)) {
             return true;
@@ -791,14 +791,14 @@ static void compileRval(Compiler* c, JStarExpr* e, const JStarIdentifier* name) 
     }
 }
 
-static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, ext_vector(JStarIdentifier) const names) {
+static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, ext_vector(JStarIdentifier) names) {
     if(ext_vec_size(exprs->as.list) < (size_t)lvals) {
         error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals,
               ext_vec_size(exprs->as.list));
     }
 
     int i = 0;
-    ext_vec_foreach(JStarExpr **it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr * *it, exprs->as.list) {
         const JStarIdentifier* name = NULL;
         if(names && i < lvals) name = &names[i];
         compileRval(c, *it, name);
@@ -881,7 +881,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
 }
 
 static void compileArguments(Compiler* c, JStarExpr* args) {
-    ext_vec_foreach(JStarExpr **it, args->as.list) {
+    ext_vec_foreach(JStarExpr * *it, args->as.list) {
         compileExpr(c, *it);
     }
 
@@ -1005,7 +1005,7 @@ static void compilePowExpr(Compiler* c, JStarExpr* e) {
 static void compileListLit(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
 
-    ext_vec_foreach(JStarExpr **it, e->as.array.exprs->as.list) {
+    ext_vec_foreach(JStarExpr * *it, e->as.array.exprs->as.list) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1035,7 +1035,7 @@ static void compileTupleLit(Compiler* c, JStarExpr* e) {
         return;
     }
 
-    ext_vec_foreach(JStarExpr **it, e->as.tuple.exprs->as.list) {
+    ext_vec_foreach(JStarExpr * *it, e->as.tuple.exprs->as.list) {
         compileExpr(c, *it);
     }
 
@@ -1167,7 +1167,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
-        ext_vec_foreach(JStarExpr **it, e->as.list) {
+        ext_vec_foreach(JStarExpr * *it, e->as.list) {
             compileExpr(c, *it);
         }
         break;
@@ -1182,8 +1182,8 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
 
 static void compileStatement(Compiler* c, JStarStmt* s);
 
-static void compileStatements(Compiler* c, ext_vector(JStarStmt*) const stmts) {
-    ext_vec_foreach(JStarStmt **it, stmts) {
+static void compileStatements(Compiler* c, ext_vector(JStarStmt*) stmts) {
+    ext_vec_foreach(JStarStmt * *it, stmts) {
         compileStatement(c, *it);
     }
 }
@@ -1319,7 +1319,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    ext_vec_foreach(JStarIdentifier *name, varDecl->as.decl.as.var.ids) {
+    ext_vec_foreach(JStarIdentifier * name, varDecl->as.decl.as.var.ids) {
         Variable var = declareVar(c, name, false, s->line);
         defineVar(c, &var, s->line);
     }
@@ -1360,8 +1360,8 @@ static void compileWhileStatement(Compiler* c, JStarStmt* s) {
 }
 
 static void compileImportStatement(Compiler* c, JStarStmt* s) {
-    const ext_vector(JStarIdentifier) modules = s->as.importStmt.modules;
-    const ext_vector(JStarIdentifier) names = s->as.importStmt.names;
+    ext_vector(JStarIdentifier) modules = s->as.importStmt.modules;
+    ext_vector(JStarIdentifier) names = s->as.importStmt.names;
     bool importFor = !ext_vec_empty(names);
     bool importAs = s->as.importStmt.as.name != NULL;
 
@@ -1374,7 +1374,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
         modVar = declareVar(c, name, false, s->line);
     }
 
-    ext_vec_foreach(const JStarIdentifier *submoduleName, modules) {
+    ext_vec_foreach(const JStarIdentifier* submoduleName, modules) {
         jsrBufferAppend(&nameBuf, submoduleName->name, submoduleName->length);
 
         if(importAs && submoduleName == ext_vec_end(modules) - 1) {
@@ -1394,7 +1394,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     }
 
     if(importFor) {
-        ext_vec_foreach(const JStarIdentifier *name, names) {
+        ext_vec_foreach(const JStarIdentifier* name, names) {
             emitOpcode(c, OP_IMPORT_NAME, s->line);
             emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
             emitShort(c, identifierConst(c, name, s->line), s->line);
@@ -1409,7 +1409,7 @@ static void compileImportStatement(Compiler* c, JStarStmt* s) {
     jsrBufferFree(&nameBuf);
 }
 
-static void compileExcepts(Compiler* c, ext_vector(JStarStmt*) const excepts, size_t curr) {
+static void compileExcepts(Compiler* c, ext_vector(JStarStmt*) excepts, size_t curr) {
     const JStarStmt* except = excepts[curr];
 
     // Retrieve the exception by using its phny variable name
@@ -1661,7 +1661,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
 
-    ext_vec_foreach(const JStarIdentifier *argName, s->as.decl.as.fun.formalArgs) {
+    ext_vec_foreach(const JStarIdentifier* argName, s->as.decl.as.fun.formalArgs) {
         Variable arg = declareVar(c, argName, false, s->line);
         defineVar(c, &arg, s->line);
     }
@@ -1753,14 +1753,14 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, JSt
     return nativeConst;
 }
 
-static void compileDecorators(Compiler* c, ext_vector(JStarExpr*) const decorators) {
-    ext_vec_foreach(JStarExpr **e, decorators) {
+static void compileDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
+    ext_vec_foreach(JStarExpr * *e, decorators) {
         compileExpr(c, *e);
     }
 }
 
-static void callDecorators(Compiler* c, ext_vector(JStarExpr*) const decorators) {
-    ext_vec_foreach(JStarExpr **e, decorators) {
+static void callDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
+    ext_vec_foreach(JStarExpr * *e, decorators) {
         JStarExpr* decorator = *e;
         emitOpcode(c, OP_CALL_1, decorator->line);
     }
@@ -1786,7 +1786,7 @@ static void compileMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
         type = TYPE_CTOR;
     }
 
-    ext_vector(JStarExpr*) const decorators = s->as.decl.decorators;
+    ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
 
     compileDecorators(c, decorators);
     compileFunction(c, type, createMethodName(c, clsName, methName), s);
@@ -1800,7 +1800,7 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
     ObjString* name = createMethodName(c, &cls->as.decl.as.cls.id, &s->as.decl.as.fun.id);
     uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, s);
 
-    ext_vector(JStarExpr*) const decorators = s->as.decl.decorators;
+    ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
     if(ext_vec_size(decorators)) {
         emitOpcode(c, OP_POP, cls->line);
 
@@ -1817,7 +1817,7 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
 }
 
 static void compileMethods(Compiler* c, JStarStmt* s) {
-    ext_vec_foreach(JStarStmt **it, s->as.decl.as.cls.methods) {
+    ext_vec_foreach(JStarStmt * *it, s->as.decl.as.cls.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
@@ -1860,7 +1860,7 @@ static void compileClassDecl(Compiler* c, JStarStmt* s) {
     emitOpcode(c, OP_POP, s->line);
     exitScope(c);
 
-    ext_vector(JStarExpr*) const decorators = s->as.decl.decorators;
+    ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
 
     if(ext_vec_size(decorators)) {
         compileDecorators(c, decorators);
@@ -1881,7 +1881,7 @@ static void compileFunDecl(Compiler* c, JStarStmt* s) {
         initializeVar(c, &funVar);
     }
 
-    ext_vector(JStarExpr*) const decorators = s->as.decl.decorators;
+    ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
 
     compileDecorators(c, decorators);
     compileFunction(c, TYPE_FUNC, copyString(c->vm, funName->name, funName->length), s);
@@ -1894,7 +1894,7 @@ static void compileNativeDecl(Compiler* c, JStarStmt* s) {
     JStarIdentifier* natName = &s->as.decl.as.native.id;
     Variable natVar = declareVar(c, natName, s->as.decl.isStatic, s->line);
 
-    ext_vector(JStarExpr*) const decorators = s->as.decl.decorators;
+    ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
 
     compileDecorators(c, decorators);
     compileNative(c, copyString(c->vm, natName->name, natName->length), OP_NATIVE, s);
@@ -1907,13 +1907,13 @@ static void compileVarDecl(Compiler* c, JStarStmt* s) {
     int varsCount = 0;
     Variable vars[MAX_LOCALS];
 
-    ext_vec_foreach(const JStarIdentifier *varName, s->as.decl.as.var.ids) {
+    ext_vec_foreach(const JStarIdentifier* varName, s->as.decl.as.var.ids) {
         Variable var = declareVar(c, varName, s->as.decl.isStatic, s->line);
         if(varsCount == MAX_LOCALS) break;
         vars[varsCount++] = var;
     }
 
-    ext_vector(JStarExpr*) const decorators = s->as.decl.decorators;
+    ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
     if(s->as.decl.as.var.isUnpack && ext_vec_size(decorators)) {
         error(c, decorators[0]->line, "Unpacking declaration cannot be decorated");
     }
