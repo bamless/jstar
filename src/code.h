@@ -19,6 +19,6 @@ void freeCode(Code* c);
 
 size_t writeByte(Code* c, uint8_t b, int line);
 int addConstant(Code* c, Value constant);
-int getBytecodeSrcLine(Code* c, size_t index);
+int getBytecodeSrcLine(const Code* c, size_t index);
 
 #endif

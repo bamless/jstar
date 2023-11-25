@@ -13,7 +13,7 @@ static uint16_t readShortAt(const uint8_t* code, size_t i) {
     return ((uint16_t)code[i] << 8) | code[i + 1];
 }
 
-static size_t countInstructions(Code* c) {
+static size_t countInstructions(const Code* c) {
     size_t count = 0;
     for(size_t i = 0; i < c->size;) {
         count++;
@@ -27,7 +27,7 @@ static size_t countInstructions(Code* c) {
     return count;
 }
 
-static void disassembleCode(Code* c, int indent) {
+static void disassembleCode(const Code* c, int indent) {
     for(size_t i = 0; i < c->size;) {
         disassembleInstr(c, indent, i);
         Opcode instr = c->bytecode[i];
@@ -39,14 +39,14 @@ static void disassembleCode(Code* c, int indent) {
     }
 }
 
-static void disassemblePrototype(Prototype* proto, int upvals) {
+static void disassemblePrototype(const Prototype* proto, int upvals) {
     printf("arguments %d, defaults %d, upvalues %d", (int)proto->argsCount, (int)proto->defCount,
            upvals);
     if(proto->vararg) printf(", vararg");
     printf("\n");
 }
 
-void disassembleFunction(ObjFunction* fn) {
+void disassembleFunction(const ObjFunction* fn) {
     ObjString* mod = fn->proto.module->name;
     ObjString* name = fn->proto.name;
     size_t instr = countInstructions(&fn->code);
@@ -74,7 +74,7 @@ void disassembleFunction(ObjFunction* fn) {
     }
 }
 
-void disassembleNative(ObjNative* nat) {
+void disassembleNative(const ObjNative* nat) {
     ObjString* mod = nat->proto.module->name;
     ObjString* name = nat->proto.name;
     printf("native ");
@@ -87,19 +87,19 @@ void disassembleNative(ObjNative* nat) {
     disassemblePrototype(&nat->proto, 0);
 }
 
-static void signedOffsetInstruction(Code* c, size_t i) {
+static void signedOffsetInstruction(const Code* c, size_t i) {
     int16_t off = (int16_t)readShortAt(c->bytecode, i + 1);
     printf("%d (to %zu)", off, (size_t)(i + off + 3));
 }
 
-static void constInstruction(Code* c, size_t i) {
+static void constInstruction(const Code* c, size_t i) {
     int arg = readShortAt(c->bytecode, i + 1);
     printf("%d (", arg);
     printValue(c->consts.arr[arg]);
     printf(")");
 }
 
-static void const2Instruction(Code* c, size_t i) {
+static void const2Instruction(const Code* c, size_t i) {
     int arg1 = readShortAt(c->bytecode, i + 1);
     int arg2 = readShortAt(c->bytecode, i + 3);
     printf("%d %d (", arg1, arg2);
@@ -109,7 +109,7 @@ static void const2Instruction(Code* c, size_t i) {
     printf(")");
 }
 
-static void invokeInstruction(Code* c, size_t i) {
+static void invokeInstruction(const Code* c, size_t i) {
     int argc = c->bytecode[i + 1];
     int name = readShortAt(c->bytecode, i + 2);
     printf("%d %d (", argc, name);
@@ -117,11 +117,11 @@ static void invokeInstruction(Code* c, size_t i) {
     printf(")");
 }
 
-static void unsignedByteInstruction(Code* c, size_t i) {
+static void unsignedByteInstruction(const Code* c, size_t i) {
     printf("%d", c->bytecode[i + 1]);
 }
 
-static void closureInstruction(Code* c, int indent, size_t i) {
+static void closureInstruction(const Code* c, int indent, size_t i) {
     int op = readShortAt(c->bytecode, i + 1);
 
     printf("%d (", op);
@@ -143,7 +143,7 @@ static void closureInstruction(Code* c, int indent, size_t i) {
     }
 }
 
-void disassembleInstr(Code* c, int indent, size_t instr) {
+void disassembleInstr(const Code* c, int indent, size_t instr) {
     for(int i = 0; i < indent; i++) {
         printf(" ");
     }

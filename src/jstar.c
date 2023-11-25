@@ -25,7 +25,7 @@
 // JStarNewVM, jsrInitRuntime and JStarFreeVM functions are implemented in vm.c
 // -----------------------------------------------------------------------------
 
-static bool validateSlot(JStarVM* vm, int slot) {
+static bool validateSlot(const JStarVM* vm, int slot) {
     if(slot < 0) {
         return vm->sp + slot >= vm->apiStack;
     } else {
@@ -33,11 +33,11 @@ static bool validateSlot(JStarVM* vm, int slot) {
     }
 }
 
-static bool validateStack(JStarVM* vm) {
+static bool validateStack(const JStarVM* vm) {
     return (size_t)(vm->sp - vm->stack) <= vm->stackSz;
 }
 
-static int apiStackIndex(JStarVM* vm, int slot) {
+static int apiStackIndex(const JStarVM* vm, int slot) {
     if(slot < 0) {
         JSR_ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
         return vm->sp + slot - vm->apiStack;
@@ -46,7 +46,7 @@ static int apiStackIndex(JStarVM* vm, int slot) {
     return slot;
 }
 
-static Value apiStackSlot(JStarVM* vm, int slot) {
+static Value apiStackSlot(const JStarVM* vm, int slot) {
     if(slot < 0) {
         JSR_ASSERT(vm->sp + slot >= vm->apiStack, "API stack underflow");
         return vm->sp[slot];
@@ -81,7 +81,7 @@ JStarConf jsrGetConf(void) {
     return conf;
 }
 
-void* jsrGetCustomData(JStarVM* vm) {
+void* jsrGetCustomData(const JStarVM* vm) {
     return vm->customData;
 }
 
@@ -353,11 +353,11 @@ void jsrEnsureStack(JStarVM* vm, size_t needed) {
     reserveStack(vm, needed);
 }
 
-bool jsrValidateSlot(JStarVM* vm, int slot) {
+bool jsrValidateSlot(const JStarVM* vm, int slot) {
     return validateSlot(vm, slot);
 }
 
-bool jsrValidateStack(JStarVM* vm) {
+bool jsrValidateStack(const JStarVM* vm) {
     return validateStack(vm);
 }
 
@@ -411,7 +411,13 @@ error:
     return false;
 }
 
-bool jsrRawEquals(JStarVM* vm, int slot1, int slot2) {
+bool jsrIs(const JStarVM* vm, int slot, int classSlot) {
+    Value v = apiStackSlot(vm, slot);
+    Value cls = apiStackSlot(vm, classSlot);
+    return IS_CLASS(cls) ? isInstance(vm, v, AS_CLASS(cls)) : false;
+}
+
+bool jsrRawEquals(const JStarVM* vm, int slot1, int slot2) {
     Value v1 = apiStackSlot(vm, slot1);
     Value v2 = apiStackSlot(vm, slot2);
     return valueEquals(v1, v2);
@@ -440,13 +446,7 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
     }
 }
 
-bool jsrIs(JStarVM* vm, int slot, int classSlot) {
-    Value v = apiStackSlot(vm, slot);
-    Value cls = apiStackSlot(vm, classSlot);
-    return IS_CLASS(cls) ? isInstance(vm, v, AS_CLASS(cls)) : false;
-}
-
-static void checkStack(JStarVM* vm) {
+static void checkStack(const JStarVM* vm) {
     JSR_ASSERT(validateStack(vm), "API Stack overflow");
 }
 
@@ -541,7 +541,7 @@ void jsrPopN(JStarVM* vm, int n) {
     }
 }
 
-int jsrTop(JStarVM* vm) {
+int jsrTop(const JStarVM* vm) {
     return apiStackIndex(vm, -1);
 }
 
@@ -608,7 +608,7 @@ void jsrListGet(JStarVM* vm, size_t i, int slot) {
     push(vm, lst->arr[i]);
 }
 
-size_t jsrListGetLength(JStarVM* vm, int slot) {
+size_t jsrListGetLength(const JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_LIST(lst), "Not a list");
     return AS_LIST(lst)->size;
@@ -622,7 +622,7 @@ void jsrTupleGet(JStarVM* vm, size_t i, int slot) {
     push(vm, tuple->arr[i]);
 }
 
-size_t jsrTupleGetLength(JStarVM* vm, int slot) {
+size_t jsrTupleGetLength(const JStarVM* vm, int slot) {
     Value tup = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_TUPLE(tup), "Not a tuple");
     return AS_TUPLE(tup)->size;
@@ -691,77 +691,77 @@ void* jsrGetUserdata(JStarVM* vm, int slot) {
     return (void*)AS_USERDATA(apiStackSlot(vm, slot))->data;
 }
 
-double jsrGetNumber(JStarVM* vm, int slot) {
+double jsrGetNumber(const JStarVM* vm, int slot) {
     JSR_ASSERT(IS_NUM(apiStackSlot(vm, slot)), "slot is not a Number");
     return AS_NUM(apiStackSlot(vm, slot));
 }
 
-const char* jsrGetString(JStarVM* vm, int slot) {
+const char* jsrGetString(const JStarVM* vm, int slot) {
     JSR_ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
     return AS_STRING(apiStackSlot(vm, slot))->data;
 }
 
-size_t jsrGetStringSz(JStarVM* vm, int slot) {
+size_t jsrGetStringSz(const JStarVM* vm, int slot) {
     JSR_ASSERT(IS_STRING(apiStackSlot(vm, slot)), "slot is not a String");
     return AS_STRING(apiStackSlot(vm, slot))->length;
 }
 
-bool jsrGetBoolean(JStarVM* vm, int slot) {
+bool jsrGetBoolean(const JStarVM* vm, int slot) {
     JSR_ASSERT(IS_BOOL(apiStackSlot(vm, slot)), "slot is not a Boolean");
     return AS_BOOL(apiStackSlot(vm, slot));
 }
 
-void* jsrGetHandle(JStarVM* vm, int slot) {
+void* jsrGetHandle(const JStarVM* vm, int slot) {
     JSR_ASSERT(IS_HANDLE(apiStackSlot(vm, slot)), "slot is not an Handle");
     return AS_HANDLE(apiStackSlot(vm, slot));
 }
 
-bool jsrIsNumber(JStarVM* vm, int slot) {
+bool jsrIsNumber(const JStarVM* vm, int slot) {
     return IS_NUM(apiStackSlot(vm, slot));
 }
 
-bool jsrIsInteger(JStarVM* vm, int slot) {
+bool jsrIsInteger(const JStarVM* vm, int slot) {
     return IS_INT(apiStackSlot(vm, slot));
 }
 
-bool jsrIsString(JStarVM* vm, int slot) {
+bool jsrIsString(const JStarVM* vm, int slot) {
     return IS_STRING(apiStackSlot(vm, slot));
 }
 
-bool jsrIsList(JStarVM* vm, int slot) {
+bool jsrIsList(const JStarVM* vm, int slot) {
     return IS_LIST(apiStackSlot(vm, slot));
 }
 
-bool jsrIsTuple(JStarVM* vm, int slot) {
+bool jsrIsTuple(const JStarVM* vm, int slot) {
     return IS_TUPLE(apiStackSlot(vm, slot));
 }
 
-bool jsrIsBoolean(JStarVM* vm, int slot) {
+bool jsrIsBoolean(const JStarVM* vm, int slot) {
     return IS_BOOL(apiStackSlot(vm, slot));
 }
 
-bool jsrIsNull(JStarVM* vm, int slot) {
+bool jsrIsNull(const JStarVM* vm, int slot) {
     return IS_NULL(apiStackSlot(vm, slot));
 }
 
-bool jsrIsInstance(JStarVM* vm, int slot) {
+bool jsrIsInstance(const JStarVM* vm, int slot) {
     return IS_INSTANCE(apiStackSlot(vm, slot));
 }
 
-bool jsrIsHandle(JStarVM* vm, int slot) {
+bool jsrIsHandle(const JStarVM* vm, int slot) {
     return IS_HANDLE(apiStackSlot(vm, slot));
 }
 
-bool jsrIsTable(JStarVM* vm, int slot) {
+bool jsrIsTable(const JStarVM* vm, int slot) {
     return IS_TABLE(apiStackSlot(vm, slot));
 }
 
-bool jsrIsFunction(JStarVM* vm, int slot) {
+bool jsrIsFunction(const JStarVM* vm, int slot) {
     Value val = apiStackSlot(vm, slot);
     return IS_CLOSURE(val) || IS_NATIVE(val) || IS_BOUND_METHOD(val);
 }
 
-bool jsrIsUserdata(JStarVM* vm, int slot) {
+bool jsrIsUserdata(const JStarVM* vm, int slot) {
     Value val = apiStackSlot(vm, slot);
     return IS_USERDATA(val);
 }

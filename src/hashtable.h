@@ -25,17 +25,17 @@ void freeHashTable(HashTable* t);
 // Puts a Value associated with "key" in the hashtable
 bool hashTablePut(HashTable* t, ObjString* key, Value val);
 // Gets the value associated with "key" from the hashtable
-bool hashTableGet(HashTable* t, ObjString* key, Value* res);
+bool hashTableGet(const HashTable* t, ObjString* key, Value* res);
 // Returns true if the hashtable contains "key", false otherwise
-bool hashTableContainsKey(HashTable* t, ObjString* key);
+bool hashTableContainsKey(const HashTable* t, ObjString* key);
 // Deletes the value associated with "key" from the hashtable
 bool hashTableDel(HashTable* t, ObjString* key);
 // Adds all key/value pairs in o to t
 void hashTableMerge(HashTable* t, HashTable* o);
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
-ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint32_t hash);
+ObjString* hashTableGetString(const HashTable* t, const char* str, size_t length, uint32_t hash);
 
-void reachHashTable(JStarVM* vm, HashTable* t);
+void reachHashTable(JStarVM* vm, const HashTable* t);
 void sweepStrings(HashTable* t);
 
 #endif

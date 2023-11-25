@@ -6,8 +6,8 @@
 #include "code.h"
 #include "object.h"
 
-void disassembleFunction(ObjFunction* fn);
-void disassembleNative(ObjNative* nat);
-void disassembleInstr(Code* c, int indent, size_t istr);
+void disassembleFunction(const ObjFunction* fn);
+void disassembleNative(const ObjNative* nat);
+void disassembleInstr(const Code* c, int indent, size_t istr);
 
 #endif

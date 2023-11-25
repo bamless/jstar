@@ -1885,8 +1885,8 @@ bool unwindStack(JStarVM* vm, int depth) {
 // Inline function declarations
 extern inline void push(JStarVM* vm, Value v);
 extern inline Value pop(JStarVM* vm);
-extern inline Value peek(JStarVM* vm);
-extern inline Value peek2(JStarVM* vm);
-extern inline Value peekn(JStarVM* vm, int n);
-extern inline ObjClass* getClass(JStarVM* vm, Value v);
-extern inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls);
+extern inline Value peek(const JStarVM* vm);
+extern inline Value peek2(const JStarVM* vm);
+extern inline Value peekn(const JStarVM* vm, int n);
+extern inline ObjClass* getClass(const JStarVM* vm, Value v);
+extern inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls);

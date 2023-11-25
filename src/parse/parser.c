@@ -148,11 +148,11 @@ static JStarIdentifier createIdentifier(const JStarTok* tok) {
     return (JStarIdentifier){tok->length, tok->lexeme};
 }
 
-static bool match(Parser* p, JStarTokType type) {
+static bool match(const Parser* p, JStarTokType type) {
     return p->peek.type == type;
 }
 
-static bool matchAny(Parser* p, JStarTokType* tokens, int count) {
+static bool matchAny(const Parser* p, const JStarTokType* tokens, int count) {
     for(int i = 0; i < count; i++) {
         if(match(p, tokens[i])) return true;
     }
@@ -246,26 +246,26 @@ static JStarTokType assignToOperator(JStarTokType t) {
     }
 }
 
-static bool isDeclaration(JStarTok* tok) {
+static bool isDeclaration(const JStarTok* tok) {
     JStarTokType t = tok->type;
     return t == TOK_FUN || t == TOK_NAT || t == TOK_CLASS || t == TOK_VAR;
 }
 
-static bool isCallExpression(JStarExpr* e) {
+static bool isCallExpression(const JStarExpr* e) {
     return (e->type == JSR_CALL) || (e->type == JSR_SUPER && e->as.sup.args);
 }
 
-static bool isImplicitEnd(JStarTok* tok) {
+static bool isImplicitEnd(const JStarTok* tok) {
     JStarTokType t = tok->type;
     return t == TOK_EOF || t == TOK_END || t == TOK_ELSE || t == TOK_ELIF || t == TOK_ENSURE ||
            t == TOK_EXCEPT;
 }
 
-static bool isStatementEnd(JStarTok* tok) {
+static bool isStatementEnd(const JStarTok* tok) {
     return isImplicitEnd(tok) || tok->type == TOK_NEWLINE || tok->type == TOK_SEMICOLON;
 }
 
-static bool isExpressionStart(JStarTok* tok) {
+static bool isExpressionStart(const JStarTok* tok) {
     JStarTokType t = tok->type;
     return t == TOK_NUMBER || t == TOK_TRUE || t == TOK_FALSE || t == TOK_IDENTIFIER ||
            t == TOK_STRING || t == TOK_NULL || t == TOK_SUPER || t == TOK_LPAREN ||
@@ -273,11 +273,11 @@ static bool isExpressionStart(JStarTok* tok) {
            t == TOK_HASH_HASH || t == TOK_LCURLY || t == TOK_YIELD;
 }
 
-static bool isAssign(JStarTok* tok) {
+static bool isAssign(const JStarTok* tok) {
     return tok->type >= TOK_EQUAL && tok->type <= TOK_MOD_EQ;
 }
 
-static bool isCompoundAssign(JStarTok* tok) {
+static bool isCompoundAssign(const JStarTok* tok) {
     return tok->type != TOK_EQUAL && isAssign(tok);
 }
 
@@ -1165,7 +1165,7 @@ static JStarExpr* unaryExpr(Parser* p) {
     return powExpr(p);
 }
 
-static JStarExpr* parseBinary(Parser* p, JStarTokType* tokens, int count,
+static JStarExpr* parseBinary(Parser* p, const JStarTokType* tokens, int count,
                               JStarExpr* (*operand)(Parser*)) {
     JStarExpr* l = (*operand)(p);
 

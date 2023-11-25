@@ -83,7 +83,7 @@ bool hashTablePut(HashTable* t, ObjString* key, Value val) {
     return newEntry;
 }
 
-bool hashTableGet(HashTable* t, ObjString* key, Value* res) {
+bool hashTableGet(const HashTable* t, ObjString* key, Value* res) {
     if(t->entries == NULL) return false;
     Entry* e = findEntry(t->entries, t->sizeMask, key);
     if(!e->key) return false;
@@ -91,7 +91,7 @@ bool hashTableGet(HashTable* t, ObjString* key, Value* res) {
     return true;
 }
 
-bool hashTableContainsKey(HashTable* t, ObjString* key) {
+bool hashTableContainsKey(const HashTable* t, ObjString* key) {
     if(t->entries == NULL) return false;
     return findEntry(t->entries, t->sizeMask, key)->key != NULL;
 }
@@ -114,7 +114,7 @@ void hashTableMerge(HashTable* t, HashTable* o) {
     }
 }
 
-ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint32_t hash) {
+ObjString* hashTableGetString(const HashTable* t, const char* str, size_t length, uint32_t hash) {
     if(t->entries == NULL) return NULL;
     size_t i = hash & t->sizeMask;
     for(;;) {
@@ -129,7 +129,7 @@ ObjString* hashTableGetString(HashTable* t, const char* str, size_t length, uint
     }
 }
 
-void reachHashTable(JStarVM* vm, HashTable* t) {
+void reachHashTable(JStarVM* vm, const HashTable* t) {
     if(t->entries == NULL) return;
     for(size_t i = 0; i <= t->sizeMask; i++) {
         Entry* e = &t->entries[i];

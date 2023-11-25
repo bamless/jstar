@@ -209,7 +209,7 @@ static bool inGlobalScope(Compiler* c) {
     return c->depth == 0;
 }
 
-static void discardLocal(Compiler* c, Local* local) {
+static void discardLocal(Compiler* c, const Local* local) {
     if(local->isUpvalue) {
         emitByte(c, OP_CLOSE_UPVALUE, 0);
     } else {
@@ -560,7 +560,7 @@ static void addFunctionDefaults(Compiler* c, Prototype* proto, ext_vector(JStarE
     }
 }
 
-static JStarExpr* getExpressions(const JStarExpr* unpackable) {
+static JStarExpr* getExpressions(JStarExpr* unpackable) {
     switch(unpackable->type) {
     case JSR_ARRAY:
         return unpackable->as.array.exprs;
@@ -572,11 +572,11 @@ static JStarExpr* getExpressions(const JStarExpr* unpackable) {
     }
 }
 
-bool isSpreadExpr(const JStarExpr* e) {
+bool isSpreadExpr(JStarExpr* e) {
     return e->type == JSR_SPREAD;
 }
 
-bool containsSpreadExpr(const JStarExpr* exprs) {
+bool containsSpreadExpr(JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
     ext_vec_foreach(JStarExpr **it, exprs->as.list) {
         JStarExpr* e = *it;

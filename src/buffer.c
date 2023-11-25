@@ -6,7 +6,6 @@
 #include "gc.h"
 #include "jstar.h"
 #include "object.h"
-#include "util.h"
 #include "value.h"
 #include "vm.h"
 

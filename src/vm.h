@@ -195,19 +195,19 @@ inline Value pop(JStarVM* vm) {
     return *--vm->sp;
 }
 
-inline Value peek(JStarVM* vm) {
+inline Value peek(const JStarVM* vm) {
     return vm->sp[-1];
 }
 
-inline Value peek2(JStarVM* vm) {
+inline Value peek2(const JStarVM* vm) {
     return vm->sp[-2];
 }
 
-inline Value peekn(JStarVM* vm, int n) {
+inline Value peekn(const JStarVM* vm, int n) {
     return vm->sp[-(n + 1)];
 }
 
-inline ObjClass* getClass(JStarVM* vm, Value v) {
+inline ObjClass* getClass(const JStarVM* vm, Value v) {
 #ifdef JSTAR_NAN_TAGGING
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
     if(IS_NUM(v)) return vm->numClass;
@@ -241,7 +241,7 @@ inline ObjClass* getClass(JStarVM* vm, Value v) {
 #endif
 }
 
-inline bool isInstance(JStarVM* vm, Value i, ObjClass* cls) {
+inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls) {
     for(ObjClass* c = getClass(vm, i); c != NULL; c = c->superCls) {
         if(c == cls) {
             return true;

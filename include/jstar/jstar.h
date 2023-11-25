@@ -112,7 +112,7 @@ JSTAR_API void jsrFreeVM(JStarVM* vm);
 JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
 
 // Gets the custom data associated with the VM at configuration time (if any)
-JSTAR_API void* jsrGetCustomData(JStarVM* vm);
+JSTAR_API void* jsrGetCustomData(const JStarVM* vm);
 
 // Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
 JSTAR_API void jsrEvalBreak(JStarVM* vm);
@@ -188,16 +188,16 @@ JSTAR_API void jsrPop(JStarVM* vm);
 JSTAR_API void jsrPopN(JStarVM* vm, int n);
 
 // The the top-most used api stack slot
-JSTAR_API int jsrTop(JStarVM* vm);
+JSTAR_API int jsrTop(const JStarVM* vm);
 
 // -----------------------------------------------------------------------------
 // J* TO C VALUE CONVERSION API
 // -----------------------------------------------------------------------------
 
-JSTAR_API double jsrGetNumber(JStarVM* vm, int slot);
-JSTAR_API bool jsrGetBoolean(JStarVM* vm, int slot);
-JSTAR_API void* jsrGetHandle(JStarVM* vm, int slot);
-JSTAR_API size_t jsrGetStringSz(JStarVM* vm, int slot);
+JSTAR_API double jsrGetNumber(const JStarVM* vm, int slot);
+JSTAR_API bool jsrGetBoolean(const JStarVM* vm, int slot);
+JSTAR_API void* jsrGetHandle(const JStarVM* vm, int slot);
+JSTAR_API size_t jsrGetStringSz(const JStarVM* vm, int slot);
 
 // BEWARE: The returned string is owned by J*
 // and thus is garbage collected. Never use this
@@ -206,24 +206,24 @@ JSTAR_API size_t jsrGetStringSz(JStarVM* vm, int slot);
 // from the stack  while retaining this buffer, because
 // if a GC occurs and the string is not found to be
 // reachable it'll be collected.
-JSTAR_API const char* jsrGetString(JStarVM* vm, int slot);
+JSTAR_API const char* jsrGetString(const JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
 // OPERATOR API
 // -----------------------------------------------------------------------------
 
+// Check if a value is of a certain class.
+// Returns true if the object is an instance of the class, false if it's not
+// or if `classSlot` doesn't point to a Class object
+JSTAR_API bool jsrIs(const JStarVM* vm, int slot, int classSlot);
+
 // Check if two objects are the same. Doesn't call __eq__ overload.
 // Returns true if the two objects are the same
-JSTAR_API bool jsrRawEquals(JStarVM* vm, int slot1, int slot2);
+JSTAR_API bool jsrRawEquals(const JStarVM* vm, int slot1, int slot2);
 
 // Check if two J* values are equal. May call the __eq__ overload.
 // Returns true if the two objects are the same, as defined by the __eq__ method
 JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
-
-// Check if a value is of a certain class.
-// Returns true if the object is an instance of the class, false if it's not
-// or if `classSlot` doesn't point to a Class object
-JSTAR_API bool jsrIs(JStarVM* vm, int slot, int classSlot);
 
 // -----------------------------------------------------------------------------
 // EXCEPTION API
@@ -257,7 +257,9 @@ JSTAR_API void jsrListAppend(JStarVM* vm, int slot);
 JSTAR_API void jsrListInsert(JStarVM* vm, size_t i, int slot);
 JSTAR_API void jsrListRemove(JStarVM* vm, size_t i, int slot);
 JSTAR_API void jsrListGet(JStarVM* vm, size_t i, int slot);
-JSTAR_API size_t jsrListGetLength(JStarVM* vm, int slot);
+
+// Returns the length of the list at slot `slot`. Doesn't push length onto the J* stack.
+JSTAR_API size_t jsrListGetLength(const JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
 // TUPLE API
@@ -265,7 +267,9 @@ JSTAR_API size_t jsrListGetLength(JStarVM* vm, int slot);
 
 // These functions do not perfrom bounds checking, use jsrCheckIndex/Num first if needed.
 JSTAR_API void jsrTupleGet(JStarVM* vm, size_t i, int slot);
-JSTAR_API size_t jsrTupleGetLength(JStarVM* vm, int slot);
+
+// Returns the length of the tuple at slot `slot`. Doesn't push length onto the J* stack.
+JSTAR_API size_t jsrTupleGetLength(const JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
 // ITERATOR API
@@ -378,18 +382,18 @@ JSTAR_API void* jsrGetUserdata(JStarVM* vm, int slot);
 // -----------------------------------------------------------------------------
 
 // These functions return true if the slot is of the given type, false otherwise
-JSTAR_API bool jsrIsNumber(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsInteger(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsString(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsList(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsTuple(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsBoolean(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsHandle(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsNull(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsInstance(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsTable(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsFunction(JStarVM* vm, int slot);
-JSTAR_API bool jsrIsUserdata(JStarVM* vm, int slot);
+JSTAR_API bool jsrIsNumber(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsInteger(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsString(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsList(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsTuple(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsBoolean(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsHandle(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsNull(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsInstance(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsTable(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsFunction(const JStarVM* vm, int slot);
+JSTAR_API bool jsrIsUserdata(const JStarVM* vm, int slot);
 
 // These functions return true if the slot is of the given type, false otherwise
 // leaving a TypeException on top of the stack with a message customized with `name`
@@ -450,11 +454,11 @@ JSTAR_API void jsrEnsureStack(JStarVM* vm, size_t needed);
 
 // Returns `true` if the provided slot is valid, i.e. it doesn't overflow or underflow the native
 // stack, false otherwise
-JSTAR_API bool jsrValidateSlot(JStarVM* vm, int slot);
+JSTAR_API bool jsrValidateSlot(const JStarVM* vm, int slot);
 
 // Returns `true` if the stack has space for one element, i.e. pushing one element will not overflow
 // the native stack
-JSTAR_API bool jsrValidateStack(JStarVM* vm);
+JSTAR_API bool jsrValidateStack(const JStarVM* vm);
 
 // J* native registry, used to associate names to c function
 // pointers during native resolution after module import.
