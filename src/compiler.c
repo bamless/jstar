@@ -538,7 +538,7 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
 
 static void addFunctionDefaults(Compiler* c, Prototype* proto, ext_vector(JStarExpr*) defaultArgs) {
     int i = 0;
-    ext_vec_foreach(JStarExpr * *it, defaultArgs) {
+    ext_vec_foreach(JStarExpr **it, defaultArgs) {
         const JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -578,7 +578,7 @@ bool isSpreadExpr(JStarExpr* e) {
 
 bool containsSpreadExpr(JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
-    ext_vec_foreach(JStarExpr * *it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr **it, exprs->as.list) {
         JStarExpr* e = *it;
         if(isSpreadExpr(e)) {
             return true;
@@ -798,7 +798,7 @@ static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, ext_vec
     }
 
     int i = 0;
-    ext_vec_foreach(JStarExpr * *it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr **it, exprs->as.list) {
         const JStarIdentifier* name = NULL;
         if(names && i < lvals) name = &names[i];
         compileRval(c, *it, name);
@@ -881,7 +881,7 @@ static void compileCompundAssign(Compiler* c, JStarExpr* e) {
 }
 
 static void compileArguments(Compiler* c, JStarExpr* args) {
-    ext_vec_foreach(JStarExpr * *it, args->as.list) {
+    ext_vec_foreach(JStarExpr **it, args->as.list) {
         compileExpr(c, *it);
     }
 
@@ -1005,7 +1005,7 @@ static void compilePowExpr(Compiler* c, JStarExpr* e) {
 static void compileListLit(Compiler* c, JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
 
-    ext_vec_foreach(JStarExpr * *it, e->as.array.exprs->as.list) {
+    ext_vec_foreach(JStarExpr **it, e->as.array.exprs->as.list) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1035,7 +1035,7 @@ static void compileTupleLit(Compiler* c, JStarExpr* e) {
         return;
     }
 
-    ext_vec_foreach(JStarExpr * *it, e->as.tuple.exprs->as.list) {
+    ext_vec_foreach(JStarExpr **it, e->as.tuple.exprs->as.list) {
         compileExpr(c, *it);
     }
 
@@ -1167,7 +1167,7 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
         compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
-        ext_vec_foreach(JStarExpr * *it, e->as.list) {
+        ext_vec_foreach(JStarExpr **it, e->as.list) {
             compileExpr(c, *it);
         }
         break;
@@ -1183,7 +1183,8 @@ static void compileExpr(Compiler* c, JStarExpr* e) {
 static void compileStatement(Compiler* c, JStarStmt* s);
 
 static void compileStatements(Compiler* c, ext_vector(JStarStmt*) stmts) {
-    ext_vec_foreach(JStarStmt * *it, stmts) {
+    ext_vec_push_back(stmts, NULL);
+    ext_vec_foreach(JStarStmt **it, stmts) {
         compileStatement(c, *it);
     }
 }
@@ -1319,7 +1320,7 @@ static void compileForEach(Compiler* c, JStarStmt* s) {
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    ext_vec_foreach(JStarIdentifier * name, varDecl->as.decl.as.var.ids) {
+    ext_vec_foreach(const JStarIdentifier* name, varDecl->as.decl.as.var.ids) {
         Variable var = declareVar(c, name, false, s->line);
         defineVar(c, &var, s->line);
     }
@@ -1754,13 +1755,13 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, JSt
 }
 
 static void compileDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr * *e, decorators) {
+    ext_vec_foreach(JStarExpr **e, decorators) {
         compileExpr(c, *e);
     }
 }
 
 static void callDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr * *e, decorators) {
+    ext_vec_foreach(JStarExpr **e, decorators) {
         JStarExpr* decorator = *e;
         emitOpcode(c, OP_CALL_1, decorator->line);
     }
@@ -1817,7 +1818,7 @@ static void compileNativeMethod(Compiler* c, JStarStmt* cls, JStarStmt* s) {
 }
 
 static void compileMethods(Compiler* c, JStarStmt* s) {
-    ext_vec_foreach(JStarStmt * *it, s->as.decl.as.cls.methods) {
+    ext_vec_foreach(JStarStmt **it, s->as.decl.as.cls.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:
