@@ -15,8 +15,9 @@
 #include "value.h"
 #include "vm.h"
 
-#define SER_DEF_SIZE 64
-#define HEADER_MAGIC 0xb5
+#define SER_DEF_SIZE    64
+#define STATIC_STR_SIZE 4096
+#define HEADER_MAGIC    0xb5
 
 static const uint8_t HEADER[4] = "JsrC";
 
@@ -236,8 +237,8 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         if(!deserializeUint64(d, &length)) return false;
     }
 
-    if(length <= 4096) {
-        char str[4096];
+    if(length <= STATIC_STR_SIZE) {
+        char str[STATIC_STR_SIZE];
         if(!deserializeCString(d, str, length)) return false;
         *out = copyString(d->vm, str, length);
     } else {

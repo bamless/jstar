@@ -14,6 +14,8 @@
 
 #define LIST_DEFAULT_CAPACITY 8
 #define LIST_GROW_RATE        2
+#define ST_DEFAULT_CAPACITY   2
+#define ST_GROW_RATE          2
 
 // -----------------------------------------------------------------------------
 // OBJECT ALLOCATION FUNCTIONS
@@ -379,7 +381,7 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
 
     if(st->recordSize + 1 >= st->recordCapacity) {
         size_t oldSize = sizeof(FrameRecord) * st->recordCapacity;
-        st->recordCapacity = st->records ? st->recordCapacity * 2 : 4;
+        st->recordCapacity = st->records ? st->recordCapacity * ST_GROW_RATE : ST_DEFAULT_CAPACITY;
         st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordCapacity);
     }
 
@@ -484,15 +486,16 @@ const char* ObjTypeNames[] = {
 static void printEscaped(ObjString* s) {
     const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
     const char* unescaped = "0abfnrtv\\\"";
+    const int len = strlen(escaped);
     for(size_t i = 0; i < s->length; i++) {
         int j;
-        for(j = 0; j < 10; j++) {
+        for(j = 0; j < len; j++) {
             if(s->data[i] == escaped[j]) {
                 printf("\\%c", unescaped[j]);
                 break;
             }
         }
-        if(j == 10) printf("%c", s->data[i]);
+        if(j == len) printf("%c", s->data[i]);
     }
 }
 
