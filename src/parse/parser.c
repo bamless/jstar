@@ -665,7 +665,8 @@ static ext_vector(JStarExpr*) parseDecorators(Parser* p) {
     ext_vector(JStarExpr*) decorators = NULL;
     while(match(p, TOK_AT)) {
         advance(p);
-        ext_vec_push_back(decorators, expression(p, false));
+        JStarExpr* expr = expression(p, false);
+        ext_vec_push_back(decorators, expr);
         skipNewLines(p);
     }
     return decorators;
