@@ -16,7 +16,6 @@
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
-#include "util.h"
 #include "value.h"
 #include "vm.h"
 
@@ -362,53 +361,49 @@ bool jsrValidateStack(const JStarVM* vm) {
 }
 
 bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
+    bool res = false;
     int saveErrno;
-    size_t read;
 
     FILE* src = fopen(path, "rb");
     if(src == NULL) {
         return false;
     }
 
-    char header[SERIALIZED_HEADER_SZ];
-    read = fread(header, 1, SERIALIZED_HEADER_SZ, src);
-    if(ferror(src)) {
-        goto error;
-    }
-
-    bool compiled = (read == SERIALIZED_HEADER_SZ) &&
-                    (memcmp(SERIALIZED_HEADER, header, read) == 0);
-
     if(fseek(src, 0, SEEK_END)) {
-        goto error;
+        goto exit_file;
     }
 
     long size = ftell(src);
-    if(size < 0) goto error;
+    if(size < 0) goto exit_file;
     rewind(src);
 
-    jsrBufferInitCapacity(vm, out, size + (compiled ? 0 : 1));
-    read = fread(out->data, 1, size, src);
-    if(read < (size_t)size) {
-        saveErrno = errno;
-        jsrBufferFree(out);
-        errno = saveErrno;
-        goto error;
-    }
+    jsrBufferInitCapacity(vm, out, size + 1);
 
-    if(fclose(src)) {
-        return false;
+    size_t read = fread(out->data, 1, size, src);
+    if(read < (size_t)size) {
+        goto exit_buf;
     }
 
     out->size = size;
-    if(!compiled) out->data[size] = '\0';
-    return src;
 
-error:
+    if(!isCompiledCode(out->data, size)) {
+        out->data[size] = '\0';
+    }
+
+    res = true;
+    goto exit_file;
+
+exit_buf:;
+    saveErrno = errno;
+    jsrBufferFree(out);
+    errno = saveErrno;
+
+exit_file:
     saveErrno = errno;
     if(fclose(src)) return false;
     errno = saveErrno;
-    return false;
+
+    return res;
 }
 
 bool jsrIs(const JStarVM* vm, int slot, int classSlot) {

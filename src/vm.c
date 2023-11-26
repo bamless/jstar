@@ -13,7 +13,7 @@
 #include "opcode.h"
 #include "profiler.h"
 
-#ifdef JSTAR_DBG_PRINT_GC
+#if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
 #include "disassemble.h"
 #endif
 

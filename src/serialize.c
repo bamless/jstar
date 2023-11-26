@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "conf.h"
 #include "code.h"
+#include "conf.h"
 #include "endianness.h"
 #include "gc.h"
 #include "jstar.h"
@@ -16,6 +16,14 @@
 #include "vm.h"
 
 #define SER_DEF_SIZE 64
+#define HEADER_MAGIC 0xb5
+
+static const uint8_t HEADER[4] = "JsrC";
+
+typedef struct Header {
+    uint8_t magic;
+    uint8_t header[sizeof(HEADER)];
+} Header;
 
 typedef enum ConstType {
     CONST_NUM = 1,
@@ -46,10 +54,6 @@ static void serializeShort(JStarBuffer* buf, uint16_t num) {
 
 static void serializeByte(JStarBuffer* buf, uint8_t byte) {
     write(buf, &byte, sizeof(uint8_t));
-}
-
-static void serializeCString(JStarBuffer* buf, const char* string) {
-    write(buf, string, strlen(string));
 }
 
 static void serializeDouble(JStarBuffer* buf, double num) {
@@ -147,7 +151,11 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
     JStarBuffer buf;
     jsrBufferInitCapacity(vm, &buf, SER_DEF_SIZE);
 
-    serializeCString(&buf, SERIALIZED_HEADER);
+    Header h;
+    h.magic = HEADER_MAGIC;
+    memcpy(h.header, HEADER, sizeof(HEADER));
+
+    write(&buf, &h, sizeof(h));
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
     serializeByte(&buf, JSTAR_VERSION_MINOR);
     serializeFunction(&buf, fn);
@@ -420,12 +428,14 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
 
     Deserializer d = {vm, code, len, mod, 0};
 
-    char header[SERIALIZED_HEADER_SZ];
-    if(!read(&d, header, SERIALIZED_HEADER_SZ)) {
+    Header h;
+    if(!read(&d, &h, sizeof(h))) {
         return JSR_DESERIALIZE_ERR;
     }
 
-    JSR_ASSERT(memcmp(header, SERIALIZED_HEADER, SERIALIZED_HEADER_SZ) == 0, "Header error");
+    if(h.magic != HEADER_MAGIC && memcmp(h.header, HEADER, sizeof(HEADER)) != 0) {
+        return JSR_DESERIALIZE_ERR;
+    }
 
     uint8_t versionMajor, versionMinor;
     if(!deserializeByte(&d, &versionMajor) || !deserializeByte(&d, &versionMinor)) {
@@ -448,8 +458,9 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
 }
 
 bool isCompiledCode(const void* code, size_t len) {
-    if(len >= SERIALIZED_HEADER_SZ) {
-        return memcmp(SERIALIZED_HEADER, code, SERIALIZED_HEADER_SZ) == 0;
+    if(len < sizeof(Header)) {
+        return false;
     }
-    return false;
+    Header* h = (Header*)code;
+    return h->magic == HEADER_MAGIC && memcmp(h->header, HEADER, sizeof(HEADER)) == 0;
 }
