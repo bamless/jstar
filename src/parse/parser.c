@@ -770,23 +770,20 @@ static JStarStmt* classDecl(Parser* p) {
         switch(p->peek.type) {
         case TOK_NAT:
             method = nativeDecl(p, true);
+            method->as.decl.decorators = decorators;
             break;
         case TOK_CTOR:
         case TOK_FUN:
             method = funcDecl(p, true);
+            method->as.decl.decorators = decorators;
             break;
         default:
             error(p, "Expected function or native delcaration");
-            freeDecorators(decorators);
             advance(p);
             break;
         }
 
-        if(!p->hadError) {
-            method->as.decl.decorators = decorators;
-            ext_vec_push_back(methods, method);
-        }
-
+        ext_vec_push_back(methods, method);
         skipNewLines(p);
         if(p->panic) classSynchronize(p);
     }
