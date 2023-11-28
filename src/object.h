@@ -11,7 +11,11 @@
 #include "jstar_limits.h"
 #include "value.h"
 
-// Forward declarations
+// Top level variables defined in each module
+#define MOD_NAME "__name__"  // The module's name
+#define MOD_PATH "__path__"  // The module's file path
+#define MOD_THIS "__this__"  // A reference to the module itself
+
 struct Frame;
 
 #ifdef JSTAR_DBG_PRINT_GC
@@ -238,13 +242,13 @@ typedef struct {
     SavedHandler handlers[MAX_HANDLERS];
 } SupsendedFrame;
 
-// A generator is a special iterator-like object that has the ability 
-// to suspend its execution via a `yield` expression. Each time it is 
+// A generator is a special iterator-like object that has the ability
+// to suspend its execution via a `yield` expression. Each time it is
 // called, execution resumes from the last evaluated yield or, in case
-// it is the first time calling it, from the start of the function. On 
+// it is the first time calling it, from the start of the function. On
 // resume, the yield expression evaluates to the Value passed in by the
 // caller, making it possible for generators to emulate (stackless)
-// coroutines. All the state needed to support suspension and resume is 
+// coroutines. All the state needed to support suspension and resume is
 // stored here (see `SuspendedFrame` and `savedStack`)
 typedef struct ObjGenerator {
     Obj base;
@@ -256,9 +260,9 @@ typedef struct ObjGenerator {
     } state;
     ObjClosure* closure;
     Value lastYield;
-    SupsendedFrame frame; // Saved generator frame
-    size_t stackSize;     // The size of the generator stack
-    Value savedStack[];   // The saved stack of the generator function
+    SupsendedFrame frame;  // Saved generator frame
+    size_t stackSize;      // The size of the generator stack
+    Value savedStack[];    // The saved stack of the generator function
 } ObjGenerator;
 
 typedef struct {

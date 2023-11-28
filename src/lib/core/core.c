@@ -22,6 +22,60 @@
 
 #define INT_PRINT_CUTOFF (INT64_C(1) << DBL_MANT_DIG)
 
+// The top-level variables defined by the core module
+// TODO: auto-generate from core/*jsr files
+static const char* coreSymbols[] = {
+    // Module variables
+    MOD_NAME,
+    MOD_PATH,
+    MOD_THIS,
+
+    // import __core__.excs
+    "excs",
+    "Exception",
+    "TypeException",
+    "NameException",
+    "FieldException",
+    "MethodException",
+    "ImportException",
+    "StackOverflowException",
+    "SyntaxException",
+    "InvalidArgException",
+    "GeneratorException",
+    "IndexOutOfBoundException",
+    "AssertException",
+    "NotImplementedException",
+    "ProgramInterrupt",
+
+    // import __core__.std
+    "std",
+    "assert",
+    "print",
+    "type",
+    "typeAssert",
+
+    // import __core__.iter
+    "iter",
+
+    // __core__
+    "argv",
+    "Number",
+    "Boolean",
+    "Null",
+    "Function",
+    "Module",
+    "Generator",
+    "String",
+    "List",
+    "Tuple",
+    "Table",
+    "Enum",
+    "StackTrace",
+    "Userdata",
+
+    NULL,
+};
+
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
     ObjString* n = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(n));
@@ -79,7 +133,119 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
 }
 
 // -----------------------------------------------------------------------------
-// CLASS AND OBJECT CLASSES AND CORE MODULE INITIALIZATION
+// API
+// -----------------------------------------------------------------------------
+
+static JSR_NATIVE(jsr_Object_string);
+static JSR_NATIVE(jsr_Object_hash);
+static JSR_NATIVE(jsr_Object_eq);
+static JSR_NATIVE(jsr_Class_getName);
+static JSR_NATIVE(jsr_Class_implements);
+static JSR_NATIVE(jsr_Class_string);
+
+void initCoreModule(JStarVM* vm) {
+    PROFILE_FUNC()
+
+    // Create and register core module
+    ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
+
+    push(vm, OBJ_VAL(coreModName));
+    ObjModule* core = newModule(vm, JSR_CORE_MODULE, coreModName);
+    setModule(vm, core->name, core);
+    vm->core = core;
+    pop(vm);
+
+    // Setup the class object. It will be the class of every other class
+    vm->clsClass = createClass(vm, core, NULL, "Class");
+    vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
+
+    // Setup the base class of the object hierarchy
+    vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
+    defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
+    defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
+
+    // Patch up Class object information
+    vm->clsClass->superCls = vm->objClass;
+    hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_implements, "implements", 1);
+    defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
+
+    {
+        PROFILE("{core-runEval}::initCore")
+
+        // Read core module
+        size_t len;
+        const char* code = readBuiltInModule(JSR_CORE_MODULE, &len);
+
+        // Execute core module
+        JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, code, len);
+
+        JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
+        (void)res;  // Not actually used aside from the assert
+    }
+
+    // Cache builtin class objects in JStarVM
+    {
+        PROFILE("{cache-bltins}::initCore")
+
+        vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
+        vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+        vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
+        vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
+        vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
+        vm->genClass = AS_CLASS(getDefinedName(vm, core, "Generator"));
+        vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
+        vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
+        vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+        vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+        vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
+        vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
+        vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
+        core->base.cls = vm->modClass;
+
+        // Cache core module global objects in vm
+        vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
+    }
+
+    {
+        PROFILE("{patch-up-classes}::initCoreModule")
+
+        // Patch up the class field of any object that was allocated
+        // before the creation of its corresponding class object
+        for(Obj* o = vm->objects; o != NULL; o = o->next) {
+            if(o->type == OBJ_UPVALUE) continue;
+
+            if(o->type == OBJ_STRING) {
+                o->cls = vm->strClass;
+            } else if(o->type == OBJ_LIST) {
+                o->cls = vm->lstClass;
+            } else if(o->type == OBJ_MODULE) {
+                o->cls = vm->modClass;
+            } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
+                o->cls = vm->funClass;
+            }
+
+            // Ensure all allocated object do actually have a class reference!
+            JSR_ASSERT(o->cls, "Object without class reference");
+        }
+    }
+}
+
+bool resolveCoreSymbol(const JStarIdentifier* id) {
+    // TODO: use an hashtable?
+    for(const char** name = coreSymbols; *name; name++) {
+        size_t len = strlen(*name);
+        if(len == id->length && memcmp(id->name, *name, len) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// -----------------------------------------------------------------------------
+// BUILTIN CLASSES
 // -----------------------------------------------------------------------------
 
 // class Object
@@ -126,102 +292,8 @@ static JSR_NATIVE(jsr_Class_string) {
     jsrBufferPush(&str);
     return true;
 }
+
 // end
-
-void initCoreModule(JStarVM* vm) {
-    PROFILE_FUNC()
-
-    // Create and register core module
-    ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
-
-    push(vm, OBJ_VAL(coreModName));
-    ObjModule* core = newModule(vm, JSR_CORE_MODULE, coreModName);
-    setModule(vm, core->name, core);
-    vm->core = core;
-    pop(vm);
-
-    // Setup the class object. It will be the class of every other class
-    vm->clsClass = createClass(vm, core, NULL, "Class");
-    vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
-
-    // Setup the base class of the object hierarchy
-    vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
-    defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
-    defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
-    defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
-
-    // Patch up Class object information
-    vm->clsClass->superCls = vm->objClass;
-    hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_implements, "implements", 1);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
-
-    {
-        PROFILE("{core-runEval}::initCore")
-
-        // Read core module
-        size_t len;
-        const char* code = readBuiltInModule(JSR_CORE_MODULE, &len);
-
-        // Execute core module
-        JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, code, len);
-        
-        JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
-        (void)res;  // Not actually used aside from the assert
-    }
-
-    // Cache builtin class objects in JStarVM
-    {
-        PROFILE("{cache-bltins}::initCore")
-
-        vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
-        vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-        vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
-        vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
-        vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
-        vm->genClass = AS_CLASS(getDefinedName(vm, core, "Generator"));
-        vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
-        vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-        vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-        vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
-        vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
-        vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
-        vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
-        core->base.cls = vm->modClass;
-
-        // Cache core module global objects in vm
-        vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
-    }
-
-    {
-        PROFILE("{patch-up-classes}::initCoreModule")
-
-        // Patch up the class field of any object that was allocated
-        // before the creation of its corresponding class object
-        for(Obj* o = vm->objects; o != NULL; o = o->next) {
-            if(o->type == OBJ_UPVALUE) continue;
-            
-            if(o->type == OBJ_STRING) {
-                o->cls = vm->strClass;
-            } else if(o->type == OBJ_LIST) {
-                o->cls = vm->lstClass;
-            } else if(o->type == OBJ_MODULE) {
-                o->cls = vm->modClass;
-            } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
-                o->cls = vm->funClass;
-            }
-
-            // Ensure all allocated object do actually have a class reference!
-            JSR_ASSERT(o->cls, "Object without class reference");
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// BUILTIN CLASSES
-// -----------------------------------------------------------------------------
-
 // class Number
 JSR_NATIVE(jsr_Number_construct) {
     if(jsrIsNumber(vm, 1)) {
@@ -308,7 +380,7 @@ JSR_NATIVE(jsr_Function_string) {
     Prototype* proto = getPrototype(fn);
 
     const char* fnType = NULL;
-    
+
     switch(fn->type) {
     case OBJ_CLOSURE:
         fnType = "function";
@@ -339,21 +411,11 @@ JSR_NATIVE(jsr_Function_string) {
 }
 
 static bool checkBuiltin(JStarVM* vm, ObjClass* cls) {
-    return vm->clsClass == cls
-        || vm->objClass == cls
-        || vm->strClass == cls
-        || vm->boolClass == cls
-        || vm->lstClass == cls
-        || vm->numClass == cls
-        || vm->funClass == cls
-        || vm->genClass == cls
-        || vm->modClass == cls
-        || vm->nullClass == cls
-        || vm->stClass == cls
-        || vm->tupClass == cls
-        || vm->excClass == cls
-        || vm->tableClass == cls
-        || vm->udataClass == cls;
+    return vm->clsClass == cls || vm->objClass == cls || vm->strClass == cls ||
+           vm->boolClass == cls || vm->lstClass == cls || vm->numClass == cls ||
+           vm->funClass == cls || vm->genClass == cls || vm->modClass == cls ||
+           vm->nullClass == cls || vm->stClass == cls || vm->tupClass == cls ||
+           vm->excClass == cls || vm->tableClass == cls || vm->udataClass == cls;
 }
 
 JSR_NATIVE(jsr_Function_bind) {
@@ -367,7 +429,7 @@ JSR_NATIVE(jsr_Function_bind) {
         }
         fn = bm->method;
     }
-    
+
     ObjBoundMethod* bound = newBoundMethod(vm, vm->apiStack[1], fn);
     push(vm, OBJ_VAL(bound));
 
@@ -500,10 +562,11 @@ JSR_NATIVE(jsr_List_construct) {
     } else {
         JSR_CHECK(Null, 2, "when calling List with an Iterable init");
         jsrPushList(vm);
-        JSR_FOREACH(1, {
-            jsrListAppend(vm, 3);
-            jsrPop(vm);
-        },)
+        JSR_FOREACH(
+            1, {
+                jsrListAppend(vm, 3);
+                jsrPop(vm);
+            }, )
     }
     return true;
 }
@@ -735,16 +798,17 @@ JSR_NATIVE(jsr_Tuple_construct) {
     // Consume the iterable into list
     if(!IS_LIST(vm->apiStack[1])) {
         jsrPushList(vm);
-        JSR_FOREACH(1, {
-            jsrListAppend(vm, 2);
-            jsrPop(vm);
-        },)
+        JSR_FOREACH(
+            1, {
+                jsrListAppend(vm, 2);
+                jsrPop(vm);
+            }, )
     }
 
     // Convert the list to a tuple
     ObjList* list = AS_LIST(vm->sp[-1]);
     ObjTuple* tuple = newTuple(vm, list->size);
-    
+
     if(list->size > 0) {
         memcpy(tuple->arr, list->arr, sizeof(Value) * list->size);
     }
@@ -853,19 +917,21 @@ JSR_NATIVE(jsr_String_construct) {
     JStarBuffer stringBuf;
     jsrBufferInit(vm, &stringBuf);
 
-    JSR_FOREACH(1, {
-        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
-            jsrBufferFree(&stringBuf);
-            return false;
-        }
-        if(!jsrIsString(vm, -1)) {
-            jsrBufferFree(&stringBuf);
-            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-        }
-        jsrBufferAppendStr(&stringBuf, jsrGetString(vm, -1));
-        jsrPop(vm);
-    },
-    jsrBufferFree(&stringBuf));
+    JSR_FOREACH(
+        1,
+        {
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
+                jsrBufferFree(&stringBuf);
+                return false;
+            }
+            if(!jsrIsString(vm, -1)) {
+                jsrBufferFree(&stringBuf);
+                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+            }
+            jsrBufferAppendStr(&stringBuf, jsrGetString(vm, -1));
+            jsrPop(vm);
+        },
+        jsrBufferFree(&stringBuf));
 
     jsrBufferPush(&stringBuf);
     return true;
@@ -945,7 +1011,6 @@ JSR_NATIVE(jsr_String_rfindSubstr) {
     return true;
 }
 
-
 JSR_NATIVE(jsr_String_charAt) {
     JSR_CHECK(Int, 1, "idx");
 
@@ -1015,7 +1080,7 @@ JSR_NATIVE(jsr_String_split) {
     size_t delimSize = jsrGetStringSz(vm, 1);
     if(delimSize == 0) JSR_RAISE(vm, "InvalidArgException", "Empty delimiter");
 
-    ObjList *tokens = newList(vm, 0);
+    ObjList* tokens = newList(vm, 0);
     push(vm, OBJ_VAL(tokens));
 
     const char* last = str;
@@ -1098,7 +1163,7 @@ JSR_NATIVE(jsr_String_escaped) {
                 break;
             }
         }
-        
+
         if(j == numEscapes) {
             jsrBufferAppendChar(&buf, str[i]);
         }
@@ -1367,29 +1432,32 @@ JSR_NATIVE(jsr_Table_construct) {
             }
         }
     } else if(!IS_NULL(vm->apiStack[1])) {
-        JSR_FOREACH(1, {
-            if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-                JSR_RAISE(vm, "TypeException",
-                          "Iterable elements in table costructor must be either a List or a "
-                          "Tuple, got %s", getClass(vm, peek(vm))->name->data);
-            }
-            
-            size_t size;
-            Value *array = getValues(AS_OBJ(peek(vm)), &size);
+        JSR_FOREACH(
+            1, {
+                if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+                    JSR_RAISE(vm, "TypeException",
+                              "Iterable elements in table costructor must be either a List or a "
+                              "Tuple, got %s",
+                              getClass(vm, peek(vm))->name->data);
+                }
 
-            if(size != 2) {
-                JSR_RAISE(vm, "TypeException", "Iterable element of length %zu, must be 2", size);
-            }
+                size_t size;
+                Value* array = getValues(AS_OBJ(peek(vm)), &size);
 
-            push(vm, OBJ_VAL(table));
-            push(vm, array[0]);
-            push(vm, array[1]);
+                if(size != 2) {
+                    JSR_RAISE(vm, "TypeException", "Iterable element of length %zu, must be 2",
+                              size);
+                }
 
-            if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+                push(vm, OBJ_VAL(table));
+                push(vm, array[0]);
+                push(vm, array[1]);
 
-            pop(vm);
-            pop(vm);
-        },)
+                if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+
+                pop(vm);
+                pop(vm);
+            }, )
     }
 
     return true;
@@ -1676,30 +1744,31 @@ JSR_NATIVE(jsr_Enum_construct) {
     }
 
     int iota = 0;
-    JSR_FOREACH(2, {
-        if(!checkEnumElem(vm)) return false;
+    JSR_FOREACH(
+        2, {
+            if(!checkEnumElem(vm)) return false;
 
-        if(isCustom) {
-            jsrPushValue(vm, -1);
-            if(!jsrSubscriptGet(vm, 2)) return false;
-        } else {
-            jsrPushNumber(vm, iota);
-        }
+            if(isCustom) {
+                jsrPushValue(vm, -1);
+                if(!jsrSubscriptGet(vm, 2)) return false;
+            } else {
+                jsrPushNumber(vm, iota);
+            }
 
-        jsrSetField(vm, 0, jsrGetString(vm, -2));
+            jsrSetField(vm, 0, jsrGetString(vm, -2));
 
-        jsrGetField(vm, 0, M_VALUE_NAME);
-        jsrPushValue(vm, -2);
-        jsrPushValue(vm, -4);
-        if(!jsrSubscriptSet(vm, -3)) return false;
-        jsrPop(vm);
-        jsrPop(vm);
+            jsrGetField(vm, 0, M_VALUE_NAME);
+            jsrPushValue(vm, -2);
+            jsrPushValue(vm, -4);
+            if(!jsrSubscriptSet(vm, -3)) return false;
+            jsrPop(vm);
+            jsrPop(vm);
 
-        jsrPop(vm);
-        jsrPop(vm);
+            jsrPop(vm);
+            jsrPop(vm);
 
-        iota++;
-    },);
+            iota++;
+        }, );
 
     if(iota == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");

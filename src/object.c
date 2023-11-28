@@ -8,10 +8,6 @@
 #include "util.h"
 #include "vm.h"
 
-#define MOD_NAME "__name__"
-#define MOD_PATH "__path__"
-#define MOD_THIS "__this__"
-
 #define LIST_DEFAULT_CAPACITY 8
 #define LIST_GROW_RATE        2
 #define ST_DEFAULT_CAPACITY   2

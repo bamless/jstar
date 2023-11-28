@@ -10,8 +10,11 @@
 #include "code.h"
 #include "conf.h"
 #include "gc.h"
+#include "hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
+#include "lib/core/core.h"
+#include "object.h"
 #include "opcode.h"
 #include "parse/ast.h"
 #include "parse/lex.h"
@@ -91,6 +94,11 @@ typedef struct TryExcept {
     struct TryExcept* parent;
 } TryExcept;
 
+typedef struct FwdRef {
+    JStarIdentifier id;
+    int line;
+} FwdRef;
+
 typedef enum FuncType {
     TYPE_FUNC,
     TYPE_METHOD,
@@ -99,6 +107,7 @@ typedef enum FuncType {
 
 struct Compiler {
     JStarVM* vm;
+    ObjModule* module;
 
     const char* file;
 
@@ -115,6 +124,9 @@ struct Compiler {
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
+    ext_vector(JStarIdentifier) globals;
+    ext_vector(FwdRef) fwdRefs;
+
     int stackUsage;
 
     int tryDepth;
@@ -123,12 +135,16 @@ struct Compiler {
     bool hadError;
 };
 
-static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* prev, FuncType type,
-                         JStarStmt* ast) {
+static void initCompiler(Compiler* c, JStarVM* vm, ObjModule* module, const char* file,
+                         Compiler* prev, FuncType type, ext_vector(JStarIdentifier) globals,
+                         ext_vector(FwdRef) fwdRefs, JStarStmt* ast) {
     c->vm = vm;
+    c->module = module;
     c->file = file;
     c->prev = prev;
     c->type = type;
+    c->globals = globals;
+    c->fwdRefs = fwdRefs;
     c->ast = ast;
     // 1 For the receiver
     c->stackUsage = 1;
@@ -143,7 +159,11 @@ static void initCompiler(Compiler* c, JStarVM* vm, const char* file, Compiler* p
 }
 
 static void endCompiler(Compiler* c) {
-    if(c->prev != NULL) c->prev->hadError |= c->hadError;
+    if(c->prev != NULL) {
+        c->prev->hadError |= c->hadError;
+        c->prev->globals = c->globals;
+        c->prev->fwdRefs = c->fwdRefs;
+    }
     c->vm->currCompiler = c->prev;
 }
 
@@ -347,6 +367,27 @@ static Variable resolveUpvalue(Compiler* c, const JStarIdentifier* id, int line)
     return var;
 }
 
+static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
+    Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
+
+    if(c->module) {
+        if(hashTableGetString(&c->module->globals, id->name, id->length,
+                              hashBytes(id->name, id->length))) {
+            return global;
+        }
+    } else if(resolveCoreSymbol(id)) {
+        return global;
+    }
+
+    ext_vec_foreach(const JStarIdentifier* globalId, c->globals) {
+        if(jsrIdentifierEq(id, globalId)) {
+            return global;
+        }
+    }
+
+    return (Variable){.scope = VAR_ERR};
+}
+
 static Variable resolveVar(Compiler* c, const JStarIdentifier* id, int line) {
     Variable var = resolveLocal(c, id, line);
     if(var.scope != VAR_ERR) {
@@ -358,6 +399,18 @@ static Variable resolveVar(Compiler* c, const JStarIdentifier* id, int line) {
         return var;
     }
 
+    var = resolveGlobal(c, id);
+    if(var.scope != VAR_ERR) {
+        return var;
+    }
+
+    if(inGlobalScope(c)) {
+        return (Variable){.scope = VAR_ERR};
+    }
+
+    FwdRef fwdRef = {*id, line};
+    ext_vec_push_back(c->fwdRefs, fwdRef);
+
     return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 }
 
@@ -366,10 +419,14 @@ static void initializeVar(Compiler* c, const Variable* var) {
     initializeLocal(c, var->as.local.localIdx);
 }
 
+static Variable declareGlobal(Compiler* c, const JStarIdentifier* id) {
+    ext_vec_push_back(c->globals, *id);
+    return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
+}
+
 static Variable declareVar(Compiler* c, const JStarIdentifier* id, bool forceLocal, int line) {
-    // Globals don't need to be declared
     if(inGlobalScope(c) && !forceLocal) {
-        return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
+        return declareGlobal(c, id);
     }
 
     if(!inGlobalScope(c) && forceLocal) {
@@ -739,7 +796,7 @@ static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, int 
         emitShort(c, identifierConst(c, &var.as.global.id, line), line);
         break;
     case VAR_ERR:
-        JSR_UNREACHABLE();
+        error(c, line, "Cannot resolve name `%.*s`", id->length, id->name);
         break;
     }
 }
@@ -791,7 +848,8 @@ static void compileRval(Compiler* c, JStarExpr* e, const JStarIdentifier* name) 
     }
 }
 
-static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals, ext_vector(JStarIdentifier) names) {
+static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals,
+                               ext_vector(JStarIdentifier) names) {
     if(ext_vec_size(exprs->as.list) < (size_t)lvals) {
         error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals,
               ext_vec_size(exprs->as.list));
@@ -1728,7 +1786,7 @@ static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, int lin
 
 static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* s) {
     Compiler compiler;
-    initCompiler(&compiler, c->vm, c->file, c, type, s);
+    initCompiler(&compiler, c->vm, c->module, c->file, c, type, c->globals, c->fwdRefs, s);
 
     enterFunctionScope(&compiler);
     ObjFunction* func = function(&compiler, c->func->proto.module, name, s);
@@ -2014,6 +2072,16 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
     }
 }
 
+static void resolveFwdRefs(Compiler* c) {
+    ext_vec_foreach(const FwdRef* fwdRef, c->fwdRefs) {
+        const JStarIdentifier* id = &fwdRef->id;
+        Variable global = resolveGlobal(c, id);
+        if(global.scope == VAR_ERR) {
+            error(c, fwdRef->line, "Cannot resolve name `%.*s`", id->length, id->name);
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------
 // API
 // -----------------------------------------------------------------------------
@@ -2021,10 +2089,17 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
 ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStarStmt* ast) {
     PROFILE_FUNC()
 
+    ext_vector(JStarIdentifier) globals = NULL;
+    ext_vector(FwdRef) fwdRefs = NULL;
+
     Compiler c;
-    initCompiler(&c, vm, filename, NULL, TYPE_FUNC, ast);
+    initCompiler(&c, vm, module, filename, NULL, TYPE_FUNC, globals, fwdRefs, ast);
     ObjFunction* func = function(&c, module, copyString(vm, "<main>", 6), ast);
+    resolveFwdRefs(&c);
     endCompiler(&c);
+
+    ext_vec_free(fwdRefs);
+    ext_vec_free(globals);
 
     return c.hadError ? NULL : func;
 }

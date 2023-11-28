@@ -2,9 +2,13 @@
 #define CORE_H
 
 #include "jstar.h"
+#include "parse/ast.h"
 
 // J* core module bootstrap
 void initCoreModule(JStarVM* vm);
+
+// Resolve a core module name
+bool resolveCoreSymbol(const JStarIdentifier* id);
 
 // J* core module native functions and methods
 
