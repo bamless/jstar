@@ -124,8 +124,8 @@ struct Compiler {
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
-    ext_vector(JStarIdentifier) globals;
-    ext_vector(FwdRef) fwdRefs;
+    ext_vector(JStarIdentifier)* globals;
+    ext_vector(FwdRef)* fwdRefs;
 
     int stackUsage;
 
@@ -136,8 +136,8 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, ObjModule* module, const char* file,
-                         Compiler* prev, FuncType type, ext_vector(JStarIdentifier) globals,
-                         ext_vector(FwdRef) fwdRefs, JStarStmt* ast) {
+                         Compiler* prev, FuncType type, ext_vector(JStarIdentifier)* globals,
+                         ext_vector(FwdRef)* fwdRefs, JStarStmt* ast) {
     c->vm = vm;
     c->module = module;
     c->file = file;
@@ -161,8 +161,6 @@ static void initCompiler(Compiler* c, JStarVM* vm, ObjModule* module, const char
 static void endCompiler(Compiler* c) {
     if(c->prev != NULL) {
         c->prev->hadError |= c->hadError;
-        c->prev->globals = c->globals;
-        c->prev->fwdRefs = c->fwdRefs;
     }
     c->vm->currCompiler = c->prev;
 }
@@ -379,7 +377,7 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
         return global;
     }
 
-    ext_vec_foreach(const JStarIdentifier* globalId, c->globals) {
+    ext_vec_foreach(const JStarIdentifier* globalId, *c->globals) {
         if(jsrIdentifierEq(id, globalId)) {
             return global;
         }
@@ -409,7 +407,7 @@ static Variable resolveVar(Compiler* c, const JStarIdentifier* id, int line) {
     }
 
     FwdRef fwdRef = {*id, line};
-    ext_vec_push_back(c->fwdRefs, fwdRef);
+    ext_vec_push_back(*c->fwdRefs, fwdRef);
 
     return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 }
@@ -420,7 +418,7 @@ static void initializeVar(Compiler* c, const Variable* var) {
 }
 
 static Variable declareGlobal(Compiler* c, const JStarIdentifier* id) {
-    ext_vec_push_back(c->globals, *id);
+    ext_vec_push_back(*c->globals, *id);
     return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 }
 
@@ -2073,7 +2071,7 @@ static void compileStatement(Compiler* c, JStarStmt* s) {
 }
 
 static void resolveFwdRefs(Compiler* c) {
-    ext_vec_foreach(const FwdRef* fwdRef, c->fwdRefs) {
+    ext_vec_foreach(const FwdRef* fwdRef, *c->fwdRefs) {
         const JStarIdentifier* id = &fwdRef->id;
         Variable global = resolveGlobal(c, id);
         if(global.scope == VAR_ERR) {
@@ -2093,7 +2091,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStar
     ext_vector(FwdRef) fwdRefs = NULL;
 
     Compiler c;
-    initCompiler(&c, vm, module, filename, NULL, TYPE_FUNC, globals, fwdRefs, ast);
+    initCompiler(&c, vm, module, filename, NULL, TYPE_FUNC, &globals, &fwdRefs, ast);
     ObjFunction* func = function(&c, module, copyString(vm, "<main>", 6), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
