@@ -21,11 +21,11 @@ class Iterable
         return sum(this, start)
     end
 
-    fun any(predicate)
+    fun any(predicate=null)
         return any(this, predicate)
     end
 
-    fun all(predicate)
+    fun all(predicate=null)
         return all(this, predicate)
     end
 
@@ -298,7 +298,10 @@ fun sum(iterable, start=0)
     return res
 end
 
-fun any(iterable, predicate)
+fun any(iterable, predicate=null)
+    if !predicate
+        predicate = |e| => e
+    end
     for var e in iterable
         if predicate(e)
             return true
@@ -307,7 +310,10 @@ fun any(iterable, predicate)
     return false
 end
 
-fun all(iterable, predicate)
+fun all(iterable, predicate=null)
+    if !predicate
+        predicate = |e| => e
+    end
     for var e in iterable
         if !predicate(e)
             return false
