@@ -109,6 +109,10 @@ class Iterable
         return interleave(this, sep)
     end
 
+    fun repeat(n=0)
+        return repeat(this).take(n).flatten() if n != 0 else repeat(this).flatten()
+    end
+
     fun sorted(comparator=null)
         return sorted(this, comparator)
     end
