@@ -109,6 +109,10 @@ class Iterable
         return interleave(this, sep)
     end
 
+    fun chunks(n)
+        return chunks(this, n)
+    end
+
     fun repeat(n=null)
         return repeat(this).take(n).flatten() if n else repeat(this).flatten()
     end
@@ -568,6 +572,23 @@ fun interleave(iterable, sep)
         
         yield sep
         yield e
+    end
+end
+
+fun chunks(iterable, size)
+    assert(size > 0, "size must be > 0", InvalidArgException)
+    var count, chunk = 0, []
+    for var e in iterable
+        chunk.add(e)
+        count += 1
+        if count == size
+            yield (...chunk,)
+            chunk.clear()
+            count = 0
+        end
+    end
+    if count != 0
+        yield (...chunk,)
     end
 end
 
