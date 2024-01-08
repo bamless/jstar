@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "jstar/parse/lex.h"
+#include "replxx.h"
 
 // -----------------------------------------------------------------------------
 // COLOR THEME DEFINITION
@@ -52,7 +53,7 @@ static const ReplxxColor theme[TOK_EOF] = {
     [TOK_STATIC] = STORAGE_KEYWORD_COLOR,
 
     // Punctuation
-    #define PUNCTUATION_COLOR REPLXX_COLOR_GRAY
+    #define PUNCTUATION_COLOR REPLXX_COLOR_DEFAULT
     [TOK_SEMICOLON] = PUNCTUATION_COLOR,
     [TOK_PIPE] = PUNCTUATION_COLOR,
     [TOK_LPAREN] = PUNCTUATION_COLOR,
