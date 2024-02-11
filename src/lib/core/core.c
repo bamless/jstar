@@ -14,6 +14,7 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
+#include "jstar.h"
 #include "object.h"
 #include "profiler.h"
 #include "util.h"
@@ -676,6 +677,9 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, b);
 
         if(jsrCallMethod(vm, "__le__", 1) != JSR_SUCCESS) {
+            jsrPop(vm);
+            jsrRaise(vm, "TypeException", "Operator <= not defined for type %s, %s",
+                     getClass(vm, a)->name->data, getClass(vm, b)->name->data);
             return false;
         }
 
