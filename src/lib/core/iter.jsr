@@ -412,7 +412,7 @@ fun last(iterable)
     if !found
         raise IndexOutOfBoundException()
     end
-    return last
+    return elem
 end
 
 fun count(iterable)
