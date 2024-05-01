@@ -310,7 +310,9 @@ void jsrRaiseException(JStarVM* vm, int slot) {
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     PROFILE_FUNC()
 
-    if(!jsrGetGlobal(vm, NULL, cls)) return;
+    if(!jsrGetGlobal(vm, NULL, cls)) {
+        return;
+    }
 
     ObjInstance* exception = newInstance(vm, AS_CLASS(pop(vm)));
     if(!isInstance(vm, OBJ_VAL(exception), vm->excClass)) {
