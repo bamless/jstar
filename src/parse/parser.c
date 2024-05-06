@@ -1,5 +1,6 @@
 #include "parse/parser.h"
 
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -294,7 +295,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    ext_vec_foreach(JStarExpr** it, lvals->as.list) {
+    ext_vec_foreach(JStarExpr * *it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "left hand side of unpack assignment must be composed of lvalues");
@@ -337,10 +338,33 @@ static JStarExpr* literal(Parser* p);
 static JStarExpr* tupleLiteral(Parser* p);
 
 typedef struct FormalArgs {
-    ext_vector(JStarIdentifier) arguments;
+    ext_vector(FormalArg) arguments;
     ext_vector(JStarExpr*) defaults;
     JStarTok vararg;
 } FormalArgs;
+
+static FormalArg parseUnpackArgument(Parser* p) {
+    ext_vector(JStarIdentifier) names = NULL;
+    require(p, TOK_LPAREN);
+
+    do {
+        JStarTok id = require(p, TOK_IDENTIFIER);
+        skipNewLines(p);
+
+        ext_vec_push_back(names, createIdentifier(&id));
+
+        if(!match(p, TOK_COMMA)) {
+            break;
+        }
+
+        advance(p);
+        skipNewLines(p);
+    } while(match(p, TOK_IDENTIFIER));
+
+    require(p, TOK_RPAREN);
+
+    return (FormalArg){.type = UNPACK, .as = {.unpack = names}};
+}
 
 static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
     FormalArgs args = {0};
@@ -348,18 +372,30 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
     require(p, open);
     skipNewLines(p);
 
-    while(match(p, TOK_IDENTIFIER)) {
-        JStarTok argument = advance(p);
+    while(match(p, TOK_IDENTIFIER) || match(p, TOK_LPAREN)) {
+        JStarTok peek = p->peek;
+        FormalArg arg;
+
+        if(peek.type == TOK_LPAREN) {
+            arg = parseUnpackArgument(p);
+        } else {
+            JStarTok argument = advance(p);
+            arg = (FormalArg){.type = ARG, .as = {.arg = createIdentifier(&argument)}};
+        }
+
         skipNewLines(p);
 
         if(match(p, TOK_EQUAL)) {
-            jsrLexRewind(&p->lex, &argument);
+            if(arg.type == UNPACK){
+                error(p, "Unpack argument cannot have default value");
+            }
+
+            jsrLexRewind(&p->lex, &peek);
             jsrNextToken(&p->lex, &p->peek);
             break;
         }
 
-        ext_vec_push_back(args.arguments, createIdentifier(&argument));
-        skipNewLines(p);
+        ext_vec_push_back(args.arguments, arg);
 
         if(!match(p, close)) {
             require(p, TOK_COMMA);
@@ -381,7 +417,8 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
             error(p, "Default argument must be a constant");
         }
 
-        ext_vec_push_back(args.arguments, createIdentifier(&argument));
+        FormalArg arg = {.type = ARG, .as = {.arg = createIdentifier(&argument)}};
+        ext_vec_push_back(args.arguments, arg);
         ext_vec_push_back(args.defaults, constant);
 
         if(!match(p, close)) {
@@ -673,7 +710,7 @@ static ext_vector(JStarExpr*) parseDecorators(Parser* p) {
 }
 
 static void freeDecorators(ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr **e, decorators) {
+    ext_vec_foreach(JStarExpr * *e, decorators) {
         jsrExprFree(*e);
     }
     ext_vec_free(decorators);
@@ -908,7 +945,8 @@ static JStarStmt* parseProgram(Parser* p) {
     }
 
     // Top level function doesn't have name or arguments, so pass them empty
-    return jsrFuncDecl(0, &(JStarTok){0}, NULL, NULL, &(JStarTok){0}, false, jsrBlockStmt(0, stmts));
+    return jsrFuncDecl(0, &(JStarTok){0}, NULL, NULL, &(JStarTok){0}, false,
+                       jsrBlockStmt(0, stmts));
 }
 
 // -----------------------------------------------------------------------------

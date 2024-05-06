@@ -155,7 +155,7 @@ JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarEx
     return e;
 }
 
-JStarExpr* jsrFuncLiteral(int line, ext_vector(JStarIdentifier) args,
+JStarExpr* jsrFuncLiteral(int line, ext_vector(FormalArg) args,
                           ext_vector(JStarExpr*) defArgs, JStarTok* vararg, bool isGenerator,
                           JStarStmt* body) {
     JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
@@ -267,7 +267,7 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(int line, JStarTok* name, ext_vector(JStarIdentifier) args,
+JStarStmt* jsrFuncDecl(int line, JStarTok* name, ext_vector(FormalArg) args,
                        ext_vector(JStarExpr*) defArgs, JStarTok* varargName, bool isGenerator,
                        JStarStmt* body) {
     JStarStmt* f = newDecl(line, JSR_FUNCDECL);
@@ -280,7 +280,7 @@ JStarStmt* jsrFuncDecl(int line, JStarTok* name, ext_vector(JStarIdentifier) arg
     return f;
 }
 
-JStarStmt* jsrNativeDecl(int line, JStarTok* name, ext_vector(JStarIdentifier) args,
+JStarStmt* jsrNativeDecl(int line, JStarTok* name, ext_vector(FormalArg) args,
                          ext_vector(JStarExpr*) defArgs, JStarTok* varargName) {
     JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
     n->as.decl.as.native.id = (JStarIdentifier){name->length, name->lexeme};
@@ -463,6 +463,11 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_FUNCDECL: {
         freeDeclaration(s);
+        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs) {
+            if (arg->type == UNPACK){
+                ext_vec_free(arg->as.unpack);
+            }
+        }
         ext_vec_free(s->as.decl.as.fun.formalArgs);
         ext_vec_foreach(JStarExpr** e, s->as.decl.as.fun.defArgs) {
             jsrExprFree(*e);
@@ -473,6 +478,12 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_NATIVEDECL: {
         freeDeclaration(s);
+        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs) {
+            if (arg->type == UNPACK){
+                ext_vec_free(arg->as.unpack);
+            }
+        }
+        ext_vec_free(s->as.decl.as.fun.formalArgs);
         ext_vec_free(s->as.decl.as.native.formalArgs);
         ext_vec_foreach(JStarExpr** e, s->as.decl.as.native.defArgs) {
             jsrExprFree(*e);

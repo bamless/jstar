@@ -135,6 +135,17 @@ typedef enum JStarStmtType {
     JSR_BREAK
 } JStarStmtType;
 
+typedef struct FormalArg {
+    enum {
+        ARG,
+        UNPACK
+    } type;
+    union {
+        JStarIdentifier arg;
+        ext_vector(JStarIdentifier) unpack;
+    } as;
+} FormalArg;
+
 struct JStarDecl {
     ext_vector(JStarExpr*) decorators;
     bool isStatic;
@@ -146,7 +157,7 @@ struct JStarDecl {
         } var;
         struct {
             JStarIdentifier id;
-            ext_vector(JStarIdentifier) formalArgs;
+            ext_vector(FormalArg) formalArgs;
             ext_vector(JStarExpr*) defArgs;
             JStarIdentifier vararg;
             bool isGenerator;
@@ -154,7 +165,7 @@ struct JStarDecl {
         } fun;
         struct {
             JStarIdentifier id;
-            ext_vector(JStarIdentifier) formalArgs;
+            ext_vector(FormalArg) formalArgs;
             ext_vector(JStarExpr*) defArgs;
             JStarIdentifier vararg;
         } native;
@@ -234,7 +245,7 @@ JSTAR_API bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFuncLiteral(int line, ext_vector(JStarIdentifier) args,
+JSTAR_API JStarExpr* jsrFuncLiteral(int line, ext_vector(FormalArg) args,
                                     ext_vector(JStarExpr*) defArgs, JStarTok* vararg,
                                     bool isGenerator, JStarStmt* body);
 JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr,
@@ -265,10 +276,10 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, ext_vector(JStarIdentifier) args,
+JSTAR_API JStarStmt* jsrFuncDecl(int line, JStarTok* name, ext_vector(FormalArg) args,
                                  ext_vector(JStarExpr*) defArgs, JStarTok* vararg, bool isGenerator,
                                  JStarStmt* body);
-JSTAR_API JStarStmt* jsrNativeDecl(int line, JStarTok* name, ext_vector(JStarIdentifier) args,
+JSTAR_API JStarStmt* jsrNativeDecl(int line, JStarTok* name, ext_vector(FormalArg) args,
                                    ext_vector(JStarExpr*) defArgs, JStarTok* vararg);
 JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
                                 JStarStmt* body);

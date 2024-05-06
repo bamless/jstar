@@ -41,8 +41,9 @@
 #define MAX_INLINE_ARGS 10
 
 // String constants
-#define THIS_STR "this"
-#define ANON_FMT "anonymous[line:%d]"
+#define THIS_STR       "this"
+#define ANON_FMT       "anonymous[line:%d]"
+#define UNPACK_ARG_FMT "@unpack:%d"
 
 static const int opcodeStackUsage[] = {
 #define OPCODE(opcode, args, stack) stack,
@@ -1696,6 +1697,46 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 // DECLARATIONS
 // -----------------------------------------------------------------------------
 
+static void compileFormalArg(Compiler *c, const FormalArg* arg, int argIdx, int line) {
+    switch(arg->type) {
+    case ARG: {
+        Variable var = declareVar(c, &arg->as.arg, false, line);
+        defineVar(c, &var, line);
+        break;
+    }
+    case UNPACK: {
+        char name[sizeof(ANON_FMT) + STRLEN_FOR_INT(int)];
+        sprintf(name, UNPACK_ARG_FMT, argIdx);
+        JStarIdentifier id = createIdentifier(name);
+
+        Variable var = declareVar(c, &id, false, line);
+        defineVar(c, &var, line);
+        break;                                             
+    }                                                      
+    }
+}
+
+static void unpackFormalArgs(Compiler* c, ext_vector(FormalArg) args, int line) {
+    int argIdx = 0;
+    ext_vec_foreach(const FormalArg* arg, args) {
+        if(arg->type == UNPACK) {
+            char name[sizeof(ANON_FMT) + STRLEN_FOR_INT(int)];
+            sprintf(name, UNPACK_ARG_FMT, argIdx);
+            JStarIdentifier id = createIdentifier(name);
+
+            compileVarLit(c, &id, false, line);
+            emitOpcode(c, OP_UNPACK, line);
+            emitByte(c, ext_vec_size(arg->as.unpack), line);
+
+            ext_vec_foreach(const JStarIdentifier* id, arg->as.unpack) {
+                Variable unpackedArg = declareVar(c, id, false, line);
+                defineVar(c, &unpackedArg, line);
+            }
+        }
+    }
+    argIdx++;
+}
+
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
     size_t defaults = ext_vec_size(s->as.decl.as.fun.defArgs);
     size_t arity = ext_vec_size(s->as.decl.as.fun.formalArgs);
@@ -1717,9 +1758,9 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
 
-    ext_vec_foreach(const JStarIdentifier* argName, s->as.decl.as.fun.formalArgs) {
-        Variable arg = declareVar(c, argName, false, s->line);
-        defineVar(c, &arg, s->line);
+    int argIdx = 0;
+    ext_vec_foreach(const FormalArg* arg, s->as.decl.as.fun.formalArgs) {
+        compileFormalArg(c, arg, argIdx, s->line);
     }
 
     if(isVararg) {
@@ -1730,6 +1771,8 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     if(s->as.decl.as.fun.isGenerator) {
         emitOpcode(c, OP_GENERATOR, s->line);
     }
+
+    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs, s->line);
 
     JStarStmt* body = s->as.decl.as.fun.body;
     compileStatements(c, body->as.blockStmt.stmts);
