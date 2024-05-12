@@ -386,7 +386,7 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
         skipNewLines(p);
 
         if(match(p, TOK_EQUAL)) {
-            if(arg.type == UNPACK){
+            if(arg.type == UNPACK) {
                 error(p, "Unpack argument cannot have default value");
             }
 

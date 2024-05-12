@@ -483,7 +483,6 @@ void jsrStmtFree(JStarStmt* s) {
                 ext_vec_free(arg->as.unpack);
             }
         }
-        ext_vec_free(s->as.decl.as.fun.formalArgs);
         ext_vec_free(s->as.decl.as.native.formalArgs);
         ext_vec_foreach(JStarExpr** e, s->as.decl.as.native.defArgs) {
             jsrExprFree(*e);

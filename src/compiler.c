@@ -125,6 +125,7 @@ struct Compiler {
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
+    ext_vector(char*) synthetic_names;
     ext_vector(JStarIdentifier)* globals;
     ext_vector(FwdRef)* fwdRefs;
 
@@ -136,14 +137,15 @@ struct Compiler {
     bool hadError;
 };
 
-static void initCompiler(Compiler* c, JStarVM* vm, ObjModule* module, const char* file,
-                         Compiler* prev, FuncType type, ext_vector(JStarIdentifier)* globals,
-                         ext_vector(FwdRef)* fwdRefs, JStarStmt* ast) {
+static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
+                         const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
+                         ext_vector(FwdRef) * fwdRefs, JStarStmt* ast) {
     c->vm = vm;
     c->module = module;
     c->file = file;
     c->prev = prev;
     c->type = type;
+    c->synthetic_names = NULL;
     c->globals = globals;
     c->fwdRefs = fwdRefs;
     c->ast = ast;
@@ -160,9 +162,15 @@ static void initCompiler(Compiler* c, JStarVM* vm, ObjModule* module, const char
 }
 
 static void endCompiler(Compiler* c) {
+    ext_vec_foreach(char** it, c->synthetic_names) {
+        free(*it);
+    }
+    free(c->synthetic_names);
+
     if(c->prev != NULL) {
         c->prev->hadError |= c->hadError;
     }
+
     c->vm->currCompiler = c->prev;
 }
 
@@ -196,27 +204,28 @@ static void adjustStackUsage(Compiler* c, int num) {
     }
 }
 
-static void correctLineNumber(Compiler* c, int* line) {
-    if(*line == 0 && c->func->code.lineSize > 0) {
-        *line = c->func->code.lines[c->func->code.lineSize - 1];
+static int correctLineNumber(Compiler* c, int line) {
+    if(line == 0 && c->func->code.lineSize > 0) {
+        return c->func->code.lines[c->func->code.lineSize - 1];
     }
+    return line;
 }
 
 static size_t emitOpcode(Compiler* c, Opcode op, int line) {
-    correctLineNumber(c, &line);
+    int correctedLine = correctLineNumber(c, line);
     adjustStackUsage(c, opcodeStackUsage[op]);
-    return writeByte(&c->func->code, op, line);
+    return writeByte(&c->func->code, op, correctedLine);
 }
 
 static size_t emitByte(Compiler* c, uint8_t b, int line) {
-    correctLineNumber(c, &line);
-    return writeByte(&c->func->code, b, line);
+    int correctedLine = correctLineNumber(c, line);
+    return writeByte(&c->func->code, b, correctedLine);
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
-    correctLineNumber(c, &line);
-    size_t addr = emitByte(c, (s >> 8) & 0xff, line);
-    emitByte(c, s & 0xff, line);
+    int correctedLine = correctLineNumber(c, line);
+    size_t addr = emitByte(c, (s >> 8) & 0xff, correctedLine);
+    emitByte(c, s & 0xff, correctedLine);
     return addr;
 }
 
@@ -803,10 +812,9 @@ static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, int 
 static void compileFunLiteral(Compiler* c, JStarExpr* e, const JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(!name) {
-        char anonymousName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) + 1];
-        sprintf(anonymousName, ANON_FMT, func->line);
-        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonymousName, strlen(anonymousName)),
-                        func);
+        char anonName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) + 1];
+        sprintf(anonName, ANON_FMT, func->line);
+        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonName, strlen(anonName)), func);
     } else {
         func->as.decl.as.fun.id = *name;
         compileFunction(c, TYPE_FUNC, copyString(c->vm, name->name, name->length), func);
@@ -855,12 +863,17 @@ static void compileConstUnpack(Compiler* c, JStarExpr* exprs, int lvals,
     }
 
     int i = 0;
-    ext_vec_foreach(JStarExpr * *it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr** it, exprs->as.list) {
         const JStarIdentifier* name = NULL;
-        if(names && i < lvals) name = &names[i];
+        if(names && i < lvals){
+            name = &names[i];
+        }
+
         compileRval(c, *it, name);
 
-        if(++i > lvals) emitOpcode(c, OP_POP, 0);
+        if(++i > lvals) {
+            emitOpcode(c, OP_POP, 0);
+        }
     }
 }
 
@@ -1697,7 +1710,7 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 // DECLARATIONS
 // -----------------------------------------------------------------------------
 
-static void compileFormalArg(Compiler *c, const FormalArg* arg, int argIdx, int line) {
+static void compileFormalArg(Compiler* c, const FormalArg* arg, int argIdx, int line) {
     switch(arg->type) {
     case ARG: {
         Variable var = declareVar(c, &arg->as.arg, false, line);
@@ -1705,14 +1718,16 @@ static void compileFormalArg(Compiler *c, const FormalArg* arg, int argIdx, int 
         break;
     }
     case UNPACK: {
-        char name[sizeof(ANON_FMT) + STRLEN_FOR_INT(int)];
+        char* name = malloc(sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
         sprintf(name, UNPACK_ARG_FMT, argIdx);
+        ext_vec_push_back(c->synthetic_names, name);
+
         JStarIdentifier id = createIdentifier(name);
 
         Variable var = declareVar(c, &id, false, line);
         defineVar(c, &var, line);
-        break;                                             
-    }                                                      
+        break;
+    }
     }
 }
 
@@ -1720,7 +1735,7 @@ static void unpackFormalArgs(Compiler* c, ext_vector(FormalArg) args, int line) 
     int argIdx = 0;
     ext_vec_foreach(const FormalArg* arg, args) {
         if(arg->type == UNPACK) {
-            char name[sizeof(ANON_FMT) + STRLEN_FOR_INT(int)];
+            char name[sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int)];
             sprintf(name, UNPACK_ARG_FMT, argIdx);
             JStarIdentifier id = createIdentifier(name);
 
@@ -1825,15 +1840,15 @@ static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, int lin
     }
 }
 
-static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* s) {
+static void compileFunction(Compiler* c, FuncType type, ObjString* name, JStarStmt* fn) {
     Compiler compiler;
-    initCompiler(&compiler, c->vm, c->module, c->file, c, type, c->globals, c->fwdRefs, s);
+    initCompiler(&compiler, c->vm, c, c->module, c->file, type, c->globals, c->fwdRefs, fn);
 
     enterFunctionScope(&compiler);
-    ObjFunction* func = function(&compiler, c->func->proto.module, name, s);
+    ObjFunction* func = function(&compiler, c->func->proto.module, name, fn);
     exitFunctionScope(&compiler);
 
-    emitClosure(c, func, compiler.upvalues, s->line);
+    emitClosure(c, func, compiler.upvalues, fn->line);
 
     endCompiler(&compiler);
 }
@@ -2134,7 +2149,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, JStar
     ext_vector(FwdRef) fwdRefs = NULL;
 
     Compiler c;
-    initCompiler(&c, vm, module, filename, NULL, TYPE_FUNC, &globals, &fwdRefs, ast);
+    initCompiler(&c, vm, NULL, module, filename, TYPE_FUNC, &globals, &fwdRefs, ast);
     ObjFunction* func = function(&c, module, copyString(vm, "<main>", 6), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
