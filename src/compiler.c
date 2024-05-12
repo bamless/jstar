@@ -165,7 +165,7 @@ static void endCompiler(Compiler* c) {
     ext_vec_foreach(char** it, c->synthetic_names) {
         free(*it);
     }
-    free(c->synthetic_names);
+    ext_vec_free(c->synthetic_names);
 
     if(c->prev != NULL) {
         c->prev->hadError |= c->hadError;
