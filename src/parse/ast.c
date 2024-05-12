@@ -155,11 +155,9 @@ JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarEx
     return e;
 }
 
-JStarExpr* jsrFuncLiteral(int line, ext_vector(FormalArg) args,
-                          ext_vector(JStarExpr*) defArgs, JStarTok* vararg, bool isGenerator,
-                          JStarStmt* body) {
+JStarExpr* jsrFuncLiteral(int line, const FormalArgs* args, bool isGenerator, JStarStmt* body) {
     JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
-    e->as.funLit.func = jsrFuncDecl(line, &(JStarTok){0}, args, defArgs, vararg, isGenerator, body);
+    e->as.funLit.func = jsrFuncDecl(line, &(JStarTok){0}, args, isGenerator, body);
     return e;
 }
 
@@ -267,26 +265,19 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(int line, JStarTok* name, ext_vector(FormalArg) args,
-                       ext_vector(JStarExpr*) defArgs, JStarTok* varargName, bool isGenerator,
-                       JStarStmt* body) {
+JStarStmt* jsrFuncDecl(int line, const JStarTok* name, const FormalArgs* args, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(line, JSR_FUNCDECL);
     f->as.decl.as.fun.id = (JStarIdentifier){name->length, name->lexeme};
-    f->as.decl.as.fun.formalArgs = args;
-    f->as.decl.as.fun.defArgs = defArgs;
-    f->as.decl.as.fun.vararg = (JStarIdentifier){varargName->length, varargName->lexeme};
-    f->as.decl.as.fun.isGenerator = isGenerator;
+    f->as.decl.as.fun.formalArgs = *args;
     f->as.decl.as.fun.body = body;
+    f->as.decl.as.fun.isGenerator = isGenerator;
     return f;
 }
 
-JStarStmt* jsrNativeDecl(int line, JStarTok* name, ext_vector(FormalArg) args,
-                         ext_vector(JStarExpr*) defArgs, JStarTok* varargName) {
+JStarStmt* jsrNativeDecl(int line, JStarTok* name, const FormalArgs* args) {
     JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
     n->as.decl.as.native.id = (JStarIdentifier){name->length, name->lexeme};
-    n->as.decl.as.native.formalArgs = args;
-    n->as.decl.as.native.defArgs = defArgs;
-    n->as.decl.as.fun.vararg = (JStarIdentifier){varargName->length, varargName->lexeme};
+    n->as.decl.as.native.formalArgs = *args;
     return n;
 }
 
@@ -463,31 +454,31 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_FUNCDECL: {
         freeDeclaration(s);
-        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs) {
+        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
             if (arg->type == UNPACK){
                 ext_vec_free(arg->as.unpack);
             }
         }
-        ext_vec_free(s->as.decl.as.fun.formalArgs);
-        ext_vec_foreach(JStarExpr** e, s->as.decl.as.fun.defArgs) {
+        ext_vec_free(s->as.decl.as.fun.formalArgs.args);
+        ext_vec_foreach(JStarExpr** e, s->as.decl.as.fun.formalArgs.defaults) {
             jsrExprFree(*e);
         }
-        ext_vec_free(s->as.decl.as.fun.defArgs);
+        ext_vec_free(s->as.decl.as.fun.formalArgs.defaults);
         jsrStmtFree(s->as.decl.as.fun.body);
         break;
     }
     case JSR_NATIVEDECL: {
         freeDeclaration(s);
-        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs) {
+        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
             if (arg->type == UNPACK){
                 ext_vec_free(arg->as.unpack);
             }
         }
-        ext_vec_free(s->as.decl.as.native.formalArgs);
-        ext_vec_foreach(JStarExpr** e, s->as.decl.as.native.defArgs) {
+        ext_vec_free(s->as.decl.as.fun.formalArgs.args);
+        ext_vec_foreach(JStarExpr** e, s->as.decl.as.fun.formalArgs.defaults) {
             jsrExprFree(*e);
         }
-        ext_vec_free(s->as.decl.as.native.defArgs);
+        ext_vec_free(s->as.decl.as.fun.formalArgs.defaults);
         break;
     }
     case JSR_CLASSDECL: {

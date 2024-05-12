@@ -337,12 +337,6 @@ static JStarExpr* expression(Parser* p, bool parseTuple);
 static JStarExpr* literal(Parser* p);
 static JStarExpr* tupleLiteral(Parser* p);
 
-typedef struct FormalArgs {
-    ext_vector(FormalArg) arguments;
-    ext_vector(JStarExpr*) defaults;
-    JStarTok vararg;
-} FormalArgs;
-
 static FormalArg parseUnpackArgument(Parser* p) {
     ext_vector(JStarIdentifier) names = NULL;
     require(p, TOK_LPAREN);
@@ -380,7 +374,7 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
             arg = parseUnpackArgument(p);
         } else {
             JStarTok argument = advance(p);
-            arg = (FormalArg){.type = ARG, .as = {.arg = createIdentifier(&argument)}};
+            arg = (FormalArg){.type = SIMPLE, .as = {.simple = createIdentifier(&argument)}};
         }
 
         skipNewLines(p);
@@ -395,7 +389,7 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
             break;
         }
 
-        ext_vec_push_back(args.arguments, arg);
+        ext_vec_push_back(args.args, arg);
 
         if(!match(p, close)) {
             require(p, TOK_COMMA);
@@ -417,8 +411,8 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
             error(p, "Default argument must be a constant");
         }
 
-        FormalArg arg = {.type = ARG, .as = {.arg = createIdentifier(&argument)}};
-        ext_vec_push_back(args.arguments, arg);
+        FormalArg arg = {.type = SIMPLE, .as = {.simple = createIdentifier(&argument)}};
+        ext_vec_push_back(args.args, arg);
         ext_vec_push_back(args.defaults, constant);
 
         if(!match(p, close)) {
@@ -431,7 +425,8 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
         advance(p);
         skipNewLines(p);
 
-        args.vararg = require(p, TOK_IDENTIFIER);
+        JStarTok vararg = require(p, TOK_IDENTIFIER);
+        args.vararg = createIdentifier(&vararg);
         skipNewLines(p);
     }
 
@@ -748,8 +743,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(line, &funcName, args.arguments, args.defaults, &args.vararg,
-                                  p->function->isGenerator, body);
+    JStarStmt* decl = jsrFuncDecl(line, &funcName, &args, p->function->isGenerator, body);
 
     endFunction(p);
 
@@ -775,7 +769,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return jsrNativeDecl(line, &funcName, args.arguments, args.defaults, &args.vararg);
+    return jsrNativeDecl(line, &funcName, &args);
 }
 
 static JStarStmt* classDecl(Parser* p) {
@@ -945,8 +939,8 @@ static JStarStmt* parseProgram(Parser* p) {
     }
 
     // Top level function doesn't have name or arguments, so pass them empty
-    return jsrFuncDecl(0, &(JStarTok){0}, NULL, NULL, &(JStarTok){0}, false,
-                       jsrBlockStmt(0, stmts));
+    FormalArgs args = {0};
+    return jsrFuncDecl(0, &(JStarTok){0}, &args, false, jsrBlockStmt(0, stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -1294,8 +1288,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        JStarExpr* lit = jsrFuncLiteral(line, args.arguments, args.defaults, &args.vararg,
-                                        p->function->isGenerator, body);
+        JStarExpr* lit = jsrFuncLiteral(line, &args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1317,8 +1310,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         ext_vec_push_back(anonFuncStmts, jsrReturnStmt(line, e));
         JStarStmt* body = jsrBlockStmt(line, anonFuncStmts);
 
-        JStarExpr* lit = jsrFuncLiteral(line, args.arguments, args.defaults, &args.vararg,
-                                        p->function->isGenerator, body);
+        JStarExpr* lit = jsrFuncLiteral(line, &args, p->function->isGenerator, body);
 
         endFunction(p);
 

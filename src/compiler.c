@@ -125,7 +125,7 @@ struct Compiler {
     Local locals[MAX_LOCALS];
     Upvalue upvalues[MAX_LOCALS];
 
-    ext_vector(char*) synthetic_names;
+    ext_vector(char*) syntheticNames;
     ext_vector(JStarIdentifier)* globals;
     ext_vector(FwdRef)* fwdRefs;
 
@@ -140,17 +140,16 @@ struct Compiler {
 static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
                          const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
                          ext_vector(FwdRef) * fwdRefs, JStarStmt* ast) {
+    vm->currCompiler = c;
     c->vm = vm;
     c->module = module;
     c->file = file;
     c->prev = prev;
     c->type = type;
-    c->synthetic_names = NULL;
     c->globals = globals;
     c->fwdRefs = fwdRefs;
     c->ast = ast;
-    // 1 For the receiver
-    c->stackUsage = 1;
+    c->stackUsage = 1;  // 1 for the receiver (always present)
     c->func = NULL;
     c->depth = 0;
     c->localsCount = 0;
@@ -158,14 +157,14 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
     c->tryDepth = 0;
     c->tryBlocks = NULL;
     c->hadError = false;
-    vm->currCompiler = c;
+    c->syntheticNames = NULL;
 }
 
 static void endCompiler(Compiler* c) {
-    ext_vec_foreach(char** it, c->synthetic_names) {
+    ext_vec_foreach(char** it, c->syntheticNames) {
         free(*it);
     }
-    ext_vec_free(c->synthetic_names);
+    ext_vec_free(c->syntheticNames);
 
     if(c->prev != NULL) {
         c->prev->hadError |= c->hadError;
@@ -1712,15 +1711,15 @@ static void compileLoopExitStmt(Compiler* c, JStarStmt* s) {
 
 static void compileFormalArg(Compiler* c, const FormalArg* arg, int argIdx, int line) {
     switch(arg->type) {
-    case ARG: {
-        Variable var = declareVar(c, &arg->as.arg, false, line);
+    case SIMPLE: {
+        Variable var = declareVar(c, &arg->as.simple, false, line);
         defineVar(c, &var, line);
         break;
     }
     case UNPACK: {
         char* name = malloc(sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
         sprintf(name, UNPACK_ARG_FMT, argIdx);
-        ext_vec_push_back(c->synthetic_names, name);
+        ext_vec_push_back(c->syntheticNames, name);
 
         JStarIdentifier id = createIdentifier(name);
 
@@ -1753,9 +1752,9 @@ static void unpackFormalArgs(Compiler* c, ext_vector(FormalArg) args, int line) 
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
-    size_t defaults = ext_vec_size(s->as.decl.as.fun.defArgs);
-    size_t arity = ext_vec_size(s->as.decl.as.fun.formalArgs);
-    JStarIdentifier* varargName = &s->as.decl.as.fun.vararg;
+    size_t defaults = ext_vec_size(s->as.decl.as.fun.formalArgs.defaults);
+    size_t arity = ext_vec_size(s->as.decl.as.fun.formalArgs.args);
+    const JStarIdentifier* varargName = &s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = varargName->name != NULL;
 
     // Allocate a new function. We need to push `name` on the stack in case a collection happens
@@ -1764,7 +1763,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     c->func->proto.name = name;
     pop(c->vm);
 
-    addFunctionDefaults(c, &c->func->proto, s->as.decl.as.fun.defArgs);
+    addFunctionDefaults(c, &c->func->proto, s->as.decl.as.fun.formalArgs.defaults);
 
     // Add the receiver.
     // In the case of functions the receiver is the function itself.
@@ -1774,7 +1773,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     initializeLocal(c, receiverLocal);
 
     int argIdx = 0;
-    ext_vec_foreach(const FormalArg* arg, s->as.decl.as.fun.formalArgs) {
+    ext_vec_foreach(const FormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
         compileFormalArg(c, arg, argIdx, s->line);
     }
 
@@ -1787,7 +1786,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
         emitOpcode(c, OP_GENERATOR, s->line);
     }
 
-    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs, s->line);
+    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->line);
 
     JStarStmt* body = s->as.decl.as.fun.body;
     compileStatements(c, body->as.blockStmt.stmts);
@@ -1812,20 +1811,20 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
 }
 
 static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
-    size_t defCount = ext_vec_size(s->as.decl.as.native.defArgs);
-    size_t arity = ext_vec_size(s->as.decl.as.native.formalArgs);
-    JStarIdentifier* vararg = &s->as.decl.as.native.vararg;
-    bool isVararg = vararg->name != NULL;
+    size_t defaults = ext_vec_size(s->as.decl.as.fun.formalArgs.defaults);
+    size_t arity = ext_vec_size(s->as.decl.as.fun.formalArgs.args);
+    const JStarIdentifier* varargName = &s->as.decl.as.fun.formalArgs.vararg;
+    bool isVararg = varargName->name != NULL;
 
     // Allocate a new native. We need to push `name` on the stack in case a collection happens
     push(c->vm, OBJ_VAL(name));
-    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defCount, isVararg);
+    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defaults, isVararg);
     native->proto.name = name;
     pop(c->vm);
 
     // Push the native on the stack in case `addFunctionDefaults` triggers a collection
     push(c->vm, OBJ_VAL(native));
-    addFunctionDefaults(c, &native->proto, s->as.decl.as.native.defArgs);
+    addFunctionDefaults(c, &native->proto, s->as.decl.as.native.formalArgs.defaults);
     pop(c->vm);
 
     return native;
