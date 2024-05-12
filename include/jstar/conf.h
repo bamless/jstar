@@ -18,7 +18,7 @@
 // Options
 #define JSTAR_COMPUTED_GOTOS
 #define JSTAR_NAN_TAGGING
-/* #undef JSTAR_DBG_PRINT_EXEC */
+#define JSTAR_DBG_PRINT_EXEC
 /* #undef JSTAR_DBG_PRINT_GC */
 /* #undef JSTAR_DBG_STRESS_GC */
 

@@ -1730,25 +1730,35 @@ static void compileFormalArg(Compiler* c, const FormalArg* arg, int argIdx, int 
     }
 }
 
+static void compileFormalArgs(Compiler* c, const ext_vector(FormalArg) args, int line) {
+    int argIdx = 0;
+    ext_vec_foreach(const FormalArg* arg, args) {
+        compileFormalArg(c, arg, argIdx++, line);
+    }
+}
+
 static void unpackFormalArgs(Compiler* c, ext_vector(FormalArg) args, int line) {
     int argIdx = 0;
     ext_vec_foreach(const FormalArg* arg, args) {
-        if(arg->type == UNPACK) {
-            char name[sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int)];
-            sprintf(name, UNPACK_ARG_FMT, argIdx);
-            JStarIdentifier id = createIdentifier(name);
-
-            compileVarLit(c, &id, false, line);
-            emitOpcode(c, OP_UNPACK, line);
-            emitByte(c, ext_vec_size(arg->as.unpack), line);
-
-            ext_vec_foreach(const JStarIdentifier* id, arg->as.unpack) {
-                Variable unpackedArg = declareVar(c, id, false, line);
-                defineVar(c, &unpackedArg, line);
-            }
+        if(arg->type == SIMPLE) {
+            continue;
         }
+
+        char name[sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int)];
+        sprintf(name, UNPACK_ARG_FMT, argIdx);
+        JStarIdentifier id = createIdentifier(name);
+
+        compileVarLit(c, &id, false, line);
+        emitOpcode(c, OP_UNPACK, line);
+        emitByte(c, ext_vec_size(arg->as.unpack), line);
+
+        ext_vec_foreach(const JStarIdentifier* id, arg->as.unpack) {
+            Variable unpackedArg = declareVar(c, id, false, line);
+            defineVar(c, &unpackedArg, line);
+        }
+
+        argIdx++;
     }
-    argIdx++;
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarStmt* s) {
@@ -1772,10 +1782,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, JStarSt
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
 
-    int argIdx = 0;
-    ext_vec_foreach(const FormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
-        compileFormalArg(c, arg, argIdx, s->line);
-    }
+    compileFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->line);
 
     if(isVararg) {
         Variable vararg = declareVar(c, varargName, false, s->line);

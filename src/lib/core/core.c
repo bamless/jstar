@@ -293,8 +293,8 @@ static JSR_NATIVE(jsr_Class_string) {
     jsrBufferPush(&str);
     return true;
 }
-
 // end
+
 // class Number
 JSR_NATIVE(jsr_Number_construct) {
     if(jsrIsNumber(vm, 1)) {
@@ -492,9 +492,10 @@ JSR_NATIVE(jsr_Generator_isDone) {
 
 JSR_NATIVE(jsr_Generator_string) {
     ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
+    const Prototype* proto = &gen->closure->fn->proto;
     JStarBuffer str;
     jsrBufferInit(vm, &str);
-    jsrBufferAppendf(&str, "<generator@%p>", (void*)gen);
+    jsrBufferAppendf(&str, "<Generator %s.%s@%p>", proto->module->name->data, proto->name->data, (void*)gen);
     jsrBufferPush(&str);
     return true;
 }
