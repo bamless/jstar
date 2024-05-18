@@ -66,7 +66,7 @@ static void endFunction(Parser* p) {
 // ERROR REPORTING FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static char* strchrnul(const char* str, char c) {
+static char* strchrWithNul(const char* str, char c) {
     char* ret;
     return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
 }
@@ -113,7 +113,7 @@ static void error(Parser* p, const char* msg, ...) {
         char error[MAX_ERR_SIZE];
         p->lineStart = correctEscapedNewlines(p->lineStart, errorTok->lexeme);
         int tokenCol = errorTok->lexeme - p->lineStart;
-        int lineLen = strchrnul(errorTok->lexeme, '\n') - p->lineStart;
+        int lineLen = strchrWithNul(errorTok->lexeme, '\n') - p->lineStart;
 
         int pos = printSourceSnippet(error, p->lineStart, lineLen, tokenCol);
 
