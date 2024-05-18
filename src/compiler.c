@@ -138,8 +138,8 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
-                         const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
-                         ext_vector(FwdRef) * fwdRefs, const JStarStmt* ast) {
+                         const char* file, FuncType type, ext_vector(JStarIdentifier)* globals,
+                         ext_vector(FwdRef)* fwdRefs, const JStarStmt* ast) {
     vm->currCompiler = c;
     c->vm = vm;
     c->module = module;
