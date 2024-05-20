@@ -236,13 +236,10 @@ static void addReplPrint(JStarBuffer* sb) {
 static JStarResult doRepl(void) {
     PROFILE_BEGIN_SESSION("jstar-repl.json")
 
-
     JStarResult res = JSR_SUCCESS;
     {
         PROFILE_FUNC()
 
-        // Init empty main module
-        jsrEvalModuleString(vm, "<repl>", JSR_MAIN_MODULE, "");
         registerPrintFunction();
         
         if(!opts.skipVersion) {

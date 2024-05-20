@@ -1,5 +1,6 @@
 #include "parse/parser.h"
 
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -65,7 +66,7 @@ static void endFunction(Parser* p) {
 // ERROR REPORTING FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static char* strchrnul(const char* str, char c) {
+static char* strchrWithNul(const char* str, char c) {
     char* ret;
     return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
 }
@@ -112,7 +113,7 @@ static void error(Parser* p, const char* msg, ...) {
         char error[MAX_ERR_SIZE];
         p->lineStart = correctEscapedNewlines(p->lineStart, errorTok->lexeme);
         int tokenCol = errorTok->lexeme - p->lineStart;
-        int lineLen = strchrnul(errorTok->lexeme, '\n') - p->lineStart;
+        int lineLen = strchrWithNul(errorTok->lexeme, '\n') - p->lineStart;
 
         int pos = printSourceSnippet(error, p->lineStart, lineLen, tokenCol);
 
@@ -294,7 +295,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    ext_vec_foreach(JStarExpr** it, lvals->as.list) {
+    ext_vec_foreach(JStarExpr * *it, lvals->as.list) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "left hand side of unpack assignment must be composed of lvalues");
@@ -336,11 +337,28 @@ static JStarExpr* expression(Parser* p, bool parseTuple);
 static JStarExpr* literal(Parser* p);
 static JStarExpr* tupleLiteral(Parser* p);
 
-typedef struct FormalArgs {
-    ext_vector(JStarIdentifier) arguments;
-    ext_vector(JStarExpr*) defaults;
-    JStarTok vararg;
-} FormalArgs;
+static FormalArg parseUnpackArgument(Parser* p) {
+    ext_vector(JStarIdentifier) names = NULL;
+    require(p, TOK_LPAREN);
+
+    do {
+        JStarTok id = require(p, TOK_IDENTIFIER);
+        skipNewLines(p);
+
+        ext_vec_push_back(names, createIdentifier(&id));
+
+        if(!match(p, TOK_COMMA)) {
+            break;
+        }
+
+        advance(p);
+        skipNewLines(p);
+    } while(match(p, TOK_IDENTIFIER));
+
+    require(p, TOK_RPAREN);
+
+    return (FormalArg){.type = UNPACK, .as = {.unpack = names}};
+}
 
 static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
     FormalArgs args = {0};
@@ -348,18 +366,30 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
     require(p, open);
     skipNewLines(p);
 
-    while(match(p, TOK_IDENTIFIER)) {
-        JStarTok argument = advance(p);
+    while(match(p, TOK_IDENTIFIER) || match(p, TOK_LPAREN)) {
+        JStarTok peek = p->peek;
+        FormalArg arg;
+
+        if(peek.type == TOK_LPAREN) {
+            arg = parseUnpackArgument(p);
+        } else {
+            JStarTok argName = advance(p);
+            arg = (FormalArg){.type = SIMPLE, .as = {.simple = createIdentifier(&argName)}};
+        }
+
         skipNewLines(p);
 
         if(match(p, TOK_EQUAL)) {
-            jsrLexRewind(&p->lex, &argument);
+            if(arg.type == UNPACK) {
+                error(p, "Unpack argument cannot have default value");
+            }
+
+            jsrLexRewind(&p->lex, &peek);
             jsrNextToken(&p->lex, &p->peek);
             break;
         }
 
-        ext_vec_push_back(args.arguments, createIdentifier(&argument));
-        skipNewLines(p);
+        ext_vec_push_back(args.args, arg);
 
         if(!match(p, close)) {
             require(p, TOK_COMMA);
@@ -381,7 +411,8 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
             error(p, "Default argument must be a constant");
         }
 
-        ext_vec_push_back(args.arguments, createIdentifier(&argument));
+        FormalArg arg = {.type = SIMPLE, .as = {.simple = createIdentifier(&argument)}};
+        ext_vec_push_back(args.args, arg);
         ext_vec_push_back(args.defaults, constant);
 
         if(!match(p, close)) {
@@ -394,7 +425,8 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
         advance(p);
         skipNewLines(p);
 
-        args.vararg = require(p, TOK_IDENTIFIER);
+        JStarTok vararg = require(p, TOK_IDENTIFIER);
+        args.vararg = createIdentifier(&vararg);
         skipNewLines(p);
     }
 
@@ -574,7 +606,7 @@ static JStarStmt* importStmt(Parser* p) {
         skipNewLines(p);
     }
 
-    JStarTok asName = {0};
+    JStarIdentifier asName = {0};
     ext_vector(JStarIdentifier) importNames = NULL;
 
     if(match(p, TOK_FOR)) {
@@ -591,7 +623,8 @@ static JStarStmt* importStmt(Parser* p) {
     } else if(match(p, TOK_AS)) {
         advance(p);
         skipNewLines(p);
-        asName = require(p, TOK_IDENTIFIER);
+        JStarTok as = require(p, TOK_IDENTIFIER);
+        asName = createIdentifier(&as);
     }
 
     requireStmtEnd(p);
@@ -615,9 +648,10 @@ static JStarStmt* tryStmt(Parser* p) {
         skipNewLines(p);
 
         JStarTok var = require(p, TOK_IDENTIFIER);
+        JStarIdentifier varName = createIdentifier(&var);
 
         JStarStmt* block = blockStmt(p);
-        ext_vec_push_back(excs, jsrExceptStmt(excLine, cls, &var, block));
+        ext_vec_push_back(excs, jsrExceptStmt(excLine, cls, &varName, block));
     }
 
     if(match(p, TOK_ENSURE)) {
@@ -655,10 +689,11 @@ static JStarStmt* withStmt(Parser* p) {
     skipNewLines(p);
 
     JStarTok var = require(p, TOK_IDENTIFIER);
+    JStarIdentifier varName = createIdentifier(&var);
     JStarStmt* block = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrWithStmt(line, e, &var, block);
+    return jsrWithStmt(line, e, &varName, block);
 }
 
 static ext_vector(JStarExpr*) parseDecorators(Parser* p) {
@@ -673,19 +708,14 @@ static ext_vector(JStarExpr*) parseDecorators(Parser* p) {
 }
 
 static void freeDecorators(ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr **e, decorators) {
+    ext_vec_foreach(JStarExpr * *e, decorators) {
         jsrExprFree(*e);
     }
     ext_vec_free(decorators);
 }
 
-static JStarTok ctorName(int line) {
-    return (JStarTok){
-        .line = line,
-        .type = TOK_IDENTIFIER,
-        .lexeme = CONSTRUCT_ID,
-        .length = strlen(CONSTRUCT_ID),
-    };
+static JStarIdentifier ctorName(int line) {
+    return (JStarIdentifier) {strlen(CONSTRUCT_ID), CONSTRUCT_ID};
 }
 
 static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
@@ -697,12 +727,13 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarTok funTok = advance(p);
     skipNewLines(p);
 
-    JStarTok funcName;
+    JStarIdentifier funcName;
     if(parseCtor && funTok.type == TOK_CTOR) {
         fn.isCtor = true;
         funcName = ctorName(line);
     } else {
-        funcName = require(p, TOK_IDENTIFIER);
+        JStarTok fun = require(p, TOK_IDENTIFIER);
+        funcName = createIdentifier(&fun);
     }
 
     skipNewLines(p);
@@ -711,8 +742,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(line, &funcName, args.arguments, args.defaults, &args.vararg,
-                                  p->function->isGenerator, body);
+    JStarStmt* decl = jsrFuncDecl(line, &funcName, &args, p->function->isGenerator, body);
 
     endFunction(p);
 
@@ -725,12 +755,13 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     advance(p);
     skipNewLines(p);
 
-    JStarTok funcName;
+    JStarIdentifier nativeName;
     if(parseCtor && p->peek.type == TOK_CTOR) {
         advance(p);
-        funcName = ctorName(line);
+        nativeName = ctorName(line);
     } else {
-        funcName = require(p, TOK_IDENTIFIER);
+        JStarTok nat = require(p, TOK_IDENTIFIER);
+        nativeName = createIdentifier(&nat);
     }
 
     skipNewLines(p);
@@ -738,7 +769,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return jsrNativeDecl(line, &funcName, args.arguments, args.defaults, &args.vararg);
+    return jsrNativeDecl(line, &nativeName, &args);
 }
 
 static JStarStmt* classDecl(Parser* p) {
@@ -747,7 +778,8 @@ static JStarStmt* classDecl(Parser* p) {
     advance(p);
     skipNewLines(p);
 
-    JStarTok clsName = require(p, TOK_IDENTIFIER);
+    JStarTok cls = require(p, TOK_IDENTIFIER);
+    JStarIdentifier clsName = createIdentifier(&cls);
     skipNewLines(p);
 
     JStarExpr* sup = NULL;
@@ -908,7 +940,8 @@ static JStarStmt* parseProgram(Parser* p) {
     }
 
     // Top level function doesn't have name or arguments, so pass them empty
-    return jsrFuncDecl(0, &(JStarTok){0}, NULL, NULL, &(JStarTok){0}, false, jsrBlockStmt(0, stmts));
+    FormalArgs args = {0};
+    return jsrFuncDecl(0, &(JStarIdentifier){0}, &args, false, jsrBlockStmt(0, stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -1256,8 +1289,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        JStarExpr* lit = jsrFuncLiteral(line, args.arguments, args.defaults, &args.vararg,
-                                        p->function->isGenerator, body);
+        JStarExpr* lit = jsrFuncLiteral(line, &args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1279,8 +1311,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         ext_vec_push_back(anonFuncStmts, jsrReturnStmt(line, e));
         JStarStmt* body = jsrBlockStmt(line, anonFuncStmts);
 
-        JStarExpr* lit = jsrFuncLiteral(line, args.arguments, args.defaults, &args.vararg,
-                                        p->function->isGenerator, body);
+        JStarExpr* lit = jsrFuncLiteral(line, &args, p->function->isGenerator, body);
 
         endFunction(p);
 

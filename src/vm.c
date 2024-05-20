@@ -7,6 +7,7 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
+#include "jstar.h"
 #include "lib/builtins.h"
 #include "lib/core/core.h"
 #include "lib/core/excs.h"
@@ -98,6 +99,8 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 void jsrInitRuntime(JStarVM* vm) {
     // Core module bootstrap
     initCoreModule(vm);
+    // Initialize main module
+    jsrEvalModuleString(vm, "<main>", JSR_MAIN_MODULE, "");
     // Create empty tuple singleton
     vm->emptyTup = newTuple(vm, 0);
 }
