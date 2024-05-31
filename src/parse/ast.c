@@ -1,7 +1,8 @@
 #include "parse/ast.h"
 
 #include <string.h>
-
+ 
+#include "jstar.h"
 #include "conf.h"
 #include "parse/lex.h"
 #include "parse/vector.h"
@@ -16,6 +17,7 @@ bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier* id2) {
 
 static JStarExpr* newExpr(int line, JStarExprType type) {
     JStarExpr* e = malloc(sizeof(*e));
+    JSR_ASSERT(e, "Out of memory");
     e->line = line;
     e->type = type;
     return e;
@@ -248,6 +250,7 @@ void jsrExprFree(JStarExpr* e) {
 
 static JStarStmt* newStmt(int line, JStarStmtType type) {
     JStarStmt* s = malloc(sizeof(*s));
+    JSR_ASSERT(s, "Out of memory");
     s->line = line;
     s->type = type;
     return s;
@@ -255,9 +258,10 @@ static JStarStmt* newStmt(int line, JStarStmtType type) {
 
 static JStarStmt* newDecl(int line, JStarStmtType type) {
     JSR_ASSERT((type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
-            type == JSR_NATIVEDECL),
-           "Not a declaration");
+                type == JSR_NATIVEDECL),
+               "Not a declaration");
     JStarStmt* s = newStmt(line, type);
+    JSR_ASSERT(s, "Out of memory");
     s->as.decl.isStatic = false;
     s->as.decl.decorators = NULL;
     return s;
