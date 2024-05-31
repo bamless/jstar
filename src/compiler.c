@@ -89,11 +89,11 @@ typedef struct Loop {
     struct Loop* parent;
 } Loop;
 
-typedef struct TryExcept {
+typedef struct TryBlock {
     int depth;
     int numHandlers;
-    struct TryExcept* parent;
-} TryExcept;
+    struct TryBlock* parent;
+} TryBlock;
 
 typedef struct FwdRef {
     JStarIdentifier id;
@@ -132,7 +132,7 @@ struct Compiler {
     int stackUsage;
 
     int tryDepth;
-    TryExcept* tryBlocks;
+    TryBlock* tryBlocks;
 
     bool hadError;
 };
@@ -546,7 +546,7 @@ static void methodCall(Compiler* c, const char* name, int args) {
     emitShort(c, identifierConst(c, &meth, 0), 0);
 }
 
-static void enterTryBlock(Compiler* c, TryExcept* exc, int numHandlers, int line) {
+static void enterTryBlock(Compiler* c, TryBlock* exc, int numHandlers, int line) {
     exc->depth = c->depth;
     exc->numHandlers = numHandlers;
     exc->parent = c->tryBlocks;
@@ -1533,7 +1533,7 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
     bool hasEnsure = s->as.tryStmt.ensure != NULL;
     int numHandlers = (hasExcepts ? 1 : 0) + (hasEnsure ? 1 : 0);
 
-    TryExcept tryBlock;
+    TryBlock tryBlock;
     enterTryBlock(c, &tryBlock, numHandlers, s->line);
 
     size_t ensureSetup = 0, exceptSetup = 0;
@@ -1632,7 +1632,7 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     defineVar(c, &var, s->line);
 
     // try
-    TryExcept tryBlock;
+    TryBlock tryBlock;
     enterTryBlock(c, &tryBlock, 1, s->line);
 
     size_t ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
