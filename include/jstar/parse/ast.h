@@ -16,6 +16,10 @@ typedef struct JStarIdentifier {
     const char* name;
 } JStarIdentifier;
 
+// -----------------------------------------------------------------------------
+// EXPRESSION NODES
+// -----------------------------------------------------------------------------
+
 typedef enum JStarExprType {
     JSR_BINARY,
     JSR_UNARY,
@@ -29,92 +33,189 @@ typedef enum JStarExprType {
     JSR_CALL,
     JSR_POWER,
     JSR_SUPER,
-    JSR_ACCESS,
+    JSR_PROPERTY_ACCESS,
     JSR_YIELD,
-    JSR_ARRAY,
+    JSR_LIST,
     JSR_TUPLE,
     JSR_TABLE,
-    JSR_ARR_ACCESS,
+    JSR_INDEX,
     JSR_TERNARY,
-    JSR_COMPUND_ASS,
-    JSR_FUNC_LIT,
+    JSR_COMPOUND_ASSIGN,
+    JSR_FUN_LIT,
     JSR_SPREAD,
 } JStarExprType;
+
+typedef struct JStarBinaryExpr {
+    JStarTokType op;
+    JStarExpr *left, *right;
+} JStarBinaryExpr;
+
+typedef struct JStarUnaryExpr {
+    JStarTokType op;
+    JStarExpr* operand;
+} JStarUnaryExpr;
+
+typedef struct JStarSpreadExpr {
+    JStarExpr* expr;
+} JStarSpreadExpr;
+
+typedef struct JStarAssignExpr {
+    JStarExpr *lval, *rval;
+} JStarAssignExpr;
+
+typedef struct JStarCompoundAssignExpr {
+    JStarTokType op;
+    JStarExpr *lval, *rval;
+} JStarCompoundAssignExpr;
+
+typedef struct JStarStringLiteralExpr {
+    size_t length;
+    const char* str;
+} JStarStringLiteralExpr;
+
+typedef struct JStarVarLiteralExpr {
+    JStarIdentifier id;
+} JStarVarLiteralExpr;
+
+typedef struct JStarCallExpr {
+    JStarExpr *callee, *args;
+} JStarCallExpr;
+
+typedef struct JStarPowExpr {
+    JStarExpr *base, *exp;
+} JStarPowExpr;
+
+typedef struct JStarPropertyAccessExpr {
+    JStarExpr* left;
+    JStarIdentifier id;
+} JStarPropertyAccessExpr;
+
+typedef struct JStarIndexExpr {
+    JStarExpr* left;
+    JStarExpr* index;
+} JStarIndexExpr;
+
+typedef struct JStarYieldExpr {
+    JStarExpr* expr;
+} JStarYieldExpr;
+
+typedef struct JStarListLiteralExpr {
+    JStarExpr* exprs;
+} JStarListLiteralExpr;
+
+typedef struct JStarTupleLiteralExpr {
+    JStarExpr* exprs;
+} JStarTupleLiteralExpr;
+
+typedef struct JStarTableLiteralExpr {
+    JStarExpr* keyVals;
+} JStarTableLiteralExpr;
+
+typedef struct JStarTernaryExpr {
+    JStarExpr* cond;
+    JStarExpr* thenExpr;
+    JStarExpr* elseExpr;
+} JStarTernaryExpr;
+
+typedef struct JStarFunLiteralExpr {
+    JStarStmt* func;
+} JStarFunLiteralExpr;
+
+typedef struct JStarSuperLiteralExpr {
+    JStarIdentifier name;
+    JStarExpr* args;
+} JStarSuperLiteralExpr;
 
 struct JStarExpr {
     int line;
     JStarExprType type;
     union {
-        struct {
-            JStarTokType op;
-            JStarExpr *left, *right;
-        } binary;
-        struct {
-            JStarTokType op;
-            JStarExpr* operand;
-        } unary;
-        struct {
-            JStarExpr* expr;
-        } spread;
-        struct {
-            JStarExpr *lval, *rval;
-        } assign;
-        struct {
-            JStarTokType op;
-            JStarExpr *lval, *rval;
-        } compound;
-        struct {
-            size_t length;
-            const char* str;
-        } string;
-        struct {
-            JStarIdentifier id;
-        } var;
-        struct {
-            JStarExpr *callee, *args;
-        } call;
-        struct {
-            JStarExpr *base, *exp;
-        } pow;
-        struct {
-            JStarExpr* left;
-            JStarIdentifier id;
-        } access;
-        struct {
-            JStarExpr* left;
-            JStarExpr* index;
-        } arrayAccess;
-        struct {
-            JStarExpr* expr;
-        } yield;
-        struct {
-            JStarExpr* exprs;
-        } array;
-        struct {
-            JStarExpr* exprs;
-        } tuple;
-        struct {
-            JStarExpr* keyVals;
-        } table;
-        struct {
-            JStarExpr* cond;
-            JStarExpr* thenExpr;
-            JStarExpr* elseExpr;
-        } ternary;
-        struct {
-            JStarStmt* func;
-        } funLit;
-        struct {
-            JStarIdentifier name;
-            JStarExpr* args;
-        } sup;
+        JStarBinaryExpr binary;
+        JStarUnaryExpr unary;
+        JStarSpreadExpr spread;
+        JStarAssignExpr assign;
+        JStarCompoundAssignExpr compoundAssign;
+        JStarCallExpr call;
+        JStarPowExpr pow;
+        JStarPropertyAccessExpr propertyAccess;
+        JStarIndexExpr index;
+        JStarYieldExpr yield;
+        JStarTernaryExpr ternary;
+        JStarFunLiteralExpr funLit;
+        JStarSuperLiteralExpr sup;
+        JStarStringLiteralExpr stringLiteral;
+        JStarVarLiteralExpr varLiteral;
+        JStarListLiteralExpr listLiteral;
+        JStarTupleLiteralExpr tupleLiteral;
+        JStarTableLiteralExpr tableLiteral;
+        ext_vector(JStarExpr*) exprList;
         double num;
         bool boolean;
-        ext_vector(JStarExpr*) list;
     } as;
 };
 
+// -----------------------------------------------------------------------------
+// DECLARATION NODES
+// -----------------------------------------------------------------------------
+
+typedef struct JStarFormalArg {
+    enum { SIMPLE, UNPACK } type;
+    union {
+        JStarIdentifier simple;
+        ext_vector(JStarIdentifier) unpack;
+    } as;
+} JStarFormalArg;
+
+typedef struct JStarFormalArgs {
+    ext_vector(JStarFormalArg) args;
+    ext_vector(JStarExpr*) defaults;
+    JStarIdentifier vararg;
+} JStarFormalArgs;
+
+typedef struct JStarVarDecl {
+    bool isUnpack;
+    ext_vector(JStarIdentifier) ids;
+    JStarExpr* init;
+} JStarVarDecl;
+
+typedef struct JStarFunDecl {
+    JStarIdentifier id;
+    JStarFormalArgs formalArgs;
+    bool isGenerator;
+    JStarStmt* body;
+} JStarFunDecl;
+
+typedef struct JStarNativeDecl {
+    JStarIdentifier id;
+    JStarFormalArgs formalArgs;
+} JStarNativeDecl;
+
+typedef struct JStarClassDecl {
+    JStarIdentifier id;
+    JStarExpr* sup;
+    ext_vector(JStarStmt*) methods;
+} JStarClassDecl;
+
+struct JStarDecl {
+    bool isStatic;
+    ext_vector(JStarExpr*) decorators;
+    union {
+        JStarVarDecl var;
+        JStarFunDecl fun;
+        JStarNativeDecl native;
+        JStarClassDecl cls;
+    } as;
+};
+
+// -----------------------------------------------------------------------------
+// STATEMENT NODES
+// -----------------------------------------------------------------------------
+
 typedef enum JStarStmtType {
+    JSR_VARDECL,
+    JSR_FUNCDECL,
+    JSR_NATIVEDECL,
+    JSR_CLASSDECL,
     JSR_IF,
     JSR_FOR,
     JSR_WHILE,
@@ -122,10 +223,6 @@ typedef enum JStarStmtType {
     JSR_BLOCK,
     JSR_RETURN,
     JSR_EXPR_STMT,
-    JSR_VARDECL,
-    JSR_FUNCDECL,
-    JSR_NATIVEDECL,
-    JSR_CLASSDECL,
     JSR_IMPORT,
     JSR_TRY,
     JSR_EXCEPT,
@@ -135,105 +232,85 @@ typedef enum JStarStmtType {
     JSR_BREAK
 } JStarStmtType;
 
-typedef struct FormalArg {
-    enum {
-        SIMPLE,
-        UNPACK
-    } type;
-    union {
-        JStarIdentifier simple;
-        ext_vector(JStarIdentifier) unpack;
-    } as;
-} FormalArg;
+typedef struct JStarIfStmt {
+    JStarExpr* cond;
+    JStarStmt *thenStmt, *elseStmt;
+} JStarIfStmt;
 
-typedef struct FormalArgs {
-    ext_vector(FormalArg) args;
-    ext_vector(JStarExpr*) defaults;
-    JStarIdentifier vararg;
-} FormalArgs;
+typedef struct JStarForStmt {
+    JStarStmt* init;
+    JStarExpr *cond, *act;
+    JStarStmt* body;
+} JStarForStmt;
 
-struct JStarDecl {
-    ext_vector(JStarExpr*) decorators;
-    bool isStatic;
-    union {
-        struct {
-            bool isUnpack;
-            ext_vector(JStarIdentifier) ids;
-            JStarExpr* init;
-        } var;
-        struct {
-            JStarIdentifier id;
-            FormalArgs formalArgs;
-            bool isGenerator;
-            JStarStmt* body;
-        } fun;
-        struct {
-            JStarIdentifier id;
-            FormalArgs formalArgs;
-        } native;
-        struct {
-            JStarIdentifier id;
-            JStarExpr* sup;
-            ext_vector(JStarStmt*) methods;
-        } cls;
-    } as;
-};
+typedef struct JStarForEachStmt {
+    JStarStmt* var;
+    JStarExpr* iterable;
+    JStarStmt* body;
+} JStarForEachStmt;
+
+typedef struct JStarWhileStmt {
+    JStarExpr* cond;
+    JStarStmt* body;
+} JStarWhileStmt;
+
+typedef struct JStarBlockStmt {
+    ext_vector(JStarStmt*) stmts;
+} JStarBlockStmt;
+
+typedef struct JStarImportStmt {
+    ext_vector(JStarIdentifier) modules;
+    JStarIdentifier as;
+    ext_vector(JStarIdentifier) names;
+} JStarImportStmt;
+
+typedef struct JStarTryStmt {
+    JStarStmt* block;
+    ext_vector(JStarStmt*) excs;
+    JStarStmt* ensure;
+} JStarTryStmt;
+
+typedef struct JStarExceptStmt {
+    JStarExpr* cls;
+    JStarIdentifier var;
+    JStarStmt* block;
+} JStarExceptStmt;
+
+typedef struct JStarRaiseStmt {
+    JStarExpr* exc;
+} JStarRaiseStmt;
+
+typedef struct JStarWithStmt {
+    JStarExpr* e;
+    JStarIdentifier var;
+    JStarStmt* block;
+} JStarWithStmt;
+
+typedef struct JStarStmtList {
+    ext_vector(JStarStmt*) stmts;
+} JStarStmtList;
+
+typedef struct JStarReturnStmt {
+    JStarExpr* e;
+} JStarReturnStmt;
 
 struct JStarStmt {
     int line;
     JStarStmtType type;
-    // Declarations
     union {
-        // Control flow statements
-        struct {
-            JStarExpr* cond;
-            JStarStmt *thenStmt, *elseStmt;
-        } ifStmt;
-        struct {
-            JStarStmt* init;
-            JStarExpr *cond, *act;
-            JStarStmt* body;
-        } forStmt;
-        struct {
-            JStarStmt* var;
-            JStarExpr* iterable;
-            JStarStmt* body;
-        } forEach;
-        struct {
-            JStarExpr* cond;
-            JStarStmt* body;
-        } whileStmt;
-        struct {
-            JStarExpr* e;
-        } returnStmt;
-        struct {
-            ext_vector(JStarStmt*) stmts;
-        } blockStmt;
-        struct {
-            ext_vector(JStarIdentifier) modules;
-            JStarIdentifier as;
-            ext_vector(JStarIdentifier) names;
-        } importStmt;
-        struct {
-            JStarStmt* block;
-            ext_vector(JStarStmt*) excs;
-            JStarStmt* ensure;
-        } tryStmt;
-        struct {
-            JStarExpr* cls;
-            JStarIdentifier var;
-            JStarStmt* block;
-        } excStmt;
-        struct {
-            JStarExpr* exc;
-        } raiseStmt;
-        struct {
-            JStarExpr* e;
-            JStarIdentifier var;
-            JStarStmt* block;
-        } withStmt;
-        JStarExpr* exprStmt;
+        JStarIfStmt ifStmt;
+        JStarForStmt forStmt;
+        JStarForEachStmt forEach;
+        JStarWhileStmt whileStmt;
+        JStarBlockStmt blockStmt;
+        JStarReturnStmt returnStmt;
+        JStarImportStmt importStmt;
+        JStarTryStmt tryStmt;
+        JStarExceptStmt excStmt;
+        JStarRaiseStmt raiseStmt;
+        JStarWithStmt withStmt;
         JStarDecl decl;
+        JStarExpr* exprStmt;
     } as;
 };
 
@@ -247,15 +324,19 @@ JSTAR_API bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFuncLiteral(int line, const FormalArgs* args, bool isGenerator, JStarStmt* body);
-JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr, JStarExpr* elseExpr);
-JSTAR_API JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval);
-JSTAR_API JStarExpr* jsrAccessExpr(int line, JStarExpr* left, const char* name, size_t length);
+JSTAR_API JStarExpr* jsrFunLiteral(int line, const JStarFormalArgs* args, bool isGenerator,
+                                   JStarStmt* body);
+JSTAR_API JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr,
+                                    JStarExpr* elseExpr);
+JSTAR_API JStarExpr* jsrCompundAssignExpr(int line, JStarTokType op, JStarExpr* lval,
+                                          JStarExpr* rval);
+JSTAR_API JStarExpr* jsrPropertyAccessExpr(int line, JStarExpr* left, const char* name,
+                                           size_t length);
 JSTAR_API JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args);
 JSTAR_API JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args);
 JSTAR_API JStarExpr* jsrVarLiteral(int line, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrStrLiteral(int line, const char* str, size_t len);
-JSTAR_API JStarExpr* jsrArrayAccExpr(int line, JStarExpr* left, JStarExpr* index);
+JSTAR_API JStarExpr* jsrIndexExpr(int line, JStarExpr* left, JStarExpr* index);
 JSTAR_API JStarExpr* jsrBinaryExpr(int line, JStarTokType op, JStarExpr* l, JStarExpr* r);
 JSTAR_API JStarExpr* jsrUnaryExpr(int line, JStarTokType op, JStarExpr* operand);
 JSTAR_API JStarExpr* jsrAssignExpr(int line, JStarExpr* lval, JStarExpr* rval);
@@ -275,17 +356,25 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const FormalArgs* args, bool isGenerator, JStarStmt* body);
-JSTAR_API JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name, const FormalArgs* args);
-JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act, JStarStmt* body);
-JSTAR_API JStarStmt* jsrClassDecl(int line, const JStarIdentifier* clsName, JStarExpr* sup, ext_vector(JStarStmt*) methods);
-JSTAR_API JStarStmt* jsrImportStmt(int line, ext_vector(JStarIdentifier) modules, ext_vector(JStarIdentifier) names, const JStarIdentifier* as);
-JSTAR_API JStarStmt* jsrVarDecl(int line, bool isUnpack, ext_vector(JStarIdentifier) ids, JStarExpr* init);
-JSTAR_API JStarStmt* jsrTryStmt(int line, JStarStmt* blck, ext_vector(JStarStmt*) excs, JStarStmt* ensure);
+JSTAR_API JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args,
+                                 bool isGenerator, JStarStmt* body);
+JSTAR_API JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args);
+JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
+                                JStarStmt* body);
+JSTAR_API JStarStmt* jsrClassDecl(int line, const JStarIdentifier* clsName, JStarExpr* sup,
+                                  ext_vector(JStarStmt*) methods);
+JSTAR_API JStarStmt* jsrImportStmt(int line, ext_vector(JStarIdentifier) modules,
+                                   ext_vector(JStarIdentifier) names, const JStarIdentifier* as);
+JSTAR_API JStarStmt* jsrVarDecl(int line, bool isUnpack, ext_vector(JStarIdentifier) ids,
+                                JStarExpr* init);
+JSTAR_API JStarStmt* jsrTryStmt(int line, JStarStmt* blck, ext_vector(JStarStmt*) excs,
+                                JStarStmt* ensure);
 JSTAR_API JStarStmt* jsrIfStmt(int line, JStarExpr* cond, JStarStmt* thenStmt, JStarStmt* elseStmt);
 JSTAR_API JStarStmt* jsrForEachStmt(int line, JStarStmt* varDecl, JStarExpr* iter, JStarStmt* body);
-JSTAR_API JStarStmt* jsrExceptStmt(int line, JStarExpr* cls, const JStarIdentifier* varName, JStarStmt* block);
-JSTAR_API JStarStmt* jsrWithStmt(int line, JStarExpr* e, const JStarIdentifier* varName, JStarStmt* block);
+JSTAR_API JStarStmt* jsrExceptStmt(int line, JStarExpr* cls, const JStarIdentifier* varName,
+                                   JStarStmt* block);
+JSTAR_API JStarStmt* jsrWithStmt(int line, JStarExpr* e, const JStarIdentifier* varName,
+                                 JStarStmt* block);
 JSTAR_API JStarStmt* jsrWhileStmt(int line, JStarExpr* cond, JStarStmt* body);
 JSTAR_API JStarStmt* jsrBlockStmt(int line, ext_vector(JStarStmt*) list);
 JSTAR_API JStarStmt* jsrReturnStmt(int line, JStarExpr* e);

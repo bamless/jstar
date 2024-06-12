@@ -64,21 +64,21 @@ JStarExpr* jsrBoolLiteral(int line, bool boolean) {
 
 JStarExpr* jsrStrLiteral(int line, const char* str, size_t len) {
     JStarExpr* e = newExpr(line, JSR_STRING);
-    e->as.string.str = str;
-    e->as.string.length = len;
+    e->as.stringLiteral.str = str;
+    e->as.stringLiteral.length = len;
     return e;
 }
 
 JStarExpr* jsrVarLiteral(int line, const char* var, size_t len) {
     JStarExpr* e = newExpr(line, JSR_VAR);
-    e->as.var.id.name = var;
-    e->as.var.id.length = len;
+    e->as.varLiteral.id.name = var;
+    e->as.varLiteral.id.length = len;
     return e;
 }
 
 JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs) {
-    JStarExpr* a = newExpr(line, JSR_ARRAY);
-    a->as.array.exprs = exprs;
+    JStarExpr* a = newExpr(line, JSR_LIST);
+    a->as.listLiteral.exprs = exprs;
     return a;
 }
 
@@ -90,13 +90,13 @@ JStarExpr* jsrYieldExpr(int line, JStarExpr* expr) {
 
 JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs) {
     JStarExpr* a = newExpr(line, JSR_TUPLE);
-    a->as.tuple.exprs = exprs;
+    a->as.tupleLiteral.exprs = exprs;
     return a;
 }
 
 JStarExpr* jsrTableLiteral(int line, JStarExpr* keyVals) {
     JStarExpr* t = newExpr(line, JSR_TABLE);
-    t->as.table.keyVals = keyVals;
+    t->as.tableLiteral.keyVals = keyVals;
     return t;
 }
 
@@ -108,7 +108,7 @@ JStarExpr* jsrSpreadExpr(int line, JStarExpr* expr) {
 
 JStarExpr* jsrExprList(int line, ext_vector(JStarExpr*) exprs) {
     JStarExpr* e = newExpr(line, JSR_EXPR_LST);
-    e->as.list = exprs;
+    e->as.exprList = exprs;
     return e;
 }
 
@@ -126,18 +126,18 @@ JStarExpr* jsrPowExpr(int line, JStarExpr* base, JStarExpr* exp) {
     return e;
 }
 
-JStarExpr* jsrAccessExpr(int line, JStarExpr* left, const char* name, size_t length) {
-    JStarExpr* e = newExpr(line, JSR_ACCESS);
-    e->as.access.left = left;
-    e->as.access.id.name = name;
-    e->as.access.id.length = length;
+JStarExpr* jsrPropertyAccessExpr(int line, JStarExpr* left, const char* name, size_t length) {
+    JStarExpr* e = newExpr(line, JSR_PROPERTY_ACCESS);
+    e->as.propertyAccess.left = left;
+    e->as.propertyAccess.id.name = name;
+    e->as.propertyAccess.id.length = length;
     return e;
 }
 
-JStarExpr* jsrArrayAccExpr(int line, JStarExpr* left, JStarExpr* index) {
-    JStarExpr* e = newExpr(line, JSR_ARR_ACCESS);
-    e->as.arrayAccess.left = left;
-    e->as.arrayAccess.index = index;
+JStarExpr* jsrIndexExpr(int line, JStarExpr* left, JStarExpr* index) {
+    JStarExpr* e = newExpr(line, JSR_INDEX);
+    e->as.index.left = left;
+    e->as.index.index = index;
     return e;
 }
 
@@ -149,16 +149,16 @@ JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr, JStarE
     return e;
 }
 
-JStarExpr* jsrCompundAssExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval) {
-    JStarExpr* e = newExpr(line, JSR_COMPUND_ASS);
-    e->as.compound.op = op;
-    e->as.compound.lval = lval;
-    e->as.compound.rval = rval;
+JStarExpr* jsrCompundAssignExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval) {
+    JStarExpr* e = newExpr(line, JSR_COMPOUND_ASSIGN);
+    e->as.compoundAssign.op = op;
+    e->as.compoundAssign.lval = lval;
+    e->as.compoundAssign.rval = rval;
     return e;
 }
 
-JStarExpr* jsrFuncLiteral(int line, const FormalArgs* args, bool isGenerator, JStarStmt* body) {
-    JStarExpr* e = newExpr(line, JSR_FUNC_LIT);
+JStarExpr* jsrFunLiteral(int line, const JStarFormalArgs* args, bool isGenerator, JStarStmt* body) {
+    JStarExpr* e = newExpr(line, JSR_FUN_LIT);
     e->as.funLit.func = jsrFuncDecl(line, &(JStarIdentifier){0}, args, isGenerator, body);
     return e;
 }
@@ -185,43 +185,43 @@ void jsrExprFree(JStarExpr* e) {
         jsrExprFree(e->as.assign.lval);
         jsrExprFree(e->as.assign.rval);
         break;
-    case JSR_ARRAY:
-        jsrExprFree(e->as.array.exprs);
+    case JSR_LIST:
+        jsrExprFree(e->as.listLiteral.exprs);
         break;
     case JSR_TUPLE:
-        jsrExprFree(e->as.tuple.exprs);
+        jsrExprFree(e->as.tupleLiteral.exprs);
         break;
     case JSR_TABLE:
-        jsrExprFree(e->as.table.keyVals);
+        jsrExprFree(e->as.tableLiteral.keyVals);
         break;
     case JSR_EXPR_LST: {
-        ext_vec_foreach(JStarExpr** expr, e->as.list) {
+        ext_vec_foreach(JStarExpr** expr, e->as.exprList) {
             jsrExprFree(*expr);
         }
-        ext_vec_free(e->as.list);
+        ext_vec_free(e->as.exprList);
         break;
     }
     case JSR_CALL:
         jsrExprFree(e->as.call.callee);
         jsrExprFree(e->as.call.args);
         break;
-    case JSR_ACCESS:
-        jsrExprFree(e->as.access.left);
+    case JSR_PROPERTY_ACCESS:
+        jsrExprFree(e->as.propertyAccess.left);
         break;
-    case JSR_ARR_ACCESS:
-        jsrExprFree(e->as.arrayAccess.left);
-        jsrExprFree(e->as.arrayAccess.index);
+    case JSR_INDEX:
+        jsrExprFree(e->as.index.left);
+        jsrExprFree(e->as.index.index);
         break;
     case JSR_TERNARY:
         jsrExprFree(e->as.ternary.cond);
         jsrExprFree(e->as.ternary.thenExpr);
         jsrExprFree(e->as.ternary.elseExpr);
         break;
-    case JSR_COMPUND_ASS:
-        jsrExprFree(e->as.compound.lval);
-        jsrExprFree(e->as.compound.rval);
+    case JSR_COMPOUND_ASSIGN:
+        jsrExprFree(e->as.compoundAssign.lval);
+        jsrExprFree(e->as.compoundAssign.rval);
         break;
-    case JSR_FUNC_LIT:
+    case JSR_FUN_LIT:
         jsrStmtFree(e->as.funLit.func);
         break;
     case JSR_SPREAD:
@@ -269,7 +269,7 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const FormalArgs* args, bool isGenerator, JStarStmt* body) {
+JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(line, JSR_FUNCDECL);
     f->as.decl.as.fun.id = *name;
     f->as.decl.as.fun.formalArgs = *args;
@@ -278,7 +278,7 @@ JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const FormalArgs* 
     return f;
 }
 
-JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name, const FormalArgs* args) {
+JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args) {
     JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
     n->as.decl.as.native.id = *name;
     n->as.decl.as.native.formalArgs = *args;
@@ -458,7 +458,7 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_FUNCDECL: {
         freeDeclaration(s);
-        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
+        ext_vec_foreach(JStarFormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
             if (arg->type == UNPACK){
                 ext_vec_free(arg->as.unpack);
             }
@@ -473,7 +473,7 @@ void jsrStmtFree(JStarStmt* s) {
     }
     case JSR_NATIVEDECL: {
         freeDeclaration(s);
-        ext_vec_foreach(FormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
+        ext_vec_foreach(JStarFormalArg* arg, s->as.decl.as.fun.formalArgs.args) {
             if (arg->type == UNPACK){
                 ext_vec_free(arg->as.unpack);
             }

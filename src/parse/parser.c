@@ -287,7 +287,7 @@ static bool isConstantLiteral(JStarExprType type) {
 }
 
 static bool isLValue(JStarExprType type) {
-    return type == JSR_VAR || type == JSR_ACCESS || type == JSR_ARR_ACCESS;
+    return type == JSR_VAR || type == JSR_PROPERTY_ACCESS || type == JSR_INDEX;
 }
 
 static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType assignToken) {
@@ -295,7 +295,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    ext_vec_foreach(JStarExpr * *it, lvals->as.list) {
+    ext_vec_foreach(JStarExpr** it, lvals->as.exprList) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "left hand side of unpack assignment must be composed of lvalues");
@@ -305,7 +305,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
 
 static void checkLvalue(Parser* p, JStarExpr* l, JStarTokType assignType) {
     if(l->type == JSR_TUPLE) {
-        checkUnpackAssignement(p, l->as.tuple.exprs, assignType);
+        checkUnpackAssignement(p, l->as.tupleLiteral.exprs, assignType);
     } else if(!isLValue(l->type)) {
         error(p, "Left hand side of assignment must be an lvalue");
     }
@@ -337,7 +337,7 @@ static JStarExpr* expression(Parser* p, bool parseTuple);
 static JStarExpr* literal(Parser* p);
 static JStarExpr* tupleLiteral(Parser* p);
 
-static FormalArg parseUnpackArgument(Parser* p) {
+static JStarFormalArg parseUnpackArgument(Parser* p) {
     ext_vector(JStarIdentifier) names = NULL;
     require(p, TOK_LPAREN);
 
@@ -357,24 +357,24 @@ static FormalArg parseUnpackArgument(Parser* p) {
 
     require(p, TOK_RPAREN);
 
-    return (FormalArg){.type = UNPACK, .as = {.unpack = names}};
+    return (JStarFormalArg){.type = UNPACK, .as = {.unpack = names}};
 }
 
-static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
-    FormalArgs args = {0};
+static JStarFormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
+    JStarFormalArgs args = {0};
 
     require(p, open);
     skipNewLines(p);
 
     while(match(p, TOK_IDENTIFIER) || match(p, TOK_LPAREN)) {
         JStarTok peek = p->peek;
-        FormalArg arg;
+        JStarFormalArg arg;
 
         if(peek.type == TOK_LPAREN) {
             arg = parseUnpackArgument(p);
         } else {
             JStarTok argName = advance(p);
-            arg = (FormalArg){.type = SIMPLE, .as = {.simple = createIdentifier(&argName)}};
+            arg = (JStarFormalArg){.type = SIMPLE, .as = {.simple = createIdentifier(&argName)}};
         }
 
         skipNewLines(p);
@@ -411,7 +411,7 @@ static FormalArgs formalArgs(Parser* p, JStarTokType open, JStarTokType close) {
             error(p, "Default argument must be a constant");
         }
 
-        FormalArg arg = {.type = SIMPLE, .as = {.simple = createIdentifier(&argument)}};
+        JStarFormalArg arg = {.type = SIMPLE, .as = {.simple = createIdentifier(&argument)}};
         ext_vec_push_back(args.args, arg);
         ext_vec_push_back(args.defaults, constant);
 
@@ -738,7 +738,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
 
     skipNewLines(p);
 
-    FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
+    JStarFormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
@@ -766,7 +766,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
 
     skipNewLines(p);
 
-    FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
+    JStarFormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
     return jsrNativeDecl(line, &nativeName, &args);
@@ -940,7 +940,7 @@ static JStarStmt* parseProgram(Parser* p) {
     }
 
     // Top level function doesn't have name or arguments, so pass them empty
-    FormalArgs args = {0};
+    JStarFormalArgs args = {0};
     return jsrFuncDecl(0, &(JStarIdentifier){0}, &args, false, jsrBlockStmt(0, stmts));
 }
 
@@ -1138,7 +1138,7 @@ static JStarExpr* postfixExpr(Parser* p) {
             advance(p);
             skipNewLines(p);
             JStarTok attr = require(p, TOK_IDENTIFIER);
-            lit = jsrAccessExpr(line, lit, attr.lexeme, attr.length);
+            lit = jsrPropertyAccessExpr(line, lit, attr.lexeme, attr.length);
             break;
         }
         case TOK_LCURLY: {
@@ -1151,7 +1151,7 @@ static JStarExpr* postfixExpr(Parser* p) {
         case TOK_LSQUARE: {
             require(p, TOK_LSQUARE);
             skipNewLines(p);
-            lit = jsrArrayAccExpr(line, lit, expression(p, true));
+            lit = jsrIndexExpr(line, lit, expression(p, true));
             skipNewLines(p);
             require(p, TOK_RSQUARE);
             break;
@@ -1285,11 +1285,11 @@ static JStarExpr* funcLiteral(Parser* p) {
         require(p, TOK_FUN);
         skipNewLines(p);
 
-        FormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
+        JStarFormalArgs args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        JStarExpr* lit = jsrFuncLiteral(line, &args, p->function->isGenerator, body);
+        JStarExpr* lit = jsrFunLiteral(line, &args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1300,7 +1300,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         beginFunction(p, &fn);
 
         int line = p->peek.line;
-        FormalArgs args = formalArgs(p, TOK_PIPE, TOK_PIPE);
+        JStarFormalArgs args = formalArgs(p, TOK_PIPE, TOK_PIPE);
         skipNewLines(p);
 
         require(p, TOK_ARROW);
@@ -1311,7 +1311,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         ext_vec_push_back(anonFuncStmts, jsrReturnStmt(line, e));
         JStarStmt* body = jsrBlockStmt(line, anonFuncStmts);
 
-        JStarExpr* lit = jsrFuncLiteral(line, &args, p->function->isGenerator, body);
+        JStarExpr* lit = jsrFunLiteral(line, &args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1391,7 +1391,7 @@ static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple) {
 
     if(isCompoundAssign(&assignToken)) {
         JStarTokType op = assignToOperator(assignToken.type);
-        l = jsrCompundAssExpr(assignToken.line, op, l, r);
+        l = jsrCompundAssignExpr(assignToken.line, op, l, r);
     } else {
         l = jsrAssignExpr(assignToken.line, l, r);
     }

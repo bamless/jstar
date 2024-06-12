@@ -29,7 +29,7 @@
 // Where the right hand side is an unpackable object (i.e. Tuple or List), we
 // can omit its creation and assign directly the elements to the variables.
 // We call this type of unpack assignement a 'const unpack'
-#define IS_CONST_UNPACK(type) ((type) == JSR_ARRAY || (type) == JSR_TUPLE)
+#define IS_CONST_UNPACK(type) ((type) == JSR_LIST || (type) == JSR_TUPLE)
 
 // Marker values used in the bytecode during the compilation of loop breaking statements.
 // When we finish the compilation of a loop, and thus we know the addresses of its start
@@ -566,8 +566,8 @@ static void exitTryBlock(Compiler* c) {
 }
 
 static ObjString* readString(Compiler* c, const JStarExpr* e) {
-    const char* str = e->as.string.str;
-    size_t length = e->as.string.length;
+    const char* str = e->as.stringLiteral.str;
+    size_t length = e->as.stringLiteral.length;
 
     JStarBuffer sb;
     jsrBufferInitCapacity(c->vm, &sb, length + 1);
@@ -626,10 +626,10 @@ static void addFunctionDefaults(Compiler* c, const Prototype* proto, ext_vector(
 
 static JStarExpr* getExpressions(const JStarExpr* unpackable) {
     switch(unpackable->type) {
-    case JSR_ARRAY:
-        return unpackable->as.array.exprs;
+    case JSR_LIST:
+        return unpackable->as.listLiteral.exprs;
     case JSR_TUPLE:
-        return unpackable->as.tuple.exprs;
+        return unpackable->as.tupleLiteral.exprs;
     default:
         JSR_UNREACHABLE();
         return NULL;
@@ -642,7 +642,7 @@ bool isSpreadExpr(const JStarExpr* e) {
 
 bool containsSpreadExpr(const JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
-    ext_vec_foreach(JStarExpr** it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr** it, exprs->as.exprList) {
         JStarExpr* e = *it;
         if(isSpreadExpr(e)) {
             return true;
@@ -823,17 +823,17 @@ static void compileFunLiteral(Compiler* c, const JStarExpr* e, const JStarIdenti
 static void compileLval(Compiler* c, const JStarExpr* e) {
     switch(e->type) {
     case JSR_VAR:
-        compileVarLit(c, &e->as.var.id, true, e->line);
+        compileVarLit(c, &e->as.varLiteral.id, true, e->line);
         break;
-    case JSR_ACCESS: {
-        compileExpr(c, e->as.access.left);
+    case JSR_PROPERTY_ACCESS: {
+        compileExpr(c, e->as.propertyAccess.left);
         emitOpcode(c, OP_SET_FIELD, e->line);
-        emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
+        emitShort(c, identifierConst(c, &e->as.propertyAccess.id, e->line), e->line);
         break;
     }
-    case JSR_ARR_ACCESS: {
-        compileExpr(c, e->as.arrayAccess.index);
-        compileExpr(c, e->as.arrayAccess.left);
+    case JSR_INDEX: {
+        compileExpr(c, e->as.index.index);
+        compileExpr(c, e->as.index.left);
         emitOpcode(c, OP_SUBSCR_SET, e->line);
         break;
     }
@@ -847,7 +847,7 @@ static void compileLval(Compiler* c, const JStarExpr* e) {
 // In case of a function literal we use it to give the function a meaningful name, instead
 // of just using the default name for anonymous functions (that is: `anon:<line_number>`)
 static void compileRval(Compiler* c, const JStarExpr* e, const JStarIdentifier* name) {
-    if(e->type == JSR_FUNC_LIT) {
+    if(e->type == JSR_FUN_LIT) {
         compileFunLiteral(c, e, name);
     } else {
         compileExpr(c, e);
@@ -856,13 +856,13 @@ static void compileRval(Compiler* c, const JStarExpr* e, const JStarIdentifier* 
 
 static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
                                const ext_vector(JStarIdentifier) names) {
-    if(ext_vec_size(exprs->as.list) < (size_t)lvals) {
+    if(ext_vec_size(exprs->as.exprList) < (size_t)lvals) {
         error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals,
-              ext_vec_size(exprs->as.list));
+              ext_vec_size(exprs->as.exprList));
     }
 
     int i = 0;
-    ext_vec_foreach(JStarExpr** it, exprs->as.list) {
+    ext_vec_foreach(JStarExpr** it, exprs->as.exprList) {
         const JStarIdentifier* name = NULL;
         if(names && i < lvals){
             name = &names[i];
@@ -878,8 +878,8 @@ static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
 
 // Compile an unpack assignment of the form: a, b, ..., z = ...
 static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
-    JStarExpr* lvals = e->as.assign.lval->as.tuple.exprs;
-    size_t lvalCount = ext_vec_size(lvals->as.list);
+    JStarExpr* lvals = e->as.assign.lval->as.tupleLiteral.exprs;
+    size_t lvalCount = ext_vec_size(lvals->as.exprList);
 
     if(lvalCount >= UINT8_MAX) {
         error(c, e->line, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
@@ -901,7 +901,7 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
     // compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
     for(int n = lvalCount - 1; n >= 0; n--) {
-        JStarExpr* lval = lvals->as.list[n];
+        JStarExpr* lval = lvals->as.exprList[n];
         compileLval(c, lval);
         if(n != 0) emitOpcode(c, OP_POP, e->line);
     }
@@ -910,18 +910,18 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
 static void compileAssignExpr(Compiler* c, const JStarExpr* e) {
     switch(e->as.assign.lval->type) {
     case JSR_VAR: {
-        JStarIdentifier* name = &e->as.assign.lval->as.var.id;
+        JStarIdentifier* name = &e->as.assign.lval->as.varLiteral.id;
         compileRval(c, e->as.assign.rval, name);
         compileLval(c, e->as.assign.lval);
         break;
     }
-    case JSR_ACCESS: {
-        JStarIdentifier* name = &e->as.assign.lval->as.access.id;
+    case JSR_PROPERTY_ACCESS: {
+        JStarIdentifier* name = &e->as.assign.lval->as.propertyAccess.id;
         compileRval(c, e->as.assign.rval, name);
         compileLval(c, e->as.assign.lval);
         break;
     }
-    case JSR_ARR_ACCESS: {
+    case JSR_INDEX: {
         compileRval(c, e->as.assign.rval, NULL);
         compileLval(c, e->as.assign.lval);
         break;
@@ -937,9 +937,9 @@ static void compileAssignExpr(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
-    JStarTokType op = e->as.compound.op;
-    JStarExpr* l = e->as.compound.lval;
-    JStarExpr* r = e->as.compound.rval;
+    JStarTokType op = e->as.compoundAssign.op;
+    JStarExpr* l = e->as.compoundAssign.lval;
+    JStarExpr* r = e->as.compoundAssign.rval;
 
     // expand compound assignement (e.g. a op= b -> a = a op b)
     JStarExpr binary = {e->line, JSR_BINARY, .as = {.binary = {op, l, r}}};
@@ -950,11 +950,11 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileArguments(Compiler* c, const JStarExpr* args) {
-    ext_vec_foreach(JStarExpr * *it, args->as.list) {
+    ext_vec_foreach(JStarExpr** it, args->as.exprList) {
         compileExpr(c, *it);
     }
 
-    size_t argsCount = ext_vec_size(args->as.list);
+    size_t argsCount = ext_vec_size(args->as.exprList);
     if(argsCount >= UINT8_MAX) {
         error(c, args->line, "Exceeded maximum number of arguments (%d) for function %s",
               (int)UINT8_MAX, c->func->proto.name->data);
@@ -962,7 +962,7 @@ static void compileArguments(Compiler* c, const JStarExpr* args) {
 }
 
 static void compileUnpackArguments(Compiler* c, JStarExpr* args) {
-    JStarExpr argsList = (JStarExpr){args->line, JSR_ARRAY, .as = {.array = {args}}};
+    JStarExpr argsList = (JStarExpr){args->line, JSR_LIST, .as = {.listLiteral = {args}}};
     compileListLit(c, &argsList);
 }
 
@@ -984,13 +984,13 @@ static void compileCallExpr(Compiler* c, const JStarExpr* e) {
     Opcode callUnpack = OP_CALL_UNPACK;
 
     JStarExpr* callee = e->as.call.callee;
-    bool isMethod = callee->type == JSR_ACCESS;
+    bool isMethod = callee->type == JSR_PROPERTY_ACCESS;
 
     if(isMethod) {
         callCode = OP_INVOKE;
         callInline = OP_INVOKE_0;
         callUnpack = OP_INVOKE_UNPACK;
-        compileExpr(c, callee->as.access.left);
+        compileExpr(c, callee->as.propertyAccess.left);
     } else {
         compileExpr(c, callee);
     }
@@ -1004,11 +1004,11 @@ static void compileCallExpr(Compiler* c, const JStarExpr* e) {
         compileArguments(c, args);
     }
 
-    uint8_t argsCount = ext_vec_size(args->as.list);
+    uint8_t argsCount = ext_vec_size(args->as.exprList);
     emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->line);
 
     if(isMethod) {
-        emitShort(c, identifierConst(c, &callee->as.access.id, e->line), e->line);
+        emitShort(c, identifierConst(c, &callee->as.propertyAccess.id, e->line), e->line);
     }
 }
 
@@ -1042,7 +1042,7 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
             compileArguments(c, args);
         }
 
-        uint8_t argsCount = ext_vec_size(args->as.list);
+        uint8_t argsCount = ext_vec_size(args->as.exprList);
         compileVarLit(c, &superName, false, e->line);
         emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->line);
         emitShort(c, methodConst, e->line);
@@ -1054,14 +1054,14 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileAccessExpression(Compiler* c, const JStarExpr* e) {
-    compileExpr(c, e->as.access.left);
+    compileExpr(c, e->as.propertyAccess.left);
     emitOpcode(c, OP_GET_FIELD, e->line);
-    emitShort(c, identifierConst(c, &e->as.access.id, e->line), e->line);
+    emitShort(c, identifierConst(c, &e->as.propertyAccess.id, e->line), e->line);
 }
 
 static void compileArraryAccExpression(Compiler* c, const JStarExpr* e) {
-    compileExpr(c, e->as.arrayAccess.left);
-    compileExpr(c, e->as.arrayAccess.index);
+    compileExpr(c, e->as.index.left);
+    compileExpr(c, e->as.index.index);
     emitOpcode(c, OP_SUBSCR_GET, e->line);
 }
 
@@ -1074,7 +1074,7 @@ static void compilePowExpr(Compiler* c, const JStarExpr* e) {
 static void compileListLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
 
-    ext_vec_foreach(JStarExpr * *it, e->as.array.exprs->as.list) {
+    ext_vec_foreach(JStarExpr** it, e->as.listLiteral.exprs->as.exprList) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1093,22 +1093,28 @@ static void compileListLit(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileSpreadTupleLit(Compiler* c, const JStarExpr* e) {
-    JStarExpr toList = (JStarExpr){e->line, JSR_ARRAY, .as = {.array = {e->as.tuple.exprs}}};
+    JStarExpr toList = (JStarExpr){
+        e->line,
+        JSR_LIST,
+        .as = {
+            .listLiteral = {e->as.tupleLiteral.exprs}
+        }
+    };
     compileListLit(c, &toList);
     emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
 }
 
 static void compileTupleLit(Compiler* c, const JStarExpr* e) {
-    if(containsSpreadExpr(e->as.tuple.exprs)) {
+    if(containsSpreadExpr(e->as.tupleLiteral.exprs)) {
         compileSpreadTupleLit(c, e);
         return;
     }
 
-    ext_vec_foreach(JStarExpr * *it, e->as.tuple.exprs->as.list) {
+    ext_vec_foreach(JStarExpr** it, e->as.tupleLiteral.exprs->as.exprList) {
         compileExpr(c, *it);
     }
 
-    size_t tupleSize = ext_vec_size(e->as.tuple.exprs->as.list);
+    size_t tupleSize = ext_vec_size(e->as.tupleLiteral.exprs->as.exprList);
     if(tupleSize >= UINT8_MAX) {
         error(c, e->line, "Too many elements in Tuple literal");
     }
@@ -1120,8 +1126,8 @@ static void compileTupleLit(Compiler* c, const JStarExpr* e) {
 static void compileTableLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->line);
 
-    JStarExpr* keyVals = e->as.table.keyVals;
-    for(JStarExpr** it = ext_vec_begin(keyVals->as.list); it != ext_vec_end(keyVals->as.list);) {
+    JStarExpr* keyVals = e->as.tableLiteral.keyVals;
+    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList); it != ext_vec_end(keyVals->as.exprList);) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1178,7 +1184,7 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
     case JSR_ASSIGN:
         compileAssignExpr(c, e);
         break;
-    case JSR_COMPUND_ASS:
+    case JSR_COMPOUND_ASSIGN:
         compileCompundAssign(c, e);
         break;
     case JSR_UNARY:
@@ -1190,10 +1196,10 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
     case JSR_CALL:
         compileCallExpr(c, e);
         break;
-    case JSR_ACCESS:
+    case JSR_PROPERTY_ACCESS:
         compileAccessExpression(c, e);
         break;
-    case JSR_ARR_ACCESS:
+    case JSR_INDEX:
         compileArraryAccExpression(c, e);
         break;
     case JSR_YIELD:
@@ -1212,12 +1218,12 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         emitValueConst(c, OBJ_VAL(readString(c, e)), e->line);
         break;
     case JSR_VAR:
-        compileVarLit(c, &e->as.var.id, false, e->line);
+        compileVarLit(c, &e->as.varLiteral.id, false, e->line);
         break;
     case JSR_NULL:
         emitOpcode(c, OP_NULL, e->line);
         break;
-    case JSR_ARRAY:
+    case JSR_LIST:
         compileListLit(c, e);
         break;
     case JSR_TUPLE:
@@ -1229,14 +1235,14 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
     case JSR_SUPER:
         compileSuper(c, e);
         break;
-    case JSR_FUNC_LIT:
+    case JSR_FUN_LIT:
         compileFunLiteral(c, e, NULL);
         break;
     case JSR_SPREAD:
         compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
-        ext_vec_foreach(JStarExpr * *it, e->as.list) {
+        ext_vec_foreach(JStarExpr** it, e->as.exprList) {
             compileExpr(c, *it);
         }
         break;
@@ -1639,7 +1645,7 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     emitShort(c, 0, 0);
 
     // x = closable
-    JStarExpr lval = {.line = s->line, .type = JSR_VAR, .as = {.var = {s->as.withStmt.var}}};
+    JStarExpr lval = {.line = s->line, .type = JSR_VAR, .as = {.varLiteral = {s->as.withStmt.var}}};
     JStarExpr assign = {.line = s->line,
                         .type = JSR_ASSIGN,
                         .as = {.assign = {.lval = &lval, .rval = s->as.withStmt.e}}};
@@ -1709,7 +1715,7 @@ static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
 // DECLARATIONS
 // -----------------------------------------------------------------------------
 
-static void compileFormalArg(Compiler* c, const FormalArg* arg, int argIdx, int line) {
+static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx, int line) {
     switch(arg->type) {
     case SIMPLE: {
         Variable var = declareVar(c, &arg->as.simple, false, line);
@@ -1730,16 +1736,16 @@ static void compileFormalArg(Compiler* c, const FormalArg* arg, int argIdx, int 
     }
 }
 
-static void compileFormalArgs(Compiler* c, const ext_vector(FormalArg) args, int line) {
+static void compileFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args, int line) {
     int argIdx = 0;
-    ext_vec_foreach(const FormalArg* arg, args) {
+    ext_vec_foreach(const JStarFormalArg* arg, args) {
         compileFormalArg(c, arg, argIdx++, line);
     }
 }
 
-static void unpackFormalArgs(Compiler* c, const ext_vector(FormalArg) args, int line) {
+static void unpackFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args, int line) {
     int argIdx = 0;
-    ext_vec_foreach(const FormalArg* arg, args) {
+    ext_vec_foreach(const JStarFormalArg* arg, args) {
         if(arg->type == SIMPLE) {
             continue;
         }
