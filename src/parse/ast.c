@@ -76,7 +76,7 @@ JStarExpr* jsrVarLiteral(int line, const char* var, size_t len) {
     return e;
 }
 
-JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs) {
+JStarExpr* jsrListLiteral(int line, JStarExpr* exprs) {
     JStarExpr* a = newExpr(line, JSR_LIST);
     a->as.listLiteral.exprs = exprs;
     return a;

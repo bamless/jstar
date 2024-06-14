@@ -346,7 +346,7 @@ JSTAR_API JStarExpr* jsrSpreadExpr(int line, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrExprList(int line, ext_vector(JStarExpr*) exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(int line, bool boolean);
 JSTAR_API JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs);
-JSTAR_API JStarExpr* jsrArrLiteral(int line, JStarExpr* exprs);
+JSTAR_API JStarExpr* jsrListLiteral(int line, JStarExpr* exprs);
 JSTAR_API JStarExpr* jsrYieldExpr(int line, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrNumLiteral(int line, double num);
 JSTAR_API JStarExpr* jsrNullLiteral(int line);

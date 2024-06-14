@@ -1055,7 +1055,7 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
 JStarExpr* parseListLiteral(Parser* p) {
     int line = p->peek.line;
     JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-    return jsrArrLiteral(line, exprs);
+    return jsrListLiteral(line, exprs);
 }
 
 static JStarExpr* literal(Parser* p) {
