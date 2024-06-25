@@ -77,6 +77,10 @@ class Iterable
         return map(this, fn)
     end
 
+    fun flatMap(fn)
+        return flatMap(this, fn)
+    end
+
     fun filter(predicate)
         return filter(this, predicate)
     end
@@ -487,6 +491,19 @@ end
 fun map(iterable, fn)
     for var e in iterable
         yield fn(e)
+    end
+end
+
+fun flatMap(iterable, fn)
+    for var e in iterable
+        var res = fn(e)
+        if res is Iterable
+            for var e in res
+                yield e
+            end
+        else
+            yield e
+        end
     end
 end
 
