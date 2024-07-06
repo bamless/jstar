@@ -495,7 +495,8 @@ JSR_NATIVE(jsr_Generator_string) {
     const Prototype* proto = &gen->closure->fn->proto;
     JStarBuffer str;
     jsrBufferInit(vm, &str);
-    jsrBufferAppendf(&str, "<Generator %s.%s@%p>", proto->module->name->data, proto->name->data, (void*)gen);
+    jsrBufferAppendf(&str, "<Generator %s.%s@%p>", proto->module->name->data, proto->name->data,
+                     (void*)gen);
     jsrBufferPush(&str);
     return true;
 }
@@ -1091,13 +1092,17 @@ JSR_NATIVE(jsr_String_split) {
     const char* last = str;
 
     if(delimSize < size) {
-        for(size_t i = 0; i <= size - delimSize; i++) {
+        size_t i = 0;
+        while(i <= size - delimSize) {
             if(memcmp(str + i, delimiter, delimSize) == 0) {
                 jsrPushStringSz(vm, last, str + i - last);
                 jsrListAppend(vm, -2);
                 jsrPop(vm);
 
                 last = str + i + delimSize;
+                i += delimSize;
+            } else {
+                i++;
             }
         }
     }
