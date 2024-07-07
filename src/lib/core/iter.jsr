@@ -97,8 +97,8 @@ class Iterable
         return take(this, count)
     end
 
-    fun takeWhile(predicate)
-        return takeWhile(this, predicate)
+    fun takeWhile(predicate, inclusive=false)
+        return takeWhile(this, predicate, inclusive)
     end
 
     fun flatten()
@@ -125,8 +125,12 @@ class Iterable
         return sorted(this, comparator)
     end
 
-    fun collect(collector, ...args)
-        return collector(this, ...args) if #args > 0 else collector(this)
+    fun apply(iterator, ...args)
+        return iterator(this, ...args) if #args > 0 else iterator(this)
+    end
+
+    fun collect(collector)
+        return collector(this)
     end
 end
 
@@ -544,9 +548,12 @@ fun take(iterable, count)
     end
 end
 
-fun takeWhile(iterable, predicate)
+fun takeWhile(iterable, predicate, inclusive=false)
     for var e in iterable
         if !predicate(e)
+            if inclusive
+                yield e
+            end
             break
         end
         yield e
