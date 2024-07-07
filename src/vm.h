@@ -16,50 +16,9 @@
 
 // Enum encoding special method names needed at runtime
 // Mainly used for operator overloading
-// See methodSyms array in vm.c
 typedef enum MethodSymbol {
-    SYM_CTOR,
-
-    SYM_ITER,
-    SYM_NEXT,
-
-    SYM_ADD,
-    SYM_SUB,
-    SYM_MUL,
-    SYM_DIV,
-    SYM_MOD,
-    SYM_BAND,
-    SYM_BOR,
-    SYM_XOR,
-    SYM_LSHFT,
-    SYM_RSHFT,
-
-    SYM_RADD,
-    SYM_RSUB,
-    SYM_RMUL,
-    SYM_RDIV,
-    SYM_RMOD,
-    SYM_RBAND,
-    SYM_RBOR,
-    SYM_RXOR,
-    SYM_RLSHFT,
-    SYM_RRSHFT,
-
-    SYM_GET,
-    SYM_SET,
-
-    SYM_NEG,
-    SYM_INV,
-
-    SYM_EQ,
-    SYM_LT,
-    SYM_LE,
-    SYM_GT,
-    SYM_GE,
-
-    SYM_POW,
-    SYM_RPOW,
-
+#define SYMBOL(sym, _) sym,
+#include "method_syms.def"
     SYM_END
 } MethodSymbol;
 
