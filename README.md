@@ -15,7 +15,7 @@ a middle ground between Python, a more complete scripting language with lots of 
 libraries, and Lua, a small and compact language that is simple to embed but doesn't  provide OOP 
 functionalities out of the box.  
 J* tries to take the best of both worlds, implementing a fully featured class system while 
-maintaining a small standard library and employing the use of a stack based API for communication 
+maintaining a small footprint and employing the use of a stack based API for communication 
 among the language and host program, rendering embedding simple.
 
 **J\*** is:
