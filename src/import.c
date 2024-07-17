@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "conf.h"
 #include "compiler.h"
+#include "conf.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "lib/builtins.h"
@@ -33,8 +33,8 @@ ObjFunction* compileModule(JStarVM* vm, const char* path, ObjString* name, JStar
     return fn;
 }
 
-JStarResult deserializeModule(JStarVM* vm, const char* path, ObjString* name,
-                              const void* code, size_t len, ObjFunction** out) {
+JStarResult deserializeModule(JStarVM* vm, const char* path, ObjString* name, const void* code,
+                              size_t len, ObjFunction** out) {
     PROFILE_FUNC()
     JStarResult err = deserialize(vm, getOrCreateModule(vm, path, name), code, len, out);
     if(err == JSR_VERSION_ERR) {
@@ -106,8 +106,8 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
     return fn->proto.module;
 }
 
-static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name,
-                               const void* code, size_t len) {
+static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name, const void* code,
+                               size_t len) {
     PROFILE_FUNC()
     JSR_ASSERT(isCompiledCode(code, len), "`code` must be a valid compiled chunk");
 
@@ -140,7 +140,14 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
         return NULL;
     }
 
+    // An import callback is similar to a native function call (could be re-entrant), so setup the
+    // apiStack to the current stack pointer, so that push/pop operations are relative to the
+    // current position
+    size_t savedApiStack = vm->sp - vm->apiStack;
+    vm->apiStack = vm->sp;
+
     JStarImportResult res = vm->importCallback(vm, name->data);
+    vm->apiStack = vm->sp + savedApiStack;
 
     if(!res.code) {
         return NULL;
