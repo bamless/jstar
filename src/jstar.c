@@ -54,6 +54,19 @@ static Value apiStackSlot(const JStarVM* vm, int slot) {
     return vm->apiStack[slot];
 }
 
+static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
+    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
+    if(!mod) {
+        if(module)
+            jsrRaise(vm, "ImportException", "Module '%s' not found.", module);
+        else
+            jsrRaise(vm, "ImportException",
+                     "No current module loaded, pass an explicit module name.");
+        return NULL;
+    }
+    return mod;
+}
+
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
     if(line >= 0) {
         fprintf(stderr, "File %s [line:%d]:\n", file, line);
@@ -510,11 +523,11 @@ void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
     return (void*)udata->data;
 }
 
-void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
+bool jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
                    uint8_t argc) {
     checkStack(vm);
-    ObjModule* mod = getModule(vm, copyString(vm, module, strlen(module)));
-    JSR_ASSERT(mod, "Cannot find module");
+    ObjModule* mod = getModuleOrRaise(vm, module);
+    if(!mod) return false;
 
     ObjString* nativeName = copyString(vm, name, strlen(name));
     push(vm, OBJ_VAL(nativeName));
@@ -524,6 +537,7 @@ void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
     pop(vm);
 
     push(vm, OBJ_VAL(native));
+    return true;
 }
 
 void jsrPop(JStarVM* vm) {
@@ -542,10 +556,11 @@ int jsrTop(const JStarVM* vm) {
     return apiStackIndex(vm, -1);
 }
 
-void jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
-    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
-    JSR_ASSERT(mod, "Module doesn't exist");
+bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
+    ObjModule* mod = getModuleOrRaise(vm, module);
+    if(!mod) return false;
     hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
+    return true;
 }
 
 bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
@@ -661,8 +676,8 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
-    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
-    JSR_ASSERT(mod, "Module doesn't exist");
+    ObjModule* mod = getModuleOrRaise(vm, module);
+    if(!mod) return false;
 
     Value res;
     ObjString* nameStr = copyString(vm, name, strlen(name));

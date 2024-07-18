@@ -176,7 +176,11 @@ JSTAR_API void jsrPushTuple(JStarVM* vm, size_t size);
 JSTAR_API void jsrPushTable(JStarVM* vm);
 JSTAR_API void jsrPushValue(JStarVM* vm, int slot);
 JSTAR_API void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*));
-JSTAR_API void jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
+
+// Push a native function to the top of the stack.
+// Returns true on success, leaving the native function on top of the stack.
+// Retruns false if the module could not be found, leaving an exception on top of the stack.
+JSTAR_API bool jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
                              uint8_t argc);
 
 #define jsrDup(vm) jsrPushValue(vm, -1)
@@ -334,14 +338,14 @@ JSTAR_API size_t jsrGetLength(JStarVM* vm, int slot);
 // INSTANCE API
 // -----------------------------------------------------------------------------
 
-// Set the field `name` of the value at `slot` with the value on top of the stack
-// The value is not popped
-// Returns true in case of success
-// Returns false otherwise leaving an exception on top of the stack
+// Set the field `name` of the value at `slot` with the value on top of the stack.
+// The value is not popped.
+// Returns true in case of success.
+// Returns false otherwise leaving an exception on top of the stack.
 JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 
-// Get the field `name` of the value at `slot`
-// Returns true in case of success leaving the result on top of the stack
+// Get the field `name` of the value at `slot`.
+// Returns true in case of success leaving the result on top of the stack.
 // Returns false otherwise leaving an exception on top of the stack.
 JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 
@@ -349,15 +353,18 @@ JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 // MODULE API
 // -----------------------------------------------------------------------------
 
-// Set the global `name` of the module `module` with the value on top of the stack
-// The value is not popped
-// If calling inside a native "module" can be NULL, and the used module will be the current one
-JSTAR_API void jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
+// Set the global `name` of the module `module` with the value on top of the stack.
+// The value is not popped.
+// If calling inside a native "module" can be NULL, and the used module will be the current one.
+// Returns true in case of success, false if the module could not be found, leaving an exception
+// on top of the stack.
+JSTAR_API bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
 
-// Get the global `name` of the module `module`
-// Returns true in case of success leaving the result on the top of the stack
-// Returns false otherwise leaving an exception on top of the stack
-// If calling inside a native "module" can be NULL, and the used module will be the current one
+// Get the global `name` of the module `module`.
+// Returns true in case of success leaving the result on the top of the stack.
+// Returns false if the module could not be found or the name could not be found in the module,
+// leaving an exception on top of the stack.
+// If calling inside a native "module" can be NULL, and the used module will be the current one.
 JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 
 // -----------------------------------------------------------------------------
