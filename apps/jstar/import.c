@@ -47,9 +47,7 @@ static ext_vector(void*) sharedLibs;
 // directory if no script was provided) and all the paths present in the JSTARPATH env variable.
 // All paths are converted to absolute ones.
 static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
-    // Create the import paths list inside the `core` module
-    jsrPushList(vm);
-    jsrSetGlobal(vm, JSR_CORE_MODULE, "importPaths");
+    jsrGetGlobal(vm, JSR_CORE_MODULE, IMPORT_PATHS);
 
     Path mainImport = pathNew();
     if(scriptPath) {

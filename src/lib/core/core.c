@@ -60,6 +60,7 @@ static const char* coreSymbols[] = {
 
     // __core__
     "argv",
+    "importPaths",
     "Number",
     "Boolean",
     "Null",

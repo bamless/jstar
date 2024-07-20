@@ -6,8 +6,12 @@ import __core__.std for assert, print, type, typeAssert
 import __core__.iter as iter
 
 /// List containing program arguments. This List is initialized by the embedder, and tipically
-/// contains command line arguments
+/// contains command line arguments.
 var argv = []
+
+/// List containing the paths where the embedder should look for modules to import.
+/// Can be modified by the user and embbeder to add custom paths.
+var importPaths = []
 
 /// Builtin Number represents a 64-bit IEEE 754 floating point number
 class Number
