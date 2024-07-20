@@ -140,14 +140,14 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
         return NULL;
     }
 
-    // An import callback is similar to a native function call (could be re-entrant), so setup the
-    // apiStack to the current stack pointer, so that push/pop operations are relative to the
-    // current position
-    size_t savedApiStack = vm->sp - vm->apiStack;
+    // An import callback is similar to a native function call (can use the J* API and can be
+    // re-entrant), so setup the apiStack to the current stack pointer, so that push/pop operations
+    // are relative to the current position
+    size_t apiStackOffset = vm->apiStack - vm->stack;
     vm->apiStack = vm->sp;
 
     JStarImportResult res = vm->importCallback(vm, name->data);
-    vm->apiStack = vm->sp + savedApiStack;
+    vm->apiStack = vm->stack + apiStackOffset;
 
     if(!res.code) {
         return NULL;

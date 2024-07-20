@@ -15,7 +15,7 @@
 #include "profiler.h"
 
 #if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
-#include "disassemble.h"
+    #include "disassemble.h"
 #endif
 
 // Constant method names used in operator overloading
@@ -310,24 +310,29 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     const Frame* frame = appendNativeFrame(vm, native);
 
     ObjModule* oldModule = vm->module;
-    size_t savedApiStack = vm->apiStack - vm->stack;
+
+    // Save the current apiStack position relative to the base of the stack. This is saved
+    // in a relative way so that the apiStack can be restored to the correct position after
+    // a possible stack reallocation (for example, if the native function or any of its nested
+    // calls allocate more stack space than its currently available)
+    size_t apiStackOffset = vm->apiStack - vm->stack;
 
     vm->module = native->proto.module;
     vm->apiStack = frame->stack;
 
     if(!native->fn(vm)) {
         vm->module = oldModule;
-        vm->apiStack = vm->stack + savedApiStack;
+        vm->apiStack = vm->stack + apiStackOffset;
         return false;
     }
 
     Value ret = pop(vm);
     vm->frameCount--;
     vm->sp = vm->apiStack;
-    vm->module = oldModule;
-    vm->apiStack = vm->stack + savedApiStack;
-
     push(vm, ret);
+
+    vm->module = oldModule;
+    vm->apiStack = vm->stack + apiStackOffset;
     return true;
 }
 
