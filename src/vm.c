@@ -1480,7 +1480,7 @@ op_return:
     TARGET(OP_YIELD): {
         JSR_ASSERT(frame->gen, "Current function is not a Generator");
         JSR_ASSERT(frame->gen->state != GEN_STARTED && frame->gen->state != GEN_SUSPENDED,
-               "Invalid generator state");
+                   "Invalid generator state");
 
         Value ret = pop(vm);
 
