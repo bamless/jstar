@@ -6,7 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: configure
@@ -24,7 +24,7 @@ jobs:
         mkdir -p release/jstar
         make install
     - name: upload binaries
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: jstar-x64-linux
         path: build/release/jstar

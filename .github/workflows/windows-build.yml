@@ -5,9 +5,9 @@ on: [push]
 
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: configure
@@ -16,7 +16,7 @@ jobs:
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release -DJSTAR_COMPUTED_GOTOS=OFF -DCMAKE_INSTALL_PREFIX=release/jstar
     - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v2
     - name: build
       run: |
         cd build
@@ -27,7 +27,7 @@ jobs:
         mkdir -p release/jstar
         msbuild -p:Configuration=Release INSTALL.vcxproj
     - name: upload binaries
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: jstar-x64-windows
         path: build/release/jstar
