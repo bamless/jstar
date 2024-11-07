@@ -19,12 +19,10 @@ static void grow(ValueArray* a) {
     a->arr = realloc(a->arr, a->capacity * sizeof(Value));
 }
 
-static bool shouldGrow(const ValueArray* a) {
-    return a->size + 1 > a->capacity;
-}
-
 static void ensureCapacity(ValueArray* a) {
-    if(shouldGrow(a)) grow(a);
+    if(a->size + 1 > a->capacity) {
+        grow(a);
+    }
 }
 
 int valueArrayAppend(ValueArray* a, Value v) {

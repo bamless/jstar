@@ -318,28 +318,28 @@ void freeObject(JStarVM* vm, Obj* o) {
 // -----------------------------------------------------------------------------
 
 static void growList(JStarVM* vm, ObjList* lst) {
-    size_t newCap = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEFAULT_CAPACITY;
-    lst->arr = gcAlloc(vm, lst->arr, sizeof(Value) * lst->capacity, sizeof(Value) * newCap);
-    lst->capacity = newCap;
+    size_t oldSize = sizeof(Value) * lst->capacity;
+    lst->capacity = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEFAULT_CAPACITY;
+    lst->arr = gcAlloc(vm, lst->arr, oldSize, sizeof(Value) * lst->capacity);
 }
 
-void listAppend(JStarVM* vm, ObjList* lst, Value val) {
-    // if the list get resized a GC may kick in, so push val as root
+static void ensureListCapacity(JStarVM* vm, ObjList* lst, Value val) {
     if(lst->size + 1 > lst->capacity) {
+        // A GC may kick in, so push val as root
         push(vm, val);
         growList(vm, lst);
         pop(vm);
     }
+}
+
+
+void listAppend(JStarVM* vm, ObjList* lst, Value val) {
+    ensureListCapacity(vm, lst, val);
     lst->arr[lst->size++] = val;
 }
 
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
-    // if the list get resized a GC may kick in, so push val as root
-    if(lst->size + 1 > lst->capacity) {
-        push(vm, val);
-        growList(vm, lst);
-        pop(vm);
-    }
+    ensureListCapacity(vm, lst, val);
 
     Value* arr = lst->arr;
     for(size_t i = lst->size; i > index; i--) {
@@ -371,23 +371,31 @@ bool stringEquals(ObjString* s1, ObjString* s2) {
     return s1->length == s2->length && memcmp(s1->data, s2->data, s1->length) == 0;
 }
 
+static void growFrameRecord(JStarVM* vm, ObjStackTrace* st) {
+    size_t oldSize = sizeof(FrameRecord) * st->recordCapacity;
+    st->recordCapacity = st->records ? st->recordCapacity * ST_GROW_RATE : ST_DEFAULT_CAPACITY;
+    st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordCapacity);
+}
+
+static void ensureFrameRecordCapacity(JStarVM* vm, ObjStackTrace* st) {
+    if(st->recordSize + 1 > st->recordCapacity) {
+        growFrameRecord(vm, st);
+    }
+}
+
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 
-    if(st->recordSize + 1 >= st->recordCapacity) {
-        size_t oldSize = sizeof(FrameRecord) * st->recordCapacity;
-        st->recordCapacity = st->records ? st->recordCapacity * ST_GROW_RATE : ST_DEFAULT_CAPACITY;
-        st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordCapacity);
-    }
-
+    ensureFrameRecordCapacity(vm, st);
     FrameRecord* record = &st->records[st->recordSize++];
     record->funcName = NULL;
     record->moduleName = NULL;
 
     switch(f->fn->type) {
     case OBJ_CLOSURE: {
-        ObjFunction* fn = ((ObjClosure*)f->fn)->fn;
+        ObjClosure* closure = (ObjClosure*)f->fn;
+        ObjFunction* fn = closure->fn;
         Code* code = &fn->code;
 
         size_t op = f->ip - code->bytecode - 1;
