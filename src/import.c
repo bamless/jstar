@@ -36,14 +36,14 @@ ObjFunction* compileModule(JStarVM* vm, const char* path, ObjString* name, JStar
 JStarResult deserializeModule(JStarVM* vm, const char* path, ObjString* name, const void* code,
                               size_t len, ObjFunction** out) {
     PROFILE_FUNC()
-    JStarResult err = deserialize(vm, getOrCreateModule(vm, path, name), code, len, out);
-    if(err == JSR_VERSION_ERR) {
-        vm->errorCallback(vm, err, path, -1, "Incompatible binary file version");
+    JStarResult res = deserialize(vm, getOrCreateModule(vm, path, name), code, len, out);
+    if(res == JSR_VERSION_ERR) {
+        vm->errorCallback(vm, res, path, -1, "Incompatible binary file version");
     }
-    if(err == JSR_DESERIALIZE_ERR) {
-        vm->errorCallback(vm, err, path, -1, "Malformed binary file");
+    if(res == JSR_DESERIALIZE_ERR) {
+        vm->errorCallback(vm, res, path, -1, "Malformed binary file");
     }
-    return JSR_SUCCESS;
+    return res;
 }
 
 static void registerInParent(JStarVM* vm, ObjModule* module) {
