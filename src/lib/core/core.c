@@ -1382,17 +1382,17 @@ static bool findEntry(JStarVM* vm, TableEntry* entries, size_t sizeMask, Value k
         TableEntry* e = &entries[i];
         if(IS_NULL(e->key)) {
             if(IS_NULL(e->val)) {
-                if(tomb)
-                    *out = tomb;
-                else
-                    *out = e;
+                *out = tomb ? tomb : e;
                 return true;
             } else if(!tomb) {
                 tomb = e;
             }
         } else {
             bool eq;
-            if(!tableKeyEquals(vm, key, e->key, &eq)) return false;
+            if(!tableKeyEquals(vm, key, e->key, &eq)) { 
+                return false;
+            }
+
             if(eq) {
                 *out = e;
                 return true;
