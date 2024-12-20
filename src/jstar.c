@@ -123,7 +123,6 @@ static JStarResult evalStringLen(JStarVM* vm, const char* path, const char* modu
     }
 
     pop(vm);
-    printf("hits %d, misses %d\n", vm->cacheHits, vm->cacheMisses);
     return res;
 }
 

@@ -129,8 +129,6 @@ struct JStarVM {
     // Stack used to recursevely reach all the fields of reached objects
     Obj** reachedStack;
     size_t reachedCapacity, reachedCount;
-
-    int cacheHits, cacheMisses;
 };
 
 bool getValueField(JStarVM* vm, ObjString* name);

@@ -74,6 +74,6 @@ int addSymbol(Code* c, uint16_t constant) {
         c->symbols = realloc(c->symbols, c->symbolCapacity * sizeof(Symbol));
     }
 
-    c->symbols[c->symbolCount++] = (Symbol){constant, NULL, NULL_VAL};
+    c->symbols[c->symbolCount++] = (Symbol){ .constant = constant };
     return c->symbolCount - 1;
 }

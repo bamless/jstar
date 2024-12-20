@@ -390,7 +390,7 @@ static bool deserializeSymbols(Deserializer* d, Code* c) {
     for(int i = 0; i < symbolCount; i++) {
         uint16_t constant;
         if(!deserializeShort(d, &constant)) return false;
-        c->symbols[i] = (Symbol){constant, NULL, NULL_VAL};
+        c->symbols[i] = (Symbol){ .constant = constant };
     }
 
     return true;

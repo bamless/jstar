@@ -9,9 +9,13 @@
 typedef struct ObjClass ObjClass;
 
 typedef struct Symbol {
+    enum { SYMBOL_NONE, SYMBOL_METHOD, SYMBOL_FIELD, SIMBOL_GLOBAL } type;
     uint16_t constant;
-    ObjClass* cls;
-    Value cached;
+    uintptr_t key;
+    union {
+        Value method;
+        int offset;
+    } as;
 } Symbol;
 
 typedef struct Code {
