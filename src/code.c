@@ -1,6 +1,7 @@
 #include "code.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define CODE_DEF_SIZE  8
 #define CODE_GROW_FACT 2
@@ -61,4 +62,18 @@ int addConstant(Code* c, Value constant) {
     }
 
     return valueArrayAppend(&c->consts, constant);
+}
+
+static bool shouldGrowSymbols(const Code* c) {
+    return c->symbolCount + 1 > c->symbolCapacity;
+}
+
+int addSymbol(Code* c, uint16_t constant) {
+    if(shouldGrowSymbols(c)) {
+        c->symbolCapacity = c->symbolCapacity ? c->symbolCapacity * CODE_GROW_FACT : CODE_DEF_SIZE;
+        c->symbols = realloc(c->symbols, c->symbolCapacity * sizeof(Symbol));
+    }
+
+    c->symbols[c->symbolCount++] = (Symbol){constant, NULL, NULL_VAL};
+    return c->symbolCount - 1;
 }

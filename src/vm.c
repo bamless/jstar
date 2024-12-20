@@ -11,8 +11,10 @@
 #include "lib/builtins.h"
 #include "lib/core/core.h"
 #include "lib/core/excs.h"
+#include "object.h"
 #include "opcode.h"
 #include "profiler.h"
+#include "value.h"
 
 #if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
     #include "disassemble.h"
@@ -83,6 +85,9 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     for(int i = 0; i < SYM_END; i++) {
         vm->methodSyms[i] = copyString(vm, methodSyms[i], strlen(methodSyms[i]));
     }
+
+    vm->cacheHits = 0;
+    vm->cacheMisses = 0;
 
     return vm;
 }
@@ -741,8 +746,8 @@ bool getValueField(JStarVM* vm, ObjString* name) {
 
             // No global, try to bind method
             if(!bindMethod(vm, mod->base.cls, name)) {
-                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s",
-                         name->data, mod->name->data);
+                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s", name->data,
+                         mod->name->data);
                 return false;
             }
 
@@ -939,6 +944,63 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
 
     ObjClass* cls = getClass(vm, val);
     return invokeMethod(vm, cls, name, argc);
+}
+
+static Value resolveMethod(JStarVM* vm, ObjString* name, uint8_t argc) {
+    Value val = peekn(vm, argc);
+    if(IS_OBJ(val)) {
+        switch(AS_OBJ(val)->type) {
+        case OBJ_INST: {
+            ObjInstance* inst = AS_INSTANCE(val);
+            ObjClass* cls = inst->base.cls;
+
+            // First try to find a method
+            Value method;
+            if(hashTableGet(&cls->methods, name, &method)) {
+                return method;
+            }
+
+            // TODO: what to do here?
+            // If no method is found try a field
+            Value field;
+            if(hashTableGet(&inst->fields, name, &field)) {
+                return field;
+            }
+
+            jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+                     name->data);
+            return false;
+        }
+        case OBJ_MODULE: {
+            Value func;
+            ObjModule* mod = AS_MODULE(val);
+
+            // Check if a method shadows a function in the module
+            if(hashTableGet(&vm->modClass->methods, name, &func)) {
+                return func;
+            }
+
+            // If no method is found on the module object, try to get a global variable
+            if(hashTableGet(&mod->globals, name, &func)) {
+                return func;
+            }
+
+            jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
+                     mod->name->data);
+            return false;
+        }
+        default:
+            break;
+        }
+    }
+
+    ObjClass* cls = getClass(vm, val);
+    if(hashTableGet(&cls->methods, name, &val)) {
+        return val;
+    }
+
+    jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data, name->data);
+    return NULL_VAL;
 }
 
 static int powerOf2Ceil(int n) {
@@ -1390,9 +1452,24 @@ call:
         goto invoke;
 
 invoke:;
-        ObjString* name = GET_STRING();
+        ObjClass* cls = getClass(vm, peekn(vm, argc));
+        Symbol* sym = &fn->code.symbols[NEXT_SHORT()];
+        Value method = sym->cached;
+        if(sym->cls != cls) {
+            vm->cacheMisses += 1;
+            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            method = resolveMethod(vm, name, argc);
+            if (method == NULL_VAL) {
+                UNWIND_STACK();
+            }
+            sym->cls = cls;
+            sym->cached = method;
+        } else {
+            vm->cacheHits += 1;
+        }
+
         SAVE_STATE();
-        bool res = invokeValue(vm, name, argc);
+        bool res = callValue(vm, method, argc);
         LOAD_STATE();
         if(!res) UNWIND_STACK();
         DISPATCH();
@@ -1434,9 +1511,24 @@ super_get_class:;
         superCls = AS_CLASS(pop(vm));
 
 super_invoke:;
-        ObjString* name = GET_STRING();
+        Symbol* sym = &fn->code.symbols[NEXT_SHORT()];
+        Value method = sym->cached;
+        if(sym->cls != superCls) {
+            vm->cacheMisses += 1;
+            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            if(!hashTableGet(&superCls->methods, name, &method)) {
+                jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
+                         name->data);
+                UNWIND_STACK();
+            }
+            sym->cls = superCls;
+            sym->cached = method;
+        } else {
+            vm->cacheHits += 1;
+        }
+
         SAVE_STATE();
-        bool res = invokeMethod(vm, superCls, name, argc);
+        bool res = callValue(vm, method, argc);
         LOAD_STATE();
         if(!res) UNWIND_STACK();
         DISPATCH();

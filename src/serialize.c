@@ -123,6 +123,13 @@ static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
     }
 }
 
+static void serializeSymbols(JStarBuffer* buf, Symbol* symbols, int count) {
+    serializeShort(buf, count);
+    for(int i = 0; i < count; i++) {
+        serializeShort(buf, symbols[i].constant);
+    }
+}
+
 static void serializeCode(JStarBuffer* buf, Code* c) {
     // TODO: store (compressed) line information? maybe give option in application
 
@@ -133,6 +140,7 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
     }
 
     serializeConstants(buf, &c->consts);
+    serializeSymbols(buf, c->symbols, c->symbolCount);
 }
 
 static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
@@ -372,6 +380,22 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
     return true;
 }
 
+static bool deserializeSymbols(Deserializer* d, Code* c) {
+    uint16_t symbolCount;
+    if(!deserializeShort(d, &symbolCount)) return false;
+
+    c->symbolCount = symbolCount;
+    c->symbols = malloc(sizeof(Symbol) * symbolCount);
+
+    for(int i = 0; i < symbolCount; i++) {
+        uint16_t constant;
+        if(!deserializeShort(d, &constant)) return false;
+        c->symbols[i] = (Symbol){constant, NULL, NULL_VAL};
+    }
+
+    return true;
+}
+
 static bool deserializeCode(Deserializer* d, Code* c) {
     uint64_t codeSize;
     if(!deserializeUint64(d, &codeSize)) return false;
@@ -382,6 +406,7 @@ static bool deserializeCode(Deserializer* d, Code* c) {
 
     if(!read(d, c->bytecode, codeSize)) return false;
     if(!deserializeConstants(d, &c->consts)) return false;
+    if(!deserializeSymbols(d, c)) return false;
 
     return true;
 }

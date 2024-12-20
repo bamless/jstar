@@ -1,6 +1,7 @@
 #include "disassemble.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -99,6 +100,13 @@ static void constInstruction(const Code* c, size_t i) {
     printf(")");
 }
 
+static void symbolInstruction(const Code* c, size_t i) {
+    int arg = readShortAt(c->bytecode, i + 1);
+    printf("%d (", arg);
+    printValue(c->consts.arr[c->symbols[arg].constant]);
+    printf(")");
+}
+
 static void const2Instruction(const Code* c, size_t i) {
     int arg1 = readShortAt(c->bytecode, i + 1);
     int arg2 = readShortAt(c->bytecode, i + 3);
@@ -181,6 +189,8 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     case OP_SUPER_9:
     case OP_SUPER_10:
     case OP_SUPER_BIND:
+        symbolInstruction(c, instr);
+        break;
     case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:

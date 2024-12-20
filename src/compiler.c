@@ -126,8 +126,8 @@ struct Compiler {
     Upvalue upvalues[MAX_LOCALS];
 
     ext_vector(char*) syntheticNames;
-    ext_vector(JStarIdentifier)* globals;
-    ext_vector(FwdRef)* fwdRefs;
+    ext_vector(JStarIdentifier) * globals;
+    ext_vector(FwdRef) * fwdRefs;
 
     int stackUsage;
 
@@ -138,8 +138,8 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
-                         const char* file, FuncType type, ext_vector(JStarIdentifier)* globals,
-                         ext_vector(FwdRef)* fwdRefs, const JStarStmt* ast) {
+                         const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
+                         ext_vector(FwdRef) * fwdRefs, const JStarStmt* ast) {
     vm->currCompiler = c;
     c->vm = vm;
     c->module = module;
@@ -300,6 +300,10 @@ static uint16_t stringConst(Compiler* c, const char* str, size_t length, int lin
 
 static uint16_t identifierConst(Compiler* c, const JStarIdentifier* id, int line) {
     return stringConst(c, id->name, id->length, line);
+}
+
+static uint16_t identifierSymbol(Compiler* c, const JStarIdentifier* id, int line) {
+    return addSymbol(&c->func->code, identifierConst(c, id, line));
 }
 
 static int addLocal(Compiler* c, const JStarIdentifier* id, int line) {
@@ -539,11 +543,11 @@ static void endLoop(Compiler* c) {
     c->loops = c->loops->parent;
 }
 
-static void methodCall(Compiler* c, const char* name, int args) {
+static void inlineMethodCall(Compiler* c, const char* name, int args) {
     JSR_ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
     JStarIdentifier meth = createIdentifier(name);
     emitOpcode(c, OP_INVOKE_0 + args, 0);
-    emitShort(c, identifierConst(c, &meth, 0), 0);
+    emitShort(c, identifierSymbol(c, &meth, 0), 0);
 }
 
 static void enterTryBlock(Compiler* c, TryBlock* exc, int numHandlers, int line) {
@@ -600,9 +604,10 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
     return string;
 }
 
-static void addFunctionDefaults(Compiler* c, const Prototype* proto, ext_vector(JStarExpr*) defaults) {
+static void addFunctionDefaults(Compiler* c, const Prototype* proto,
+                                ext_vector(JStarExpr*) defaults) {
     int i = 0;
-    ext_vec_foreach(JStarExpr **it, defaults) {
+    ext_vec_foreach(JStarExpr * *it, defaults) {
         const JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -642,7 +647,7 @@ bool isSpreadExpr(const JStarExpr* e) {
 
 bool containsSpreadExpr(const JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
-    ext_vec_foreach(JStarExpr** it, exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, exprs->as.exprList) {
         JStarExpr* e = *it;
         if(isSpreadExpr(e)) {
             return true;
@@ -748,10 +753,10 @@ static void compileUnaryExpr(Compiler* c, const JStarExpr* e) {
         emitOpcode(c, OP_INVERT, e->line);
         break;
     case TOK_HASH:
-        methodCall(c, "__len__", 0);
+        inlineMethodCall(c, "__len__", 0);
         break;
     case TOK_HASH_HASH:
-        methodCall(c, "__string__", 0);
+        inlineMethodCall(c, "__string__", 0);
         break;
     default:
         JSR_UNREACHABLE();
@@ -862,9 +867,9 @@ static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
     }
 
     int i = 0;
-    ext_vec_foreach(JStarExpr** it, exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, exprs->as.exprList) {
         const JStarIdentifier* name = NULL;
-        if(names && i < lvals){
+        if(names && i < lvals) {
             name = &names[i];
         }
 
@@ -950,7 +955,7 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileArguments(Compiler* c, const JStarExpr* args) {
-    ext_vec_foreach(JStarExpr** it, args->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, args->as.exprList) {
         compileExpr(c, *it);
     }
 
@@ -1008,7 +1013,7 @@ static void compileCallExpr(Compiler* c, const JStarExpr* e) {
     emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->line);
 
     if(isMethod) {
-        emitShort(c, identifierConst(c, &callee->as.propertyAccess.id, e->line), e->line);
+        emitShort(c, identifierSymbol(c, &callee->as.propertyAccess.id, e->line), e->line);
     }
 }
 
@@ -1023,11 +1028,11 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_GET_LOCAL, e->line);
     emitByte(c, 0, e->line);
 
-    uint16_t methodConst;
+    uint16_t methodSym;
     if(e->as.sup.name.name != NULL) {
-        methodConst = identifierConst(c, &e->as.sup.name, e->line);
+        methodSym = identifierSymbol(c, &e->as.sup.name, e->line);
     } else {
-        methodConst = identifierConst(c, &c->ast->as.decl.as.fun.id, e->line);
+        methodSym = identifierSymbol(c, &c->ast->as.decl.as.fun.id, e->line);
     }
 
     JStarIdentifier superName = createIdentifier("super");
@@ -1045,11 +1050,11 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
         uint8_t argsCount = ext_vec_size(args->as.exprList);
         compileVarLit(c, &superName, false, e->line);
         emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->line);
-        emitShort(c, methodConst, e->line);
+        emitShort(c, methodSym, e->line);
     } else {
         compileVarLit(c, &superName, false, e->line);
         emitOpcode(c, OP_SUPER_BIND, e->line);
-        emitShort(c, methodConst, e->line);
+        emitShort(c, methodSym, e->line);
     }
 }
 
@@ -1074,7 +1079,7 @@ static void compilePowExpr(Compiler* c, const JStarExpr* e) {
 static void compileListLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
 
-    ext_vec_foreach(JStarExpr** it, e->as.listLiteral.exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, e->as.listLiteral.exprs->as.exprList) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1084,7 +1089,7 @@ static void compileListLit(Compiler* c, const JStarExpr* e) {
         compileExpr(c, expr);
 
         if(isSpreadExpr(expr)) {
-            methodCall(c, "addAll", 1);
+            inlineMethodCall(c, "addAll", 1);
             emitOpcode(c, OP_POP, expr->line);
         } else {
             emitOpcode(c, OP_APPEND_LIST, e->line);
@@ -1093,13 +1098,8 @@ static void compileListLit(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileSpreadTupleLit(Compiler* c, const JStarExpr* e) {
-    JStarExpr toList = (JStarExpr){
-        e->line,
-        JSR_LIST,
-        .as = {
-            .listLiteral = {e->as.tupleLiteral.exprs}
-        }
-    };
+    JStarExpr toList = (JStarExpr){e->line, JSR_LIST,
+                                   .as = {.listLiteral = {e->as.tupleLiteral.exprs}}};
     compileListLit(c, &toList);
     emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
 }
@@ -1110,7 +1110,7 @@ static void compileTupleLit(Compiler* c, const JStarExpr* e) {
         return;
     }
 
-    ext_vec_foreach(JStarExpr** it, e->as.tupleLiteral.exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, e->as.tupleLiteral.exprs->as.exprList) {
         compileExpr(c, *it);
     }
 
@@ -1127,13 +1127,14 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.tableLiteral.keyVals;
-    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList); it != ext_vec_end(keyVals->as.exprList);) {
+    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList);
+        it != ext_vec_end(keyVals->as.exprList);) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
             emitOpcode(c, OP_DUP, e->line);
             compileExpr(c, expr);
-            methodCall(c, "addAll", 1);
+            inlineMethodCall(c, "addAll", 1);
             emitOpcode(c, OP_POP, e->line);
 
             it += 1;
@@ -1145,7 +1146,7 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
             compileExpr(c, key);
             compileExpr(c, val);
 
-            methodCall(c, "__set__", 2);
+            inlineMethodCall(c, "__set__", 2);
             emitOpcode(c, OP_POP, e->line);
 
             it += 2;
@@ -1242,7 +1243,7 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
-        ext_vec_foreach(JStarExpr** it, e->as.exprList) {
+        ext_vec_foreach(JStarExpr * *it, e->as.exprList) {
             compileExpr(c, *it);
         }
         break;
@@ -1678,7 +1679,7 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     emitShort(c, 0, 0);
 
     compileVarLit(c, &s->as.withStmt.var, false, s->line);
-    methodCall(c, "close", 0);
+    inlineMethodCall(c, "close", 0);
     emitOpcode(c, OP_POP, s->line);
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
