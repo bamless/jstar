@@ -1715,6 +1715,7 @@ static bool checkEnumElem(JStarVM* vm) {
     }
 
     ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
+    ObjClass* cls = inst->base.cls;
     ObjString* enumElem = AS_STRING(peek(vm));
 
     if(isalpha(enumElem->data[0])) {
@@ -1726,7 +1727,7 @@ static bool checkEnumElem(JStarVM* vm) {
             }
         }
 
-        if(hashTableContainsKey(&inst->fields, enumElem)) {
+        if(hashTableContainsKey(&cls->fields, enumElem)) {
             JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 

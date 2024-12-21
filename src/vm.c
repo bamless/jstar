@@ -712,10 +712,11 @@ bool getValueField(JStarVM* vm, ObjString* name) {
         switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
+            ObjClass* cls = inst->base.cls;
 
             // Try to find a field
-            Value field;
-            if(hashTableGet(&inst->fields, name, &field)) {
+            Value field = NULL_VAL;
+            if(getField(vm, cls, inst, name, &field)) {
                 pop(vm);
                 push(vm, field);
                 return true;
@@ -770,7 +771,8 @@ bool setValueField(JStarVM* vm, ObjString* name) {
         switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
-            hashTablePut(&inst->fields, name, peek(vm));
+            ObjClass* cls = inst->base.cls;
+            setField(vm, cls, inst, name, peek(vm));
             return true;
         }
         case OBJ_MODULE: {
@@ -905,8 +907,8 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
             }
 
             // If no method is found try a field
-            Value field;
-            if(hashTableGet(&inst->fields, name, &field)) {
+            Value field = NULL_VAL;
+            if(getField(vm, cls, inst, name, &field)) {
                 return callValue(vm, field, argc);
             }
 
@@ -966,8 +968,10 @@ static Value resolveMethod(JStarVM* vm, ObjClass* cls, uint8_t argc, const Code*
             }
 
             // If no method is found try a field
-            Value field;
-            if(hashTableGet(&inst->fields, name, &field)) {
+            Value field = NULL_VAL;
+            if(getField(vm, cls, inst, name, &field)) {
+                sym->type = SYMBOL_FIELD;
+                sym->key = (uintptr_t)cls;
                 return field;
             }
 
@@ -1329,14 +1333,18 @@ bool runEval(JStarVM* vm, int evalDepth) {
     }
 
     TARGET(OP_GET_FIELD): {
-        if(!getValueField(vm, GET_STRING())) {
+        Symbol* sym = GET_SYMBOL();
+        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        if(!getValueField(vm, name)) {
             UNWIND_STACK();
         }
         DISPATCH();
     }
 
     TARGET(OP_SET_FIELD): {
-        if(!setValueField(vm, GET_STRING())) {
+        Symbol* sym = GET_SYMBOL();
+        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        if(!setValueField(vm, name)) {
             UNWIND_STACK();
         }
         DISPATCH();
@@ -1919,9 +1927,10 @@ bool unwindStack(JStarVM* vm, int depth) {
     JSR_ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
 
     ObjInstance* exception = AS_INSTANCE(peek(vm));
+    ObjClass* cls = exception->base.cls;
 
     Value stacktraceVal = NULL_VAL;
-    hashTableGet(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
+    getField(vm, cls, exception, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
 
     JSR_ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);

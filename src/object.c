@@ -5,7 +5,9 @@
 
 #include "conf.h"
 #include "gc.h"
+#include "hashtable.h"
 #include "util.h"
+#include "value.h"
 #include "vm.h"
 
 #define LIST_DEFAULT_CAPACITY 8
@@ -76,6 +78,7 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     ObjClass* cls = (ObjClass*)newObj(vm, sizeof(*cls), vm->clsClass, OBJ_CLASS);
     cls->name = name;
     cls->superCls = superCls;
+    cls->fieldCount = 0;
     initHashTable(&cls->methods);
     return cls;
 }
@@ -106,7 +109,9 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
 
 ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
     ObjInstance* inst = (ObjInstance*)newObj(vm, sizeof(*inst), cls, OBJ_INST);
-    initHashTable(&inst->fields);
+    inst->capacity = 0;
+    inst->fields = NULL;
+    initHashTable(&cls->fields);
     return inst;
 }
 
@@ -239,13 +244,14 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_CLASS: {
         ObjClass* cls = (ObjClass*)o;
+        freeHashTable(&cls->fields);
         freeHashTable(&cls->methods);
         GC_FREE(vm, ObjClass, cls);
         break;
     }
     case OBJ_INST: {
         ObjInstance* i = (ObjInstance*)o;
-        freeHashTable(&i->fields);
+        GC_FREE_ARRAY(vm, Value, i->fields, i->capacity);
         GC_FREE(vm, ObjInstance, i);
         break;
     }
@@ -316,6 +322,46 @@ void freeObject(JStarVM* vm, Obj* o) {
 // -----------------------------------------------------------------------------
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
+
+static bool getFieldIdx(ObjInstance* inst, int idx, Value* out) {
+    if(idx > (int)inst->capacity) return false;
+    *out = inst->fields[idx];
+    return true;
+}
+
+static void setFieldIdx(JStarVM* vm, ObjInstance* inst, int idx, Value val) {
+    if(idx >= (int)inst->capacity) {
+        size_t oldCap = inst->capacity;
+        size_t newCap = oldCap ? oldCap * 2 : 8;
+        inst->fields = gcAlloc(vm, inst->fields, sizeof(Value) * oldCap, sizeof(Value) * newCap);
+        for(size_t i = oldCap; i < newCap; i++) {
+            inst->fields[i] = NULL_VAL;
+        }
+        inst->capacity = newCap;
+    }
+    inst->fields[idx] = val;
+}
+
+void setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
+    Value field;
+    if(hashTableGet(&cls->fields, key, &field)) {
+        push(vm, val);
+        setFieldIdx(vm, inst, (int)field, val);
+        pop(vm);
+    } else {
+        hashTablePut(&cls->fields, key, (Value)cls->fieldCount++);
+        push(vm, val);
+        setFieldIdx(vm, inst, cls->fieldCount - 1, val);
+        pop(vm);
+    }
+}
+
+bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
+    Value field;
+    if(!hashTableGet(&cls->fields, key, &field)) return false;
+    getFieldIdx(inst, (int)field, val);
+    return true;
+}
 
 static void growList(JStarVM* vm, ObjList* lst) {
     size_t oldSize = sizeof(Value) * lst->capacity;

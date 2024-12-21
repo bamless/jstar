@@ -163,13 +163,16 @@ typedef struct ObjClass {
     Obj base;
     ObjString* name;            // The name of the class
     struct ObjClass* superCls;  // Pointer to the parent class (or NULL)
+    int fieldCount;             // Number of fields of the class
+    HashTable fields;           // HashTable containing a mapping for the object's fields
     HashTable methods;          // HashTable containing methods (ObjFunction/ObjNative)
 } ObjClass;
 
 // An instance of a user defined Class
 typedef struct ObjInstance {
     Obj base;
-    HashTable fields;  // HashTable containing the fields of the instance
+    size_t capacity;  // Size of the fields array
+    Value* fields;    // Array of fields of the instance
 } ObjInstance;
 
 typedef struct ObjList {
@@ -323,6 +326,10 @@ void freeObject(JStarVM* vm, Obj* o);
 // -----------------------------------------------------------------------------
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
+
+// ObjInstance functions
+void setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val);
+bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val);
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);

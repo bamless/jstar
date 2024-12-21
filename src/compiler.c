@@ -833,7 +833,7 @@ static void compileLval(Compiler* c, const JStarExpr* e) {
     case JSR_PROPERTY_ACCESS: {
         compileExpr(c, e->as.propertyAccess.left);
         emitOpcode(c, OP_SET_FIELD, e->line);
-        emitShort(c, identifierConst(c, &e->as.propertyAccess.id, e->line), e->line);
+        emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->line), e->line);
         break;
     }
     case JSR_INDEX: {
@@ -1061,7 +1061,7 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
 static void compileAccessExpression(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.propertyAccess.left);
     emitOpcode(c, OP_GET_FIELD, e->line);
-    emitShort(c, identifierConst(c, &e->as.propertyAccess.id, e->line), e->line);
+    emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->line), e->line);
 }
 
 static void compileArraryAccExpression(Compiler* c, const JStarExpr* e) {

@@ -132,7 +132,9 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_INST: {
         ObjInstance* i = (ObjInstance*)o;
-        reachHashTable(vm, &i->fields);
+        for (Value* v = i->fields; v < i->fields + i->capacity; v++) {
+            reachValue(vm, *v);
+        }
         break;
     }
     case OBJ_MODULE: {
