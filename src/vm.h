@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "code.h"
 #include "compiler.h"
 #include "conf.h"
 #include "hashtable.h"
@@ -131,14 +132,14 @@ struct JStarVM {
     size_t reachedCapacity, reachedCount;
 };
 
-bool getValueField(JStarVM* vm, ObjString* name);
-bool setValueField(JStarVM* vm, ObjString* name);
+bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym);
+bool setValueField(JStarVM* vm, ObjString* name, Symbol* sym);
 
 bool getValueSubscript(JStarVM* vm);
 bool setValueSubscript(JStarVM* vm);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* symbol);
 
 void reserveStack(JStarVM* vm, size_t needed);
 void swapStackSlots(JStarVM* vm, int a, int b);

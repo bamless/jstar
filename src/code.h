@@ -11,9 +11,9 @@
 // It can either be a method, field or global variable.
 // Used to implement a caching scheme during VM evaluation.
 typedef struct Symbol {
-    enum { SYMBOL_NONE, SYMBOL_METHOD, SYMBOL_FIELD, SIMBOL_GLOBAL } type;
+    enum { SYMBOL_METHOD, SYMBOL_FIELD, SIMBOL_GLOBAL } type;
     uint16_t constant;
-    uintptr_t key;
+    Obj* key;
     union {
         Value method;
         int offset;

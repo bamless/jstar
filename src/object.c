@@ -323,14 +323,14 @@ void freeObject(JStarVM* vm, Obj* o) {
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static bool getFieldIdx(ObjInstance* inst, int idx, Value* out) {
-    if(idx > (int)inst->capacity) return false;
-    *out = inst->fields[idx];
+static bool getFieldOffset(ObjInstance* inst, int offset, Value* out) {
+    if(offset > (int)inst->capacity) return false;
+    *out = inst->fields[offset];
     return true;
 }
 
-static void setFieldIdx(JStarVM* vm, ObjInstance* inst, int idx, Value val) {
-    if(idx >= (int)inst->capacity) {
+static void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
+    if(offset >= (int)inst->capacity) {
         size_t oldCap = inst->capacity;
         size_t newCap = oldCap ? oldCap * 2 : 8;
         inst->fields = gcAlloc(vm, inst->fields, sizeof(Value) * oldCap, sizeof(Value) * newCap);
@@ -339,19 +339,19 @@ static void setFieldIdx(JStarVM* vm, ObjInstance* inst, int idx, Value val) {
         }
         inst->capacity = newCap;
     }
-    inst->fields[idx] = val;
+    inst->fields[offset] = val;
 }
 
 void setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
     Value field;
     if(hashTableGet(&cls->fields, key, &field)) {
         push(vm, val);
-        setFieldIdx(vm, inst, (int)field, val);
+        setFieldOffset(vm, inst, (int)field, val);
         pop(vm);
     } else {
         hashTablePut(&cls->fields, key, (Value)cls->fieldCount++);
         push(vm, val);
-        setFieldIdx(vm, inst, cls->fieldCount - 1, val);
+        setFieldOffset(vm, inst, cls->fieldCount - 1, val);
         pop(vm);
     }
 }
@@ -359,8 +359,14 @@ void setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Val
 bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
     Value field;
     if(!hashTableGet(&cls->fields, key, &field)) return false;
-    getFieldIdx(inst, (int)field, val);
+    getFieldOffset(inst, (int)field, val);
     return true;
+}
+
+int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
+    Value field;
+    if(!hashTableGet(&cls->fields, key, &field)) return -1;
+    return (int)field;
 }
 
 static void growList(JStarVM* vm, ObjList* lst) {

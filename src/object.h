@@ -330,6 +330,7 @@ void freeObject(JStarVM* vm, Obj* o);
 // ObjInstance functions
 void setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val);
 bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val);
+int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key);
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);

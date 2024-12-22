@@ -468,6 +468,25 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
     return callValue(vm, method, argc);
 }
 
+static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc,
+                               Symbol* sym) {
+    if(sym->key == (Obj*)cls) {
+        return callValue(vm, sym->as.method, argc);
+    }
+
+    Value method;
+    if(!hashTableGet(&cls->methods, name, &method)) {
+        jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+                 name->data);
+        return false;
+    }
+
+    sym->type = SYMBOL_METHOD;
+    sym->key = (Obj*)cls;
+    sym->as.method = method;
+    return callValue(vm, method, argc);
+}
+
 static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
     Value v;
     if(!hashTableGet(&cls->methods, name, &v)) {
@@ -702,11 +721,26 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     return NULL;
 }
 
+static bool getCachedMethod(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
+    if(sym->key != key) return false;
+    switch(sym->type) {
+    case SYMBOL_METHOD:
+        *out = sym->as.method;
+        return true;
+    case SYMBOL_FIELD:
+        *out = ((ObjInstance*)val)->fields[sym->as.offset];
+        return true;
+    case SIMBOL_GLOBAL:
+        return false;
+    }
+    return false;
+}
+
 // -----------------------------------------------------------------------------
 // VM API
 // -----------------------------------------------------------------------------
 
-bool getValueField(JStarVM* vm, ObjString* name) {
+bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
@@ -714,42 +748,64 @@ bool getValueField(JStarVM* vm, ObjString* name) {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
 
-            // Try to find a field
-            Value field = NULL_VAL;
-            if(getField(vm, cls, inst, name, &field)) {
+            Value field;
+            if(getCachedMethod(vm, (Obj*)name, (Obj*)inst, sym, &field)) {
                 pop(vm);
-                push(vm, field);
+                push(vm, val);
                 return true;
             }
 
-            // No field, try to bind method
-            if(!bindMethod(vm, inst->base.cls, name)) {
-                jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
-                         inst->base.cls->name->data, name->data);
-                return false;
+            // Try to find a field
+            int idx = getFieldIdx(vm, cls, inst, name);
+            if(idx != -1) {
+                sym->type = SYMBOL_FIELD;
+                sym->key = (Obj*)cls;
+                sym->as.offset = idx;
+
+                pop(vm);
+                push(vm, inst->fields[idx]);
+                return true;
             }
 
-            return true;
+            if(bindMethod(vm, cls, name)) {
+                sym->type = SYMBOL_METHOD;
+                sym->key = (Obj*)cls;
+                sym->as.method = peek(vm);
+                return true;
+            }
+
+            jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.",
+                     inst->base.cls->name->data, name->data);
+            return false;
         }
         case OBJ_MODULE: {
             ObjModule* mod = AS_MODULE(val);
 
-            // Try to find global variable
             Value global;
+            if(getCachedMethod(vm, (Obj*)name, (Obj*)mod, sym, &global)) {
+                pop(vm);
+                push(vm, global);
+                return true;
+            }
+
+            // TODO: Cache global variables
+            // Try to find global variable
             if(hashTableGet(&mod->globals, name, &global)) {
                 pop(vm);
                 push(vm, global);
                 return true;
             }
 
-            // No global, try to bind method
-            if(!bindMethod(vm, mod->base.cls, name)) {
-                jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s", name->data,
-                         mod->name->data);
-                return false;
+            if(bindMethod(vm, mod->base.cls, name)) {
+                sym->type = SYMBOL_METHOD;
+                sym->key = (Obj*)mod;
+                sym->as.method = peek(vm);
+                return true;
             }
 
-            return true;
+            jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s", name->data,
+                     mod->name->data);
+            return false;
         }
         default:
             break;
@@ -757,25 +813,41 @@ bool getValueField(JStarVM* vm, ObjString* name) {
     }
 
     ObjClass* cls = getClass(vm, val);
-    if(!bindMethod(vm, cls, name)) {
-        jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
-                 name->data);
-        return false;
+    if(bindMethod(vm, cls, name)) {
+        sym->type = SYMBOL_METHOD;
+        sym->key = (Obj*)cls;
+        sym->as.method = peek(vm);
+        return true;
     }
-    return true;
+
+    jsrRaise(vm, "FieldException", "Object %s doesn't have field `%s`.", cls->name->data,
+             name->data);
+    return false;
 }
 
-bool setValueField(JStarVM* vm, ObjString* name) {
+bool setValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
         case OBJ_INST: {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
+
+            if(sym->key == (Obj*)cls) {
+                inst->fields[sym->as.offset] = peek(vm);
+                return true;
+            }
+
+            int idx = cls->fieldCount;
             setField(vm, cls, inst, name, peek(vm));
+
+            sym->type = SYMBOL_FIELD;
+            sym->key = (Obj*)cls;
+            sym->as.offset = idx;
             return true;
         }
         case OBJ_MODULE: {
+            // TODO: Cache global variables
             ObjModule* mod = AS_MODULE(val);
             hashTablePut(&mod->globals, name, peek(vm));
             return true;
@@ -892,7 +964,7 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     return false;
 }
 
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
@@ -900,16 +972,27 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
 
-            // First try to find a method
+            // Try cached method
             Value method;
+            if(getCachedMethod(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
+                return callValue(vm, method, argc);
+            }
+
+            // Try to find a method
             if(hashTableGet(&cls->methods, name, &method)) {
+                sym->type = SYMBOL_METHOD;
+                sym->key = (Obj*)cls;
+                sym->as.method = method;
                 return callValue(vm, method, argc);
             }
 
             // If no method is found try a field
-            Value field = NULL_VAL;
-            if(getField(vm, cls, inst, name, &field)) {
-                return callValue(vm, field, argc);
+            int idx = getFieldIdx(vm, cls, inst, name);
+            if(idx != -1) {
+                sym->type = SYMBOL_FIELD;
+                sym->key = (Obj*)cls;
+                sym->as.offset = idx;
+                return callValue(vm, inst->fields[idx], argc);
             }
 
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
@@ -920,11 +1003,19 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            // Check if a method shadows a function in the module
-            if(hashTableGet(&vm->modClass->methods, name, &func)) {
+            if(getCachedMethod(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 return callValue(vm, func, argc);
             }
 
+            // Check if a method shadows a function in the module
+            if(hashTableGet(&vm->modClass->methods, name, &func)) {
+                sym->type = SYMBOL_METHOD;
+                sym->key = (Obj*)mod->base.cls;
+                sym->as.method = func;
+                return callValue(vm, func, argc);
+            }
+
+            // TODO: implement global var caching
             // If no method is found on the module object, try to get a global variable
             if(hashTableGet(&mod->globals, name, &func)) {
                 // This is a function call, swap the receiver from the module to the function object
@@ -942,85 +1033,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc) {
     }
 
     ObjClass* cls = getClass(vm, val);
-    return invokeMethod(vm, cls, name, argc);
-}
-
-static Value resolveMethod(JStarVM* vm, ObjClass* cls, uint8_t argc, const Code* c, Symbol* sym) {
-    Value val = peekn(vm, argc);
-
-    if(IS_OBJ(val)) {
-        switch(AS_OBJ(val)->type) {
-        case OBJ_INST: {
-            if(sym->key == (uintptr_t)cls) {
-                return sym->as.method;
-            }
-
-            ObjString* name = AS_STRING(c->consts.arr[sym->constant]);
-            ObjInstance* inst = AS_INSTANCE(val);
-
-            // First try to find a method
-            Value method;
-            if(hashTableGet(&cls->methods, name, &method)) {
-                sym->type = SYMBOL_METHOD;
-                sym->key = (uintptr_t)cls;
-                sym->as.method = method;
-                return method;
-            }
-
-            // If no method is found try a field
-            Value field = NULL_VAL;
-            if(getField(vm, cls, inst, name, &field)) {
-                sym->type = SYMBOL_FIELD;
-                sym->key = (uintptr_t)cls;
-                return field;
-            }
-
-            jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
-                     name->data);
-            return NULL_VAL;
-        }
-        case OBJ_MODULE: {
-            ObjModule* mod = AS_MODULE(val);
-
-            if(sym->key == (uintptr_t)mod->base.cls) {
-                return sym->as.method;
-            }
-
-            Value func;
-            ObjString* name = AS_STRING(c->consts.arr[sym->constant]);
-
-            // Check if a method shadows a function in the module
-            if(hashTableGet(&vm->modClass->methods, name, &func)) {
-                sym->type = SYMBOL_METHOD;
-                sym->key = (uintptr_t)mod->base.cls;
-                sym->as.method = func;
-                return func;
-            }
-
-            // If no method is found on the module object, try to get a global variable
-            if(hashTableGet(&mod->globals, name, &func)) {
-                // This is a function call, swap the receiver from the module to the function object
-                vm->sp[-argc - 1] = func;
-                return func;
-            }
-
-            jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
-                     mod->name->data);
-            return NULL_VAL;
-        }
-        default:
-            break;
-        }
-    }
-
-    ObjString* name = AS_STRING(c->consts.arr[sym->constant]);
-    Value method = NULL_VAL;
-    if(hashTableGet(&cls->methods, name, &method)) {
-        return method;
-    }
-
-    jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data, name->data);
-    return method;
+    return invokeMethodCached(vm, cls, name, argc, sym);
 }
 
 static int powerOf2Ceil(int n) {
@@ -1335,7 +1348,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     TARGET(OP_GET_FIELD): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
-        if(!getValueField(vm, name)) {
+        if(!getValueField(vm, name, sym)) {
             UNWIND_STACK();
         }
         DISPATCH();
@@ -1344,7 +1357,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     TARGET(OP_SET_FIELD): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
-        if(!setValueField(vm, name)) {
+        if(!setValueField(vm, name, sym)) {
             UNWIND_STACK();
         }
         DISPATCH();
@@ -1477,16 +1490,10 @@ call:
         goto invoke;
 
 invoke:;
-        ObjClass* cls = getClass(vm, peekn(vm, argc));
         Symbol* sym = GET_SYMBOL();
-        Value method = resolveMethod(vm, cls, argc, &fn->code, sym);
-
-        if(IS_NULL(method)) {
-            UNWIND_STACK();
-        }
-        
+        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
         SAVE_STATE();
-        bool res = callValue(vm, method, argc);
+        bool res = invokeValue(vm, name, argc, sym);
         LOAD_STATE();
         if(!res) UNWIND_STACK();
         DISPATCH();
@@ -1529,14 +1536,9 @@ super_get_class:;
 
 super_invoke:;
         Symbol* sym = &fn->code.symbols[NEXT_SHORT()];
-        Value method = resolveMethod(vm, superCls, argc, &fn->code, sym);
-
-        if(IS_NULL(method)) {
-            UNWIND_STACK();
-        }
-
+        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
         SAVE_STATE();
-        bool res = callValue(vm, method, argc);
+        bool res = invokeMethodCached(vm, superCls, name, argc, sym);
         LOAD_STATE();
         if(!res) UNWIND_STACK();
         DISPATCH();

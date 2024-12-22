@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "buffer.h"
+#include "code.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
@@ -246,7 +247,9 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
 
-    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
+    // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
+    Symbol sym = (Symbol){.key = NULL};
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &sym)) {
         callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
     }
@@ -667,12 +670,16 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return setValueField(vm, copyString(vm, name, strlen(name)));
+    // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
+    Symbol sym = (Symbol){.key = NULL};
+    return setValueField(vm, copyString(vm, name, strlen(name)), &sym);
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
-    return getValueField(vm, copyString(vm, name, strlen(name)));
+    // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
+    Symbol sym = (Symbol){.key = NULL};
+    return getValueField(vm, copyString(vm, name, strlen(name)), &sym);
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
