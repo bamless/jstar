@@ -84,11 +84,13 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     return cls;
 }
 
+// TODO: is this te correct approach?
 static void mergeModules(JStarVM* vm, ObjModule* dst, ObjModule* src) {
     hashTableMerge(&dst->globalNames, &src->globalNames);
     for(int i = 0; i < src->globalsCount; i++) {
         setGlobalOffset(vm, dst, i, src->globals[i]);
     }
+    dst->globalsCount = src->globalsCount;
 }
 
 ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
