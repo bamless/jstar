@@ -174,7 +174,7 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static bool isCached(Obj* key, const Symbol* sym) {
+static bool isSymbolCached(Obj* key, const Symbol* sym) {
     return sym->key == key;
 } 
 
@@ -474,7 +474,7 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
 
 static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc,
                                Symbol* sym) {
-    if(sym->key == (Obj*)cls) {
+    if(isSymbolCached((Obj*)cls, sym)) {
         return callValue(vm, sym->as.method, argc);
     }
 
@@ -507,7 +507,7 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 }
 
 static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, Symbol* sym) {
-    if(isCached((Obj*)cls, sym)) {
+    if(isSymbolCached((Obj*)cls, sym)) {
         push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
         return true;
     }
@@ -749,8 +749,8 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     return NULL;
 }
 
-static bool getCachedPropery(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
-    if(!isCached(key, sym)) return false;
+static bool getCachedProperty(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
+    if(!isSymbolCached(key, sym)) return false;
     switch(sym->type) {
     case SYMBOL_METHOD:
         *out = sym->as.method;
@@ -767,7 +767,7 @@ static bool getCachedPropery(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym,
 }
 
 static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, Symbol* sym, Value* out) {
-    if(!isCached((Obj*)mod, sym)) return false;
+    if(!isSymbolCached((Obj*)mod, sym)) return false;
     return getGlobalOffset(mod, sym->as.offset, out);
 }
 
@@ -785,7 +785,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
 
             // Check if the name resolution has been cached
             Value field;
-            if(getCachedPropery(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
+            if(getCachedProperty(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
                 pop(vm);
                 push(vm, field);
                 return true;
@@ -817,7 +817,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
 
             // Check if the name resolution has been cached
             Value global;
-            if(getCachedPropery(vm, (Obj*)mod, (Obj*)mod, sym, &global)) {
+            if(getCachedProperty(vm, (Obj*)mod, (Obj*)mod, sym, &global)) {
                 pop(vm);
                 push(vm, global);
                 return true;
@@ -867,7 +867,7 @@ bool setValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
 
-            if(sym->key == (Obj*)cls) {
+            if(isSymbolCached((Obj*)cls, sym)) {
                 setFieldOffset(vm, inst, sym->as.offset, peek(vm));
                 return true;
             }
@@ -880,7 +880,8 @@ bool setValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
         }
         case OBJ_MODULE: {
             ObjModule* mod = AS_MODULE(val);
-            if(sym->key == (Obj*)mod) {
+
+            if(isSymbolCached((Obj*)mod, sym)) {
                 setGlobalOffset(vm, mod, sym->as.offset, peek(vm));
                 return true;
             }
@@ -1013,7 +1014,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
 
             // Try cached method
             Value method;
-            if(getCachedPropery(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
+            if(getCachedProperty(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
                 return callValue(vm, method, argc);
             }
 
@@ -1042,7 +1043,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            if(getCachedPropery(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
+            if(getCachedProperty(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 if(sym->type != SYMBOL_METHOD) {
                     // This is a function call, swap the receiver from the module to the function
                     // object
@@ -1833,7 +1834,7 @@ op_return:
 
     TARGET(OP_DEFINE_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
-        if(isCached((Obj*)vm->module, sym)) {
+        if(isSymbolCached((Obj*)vm->module, sym)) {
             vm->module->globals[sym->as.offset] = pop(vm);
         } else {
             ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
@@ -1867,7 +1868,7 @@ op_return:
 
     TARGET(OP_SET_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
-        if(isCached((Obj*)vm->module, sym)) {
+        if(isSymbolCached((Obj*)vm->module, sym)) {
             vm->module->globals[sym->as.offset] = peek(vm);
         } else {
             ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
