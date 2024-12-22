@@ -382,7 +382,7 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
     Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 
     if(c->module) {
-        if(hashTableGetString(&c->module->globals, id->name, id->length,
+        if(hashTableGetString(&c->module->globalNames, id->name, id->length,
                               hashBytes(id->name, id->length))) {
             return global;
         }
@@ -465,7 +465,7 @@ static void defineVar(Compiler* c, const Variable* var, int line) {
     switch(var->scope) {
     case VAR_GLOBAL:
         emitOpcode(c, OP_DEFINE_GLOBAL, line);
-        emitShort(c, identifierConst(c, &var->as.global.id, line), line);
+        emitShort(c, identifierSymbol(c, &var->as.global.id, line), line);
         break;
     case VAR_LOCAL:
         initializeVar(c, var);
@@ -805,7 +805,7 @@ static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, int 
         } else {
             emitOpcode(c, OP_GET_GLOBAL, line);
         }
-        emitShort(c, identifierConst(c, &var.as.global.id, line), line);
+        emitShort(c, identifierSymbol(c, &var.as.global.id, line), line);
         break;
     case VAR_ERR:
         error(c, line, "Cannot resolve name `%.*s`", id->length, id->name);

@@ -559,10 +559,11 @@ int jsrTop(const JStarVM* vm) {
     return apiStackIndex(vm, -1);
 }
 
+// TODO: unify with VM impl? Also add possibility to cache
 bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = getModuleOrRaise(vm, module);
     if(!mod) return false;
-    hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
+    setGlobal(vm, mod, copyString(vm, name, strlen(name)), peek(vm));
     return true;
 }
 
@@ -682,13 +683,14 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     return getValueField(vm, copyString(vm, name, strlen(name)), &sym);
 }
 
+// TODO: unify with VM impl? Also add possibility to cache
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = getModuleOrRaise(vm, module);
     if(!mod) return false;
 
-    Value res;
+    Value res = NULL_VAL;
     ObjString* nameStr = copyString(vm, name, strlen(name));
-    if(!hashTableGet(&mod->globals, nameStr, &res)) {
+    if(!getGlobal(vm, mod, nameStr, &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
         return false;
     }

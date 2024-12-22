@@ -83,13 +83,13 @@ static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const cha
     push(vm, OBJ_VAL(n));
     ObjClass* c = newClass(vm, n, sup);
     pop(vm);
-    hashTablePut(&m->globals, n, OBJ_VAL(c));
+    setGlobal(vm, m, n, OBJ_VAL(c));
     return c;
 }
 
 static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
-    hashTableGet(&m->globals, copyString(vm, name, strlen(name)), &v);
+    getGlobal(vm, m, copyString(vm, name, strlen(name)), &v);
     return v;
 }
 
@@ -521,13 +521,13 @@ JSR_NATIVE(jsr_Module_string) {
 
 JSR_NATIVE(jsr_Module_globals) {
     ObjModule* module = AS_MODULE(vm->apiStack[0]);
-    const HashTable* globals = &module->globals;
+    const HashTable* globalNames = &module->globalNames;
 
     jsrPushTable(vm);
-    for(const Entry* e = globals->entries; e < globals->entries + globals->sizeMask + 1; e++) {
+    for(const Entry* e = globalNames->entries; e < globalNames->entries + globalNames->sizeMask + 1; e++) {
         if(e->key) {
             push(vm, OBJ_VAL(e->key));
-            push(vm, e->value);
+            push(vm, module->globals[(int)e->value]);
             if(!jsrSubscriptSet(vm, -3)) return false;
             pop(vm);
         }

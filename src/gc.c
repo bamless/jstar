@@ -145,7 +145,10 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjModule* m = (ObjModule*)o;
         reachObject(vm, (Obj*)m->name);
         reachObject(vm, (Obj*)m->path);
-        reachHashTable(vm, &m->globals);
+        reachHashTable(vm, &m->globalNames);
+        for(int i = 0; i < m->globalsCount; i++) {
+            reachValue(vm, m->globals[i]);
+        }
         break;
     }
     case OBJ_LIST: {

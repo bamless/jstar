@@ -174,6 +174,10 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
+static bool isCached(Obj* key, const Symbol* sym) {
+    return sym->key == key;
+} 
+
 static void createClass(JStarVM* vm, ObjString* name) {
     push(vm, OBJ_VAL(newClass(vm, name, NULL)));
 }
@@ -487,8 +491,19 @@ static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint
     return callValue(vm, method, argc);
 }
 
-static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name, Symbol* sym) {
-    if(sym->key == (Obj*)cls && sym->type == SYMBOL_BOUND_METHOD) {
+static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
+    Value method;
+    if(!hashTableGet(&cls->methods, name, &method)) {
+        jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
+                 name->data);
+        return false;
+    }
+    push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(method))));
+    return true;
+}
+
+static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, Symbol* sym) {
+    if(isCached((Obj*)cls, sym)) {
         push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
         return true;
     }
@@ -730,8 +745,8 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     return NULL;
 }
 
-static bool getCached(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
-    if(sym->key != key) return false;
+static bool getCachedPropery(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
+    if(!isCached(key, sym)) return false;
     switch(sym->type) {
     case SYMBOL_METHOD:
         *out = sym->as.method;
@@ -741,11 +756,15 @@ static bool getCached(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value*
         return true;
     case SYMBOL_FIELD:
         return getFieldOffset((ObjInstance*)val, sym->as.offset, out);
-    case SIMBOL_GLOBAL:
-        return false;
-    default:
-        return false;
+    case SYMBOL_GLOBAL:
+        return getGlobalOffset((ObjModule*)key, sym->as.offset, out);
     }
+    return false;
+}
+
+static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, Symbol* sym, Value* out) {
+    if(!isCached((Obj*)mod, sym)) return false;
+    return getGlobalOffset(mod, sym->as.offset, out);
 }
 
 // -----------------------------------------------------------------------------
@@ -760,8 +779,9 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
 
+            // Check if the name resolution has been cached
             Value field;
-            if(getCached(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
+            if(getCachedPropery(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
                 pop(vm);
                 push(vm, field);
                 return true;
@@ -779,7 +799,8 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
                 return true;
             }
 
-            if(bindMethod(vm, cls, name, sym)) {
+            // This is a fallback, do not cache the result in case the field is added later
+            if(bindMethod(vm, cls, name)) {
                 return true;
             }
 
@@ -790,22 +811,28 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
         case OBJ_MODULE: {
             ObjModule* mod = AS_MODULE(val);
 
+            // Check if the name resolution has been cached
             Value global;
-            if(getCached(vm, (Obj*)mod, (Obj*)mod, sym, &global)) {
+            if(getCachedPropery(vm, (Obj*)mod, (Obj*)mod, sym, &global)) {
                 pop(vm);
                 push(vm, global);
                 return true;
             }
 
-            // TODO: Cache global variables
             // Try to find global variable
-            if(hashTableGet(&mod->globals, name, &global)) {
+            int globalIdx = getGlobalIdx(vm, mod, name);
+            if(globalIdx != -1) {
+                sym->type = SYMBOL_GLOBAL;
+                sym->key = (Obj*)mod;
+                sym->as.offset = globalIdx;
+
                 pop(vm);
-                push(vm, global);
+                push(vm, mod->globals[globalIdx]);
                 return true;
             }
 
-            if(bindMethod(vm, mod->base.cls, name, sym)) {
+            // This is a fallback, do not cache the result in case the global is added later
+            if(bindMethod(vm, mod->base.cls, name)) {
                 return true;
             }
 
@@ -819,7 +846,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
     }
 
     ObjClass* cls = getClass(vm, val);
-    if(bindMethod(vm, cls, name, sym)) {
+    if(bindMethodCached(vm, cls, name, sym)) {
         return true;
     }
 
@@ -848,9 +875,16 @@ bool setValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             return true;
         }
         case OBJ_MODULE: {
-            // TODO: Cache global variables
             ObjModule* mod = AS_MODULE(val);
-            hashTablePut(&mod->globals, name, peek(vm));
+            if(sym->key == (Obj*)mod) {
+                setGlobalOffset(vm, mod, sym->as.offset, peek(vm));
+                return true;
+            }
+
+            int idx = setGlobal(vm, mod, name, peek(vm));
+            sym->type = SYMBOL_GLOBAL;
+            sym->key = (Obj*)mod;
+            sym->as.offset = idx;
             return true;
         }
         default:
@@ -975,7 +1009,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
 
             // Try cached method
             Value method;
-            if(getCached(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
+            if(getCachedPropery(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
                 return callValue(vm, method, argc);
             }
 
@@ -1004,7 +1038,12 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            if(getCached(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
+            if(getCachedPropery(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
+                if(sym->type != SYMBOL_METHOD) {
+                    // This is a function call, swap the receiver from the module to the function
+                    // object
+                    vm->sp[-argc - 1] = func;
+                }
                 return callValue(vm, func, argc);
             }
 
@@ -1016,12 +1055,16 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
                 return callValue(vm, func, argc);
             }
 
-            // TODO: implement global var caching
             // If no method is found on the module object, try to get a global variable
-            if(hashTableGet(&mod->globals, name, &func)) {
+            int globalIdx = getGlobalIdx(vm, mod, name);
+            if(globalIdx != -1) {
+                sym->type = SYMBOL_GLOBAL;
+                sym->key = (Obj*)mod;
+                sym->as.offset = globalIdx;
+
                 // This is a function call, swap the receiver from the module to the function object
                 vm->sp[-argc - 1] = func;
-                return callValue(vm, func, argc);
+                return callValue(vm, mod->globals[globalIdx], argc);
             }
 
             jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,
@@ -1549,7 +1592,7 @@ super_invoke:;
         Symbol* sym = GET_SYMBOL();
         ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
         ObjClass* superCls = AS_CLASS(pop(vm));
-        if(!bindMethod(vm, superCls, name, sym)) {
+        if(!bindMethodCached(vm, superCls, name, sym)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
                      name->data);
             UNWIND_STACK();
@@ -1640,9 +1683,9 @@ op_return:
     TARGET(OP_IMPORT_NAME): {
         ObjModule* module = getModule(vm, GET_STRING());
         ObjString* name = GET_STRING();
-        if(!hashTableGet(&module->globals, name, vm->sp)) {
-            jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", 
-                     name->data, module->name->data);
+        if(!getGlobal(vm, module, name, vm->sp)) {
+            jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", name->data,
+                     module->name->data);
             UNWIND_STACK();
         }
         vm->sp++;
@@ -1785,25 +1828,49 @@ op_return:
     }
 
     TARGET(OP_DEFINE_GLOBAL): {
-        hashTablePut(&vm->module->globals, GET_STRING(), pop(vm));
+        Symbol* sym = GET_SYMBOL();
+        if(isCached((Obj*)vm->module, sym)) {
+            vm->module->globals[sym->as.offset] = pop(vm);
+        } else {
+            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            int idx = setGlobal(vm, vm->module, name, pop(vm));
+            sym->type = SYMBOL_GLOBAL;
+            sym->key = (Obj*)vm->module;
+            sym->as.offset = idx;
+        }
         DISPATCH();
     }
 
     TARGET(OP_GET_GLOBAL): {
-        ObjString* name = GET_STRING();
-        if(!hashTableGet(&vm->module->globals, name, vm->sp)) {
-            jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
-            UNWIND_STACK();
+        Symbol* sym = GET_SYMBOL();
+        if(getCachedGlobal(vm, vm->module, sym, vm->sp)) {
+            vm->sp++;
+        } else {
+            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            int idx = getGlobalIdx(vm, vm->module, name);
+            if (idx == -1) {
+                jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
+                         vm->module->name->data);
+                UNWIND_STACK();
+            }
+            sym->type = SYMBOL_GLOBAL;
+            sym->key = (Obj*)vm->module;
+            sym->as.offset = idx;
+            push(vm, vm->module->globals[idx]);
         }
-        vm->sp++;
         DISPATCH();
     }
 
     TARGET(OP_SET_GLOBAL): {
-        ObjString* name = GET_STRING();
-        if(hashTablePut(&vm->module->globals, name, peek(vm))) {
-            jsrRaise(vm, "NameException", "Name `%s` is not defined.", name->data);
-            UNWIND_STACK();
+        Symbol* sym = GET_SYMBOL();
+        if(isCached((Obj*)vm->module, sym)) {
+            vm->module->globals[sym->as.offset] = peek(vm);
+        } else {
+            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            int idx = setGlobal(vm, vm->module, name, peek(vm));
+            sym->type = SYMBOL_GLOBAL;
+            sym->key = (Obj*)vm->module;
+            sym->as.offset = idx;
         }
         DISPATCH();
     }

@@ -129,7 +129,10 @@ typedef struct ObjModule {
     Obj base;
     ObjString* name;           // Name of the module
     ObjString* path;           // The path to the module file
-    HashTable globals;         // HashTable containing the global variables of the module
+    HashTable globalNames;     // HashTable mapping from global name to global value array
+    int globalsCount;          // Number of globals in the module
+    int globalsCapacity;       // Capacity of the globals array
+    Value* globals;            // Array of global values
     JStarNativeReg* registry;  // Natives registered in this module
 } ObjModule;
 
@@ -333,6 +336,13 @@ void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val);
 bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val);
 bool getFieldOffset(ObjInstance* inst, int offset, Value* val);
 int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key);
+
+// ObjModule functions
+int setGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val);
+void setGlobalOffset(JStarVM* vm, ObjModule* mod, int offset, Value val);
+bool getGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val);
+bool getGlobalOffset(ObjModule* mod, int offset, Value* val);
+int getGlobalIdx(JStarVM* vm, ObjModule* mod, ObjString* key);
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);
