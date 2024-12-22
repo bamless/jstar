@@ -487,13 +487,22 @@ static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint
     return callValue(vm, method, argc);
 }
 
-static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
-    Value v;
-    if(!hashTableGet(&cls->methods, name, &v)) {
+static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name, Symbol* sym) {
+    if(sym->key == (Obj*)cls && sym->type == SYMBOL_BOUND_METHOD) {
+        push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
+        return true;
+    }
+
+    Value method;
+    if(!hashTableGet(&cls->methods, name, &method)) {
         return false;
     }
 
-    ObjBoundMethod* boundMeth = newBoundMethod(vm, peek(vm), AS_OBJ(v));
+    sym->type = SYMBOL_BOUND_METHOD;
+    sym->key = (Obj*)cls;
+    sym->as.method = method;
+
+    ObjBoundMethod* boundMeth = newBoundMethod(vm, peek(vm), AS_OBJ(method));
     pop(vm);
 
     push(vm, OBJ_VAL(boundMeth));
@@ -721,19 +730,20 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     return NULL;
 }
 
-static bool getCachedMethod(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
+static bool getCached(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value* out) {
     if(sym->key != key) return false;
     switch(sym->type) {
     case SYMBOL_METHOD:
+    case SYMBOL_BOUND_METHOD:
         *out = sym->as.method;
         return true;
     case SYMBOL_FIELD:
-        *out = ((ObjInstance*)val)->fields[sym->as.offset];
-        return true;
+        return getFieldOffset((ObjInstance*)val, sym->as.offset, out);
     case SIMBOL_GLOBAL:
         return false;
+    default:
+        return false;
     }
-    return false;
 }
 
 // -----------------------------------------------------------------------------
@@ -749,9 +759,16 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             ObjClass* cls = inst->base.cls;
 
             Value field;
-            if(getCachedMethod(vm, (Obj*)name, (Obj*)inst, sym, &field)) {
+            if(getCached(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
                 pop(vm);
-                push(vm, val);
+
+                // TODO: refactor this shit
+                if(sym->type == SYMBOL_BOUND_METHOD) {
+                    push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(field))));
+                } else {
+                    push(vm, field);
+                }
+
                 return true;
             }
 
@@ -767,10 +784,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
                 return true;
             }
 
-            if(bindMethod(vm, cls, name)) {
-                sym->type = SYMBOL_METHOD;
-                sym->key = (Obj*)cls;
-                sym->as.method = peek(vm);
+            if(bindMethod(vm, cls, name, sym)) {
                 return true;
             }
 
@@ -782,7 +796,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             ObjModule* mod = AS_MODULE(val);
 
             Value global;
-            if(getCachedMethod(vm, (Obj*)name, (Obj*)mod, sym, &global)) {
+            if(getCached(vm, (Obj*)mod, (Obj*)mod, sym, &global)) {
                 pop(vm);
                 push(vm, global);
                 return true;
@@ -796,10 +810,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
                 return true;
             }
 
-            if(bindMethod(vm, mod->base.cls, name)) {
-                sym->type = SYMBOL_METHOD;
-                sym->key = (Obj*)mod;
-                sym->as.method = peek(vm);
+            if(bindMethod(vm, mod->base.cls, name, sym)) {
                 return true;
             }
 
@@ -813,10 +824,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
     }
 
     ObjClass* cls = getClass(vm, val);
-    if(bindMethod(vm, cls, name)) {
-        sym->type = SYMBOL_METHOD;
-        sym->key = (Obj*)cls;
-        sym->as.method = peek(vm);
+    if (bindMethod(vm, cls, name, sym)) {
         return true;
     }
 
@@ -834,13 +842,11 @@ bool setValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             ObjClass* cls = inst->base.cls;
 
             if(sym->key == (Obj*)cls) {
-                inst->fields[sym->as.offset] = peek(vm);
+                setFieldOffset(vm, inst, sym->as.offset, peek(vm));
                 return true;
             }
 
-            int idx = cls->fieldCount;
-            setField(vm, cls, inst, name, peek(vm));
-
+            int idx = setField(vm, cls, inst, name, peek(vm));
             sym->type = SYMBOL_FIELD;
             sym->key = (Obj*)cls;
             sym->as.offset = idx;
@@ -974,7 +980,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
 
             // Try cached method
             Value method;
-            if(getCachedMethod(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
+            if(getCached(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
                 return callValue(vm, method, argc);
             }
 
@@ -1003,7 +1009,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
             Value func;
             ObjModule* mod = AS_MODULE(val);
 
-            if(getCachedMethod(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
+            if(getCached(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 return callValue(vm, func, argc);
             }
 
@@ -1545,9 +1551,10 @@ super_invoke:;
     }
 
     TARGET(OP_SUPER_BIND): {
-        ObjString* name = GET_STRING();
+        Symbol* sym = GET_SYMBOL();
+        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
         ObjClass* superCls = AS_CLASS(pop(vm));
-        if(!bindMethod(vm, superCls, name)) {
+        if(!bindMethod(vm, superCls, name, sym)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
                      name->data);
             UNWIND_STACK();

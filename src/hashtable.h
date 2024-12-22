@@ -36,6 +36,7 @@ void hashTableMerge(HashTable* t, HashTable* o);
 ObjString* hashTableGetString(const HashTable* t, const char* str, size_t length, uint32_t hash);
 
 void reachHashTable(JStarVM* vm, const HashTable* t);
+void reachHashTableKeys(JStarVM* vm, const HashTable* t);
 void sweepStrings(HashTable* t);
 
 #endif

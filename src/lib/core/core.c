@@ -1708,16 +1708,15 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "_valueName"
 
+// TODO: enums may consume too much memory using the new object model.
+// Do something about it.
 static bool checkEnumElem(JStarVM* vm) {
     if(!IS_STRING(peek(vm))) {
         JSR_RAISE(vm, "TypeException", "Enum element must be a String, got %s",
                   getClass(vm, peek(vm))->name->data);
     }
 
-    ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
-    ObjClass* cls = inst->base.cls;
     ObjString* enumElem = AS_STRING(peek(vm));
-
     if(isalpha(enumElem->data[0])) {
         for(size_t i = 1; i < enumElem->length; i++) {
             char c = enumElem->data[i];
@@ -1725,10 +1724,6 @@ static bool checkEnumElem(JStarVM* vm) {
                 JSR_RAISE(vm, "InvalidArgException", "Enum element `%s` is not a valid identifier",
                           enumElem->data);
             }
-        }
-
-        if(hashTableContainsKey(&cls->fields, enumElem)) {
-            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 
         return true;

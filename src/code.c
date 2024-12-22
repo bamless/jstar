@@ -15,6 +15,7 @@ void freeCode(Code* c) {
     free(c->bytecode);
     free(c->lines);
     freeValueArray(&c->consts);
+    free(c->symbols);
 }
 
 static void growCode(Code* c) {

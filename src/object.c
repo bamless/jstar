@@ -79,6 +79,7 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     cls->name = name;
     cls->superCls = superCls;
     cls->fieldCount = 0;
+    initHashTable(&cls->fields);
     initHashTable(&cls->methods);
     return cls;
 }
@@ -111,7 +112,6 @@ ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
     ObjInstance* inst = (ObjInstance*)newObj(vm, sizeof(*inst), cls, OBJ_INST);
     inst->capacity = 0;
     inst->fields = NULL;
-    initHashTable(&cls->fields);
     return inst;
 }
 
@@ -323,36 +323,43 @@ void freeObject(JStarVM* vm, Obj* o) {
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static bool getFieldOffset(ObjInstance* inst, int offset, Value* out) {
+bool getFieldOffset(ObjInstance* inst, int offset, Value* out) {
     if(offset > (int)inst->capacity) return false;
     *out = inst->fields[offset];
     return true;
 }
 
-static void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
+void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
     if(offset >= (int)inst->capacity) {
         size_t oldCap = inst->capacity;
-        size_t newCap = oldCap ? oldCap * 2 : 8;
-        inst->fields = gcAlloc(vm, inst->fields, sizeof(Value) * oldCap, sizeof(Value) * newCap);
-        for(size_t i = oldCap; i < newCap; i++) {
-            inst->fields[i] = NULL_VAL;
+        size_t newCap = oldCap ? oldCap : 8;
+        while(offset >= (int)newCap) {
+            newCap *= 2;
         }
+        Value* newFields = gcAlloc(vm, inst->fields, sizeof(Value) * oldCap, sizeof(Value) * newCap);
+        for(size_t i = oldCap; i < newCap; i++) {
+            newFields[i] = NULL_VAL;
+        }
+        inst->fields = newFields;
         inst->capacity = newCap;
     }
     inst->fields[offset] = val;
 }
 
-void setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
+int setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
     Value field;
     if(hashTableGet(&cls->fields, key, &field)) {
         push(vm, val);
         setFieldOffset(vm, inst, (int)field, val);
         pop(vm);
+        return (int)field;
     } else {
-        hashTablePut(&cls->fields, key, (Value)cls->fieldCount++);
+        int field = cls->fieldCount++;
+        hashTablePut(&cls->fields, key, (Value)field);
         push(vm, val);
-        setFieldOffset(vm, inst, cls->fieldCount - 1, val);
+        setFieldOffset(vm, inst, field, val);
         pop(vm);
+        return field;
     }
 }
 
