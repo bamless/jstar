@@ -492,13 +492,17 @@ static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint
 }
 
 static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
-    Value method;
-    if(!hashTableGet(&cls->methods, name, &method)) {
+    Value v;
+    if(!hashTableGet(&cls->methods, name, &v)) {
         jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
                  name->data);
         return false;
     }
-    push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(method))));
+
+    ObjBoundMethod* boundMeth = newBoundMethod(vm, peek(vm), AS_OBJ(v));
+    pop(vm);
+
+    push(vm, OBJ_VAL(boundMeth));
     return true;
 }
 
