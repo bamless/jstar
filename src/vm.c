@@ -734,8 +734,10 @@ static bool getCached(JStarVM* vm, Obj* key, Obj* val, const Symbol* sym, Value*
     if(sym->key != key) return false;
     switch(sym->type) {
     case SYMBOL_METHOD:
-    case SYMBOL_BOUND_METHOD:
         *out = sym->as.method;
+        return true;
+    case SYMBOL_BOUND_METHOD:
+        *out = OBJ_VAL(newBoundMethod(vm, OBJ_VAL(val), AS_OBJ(sym->as.method)));
         return true;
     case SYMBOL_FIELD:
         return getFieldOffset((ObjInstance*)val, sym->as.offset, out);
@@ -761,14 +763,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
             Value field;
             if(getCached(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
                 pop(vm);
-
-                // TODO: refactor this shit
-                if(sym->type == SYMBOL_BOUND_METHOD) {
-                    push(vm, OBJ_VAL(newBoundMethod(vm, val, AS_OBJ(field))));
-                } else {
-                    push(vm, field);
-                }
-
+                push(vm, field);
                 return true;
             }
 
@@ -824,7 +819,7 @@ bool getValueField(JStarVM* vm, ObjString* name, Symbol* sym) {
     }
 
     ObjClass* cls = getClass(vm, val);
-    if (bindMethod(vm, cls, name, sym)) {
+    if(bindMethod(vm, cls, name, sym)) {
         return true;
     }
 
