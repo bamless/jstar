@@ -1132,8 +1132,7 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.tableLiteral.keyVals;
-    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList);
-        it != ext_vec_end(keyVals->as.exprList);) {
+    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList); it != ext_vec_end(keyVals->as.exprList);) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
