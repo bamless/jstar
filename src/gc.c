@@ -6,6 +6,7 @@
 
 #include "code.h"
 #include "compiler.h"
+#include "field_index.h"
 #include "hashtable.h"
 #include "object.h"
 #include "profiler.h"
@@ -131,7 +132,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)cls->name);
         reachObject(vm, (Obj*)cls->superCls);
         reachHashTable(vm, &cls->methods);
-        reachHashTableKeys(vm, &cls->fields);
+        reachFieldIndex(vm, &cls->fields);
         break;
     }
     case OBJ_INST: {
@@ -145,7 +146,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjModule* m = (ObjModule*)o;
         reachObject(vm, (Obj*)m->name);
         reachObject(vm, (Obj*)m->path);
-        reachHashTable(vm, &m->globalNames);
+        reachFieldIndex(vm, &m->globalNames);
         for(int i = 0; i < m->globalsCapacity; i++) {
             reachValue(vm, m->globals[i]);
         }

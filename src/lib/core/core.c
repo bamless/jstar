@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "../builtins.h"
+#include "field_index.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
@@ -521,13 +522,13 @@ JSR_NATIVE(jsr_Module_string) {
 
 JSR_NATIVE(jsr_Module_globals) {
     ObjModule* module = AS_MODULE(vm->apiStack[0]);
-    const HashTable* globalNames = &module->globalNames;
+    const FieldIndex* globalNames = &module->globalNames;
 
     jsrPushTable(vm);
-    for(const Entry* e = globalNames->entries; e < globalNames->entries + globalNames->sizeMask + 1; e++) {
+    for(const FieldIndexEntry* e = globalNames->entries; e < globalNames->entries + globalNames->sizeMask + 1; e++) {
         if(e->key) {
             push(vm, OBJ_VAL(e->key));
-            push(vm, module->globals[(int)e->value]);
+            push(vm, module->globals[e->offset]);
             if(!jsrSubscriptSet(vm, -3)) return false;
             pop(vm);
         }

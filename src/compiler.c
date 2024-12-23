@@ -9,8 +9,8 @@
 
 #include "code.h"
 #include "conf.h"
+#include "field_index.h"
 #include "gc.h"
-#include "hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "lib/core/core.h"
@@ -387,8 +387,8 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
     Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 
     if(c->module) {
-        if(hashTableGetString(&c->module->globalNames, id->name, id->length,
-                              hashBytes(id->name, id->length))) {
+        if(fieldIndexGetString(&c->module->globalNames, id->name, id->length,
+                               hashBytes(id->name, id->length))) {
             return global;
         }
     } else if(resolveCoreSymbol(id)) {

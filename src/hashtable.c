@@ -138,14 +138,6 @@ void reachHashTable(JStarVM* vm, const HashTable* t) {
     }
 }
 
-void reachHashTableKeys(JStarVM* vm, const HashTable* t) {
-    if(t->entries == NULL) return;
-    for(size_t i = 0; i <= t->sizeMask; i++) {
-        Entry* e = &t->entries[i];
-        reachObject(vm, (Obj*)e->key);
-    }
-}
-
 void sweepStrings(HashTable* t) {
     PROFILE_FUNC()
 

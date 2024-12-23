@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "code.h"
+#include "field_index.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
@@ -129,7 +130,7 @@ typedef struct ObjModule {
     Obj base;
     ObjString* name;           // Name of the module
     ObjString* path;           // The path to the module file
-    HashTable globalNames;     // HashTable mapping from global name to global value array
+    FieldIndex globalNames;    // HashTable mapping from global name to global value array
     int globalsCount;          // Number of globals in the module
     int globalsCapacity;       // Capacity of the globals array
     Value* globals;            // Array of global values
@@ -167,7 +168,7 @@ typedef struct ObjClass {
     ObjString* name;            // The name of the class
     struct ObjClass* superCls;  // Pointer to the parent class (or NULL)
     int fieldCount;             // Number of fields of the class
-    HashTable fields;           // HashTable containing a mapping for the object's fields
+    FieldIndex fields;          // HashTable containing a mapping for the object's fields
     HashTable methods;          // HashTable containing methods (ObjFunction/ObjNative)
 } ObjClass;
 
