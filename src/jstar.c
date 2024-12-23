@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "buffer.h"
-#include "code.h"
 #include "compiler.h"
 #include "disassemble.h"
 #include "hashtable.h"
@@ -17,6 +16,7 @@
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
+#include "symbol.h"
 #include "value.h"
 #include "vm.h"
 

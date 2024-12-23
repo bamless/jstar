@@ -118,7 +118,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)func->proto.name);
         reachObject(vm, (Obj*)func->proto.module);
         reachValueArray(vm, &func->code.consts);
-        for(int i = 0; i < func->code.symbolCount; i++) {
+        for(size_t i = 0; i < func->code.symbolCount; i++) {
             reachObject(vm, (Obj*)func->code.symbols[i].key);
         }
         for(uint8_t i = 0; i < func->proto.defCount; i++) {
@@ -146,7 +146,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)m->name);
         reachObject(vm, (Obj*)m->path);
         reachHashTable(vm, &m->globalNames);
-        for(int i = 0; i < m->globalsCount; i++) {
+        for(int i = 0; i < m->globalsCapacity; i++) {
             reachValue(vm, m->globals[i]);
         }
         break;

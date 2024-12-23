@@ -70,6 +70,8 @@ static bool shouldGrowSymbols(const Code* c) {
 }
 
 int addSymbol(Code* c, uint16_t constant) {
+    if(c->symbolCount == UINT16_MAX) return -1;
+
     if(shouldGrowSymbols(c)) {
         c->symbolCapacity = c->symbolCapacity ? c->symbolCapacity * CODE_GROW_FACT : CODE_DEF_SIZE;
         c->symbols = realloc(c->symbols, c->symbolCapacity * sizeof(Symbol));

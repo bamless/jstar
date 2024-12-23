@@ -14,6 +14,7 @@
 #include "object.h"
 #include "opcode.h"
 #include "profiler.h"
+#include "symbol.h"
 #include "value.h"
 
 #if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
@@ -1040,9 +1041,9 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
             return false;
         }
         case OBJ_MODULE: {
-            Value func;
             ObjModule* mod = AS_MODULE(val);
 
+            Value func;
             if(getCachedProperty(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 if(sym->type != SYMBOL_METHOD) {
                     // This is a function call, swap the receiver from the module to the function
@@ -1066,10 +1067,11 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, Symbol* sym) {
                 sym->type = SYMBOL_GLOBAL;
                 sym->key = (Obj*)mod;
                 sym->as.offset = globalIdx;
+                Value func = mod->globals[globalIdx];
 
                 // This is a function call, swap the receiver from the module to the function object
                 vm->sp[-argc - 1] = func;
-                return callValue(vm, mod->globals[globalIdx], argc);
+                return callValue(vm, func, argc);
             }
 
             jsrRaise(vm, "NameException", "Name `%s` is not defined in module %s.", name->data,

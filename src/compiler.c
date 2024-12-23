@@ -303,7 +303,12 @@ static uint16_t identifierConst(Compiler* c, const JStarIdentifier* id, int line
 }
 
 static uint16_t identifierSymbol(Compiler* c, const JStarIdentifier* id, int line) {
-    return addSymbol(&c->func->code, identifierConst(c, id, line));
+    int index = addSymbol(&c->func->code, identifierConst(c, id, line));
+    if(index == -1) {
+        error(c, line, "Too many symbols in function %s", c->func->proto.name->data);
+        return 0;
+    }
+    return (uint16_t)index;
 }
 
 static int addLocal(Compiler* c, const JStarIdentifier* id, int line) {

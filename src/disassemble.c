@@ -121,7 +121,7 @@ static void invokeInstruction(const Code* c, size_t i) {
     int argc = c->bytecode[i + 1];
     int name = readShortAt(c->bytecode, i + 2);
     printf("%d %d (", argc, name);
-    printValue(c->consts.arr[name]);
+    printValue(c->consts.arr[c->symbols[name].constant]);
     printf(")");
 }
 
@@ -160,10 +160,13 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     switch(c->bytecode[instr]) {
     case OP_IMPORT:
     case OP_IMPORT_FROM:
-    case OP_GET_FIELD:
-    case OP_SET_FIELD:
     case OP_NEW_CLASS:
     case OP_DEF_METHOD:
+    case OP_GET_CONST:
+        constInstruction(c, instr);
+        break;
+    case OP_GET_FIELD:
+    case OP_SET_FIELD:
     case OP_INVOKE_0:
     case OP_INVOKE_1:
     case OP_INVOKE_2:
@@ -189,13 +192,11 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     case OP_SUPER_9:
     case OP_SUPER_10:
     case OP_SUPER_BIND:
-        symbolInstruction(c, instr);
-        break;
-    case OP_GET_CONST:
     case OP_GET_GLOBAL:
     case OP_SET_GLOBAL:
     case OP_DEFINE_GLOBAL:
-        constInstruction(c, instr);
+        symbolInstruction(c, instr);
+        break;
         break;
     case OP_IMPORT_NAME:
     case OP_NATIVE:

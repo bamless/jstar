@@ -6,13 +6,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "code.h"
 #include "compiler.h"
 #include "conf.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object.h"
+#include "symbol.h"
 #include "value.h"
 
 // Enum encoding special method names needed at runtime

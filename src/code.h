@@ -5,20 +5,7 @@
 #include <stdlib.h>
 
 #include "value.h"
-
-// A symbol poointing to a constant in the constant pool.
-// Includes a cache for the value of the resolution.
-// It can either be a method, field or global variable.
-// Used to implement a caching scheme during VM evaluation.
-typedef struct Symbol {
-    enum { SYMBOL_METHOD, SYMBOL_BOUND_METHOD, SYMBOL_FIELD, SYMBOL_GLOBAL } type;
-    uint16_t constant;
-    Obj* key;
-    union {
-        Value method;
-        int offset;
-    } as;
-} Symbol;
+#include "symbol.h"
 
 typedef struct Code {
     size_t capacity, size;
@@ -26,7 +13,7 @@ typedef struct Code {
     size_t lineCapacity, lineSize;
     int* lines;
     ValueArray consts;
-    int symbolCapacity, symbolCount;
+    size_t symbolCapacity, symbolCount;
     Symbol* symbols;
 } Code;
 

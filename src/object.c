@@ -400,7 +400,7 @@ void setGlobalOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
     if(offset >= mod->globalsCapacity) {
         size_t oldCap = mod->globalsCapacity;
         size_t newCap = oldCap ? oldCap : 8;
-        while(offset >= (int)newCap) {
+        while((size_t)offset >= newCap) {
             newCap *= 2;
         }
         Value* newGlobals = gcAlloc(vm, mod->globals, sizeof(Value) * oldCap,
@@ -410,7 +410,9 @@ void setGlobalOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
         }
         mod->globals = newGlobals;
         mod->globalsCapacity = newCap;
-        mod->globalsCount = offset + 1;
+        if(offset >= mod->globalsCount) {
+            mod->globalsCount = offset + 1;
+        }
     }
     mod->globals[offset] = val;
 }
