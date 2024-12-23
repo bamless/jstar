@@ -7,10 +7,10 @@
 
 #include "jstar.h"
 
-struct ObjString;
+typedef struct ObjString ObjString;
 
 typedef struct FieldIndexEntry {
-    struct ObjString* key;
+    ObjString* key;
     int offset;
 } FieldIndexEntry;
 
@@ -21,12 +21,12 @@ typedef struct FieldIndex {
 
 void initFieldIndex(FieldIndex* t);
 void freeFieldIndex(FieldIndex* t);
-bool fieldIndexPut(FieldIndex* t, struct ObjString* key, int val);
-bool fieldIndexGet(const FieldIndex* t, struct ObjString* key, int* res);
-bool fieldIndexContainsKey(const FieldIndex* t, struct ObjString* key);
-bool fieldIndexDel(FieldIndex* t, struct ObjString* key);
+bool fieldIndexPut(FieldIndex* t, ObjString* key, int val);
+bool fieldIndexGet(const FieldIndex* t, ObjString* key, int* res);
+bool fieldIndexContainsKey(const FieldIndex* t, ObjString* key);
+bool fieldIndexDel(FieldIndex* t, ObjString* key);
 void fieldIndexMerge(FieldIndex* t, FieldIndex* o);
-struct ObjString* fieldIndexGetString(const FieldIndex* t, const char* str, size_t length, uint32_t hash);
+ObjString* fieldIndexGetString(const FieldIndex* t, const char* str, size_t length, uint32_t hash);
 
 void reachFieldIndex(JStarVM* vm, const FieldIndex* t);
 
