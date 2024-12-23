@@ -126,6 +126,7 @@ struct ObjString {
     char* data;     // The actual data of the string (NUL terminated)
 };
 
+// A J* module. Modules are the runtime representation of a J* file.
 typedef struct ObjModule {
     Obj base;
     ObjString* name;           // Name of the module
@@ -162,7 +163,7 @@ typedef struct ObjNative {
     JStarNative fn;  // The C function that gets called
 } ObjNative;
 
-// A user defined class
+// A J* class. Classes are first class objects in J*.
 typedef struct ObjClass {
     Obj base;
     ObjString* name;            // The name of the class
@@ -179,6 +180,7 @@ typedef struct ObjInstance {
     Value* fields;    // Array of fields of the instance
 } ObjInstance;
 
+// A J* List. Lists are mutable sequences of values.
 typedef struct ObjList {
     Obj base;
     size_t capacity;  // Size of the List (how much space is currently allocated)
@@ -186,6 +188,7 @@ typedef struct ObjList {
     Value* arr;       // List elements
 } ObjList;
 
+// A J* Tuple. Tuples are immutable sequences of values.
 typedef struct ObjTuple {
     Obj base;
     size_t size;  // Number of elements of the tuple
@@ -197,6 +200,7 @@ typedef struct {
     Value val;  // The actual value
 } TableEntry;
 
+// A J* Table. Tables are hash tables that map keys to values.
 typedef struct ObjTable {
     Obj base;
     size_t capacityMask;  // The size of the entries array
