@@ -8,9 +8,9 @@
 // -----------------------------------------------------------------------------
 
 #if defined(JSTAR_LINUX) || defined(JSTAR_EMSCRIPTEN)
-    #include <endian.h>
+    #include <endian.h>  // IWYU pragma: export
 #elif defined(JSTAR_MACOS) || defined(JSTAR_IOS)
-    #include <libkern/OSByteOrder.h>
+    #include <libkern/OSByteOrder.h> // IWYU pragma: export
 
     #define htobe16(x) OSSwapHostToBigInt16(x)
     #define be16toh(x) OSSwapBigToHostInt16(x)
@@ -18,9 +18,9 @@
     #define htobe64(x) OSSwapHostToBigInt64(x)
     #define be64toh(x) OSSwapBigToHostInt64(x)
 #elif defined(JSTAR_OPENBSD)
-    #include <sys/endian.h>
+    #include <sys/endian.h> // IWYU pragma: export
 #elif defined(JSTAR_FREEBSD)
-    #include <sys/endian.h>
+    #include <sys/endian.h> // IWYU pragma: export
 
     #define be16toh(x) betoh16(x)
     #define be64toh(x) betoh64(x)
