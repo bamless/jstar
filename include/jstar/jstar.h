@@ -401,7 +401,13 @@ JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 
 // Binds the native at `natSlot` to the class at `clsSlot`
 // Does not perform type checking, the user must ensure `clsSlot` is indeed a Class and `natSlot`
-// a Native
+// a Native.
+//
+// * BEWARE *
+// Due to the nature of how J* implements inheritance, call this method after the class has been
+// created and *before* any usage of it in order to avoid surprising behavior (for example, not
+// finding the native method in a subclass, or failing to invoke the method on an already created
+// instance). Usage includes instantiating the class, calling methods or using it as a superclass.
 JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 
 // -----------------------------------------------------------------------------
