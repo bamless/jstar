@@ -19,7 +19,7 @@
 //   method when hitting the cache.
 enum SymbolType { SYMBOL_METHOD, SYMBOL_BOUND_METHOD, SYMBOL_FIELD, SYMBOL_GLOBAL };
 
-// Symbol cache used to speed up symbol lookups during VM evaluation.
+// Symbol cache used to speed up method/field/global var lookups during VM evaluation.
 // It caches the result of a name resolution, so we don't have to look it up again.
 typedef struct SymbolCache {
     enum SymbolType type;  // The type of the cached symbol
