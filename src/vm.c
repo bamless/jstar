@@ -182,8 +182,16 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static bool isSymbolCached(Obj* key, const SymbolCache* sym) {
-    return sym->key == key;
+static bool isSymbolCached(JStarVM*vm, Obj* key, const SymbolCache* sym) {
+    bool hit = sym->key == key;
+#ifdef JSTAR_DBG_CACHE_STATS
+    if(hit) {
+        vm->cacheHits++;
+    } else {
+        vm->cacheMisses++;
+    }
+#endif
+    return hit;
 }
 
 static void createClass(JStarVM* vm, ObjString* name) {
@@ -482,7 +490,7 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
 
 static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc,
                                SymbolCache* sym) {
-    if(isSymbolCached((Obj*)cls, sym)) {
+    if(isSymbolCached(vm, (Obj*)cls, sym)) {
         return callValue(vm, sym->as.method, argc);
     }
 
@@ -515,7 +523,7 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 }
 
 static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, SymbolCache* sym) {
-    if(isSymbolCached((Obj*)cls, sym)) {
+    if(isSymbolCached(vm, (Obj*)cls, sym)) {
         push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
         return true;
     }
@@ -758,7 +766,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 }
 
 static bool getCachedProperty(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
-    if(!isSymbolCached(key, sym)) return false;
+    if(!isSymbolCached(vm, key, sym)) return false;
     switch(sym->type) {
     case SYMBOL_METHOD:
         *out = sym->as.method;
@@ -775,7 +783,7 @@ static bool getCachedProperty(JStarVM* vm, Obj* key, Obj* val, const SymbolCache
 }
 
 static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym, Value* out) {
-    if(!isSymbolCached((Obj*)mod, sym)) return false;
+    if(!isSymbolCached(vm, (Obj*)mod, sym)) return false;
     return getGlobalOffset(mod, sym->as.offset, out);
 }
 
@@ -875,7 +883,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
 
-            if(isSymbolCached((Obj*)cls, sym)) {
+            if(isSymbolCached(vm, (Obj*)cls, sym)) {
                 setFieldOffset(vm, inst, sym->as.offset, peek(vm));
                 return true;
             }
@@ -889,7 +897,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
         case OBJ_MODULE: {
             ObjModule* mod = AS_MODULE(val);
 
-            if(isSymbolCached((Obj*)mod, sym)) {
+            if(isSymbolCached(vm, (Obj*)mod, sym)) {
                 setGlobalOffset(vm, mod, sym->as.offset, peek(vm));
                 return true;
             }
@@ -1843,7 +1851,7 @@ op_return:
 
     TARGET(OP_DEFINE_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
-        if(isSymbolCached((Obj*)vm->module, &sym->cache)) {
+        if(isSymbolCached(vm, (Obj*)vm->module, &sym->cache)) {
             vm->module->globals[sym->cache.as.offset] = pop(vm);
         } else {
             ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
@@ -1877,7 +1885,7 @@ op_return:
 
     TARGET(OP_SET_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
-        if(isSymbolCached((Obj*)vm->module, &sym->cache)) {
+        if(isSymbolCached(vm, (Obj*)vm->module, &sym->cache)) {
             vm->module->globals[sym->cache.as.offset] = peek(vm);
         } else {
             ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);

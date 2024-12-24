@@ -19,6 +19,7 @@ option(JSTAR_NAN_TAGGING    "Use NaN tagging technique to store the VM internal 
 option(JSTAR_DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
 option(JSTAR_DBG_PRINT_GC   "Trace the execution of the garbage collector" OFF)
 option(JSTAR_DBG_STRESS_GC  "Stress the garbage collector by calling it on every allocation" OFF)
+option(JSTAR_CACHE_STATS    "Enable inline cache statistics" OFF)
 option(JSTAR_INSTRUMENT     "Enable function instrumentation" OFF)
 
 # Options for optional libraries

@@ -124,6 +124,17 @@ static JStarResult evalStringLen(JStarVM* vm, const char* path, const char* modu
     }
 
     pop(vm);
+
+#ifdef JSTAR_DBG_CACHE_STATS
+    printf(" * Cache hits: %lu\n", vm->cacheHits);
+    printf(" * Cache misses: %lu\n", vm->cacheMisses);
+    printf(" * Hit the cache %.2f%% of the time\n",
+           (vm->cacheHits + vm->cacheMisses) == 0
+               ? 0.0
+               : (double)vm->cacheHits / (vm->cacheHits + vm->cacheMisses) * 100);
+    vm->cacheHits = vm->cacheMisses = 0;
+#endif
+
     return res;
 }
 
@@ -169,6 +180,17 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     }
 
     pop(vm);
+
+#ifdef JSTAR_DBG_CACHE_STATS
+    printf(" * Cache hits: %lu\n", vm->cacheHits);
+    printf(" * Cache misses: %lu\n", vm->cacheMisses);
+    printf(" * Hit the cache %.2f%% of the time\n",
+           (vm->cacheHits + vm->cacheMisses) == 0
+               ? 0.0
+               : (double)vm->cacheHits / (vm->cacheHits + vm->cacheMisses) * 100);
+    vm->cacheHits = vm->cacheMisses = 0;
+#endif
+
     return res;
 }
 

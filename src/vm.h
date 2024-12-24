@@ -3,6 +3,7 @@
 
 #include <signal.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -127,6 +128,10 @@ struct JStarVM {
 
     // Linked list of all created handles
     JStarHandle* handles;
+
+#ifdef JSTAR_DBG_CACHE_STATS 
+    size_t cacheHits, cacheMisses;
+#endif
 
     // ---- Memory management ----
 
