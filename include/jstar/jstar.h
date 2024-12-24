@@ -45,6 +45,9 @@ typedef struct JStarNativeReg JStarNativeReg;
 // A C function callable from J*
 typedef bool (*JStarNative)(JStarVM* vm);
 
+// An handle to a resolved method, field or global variable
+typedef struct JStarHandle JStarHandle;
+
 // Generic error code used by several J* API functions
 typedef enum JStarResult {
     JSR_SUCCESS,          // The VM successfully executed the code
@@ -117,6 +120,14 @@ JSTAR_API void* jsrGetCustomData(const JStarVM* vm);
 // Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
 JSTAR_API void jsrEvalBreak(JStarVM* vm);
 
+// Create a new handle for use with `jsrCallMethodHandle`, `jsrGetFieldHandle` and
+// `jsrSetFieldHandle`. This `Handle` function behave the same as the non-handle version, but
+// cache lookups for the same object type in order to speed up subsequent calls.
+JSTAR_API JStarHandle* jsrNewHandle(JStarVM* vm);
+
+// Frres a `JSRHandle` previously obtained with `jsrNewHandle`
+JSTAR_API void jsrFreeHandle(JStarVM* vm, JStarHandle* handle);
+
 // -----------------------------------------------------------------------------
 // CODE EXECUTION
 // -----------------------------------------------------------------------------
@@ -159,6 +170,12 @@ JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 
 // Similar to the above, but tries to call a method called `name` on an object.
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
+
+// Similar to the above, but caches the method lookup in the provided handle.
+// Can be more efficient if the same method is called multiple times on the same object type.
+// To obtain an handle call `jsrNewHandle` and to free it call `jsrFreeHandle`.
+JSTAR_API JStarResult jsrCallMethodHandle(JStarVM* vm, const char* name, uint8_t argc,
+                                          JStarHandle* handle);
 
 // -----------------------------------------------------------------------------
 // C TO J* VALUE CONVERSION API
@@ -344,10 +361,21 @@ JSTAR_API size_t jsrGetLength(JStarVM* vm, int slot);
 // Returns false otherwise leaving an exception on top of the stack.
 JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 
+// Set the field `name` of the value at `slot` with the value on top of the stack using the provided
+// handle. The handle is used to cache the field lookup and can be used to speed up subsequent
+// lookups.
+// To obtain an handle call `jsrNewHandle` and to free it call `jsrFreeHandle`.
+JSTAR_API bool jsrSetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle);
+
 // Get the field `name` of the value at `slot`.
 // Returns true in case of success leaving the result on top of the stack.
 // Returns false otherwise leaving an exception on top of the stack.
 JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
+
+// Get the field `name` of the value at `slot` using the provided handle.
+// The handle is used to cache the field lookup and can be used to speed up subsequent lookups.
+// To obtain an handle call `jsrNewHandle` and to free it call `jsrFreeHandle`.
+JSTAR_API bool jsrGetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle);
 
 // -----------------------------------------------------------------------------
 // MODULE API

@@ -46,6 +46,14 @@ typedef struct Frame {
     uint8_t handlerCount;            // Exception handlers count
 } Frame;
 
+// Represents a handle to a resolved method, field or global variable.
+// Internally it stores a cache of the symbol lookup, along with linked list links.
+struct JStarHandle {
+    SymbolCache sym;
+    JStarHandle* next;
+    JStarHandle* prev;
+};
+
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
 struct JStarVM {
@@ -116,6 +124,9 @@ struct JStarVM {
 
     // Custom data associated with the VM
     void* customData;
+
+    // Linked list of all created handles
+    JStarHandle* handles;
 
     // ---- Memory management ----
 

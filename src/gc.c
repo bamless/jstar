@@ -137,7 +137,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_INST: {
         ObjInstance* i = (ObjInstance*)o;
-        for (Value* v = i->fields; v < i->fields + i->capacity; v++) {
+        for(Value* v = i->fields; v < i->fields + i->capacity; v++) {
             reachValue(vm, *v);
         }
         break;
@@ -265,6 +265,10 @@ void garbageCollect(JStarVM* vm) {
 
         for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
             reachObject(vm, (Obj*)upvalue);
+        }
+
+        for(JStarHandle* h = vm->handles; h != NULL; h = h->next) {
+            reachObject(vm, h->sym.key);
         }
 
         reachCompilerRoots(vm, vm->currCompiler);

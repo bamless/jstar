@@ -111,6 +111,13 @@ void jsrFreeVM(JStarVM* vm) {
         free(vm->frames);
         freeHashTable(&vm->stringPool);
         freeHashTable(&vm->modules);
+
+        JStarHandle* handle = vm->handles;
+        while(handle) {
+            JStarHandle* next = handle->next;
+            GC_FREE(vm, JStarHandle, handle);
+            handle = next;
+        }
     }
 
     sweepObjects(vm);
@@ -177,7 +184,7 @@ static bool isInt(double n) {
 
 static bool isSymbolCached(Obj* key, const SymbolCache* sym) {
     return sym->key == key;
-} 
+}
 
 static void createClass(JStarVM* vm, ObjString* name) {
     push(vm, OBJ_VAL(newClass(vm, name, NULL)));

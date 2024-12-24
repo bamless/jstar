@@ -8,6 +8,7 @@
 #include "buffer.h"
 #include "compiler.h"
 #include "disassemble.h"
+#include "gc.h"
 #include "hashtable.h"
 #include "import.h"
 #include "lib/core/excs.h"
@@ -16,7 +17,6 @@
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
-#include "symbol.h"
 #include "value.h"
 #include "vm.h"
 
@@ -245,11 +245,39 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
+    JStarHandle handle = {0};
+    return jsrCallMethodHandle(vm, name, argc, &handle);
+}
+
+JStarHandle* jsrNewHandle(JStarVM* vm) {
+    JStarHandle* handle = GC_ALLOC(vm, sizeof(JStarHandle));
+    *handle = (JStarHandle){0};
+
+    handle->next = vm->handles;
+    vm->handles = handle;
+
+    return handle;
+}
+
+void jsrFreeHandle(JStarVM* vm, JStarHandle* handle) {
+    if(vm->handles == handle) {
+        vm->handles = handle->next;
+    }
+
+    if(handle->prev != NULL) {
+        handle->prev->next = handle->next;
+    }
+    if(handle->next != NULL) {
+        handle->next->prev = handle->prev;
+    }
+
+    GC_FREE(vm, JStarHandle, handle);
+}
+
+JStarResult jsrCallMethodHandle(JStarVM* vm, const char* name, uint8_t argc, JStarHandle* handle) {
     int evalDepth = vm->frameCount;
 
-    // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
-    SymbolCache sym = {0};
-    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &sym)) {
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &handle->sym)) {
         callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
     }
@@ -559,7 +587,6 @@ int jsrTop(const JStarVM* vm) {
     return apiStackIndex(vm, -1);
 }
 
-// TODO: unify with VM impl? Also add possibility to cache
 bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = getModuleOrRaise(vm, module);
     if(!mod) return false;
@@ -670,27 +697,31 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 }
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
+    JStarHandle handle = {0};
+    return jsrSetFieldHandle(vm, slot, name, &handle);
+}
+
+bool jsrSetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle) {
     push(vm, apiStackSlot(vm, slot));
-    // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
-    SymbolCache sym = {0};
-    return setValueField(vm, copyString(vm, name, strlen(name)), &sym);
+    return setValueField(vm, copyString(vm, name, strlen(name)), &handle->sym);
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
-    push(vm, apiStackSlot(vm, slot));
-    // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
-    SymbolCache sym = {0};
-    return getValueField(vm, copyString(vm, name, strlen(name)), &sym);
+    JStarHandle handle = {0};
+    return jsrGetFieldHandle(vm, slot, name, &handle);
 }
 
-// TODO: unify with VM impl? Also add possibility to cache
+bool jsrGetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle) {
+    push(vm, apiStackSlot(vm, slot));
+    return getValueField(vm, copyString(vm, name, strlen(name)), &handle->sym);
+}
+
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = getModuleOrRaise(vm, module);
     if(!mod) return false;
 
-    Value res = NULL_VAL;
-    ObjString* nameStr = copyString(vm, name, strlen(name));
-    if(!getGlobal(vm, mod, nameStr, &res)) {
+    Value res;
+    if(!getGlobal(vm, mod, copyString(vm, name, strlen(name)), &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
         return false;
     }
