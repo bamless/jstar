@@ -1,5 +1,6 @@
 #include "object.h"
 
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -338,16 +339,16 @@ void freeObject(JStarVM* vm, Obj* o) {
 // -----------------------------------------------------------------------------
 
 bool getFieldOffset(ObjInstance* inst, int offset, Value* out) {
-    if(offset >= (int)inst->capacity) return false;
+    if((size_t)offset >= inst->capacity) return false;
     *out = inst->fields[offset];
     return true;
 }
 
 void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
-    if(offset >= (int)inst->capacity) {
+    if((size_t)offset >= inst->capacity) {
         size_t oldCap = inst->capacity;
         size_t newCap = oldCap ? oldCap : 8;
-        while(offset >= (int)newCap) {
+        while((size_t)offset >= newCap) {
             newCap *= 2;
         }
         Value* newFields = gcAlloc(vm, inst->fields, sizeof(Value) * oldCap,
@@ -381,14 +382,14 @@ int setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Valu
 bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
     int field;
     if(!fieldIndexGet(&cls->fields, key, &field)) return false;
-    getFieldOffset(inst, (int)field, val);
+    getFieldOffset(inst, field, val);
     return true;
 }
 
 int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
     int field;
     if(!fieldIndexGet(&cls->fields, key, &field)) return -1;
-    return (int)field >= (int)inst->capacity ? -1 : (int)field;
+    return (size_t)field >= inst->capacity ? -1 : field;
 }
 
 bool getGlobalOffset(ObjModule* mod, int offset, Value* val) {
@@ -444,7 +445,7 @@ bool getGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val) {
 int getGlobalIdx(JStarVM* vm, ObjModule* mod, ObjString* key) {
     int global;
     if(!fieldIndexGet(&mod->globalNames, key, &global)) return -1;
-    return (int)global >= mod->globalsCount ? -1 : (int)global;
+    return global >= mod->globalsCount ? -1 : global;
 }
 
 static void growList(JStarVM* vm, ObjList* lst) {
