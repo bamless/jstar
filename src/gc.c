@@ -120,7 +120,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)func->proto.module);
         reachValueArray(vm, &func->code.consts);
         for(size_t i = 0; i < func->code.symbolCount; i++) {
-            reachObject(vm, (Obj*)func->code.symbols[i].key);
+            reachObject(vm, (Obj*)func->code.symbols[i].cache.key);
         }
         for(uint8_t i = 0; i < func->proto.defCount; i++) {
             reachValue(vm, func->proto.defaults[i]);

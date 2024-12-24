@@ -248,7 +248,7 @@ JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     int evalDepth = vm->frameCount;
 
     // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
-    Symbol sym = {.key = NULL};
+    SymbolCache sym = {0};
     if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &sym)) {
         callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
@@ -672,14 +672,14 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
     // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
-    Symbol sym = {.key = NULL};
+    SymbolCache sym = {0};
     return setValueField(vm, copyString(vm, name, strlen(name)), &sym);
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
     push(vm, apiStackSlot(vm, slot));
     // TODO: expose a 'Symbol' version of this method to let the user cache the symbol
-    Symbol sym = {.key = NULL};
+    SymbolCache sym = {0};
     return getValueField(vm, copyString(vm, name, strlen(name)), &sym);
 }
 
