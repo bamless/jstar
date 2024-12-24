@@ -13,14 +13,14 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # General options
-option(JSTAR_INSTALL        "Generate install targets" ON)
-option(JSTAR_COMPUTED_GOTOS "Use computed gotos for VM eval loop" ON)
-option(JSTAR_NAN_TAGGING    "Use NaN tagging technique to store the VM internal type" ON)
-option(JSTAR_DBG_PRINT_EXEC "Trace the execution of the VM" OFF)
-option(JSTAR_DBG_PRINT_GC   "Trace the execution of the garbage collector" OFF)
-option(JSTAR_DBG_STRESS_GC  "Stress the garbage collector by calling it on every allocation" OFF)
-option(JSTAR_CACHE_STATS    "Enable inline cache statistics" OFF)
-option(JSTAR_INSTRUMENT     "Enable function instrumentation" OFF)
+option(JSTAR_INSTALL         "Generate install targets" ON)
+option(JSTAR_COMPUTED_GOTOS  "Use computed gotos for VM eval loop" ON)
+option(JSTAR_NAN_TAGGING     "Use NaN tagging technique to store the VM internal type" ON)
+option(JSTAR_DBG_PRINT_EXEC  "Trace the execution of the VM" OFF)
+option(JSTAR_DBG_PRINT_GC    "Trace the execution of the garbage collector" OFF)
+option(JSTAR_DBG_STRESS_GC   "Stress the garbage collector by calling it on every allocation" OFF)
+option(JSTAR_DBG_CACHE_STATS "Enable inline cache statistics" OFF)
+option(JSTAR_INSTRUMENT      "Enable function instrumentation" OFF)
 
 # Options for optional libraries
 option(JSTAR_SYS   "Include the 'sys' module in the language" ON)
@@ -73,7 +73,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 elseif(MSVC)
     # Disable secure warnings for the useless _s variants of standard functions.
-    # These shouldn't even exist in c99 but MSVC will complain about them because it's MSVC. 
+    # These shouldn't even exist in c99 but MSVC will complain about them because it's MSVC.
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
     add_definitions(-DNOMINMAX)
@@ -124,7 +124,7 @@ if(JSTAR_INSTALL)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/cwalk/LICENSE.md DESTINATION share/licenses/jstar/cwalk)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/dirent/LICENSE DESTINATION share/licenses/jstar/dirent)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/replxx/LICENSE.md DESTINATION share/licenses/jstar/replxx)
-    
+
     # On Windows install required runtime dlls alongside exe
     include(cmake/MinGWRuntime.cmake)
     include(InstallRequiredSystemLibraries)
