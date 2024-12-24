@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "../builtins.h"
+#include "field_index.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
@@ -83,13 +84,13 @@ static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const cha
     push(vm, OBJ_VAL(n));
     ObjClass* c = newClass(vm, n, sup);
     pop(vm);
-    hashTablePut(&m->globals, n, OBJ_VAL(c));
+    setGlobal(vm, m, n, OBJ_VAL(c));
     return c;
 }
 
 static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
-    hashTableGet(&m->globals, copyString(vm, name, strlen(name)), &v);
+    getGlobal(vm, m, copyString(vm, name, strlen(name)), &v);
     return v;
 }
 
@@ -521,13 +522,13 @@ JSR_NATIVE(jsr_Module_string) {
 
 JSR_NATIVE(jsr_Module_globals) {
     ObjModule* module = AS_MODULE(vm->apiStack[0]);
-    const HashTable* globals = &module->globals;
+    const FieldIndex* globalNames = &module->globalNames;
 
     jsrPushTable(vm);
-    for(const Entry* e = globals->entries; e < globals->entries + globals->sizeMask + 1; e++) {
+    for(const FieldIndexEntry* e = globalNames->entries; e < globalNames->entries + globalNames->sizeMask + 1; e++) {
         if(e->key) {
             push(vm, OBJ_VAL(e->key));
-            push(vm, e->value);
+            push(vm, module->globals[e->offset]);
             if(!jsrSubscriptSet(vm, -3)) return false;
             pop(vm);
         }
@@ -1708,15 +1709,15 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "_valueName"
 
+// TODO: enums may consume too much memory using the new object model.
+// Do something about it.
 static bool checkEnumElem(JStarVM* vm) {
     if(!IS_STRING(peek(vm))) {
         JSR_RAISE(vm, "TypeException", "Enum element must be a String, got %s",
                   getClass(vm, peek(vm))->name->data);
     }
 
-    ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
     ObjString* enumElem = AS_STRING(peek(vm));
-
     if(isalpha(enumElem->data[0])) {
         for(size_t i = 1; i < enumElem->length; i++) {
             char c = enumElem->data[i];
@@ -1724,10 +1725,6 @@ static bool checkEnumElem(JStarVM* vm) {
                 JSR_RAISE(vm, "InvalidArgException", "Enum element `%s` is not a valid identifier",
                           enumElem->data);
             }
-        }
-
-        if(hashTableContainsKey(&inst->fields, enumElem)) {
-            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 
         return true;

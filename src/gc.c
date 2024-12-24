@@ -6,6 +6,7 @@
 
 #include "code.h"
 #include "compiler.h"
+#include "field_index.h"
 #include "hashtable.h"
 #include "object.h"
 #include "profiler.h"
@@ -118,6 +119,9 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)func->proto.name);
         reachObject(vm, (Obj*)func->proto.module);
         reachValueArray(vm, &func->code.consts);
+        for(size_t i = 0; i < func->code.symbolCount; i++) {
+            reachObject(vm, (Obj*)func->code.symbols[i].cache.key);
+        }
         for(uint8_t i = 0; i < func->proto.defCount; i++) {
             reachValue(vm, func->proto.defaults[i]);
         }
@@ -128,18 +132,24 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         reachObject(vm, (Obj*)cls->name);
         reachObject(vm, (Obj*)cls->superCls);
         reachHashTable(vm, &cls->methods);
+        reachFieldIndex(vm, &cls->fields);
         break;
     }
     case OBJ_INST: {
         ObjInstance* i = (ObjInstance*)o;
-        reachHashTable(vm, &i->fields);
+        for(Value* v = i->fields; v < i->fields + i->capacity; v++) {
+            reachValue(vm, *v);
+        }
         break;
     }
     case OBJ_MODULE: {
         ObjModule* m = (ObjModule*)o;
         reachObject(vm, (Obj*)m->name);
         reachObject(vm, (Obj*)m->path);
-        reachHashTable(vm, &m->globals);
+        reachFieldIndex(vm, &m->globalNames);
+        for(int i = 0; i < m->globalsCapacity; i++) {
+            reachValue(vm, m->globals[i]);
+        }
         break;
     }
     case OBJ_LIST: {
@@ -255,6 +265,10 @@ void garbageCollect(JStarVM* vm) {
 
         for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {
             reachObject(vm, (Obj*)upvalue);
+        }
+
+        for(JStarHandle* h = vm->handles; h != NULL; h = h->next) {
+            reachObject(vm, h->sym.key);
         }
 
         reachCompilerRoots(vm, vm->currCompiler);

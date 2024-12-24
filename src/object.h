@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "code.h"
+#include "field_index.h"
 #include "hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
@@ -125,11 +126,15 @@ struct ObjString {
     char* data;     // The actual data of the string (NUL terminated)
 };
 
+// A J* module. Modules are the runtime representation of a J* file.
 typedef struct ObjModule {
     Obj base;
     ObjString* name;           // Name of the module
     ObjString* path;           // The path to the module file
-    HashTable globals;         // HashTable containing the global variables of the module
+    FieldIndex globalNames;    // HashTable mapping from global name to global value array
+    int globalsCount;          // Number of globals in the module
+    int globalsCapacity;       // Capacity of the globals array
+    Value* globals;            // Array of global values
     JStarNativeReg* registry;  // Natives registered in this module
 } ObjModule;
 
@@ -158,20 +163,24 @@ typedef struct ObjNative {
     JStarNative fn;  // The C function that gets called
 } ObjNative;
 
-// A user defined class
+// A J* class. Classes are first class objects in J*.
 typedef struct ObjClass {
     Obj base;
     ObjString* name;            // The name of the class
     struct ObjClass* superCls;  // Pointer to the parent class (or NULL)
+    int fieldCount;             // Number of fields of the class
+    FieldIndex fields;          // HashTable containing a mapping for the object's fields
     HashTable methods;          // HashTable containing methods (ObjFunction/ObjNative)
 } ObjClass;
 
 // An instance of a user defined Class
 typedef struct ObjInstance {
     Obj base;
-    HashTable fields;  // HashTable containing the fields of the instance
+    size_t capacity;  // Size of the fields array
+    Value* fields;    // Array of fields of the instance
 } ObjInstance;
 
+// A J* List. Lists are mutable sequences of values.
 typedef struct ObjList {
     Obj base;
     size_t capacity;  // Size of the List (how much space is currently allocated)
@@ -179,6 +188,7 @@ typedef struct ObjList {
     Value* arr;       // List elements
 } ObjList;
 
+// A J* Tuple. Tuples are immutable sequences of values.
 typedef struct ObjTuple {
     Obj base;
     size_t size;  // Number of elements of the tuple
@@ -190,6 +200,7 @@ typedef struct {
     Value val;  // The actual value
 } TableEntry;
 
+// A J* Table. Tables are hash tables that map keys to values.
 typedef struct ObjTable {
     Obj base;
     size_t capacityMask;  // The size of the entries array
@@ -323,6 +334,20 @@ void freeObject(JStarVM* vm, Obj* o);
 // -----------------------------------------------------------------------------
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
+
+// ObjInstance functions
+int setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val);
+void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val);
+bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val);
+bool getFieldOffset(ObjInstance* inst, int offset, Value* val);
+int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key);
+
+// ObjModule functions
+int setGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val);
+void setGlobalOffset(JStarVM* vm, ObjModule* mod, int offset, Value val);
+bool getGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val);
+bool getGlobalOffset(ObjModule* mod, int offset, Value* val);
+int getGlobalIdx(JStarVM* vm, ObjModule* mod, ObjString* key);
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);

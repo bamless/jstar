@@ -8,6 +8,7 @@
 #include "buffer.h"
 #include "compiler.h"
 #include "disassemble.h"
+#include "gc.h"
 #include "hashtable.h"
 #include "import.h"
 #include "lib/core/excs.h"
@@ -123,6 +124,17 @@ static JStarResult evalStringLen(JStarVM* vm, const char* path, const char* modu
     }
 
     pop(vm);
+
+#ifdef JSTAR_DBG_CACHE_STATS
+    printf(" * Cache hits: %lu\n", vm->cacheHits);
+    printf(" * Cache misses: %lu\n", vm->cacheMisses);
+    printf(" * Hit the cache %.2f%% of the time\n",
+           (vm->cacheHits + vm->cacheMisses) == 0
+               ? 0.0
+               : (double)vm->cacheHits / (vm->cacheHits + vm->cacheMisses) * 100);
+    vm->cacheHits = vm->cacheMisses = 0;
+#endif
+
     return res;
 }
 
@@ -168,6 +180,17 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     }
 
     pop(vm);
+
+#ifdef JSTAR_DBG_CACHE_STATS
+    printf(" * Cache hits: %lu\n", vm->cacheHits);
+    printf(" * Cache misses: %lu\n", vm->cacheMisses);
+    printf(" * Hit the cache %.2f%% of the time\n",
+           (vm->cacheHits + vm->cacheMisses) == 0
+               ? 0.0
+               : (double)vm->cacheHits / (vm->cacheHits + vm->cacheMisses) * 100);
+    vm->cacheHits = vm->cacheMisses = 0;
+#endif
+
     return res;
 }
 
@@ -244,9 +267,39 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
+    JStarHandle handle = {0};
+    return jsrCallMethodHandle(vm, name, argc, &handle);
+}
+
+JStarHandle* jsrNewHandle(JStarVM* vm) {
+    JStarHandle* handle = GC_ALLOC(vm, sizeof(JStarHandle));
+    *handle = (JStarHandle){0};
+
+    handle->next = vm->handles;
+    vm->handles = handle;
+
+    return handle;
+}
+
+void jsrFreeHandle(JStarVM* vm, JStarHandle* handle) {
+    if(vm->handles == handle) {
+        vm->handles = handle->next;
+    }
+
+    if(handle->prev != NULL) {
+        handle->prev->next = handle->next;
+    }
+    if(handle->next != NULL) {
+        handle->next->prev = handle->prev;
+    }
+
+    GC_FREE(vm, JStarHandle, handle);
+}
+
+JStarResult jsrCallMethodHandle(JStarVM* vm, const char* name, uint8_t argc, JStarHandle* handle) {
     int evalDepth = vm->frameCount;
 
-    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc)) {
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &handle->sym)) {
         callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
     }
@@ -302,16 +355,17 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     }
 
     ObjInstance* exception = (ObjInstance*)AS_OBJ(excVal);
+    ObjClass* cls = exception->base.cls;
 
     ObjString* stField = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
     push(vm, OBJ_VAL(stField));
 
     Value value = NULL_VAL;
-    hashTableGet(&exception->fields, stField, &value);
+    getField(vm, cls, exception, stField, &value);
     ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
     st->lastTracedFrame = -1;
 
-    hashTablePut(&exception->fields, stField, OBJ_VAL(st));
+    setField(vm, cls, exception, stField, OBJ_VAL(st));
     pop(vm);
 
     // Place the exception on top of the stack if not already
@@ -328,6 +382,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     }
 
     ObjInstance* exception = newInstance(vm, AS_CLASS(pop(vm)));
+    ObjClass* excCls = exception->base.cls;
     if(!isInstance(vm, OBJ_VAL(exception), vm->excClass)) {
         jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
     }
@@ -335,9 +390,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     push(vm, OBJ_VAL(exception));
 
     ObjStackTrace* st = newStackTrace(vm);
-    push(vm, OBJ_VAL(st));
-    hashTablePut(&exception->fields, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
-    pop(vm);
+    setField(vm, excCls, exception, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
 
     if(err != NULL) {
         JStarBuffer error;
@@ -350,7 +403,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
         ObjString* errorField = copyString(vm, EXC_ERR, strlen(EXC_ERR));
         ObjString* errorString = jsrBufferToString(&error);
-        hashTablePut(&exception->fields, errorField, OBJ_VAL(errorString));
+        setField(vm, excCls, exception, errorField, OBJ_VAL(errorString));
     }
 }
 
@@ -559,7 +612,7 @@ int jsrTop(const JStarVM* vm) {
 bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     ObjModule* mod = getModuleOrRaise(vm, module);
     if(!mod) return false;
-    hashTablePut(&mod->globals, copyString(vm, name, strlen(name)), peek(vm));
+    setGlobal(vm, mod, copyString(vm, name, strlen(name)), peek(vm));
     return true;
 }
 
@@ -666,13 +719,23 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 }
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
+    JStarHandle handle = {0};
+    return jsrSetFieldHandle(vm, slot, name, &handle);
+}
+
+bool jsrSetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle) {
     push(vm, apiStackSlot(vm, slot));
-    return setValueField(vm, copyString(vm, name, strlen(name)));
+    return setValueField(vm, copyString(vm, name, strlen(name)), &handle->sym);
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
+    JStarHandle handle = {0};
+    return jsrGetFieldHandle(vm, slot, name, &handle);
+}
+
+bool jsrGetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle) {
     push(vm, apiStackSlot(vm, slot));
-    return getValueField(vm, copyString(vm, name, strlen(name)));
+    return getValueField(vm, copyString(vm, name, strlen(name)), &handle->sym);
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
@@ -680,8 +743,7 @@ bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
     if(!mod) return false;
 
     Value res;
-    ObjString* nameStr = copyString(vm, name, strlen(name));
-    if(!hashTableGet(&mod->globals, nameStr, &res)) {
+    if(!getGlobal(vm, mod, copyString(vm, name, strlen(name)), &res)) {
         jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
         return false;
     }

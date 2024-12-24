@@ -63,7 +63,7 @@ static void registerInParent(JStarVM* vm, ObjModule* module) {
         module->registry = parent->registry;
     }
 
-    hashTablePut(&parent->globals, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
+    setGlobal(vm, parent, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {

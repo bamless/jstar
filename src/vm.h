@@ -3,6 +3,7 @@
 
 #include <signal.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -12,6 +13,7 @@
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object.h"
+#include "symbol.h"
 #include "value.h"
 
 // Enum encoding special method names needed at runtime
@@ -44,6 +46,14 @@ typedef struct Frame {
     Handler handlers[MAX_HANDLERS];  // Exception handlers
     uint8_t handlerCount;            // Exception handlers count
 } Frame;
+
+// Represents a handle to a resolved method, field or global variable.
+// Internally it stores a cache of the symbol lookup, along with linked list links.
+struct JStarHandle {
+    SymbolCache sym;
+    JStarHandle* next;
+    JStarHandle* prev;
+};
 
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
@@ -116,6 +126,13 @@ struct JStarVM {
     // Custom data associated with the VM
     void* customData;
 
+    // Linked list of all created handles
+    JStarHandle* handles;
+
+#ifdef JSTAR_DBG_CACHE_STATS 
+    size_t cacheHits, cacheMisses;
+#endif
+
     // ---- Memory management ----
 
     // Linked list of all allocated objects (used in
@@ -131,14 +148,14 @@ struct JStarVM {
     size_t reachedCapacity, reachedCount;
 };
 
-bool getValueField(JStarVM* vm, ObjString* name);
-bool setValueField(JStarVM* vm, ObjString* name);
+bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
+bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
 
 bool getValueSubscript(JStarVM* vm);
 bool setValueSubscript(JStarVM* vm);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc);
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* symbol);
 
 void reserveStack(JStarVM* vm, size_t needed);
 void swapStackSlots(JStarVM* vm, int a, int b);

@@ -33,6 +33,9 @@ set(JSTAR_SOURCES
     compiler.h
     disassemble.c
     disassemble.h
+    endianness.h
+    field_index.c
+    field_index.h
     gc.c
     gc.h
     hashtable.c
