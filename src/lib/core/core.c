@@ -395,7 +395,6 @@ JSR_NATIVE(jsr_Function_string) {
         break;
     default:
         JSR_UNREACHABLE();
-        break;
     }
 
     JStarBuffer str;

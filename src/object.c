@@ -546,7 +546,6 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     }
     default:
         JSR_UNREACHABLE();
-        break;
     }
 
     if(!record->funcName) {
@@ -569,7 +568,6 @@ Value* getValues(Obj* obj, size_t* size) {
     }
     default:
         JSR_UNREACHABLE();
-        return *size = 0, NULL;
     }
 }
 
@@ -583,7 +581,6 @@ Prototype* getPrototype(Obj* fn) {
         return getPrototype(((ObjBoundMethod*)fn)->method);
     default:
         JSR_UNREACHABLE();
-        break;
     }
     return NULL;
 }

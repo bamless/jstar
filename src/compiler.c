@@ -149,7 +149,8 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
     c->globals = globals;
     c->fwdRefs = fwdRefs;
     c->ast = ast;
-    c->stackUsage = 1;  // 1 for the receiver (always present)
+    // 1 for the receiver (always present)
+    c->stackUsage = 1;
     c->func = NULL;
     c->depth = 0;
     c->localsCount = 0;
@@ -475,11 +476,10 @@ static void defineVar(Compiler* c, const Variable* var, int line) {
     case VAR_LOCAL:
         initializeVar(c, var);
         break;
-    case VAR_UPVALUE:
-        JSR_UNREACHABLE();
-        break;
     case VAR_ERR:
         break;
+    case VAR_UPVALUE:
+        JSR_UNREACHABLE();
     }
 }
 
@@ -629,7 +629,6 @@ static void addFunctionDefaults(Compiler* c, const Prototype* proto,
             break;
         default:
             JSR_UNREACHABLE();
-            break;
         }
     }
 }
@@ -642,7 +641,6 @@ static JStarExpr* getExpressions(const JStarExpr* unpackable) {
         return unpackable->as.tupleLiteral.exprs;
     default:
         JSR_UNREACHABLE();
-        return NULL;
     }
 }
 
@@ -727,7 +725,6 @@ static void compileBinaryExpr(Compiler* c, const JStarExpr* e) {
         break;
     default:
         JSR_UNREACHABLE();
-        break;
     }
 }
 
@@ -765,7 +762,6 @@ static void compileUnaryExpr(Compiler* c, const JStarExpr* e) {
         break;
     default:
         JSR_UNREACHABLE();
-        break;
     }
 }
 
@@ -849,7 +845,6 @@ static void compileLval(Compiler* c, const JStarExpr* e) {
     }
     default:
         JSR_UNREACHABLE();
-        break;
     }
 }
 
@@ -942,7 +937,6 @@ static void compileAssignExpr(Compiler* c, const JStarExpr* e) {
     }
     default:
         JSR_UNREACHABLE();
-        break;
     }
 }
 
@@ -1959,7 +1953,6 @@ static void compileMethods(Compiler* c, const JStarStmt* s) {
             break;
         default:
             JSR_UNREACHABLE();
-            break;
         }
     }
 }
@@ -2141,7 +2134,6 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
     case JSR_EXCEPT:
     default:
         JSR_UNREACHABLE();
-        break;
     }
 }
 

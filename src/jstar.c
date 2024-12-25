@@ -752,7 +752,6 @@ bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
     return true;
 }
 
-
 void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     Value cls = apiStackSlot(vm, clsSlot);
     Value nat = apiStackSlot(vm, natSlot);

@@ -197,7 +197,6 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
         return vm->boolClass;
     default:
         JSR_UNREACHABLE();
-        return NULL;
     }
 #else
     switch(v.type) {
@@ -212,7 +211,6 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
         return vm->nullClass;
     default:
         JSR_UNREACHABLE();
-        return NULL;
     }
 #endif
 }

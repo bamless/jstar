@@ -242,7 +242,6 @@ static JStarTokType assignToOperator(JStarTokType t) {
         return TOK_MOD;
     default:
         JSR_UNREACHABLE();
-        return -1;
     }
 }
 

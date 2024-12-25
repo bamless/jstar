@@ -16,5 +16,4 @@ int opcodeArgsNumber(Opcode op) {
     }
     // clang-format on
     JSR_UNREACHABLE();
-    return -1;
 }

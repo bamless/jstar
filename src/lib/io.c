@@ -71,7 +71,6 @@ static int jsrSeek(FILE* file, long offset, int jsrWhence) {
         break;
     default:
         JSR_UNREACHABLE();
-        break;
     }
     return fseek(file, offset, whence);
 }

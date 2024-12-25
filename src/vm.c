@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "code.h"
+#include "conf.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "import.h"
@@ -182,7 +183,7 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static bool isSymbolCached(JStarVM*vm, Obj* key, const SymbolCache* sym) {
+static bool isSymbolCached(JStarVM* vm, Obj* key, const SymbolCache* sym) {
     bool hit = sym->key == key;
 #ifdef JSTAR_DBG_CACHE_STATS
     if(hit) {
@@ -435,7 +436,6 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
 
     Frame* frame = getFrame(vm);
     reserveStack(vm, gen->frame.stackTop);
-
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
 
     ObjModule* oldModule = vm->module;
@@ -458,7 +458,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         gen->state = GEN_RUNNING;
         return false;
     case GEN_CLOSE:
-        // Execute ensure handlers if present
+        // For enure handlers
         if(unwindHandlers(vm, frame, arg)) {
             return true;
         }
@@ -475,7 +475,6 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     }
 
     JSR_UNREACHABLE();
-    return true;
 }
 
 static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc) {
@@ -765,7 +764,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     return NULL;
 }
 
-static bool getCachedProperty(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
+static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
     if(!isSymbolCached(vm, key, sym)) return false;
     switch(sym->type) {
     case SYMBOL_METHOD:
@@ -779,11 +778,19 @@ static bool getCachedProperty(JStarVM* vm, Obj* key, Obj* val, const SymbolCache
     case SYMBOL_GLOBAL:
         return getGlobalOffset((ObjModule*)key, sym->as.offset, out);
     }
-    return false;
+    JSR_UNREACHABLE();
+}
+
+static bool getCachedField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, const SymbolCache* sym,
+                           Value* out) {
+    if(!isSymbolCached(vm, (Obj*)cls, sym)) return false;
+    JSR_ASSERT(sym->type == SYMBOL_FIELD, "Cached symbol is not a field");
+    return getFieldOffset(inst, sym->as.offset, out);
 }
 
 static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym, Value* out) {
     if(!isSymbolCached(vm, (Obj*)mod, sym)) return false;
+    JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Cached symbol is not a global");
     return getGlobalOffset(mod, sym->as.offset, out);
 }
 
@@ -801,7 +808,7 @@ bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
 
             // Check if the name resolution has been cached
             Value field;
-            if(getCachedProperty(vm, (Obj*)cls, (Obj*)inst, sym, &field)) {
+            if(getCachedField(vm, cls, inst, sym, &field)) {
                 pop(vm);
                 push(vm, field);
                 return true;
@@ -833,7 +840,7 @@ bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
 
             // Check if the name resolution has been cached
             Value global;
-            if(getCachedProperty(vm, (Obj*)mod, (Obj*)mod, sym, &global)) {
+            if(getCachedGlobal(vm, mod, sym, &global)) {
                 pop(vm);
                 push(vm, global);
                 return true;
@@ -884,6 +891,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
             ObjClass* cls = inst->base.cls;
 
             if(isSymbolCached(vm, (Obj*)cls, sym)) {
+                JSR_ASSERT(sym->type == SYMBOL_FIELD, "Cached symbol is not a field");
                 setFieldOffset(vm, inst, sym->as.offset, peek(vm));
                 return true;
             }
@@ -898,6 +906,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
             ObjModule* mod = AS_MODULE(val);
 
             if(isSymbolCached(vm, (Obj*)mod, sym)) {
+                JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Cached symbol is not a global");
                 setGlobalOffset(vm, mod, sym->as.offset, peek(vm));
                 return true;
             }
@@ -1030,7 +1039,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym) {
 
             // Try cached method
             Value method;
-            if(getCachedProperty(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
+            if(getChachedSymbol(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
                 return callValue(vm, method, argc);
             }
 
@@ -1059,7 +1068,7 @@ bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym) {
             ObjModule* mod = AS_MODULE(val);
 
             Value func;
-            if(getCachedProperty(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
+            if(getChachedSymbol(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 if(sym->type != SYMBOL_METHOD) {
                     // This is a function call, swap the receiver from the module to the function
                     // object
@@ -1925,7 +1934,6 @@ op_return:
                 goto op_return;
             default:
                 JSR_UNREACHABLE();
-                break;
             }
         }
         DISPATCH();
@@ -2047,7 +2055,6 @@ bool unwindStack(JStarVM* vm, int depth) {
         }
         default:
             JSR_UNREACHABLE();
-            break;
         }
 
         stacktraceDump(vm, stacktrace, frame, vm->frameCount);
