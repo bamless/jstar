@@ -1603,7 +1603,7 @@ super_get_class:;
         superCls = AS_CLASS(pop(vm));
 
 super_invoke:;
-        Symbol* sym = &fn->code.symbols[NEXT_SHORT()];
+        Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_STR(sym);
         SAVE_STATE();
         bool res = invokeMethodCached(vm, superCls, name, argc, &sym->cache);
