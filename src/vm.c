@@ -112,11 +112,11 @@ void jsrFreeVM(JStarVM* vm) {
         freeHashTable(&vm->stringPool);
         freeHashTable(&vm->modules);
 
-        JStarHandle* handle = vm->handles;
-        while(handle) {
-            JStarHandle* next = handle->next;
-            GC_FREE(vm, JStarHandle, handle);
-            handle = next;
+        JStarSymbol* sym = vm->symbols;
+        while(sym) {
+            JStarSymbol* next = sym->next;
+            GC_FREE(vm, JStarSymbol, sym);
+            sym = next;
         }
     }
 

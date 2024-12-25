@@ -45,8 +45,8 @@ typedef struct JStarNativeReg JStarNativeReg;
 // A C function callable from J*
 typedef bool (*JStarNative)(JStarVM* vm);
 
-// An handle to a resolved method, field or global variable
-typedef struct JStarHandle JStarHandle;
+// JStarSymbol is an handle to a resolved method, field or global variable
+typedef struct JStarSymbol JStarSymbol;
 
 // Generic error code used by several J* API functions
 typedef enum JStarResult {
@@ -120,13 +120,13 @@ JSTAR_API void* jsrGetCustomData(const JStarVM* vm);
 // Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
 JSTAR_API void jsrEvalBreak(JStarVM* vm);
 
-// Create a new handle for use with `jsrCallMethodHandle`, `jsrGetFieldHandle` and
-// `jsrSetFieldHandle`. This `Handle` function behave the same as the non-handle version, but
-// cache lookups for the same object type in order to speed up subsequent calls.
-JSTAR_API JStarHandle* jsrNewHandle(JStarVM* vm);
+// Create a new symbol for use with `jsrCallMethodCached`, `jsrGetFieldCached` and
+// `jsrSetFieldCached`. This cached functions behave the same as the non-cached versions, but
+// cache the lookups for the same object type in order to speed up subsequent calls.
+JSTAR_API JStarSymbol* jsrNewSymbol(JStarVM* vm);
 
 // Frres a `JSRHandle` previously obtained with `jsrNewHandle`
-JSTAR_API void jsrFreeHandle(JStarVM* vm, JStarHandle* handle);
+JSTAR_API void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------
 // CODE EXECUTION
@@ -171,11 +171,10 @@ JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
 // Similar to the above, but tries to call a method called `name` on an object.
 JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
-// Similar to the above, but caches the method lookup in the provided handle.
+// Similar to the above, but caches the method lookup in the provided symbol.
 // Can be more efficient if the same method is called multiple times on the same object type.
-// To obtain an handle call `jsrNewHandle` and to free it call `jsrFreeHandle`.
-JSTAR_API JStarResult jsrCallMethodHandle(JStarVM* vm, const char* name, uint8_t argc,
-                                          JStarHandle* handle);
+JSTAR_API JStarResult jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc,
+                                          JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------
 // C TO J* VALUE CONVERSION API
@@ -362,20 +361,18 @@ JSTAR_API size_t jsrGetLength(JStarVM* vm, int slot);
 JSTAR_API bool jsrSetField(JStarVM* vm, int slot, const char* name);
 
 // Set the field `name` of the value at `slot` with the value on top of the stack using the provided
-// handle. The handle is used to cache the field lookup and can be used to speed up subsequent
+// symbol. The symbol is used to cache the field lookup and can be used to speed up subsequent
 // lookups.
-// To obtain an handle call `jsrNewHandle` and to free it call `jsrFreeHandle`.
-JSTAR_API bool jsrSetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle);
+JSTAR_API bool jsrSetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym);
 
 // Get the field `name` of the value at `slot`.
 // Returns true in case of success leaving the result on top of the stack.
 // Returns false otherwise leaving an exception on top of the stack.
 JSTAR_API bool jsrGetField(JStarVM* vm, int slot, const char* name);
 
-// Get the field `name` of the value at `slot` using the provided handle.
-// The handle is used to cache the field lookup and can be used to speed up subsequent lookups.
-// To obtain an handle call `jsrNewHandle` and to free it call `jsrFreeHandle`.
-JSTAR_API bool jsrGetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle);
+// Get the field `name` of the value at `slot` using the provided symbol.
+// The symbol is used to cache the field lookup and can be used to speed up subsequent lookups.
+JSTAR_API bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------
 // MODULE API

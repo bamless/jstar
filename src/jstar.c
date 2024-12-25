@@ -267,39 +267,39 @@ JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
 }
 
 JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
-    JStarHandle handle = {0};
-    return jsrCallMethodHandle(vm, name, argc, &handle);
+    JStarSymbol sym = {0};
+    return jsrCallMethodCached(vm, name, argc, &sym);
 }
 
-JStarHandle* jsrNewHandle(JStarVM* vm) {
-    JStarHandle* handle = GC_ALLOC(vm, sizeof(JStarHandle));
-    *handle = (JStarHandle){0};
+JStarSymbol* jsrNewSymbol(JStarVM* vm) {
+    JStarSymbol* sym = GC_ALLOC(vm, sizeof(*sym));
+    *sym = (JStarSymbol){0};
 
-    handle->next = vm->handles;
-    vm->handles = handle;
+    sym->next = vm->symbols;
+    vm->symbols = sym;
 
-    return handle;
+    return sym;
 }
 
-void jsrFreeHandle(JStarVM* vm, JStarHandle* handle) {
-    if(vm->handles == handle) {
-        vm->handles = handle->next;
+void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym) {
+    if(vm->symbols == sym) {
+        vm->symbols = sym->next;
     }
 
-    if(handle->prev != NULL) {
-        handle->prev->next = handle->next;
+    if(sym->prev != NULL) {
+        sym->prev->next = sym->next;
     }
-    if(handle->next != NULL) {
-        handle->next->prev = handle->prev;
+    if(sym->next != NULL) {
+        sym->next->prev = sym->prev;
     }
 
-    GC_FREE(vm, JStarHandle, handle);
+    GC_FREE(vm, JStarSymbol, sym);
 }
 
-JStarResult jsrCallMethodHandle(JStarVM* vm, const char* name, uint8_t argc, JStarHandle* handle) {
+JStarResult jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
     int evalDepth = vm->frameCount;
 
-    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &handle->sym)) {
+    if(!invokeValue(vm, copyString(vm, name, strlen(name)), argc, &sym->sym)) {
         callError(vm, evalDepth, argc);
         return JSR_RUNTIME_ERR;
     }
@@ -719,23 +719,23 @@ size_t jsrGetLength(JStarVM* vm, int slot) {
 }
 
 bool jsrSetField(JStarVM* vm, int slot, const char* name) {
-    JStarHandle handle = {0};
-    return jsrSetFieldHandle(vm, slot, name, &handle);
+    JStarSymbol sym = {0};
+    return jsrSetFieldCached(vm, slot, name, &sym);
 }
 
-bool jsrSetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle) {
+bool jsrSetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym) {
     push(vm, apiStackSlot(vm, slot));
-    return setValueField(vm, copyString(vm, name, strlen(name)), &handle->sym);
+    return setValueField(vm, copyString(vm, name, strlen(name)), &sym->sym);
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
-    JStarHandle handle = {0};
-    return jsrGetFieldHandle(vm, slot, name, &handle);
+    JStarSymbol sym = {0};
+    return jsrGetFieldCached(vm, slot, name, &sym);
 }
 
-bool jsrGetFieldHandle(JStarVM* vm, int slot, const char* name, JStarHandle* handle) {
+bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym) {
     push(vm, apiStackSlot(vm, slot));
-    return getValueField(vm, copyString(vm, name, strlen(name)), &handle->sym);
+    return getValueField(vm, copyString(vm, name, strlen(name)), &sym->sym);
 }
 
 bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {

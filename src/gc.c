@@ -267,8 +267,8 @@ void garbageCollect(JStarVM* vm) {
             reachObject(vm, (Obj*)upvalue);
         }
 
-        for(JStarHandle* h = vm->handles; h != NULL; h = h->next) {
-            reachObject(vm, h->sym.key);
+        for(JStarSymbol* s = vm->symbols; s != NULL; s = s->next) {
+            reachObject(vm, s->sym.key);
         }
 
         reachCompilerRoots(vm, vm->currCompiler);

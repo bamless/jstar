@@ -48,11 +48,11 @@ typedef struct Frame {
 } Frame;
 
 // Represents a handle to a resolved method, field or global variable.
-// Internally it stores a cache of the symbol lookup, along with linked list links.
-struct JStarHandle {
+// Internally it stores a cache of the symbol lookup.
+struct JStarSymbol {
     SymbolCache sym;
-    JStarHandle* next;
-    JStarHandle* prev;
+    JStarSymbol* next;
+    JStarSymbol* prev;
 };
 
 // The J* VM. This struct stores all the
@@ -126,8 +126,8 @@ struct JStarVM {
     // Custom data associated with the VM
     void* customData;
 
-    // Linked list of all created handles
-    JStarHandle* handles;
+    // Linked list of all created symbols
+    JStarSymbol* symbols;
 
 #ifdef JSTAR_DBG_CACHE_STATS 
     size_t cacheHits, cacheMisses;
