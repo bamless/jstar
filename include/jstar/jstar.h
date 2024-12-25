@@ -125,7 +125,7 @@ JSTAR_API void jsrEvalBreak(JStarVM* vm);
 // cache the lookups for the same object type in order to speed up subsequent calls.
 JSTAR_API JStarSymbol* jsrNewSymbol(JStarVM* vm);
 
-// Frres a `JSRHandle` previously obtained with `jsrNewHandle`
+// Frees a symbol created with `jsrNewSymbol`
 JSTAR_API void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------
