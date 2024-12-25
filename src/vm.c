@@ -1192,6 +1192,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 #define GET_SYMBOL()        (&fn->code.symbols[NEXT_SHORT()])
 #define GET_SYMBOL_STR(sym) (AS_STRING(fn->code.consts.arr[(sym)->constant]))
 
+#define EXIT_EVAL()    goto exit_eval;
 #define UNWIND_STACK() goto stack_unwind;
 
 #define BINARY(type, op, overload, reverse)         \
@@ -1638,7 +1639,7 @@ op_return:
         push(vm, ret);
 
         if(--vm->frameCount == evalDepth) {
-            goto exit_eval;
+            EXIT_EVAL();
         }
 
         LOAD_STATE();
@@ -1664,7 +1665,7 @@ op_return:
         push(vm, ret);
 
         if(--vm->frameCount == evalDepth) {
-            goto exit_eval;
+            EXIT_EVAL();
         }
 
         LOAD_STATE();
