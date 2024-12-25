@@ -155,7 +155,7 @@ bool getValueSubscript(JStarVM* vm);
 bool setValueSubscript(JStarVM* vm);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* symbol);
+bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym);
 
 void reserveStack(JStarVM* vm, size_t needed);
 void swapStackSlots(JStarVM* vm, int a, int b);

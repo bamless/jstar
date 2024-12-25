@@ -609,13 +609,6 @@ int jsrTop(const JStarVM* vm) {
     return apiStackIndex(vm, -1);
 }
 
-bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
-    ObjModule* mod = getModuleOrRaise(vm, module);
-    if(!mod) return false;
-    setGlobal(vm, mod, copyString(vm, name, strlen(name)), peek(vm));
-    return true;
-}
-
 bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
     jsrEnsureStack(vm, 2);
     jsrPushValue(vm, iterable);
@@ -751,6 +744,14 @@ bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
     push(vm, res);
     return true;
 }
+
+bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
+    ObjModule* mod = getModuleOrRaise(vm, module);
+    if(!mod) return false;
+    setGlobal(vm, mod, copyString(vm, name, strlen(name)), peek(vm));
+    return true;
+}
+
 
 void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     Value cls = apiStackSlot(vm, clsSlot);
