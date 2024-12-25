@@ -523,22 +523,28 @@ class Table is iter.Iterable
 end
 
 /// Enum is an association of strings to constant values
-class Enum
-    /// Constructs a new enumaration from constant names or from a table
-    /// @param {...String|Table} args - A list of constant names to be created in the enumeration,
-    ///        or a Table associating a constant name to a value (typically a Number)
-    native construct(...args)
+fun Enum(...args)
+    // Enum is defined as a nested class in order to work around some quirks with the symbol caching
+    // system. This way we do not clobber a single class with the field names of *all* the enums
+    // defined in the program
+    class Enum
+        /// Constructs a new enumaration from constant names or from a table
+        /// @param {...String|Table} args - A list of constant names to be created in the enumeration,
+        ///        or a Table associating a constant name to a value (typically a Number)
+        native construct(...args)
 
-    /// Get the constant value for `name`
-    /// @param {String} name - The name for which we want to retrieve the constant
-    /// @return {Object|Null} The constant associated with `name` if it exists, `null` otherwise
-    native value(name)
-    
-    /// Get the name associated with a constant
-    /// @param {Object} value - The constant we want to retrieve the name for
-    /// @throws {FieldException} if there is no `name` in the enumeration
-    /// @return {String} The name associated with `value`
-    native name(value)
+        /// Get the constant value for `name`
+        /// @param {String} name - The name for which we want to retrieve the constant
+        /// @return {Object|Null} The constant associated with `name` if it exists, `null` otherwise
+        native value(name)
+        
+        /// Get the name associated with a constant
+        /// @param {Object} value - The constant we want to retrieve the name for
+        /// @throws {FieldException} if there is no `name` in the enumeration
+        /// @return {String} The name associated with `value`
+        native name(value)
+    end
+    return Enum(...args)
 end
 
 /// Starcktrace represents the dump of the stack's frame during execution

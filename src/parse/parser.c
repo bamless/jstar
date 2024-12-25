@@ -133,7 +133,6 @@ static void error(Parser* p, const char* msg, ...) {
             pos += vstrncatf(error, pos, MAX_ERR_SIZE, msg, ap);
             va_end(ap);
 
-            // TODO: use growable buffer to print error?
             JSR_ASSERT(pos < MAX_ERR_SIZE, "Error message was truncated");
         }
 

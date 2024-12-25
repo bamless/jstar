@@ -86,7 +86,6 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     return cls;
 }
 
-// TODO: is this te correct approach?
 static void mergeModules(JStarVM* vm, ObjModule* dst, ObjModule* src) {
     fieldIndexMerge(&dst->globalNames, &src->globalNames);
     for(int i = 0; i < src->globalsCount; i++) {

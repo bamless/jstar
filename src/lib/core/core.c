@@ -237,7 +237,6 @@ void initCoreModule(JStarVM* vm) {
 }
 
 bool resolveCoreSymbol(const JStarIdentifier* id) {
-    // TODO: use an hashtable?
     for(const char** name = coreSymbols; *name; name++) {
         size_t len = strlen(*name);
         if(len == id->length && memcmp(id->name, *name, len) == 0) {
@@ -1709,9 +1708,7 @@ JSR_NATIVE(jsr_Table_string) {
 // class Enum
 #define M_VALUE_NAME "_valueName"
 
-// TODO: enums may consume too much memory using the new object model.
-// Do something about it.
-static bool checkEnumElem(JStarVM* vm) {
+static bool checkEnumElem(JStarVM* vm, ObjClass* cls, ObjInstance* inst) {
     if(!IS_STRING(peek(vm))) {
         JSR_RAISE(vm, "TypeException", "Enum element must be a String, got %s",
                   getClass(vm, peek(vm))->name->data);
@@ -1727,6 +1724,11 @@ static bool checkEnumElem(JStarVM* vm) {
             }
         }
 
+        Value val;
+        if(getField(vm, cls, inst, enumElem, &val)) {
+            JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
+        }
+
         return true;
     }
 
@@ -1735,6 +1737,9 @@ static bool checkEnumElem(JStarVM* vm) {
 }
 
 JSR_NATIVE(jsr_Enum_construct) {
+    ObjInstance* inst = AS_INSTANCE(vm->apiStack[0]);
+    ObjClass* cls = inst->base.cls;
+
     if(jsrTupleGetLength(vm, 1) == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
     }
@@ -1752,31 +1757,30 @@ JSR_NATIVE(jsr_Enum_construct) {
     }
 
     int iota = 0;
-    JSR_FOREACH(
-        2, {
-            if(!checkEnumElem(vm)) return false;
+    JSR_FOREACH(2, {
+        if(!checkEnumElem(vm, cls, inst)) return false;
 
-            if(isCustom) {
-                jsrPushValue(vm, -1);
-                if(!jsrSubscriptGet(vm, 2)) return false;
-            } else {
-                jsrPushNumber(vm, iota);
-            }
+        if(isCustom) {
+            jsrPushValue(vm, -1);
+            if(!jsrSubscriptGet(vm, 2)) return false;
+        } else {
+            jsrPushNumber(vm, iota);
+        }
 
-            jsrSetField(vm, 0, jsrGetString(vm, -2));
+        jsrSetField(vm, 0, jsrGetString(vm, -2));
 
-            jsrGetField(vm, 0, M_VALUE_NAME);
-            jsrPushValue(vm, -2);
-            jsrPushValue(vm, -4);
-            if(!jsrSubscriptSet(vm, -3)) return false;
-            jsrPop(vm);
-            jsrPop(vm);
+        jsrGetField(vm, 0, M_VALUE_NAME);
+        jsrPushValue(vm, -2);
+        jsrPushValue(vm, -4);
+        if(!jsrSubscriptSet(vm, -3)) return false;
+        jsrPop(vm);
+        jsrPop(vm);
 
-            jsrPop(vm);
-            jsrPop(vm);
+        jsrPop(vm);
+        jsrPop(vm);
 
-            iota++;
-        }, );
+        iota++;
+    }, );
 
     if(iota == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");
