@@ -1187,9 +1187,10 @@ bool runEval(JStarVM* vm, int evalDepth) {
 #define NEXT_CODE()  (*ip++)
 #define NEXT_SHORT() (ip += 2, ((uint16_t)ip[-2] << 8) | ip[-1])
 
-#define GET_CONST()  (fn->code.consts.arr[NEXT_SHORT()])
-#define GET_SYMBOL() (&fn->code.symbols[NEXT_SHORT()])
-#define GET_STRING() (AS_STRING(GET_CONST()))
+#define GET_CONST()         (fn->code.consts.arr[NEXT_SHORT()])
+#define GET_STRING()        (AS_STRING(GET_CONST()))
+#define GET_SYMBOL()        (&fn->code.symbols[NEXT_SHORT()])
+#define GET_SYMBOL_STR(sym) (AS_STRING(fn->code.consts.arr[(sym)->constant]))
 
 #define UNWIND_STACK() goto stack_unwind;
 
@@ -1413,7 +1414,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_GET_FIELD): {
         Symbol* sym = GET_SYMBOL();
-        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        ObjString* name = GET_SYMBOL_STR(sym);
         if(!getValueField(vm, name, &sym->cache)) {
             UNWIND_STACK();
         }
@@ -1422,7 +1423,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_SET_FIELD): {
         Symbol* sym = GET_SYMBOL();
-        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        ObjString* name = GET_SYMBOL_STR(sym);
         if(!setValueField(vm, name, &sym->cache)) {
             UNWIND_STACK();
         }
@@ -1557,7 +1558,7 @@ call:
 
 invoke:;
         Symbol* sym = GET_SYMBOL();
-        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        ObjString* name = GET_SYMBOL_STR(sym);
         SAVE_STATE();
         bool res = invokeValue(vm, name, argc, &sym->cache);
         LOAD_STATE();
@@ -1602,7 +1603,7 @@ super_get_class:;
 
 super_invoke:;
         Symbol* sym = &fn->code.symbols[NEXT_SHORT()];
-        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        ObjString* name = GET_SYMBOL_STR(sym);
         SAVE_STATE();
         bool res = invokeMethodCached(vm, superCls, name, argc, &sym->cache);
         LOAD_STATE();
@@ -1612,7 +1613,7 @@ super_invoke:;
 
     TARGET(OP_SUPER_BIND): {
         Symbol* sym = GET_SYMBOL();
-        ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+        ObjString* name = GET_SYMBOL_STR(sym);
         ObjClass* superCls = AS_CLASS(pop(vm));
         if(!bindMethodCached(vm, superCls, name, &sym->cache)) {
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", superCls->name->data,
@@ -1854,7 +1855,7 @@ op_return:
         if(isSymbolCached(vm, (Obj*)vm->module, &sym->cache)) {
             vm->module->globals[sym->cache.as.offset] = pop(vm);
         } else {
-            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            ObjString* name = GET_SYMBOL_STR(sym);
             int idx = setGlobal(vm, vm->module, name, pop(vm));
             sym->cache.type = SYMBOL_GLOBAL;
             sym->cache.key = (Obj*)vm->module;
@@ -1868,7 +1869,7 @@ op_return:
         if(getCachedGlobal(vm, vm->module, &sym->cache, vm->sp)) {
             vm->sp++;
         } else {
-            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            ObjString* name = GET_SYMBOL_STR(sym);
             int idx = getGlobalIdx(vm, vm->module, name);
             if (idx == -1) {
                 jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
