@@ -248,8 +248,8 @@ void garbageCollect(JStarVM* vm) {
 
         reachObject(vm, (Obj*)vm->argv);
 
-        for(int i = 0; i < SYM_END; i++) {
-            reachObject(vm, (Obj*)vm->methodSyms[i]);
+        for(int i = 0; i < METH_SIZE; i++) {
+            reachObject(vm, (Obj*)vm->specialMethods[i]);
         }
 
         reachObject(vm, (Obj*)vm->emptyTup);

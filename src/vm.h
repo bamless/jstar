@@ -18,11 +18,11 @@
 
 // Enum encoding special method names needed at runtime
 // Mainly used for operator overloading
-typedef enum MethodSymbol {
-#define SYMBOL(sym, _) sym,
-#include "method_syms.def"
-    SYM_END
-} MethodSymbol;
+typedef enum SpecialMethod {
+#define SPECIAL_METHOD(meth, _) meth,
+#include "special_methods.def"
+    METH_SIZE,
+} SpecialMethod;
 
 // Struct that stores the info needed to
 // jump to handler code and to restore the
@@ -84,8 +84,8 @@ struct JStarVM {
     // Current VM compiler (if any)
     Compiler* currCompiler;
 
-    // Cached method names needed at runtime
-    ObjString* methodSyms[SYM_END];
+    // Cached special method names needed at runtime
+    ObjString* specialMethods[METH_SIZE];
 
     // Loaded modules
     HashTable modules;

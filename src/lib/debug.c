@@ -35,7 +35,7 @@ JSR_NATIVE(jsr_disassemble) {
         arg = OBJ_VAL(AS_BOUND_METHOD(arg)->method);
     } else if(IS_CLASS(arg)) {
         Value ctor;
-        if(!hashTableGet(&AS_CLASS(arg)->methods, vm->methodSyms[SYM_CTOR], &ctor)) {
+        if(!hashTableGet(&AS_CLASS(arg)->methods, vm->specialMethods[METH_CTOR], &ctor)) {
             jsrPushNull(vm);
             return true;
         }
