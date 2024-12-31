@@ -490,6 +490,7 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
 static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc,
                                SymbolCache* sym) {
     if(isSymbolCached(vm, (Obj*)cls, sym)) {
+        JSR_ASSERT(sym->type == SYMBOL_METHOD, "Invalid symbol type");
         return callValue(vm, sym->as.method, argc);
     }
 
