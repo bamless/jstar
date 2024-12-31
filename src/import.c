@@ -102,7 +102,6 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
-
     return fn->proto.module;
 }
 

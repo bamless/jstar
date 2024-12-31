@@ -337,16 +337,16 @@ void freeObject(JStarVM* vm, Obj* o);
 
 // ObjInstance functions
 int setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val);
-void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val);
+void setFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val);
 bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val);
-bool getFieldOffset(ObjInstance* inst, int offset, Value* val);
+bool getFieldAtOffset(ObjInstance* inst, int offset, Value* val);
 int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key);
 
 // ObjModule functions
 int setGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val);
-void setGlobalOffset(JStarVM* vm, ObjModule* mod, int offset, Value val);
+void setGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val);
 bool getGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val);
-bool getGlobalOffset(ObjModule* mod, int offset, Value* val);
+bool getGlobalAtOffset(ObjModule* mod, int offset, Value* val);
 int getGlobalIdx(JStarVM* vm, ObjModule* mod, ObjString* key);
 
 // ObjList functions

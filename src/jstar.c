@@ -98,21 +98,7 @@ void* jsrGetCustomData(const JStarVM* vm) {
     return vm->customData;
 }
 
-static JStarResult evalStringLen(JStarVM* vm, const char* path, const char* module, const char* src,
-                                 size_t len) {
-    JStarStmt* program = jsrParse(path, src, len, parseError, vm);
-    if(program == NULL) {
-        return JSR_SYNTAX_ERR;
-    }
-
-    ObjString* name = copyString(vm, module, strlen(module));
-    ObjFunction* fn = compileModule(vm, path, name, program);
-    jsrStmtFree(program);
-
-    if(fn == NULL) {
-        return JSR_COMPILE_ERR;
-    }
-
+static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
@@ -138,6 +124,24 @@ static JStarResult evalStringLen(JStarVM* vm, const char* path, const char* modu
     return res;
 }
 
+static JStarResult evalString(JStarVM* vm, const char* path, const char* module, const char* src,
+                                 size_t len) {
+    JStarStmt* program = jsrParse(path, src, len, parseError, vm);
+    if(program == NULL) {
+        return JSR_SYNTAX_ERR;
+    }
+
+    ObjString* name = copyString(vm, module, strlen(module));
+    ObjFunction* fn = compileModule(vm, path, name, program);
+    jsrStmtFree(program);
+
+    if(fn == NULL) {
+        return JSR_COMPILE_ERR;
+    }
+
+    return eval(vm, path, fn);
+}
+
 JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
     PROFILE_FUNC()
     return jsrEvalModuleString(vm, path, JSR_MAIN_MODULE, src);
@@ -145,7 +149,7 @@ JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
 
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
-    return evalStringLen(vm, path, module, src, strlen(src));
+    return evalString(vm, path, module, src, strlen(src));
 }
 
 JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len) {
@@ -158,7 +162,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     PROFILE_FUNC()
 
     if(!isCompiledCode(code, len)) {
-        return evalStringLen(vm, path, module, code, len);
+        return evalString(vm, path, module, code, len);
     }
 
     ObjFunction* fn;
@@ -169,29 +173,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
         return res;
     }
 
-    push(vm, OBJ_VAL(fn));
-    vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
-
-    res = jsrCall(vm, 0);
-    if(res != JSR_SUCCESS) {
-        jsrGetStacktrace(vm, -1);
-        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
-        pop(vm);
-    }
-
-    pop(vm);
-
-#ifdef JSTAR_DBG_CACHE_STATS
-    printf(" * Cache hits: %lu\n", vm->cacheHits);
-    printf(" * Cache misses: %lu\n", vm->cacheMisses);
-    printf(" * Hit the cache %.2f%% of the time\n",
-           (vm->cacheHits + vm->cacheMisses) == 0
-               ? 0.0
-               : (double)vm->cacheHits / (vm->cacheHits + vm->cacheMisses) * 100);
-    vm->cacheHits = vm->cacheMisses = 0;
-#endif
-
-    return res;
+    return eval(vm, path, fn);
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {

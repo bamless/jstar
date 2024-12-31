@@ -774,9 +774,9 @@ static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache*
         *out = OBJ_VAL(newBoundMethod(vm, OBJ_VAL(val), AS_OBJ(sym->as.method)));
         return true;
     case SYMBOL_FIELD:
-        return getFieldOffset((ObjInstance*)val, sym->as.offset, out);
+        return getFieldAtOffset((ObjInstance*)val, sym->as.offset, out);
     case SYMBOL_GLOBAL:
-        return getGlobalOffset((ObjModule*)key, sym->as.offset, out);
+        return getGlobalAtOffset((ObjModule*)key, sym->as.offset, out);
     }
     JSR_UNREACHABLE();
 }
@@ -785,13 +785,13 @@ static bool getCachedField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, const 
                            Value* out) {
     if(!isSymbolCached(vm, (Obj*)cls, sym)) return false;
     JSR_ASSERT(sym->type == SYMBOL_FIELD, "Cached symbol is not a field");
-    return getFieldOffset(inst, sym->as.offset, out);
+    return getFieldAtOffset(inst, sym->as.offset, out);
 }
 
 static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym, Value* out) {
     if(!isSymbolCached(vm, (Obj*)mod, sym)) return false;
     JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Cached symbol is not a global");
-    return getGlobalOffset(mod, sym->as.offset, out);
+    return getGlobalAtOffset(mod, sym->as.offset, out);
 }
 
 // -----------------------------------------------------------------------------
@@ -892,7 +892,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
 
             if(isSymbolCached(vm, (Obj*)cls, sym)) {
                 JSR_ASSERT(sym->type == SYMBOL_FIELD, "Cached symbol is not a field");
-                setFieldOffset(vm, inst, sym->as.offset, peek(vm));
+                setFieldAtOffset(vm, inst, sym->as.offset, peek(vm));
                 return true;
             }
 
@@ -907,7 +907,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
 
             if(isSymbolCached(vm, (Obj*)mod, sym)) {
                 JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Cached symbol is not a global");
-                setGlobalOffset(vm, mod, sym->as.offset, peek(vm));
+                setGlobalAtOffset(vm, mod, sym->as.offset, peek(vm));
                 return true;
             }
 

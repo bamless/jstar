@@ -89,7 +89,7 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
 static void mergeModules(JStarVM* vm, ObjModule* dst, ObjModule* src) {
     fieldIndexMerge(&dst->globalNames, &src->globalNames);
     for(int i = 0; i < src->globalsCount; i++) {
-        setGlobalOffset(vm, dst, i, src->globals[i]);
+        setGlobalAtOffset(vm, dst, i, src->globals[i]);
     }
     dst->globalsCount = src->globalsCount;
 }
@@ -337,114 +337,100 @@ void freeObject(JStarVM* vm, Obj* o) {
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-bool getFieldOffset(ObjInstance* inst, int offset, Value* out) {
+#define MAYBE_GROW_VALUES(vm, off, arr, size)                                     \
+    if((size_t)off >= (size_t)size) {                                             \
+        size_t oldSize = size;                                                    \
+        size_t newSize = oldSize ? oldSize : 8;                                   \
+        while((size_t)offset >= newSize) {                                        \
+            newSize *= 2;                                                         \
+        }                                                                         \
+        arr = gcAlloc(vm, arr, sizeof(Value) * oldSize, sizeof(Value) * newSize); \
+        for(size_t i = oldSize; i < newSize; i++) {                               \
+            arr[i] = NULL_VAL;                                                    \
+        }                                                                         \
+        size = newSize;                                                           \
+    }
+
+bool getFieldAtOffset(ObjInstance* inst, int offset, Value* out) {
     if((size_t)offset >= inst->capacity) return false;
     *out = inst->fields[offset];
     return true;
 }
 
-void setFieldOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
-    if((size_t)offset >= inst->capacity) {
-        size_t oldCap = inst->capacity;
-        size_t newCap = oldCap ? oldCap : 8;
-        while((size_t)offset >= newCap) {
-            newCap *= 2;
-        }
-        Value* newFields = gcAlloc(vm, inst->fields, sizeof(Value) * oldCap,
-                                   sizeof(Value) * newCap);
-        for(size_t i = oldCap; i < newCap; i++) {
-            newFields[i] = NULL_VAL;
-        }
-        inst->fields = newFields;
-        inst->capacity = newCap;
-    }
+void setFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
+    MAYBE_GROW_VALUES(vm, offset, inst->fields, inst->capacity);
     inst->fields[offset] = val;
 }
 
 int setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
-    int field;
-    if(fieldIndexGet(&cls->fields, key, &field)) {
+    int offset;
+    if(fieldIndexGet(&cls->fields, key, &offset)) {
         push(vm, val);
-        setFieldOffset(vm, inst, (int)field, val);
+        setFieldAtOffset(vm, inst, offset, val);
         pop(vm);
-        return (int)field;
+        return offset;
     } else {
-        int field = cls->fieldCount++;
-        fieldIndexPut(&cls->fields, key, field);
+        int offset = cls->fieldCount++;
+        fieldIndexPut(&cls->fields, key, offset);
         push(vm, val);
-        setFieldOffset(vm, inst, field, val);
+        setFieldAtOffset(vm, inst, offset, val);
         pop(vm);
-        return field;
+        return offset;
     }
 }
 
 bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
-    int field;
-    if(!fieldIndexGet(&cls->fields, key, &field)) return false;
-    getFieldOffset(inst, field, val);
+    int offset;
+    if(!fieldIndexGet(&cls->fields, key, &offset)) return false;
+    getFieldAtOffset(inst, offset, val);
     return true;
 }
 
 int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
-    int field;
-    if(!fieldIndexGet(&cls->fields, key, &field)) return -1;
-    return (size_t)field >= inst->capacity ? -1 : field;
+    int offset;
+    if(!fieldIndexGet(&cls->fields, key, &offset)) return -1;
+    return (size_t)offset >= inst->capacity ? -1 : offset;
 }
 
-bool getGlobalOffset(ObjModule* mod, int offset, Value* val) {
+bool getGlobalAtOffset(ObjModule* mod, int offset, Value* val) {
     if(offset >= mod->globalsCount) return false;
     *val = mod->globals[offset];
     return true;
 }
 
-void setGlobalOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
-    if(offset >= mod->globalsCapacity) {
-        size_t oldCap = mod->globalsCapacity;
-        size_t newCap = oldCap ? oldCap : 8;
-        while((size_t)offset >= newCap) {
-            newCap *= 2;
-        }
-        Value* newGlobals = gcAlloc(vm, mod->globals, sizeof(Value) * oldCap,
-                                    sizeof(Value) * newCap);
-        for(size_t i = oldCap; i < newCap; i++) {
-            newGlobals[i] = NULL_VAL;
-        }
-        mod->globals = newGlobals;
-        mod->globalsCapacity = newCap;
-        if(offset >= mod->globalsCount) {
-            mod->globalsCount = offset + 1;
-        }
-    }
+void setGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
+    MAYBE_GROW_VALUES(vm, offset, mod->globals, mod->globalsCapacity);
+    if(offset >= mod->globalsCount) mod->globalsCount = offset + 1;
     mod->globals[offset] = val;
 }
 
 int setGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val) {
-    int global;
-    if(fieldIndexGet(&mod->globalNames, key, &global)) {
+    int offset;
+    if(fieldIndexGet(&mod->globalNames, key, &offset)) {
         push(vm, val);
-        setGlobalOffset(vm, mod, (int)global, val);
+        setGlobalAtOffset(vm, mod, offset, val);
         pop(vm);
-        return (int)global;
+        return offset;
     } else {
-        int global = mod->globalsCount++;
-        fieldIndexPut(&mod->globalNames, key, global);
+        int offset = mod->globalsCount++;
+        fieldIndexPut(&mod->globalNames, key, offset);
         push(vm, val);
-        setGlobalOffset(vm, mod, global, val);
+        setGlobalAtOffset(vm, mod, offset, val);
         pop(vm);
-        return global;
+        return offset;
     }
 }
 
 bool getGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val) {
-    int global;
-    if(!fieldIndexGet(&mod->globalNames, key, &global)) return false;
-    return getGlobalOffset(mod, (int)global, val);
+    int offset;
+    if(!fieldIndexGet(&mod->globalNames, key, &offset)) return false;
+    return getGlobalAtOffset(mod, offset, val);
 }
 
 int getGlobalIdx(JStarVM* vm, ObjModule* mod, ObjString* key) {
-    int global;
-    if(!fieldIndexGet(&mod->globalNames, key, &global)) return -1;
-    return global >= mod->globalsCount ? -1 : global;
+    int offset;
+    if(!fieldIndexGet(&mod->globalNames, key, &offset)) return -1;
+    return offset >= mod->globalsCount ? -1 : offset;
 }
 
 static void growList(JStarVM* vm, ObjList* lst) {
