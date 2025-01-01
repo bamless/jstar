@@ -782,8 +782,9 @@ static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache*
         return getFieldAtOffset((ObjInstance*)val, sym->as.offset, out);
     case SYMBOL_GLOBAL:
         return getGlobalAtOffset((ObjModule*)key, sym->as.offset, out);
+    default:
+        JSR_UNREACHABLE();
     }
-    JSR_UNREACHABLE();
 }
 
 static bool getCachedField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, const SymbolCache* sym,
