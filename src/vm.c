@@ -504,6 +504,7 @@ static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint
     sym->type = SYMBOL_METHOD;
     sym->key = (Obj*)cls;
     sym->as.method = method;
+
     return callValue(vm, method, argc);
 }
 
@@ -766,7 +767,10 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 }
 
 static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
-    if(!isSymbolCached(vm, key, sym)) return false;
+    if(!isSymbolCached(vm, key, sym)) { 
+        return false;
+    }
+
     switch(sym->type) {
     case SYMBOL_METHOD:
         *out = sym->as.method;
@@ -1071,8 +1075,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             Value func;
             if(getChachedSymbol(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 if(sym->type != SYMBOL_METHOD) {
-                    // This is a function call, swap the receiver from the module to the function
-                    // object
+                    // This is a function call, put the function as the receiver instead of the module
                     vm->sp[-argc - 1] = func;
                 }
                 return callValue(vm, func, argc);
@@ -1092,9 +1095,9 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
                 sym->type = SYMBOL_GLOBAL;
                 sym->key = (Obj*)mod;
                 sym->as.offset = globalIdx;
-                Value func = mod->globals[globalIdx];
 
-                // This is a function call, swap the receiver from the module to the function object
+                // This is a function call, put the function as the receiver instead of the module
+                Value func = mod->globals[globalIdx];
                 vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
             }
