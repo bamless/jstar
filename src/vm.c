@@ -1158,12 +1158,6 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
     }
 }
 
-inline void swapStackSlots(JStarVM* vm, int a, int b) {
-    Value tmp = vm->sp[a];
-    vm->sp[a] = vm->sp[b];
-    vm->sp[b] = tmp;
-}
-
 // -----------------------------------------------------------------------------
 // EVAL LOOP
 // -----------------------------------------------------------------------------
@@ -2090,6 +2084,7 @@ extern inline void push(JStarVM* vm, Value v);
 extern inline Value pop(JStarVM* vm);
 extern inline Value peek(const JStarVM* vm);
 extern inline Value peek2(const JStarVM* vm);
+extern inline void swapStackSlots(JStarVM* vm, int a, int b);
 extern inline Value peekn(const JStarVM* vm, int n);
 extern inline ObjClass* getClass(const JStarVM* vm, Value v);
 extern inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls);

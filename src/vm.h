@@ -158,7 +158,6 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym);
 
 void reserveStack(JStarVM* vm, size_t needed);
-void swapStackSlots(JStarVM* vm, int a, int b);
 
 bool runEval(JStarVM* vm, int evalDepth);
 bool unwindStack(JStarVM* vm, int depth);
@@ -181,6 +180,12 @@ inline Value peek2(const JStarVM* vm) {
 
 inline Value peekn(const JStarVM* vm, int n) {
     return vm->sp[-(n + 1)];
+}
+
+inline void swapStackSlots(JStarVM* vm, int a, int b) {
+    Value tmp = vm->sp[a];
+    vm->sp[a] = vm->sp[b];
+    vm->sp[b] = tmp;
 }
 
 inline ObjClass* getClass(const JStarVM* vm, Value v) {

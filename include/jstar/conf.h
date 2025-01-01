@@ -66,7 +66,7 @@
         #else
             #define JSTAR_API __declspec(dllimport)
         #endif
-    #elif defined(__GNUC__)
+    #elif defined(__GNUC__) || defined(__clang__)
         #if defined(jstar_EXPORTS)
             #define JSTAR_API __attribute__((visibility("default")))
         #else
