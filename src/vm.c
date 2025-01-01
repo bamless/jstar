@@ -799,7 +799,7 @@ static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym,
 // VM API
 // -----------------------------------------------------------------------------
 
-bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
+inline bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
@@ -883,7 +883,7 @@ bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
     return false;
 }
 
-bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
+inline bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
     Value val = pop(vm);
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
@@ -929,7 +929,7 @@ bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
     return false;
 }
 
-bool getValueSubscript(JStarVM* vm) {
+inline bool getValueSubscript(JStarVM* vm) {
     if(IS_OBJ(peek2(vm))) {
         Value operand = peek2(vm);
         switch(AS_OBJ(operand)->type) {
@@ -950,7 +950,7 @@ bool getValueSubscript(JStarVM* vm) {
     return true;
 }
 
-bool setValueSubscript(JStarVM* vm) {
+inline bool setValueSubscript(JStarVM* vm) {
     if(IS_LIST(peek(vm))) {
         Value operand = pop(vm), arg = pop(vm), val = peek(vm);
 
@@ -975,7 +975,7 @@ bool setValueSubscript(JStarVM* vm) {
     return true;
 }
 
-bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
+inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(AS_OBJ(callee)->type) {
         case OBJ_CLOSURE:
@@ -1030,7 +1030,7 @@ bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     return false;
 }
 
-bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym) {
+inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym) {
     Value val = peekn(vm, argc);
     if(IS_OBJ(val)) {
         switch(AS_OBJ(val)->type) {
