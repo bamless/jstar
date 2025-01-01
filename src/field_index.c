@@ -108,7 +108,7 @@ bool fieldIndexDel(FieldIndex* t, ObjString* key) {
     return true;
 }
 
-void fieldIndexMerge(FieldIndex* t, FieldIndex* o) {
+void fieldIndexMerge(FieldIndex* t, const FieldIndex* o) {
     if(o->entries == NULL) return;
     for(size_t i = 0; i <= o->sizeMask; i++) {
         FieldIndexEntry* e = &o->entries[i];

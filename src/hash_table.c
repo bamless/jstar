@@ -1,4 +1,4 @@
-#include "hashtable.h"
+#include "hash_table.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -104,7 +104,7 @@ bool hashTableDel(HashTable* t, ObjString* key) {
     return true;
 }
 
-void hashTableMerge(HashTable* t, HashTable* o) {
+void hashTableMerge(HashTable* t, const HashTable* o) {
     if(o->entries == NULL) return;
     for(size_t i = 0; i <= o->sizeMask; i++) {
         Entry* e = &o->entries[i];

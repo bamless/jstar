@@ -9,7 +9,7 @@
 #include "compiler.h"
 #include "disassemble.h"
 #include "gc.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "import.h"
 #include "lib/core/excs.h"
 #include "object.h"

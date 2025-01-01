@@ -31,7 +31,7 @@ bool hashTableContainsKey(const HashTable* t, ObjString* key);
 // Deletes the value associated with "key" from the hashtable
 bool hashTableDel(HashTable* t, ObjString* key);
 // Adds all key/value pairs in o to t
-void hashTableMerge(HashTable* t, HashTable* o);
+void hashTableMerge(HashTable* t, const HashTable* o);
 // Gets a ObjString* given a C string and its hash (used to implement a string pool)
 ObjString* hashTableGetString(const HashTable* t, const char* str, size_t length, uint32_t hash);
 

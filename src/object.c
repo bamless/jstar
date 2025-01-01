@@ -7,7 +7,7 @@
 #include "conf.h"
 #include "field_index.h"
 #include "gc.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"

@@ -13,7 +13,7 @@
 #include "../builtins.h"
 #include "field_index.h"
 #include "gc.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "import.h"
 #include "jstar.h"
 #include "object.h"

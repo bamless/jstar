@@ -5,7 +5,7 @@
 
 #include "compiler.h"
 #include "conf.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "jstar.h"
 #include "lib/builtins.h"
 #include "object.h"

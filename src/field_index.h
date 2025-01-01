@@ -25,7 +25,7 @@ bool fieldIndexPut(FieldIndex* t, struct ObjString* key, int val);
 bool fieldIndexGet(const FieldIndex* t, struct ObjString* key, int* res);
 bool fieldIndexContainsKey(const FieldIndex* t, struct ObjString* key);
 bool fieldIndexDel(FieldIndex* t, struct ObjString* key);
-void fieldIndexMerge(FieldIndex* t, FieldIndex* o);
+void fieldIndexMerge(FieldIndex* t, const FieldIndex* o);
 struct ObjString* fieldIndexGetString(const FieldIndex* t, const char* str, size_t length,
                                       uint32_t hash);
 

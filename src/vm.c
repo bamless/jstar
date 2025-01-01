@@ -6,7 +6,7 @@
 #include "code.h"
 #include "conf.h"
 #include "gc.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "import.h"
 #include "jstar.h"
 #include "lib/builtins.h"

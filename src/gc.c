@@ -7,7 +7,7 @@
 #include "code.h"
 #include "compiler.h"
 #include "field_index.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "object.h"
 #include "profiler.h"
 #include "vm.h"

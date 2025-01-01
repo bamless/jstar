@@ -38,8 +38,8 @@ set(JSTAR_SOURCES
     field_index.h
     gc.c
     gc.h
-    hashtable.c
-    hashtable.h
+    hash_table.c
+    hash_table.h
     import.c
     import.h
     jstar.c

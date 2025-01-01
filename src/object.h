@@ -7,7 +7,7 @@
 
 #include "code.h"
 #include "field_index.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "value.h"

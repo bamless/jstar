@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "disassemble.h"
-#include "hashtable.h"
+#include "hash_table.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"
