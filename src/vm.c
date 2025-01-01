@@ -525,6 +525,7 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 
 static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, SymbolCache* sym) {
     if(isSymbolCached(vm, (Obj*)cls, sym)) {
+        JSR_ASSERT(sym->type == SYMBOL_METHOD, "Invalid symbol type");
         push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
         return true;
     }
@@ -1862,10 +1863,26 @@ op_return:
     TARGET(OP_DEFINE_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         if(isSymbolCached(vm, (Obj*)vm->module, &sym->cache)) {
+            JSR_ASSERT(sym->cache.type == SYMBOL_GLOBAL, "Invalid symbol type");
             vm->module->globals[sym->cache.as.offset] = pop(vm);
         } else {
             ObjString* name = GET_SYMBOL_STR(sym);
             int idx = setGlobal(vm, vm->module, name, pop(vm));
+            sym->cache.type = SYMBOL_GLOBAL;
+            sym->cache.key = (Obj*)vm->module;
+            sym->cache.as.offset = idx;
+        }
+        DISPATCH();
+    }
+
+    TARGET(OP_SET_GLOBAL): {
+        Symbol* sym = GET_SYMBOL();
+        if(isSymbolCached(vm, (Obj*)vm->module, &sym->cache)) {
+            JSR_ASSERT(sym->cache.type == SYMBOL_GLOBAL, "Invalid symbol type");
+            vm->module->globals[sym->cache.as.offset] = peek(vm);
+        } else {
+            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
+            int idx = setGlobal(vm, vm->module, name, peek(vm));
             sym->cache.type = SYMBOL_GLOBAL;
             sym->cache.key = (Obj*)vm->module;
             sym->cache.as.offset = idx;
@@ -1893,19 +1910,6 @@ op_return:
         DISPATCH();
     }
 
-    TARGET(OP_SET_GLOBAL): {
-        Symbol* sym = GET_SYMBOL();
-        if(isSymbolCached(vm, (Obj*)vm->module, &sym->cache)) {
-            vm->module->globals[sym->cache.as.offset] = peek(vm);
-        } else {
-            ObjString* name = AS_STRING(fn->code.consts.arr[sym->constant]);
-            int idx = setGlobal(vm, vm->module, name, peek(vm));
-            sym->cache.type = SYMBOL_GLOBAL;
-            sym->cache.key = (Obj*)vm->module;
-            sym->cache.as.offset = idx;
-        }
-        DISPATCH();
-    }
 
     TARGET(OP_SETUP_EXCEPT): 
     TARGET(OP_SETUP_ENSURE): {
