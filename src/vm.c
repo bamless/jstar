@@ -671,7 +671,8 @@ static void concatStrings(JStarVM* vm) {
     push(vm, OBJ_VAL(conc));
 }
 
-static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload, SpecialMethod reverse) {
+static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
+                        SpecialMethod reverse) {
     Value method;
     ObjClass* cls1 = getClass(vm, peek2(vm));
 
@@ -768,7 +769,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 }
 
 static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
-    if(!isSymbolCached(vm, key, sym)) { 
+    if(!isSymbolCached(vm, key, sym)) {
         return false;
     }
 
@@ -993,10 +994,13 @@ inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
         case OBJ_BOUND_METHOD: {
             ObjBoundMethod* m = AS_BOUND_METHOD(callee);
             vm->sp[-argc - 1] = m->receiver;
-            if(m->method->type == OBJ_CLOSURE) {
+            switch(m->method->type) {
+            case OBJ_CLOSURE:
                 return callFunction(vm, (ObjClosure*)m->method, argc);
-            } else {
+            case OBJ_NATIVE:
                 return callNative(vm, (ObjNative*)m->method, argc);
+            default:
+                JSR_UNREACHABLE();
             }
         }
         case OBJ_CLASS: {
@@ -1016,7 +1020,15 @@ inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
 
             Value ctor;
             if(hashTableGet(&cls->methods, vm->specialMethods[METH_CTOR], &ctor)) {
-                return callValue(vm, ctor, argc);
+                Obj* m = AS_OBJ(ctor);
+                switch(m->type) {
+                case OBJ_CLOSURE:
+                    return callFunction(vm, (ObjClosure*)m, argc);
+                case OBJ_NATIVE:
+                    return callNative(vm, (ObjNative*)m, argc);
+                default:
+                    JSR_UNREACHABLE();
+                }
             } else if(argc != 0) {
                 jsrRaise(vm, "TypeException",
                          "Function %s.new() Expected 0 args, but instead `%d` supplied.",
@@ -1077,7 +1089,8 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             Value func;
             if(getChachedSymbol(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
                 if(sym->type != SYMBOL_METHOD) {
-                    // This is a function call, put the function as the receiver instead of the module
+                    // This is a function call, put the function as the receiver instead of the
+                    // module
                     vm->sp[-argc - 1] = func;
                 }
                 return callValue(vm, func, argc);
