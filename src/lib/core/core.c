@@ -11,15 +11,15 @@
 #include <string.h>
 
 #include "../builtins.h"
-#include "field_index.h"
 #include "gc.h"
-#include "hash_table.h"
 #include "import.h"
+#include "int_hash_table.h"
 #include "jstar.h"
 #include "object.h"
 #include "profiler.h"
 #include "util.h"
 #include "value.h"
+#include "value_hash_table.h"
 #include "vm.h"
 
 #define INT_PRINT_CUTOFF (INT64_C(1) << DBL_MANT_DIG)
@@ -102,7 +102,7 @@ static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative nat,
     native->proto.name = strName;
     native->fn = nat;
     pop(vm);
-    hashTablePut(&cls->methods, strName, OBJ_VAL(native));
+    hashTableValuePut(&cls->methods, strName, OBJ_VAL(native));
 }
 
 static uint64_t hash64(uint64_t x) {
@@ -170,7 +170,7 @@ void initCoreModule(JStarVM* vm) {
 
     // Patch up Class object information
     vm->clsClass->superCls = vm->objClass;
-    hashTableMerge(&vm->clsClass->methods, &vm->objClass->methods);
+    hashTableValueMerge(&vm->clsClass->methods, &vm->objClass->methods);
     defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
     defMethod(vm, core, vm->clsClass, &jsr_Class_implements, "implements", 1);
     defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
@@ -282,7 +282,7 @@ static JSR_NATIVE(jsr_Class_implements) {
     JSR_CHECK(String, 1, "method");
     ObjClass* cls = AS_CLASS(vm->apiStack[0]);
     ObjString* method = AS_STRING(vm->apiStack[1]);
-    push(vm, BOOL_VAL(hashTableContainsKey(&cls->methods, method)));
+    push(vm, BOOL_VAL(hashTableValueContainsKey(&cls->methods, method)));
     return true;
 }
 
@@ -520,13 +520,14 @@ JSR_NATIVE(jsr_Module_string) {
 
 JSR_NATIVE(jsr_Module_globals) {
     ObjModule* module = AS_MODULE(vm->apiStack[0]);
-    const FieldIndex* globalNames = &module->globalNames;
+    const IntHashTable* globalNames = &module->globalNames;
 
     jsrPushTable(vm);
-    for(const FieldIndexEntry* e = globalNames->entries; e < globalNames->entries + globalNames->sizeMask + 1; e++) {
+    for(const IntEntry* e = globalNames->entries;
+        e < globalNames->entries + globalNames->sizeMask + 1; e++) {
         if(e->key) {
             push(vm, OBJ_VAL(e->key));
-            push(vm, module->globals[e->offset]);
+            push(vm, module->globals[e->value]);
             if(!jsrSubscriptSet(vm, -3)) return false;
             pop(vm);
         }
@@ -1388,7 +1389,7 @@ static bool findEntry(JStarVM* vm, TableEntry* entries, size_t sizeMask, Value k
             }
         } else {
             bool eq;
-            if(!tableKeyEquals(vm, key, e->key, &eq)) { 
+            if(!tableKeyEquals(vm, key, e->key, &eq)) {
                 return false;
             }
 
@@ -1756,30 +1757,31 @@ JSR_NATIVE(jsr_Enum_construct) {
     }
 
     int iota = 0;
-    JSR_FOREACH(2, {
-        if(!checkEnumElem(vm, cls, inst)) return false;
+    JSR_FOREACH(
+        2, {
+            if(!checkEnumElem(vm, cls, inst)) return false;
 
-        if(isCustom) {
-            jsrPushValue(vm, -1);
-            if(!jsrSubscriptGet(vm, 2)) return false;
-        } else {
-            jsrPushNumber(vm, iota);
-        }
+            if(isCustom) {
+                jsrPushValue(vm, -1);
+                if(!jsrSubscriptGet(vm, 2)) return false;
+            } else {
+                jsrPushNumber(vm, iota);
+            }
 
-        jsrSetField(vm, 0, jsrGetString(vm, -2));
+            jsrSetField(vm, 0, jsrGetString(vm, -2));
 
-        jsrGetField(vm, 0, M_VALUE_NAME);
-        jsrPushValue(vm, -2);
-        jsrPushValue(vm, -4);
-        if(!jsrSubscriptSet(vm, -3)) return false;
-        jsrPop(vm);
-        jsrPop(vm);
+            jsrGetField(vm, 0, M_VALUE_NAME);
+            jsrPushValue(vm, -2);
+            jsrPushValue(vm, -4);
+            if(!jsrSubscriptSet(vm, -3)) return false;
+            jsrPop(vm);
+            jsrPop(vm);
 
-        jsrPop(vm);
-        jsrPop(vm);
+            jsrPop(vm);
+            jsrPop(vm);
 
-        iota++;
-    }, );
+            iota++;
+        }, );
 
     if(iota == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");

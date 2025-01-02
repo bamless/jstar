@@ -6,10 +6,11 @@
 
 #include "code.h"
 #include "compiler.h"
-#include "field_index.h"
-#include "hash_table.h"
+#include "int_hash_table.h"
 #include "object.h"
 #include "profiler.h"
+#include "value.h"
+#include "value_hash_table.h"
 #include "vm.h"
 
 #define REACHED_DEFAULT_SZ 16
@@ -131,8 +132,8 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjClass* cls = (ObjClass*)o;
         reachObject(vm, (Obj*)cls->name);
         reachObject(vm, (Obj*)cls->superCls);
-        reachHashTable(vm, &cls->methods);
-        reachFieldIndex(vm, &cls->fields);
+        reachValueHashTable(vm, &cls->methods);
+        reachIntHashTable(vm, &cls->fields);
         break;
     }
     case OBJ_INST: {
@@ -146,7 +147,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjModule* m = (ObjModule*)o;
         reachObject(vm, (Obj*)m->name);
         reachObject(vm, (Obj*)m->path);
-        reachFieldIndex(vm, &m->globalNames);
+        reachIntHashTable(vm, &m->globalNames);
         for(int i = 0; i < m->globalsCapacity; i++) {
             reachValue(vm, m->globals[i]);
         }
@@ -253,7 +254,7 @@ void garbageCollect(JStarVM* vm) {
         }
 
         reachObject(vm, (Obj*)vm->emptyTup);
-        reachHashTable(vm, &vm->modules);
+        reachValueHashTable(vm, &vm->modules);
 
         for(Value* v = vm->stack; v < vm->sp; v++) {
             reachValue(vm, *v);

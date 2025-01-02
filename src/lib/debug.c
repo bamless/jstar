@@ -4,9 +4,9 @@
 #include <stdio.h>
 
 #include "disassemble.h"
-#include "hash_table.h"
 #include "object.h"
 #include "value.h"
+#include "value_hash_table.h"
 #include "vm.h"
 
 JSR_NATIVE(jsr_printStack) {
@@ -35,7 +35,7 @@ JSR_NATIVE(jsr_disassemble) {
         arg = OBJ_VAL(AS_BOUND_METHOD(arg)->method);
     } else if(IS_CLASS(arg)) {
         Value ctor;
-        if(!hashTableGet(&AS_CLASS(arg)->methods, vm->specialMethods[METH_CTOR], &ctor)) {
+        if(!hashTableValueGet(&AS_CLASS(arg)->methods, vm->specialMethods[METH_CTOR], &ctor)) {
             jsrPushNull(vm);
             return true;
         }

@@ -9,8 +9,8 @@
 
 #include "code.h"
 #include "conf.h"
-#include "field_index.h"
 #include "gc.h"
+#include "int_hash_table.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "lib/core/core.h"
@@ -126,8 +126,8 @@ struct Compiler {
     Upvalue upvalues[MAX_LOCALS];
 
     ext_vector(char*) syntheticNames;
-    ext_vector(JStarIdentifier)* globals;
-    ext_vector(FwdRef)* fwdRefs;
+    ext_vector(JStarIdentifier) * globals;
+    ext_vector(FwdRef) * fwdRefs;
 
     int stackUsage;
 
@@ -138,8 +138,8 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
-                         const char* file, FuncType type, ext_vector(JStarIdentifier)* globals,
-                         ext_vector(FwdRef)* fwdRefs, const JStarStmt* ast) {
+                         const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
+                         ext_vector(FwdRef) * fwdRefs, const JStarStmt* ast) {
     vm->currCompiler = c;
     c->vm = vm;
     c->module = module;
@@ -388,8 +388,8 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
     Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 
     if(c->module) {
-        if(fieldIndexGetString(&c->module->globalNames, id->name, id->length,
-                               hashBytes(id->name, id->length))) {
+        if(hashTableIntGetString(&c->module->globalNames, id->name, id->length,
+                                 hashBytes(id->name, id->length))) {
             return global;
         }
     } else if(resolveCoreSymbol(id)) {
@@ -612,7 +612,7 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
 static void addFunctionDefaults(Compiler* c, const Prototype* proto,
                                 ext_vector(JStarExpr*) defaults) {
     int i = 0;
-    ext_vec_foreach(JStarExpr** it, defaults) {
+    ext_vec_foreach(JStarExpr * *it, defaults) {
         const JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -650,7 +650,7 @@ bool isSpreadExpr(const JStarExpr* e) {
 
 bool containsSpreadExpr(const JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
-    ext_vec_foreach(JStarExpr** it, exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, exprs->as.exprList) {
         JStarExpr* e = *it;
         if(isSpreadExpr(e)) {
             return true;
@@ -867,7 +867,7 @@ static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
     }
 
     int i = 0;
-    ext_vec_foreach(JStarExpr** it, exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, exprs->as.exprList) {
         const JStarIdentifier* name = NULL;
         if(names && i < lvals) {
             name = &names[i];
@@ -954,7 +954,7 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileArguments(Compiler* c, const JStarExpr* args) {
-    ext_vec_foreach(JStarExpr** it, args->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, args->as.exprList) {
         compileExpr(c, *it);
     }
 
@@ -1078,7 +1078,7 @@ static void compilePowExpr(Compiler* c, const JStarExpr* e) {
 static void compileListLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->line);
 
-    ext_vec_foreach(JStarExpr** it, e->as.listLiteral.exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, e->as.listLiteral.exprs->as.exprList) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1109,7 +1109,7 @@ static void compileTupleLit(Compiler* c, const JStarExpr* e) {
         return;
     }
 
-    ext_vec_foreach(JStarExpr** it, e->as.tupleLiteral.exprs->as.exprList) {
+    ext_vec_foreach(JStarExpr * *it, e->as.tupleLiteral.exprs->as.exprList) {
         compileExpr(c, *it);
     }
 
@@ -1126,7 +1126,8 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->line);
 
     JStarExpr* keyVals = e->as.tableLiteral.keyVals;
-    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList); it != ext_vec_end(keyVals->as.exprList);) {
+    for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList);
+        it != ext_vec_end(keyVals->as.exprList);) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1241,7 +1242,7 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         compileExpr(c, e->as.spread.expr);
         break;
     case JSR_EXPR_LST:
-        ext_vec_foreach(JStarExpr** it, e->as.exprList) {
+        ext_vec_foreach(JStarExpr * *it, e->as.exprList) {
             compileExpr(c, *it);
         }
         break;
@@ -1257,7 +1258,7 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
 static void compileStatement(Compiler* c, const JStarStmt* s);
 
 static void compileStatements(Compiler* c, ext_vector(JStarStmt*) stmts) {
-    ext_vec_foreach(JStarStmt** it, stmts) {
+    ext_vec_foreach(JStarStmt * *it, stmts) {
         compileStatement(c, *it);
     }
 }
@@ -1393,7 +1394,7 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
 
-    ext_vec_foreach(JStarIdentifier* name, varDecl->as.decl.as.var.ids) {
+    ext_vec_foreach(JStarIdentifier * name, varDecl->as.decl.as.var.ids) {
         Variable var = declareVar(c, name, false, s->line);
         defineVar(c, &var, s->line);
     }
@@ -1879,13 +1880,13 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, con
 }
 
 static void compileDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr** e, decorators) {
+    ext_vec_foreach(JStarExpr * *e, decorators) {
         compileExpr(c, *e);
     }
 }
 
 static void callDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr** e, decorators) {
+    ext_vec_foreach(JStarExpr * *e, decorators) {
         JStarExpr* decorator = *e;
         emitOpcode(c, OP_CALL_1, decorator->line);
     }
@@ -1942,7 +1943,7 @@ static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarSt
 }
 
 static void compileMethods(Compiler* c, const JStarStmt* s) {
-    ext_vec_foreach(JStarStmt** it, s->as.decl.as.cls.methods) {
+    ext_vec_foreach(JStarStmt * *it, s->as.decl.as.cls.methods) {
         JStarStmt* method = *it;
         switch(method->type) {
         case JSR_FUNCDECL:

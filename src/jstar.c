@@ -9,7 +9,6 @@
 #include "compiler.h"
 #include "disassemble.h"
 #include "gc.h"
-#include "hash_table.h"
 #include "import.h"
 #include "lib/core/excs.h"
 #include "object.h"
@@ -18,6 +17,7 @@
 #include "profiler.h"
 #include "serialize.h"
 #include "value.h"
+#include "value_hash_table.h"
 #include "vm.h"
 
 // -----------------------------------------------------------------------------
@@ -478,7 +478,7 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
 
     Value eqOverload;
     ObjClass* cls = getClass(vm, v1);
-    if(hashTableGet(&cls->methods, vm->specialMethods[METH_EQ], &eqOverload)) {
+    if(hashTableValueGet(&cls->methods, vm->specialMethods[METH_EQ], &eqOverload)) {
         push(vm, v1);
         push(vm, v2);
         JStarResult res = jsrCallMethod(vm, "__eq__", 1);
@@ -739,7 +739,7 @@ void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     Value nat = apiStackSlot(vm, natSlot);
     JSR_ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
     JSR_ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
-    hashTablePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->proto.name, nat);
+    hashTableValuePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->proto.name, nat);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {

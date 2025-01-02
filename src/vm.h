@@ -9,12 +9,12 @@
 
 #include "compiler.h"
 #include "conf.h"
-#include "hash_table.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object.h"
 #include "symbol.h"
 #include "value.h"
+#include "value_hash_table.h"
 
 // Enum encoding special method names needed at runtime
 // Mainly used for operator overloading
@@ -88,7 +88,7 @@ struct JStarVM {
     ObjString* specialMethods[METH_SIZE];
 
     // Loaded modules
-    HashTable modules;
+    ValueHashTable modules;
 
     // Current module and core module
     ObjModule *module, *core;
@@ -108,7 +108,7 @@ struct JStarVM {
     Value* apiStack;
 
     // Constant string pool, for interned strings
-    HashTable stringPool;
+    ValueHashTable stringPool;
 
     // Linked list of all open upvalues
     ObjUpvalue* upvalues;

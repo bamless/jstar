@@ -6,11 +6,11 @@
 #include <stdio.h>
 
 #include "code.h"
-#include "field_index.h"
-#include "hash_table.h"
+#include "int_hash_table.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "value.h"
+#include "value_hash_table.h"
 
 // Top level variables defined in each module
 #define MOD_NAME "__name__"  // The module's name
@@ -131,7 +131,7 @@ typedef struct ObjModule {
     Obj base;
     ObjString* name;           // Name of the module
     ObjString* path;           // The path to the module file
-    FieldIndex globalNames;    // HashTable mapping from global name to global value array
+    IntHashTable globalNames;  // HashTable mapping from global name to global value array
     int globalsCount;          // Number of globals in the module
     int globalsCapacity;       // Capacity of the globals array
     Value* globals;            // Array of global values
@@ -169,8 +169,8 @@ typedef struct ObjClass {
     ObjString* name;            // The name of the class
     struct ObjClass* superCls;  // Pointer to the parent class (or NULL)
     int fieldCount;             // Number of fields of the class
-    FieldIndex fields;          // HashTable containing a mapping for the object's fields
-    HashTable methods;          // HashTable containing methods (ObjFunction/ObjNative)
+    IntHashTable fields;        // HashTable containing a mapping for the object's fields
+    ValueHashTable methods;     // HashTable containing methods (ObjFunction/ObjNative)
 } ObjClass;
 
 // An instance of a user defined Class

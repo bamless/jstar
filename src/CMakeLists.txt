@@ -34,12 +34,13 @@ set(JSTAR_SOURCES
     disassemble.c
     disassemble.h
     endianness.h
-    field_index.c
-    field_index.h
     gc.c
     gc.h
-    hash_table.c
     hash_table.h
+    value_hash_table.h
+    value_hash_table.c
+    int_hash_table.h
+    int_hash_table.c
     import.c
     import.h
     jstar.c

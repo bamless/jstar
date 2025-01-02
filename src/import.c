@@ -5,7 +5,6 @@
 
 #include "compiler.h"
 #include "conf.h"
-#include "hash_table.h"
 #include "jstar.h"
 #include "lib/builtins.h"
 #include "object.h"
@@ -13,6 +12,7 @@
 #include "profiler.h"
 #include "serialize.h"
 #include "value.h"
+#include "value_hash_table.h"
 #include "vm.h"
 
 static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* name) {
@@ -67,13 +67,13 @@ static void registerInParent(JStarVM* vm, ObjModule* module) {
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
-    hashTablePut(&vm->modules, name, OBJ_VAL(module));
+    hashTableValuePut(&vm->modules, name, OBJ_VAL(module));
     registerInParent(vm, module);
 }
 
 ObjModule* getModule(JStarVM* vm, ObjString* name) {
     Value module;
-    if(!hashTableGet(&vm->modules, name, &module)) {
+    if(!hashTableValueGet(&vm->modules, name, &module)) {
         return NULL;
     }
     return AS_MODULE(module);
@@ -124,7 +124,7 @@ static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name, c
 ObjModule* importModule(JStarVM* vm, ObjString* name) {
     PROFILE_FUNC()
 
-    if(hashTableContainsKey(&vm->modules, name)) {
+    if(hashTableValueContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);
         return getModule(vm, name);
     }

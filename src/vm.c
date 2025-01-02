@@ -6,7 +6,6 @@
 #include "code.h"
 #include "conf.h"
 #include "gc.h"
-#include "hash_table.h"
 #include "import.h"
 #include "jstar.h"
 #include "lib/builtins.h"
@@ -17,6 +16,7 @@
 #include "profiler.h"
 #include "symbol.h"
 #include "value.h"
+#include "value_hash_table.h"
 
 #if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
     #include "disassemble.h"
@@ -80,8 +80,8 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     vm->heapGrowRate = conf->heapGrowRate;
 
     // Module cache and interned string pool
-    initHashTable(&vm->modules);
-    initHashTable(&vm->stringPool);
+    initValueHashTable(&vm->modules);
+    initValueHashTable(&vm->stringPool);
 
     // Create string constants of special method names
     for(int i = 0; i < METH_SIZE; i++) {
@@ -110,8 +110,8 @@ void jsrFreeVM(JStarVM* vm) {
 
         free(vm->stack);
         free(vm->frames);
-        freeHashTable(&vm->stringPool);
-        freeHashTable(&vm->modules);
+        freeValueHashTable(&vm->stringPool);
+        freeValueHashTable(&vm->modules);
 
         JStarSymbol* sym = vm->symbols;
         while(sym) {
@@ -479,7 +479,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
 
 static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc) {
     Value method;
-    if(!hashTableGet(&cls->methods, name, &method)) {
+    if(!hashTableValueGet(&cls->methods, name, &method)) {
         jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
                  name->data);
         return false;
@@ -495,7 +495,7 @@ static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint
     }
 
     Value method;
-    if(!hashTableGet(&cls->methods, name, &method)) {
+    if(!hashTableValueGet(&cls->methods, name, &method)) {
         jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
                  name->data);
         return false;
@@ -510,7 +510,7 @@ static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint
 
 static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
     Value v;
-    if(!hashTableGet(&cls->methods, name, &v)) {
+    if(!hashTableValueGet(&cls->methods, name, &v)) {
         jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
                  name->data);
         return false;
@@ -531,7 +531,7 @@ static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, Symbol
     }
 
     Value method;
-    if(!hashTableGet(&cls->methods, name, &method)) {
+    if(!hashTableValueGet(&cls->methods, name, &method)) {
         return false;
     }
 
@@ -676,7 +676,7 @@ static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
     Value method;
     ObjClass* cls1 = getClass(vm, peek2(vm));
 
-    if(hashTableGet(&cls1->methods, vm->specialMethods[overload], &method)) {
+    if(hashTableValueGet(&cls1->methods, vm->specialMethods[overload], &method)) {
         return callValue(vm, method, 1);
     }
 
@@ -684,7 +684,7 @@ static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
     if(reverse != METH_SIZE) {
         swapStackSlots(vm, -1, -2);
 
-        if(hashTableGet(&cls2->methods, vm->specialMethods[reverse], &method)) {
+        if(hashTableValueGet(&cls2->methods, vm->specialMethods[reverse], &method)) {
             return callValue(vm, method, 1);
         }
     }
@@ -698,7 +698,7 @@ static bool unaryOverload(JStarVM* vm, const char* op, SpecialMethod overload) {
     Value method;
     ObjClass* cls = getClass(vm, peek(vm));
 
-    if(hashTableGet(&cls->methods, vm->specialMethods[overload], &method)) {
+    if(hashTableValueGet(&cls->methods, vm->specialMethods[overload], &method)) {
         return callValue(vm, method, 0);
     }
 
@@ -1019,7 +1019,7 @@ inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             }
 
             Value ctor;
-            if(hashTableGet(&cls->methods, vm->specialMethods[METH_CTOR], &ctor)) {
+            if(hashTableValueGet(&cls->methods, vm->specialMethods[METH_CTOR], &ctor)) {
                 Obj* m = AS_OBJ(ctor);
                 switch(m->type) {
                 case OBJ_CLOSURE:
@@ -1063,7 +1063,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // Try to find a method
-            if(hashTableGet(&cls->methods, name, &method)) {
+            if(hashTableValueGet(&cls->methods, name, &method)) {
                 sym->type = SYMBOL_METHOD;
                 sym->key = (Obj*)cls;
                 sym->as.method = method;
@@ -1097,7 +1097,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // Check if a method shadows a function in the module
-            if(hashTableGet(&vm->modClass->methods, name, &func)) {
+            if(hashTableValueGet(&vm->modClass->methods, name, &func)) {
                 sym->type = SYMBOL_METHOD;
                 sym->key = (Obj*)mod->base.cls;
                 sym->as.method = func;
@@ -1474,8 +1474,8 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_FOR_PREP): {
         ObjClass* cls = getClass(vm, vm->sp[-2]);
-        if(!hashTableGet(&cls->methods, vm->specialMethods[METH_ITER], &vm->sp[0]) ||
-           !hashTableGet(&cls->methods, vm->specialMethods[METH_NEXT], &vm->sp[1])) {
+        if(!hashTableValueGet(&cls->methods, vm->specialMethods[METH_ITER], &vm->sp[0]) ||
+           !hashTableValueGet(&cls->methods, vm->specialMethods[METH_NEXT], &vm->sp[1])) {
             jsrRaise(vm, "MethodException", "Class %s does not implement __iter__ and __next__",
                      cls->name->data);
             UNWIND_STACK();
@@ -1821,7 +1821,7 @@ op_return:
 
         ObjClass* cls = AS_CLASS(peek(vm));
         cls->superCls = superCls;
-        hashTableMerge(&cls->methods, &superCls->methods);
+        hashTableValueMerge(&cls->methods, &superCls->methods);
 
         DISPATCH();
     }
@@ -1842,7 +1842,7 @@ op_return:
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
         ObjString* methodName = GET_STRING();
-        hashTablePut(&cls->methods, methodName, pop(vm));
+        hashTableValuePut(&cls->methods, methodName, pop(vm));
         DISPATCH();
     }
 
