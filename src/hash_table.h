@@ -100,15 +100,14 @@
         }                                                                                  \
                                                                                            \
         name##Entry* e = findEntry(t->entries, t->sizeMask, key);                          \
+        bool newEntry = !e->key;                                                           \
                                                                                            \
-        bool newname##Entry = !e->key;                                                     \
-                                                                                           \
-        if(newname##Entry && IS_INVALID_VAL(e->value)) {                                   \
+        if(newEntry && IS_INVALID_VAL(e->value)) {                                         \
             t->numEntries++;                                                               \
         }                                                                                  \
                                                                                            \
         *e = (name##Entry){key, val};                                                      \
-        return newname##Entry;                                                             \
+        return newEntry;                                                                   \
     }                                                                                      \
                                                                                            \
     bool hashTable##name##Get(const name##HashTable* t, ObjString* key, V* res) {          \
