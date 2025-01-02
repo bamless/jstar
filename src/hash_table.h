@@ -6,6 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * Generic hash table implementation that maps ObjString* to values of type V.
+ *
+ * Use `DECLARE_HASH_TABLE(name, V)` in an header file to declare a new hash table that maps
+ * ObjString* to values of type V.
+ * Then, use `DEFINE_HASH_TABLE(name, V, ...)` in a c file to generate the implementation.
+ */
+
 #define DECLARE_HASH_TABLE(name, V)                                                         \
     struct ObjString;                                                                       \
                                                                                             \
@@ -29,7 +37,8 @@
     struct ObjString* hashTable##name##GetString(const name##HashTable* t, const char* str, \
                                                  size_t length, uint32_t hash);
 
-#define MAX_ENTRY_LOAD(size) (((size) >> 1) + ((size) >> 2))
+#define MAX_ENTRY_LOAD(size) \
+    (((size) >> 1) + ((size) >> 2))  // Read as: size * 0.75, i.e. a load factor of 75%
 
 #define DEFINE_HASH_TABLE(name, V, TOMB_MARKER, INVALID_VAL, IS_INVALID_VAL, GROW_FACTOR,  \
                           INITIAL_CAPACITY)                                                \
