@@ -125,7 +125,7 @@ static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
 }
 
 static JStarResult evalString(JStarVM* vm, const char* path, const char* module, const char* src,
-                                 size_t len) {
+                              size_t len) {
     JStarStmt* program = jsrParse(path, src, len, parseError, vm);
     if(program == NULL) {
         return JSR_SYNTAX_ERR;
@@ -719,7 +719,7 @@ bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
 
     Value res;
     if(!getGlobal(vm, mod, copyString(vm, name, strlen(name)), &res)) {
-        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, module);
+        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mod->name->data);
         return false;
     }
 
