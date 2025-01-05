@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "code.h"
 #include "compiler.h"
 #include "int_hash_table.h"
 #include "object.h"

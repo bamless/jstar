@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "jstar/conf.h"
 #include "lex.h"
 #include "vector.h"
 
@@ -358,7 +359,8 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 
 JSTAR_API JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args,
                                  bool isGenerator, JStarStmt* body);
-JSTAR_API JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args);
+JSTAR_API JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name,
+                                   const JStarFormalArgs* args);
 JSTAR_API JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
                                 JStarStmt* body);
 JSTAR_API JStarStmt* jsrClassDecl(int line, const JStarIdentifier* clsName, JStarExpr* sup,

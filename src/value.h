@@ -6,10 +6,8 @@
 #include <stdint.h>
 
 #include "conf.h"
+#include "object_types.h"  // IWYU pragma: keep
 #include "util.h"
-
-typedef struct Obj Obj;
-typedef struct ObjString ObjString;
 
 /**
  * Here we define the Value type. This is a C type that can store any type

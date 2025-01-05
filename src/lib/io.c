@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "util.h"
-
 #if defined(JSTAR_POSIX)
     #define USE_POPEN
 #elif defined(JSTAR_WINDOWS)
@@ -91,7 +89,7 @@ JSR_NATIVE(jsr_File_construct) {
         if(f == NULL) {
             if(errno == ENOENT) {
                 JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`", path);
-            } else if (errno == EINVAL) {
+            } else if(errno == EINVAL) {
                 JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
             } else {
                 JSR_RAISE(vm, "IOException", "%s: %s", path, strerror(errno));
@@ -305,7 +303,7 @@ JSR_NATIVE(jsr_File_reopen) {
     if(!freopen(path, mode, f)) {
         if(errno == ENOENT) {
             JSR_RAISE(vm, "FileNotFoundException", "Couldn't find file `%s`", path);
-        } else if (errno == EINVAL) {
+        } else if(errno == EINVAL) {
             JSR_RAISE(vm, "InvalidArgException", "invalid mode string `%s`", mode);
         } else {
             JSR_RAISE(vm, "IOException", "%s: %s", path, strerror(errno));

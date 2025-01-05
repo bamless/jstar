@@ -1,7 +1,6 @@
 #include "parse/lex.h"
 
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 
 const char* JStarTokName[] = {

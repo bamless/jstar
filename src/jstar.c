@@ -12,6 +12,7 @@
 #include "import.h"
 #include "lib/core/excs.h"
 #include "object.h"
+#include "object_types.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
 #include "profiler.h"

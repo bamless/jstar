@@ -1,10 +1,9 @@
 #include "vm.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "code.h"
-#include "conf.h"
 #include "gc.h"
 #include "import.h"
 #include "jstar.h"
@@ -15,6 +14,7 @@
 #include "opcode.h"
 #include "profiler.h"
 #include "symbol.h"
+#include "util.h"
 #include "value.h"
 #include "value_hash_table.h"
 

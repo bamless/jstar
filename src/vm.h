@@ -5,13 +5,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "compiler.h"
-#include "conf.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object.h"
+#include "object_types.h"
 #include "symbol.h"
 #include "value.h"
 #include "value_hash_table.h"
@@ -129,7 +128,7 @@ struct JStarVM {
     // Linked list of all created symbols
     JStarSymbol* symbols;
 
-#ifdef JSTAR_DBG_CACHE_STATS 
+#ifdef JSTAR_DBG_CACHE_STATS
     size_t cacheHits, cacheMisses;
 #endif
 
@@ -147,6 +146,10 @@ struct JStarVM {
     Obj** reachedStack;
     size_t reachedCapacity, reachedCount;
 };
+
+// -----------------------------------------------------------------------------
+// VM API
+// -----------------------------------------------------------------------------
 
 bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
 bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);

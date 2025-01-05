@@ -1,6 +1,8 @@
 #ifndef CORE_H
 #define CORE_H
 
+#include <stdbool.h>
+
 #include "jstar.h"
 #include "parse/ast.h"
 
@@ -43,7 +45,7 @@ JSR_NATIVE(jsr_Function_getSimpleName);
 JSR_NATIVE(jsr_Generator_isDone);
 JSR_NATIVE(jsr_Generator_string);
 JSR_NATIVE(jsr_Generator_next);
-//end
+// end
 
 // class Module
 JSR_NATIVE(jsr_Module_string);
@@ -116,4 +118,4 @@ JSR_NATIVE(jsr_Enum_value);
 JSR_NATIVE(jsr_Enum_name);
 // end
 
-#endif // CORE_H
+#endif  // CORE_H

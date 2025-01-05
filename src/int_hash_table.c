@@ -1,5 +1,7 @@
 #include "int_hash_table.h"
 
+#include <stddef.h>
+
 #include "gc.h"
 #include "hash_table.h"
 #include "object.h"  // IWYU pragma: keep

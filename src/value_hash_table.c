@@ -1,8 +1,10 @@
 #include "value_hash_table.h"
 
+#include <stddef.h>
+
 #include "gc.h"
 #include "hash_table.h"
-#include "object.h"
+#include "object.h"  // IWYU pragma: keep
 #include "value.h"
 
 #define TOMB_MARKER    NULL_VAL

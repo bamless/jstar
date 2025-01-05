@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "object.h"
-#include "util.h"
+#include "object_types.h"
 #include "value.h"
 #include "vm.h"
 

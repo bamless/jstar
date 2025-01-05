@@ -5,12 +5,12 @@
 #include <string.h>
 
 #include "code.h"
-#include "conf.h"
 #include "endianness.h"
 #include "gc.h"
 #include "jstar.h"
 #include "object.h"
 #include "profiler.h"
+#include "symbol.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"
@@ -390,7 +390,7 @@ static bool deserializeSymbols(Deserializer* d, Code* c) {
     for(int i = 0; i < symbolCount; i++) {
         uint16_t constant;
         if(!deserializeShort(d, &constant)) return false;
-        c->symbols[i] = (Symbol){ .constant = constant };
+        c->symbols[i] = (Symbol){.constant = constant};
     }
 
     return true;

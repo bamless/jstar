@@ -1,10 +1,8 @@
 #include "object.h"
 
-#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "conf.h"
 #include "gc.h"
 #include "int_hash_table.h"
 #include "util.h"

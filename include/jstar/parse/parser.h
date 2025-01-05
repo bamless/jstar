@@ -1,7 +1,10 @@
 #ifndef JSTAR_PARSER_H
 #define JSTAR_PARSER_H
 
+#include <stddef.h>
+
 #include "ast.h"
+#include "jstar/conf.h"
 
 typedef void (*ParseErrorCB)(const char* file, int line, const char* error, void* userData);
 

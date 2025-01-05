@@ -11,31 +11,30 @@
  *
  * Use `DECLARE_HASH_TABLE(name, V)` in an header file to declare a new hash table that maps
  * ObjString* to values of type V.
+ *
  * Then, use `DEFINE_HASH_TABLE(name, V, ...)` in a c file to generate the implementation.
  */
 
-#define DECLARE_HASH_TABLE(name, V)                                                         \
-    struct ObjString;                                                                       \
-                                                                                            \
-    typedef struct name##Entry {                                                            \
-        struct ObjString* key;                                                              \
-        V value;                                                                            \
-    } name##Entry;                                                                          \
-                                                                                            \
-    typedef struct name##HashTable {                                                        \
-        size_t sizeMask, numEntries;                                                        \
-        name##Entry* entries;                                                               \
-    } name##HashTable;                                                                      \
-                                                                                            \
-    void init##name##HashTable(name##HashTable* t);                                         \
-    void free##name##HashTable(name##HashTable* t);                                         \
-    bool hashTable##name##Put(name##HashTable* t, struct ObjString* key, V val);            \
-    bool hashTable##name##Get(const name##HashTable* t, struct ObjString* key, V* res);     \
-    bool hashTable##name##ContainsKey(const name##HashTable* t, struct ObjString* key);     \
-    bool hashTable##name##Del(name##HashTable* t, struct ObjString* key);                   \
-    void hashTable##name##Merge(name##HashTable* t, const name##HashTable* o);              \
-    struct ObjString* hashTable##name##GetString(const name##HashTable* t, const char* str, \
-                                                 size_t length, uint32_t hash);
+#define DECLARE_HASH_TABLE(name, V)                                                  \
+    typedef struct name##Entry {                                                     \
+        ObjString* key;                                                              \
+        V value;                                                                     \
+    } name##Entry;                                                                   \
+                                                                                     \
+    typedef struct name##HashTable {                                                 \
+        size_t sizeMask, numEntries;                                                 \
+        name##Entry* entries;                                                        \
+    } name##HashTable;                                                               \
+                                                                                     \
+    void init##name##HashTable(name##HashTable* t);                                  \
+    void free##name##HashTable(name##HashTable* t);                                  \
+    bool hashTable##name##Put(name##HashTable* t, ObjString* key, V val);            \
+    bool hashTable##name##Get(const name##HashTable* t, ObjString* key, V* res);     \
+    bool hashTable##name##ContainsKey(const name##HashTable* t, ObjString* key);     \
+    bool hashTable##name##Del(name##HashTable* t, ObjString* key);                   \
+    void hashTable##name##Merge(name##HashTable* t, const name##HashTable* o);       \
+    ObjString* hashTable##name##GetString(const name##HashTable* t, const char* str, \
+                                          size_t length, uint32_t hash);
 
 #define MAX_ENTRY_LOAD(size) \
     (((size) >> 1) + ((size) >> 2))  // Read as: size * 0.75, i.e. a load factor of 75%

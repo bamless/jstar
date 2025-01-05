@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "conf.h"
+
 #define CODE_DEF_SIZE  8
 #define CODE_GROW_FACT 2
 
@@ -77,6 +79,6 @@ int addSymbol(Code* c, uint16_t constant) {
         c->symbols = realloc(c->symbols, c->symbolCapacity * sizeof(Symbol));
     }
 
-    c->symbols[c->symbolCount++] = (Symbol){ .constant = constant };
+    c->symbols[c->symbolCount++] = (Symbol){.constant = constant};
     return c->symbolCount - 1;
 }

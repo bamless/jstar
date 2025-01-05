@@ -1,6 +1,5 @@
 #include "parse/parser.h"
 
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>

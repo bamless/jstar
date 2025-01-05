@@ -1,5 +1,5 @@
 // The following is a list of all opcodes used by the VM. Each opcode follows this format:
-// OPCODE, number of args, number of values added (or removed) to the stack
+// (OPCODE, number of args, number of values added or removed from the stack)
 OPCODE(OP_ADD, 0, -1)
 OPCODE(OP_SUB, 0, -1)
 OPCODE(OP_MUL, 0, -1)

@@ -4,10 +4,11 @@
 #include <stdint.h>
 
 #include "jstar.h"
-#include "object.h"
+#include "object_types.h"
 #include "parse/ast.h"
 
-#define MAX_LOCALS UINT8_MAX  // At most 255 local variables per frame
+// At most 255 local variables per frame
+#define MAX_LOCALS UINT8_MAX
 
 typedef struct Compiler Compiler;
 

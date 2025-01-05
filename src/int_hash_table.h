@@ -3,6 +3,7 @@
 
 #include "hash_table.h"
 #include "jstar.h"
+#include "object_types.h" // IWYU pragma: keep
 
 DECLARE_HASH_TABLE(Int, int)
 

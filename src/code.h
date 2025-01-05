@@ -4,9 +4,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "value.h"
 #include "symbol.h"
+#include "value.h"
 
+// A runtime representation of a J* bytecode chunk.
+// Stores the bytecode, the constants and the symbols used in the chunk, as well as metadata
+// associated with each opcode (such as the original source line number).
 typedef struct Code {
     size_t capacity, size;
     uint8_t* bytecode;

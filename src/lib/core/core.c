@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <float.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,6 +17,7 @@
 #include "int_hash_table.h"
 #include "jstar.h"
 #include "object.h"
+#include "object_types.h"
 #include "profiler.h"
 #include "util.h"
 #include "value.h"

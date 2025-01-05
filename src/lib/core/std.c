@@ -1,14 +1,19 @@
 #include "std.h"
 
-#include <math.h>
 #include <limits.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "gc.h"
 #include "import.h"
 #include "jstar.h"
 #include "object.h"
+#include "object_types.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
+#include "value.h"
 #include "vm.h"
 
 JSR_NATIVE(jsr_int) {
@@ -71,16 +76,17 @@ JSR_NATIVE(jsr_print) {
     fwrite(jsrGetString(vm, -1), 1, jsrGetStringSz(vm, -1), stdout);
     jsrPop(vm);
 
-    JSR_FOREACH(2, {
-        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
-        if(!jsrIsString(vm, -1)) {
-            JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-        }
-        
-        printf(" ");
-        fwrite(jsrGetString(vm, -1), 1, jsrGetStringSz(vm, -1), stdout);
-        jsrPop(vm);
-    },);
+    JSR_FOREACH(
+        2, {
+            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
+            if(!jsrIsString(vm, -1)) {
+                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
+            }
+
+            printf(" ");
+            fwrite(jsrGetString(vm, -1), 1, jsrGetStringSz(vm, -1), stdout);
+            jsrPop(vm);
+        }, );
 
     printf("\n");
 
@@ -132,4 +138,3 @@ JSR_NATIVE(jsr_type) {
     push(vm, OBJ_VAL(getClass(vm, peek(vm))));
     return true;
 }
-

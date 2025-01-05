@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "code.h"
-#include "conf.h"
 #include "gc.h"
 #include "int_hash_table.h"
 #include "jstar.h"
@@ -44,11 +43,6 @@
 #define THIS_STR       "this"
 #define ANON_FMT       "anonymous[line:%d]"
 #define UNPACK_ARG_FMT "@unpack:%d"
-
-static const int opcodeStackUsage[] = {
-#define OPCODE(opcode, args, stack) stack,
-#include "opcode.def"
-};
 
 typedef enum VariableScope {
     VAR_LOCAL,
@@ -213,7 +207,7 @@ static int correctLineNumber(Compiler* c, int line) {
 
 static size_t emitOpcode(Compiler* c, Opcode op, int line) {
     int correctedLine = correctLineNumber(c, line);
-    adjustStackUsage(c, opcodeStackUsage[op]);
+    adjustStackUsage(c, opcodeStackUsage(op));
     return writeByte(&c->func->code, op, correctedLine);
 }
 

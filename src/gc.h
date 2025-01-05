@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "jstar.h"
+#include "object_types.h"
 #include "value.h"
 
 // Macros to simplify memory allocation

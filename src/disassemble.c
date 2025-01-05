@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "object.h"
 #include "opcode.h"
 #include "value.h"
 
@@ -59,7 +60,7 @@ void disassembleFunction(const ObjFunction* fn) {
         printf("%s", name->data);
     }
     printf(" (%zu instructions at %p)\n", instr, (void*)fn);
-    
+
     disassemblePrototype(&fn->proto, fn->upvalueCount);
     disassembleCode(&fn->code, INDENT);
 
