@@ -6,6 +6,11 @@
  * See "object.h" for the actual object definitions.
  */
 
+// Object type.
+// These types are used internally by the object system and are never
+// exposed to the user, to whom all values behave like class instances.
+// The enum is defined using X-macros in order to automatically generate
+// string names of enum constats (see ObjTypeNames array in object.c)
 #define OBJTYPE(X)      \
     X(OBJ_STRING)       \
     X(OBJ_NATIVE)       \
