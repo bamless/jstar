@@ -86,13 +86,13 @@ static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const cha
     push(vm, OBJ_VAL(n));
     ObjClass* c = newClass(vm, n, sup);
     pop(vm);
-    setGlobal(vm, m, n, OBJ_VAL(c));
+    moduleSetGlobal(vm, m, n, OBJ_VAL(c));
     return c;
 }
 
 static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
-    getGlobal(vm, m, copyString(vm, name, strlen(name)), &v);
+    moduleGetGlobal(vm, m, copyString(vm, name, strlen(name)), &v);
     return v;
 }
 
@@ -1727,7 +1727,7 @@ static bool checkEnumElem(JStarVM* vm, ObjClass* cls, ObjInstance* inst) {
         }
 
         Value val;
-        if(getField(vm, cls, inst, enumElem, &val)) {
+        if(instanceGetField(vm, cls, inst, enumElem, &val)) {
             JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 

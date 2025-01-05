@@ -160,6 +160,9 @@ bool setValueSubscript(JStarVM* vm);
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym);
 
+void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
+bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
+
 void reserveStack(JStarVM* vm, size_t needed);
 
 bool runEval(JStarVM* vm, int evalDepth);
@@ -223,13 +226,17 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
 #endif
 }
 
-inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls) {
-    for(ObjClass* c = getClass(vm, i); c != NULL; c = c->superCls) {
-        if(c == cls) {
+inline bool isSubClass(const JStarVM* vm, ObjClass* sub, ObjClass* super) {
+    for(ObjClass* c = sub; c != NULL; c = c->superCls) {
+        if(c == super) {
             return true;
         }
     }
     return false;
+}
+
+inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls) {
+    return isSubClass(vm, getClass(vm, i), cls);
 }
 
 #endif

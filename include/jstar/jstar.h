@@ -385,12 +385,23 @@ JSTAR_API bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarS
 // on top of the stack.
 JSTAR_API bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
 
+// Set the global `name` of the module `module` with the value on top of the stack using the
+// provided symbol. The symbol is used to cache the global lookup and can be used to speed up
+// subsequent lookups.
+JSTAR_API bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name,
+                                  JStarSymbol* sym);
+
 // Get the global `name` of the module `module`.
 // Returns true in case of success leaving the result on the top of the stack.
 // Returns false if the module could not be found or the name could not be found in the module,
 // leaving an exception on top of the stack.
 // If calling inside a native "module" can be NULL, and the used module will be the current one.
 JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
+
+// Get the global `name` of the module `module` using the provided symbol. The symbol is used to
+// cache the global lookup and can be used to speed up subsequent lookups.
+JSTAR_API bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name,
+                                  JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------
 // CLASS API

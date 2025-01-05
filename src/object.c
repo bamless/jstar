@@ -87,7 +87,7 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
 static void mergeModules(JStarVM* vm, ObjModule* dst, ObjModule* src) {
     hashTableIntMerge(&dst->globalNames, &src->globalNames);
     for(int i = 0; i < src->globalsCount; i++) {
-        setGlobalAtOffset(vm, dst, i, src->globals[i]);
+        moduleSetGlobalAtOffset(vm, dst, i, src->globals[i]);
     }
     dst->globalsCount = src->globalsCount;
 }
@@ -111,9 +111,9 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
 
     // Set builtin names for the module object
     mod->path = copyString(vm, path, strlen(path));
-    setGlobal(vm, mod, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
-    setGlobal(vm, mod, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
-    setGlobal(vm, mod, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
+    moduleSetGlobal(vm, mod, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
+    moduleSetGlobal(vm, mod, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
+    moduleSetGlobal(vm, mod, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
     pop(vm);
 
     return mod;
@@ -349,83 +349,86 @@ void freeObject(JStarVM* vm, Obj* o) {
         size = newSize;                                                           \
     }
 
-bool getFieldAtOffset(ObjInstance* inst, int offset, Value* out) {
+bool instanceGetFieldAtOffset(ObjInstance* inst, int offset, Value* out) {
     if((size_t)offset >= inst->capacity) return false;
     *out = inst->fields[offset];
     return true;
 }
 
-void setFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
+void instanceSetFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
     MAYBE_GROW_VALUES(vm, offset, inst->fields, inst->capacity);
     inst->fields[offset] = val;
 }
 
-int setField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
+int instanceSetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val) {
     int offset;
     if(hashTableIntGet(&cls->fields, key, &offset)) {
         push(vm, val);
-        setFieldAtOffset(vm, inst, offset, val);
+        instanceSetFieldAtOffset(vm, inst, offset, val);
         pop(vm);
         return offset;
     } else {
         int offset = cls->fieldCount++;
         hashTableIntPut(&cls->fields, key, offset);
         push(vm, val);
-        setFieldAtOffset(vm, inst, offset, val);
+        instanceSetFieldAtOffset(vm, inst, offset, val);
         pop(vm);
         return offset;
     }
 }
 
-bool getField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
-    int offset;
-    if(!hashTableIntGet(&cls->fields, key, &offset)) return false;
-    getFieldAtOffset(inst, offset, val);
+bool instanceGetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
+    int offset = instanceGetFieldOffset(vm, cls, inst, key);
+    if(offset == -1) return false;
+    *val = inst->fields[offset];
     return true;
 }
 
-int getFieldIdx(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
+int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
     int offset;
     if(!hashTableIntGet(&cls->fields, key, &offset)) return -1;
     return (size_t)offset >= inst->capacity ? -1 : offset;
 }
 
-bool getGlobalAtOffset(ObjModule* mod, int offset, Value* val) {
-    if(offset >= mod->globalsCount) return false;
+void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* val) {
+    // This is ok since modules own their globals array and they are always keyed by value, not
+    // by class (differently from instances). This means that the `globals` array is guaranteed to
+    // have enough space for `offset` (if there aren't any bugs)
+    JSR_ASSERT(offset < mod->globalsCount, "Global offset out of bounds");
     *val = mod->globals[offset];
-    return true;
 }
 
-void setGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
+void moduleSetGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
     MAYBE_GROW_VALUES(vm, offset, mod->globals, mod->globalsCapacity);
     if(offset >= mod->globalsCount) mod->globalsCount = offset + 1;
     mod->globals[offset] = val;
 }
 
-int setGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val) {
+int moduleSetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val) {
     int offset;
     if(hashTableIntGet(&mod->globalNames, key, &offset)) {
         push(vm, val);
-        setGlobalAtOffset(vm, mod, offset, val);
+        moduleSetGlobalAtOffset(vm, mod, offset, val);
         pop(vm);
         return offset;
     } else {
         int offset = mod->globalsCount++;
         hashTableIntPut(&mod->globalNames, key, offset);
         push(vm, val);
-        setGlobalAtOffset(vm, mod, offset, val);
+        moduleSetGlobalAtOffset(vm, mod, offset, val);
         pop(vm);
         return offset;
     }
 }
 
-bool getGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val) {
-    int offset;
-    if(!hashTableIntGet(&mod->globalNames, key, &offset)) return false;
-    return getGlobalAtOffset(mod, offset, val);
+bool moduleGetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val) {
+    int offset = moduleGetGlobalOffset(vm, mod, key);
+    if(offset == -1) return false;
+    *val = mod->globals[offset];
+    return true;
 }
 
-int getGlobalIdx(JStarVM* vm, ObjModule* mod, ObjString* key) {
+int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key) {
     int offset;
     if(!hashTableIntGet(&mod->globalNames, key, &offset)) return -1;
     return offset >= mod->globalsCount ? -1 : offset;

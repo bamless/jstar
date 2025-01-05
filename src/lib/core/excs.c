@@ -22,11 +22,11 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
     ObjClass* cls = exc->base.cls;
 
     Value stacktraceVal = NULL_VAL;
-    getField(vm, cls, exc, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
+    instanceGetField(vm, cls, exc, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stacktraceVal);
 
     if(IS_STACK_TRACE(stacktraceVal)) {
         Value cause = NULL_VAL;
-        getField(vm, cls, exc, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+        instanceGetField(vm, cls, exc, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
 
         if(isInstance(vm, cause, vm->excClass)) {
             push(vm, cause);
@@ -72,7 +72,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
     }
 
     Value err = NULL_VAL;
-    getField(vm, cls, exc, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
+    instanceGetField(vm, cls, exc, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
 
     if(IS_STRING(err) && AS_STRING(err)->length > 0) {
         fprintf(stderr, "%s: %s\n", exc->base.cls->name->data, AS_STRING(err)->data);
@@ -91,11 +91,11 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     jsrBufferInitCapacity(vm, &buf, 64);
 
     Value stval = NULL_VAL;
-    getField(vm, exc->base.cls, exc, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
+    instanceGetField(vm, exc->base.cls, exc, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), &stval);
 
     if(IS_STACK_TRACE(stval)) {
         Value cause = NULL_VAL;
-        getField(vm, exc->base.cls, exc, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
+        instanceGetField(vm, exc->base.cls, exc, copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE)), &cause);
 
         if(isInstance(vm, cause, vm->excClass)) {
             push(vm, cause);
@@ -147,7 +147,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
     }
 
     Value err = NULL_VAL;
-    getField(vm, exc->base.cls, exc, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
+    instanceGetField(vm, exc->base.cls, exc, copyString(vm, EXC_ERR, strlen(EXC_ERR)), &err);
 
     if(IS_STRING(err) && AS_STRING(err)->length > 0) {
         jsrBufferAppendf(&buf, "%s: %s", exc->base.cls->name->data, AS_STRING(err)->data);

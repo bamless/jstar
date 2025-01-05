@@ -344,11 +344,11 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     push(vm, OBJ_VAL(stField));
 
     Value value = NULL_VAL;
-    getField(vm, cls, exception, stField, &value);
+    instanceGetField(vm, cls, exception, stField, &value);
     ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
     st->lastTracedFrame = -1;
 
-    setField(vm, cls, exception, stField, OBJ_VAL(st));
+    instanceSetField(vm, cls, exception, stField, OBJ_VAL(st));
     pop(vm);
 
     // Place the exception on top of the stack if not already
@@ -364,16 +364,25 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
         return;
     }
 
-    ObjInstance* exception = newInstance(vm, AS_CLASS(pop(vm)));
-    ObjClass* excCls = exception->base.cls;
-    if(!isInstance(vm, OBJ_VAL(exception), vm->excClass)) {
-        jsrRaise(vm, "TypeException", "Can only raise Exception instances.");
+    JSR_ASSERT(IS_CLASS(peek(vm)), "Trying to raise a non-class");
+    ObjClass* excCls = AS_CLASS(peek(vm));
+
+    if(!isSubClass(vm, excCls, vm->excClass)) {
+        jsrRaise(vm, "TypeException", "Can only raise Exception subclasses");
+        return;
     }
 
+    ObjInstance* exception = newInstance(vm, excCls);
+
+    pop(vm);
     push(vm, OBJ_VAL(exception));
 
     ObjStackTrace* st = newStackTrace(vm);
-    setField(vm, excCls, exception, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)), OBJ_VAL(st));
+
+    push(vm, OBJ_VAL(st));
+    instanceSetField(vm, excCls, exception, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)),
+                     OBJ_VAL(st));
+    pop(vm);
 
     if(err != NULL) {
         JStarBuffer error;
@@ -386,7 +395,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
         ObjString* errorField = copyString(vm, EXC_ERR, strlen(EXC_ERR));
         ObjString* errorString = jsrBufferToString(&error);
-        setField(vm, excCls, exception, errorField, OBJ_VAL(errorString));
+        instanceSetField(vm, excCls, exception, errorField, OBJ_VAL(errorString));
     }
 }
 
@@ -714,25 +723,31 @@ bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym
     return getValueField(vm, copyString(vm, name, strlen(name)), &sym->sym);
 }
 
-bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
-    ObjModule* mod = getModuleOrRaise(vm, module);
-    if(!mod) return false;
+bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
+    JStarSymbol sym = {0};
+    return jsrSetGlobalCached(vm, module, name, &sym);
+}
 
-    Value res;
-    if(!getGlobal(vm, mod, copyString(vm, name, strlen(name)), &res)) {
-        jsrRaise(vm, "NameException", "Name %s not definied in module %s.", name, mod->name->data);
+bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name, JStarSymbol* sym) {
+    ObjModule* mod = getModuleOrRaise(vm, module);
+    if(!mod) {
         return false;
     }
-
-    push(vm, res);
+    setGlobalName(vm, mod, copyString(vm, name, strlen(name)), &sym->sym);
     return true;
 }
 
-bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
+bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
+    JStarSymbol sym = {0};
+    return jsrGetGlobalCached(vm, module, name, &sym);
+}
+
+bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name, JStarSymbol* sym) {
     ObjModule* mod = getModuleOrRaise(vm, module);
-    if(!mod) return false;
-    setGlobal(vm, mod, copyString(vm, name, strlen(name)), peek(vm));
-    return true;
+    if(!mod) {
+        return false;
+    }
+    return getGlobalName(vm, mod, copyString(vm, name, strlen(name)), &sym->sym);
 }
 
 void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
