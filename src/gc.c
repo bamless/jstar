@@ -252,6 +252,10 @@ void garbageCollect(JStarVM* vm) {
             reachObject(vm, (Obj*)vm->specialMethods[i]);
         }
 
+        reachObject(vm, (Obj*)vm->excErr);
+        reachObject(vm, (Obj*)vm->excTrace);
+        reachObject(vm, (Obj*)vm->excCause);
+
         reachObject(vm, (Obj*)vm->emptyTup);
         reachValueHashTable(vm, &vm->modules);
 

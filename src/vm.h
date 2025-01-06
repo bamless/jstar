@@ -86,6 +86,9 @@ struct JStarVM {
     // Cached special method names needed at runtime
     ObjString* specialMethods[METH_SIZE];
 
+    // Cached strings for exception fields
+    ObjString *excErr, *excTrace, *excCause;
+
     // Loaded modules
     ValueHashTable modules;
 

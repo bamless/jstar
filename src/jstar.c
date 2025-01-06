@@ -10,7 +10,6 @@
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
-#include "lib/core/excs.h"
 #include "object.h"
 #include "object_types.h"
 #include "parse/ast.h"
@@ -340,16 +339,13 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     ObjInstance* exception = (ObjInstance*)AS_OBJ(excVal);
     ObjClass* cls = exception->base.cls;
 
-    ObjString* stField = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
-    push(vm, OBJ_VAL(stField));
 
     Value value = NULL_VAL;
-    instanceGetField(vm, cls, exception, stField, &value);
+    instanceGetField(vm, cls, exception, vm->excTrace, &value);
     ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
     st->lastTracedFrame = -1;
 
-    instanceSetField(vm, cls, exception, stField, OBJ_VAL(st));
-    pop(vm);
+    instanceSetField(vm, cls, exception, vm->excTrace, OBJ_VAL(st));
 
     // Place the exception on top of the stack if not already
     if(!valueEquals(excVal, vm->sp[-1])) {
@@ -378,11 +374,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     push(vm, OBJ_VAL(exception));
 
     ObjStackTrace* st = newStackTrace(vm);
-
-    push(vm, OBJ_VAL(st));
-    instanceSetField(vm, excCls, exception, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)),
-                     OBJ_VAL(st));
-    pop(vm);
+    instanceSetField(vm, excCls, exception, vm->excTrace, OBJ_VAL(st));
 
     if(err != NULL) {
         JStarBuffer error;
@@ -393,9 +385,8 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
         jsrBufferAppendvf(&error, err, args);
         va_end(args);
 
-        ObjString* errorField = copyString(vm, EXC_ERR, strlen(EXC_ERR));
         ObjString* errorString = jsrBufferToString(&error);
-        instanceSetField(vm, excCls, exception, errorField, OBJ_VAL(errorString));
+        instanceSetField(vm, excCls, exception, vm->excErr, OBJ_VAL(errorString));
     }
 }
 

@@ -94,10 +94,15 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 void jsrInitRuntime(JStarVM* vm) {
     // Core module bootstrap
     initCoreModule(vm);
+
     // Initialize main module
     jsrEvalModuleString(vm, "<main>", JSR_MAIN_MODULE, "");
-    // Create empty tuple singleton
+
+    // Create singletons
     vm->emptyTup = newTuple(vm, 0);
+    vm->excErr = copyString(vm, EXC_ERR, strlen(EXC_ERR));
+    vm->excTrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
+    vm->excCause = copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE));
 }
 
 void jsrFreeVM(JStarVM* vm) {
