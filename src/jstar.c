@@ -56,16 +56,17 @@ static Value apiStackSlot(const JStarVM* vm, int slot) {
 }
 
 static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
-    ObjModule* mod = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
-    if(!mod) {
-        if(module)
+    ObjModule* res = module ? getModule(vm, copyString(vm, module, strlen(module))) : vm->module;
+    if(!res) {
+        if(module) {
             jsrRaise(vm, "ImportException", "Module '%s' not found.", module);
-        else
+        } else {
             jsrRaise(vm, "ImportException",
                      "No current module loaded, pass an explicit module name.");
+        }
         return NULL;
     }
-    return mod;
+    return res;
 }
 
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
@@ -338,7 +339,6 @@ void jsrRaiseException(JStarVM* vm, int slot) {
 
     ObjInstance* exception = (ObjInstance*)AS_OBJ(excVal);
     ObjClass* cls = exception->base.cls;
-
 
     Value value = NULL_VAL;
     instanceGetField(vm, cls, exception, vm->excTrace, &value);
