@@ -198,7 +198,6 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     case OP_DEFINE_GLOBAL:
         symbolInstruction(c, instr);
         break;
-        break;
     case OP_IMPORT_NAME:
     case OP_NATIVE:
     case OP_NATIVE_METHOD:
