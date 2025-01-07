@@ -911,10 +911,10 @@ inline bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
                 return true;
             }
 
-            int idx = instanceSetField(vm, cls, inst, name, peek(vm));
+            int off = instanceSetField(vm, cls, inst, name, peek(vm));
             sym->type = SYMBOL_FIELD;
             sym->key = (Obj*)cls;
-            sym->as.offset = idx;
+            sym->as.offset = off;
             return true;
         }
         case OBJ_MODULE: {
@@ -926,10 +926,10 @@ inline bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
                 return true;
             }
 
-            int idx = moduleSetGlobal(vm, mod, name, peek(vm));
+            int off = moduleSetGlobal(vm, mod, name, peek(vm));
             sym->type = SYMBOL_GLOBAL;
             sym->key = (Obj*)mod;
-            sym->as.offset = idx;
+            sym->as.offset = off;
             return true;
         }
         default:
@@ -1078,12 +1078,12 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // If no method is found try a field
-            int idx = instanceGetFieldOffset(vm, cls, inst, name);
-            if(idx != -1) {
+            int off = instanceGetFieldOffset(vm, cls, inst, name);
+            if(off != -1) {
                 sym->type = SYMBOL_FIELD;
                 sym->key = (Obj*)cls;
-                sym->as.offset = idx;
-                return callValue(vm, inst->fields[idx], argc);
+                sym->as.offset = off;
+                return callValue(vm, inst->fields[off], argc);
             }
 
             jsrRaise(vm, "MethodException", "Method %s.%s() doesn't exists", cls->name->data,
@@ -1112,14 +1112,14 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // If no method is found on the module object, try to get a global variable
-            int globalIdx = moduleGetGlobalOffset(vm, mod, name);
-            if(globalIdx != -1) {
+            int off = moduleGetGlobalOffset(vm, mod, name);
+            if(off != -1) {
                 sym->type = SYMBOL_GLOBAL;
                 sym->key = (Obj*)mod;
-                sym->as.offset = globalIdx;
+                sym->as.offset = off;
 
                 // This is a function call, put the function as the receiver instead of the module
-                Value func = mod->globals[globalIdx];
+                Value func = mod->globals[off];
                 vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
             }
@@ -1142,10 +1142,10 @@ inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCa
         JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Invalid symbol type");
         mod->globals[sym->as.offset] = peek(vm);
     } else {
-        int idx = moduleSetGlobal(vm, mod, name, peek(vm));
+        int off = moduleSetGlobal(vm, mod, name, peek(vm));
         sym->type = SYMBOL_GLOBAL;
         sym->key = (Obj*)mod;
-        sym->as.offset = idx;
+        sym->as.offset = off;
     }
 }
 
@@ -1155,8 +1155,8 @@ inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCa
         return true;
     }
 
-    int idx = moduleGetGlobalOffset(vm, mod, name);
-    if(idx == -1) {
+    int off = moduleGetGlobalOffset(vm, mod, name);
+    if(off == -1) {
         jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
                  mod->name->data);
         return false;
@@ -1164,9 +1164,9 @@ inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCa
 
     sym->type = SYMBOL_GLOBAL;
     sym->key = (Obj*)mod;
-    sym->as.offset = idx;
+    sym->as.offset = off;
 
-    push(vm, mod->globals[idx]);
+    push(vm, mod->globals[off]);
     return true;
 }
 
