@@ -2063,8 +2063,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     ObjClass* cls = exception->base.cls;
 
     Value stacktraceVal = NULL_VAL;
-    instanceGetField(vm, cls, exception, copyString(vm, EXC_TRACE, strlen(EXC_TRACE)),
-                     &stacktraceVal);
+    instanceGetField(vm, cls, exception, vm->excTrace, &stacktraceVal);
 
     JSR_ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
