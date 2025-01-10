@@ -9,13 +9,13 @@
 // The type of a cached symbol.
 // It can be:
 //  - `SYMBOL_METHOD`, for caching method's lookups. When in this state the `as.method` field is
-//     valid and contains the resolved method's value.
+//    valid and contains the resolved method's value.
 //  - `SYMBOL_BOUND_METHOD`, for caching bound method's lookups. When in this state the `as.method`
 //    field field is valid and contains the resolved method's value. Used primarily to distinguish
 //    between a regular method lookup and a bound method lookup, so we can instantiate a brand new
 //    bound method when hitting the cache.
-//  - A field, for caching field's lookups. When in this state the `as.offset` field is valid and
-//    and contains the resolved field's offset inside the object.
+//  - `SYMBOL_FIELD`, for caching field's lookups. When in this state the `as.offset` field is valid
+//    and and contains the resolved field's offset inside the object.
 //  - `SYMBOL_GLOBAL`, for caching global variable's lookups. When in this state the `as.offset`
 //    field is valid and contains the resolved global variable's offset inside the module.
 typedef enum {
