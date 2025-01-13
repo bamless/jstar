@@ -16,7 +16,7 @@
 #include "symbol.h"
 #include "util.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 
 #if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
     #include "disassemble.h"

@@ -4,10 +4,10 @@
 #include <string.h>
 
 #include "gc.h"
-#include "int_hash_table.h"
+#include "int_hashtable.h"
 #include "util.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 #include "vm.h"
 
 #define LIST_DEFAULT_CAPACITY 8

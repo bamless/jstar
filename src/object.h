@@ -6,12 +6,12 @@
 #include <stdio.h>
 
 #include "code.h"
-#include "int_hash_table.h"
+#include "int_hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object_types.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 
 // Top level variables defined in each module
 #define MOD_NAME "__name__"  // The module's name

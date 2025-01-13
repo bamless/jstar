@@ -6,7 +6,7 @@
 #include "disassemble.h"
 #include "object.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 #include "vm.h"
 
 JSR_NATIVE(jsr_printStack) {

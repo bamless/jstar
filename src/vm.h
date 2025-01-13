@@ -13,7 +13,7 @@
 #include "object_types.h"
 #include "symbol.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 
 // Enum encoding special method names needed at runtime
 // Mainly used for operator overloading

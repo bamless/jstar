@@ -1,9 +1,9 @@
-#include "int_hash_table.h"
+#include "int_hashtable.h"
 
 #include <stddef.h>
 
 #include "gc.h"
-#include "hash_table.h"
+#include "hashtable.h"
 #include "object.h"  // IWYU pragma: keep
 
 #define TOMB_MARKER       -1

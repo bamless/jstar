@@ -1,7 +1,7 @@
 #ifndef INT_HASH_TABLE_H
 #define INT_HASH_TABLE_H
 
-#include "hash_table.h"
+#include "hashtable.h"
 #include "jstar.h"
 #include "object_types.h" // IWYU pragma: keep
 

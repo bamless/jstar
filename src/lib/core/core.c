@@ -14,14 +14,14 @@
 #include "../builtins.h"
 #include "gc.h"
 #include "import.h"
-#include "int_hash_table.h"
+#include "int_hashtable.h"
 #include "jstar.h"
 #include "object.h"
 #include "object_types.h"
 #include "profiler.h"
 #include "util.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 #include "vm.h"
 
 #define INT_PRINT_CUTOFF (INT64_C(1) << DBL_MANT_DIG)

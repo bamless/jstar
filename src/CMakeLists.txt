@@ -36,13 +36,11 @@ set(JSTAR_SOURCES
     endianness.h
     gc.c
     gc.h
-    hash_table.h
-    value_hash_table.h
-    value_hash_table.c
-    int_hash_table.h
-    int_hash_table.c
+    hashtable.h
     import.c
     import.h
+    int_hashtable.h
+    int_hashtable.c
     jstar.c
     jstar_limits.h
     object.c
@@ -54,6 +52,8 @@ set(JSTAR_SOURCES
     util.h
     value.c
     value.h
+    value_hashtable.h
+    value_hashtable.c
     vm.c
     vm.h
 )

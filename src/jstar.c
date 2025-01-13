@@ -17,7 +17,7 @@
 #include "profiler.h"
 #include "serialize.h"
 #include "value.h"
-#include "value_hash_table.h"
+#include "value_hashtable.h"
 #include "vm.h"
 
 // -----------------------------------------------------------------------------

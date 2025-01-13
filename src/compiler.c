@@ -9,7 +9,7 @@
 
 #include "code.h"
 #include "gc.h"
-#include "int_hash_table.h"
+#include "int_hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "lib/core/core.h"
