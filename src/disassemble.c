@@ -158,7 +158,7 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     }
     printf("%.4zu %s ", instr, OpcodeNames[c->bytecode[instr]]);
 
-    switch(c->bytecode[instr]) {
+    switch((Opcode)c->bytecode[instr]) {
     case OP_IMPORT:
     case OP_IMPORT_FROM:
     case OP_NEW_CLASS:
@@ -227,7 +227,61 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     case OP_CLOSURE:
         closureInstruction(c, indent, instr);
         break;
-    default:
+    case OP_ADD:
+    case OP_SUB:
+    case OP_MUL:
+    case OP_DIV:
+    case OP_MOD:
+    case OP_NEG:
+    case OP_INVERT:
+    case OP_BAND:
+    case OP_BOR:
+    case OP_XOR:
+    case OP_LSHIFT:
+    case OP_RSHIFT:
+    case OP_EQ:
+    case OP_NOT:
+    case OP_GT:
+    case OP_GE:
+    case OP_LT:
+    case OP_LE:
+    case OP_IS:
+    case OP_POW:
+    case OP_SUBSCR_SET:
+    case OP_SUBSCR_GET:
+    case OP_CALL_0:
+    case OP_CALL_1:
+    case OP_CALL_2:
+    case OP_CALL_3:
+    case OP_CALL_4:
+    case OP_CALL_5:
+    case OP_CALL_6:
+    case OP_CALL_7:
+    case OP_CALL_8:
+    case OP_CALL_9:
+    case OP_CALL_10:
+    case OP_CALL_UNPACK:
+    case OP_FOR_PREP:
+    case OP_FOR_ITER:
+    case OP_NEW_LIST:
+    case OP_APPEND_LIST:
+    case OP_LIST_TO_TUPLE:
+    case OP_NEW_TABLE:
+    case OP_GENERATOR:
+    case OP_GENERATOR_CLOSE:
+    case OP_GET_OBJECT:
+    case OP_SUBCLASS:
+    case OP_RETURN:
+    case OP_YIELD:
+    case OP_NULL:
+    case OP_END_HANDLER:
+    case OP_POP_HANDLER:
+    case OP_RAISE:
+    case OP_POP:
+    case OP_CLOSE_UPVALUE:
+    case OP_DUP:
+    case OP_UNPACK:
+    case OP_END:
         break;
     }
 

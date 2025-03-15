@@ -236,7 +236,11 @@ void jsrExprFree(JStarExpr* e) {
     case JSR_YIELD:
         jsrExprFree(e->as.yield.expr);
         break;
-    default:
+    case JSR_NUMBER:
+    case JSR_BOOL:
+    case JSR_STRING:
+    case JSR_VAR:
+    case JSR_NULL:
         break;
     }
 
