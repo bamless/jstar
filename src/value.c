@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "object.h"
+#include "util.h"
 
 void initValueArray(ValueArray* a) {
     *a = (ValueArray){0};
@@ -14,21 +15,9 @@ void freeValueArray(ValueArray* a) {
     free(a->arr);
 }
 
-static void grow(ValueArray* a) {
-    a->capacity = a->capacity ? a->capacity * VAL_ARR_GROW_FAC : VAL_ARR_DEF_SZ;
-    a->arr = realloc(a->arr, a->capacity * sizeof(Value));
-}
-
-static void ensureCapacity(ValueArray* a) {
-    if(a->size + 1 > a->capacity) {
-        grow(a);
-    }
-}
-
 int valueArrayAppend(ValueArray* a, Value v) {
-    ensureCapacity(a);
-    a->arr[a->size] = v;
-    return a->size++;
+    ARRAY_APPEND(a, size, capacity, arr, v);
+    return a->size - 1;
 }
 
 void printValue(Value val) {

@@ -14,9 +14,7 @@
 
 static void bufferGrow(JStarBuffer* b, size_t len) {
     size_t newSize = b->capacity;
-    while(newSize < b->size + len) {
-        newSize <<= 1;
-    }
+    while(newSize < b->size + len) newSize *= 2;
     char* newData = gcAlloc(b->vm, b->data, b->capacity, newSize);
     b->capacity = newSize;
     b->data = newData;

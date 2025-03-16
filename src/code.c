@@ -4,9 +4,7 @@
 #include <stdint.h>
 
 #include "conf.h"
-
-#define CODE_DEF_SIZE  8
-#define CODE_GROW_FACT 2
+#include "util.h"
 
 void initCode(Code* c) {
     *c = (Code){0};
@@ -20,32 +18,10 @@ void freeCode(Code* c) {
     free(c->symbols);
 }
 
-static void growCode(Code* c) {
-    c->capacity = c->capacity ? c->capacity * CODE_GROW_FACT : CODE_DEF_SIZE;
-    c->bytecode = realloc(c->bytecode, c->capacity * sizeof(uint8_t));
-}
-
-static void growLines(Code* c) {
-    c->lineCapacity = c->lineCapacity ? c->lineCapacity * CODE_GROW_FACT : CODE_DEF_SIZE;
-    c->lines = realloc(c->lines, c->lineCapacity * sizeof(int));
-}
-
-static bool shouldGrow(const Code* c) {
-    return c->size + 1 > c->capacity;
-}
-
-static void ensureCapacity(Code* c) {
-    if(shouldGrow(c)) {
-        growCode(c);
-        growLines(c);
-    }
-}
-
 size_t writeByte(Code* c, uint8_t b, int line) {
-    ensureCapacity(c);
-    c->bytecode[c->size] = b;
-    c->lines[c->lineSize++] = line;
-    return c->size++;
+    ARRAY_APPEND(c, size, capacity, bytecode, b);
+    ARRAY_APPEND(c, lineSize, lineCapacity, lines, line);
+    return c->size - 1;
 }
 
 int getBytecodeSrcLine(const Code* c, size_t index) {
@@ -67,18 +43,8 @@ int addConstant(Code* c, Value constant) {
     return valueArrayAppend(&c->consts, constant);
 }
 
-static bool shouldGrowSymbols(const Code* c) {
-    return c->symbolCount + 1 > c->symbolCapacity;
-}
-
 int addSymbol(Code* c, uint16_t constant) {
     if(c->symbolCount == UINT16_MAX) return -1;
-
-    if(shouldGrowSymbols(c)) {
-        c->symbolCapacity = c->symbolCapacity ? c->symbolCapacity * CODE_GROW_FACT : CODE_DEF_SIZE;
-        c->symbols = realloc(c->symbols, c->symbolCapacity * sizeof(Symbol));
-    }
-
-    c->symbols[c->symbolCount++] = (Symbol){.constant = constant};
+    ARRAY_APPEND(c, symbolCount, symbolCapacity, symbols, (Symbol){.constant = constant});
     return c->symbolCount - 1;
 }

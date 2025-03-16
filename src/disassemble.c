@@ -282,6 +282,7 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     case OP_DUP:
     case OP_UNPACK:
     case OP_END:
+        // Nothing to do for no-arg instructions
         break;
     }
 

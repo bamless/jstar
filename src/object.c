@@ -10,11 +10,6 @@
 #include "value_hashtable.h"
 #include "vm.h"
 
-#define LIST_DEFAULT_CAPACITY 8
-#define LIST_GROW_RATE        2
-#define ST_DEFAULT_CAPACITY   2
-#define ST_GROW_RATE          2
-
 // -----------------------------------------------------------------------------
 // OBJECT ALLOCATION FUNCTIONS
 // -----------------------------------------------------------------------------
@@ -335,13 +330,11 @@ void freeObject(JStarVM* vm, Obj* o) {
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-#define MAYBE_GROW_VALUES(vm, off, arr, size)                                     \
+#define GROW_VALUES(vm, off, arr, size)                                           \
     if((size_t)off >= (size_t)size) {                                             \
         size_t oldSize = size;                                                    \
         size_t newSize = oldSize ? oldSize : 8;                                   \
-        while((size_t)offset >= newSize) {                                        \
-            newSize *= 2;                                                         \
-        }                                                                         \
+        while((size_t)offset >= newSize) newSize *= 2;                            \
         arr = gcAlloc(vm, arr, sizeof(Value) * oldSize, sizeof(Value) * newSize); \
         for(size_t i = oldSize; i < newSize; i++) {                               \
             arr[i] = NULL_VAL;                                                    \
@@ -356,7 +349,7 @@ bool instanceGetFieldAtOffset(ObjInstance* inst, int offset, Value* out) {
 }
 
 void instanceSetFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
-    MAYBE_GROW_VALUES(vm, offset, inst->fields, inst->capacity);
+    GROW_VALUES(vm, offset, inst->fields, inst->capacity);
     inst->fields[offset] = val;
 }
 
@@ -393,13 +386,13 @@ int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjStr
 void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* val) {
     // This is ok since modules own their globals array and they are always keyed by value, not
     // by class (differently from instances). This means that the `globals` array is guaranteed to
-    // have enough space for `offset` (if there aren't any bugs)
+    // have enough space for `offset`
     JSR_ASSERT(offset < mod->globalsCount, "Global offset out of bounds");
     *val = mod->globals[offset];
 }
 
 void moduleSetGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
-    MAYBE_GROW_VALUES(vm, offset, mod->globals, mod->globalsCapacity);
+    GROW_VALUES(vm, offset, mod->globals, mod->globalsCapacity);
     if(offset >= mod->globalsCount) mod->globalsCount = offset + 1;
     mod->globals[offset] = val;
 }
@@ -434,43 +427,22 @@ int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key) {
     return offset >= mod->globalsCount ? -1 : offset;
 }
 
-static void growList(JStarVM* vm, ObjList* lst) {
-    size_t oldSize = sizeof(Value) * lst->capacity;
-    lst->capacity = lst->capacity ? lst->capacity * LIST_GROW_RATE : LIST_DEFAULT_CAPACITY;
-    lst->arr = gcAlloc(vm, lst->arr, oldSize, sizeof(Value) * lst->capacity);
-}
-
-static void ensureListCapacity(JStarVM* vm, ObjList* lst, Value val) {
-    if(lst->size + 1 > lst->capacity) {
-        // A GC may kick in, so push val as root
-        push(vm, val);
-        growList(vm, lst);
-        pop(vm);
-    }
-}
-
 void listAppend(JStarVM* vm, ObjList* lst, Value val) {
-    ensureListCapacity(vm, lst, val);
-    lst->arr[lst->size++] = val;
+    push(vm, val);
+    ARRAY_GC_APPEND(vm, lst, size, capacity, arr, val);
+    pop(vm);
 }
 
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
-    ensureListCapacity(vm, lst, val);
-
-    Value* arr = lst->arr;
-    for(size_t i = lst->size; i > index; i--) {
-        arr[i] = arr[i - 1];
-    }
-
-    arr[index] = val;
-    lst->size++;
+    JSR_ASSERT(index <= lst->size, "Index out of bounds");
+    ARRAY_GC_APPEND(vm, lst, size, capacity, arr, NULL_VAL);
+    memmove(lst->arr + index + 1, lst->arr + index, sizeof(Value) * (lst->size - index - 1));
+    lst->arr[index] = val;
 }
 
 void listRemove(JStarVM* vm, ObjList* lst, size_t index) {
-    Value* arr = lst->arr;
-    for(size_t i = index + 1; i < lst->size; i++) {
-        arr[i - 1] = arr[i];
-    }
+    JSR_ASSERT(index < lst->size, "Index out of bounds");
+    memmove(lst->arr + index, lst->arr + index + 1, sizeof(Value) * (lst->size - index - 1));
     lst->size--;
 }
 
@@ -487,27 +459,11 @@ bool stringEquals(ObjString* s1, ObjString* s2) {
     return s1->length == s2->length && memcmp(s1->data, s2->data, s1->length) == 0;
 }
 
-static void growFrameRecord(JStarVM* vm, ObjStackTrace* st) {
-    size_t oldSize = sizeof(FrameRecord) * st->recordCapacity;
-    st->recordCapacity = st->records ? st->recordCapacity * ST_GROW_RATE : ST_DEFAULT_CAPACITY;
-    st->records = gcAlloc(vm, st->records, oldSize, sizeof(FrameRecord) * st->recordCapacity);
-}
-
-static void ensureFrameRecordCapacity(JStarVM* vm, ObjStackTrace* st) {
-    if(st->recordSize + 1 > st->recordCapacity) {
-        growFrameRecord(vm, st);
-    }
-}
-
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
     if(st->lastTracedFrame == depth) return;
     st->lastTracedFrame = depth;
 
-    ensureFrameRecordCapacity(vm, st);
-    FrameRecord* record = &st->records[st->recordSize++];
-    record->funcName = NULL;
-    record->moduleName = NULL;
-
+    FrameRecord record = {0};
     switch(f->fn->type) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)f->fn;
@@ -519,25 +475,27 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
             op = code->size - 1;
         }
 
-        record->line = getBytecodeSrcLine(code, op);
-        record->moduleName = fn->proto.module->name;
-        record->funcName = fn->proto.name;
+        record.line = getBytecodeSrcLine(code, op);
+        record.moduleName = fn->proto.module->name;
+        record.funcName = fn->proto.name;
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* nat = (ObjNative*)f->fn;
-        record->line = -1;
-        record->moduleName = nat->proto.module->name;
-        record->funcName = nat->proto.name;
+        record.line = -1;
+        record.moduleName = nat->proto.module->name;
+        record.funcName = nat->proto.name;
         break;
     }
     default:
         JSR_UNREACHABLE();
     }
 
-    if(!record->funcName) {
-        record->funcName = copyString(vm, "<main>", 6);
+    if(!record.funcName) {
+        record.funcName = copyString(vm, "<main>", 6);
     }
+
+    ARRAY_GC_APPEND(vm, st, recordSize, recordCapacity, records, record);
 }
 
 Value* getValues(Obj* obj, size_t* size) {
