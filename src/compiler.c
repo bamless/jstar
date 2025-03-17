@@ -135,24 +135,18 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
                          const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
                          ext_vector(FwdRef) * fwdRefs, const JStarStmt* ast) {
     vm->currCompiler = c;
-    c->vm = vm;
-    c->module = module;
-    c->file = file;
-    c->prev = prev;
-    c->type = type;
-    c->globals = globals;
-    c->fwdRefs = fwdRefs;
-    c->ast = ast;
-    // 1 for the receiver (always present)
-    c->stackUsage = 1;
-    c->func = NULL;
-    c->depth = 0;
-    c->localsCount = 0;
-    c->loops = NULL;
-    c->tryDepth = 0;
-    c->tryBlocks = NULL;
-    c->hadError = false;
-    c->syntheticNames = NULL;
+    *c = (Compiler) {
+        .vm = vm,
+        .module = module,
+        .file = file,
+        .prev = prev,
+        .type = type,
+        .globals = globals,
+        .fwdRefs = fwdRefs,
+        .ast = ast,
+        // 1 for the receiver (always present)
+        .stackUsage = 1,
+    };
 }
 
 static void endCompiler(Compiler* c) {
