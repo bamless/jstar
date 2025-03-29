@@ -191,11 +191,8 @@ static bool isInt(double n) {
 static bool isSymbolCached(JStarVM* vm, Obj* key, const SymbolCache* sym) {
     bool hit = sym->key == key;
 #ifdef JSTAR_DBG_CACHE_STATS
-    if(hit) {
-        vm->cacheHits++;
-    } else {
-        vm->cacheMisses++;
-    }
+    if(hit) vm->cacheHits++;
+    else vm->cacheMisses++;
 #endif
     return hit;
 }

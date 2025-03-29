@@ -2,7 +2,7 @@
 BasedOnStyle: Google
 
 AllowShortFunctionsOnASingleLine: Inline
-AllowShortIfStatementsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 
 ColumnLimit: 100
 IndentWidth: 4
