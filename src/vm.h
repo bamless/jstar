@@ -209,7 +209,7 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
     case FALSE_BITS:
     case TRUE_BITS:
         return vm->boolClass;
-    default:
+    case END_BITS:
         JSR_UNREACHABLE();
     }
 #else
@@ -223,10 +223,10 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
     case VAL_HANDLE:
     case VAL_NULL:
         return vm->nullClass;
-    default:
-        JSR_UNREACHABLE();
     }
 #endif
+
+    JSR_UNREACHABLE();
 }
 
 inline bool isSubClass(const JStarVM* vm, ObjClass* sub, ObjClass* super) {

@@ -293,7 +293,12 @@ static bool deserializeConstLiteral(Deserializer* d, ConstType type, Value* out)
         *out = OBJ_VAL(str);
         return true;
     }
+    case CONST_FUN:
+    case CONST_NAT:
+        // CONST_FUN and CONST_NAT should be already handled in deserializeConstants
+        return false;
     default:
+        // Malformed constant type
         return false;
     }
 }

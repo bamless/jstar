@@ -135,7 +135,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
                          const char* file, FuncType type, ext_vector(JStarIdentifier) * globals,
                          ext_vector(FwdRef) * fwdRefs, const JStarStmt* ast) {
     vm->currCompiler = c;
-    *c = (Compiler) {
+    *c = (Compiler){
         .vm = vm,
         .module = module,
         .file = file,
@@ -465,6 +465,7 @@ static void defineVar(Compiler* c, const Variable* var, int line) {
         initializeVar(c, var);
         break;
     case VAR_ERR:
+        // Nothing to do, error already reported
         break;
     case VAR_UPVALUE:
         JSR_UNREACHABLE();

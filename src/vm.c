@@ -787,9 +787,9 @@ static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache*
     case SYMBOL_GLOBAL:
         moduleGetGlobalAtOffset((ObjModule*)key, sym->as.offset, out);
         return true;
-    default:
-        JSR_UNREACHABLE();
     }
+
+    JSR_UNREACHABLE();
 }
 
 static bool getCachedField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, const SymbolCache* sym,
@@ -1954,9 +1954,7 @@ op_return:
                 break;
             case CAUSE_RETURN:
                 // Set generators as completed
-                if(frame->gen) {
-                    frame->gen->state = GEN_DONE;
-                }
+                if(frame->gen) frame->gen->state = GEN_DONE;
                 // Return will execute ensure handlers
                 goto op_return;
             default:

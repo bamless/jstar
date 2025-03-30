@@ -517,6 +517,8 @@ Value* getValues(Obj* obj, size_t* size) {
 }
 
 Prototype* getPrototype(Obj* fn) {
+    JSR_ASSERT(fn->type == OBJ_CLOSURE || fn->type == OBJ_NATIVE || fn->type == OBJ_BOUND_METHOD,
+               "Object isn't a Closure, Native or BoundMethod.");
     switch(fn->type) {
     case OBJ_CLOSURE:
         return &((ObjClosure*)fn)->fn->proto;
