@@ -8,6 +8,7 @@
 #include "int_hashtable.h"
 #include "object.h"
 #include "profiler.h"
+#include "util.h"
 #include "value.h"
 #include "value_hashtable.h"
 #include "vm.h"
@@ -61,19 +62,6 @@ void sweepObjects(JStarVM* vm) {
     }
 }
 
-static void growReached(JStarVM* vm) {
-    PROFILE_FUNC()
-    vm->reachedCapacity *= REACHED_GROW_RATE;
-    vm->reachedStack = realloc(vm->reachedStack, sizeof(Obj*) * vm->reachedCapacity);
-}
-
-static void addReachedObject(JStarVM* vm, Obj* o) {
-    if(vm->reachedCount + 1 > vm->reachedCapacity) {
-        growReached(vm);
-    }
-    vm->reachedStack[vm->reachedCount++] = o;
-}
-
 void reachObject(JStarVM* vm, Obj* o) {
     if(o == NULL || o->reached) return;
 
@@ -84,7 +72,7 @@ void reachObject(JStarVM* vm, Obj* o) {
 #endif
 
     o->reached = true;
-    addReachedObject(vm, o);
+    ARRAY_APPEND(vm, reachedCount, reachedCapacity, reachedStack, o);
 }
 
 void reachValue(JStarVM* vm, Value v) {

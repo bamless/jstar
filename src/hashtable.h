@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <stdlib.h>  // IWYU pragma: keep
 #include <string.h>
 
 /**
@@ -41,6 +41,10 @@
 
 #define DEFINE_HASH_TABLE(name, V, TOMB_MARKER, INVALID_VAL, IS_INVALID_VAL, GROW_FACTOR,  \
                           INITIAL_CAPACITY)                                                \
+                                                                                           \
+    JSR_STATIC_ASSERT(((INITIAL_CAPACITY) & ((INITIAL_CAPACITY) - 1)) == 0,                \
+                      "Initial capacity must be a power of 2");                            \
+                                                                                           \
     void init##name##HashTable(name##HashTable* t) {                                       \
         *t = (name##HashTable){0};                                                         \
     }                                                                                      \
