@@ -705,7 +705,7 @@ static ext_vector(JStarExpr*) parseDecorators(Parser* p) {
 }
 
 static void freeDecorators(ext_vector(JStarExpr*) decorators) {
-    ext_vec_foreach(JStarExpr * *e, decorators) {
+    ext_vec_foreach(JStarExpr** e, decorators) {
         jsrExprFree(*e);
     }
     ext_vec_free(decorators);
