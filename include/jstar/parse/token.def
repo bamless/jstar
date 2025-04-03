@@ -85,5 +85,7 @@ TOKEN(TOK_WITH, "with")
 TOKEN(TOK_UNTERMINATED_STR, "unterminated string")
 TOKEN(TOK_NEWLINE, "newline")
 TOKEN(TOK_ERR, "error")
+
+// This must be the last token
 TOKEN(TOK_EOF, "end of file")
 #undef TOKEN

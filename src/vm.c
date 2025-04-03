@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "conf.h"
 #include "gc.h"
 #include "import.h"
 #include "jstar.h"
@@ -1947,18 +1948,16 @@ op_return:
     
     TARGET(OP_END_HANDLER): {
         if(!IS_NULL(peek(vm))) { // Is the exception still unhandled?
+            JSR_ASSERT(IS_NUM(peek(vm)), "Top of stack isn't an unwind cause");
             UnwindCause cause = AS_NUM(pop(vm));
+            JSR_ASSERT(cause == CAUSE_EXCEPT || cause == CAUSE_RETURN, "Invalid cause value");
             switch(cause) {
             case CAUSE_EXCEPT:
                 UNWIND_STACK(); // Continue unwinding
                 break;
             case CAUSE_RETURN:
-                // Set generators as completed
                 if(frame->gen) frame->gen->state = GEN_DONE;
-                // Return will execute ensure handlers
-                goto op_return;
-            default:
-                JSR_UNREACHABLE();
+                goto op_return; // Return will execute ensure handlers
             }
         }
         DISPATCH();
