@@ -5,7 +5,9 @@
 #include <string.h>
 
 #include "jstar/jstar.h"
+#include "jstar/parse/lex.h"
 
+JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed, update keywords if needed");
 // NULL terminated array of all J* keywords.
 static const char* keywords[] = {
     "or",     "if",     "in",     "as",     "is",       "and",   "for",    "fun",    "construct",

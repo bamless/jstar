@@ -22,6 +22,8 @@
 #define REPL_PRINT   "__replprint"
 #define INDENT       "    "
 
+JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed, update tokenDepth if needed");
+// Token depth table for tracking the number of open blocks in the REPL.
 static const int tokenDepth[TOK_EOF] = {
     // Tokens that start a new block
     [TOK_LSQUARE] = 1,
@@ -241,7 +243,7 @@ static JStarResult doRepl(void) {
         PROFILE_FUNC()
 
         registerPrintFunction();
-        
+
         if(!opts.skipVersion) {
             printVersion();
         }

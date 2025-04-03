@@ -14,7 +14,7 @@
 #define CLASS_NAME_COLOR      REPLXX_COLOR_YELLOW
 #define IDENTIFIER_CALL_COLOR REPLXX_COLOR_YELLOW
 
-JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count hash changed, update highlighter");
+JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed, update highlighter");
 static const ReplxxColor theme[TOK_EOF] = {
     // Keywords
     #define KEYWORD_COLOR REPLXX_COLOR_BLUE
