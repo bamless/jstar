@@ -291,7 +291,7 @@ static void parseArguments(int argc, char** argv) {
         OPT_HELP(),
         OPT_GROUP("Options"),
         OPT_BOOLEAN('V', "skip-version", &opts.skipVersion, "Don't print version information when entering the REPL"),
-        OPT_STRING( 'e', "exec", &opts.execStmt, "Execute the given statement. If 'script' is provided it is executed after this"),
+        OPT_STRING('e', "exec", &opts.execStmt, "Execute the given statement. If 'script' is provided it is executed after this"),
         OPT_BOOLEAN('i', "interactive", &opts.interactive, "Enter the REPL after executing 'script' and/or '-e' statement"),
         OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv, "Ignore environment variables such as JSTARPATH"),
         OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring. Hints are disabled as well"),
