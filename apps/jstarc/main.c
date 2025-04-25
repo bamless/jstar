@@ -262,38 +262,28 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
 
 // Parse the app arguments into an Options struct
 static void parseArguments(int argc, char** argv) {
-    opts = (Options){0};
-
     static const char* const usage[] = {
         "jstarc [options] <file>",
         "jstarc [options] <directory>",
         NULL,
     };
 
-    struct argparse_option options[] = {
+    static struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
-        OPT_STRING('o', "output", &opts.output, "Output file or directory", 0, 0, 0),
-        OPT_BOOLEAN('r', "recursive", &opts.recursive,
-                    "Recursively compile/disassemble files in <directory>, does nothing if passed "
-                    "argument is a <file>",
-                    0, 0, 0),
-        OPT_BOOLEAN('l', "list", &opts.list,
-                    "List the compiled bytecode instead of saving it on file", 0, 0, 0),
-        OPT_BOOLEAN('d', "disassemble", &opts.disassemble,
-                    "Disassemble already compiled jsc files and list their content", 0, 0, 0),
-        OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
-                    "Compile files but do not generate output files. Used for syntax checking", 0,
-                    0, 0),
-        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
-                    0),
+        OPT_STRING('o', "output", &opts.output, "Output file or directory"),
+        OPT_BOOLEAN('r', "recursive", &opts.recursive, "Recursively compile/disassemble files in <directory>, does nothing if passed argument is a <file>"),
+        OPT_BOOLEAN('l', "list", &opts.list, "List the compiled bytecode instead of saving it on file"),
+        OPT_BOOLEAN('d', "disassemble", &opts.disassemble, "Disassemble already compiled jsc files and list their content"),
+        OPT_BOOLEAN('c', "compile-only", &opts.compileOnly, "Compile files but do not generate output files. Used for syntax checking"),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit"),
         OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, 0);
     argparse_describe(&argparse, "jstarc compiles J* source files to bytecode", NULL);
-    int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
+    int args = argparse_parse(&argparse, argc, (const char**)argv);
 
     // Bail out early if we only need to show the version
     if(opts.showVersion) {
@@ -301,7 +291,7 @@ static void parseArguments(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
-    if(nonOpts != 1) {
+    if(args != 1) {
         argparse_usage(&argparse);
         exit(EXIT_FAILURE);
     }

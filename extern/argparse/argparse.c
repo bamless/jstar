@@ -43,7 +43,7 @@ argparse_error(struct argparse *self, const struct argparse_option *opt,
     } else {
         fprintf(stderr, "error: option `-%c` %s\n", opt->short_name, reason);
     }
-    exit(1);
+    exit(EXIT_FAILURE);
 }
 
 static int
@@ -93,9 +93,9 @@ argparse_getvalue(struct argparse *self, const struct argparse_option *opt,
         } else {
             argparse_error(self, opt, "requires a value", flags);
         }
-        if (errno)
-            argparse_error(self, opt, strerror(errno), flags);
-        if (s[0] != '\0')
+        if (errno == ERANGE)
+            argparse_error(self, opt, "numerical result out of range", flags);
+        if (s[0] != '\0') // no digits or contains invalid characters
             argparse_error(self, opt, "expects an integer value", flags);
         break;
     case ARGPARSE_OPT_FLOAT:
@@ -109,9 +109,9 @@ argparse_getvalue(struct argparse *self, const struct argparse_option *opt,
         } else {
             argparse_error(self, opt, "requires a value", flags);
         }
-        if (errno)
-            argparse_error(self, opt, strerror(errno), flags);
-        if (s[0] != '\0')
+        if (errno == ERANGE)
+            argparse_error(self, opt, "numerical result out of range", flags);
+        if (s[0] != '\0') // no digits or contains invalid characters
             argparse_error(self, opt, "expects a numerical value", flags);
         break;
     default:
@@ -122,7 +122,6 @@ skipped:
     if (opt->callback) {
         return opt->callback(self, opt);
     }
-
     return 0;
 }
 
@@ -131,17 +130,17 @@ argparse_options_check(const struct argparse_option *options)
 {
     for (; options->type != ARGPARSE_OPT_END; options++) {
         switch (options->type) {
-        case ARGPARSE_OPT_END:
-        case ARGPARSE_OPT_BOOLEAN:
-        case ARGPARSE_OPT_BIT:
-        case ARGPARSE_OPT_INTEGER:
-        case ARGPARSE_OPT_FLOAT:
-        case ARGPARSE_OPT_STRING:
-        case ARGPARSE_OPT_GROUP:
-            continue;
-        default:
-            fprintf(stderr, "wrong option type: %d", options->type);
-            break;
+            case ARGPARSE_OPT_END:
+            case ARGPARSE_OPT_BOOLEAN:
+            case ARGPARSE_OPT_BIT:
+            case ARGPARSE_OPT_INTEGER:
+            case ARGPARSE_OPT_FLOAT:
+            case ARGPARSE_OPT_STRING:
+            case ARGPARSE_OPT_GROUP:
+                continue;
+            default:
+                fprintf(stderr, "wrong option type: %d", options->type);
+                break;
         }
     }
 }
@@ -274,7 +273,9 @@ argparse_parse(struct argparse *self, int argc, const char **argv)
 unknown:
         fprintf(stderr, "error: unknown option `%s`\n", self->argv[0]);
         argparse_usage(self);
-        exit(1);
+        if (!(self->flags & ARGPARSE_IGNORE_UNKNOWN_ARGS)) {
+            exit(EXIT_FAILURE);
+        }
     }
 
 end:
@@ -289,9 +290,10 @@ void
 argparse_usage(struct argparse *self)
 {
     if (self->usages) {
-        fprintf(stdout, "Usage: %s\n", *self->usages++);
-        while (*self->usages && **self->usages)
-            fprintf(stdout, "   or: %s\n", *self->usages++);
+        const char *const *usages = self->usages;
+        fprintf(stdout, "Usage: %s\n", *usages++);
+        while (*usages && **usages)
+            fprintf(stdout, "   or: %s\n", *usages++);
     } else {
         fprintf(stdout, "Usage:\n");
     }
@@ -337,7 +339,7 @@ argparse_usage(struct argparse *self)
     options = self->options;
     for (; options->type != ARGPARSE_OPT_END; options++) {
         size_t pos = 0;
-        int pad    = 0;
+        size_t pad = 0;
         if (options->type == ARGPARSE_OPT_GROUP) {
             fputc('\n', stdout);
             fprintf(stdout, "%s", options->help);
@@ -367,7 +369,7 @@ argparse_usage(struct argparse *self)
             fputc('\n', stdout);
             pad = usage_opts_width;
         }
-        fprintf(stdout, "%*s%s\n", pad + 2, "", options->help);
+        fprintf(stdout, "%*s%s\n", (int)pad + 2, "", options->help);
     }
 
     // print epilog
@@ -376,9 +378,17 @@ argparse_usage(struct argparse *self)
 }
 
 int
-argparse_help_cb(struct argparse *self, const struct argparse_option *option)
+argparse_help_cb_no_exit(struct argparse *self,
+                         const struct argparse_option *option)
 {
     (void)option;
     argparse_usage(self);
-    exit(0);
+    return (EXIT_SUCCESS);
+}
+
+int
+argparse_help_cb(struct argparse *self, const struct argparse_option *option)
+{
+    argparse_help_cb_no_exit(self, option);
+    exit(EXIT_SUCCESS);
 }

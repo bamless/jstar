@@ -282,37 +282,28 @@ static JStarResult doRepl(void) {
 
 // Parse the app arguments into an Option struct
 static void parseArguments(int argc, char** argv) {
-    opts = (Options){0};
-
     static const char* const usage[] = {
         "jstar [options] [script [arguments...]]",
         NULL,
     };
 
-    struct argparse_option options[] = {
+    static struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
-        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
-                    "Don't print version information when entering the REPL", 0, 0, 0),
-        OPT_STRING('e', "exec", &opts.execStmt,
-                   "Execute the given statement. If 'script' is provided it is executed after this",
-                   0, 0, 0),
-        OPT_BOOLEAN('i', "interactive", &opts.interactive,
-                    "Enter the REPL after executing 'script' and/or '-e' statement", 0, 0, 0),
-        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
-                    "Ignore environment variables such as JSTARPATH", 0, 0, 0),
-        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
-                    "Disable output coloring. Hints are disabled as well", 0, 0, 0),
-        OPT_BOOLEAN('H', "no-hints", &opts.disableHints, "Disable hinting support", 0, 0, 0),
-        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0, 0,
-                    0),
+        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion, "Don't print version information when entering the REPL"),
+        OPT_STRING( 'e', "exec", &opts.execStmt, "Execute the given statement. If 'script' is provided it is executed after this"),
+        OPT_BOOLEAN('i', "interactive", &opts.interactive, "Enter the REPL after executing 'script' and/or '-e' statement"),
+        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv, "Ignore environment variables such as JSTARPATH"),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring. Hints are disabled as well"),
+        OPT_BOOLEAN('H', "no-hints", &opts.disableHints, "Disable hinting support"),
+        OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0),
         OPT_END(),
     };
 
     struct argparse argparse;
     argparse_init(&argparse, options, usage, ARGPARSE_STOP_AT_NON_OPTION);
     argparse_describe(&argparse, "J* a lightweight scripting language", NULL);
-    int nonOpts = argparse_parse(&argparse, argc, (const char**)argv);
+    int args = argparse_parse(&argparse, argc, (const char**)argv);
 
     // Bail out early if we only need to show the version
     if(opts.showVersion) {
@@ -320,13 +311,13 @@ static void parseArguments(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
-    if(nonOpts > 0) {
+    if(args > 0) {
         opts.script = argv[0];
     }
 
-    if(nonOpts > 1) {
+    if(args > 1) {
         opts.args = &argv[1];
-        opts.argsCount = nonOpts - 1;
+        opts.argsCount = args - 1;
     }
 }
 
