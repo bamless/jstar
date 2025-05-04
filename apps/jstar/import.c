@@ -178,6 +178,7 @@ static void* readFile(const Path* p, size_t* length) {
 
     if(fread(data, 1, size, f) != *length) {
         fclose(f);
+        free(data);
         return NULL;
     }
 
