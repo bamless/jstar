@@ -19,7 +19,7 @@
 #define STATIC_STR_SIZE 4096
 #define HEADER_MAGIC    0xb5
 
-static const uint8_t HEADER[4] = "JsrC";
+static const uint8_t HEADER[] = {'J', 's', 'r', 'C'};
 
 typedef struct Header {
     uint8_t magic;
