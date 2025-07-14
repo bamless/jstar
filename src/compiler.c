@@ -2122,7 +2122,6 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
         compileNativeDecl(c, s);
         break;
     case JSR_EXCEPT:
-    default:
         JSR_UNREACHABLE();
     }
 }
