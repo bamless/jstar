@@ -384,10 +384,10 @@ int instanceSetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* k
     }
 }
 
-bool instanceGetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* val) {
+bool instanceGetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* out) {
     int offset = instanceGetFieldOffset(vm, cls, inst, key);
     if(offset == -1) return false;
-    *val = inst->fields[offset];
+    *out = inst->fields[offset];
     return true;
 }
 
@@ -397,9 +397,9 @@ int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjStr
     return (size_t)offset >= inst->capacity ? -1 : offset;
 }
 
-void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* val) {
+void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* out) {
     JSR_ASSERT(offset < mod->globalsCount, "Global offset out of bounds");
-    *val = mod->globals[offset];
+    *out = mod->globals[offset];
 }
 
 void moduleSetGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
@@ -425,10 +425,10 @@ int moduleSetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val) {
     }
 }
 
-bool moduleGetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* val) {
+bool moduleGetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* out) {
     int offset = moduleGetGlobalOffset(vm, mod, key);
     if(offset == -1) return false;
-    *val = mod->globals[offset];
+    *out = mod->globals[offset];
     return true;
 }
 
