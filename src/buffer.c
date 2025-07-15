@@ -125,7 +125,8 @@ void jsrBufferClear(JStarBuffer* b) {
 }
 
 void jsrBufferPush(JStarBuffer* b) {
-    push(b->vm, OBJ_VAL(jsrBufferToString(b)));
+    JStarVM* vm = b->vm;
+    push(vm, OBJ_VAL(jsrBufferToString(b)));
 }
 
 void jsrBufferFree(JStarBuffer* b) {
