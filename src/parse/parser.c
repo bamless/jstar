@@ -1076,7 +1076,9 @@ static JStarExpr* literal(Parser* p) {
         advance(p);
         return jsrNullLiteral(line);
     case TOK_NUMBER: {
-        JStarExpr* e = jsrNumLiteral(line, strtod(tok->lexeme, NULL));
+        char* endptr;
+        JStarExpr* e = jsrNumLiteral(line, strtod(tok->lexeme, &endptr));
+        JSR_ASSERT(endptr == tok->lexeme + tok->length, "Couldn't parse number token");
         advance(p);
         return e;
     }

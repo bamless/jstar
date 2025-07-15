@@ -86,12 +86,12 @@
 
     #define JSR_ASSERT(cond, msg)                                                               \
         ((cond) ? ((void)0)                                                                     \
-                : (fprintf(stderr, "%s [line:%d] in %s(): %s failed: %s\n", __FILE__, __LINE__, \
+                : (fprintf(stderr, "%s:%d: error in %s() %s failed: %s\n", __FILE__, __LINE__, \
                            __func__, #cond, msg),                                               \
                    abort()))
 
     #define JSR_UNREACHABLE()                                                                     \
-        (fprintf(stderr, "%s [line:%d] in %s(): Reached unreachable code.\n", __FILE__, __LINE__, \
+        (fprintf(stderr, "%s:%d: error in %s() reached unreachable code.\n", __FILE__, __LINE__, \
                  __func__),                                                                       \
          abort())
 #else
