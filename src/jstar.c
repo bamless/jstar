@@ -566,11 +566,7 @@ bool jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
     if(!mod) return false;
 
     ObjString* nativeName = copyString(vm, name, strlen(name));
-    push(vm, OBJ_VAL(nativeName));
-    ObjNative* native = newNative(vm, mod, argc, 0, false);
-    native->proto.name = nativeName;
-    native->fn = nat;
-    pop(vm);
+    ObjNative* native = newNative(vm, mod, nativeName, argc, 0, false, nat);
 
     push(vm, OBJ_VAL(native));
     return true;

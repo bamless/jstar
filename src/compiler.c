@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "code.h"
+#include "conf.h"
 #include "gc.h"
 #include "int_hashtable.h"
 #include "jstar.h"
@@ -151,7 +152,7 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
 
 static void endCompiler(Compiler* c) {
     ext_vec_foreach(char** it, c->syntheticNames) {
-        free(*it);
+        GC_FREE_ARRAY(c->vm, char, *it, sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
     }
     ext_vec_free(c->syntheticNames);
 
@@ -1712,12 +1713,11 @@ static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx,
         break;
     }
     case UNPACK: {
-        char* name = malloc(sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
+        char* name = GC_ALLOC(c->vm, sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
         sprintf(name, UNPACK_ARG_FMT, argIdx);
         ext_vec_push_back(c->syntheticNames, name);
 
         JStarIdentifier id = createIdentifier(name);
-
         Variable var = declareVar(c, &id, false, line);
         defineVar(c, &var, line);
         break;
@@ -1762,17 +1762,12 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     const JStarIdentifier* varargName = &s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = varargName->name != NULL;
 
-    // Allocate a new function. We need to push `name` on the stack in case a collection happens
-    push(c->vm, OBJ_VAL(name));
-    c->func = newFunction(c->vm, m, arity, defaults, isVararg);
-    c->func->proto.name = name;
-    pop(c->vm);
-
+    c->func = newFunction(c->vm, m, name, arity, defaults, isVararg);
     addFunctionDefaults(c, &c->func->proto, s->as.decl.as.fun.formalArgs.defaults);
 
-    // Add the receiver.
-    // In the case of functions the receiver is the function itself.
-    // In the case of methods the receiver is the class instance on which the method was called.
+    // The receiver:
+    //  - In the case of functions the receiver is the function itself.
+    //  - In the case of methods the receiver is the class instance on which the method was called.
     JStarIdentifier receiverName = createIdentifier("this");
     int receiverLocal = addLocal(c, &receiverName, s->line);
     initializeLocal(c, receiverLocal);
@@ -1818,11 +1813,7 @@ static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, const JStar
     const JStarIdentifier* varargName = &s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = varargName->name != NULL;
 
-    // Allocate a new native. We need to push `name` on the stack in case a collection happens
-    push(c->vm, OBJ_VAL(name));
-    ObjNative* native = newNative(c->vm, c->func->proto.module, arity, defaults, isVararg);
-    native->proto.name = name;
-    pop(c->vm);
+    ObjNative* native = newNative(c->vm, c->func->proto.module, name, arity, defaults, isVararg, NULL);
 
     // Push the native on the stack in case `addFunctionDefaults` triggers a collection
     push(c->vm, OBJ_VAL(native));

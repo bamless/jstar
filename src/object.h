@@ -20,10 +20,6 @@
 
 struct Frame;
 
-#ifdef JSTAR_DBG_PRINT_GC
-extern const char* ObjTypeNames[];
-#endif
-
 /**
  * Object system of the J* language.
  *
@@ -32,14 +28,14 @@ extern const char* ObjTypeNames[];
  * to Obj* and back, implementing a sort of manual inheritance.
  *
  * In addition to object definitions, this file defines macros for testing and
- * casting Obj* pointers.
+ * casting Obj* pointers, as well as very low-level functions for object manipulation.
  *
  * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
  */
 
 // -----------------------------------------------------------------------------
-// OBJECT MACROS
+// OBJECT CASTING MACROS
 // -----------------------------------------------------------------------------
 
 #define IS_BOUND_METHOD(o) (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_BOUND_METHOD)
@@ -279,11 +275,12 @@ struct ObjUserdata {
 // OBJECT ALLOCATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-// These functions use gcAlloc to acquire memory and then initialize
-// the object with the supplied arguments, as well as setting all the
-// bookkeping information needed by the GC (see struct Obj)
-ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
-ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg);
+// These functions use `gcAlloc` to allocate memory and then initialize the object with the supplied
+// arguments, as well as setting all the bookkeping information needed by the GC (see struct Obj)
+ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
+                         bool varg);
+ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
+                     bool varg, JStarNative fn);
 ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);
@@ -334,25 +331,24 @@ uint32_t stringGetHash(ObjString* str);
 bool stringEquals(ObjString* s1, ObjString* s2);
 
 // ObjStacktrace functions
-// Dumps a frame in a ObjStackTrace
+// Dumps a frame in an `ObjStackTrace`
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
 
+// Misc functions
 // Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* size);
-
 // Get the prototype field of a Function object
 Prototype* getPrototype(Obj* fn);
-
-// Convert a JStarBuffer to an ObjString
+// Convert a JStarBuffer into an ObjString and zeroes `b`
 ObjString* jsrBufferToString(JStarBuffer* b);
 
-// Wraps arbitrary data in a JStarBuffer. Used for adapting arbitrary bytes to be used in
-// API functions that expect a JStarBuffer, without copying them first.
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len);
+// -----------------------------------------------------------------------------
+// DEBUG
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// DEBUG FUNCTIONS
-// -----------------------------------------------------------------------------
+#ifdef JSTAR_DBG_PRINT_GC
+extern const char* ObjTypeNames[];
+#endif
 
 // Prints an Obj in a human readable form
 void printObj(Obj* o);

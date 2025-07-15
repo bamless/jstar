@@ -5,6 +5,7 @@
 
 #include "gc.h"
 #include "int_hashtable.h"
+#include "jstar.h"
 #include "util.h"
 #include "value.h"
 #include "value_hashtable.h"
@@ -29,10 +30,10 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initProto(Prototype* proto, ObjModule* m, uint8_t args, Value* defaults,
-                      uint8_t defCount, bool varg) {
-    proto->name = NULL;
+static void initProto(Prototype* proto, ObjModule* m, ObjString* name, uint8_t args,
+                      Value* defaults, uint8_t defCount, bool varg) {
     proto->module = m;
+    proto->name = name;
     proto->argsCount = args;
     proto->defaults = defaults;
     proto->defCount = defCount;
@@ -52,20 +53,29 @@ static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
     return defaultArray;
 }
 
-ObjFunction* newFunction(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg) {
+ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
+                         bool varg) {
+    // A GC may kick in on `newObj`, make the name available as a root
+    push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
-    initProto(&fun->proto, m, args, defaults, defCount, varg);
+    initProto(&fun->proto, m, name, args, defaults, defCount, varg);
     fun->upvalueCount = 0;
     fun->stackUsage = 0;
     initCode(&fun->code);
+    pop(vm);
     return fun;
 }
 
-ObjNative* newNative(JStarVM* vm, ObjModule* m, uint8_t args, uint8_t defCount, bool varg) {
+ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
+                     bool varg, JStarNative fn) {
+    // A GC may kick in on `newObj`, make the name available as a root
+    push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjNative* native = (ObjNative*)newObj(vm, sizeof(*native), vm->funClass, OBJ_NATIVE);
-    initProto(&native->proto, m, args, defaults, defCount, varg);
+    native->fn = fn;
+    initProto(&native->proto, m, name, args, defaults, defCount, varg);
+    pop(vm);
     return native;
 }
 
@@ -89,6 +99,9 @@ static void mergeModules(JStarVM* vm, ObjModule* dst, ObjModule* src) {
 
 ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     ObjModule* mod = (ObjModule*)newObj(vm, sizeof(*mod), vm->modClass, OBJ_MODULE);
+
+    // A GC may kick in on hashtable initialization or path allocation,
+    // make the module available as a root
     push(vm, OBJ_VAL(mod));
 
     mod->name = name;
@@ -109,6 +122,7 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     moduleSetGlobal(vm, mod, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
     moduleSetGlobal(vm, mod, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
     moduleSetGlobal(vm, mod, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
+
     pop(vm);
 
     return mod;
@@ -384,9 +398,6 @@ int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjStr
 }
 
 void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* val) {
-    // This is ok since modules own their globals array and they are always keyed by value, not
-    // by class (differently from instances). This means that the `globals` array is guaranteed to
-    // have enough space for `offset`
     JSR_ASSERT(offset < mod->globalsCount, "Global offset out of bounds");
     *val = mod->globals[offset];
 }
@@ -544,12 +555,8 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
     return s;
 }
 
-JStarBuffer jsrBufferWrap(JStarVM* vm, const void* data, size_t len) {
-    return (JStarBuffer){vm, len, len, (char*)data};
-}
-
 // -----------------------------------------------------------------------------
-// DEBUG FUNCTIONS
+// DEBUG
 // -----------------------------------------------------------------------------
 
 #ifdef JSTAR_DBG_PRINT_GC
@@ -579,9 +586,9 @@ static void printEscaped(ObjString* s) {
 void printObj(Obj* o) {
     switch(o->type) {
     case OBJ_STRING:
-        printf("\"");
+        putc('"', stdout);
         printEscaped((ObjString*)o);
-        printf("\"");
+        putc('"', stdout);
         break;
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;

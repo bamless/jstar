@@ -18,8 +18,7 @@
 #include "util.h"
 #include "value.h"
 #include "value_hashtable.h"
-
-#if defined(JSTAR_DBG_PRINT_GC) || defined(JSTAR_DBG_PRINT_EXEC)
+#if defined(JSTAR_DBG_PRINT_EXEC)
     #include "disassemble.h"
 #endif
 

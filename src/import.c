@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "compiler.h"
+#include "conf.h"
 #include "jstar.h"
 #include "lib/builtins.h"
 #include "object.h"
