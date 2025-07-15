@@ -19,8 +19,8 @@
 #define JSTAR_COMPUTED_GOTOS
 #define JSTAR_NAN_TAGGING
 /* #undef JSTAR_DBG_PRINT_EXEC */
-#define JSTAR_DBG_PRINT_GC
-#define JSTAR_DBG_STRESS_GC
+/* #undef JSTAR_DBG_PRINT_GC */
+/* #undef JSTAR_DBG_STRESS_GC */
 /* #undef JSTAR_DBG_CACHE_STATS */
 
 #define JSTAR_SYS
