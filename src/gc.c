@@ -33,7 +33,7 @@ void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
 
     void* mem = realloc(ptr, size);
     if(!mem) {
-        perror("Error");
+        perror("GC out of memory");
         abort();
     }
 
