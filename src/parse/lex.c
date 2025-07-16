@@ -217,7 +217,7 @@ static void string(JStarLex* lex, char end, JStarTok* tok) {
     }
 
     lex->lineStart = lineStart;
-    lex->currLine = currLine; 
+    lex->currLine = currLine;
 }
 
 static void identifier(JStarLex* lex, JStarTok* tok) {
@@ -236,12 +236,12 @@ static void identifier(JStarLex* lex, JStarTok* tok) {
     makeToken(lex, tok, type);
 }
 
-void jsrNextToken(JStarLex* lex, JStarTok* tok) {
+bool jsrNextToken(JStarLex* lex, JStarTok* tok) {
     skipSpacesAndComments(lex);
 
     if(isAtEnd(lex)) {
         eofToken(lex, tok);
-        return;
+        return false;
     }
 
     lex->tokenStart = lex->current;
@@ -249,15 +249,15 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
 
     if(c == '0' && match(lex, 'x')) {
         hexNumber(lex, tok);
-        return;
+        return true;
     }
     if(isNum(c) || (c == '.' && isNum(peekChar(lex)))) {
         number(lex, tok);
-        return;
+        return true;
     }
     if(isAlpha(c)) {
         identifier(lex, tok);
-        return;
+        return true;
     }
 
     switch(c) {
@@ -368,11 +368,12 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
         makeToken(lex, tok, TOK_ERR);
         break;
     }
+    return true;
 }
 
-void jsrLexRewind(JStarLex* lex, const JStarTok* tok) {
-    if(tok->lexeme == NULL) return;
-    lex->lineStart = tok->lexeme - (tok->loc.col - 1);
-    lex->currLine = tok->loc.line;
-    lex->tokenStart = lex->current = tok->lexeme;
+void jsrLexRewind(JStarLex* lex, JStarTok tok) {
+    if(tok.lexeme == NULL) return;
+    lex->lineStart = tok.lexeme - (tok.loc.col - 1);
+    lex->currLine = tok.loc.line;
+    lex->tokenStart = lex->current = tok.lexeme;
 }

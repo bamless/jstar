@@ -1,20 +1,18 @@
 #include "gc.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include "array.h"
 #include "compiler.h"
 #include "int_hashtable.h"
 #include "object.h"
 #include "profiler.h"
-#include "util.h"
 #include "value.h"
 #include "value_hashtable.h"
 #include "vm.h"
-
-#define REACHED_DEFAULT_SZ 16
-#define REACHED_GROW_RATE  2
 
 void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
     vm->allocated += size - oldsize;
@@ -72,16 +70,16 @@ void reachObject(JStarVM* vm, Obj* o) {
 #endif
 
     o->reached = true;
-    ARRAY_APPEND(vm, reachedCount, reachedCapacity, reachedStack, o);
+    arrayAppend(&vm->reachedStack, o);
 }
 
 void reachValue(JStarVM* vm, Value v) {
     if(IS_OBJ(v)) reachObject(vm, AS_OBJ(v));
 }
 
-static void reachValueArray(JStarVM* vm, ValueArray* a) {
-    for(int i = 0; i < a->size; i++) {
-        reachValue(vm, a->arr[i]);
+static void reachValues(JStarVM* vm, Values a) {
+    for(size_t i = 0; i < a.count; i++) {
+        reachValue(vm, a.items[i]);
     }
 }
 
@@ -106,9 +104,9 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         ObjFunction* func = (ObjFunction*)o;
         reachObject(vm, (Obj*)func->proto.name);
         reachObject(vm, (Obj*)func->proto.module);
-        reachValueArray(vm, &func->code.consts);
-        for(size_t i = 0; i < func->code.symbolCount; i++) {
-            reachObject(vm, (Obj*)func->code.symbols[i].cache.key);
+        reachValues(vm, func->code.consts);
+        for(size_t i = 0; i < func->code.symbols.count; i++) {
+            reachObject(vm, (Obj*)func->code.symbols.items[i].cache.key);
         }
         for(uint8_t i = 0; i < func->proto.defCount; i++) {
             reachValue(vm, func->proto.defaults[i]);
@@ -125,7 +123,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_INST: {
         ObjInstance* i = (ObjInstance*)o;
-        for(Value* v = i->fields; v < i->fields + i->capacity; v++) {
+        for(Value* v = i->fields; v < i->fields + i->size; v++) {
             reachValue(vm, *v);
         }
         break;
@@ -142,15 +140,15 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_LIST: {
         ObjList* l = (ObjList*)o;
-        for(size_t i = 0; i < l->size; i++) {
-            reachValue(vm, l->arr[i]);
+        for(size_t i = 0; i < l->count; i++) {
+            reachValue(vm, l->items[i]);
         }
         break;
     }
     case OBJ_TUPLE: {
         ObjTuple* t = (ObjTuple*)o;
-        for(size_t i = 0; i < t->size; i++) {
-            reachValue(vm, t->arr[i]);
+        for(size_t i = 0; i < t->count; i++) {
+            reachValue(vm, t->items[i]);
         }
         break;
     }
@@ -193,9 +191,9 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     }
     case OBJ_STACK_TRACE: {
         ObjStackTrace* stackTrace = (ObjStackTrace*)o;
-        for(int i = 0; i < stackTrace->recordSize; i++) {
-            reachObject(vm, (Obj*)stackTrace->records[i].funcName);
-            reachObject(vm, (Obj*)stackTrace->records[i].moduleName);
+        for(size_t i = 0; i < stackTrace->records.count; i++) {
+            reachObject(vm, (Obj*)stackTrace->records.items[i].funcName);
+            reachObject(vm, (Obj*)stackTrace->records.items[i].moduleName);
         }
         break;
     }
@@ -212,9 +210,6 @@ void garbageCollect(JStarVM* vm) {
     size_t prevAlloc = vm->allocated;
     puts("*--- Starting GC ---*");
 #endif
-
-    vm->reachedStack = malloc(sizeof(Obj*) * REACHED_DEFAULT_SZ);
-    vm->reachedCapacity = REACHED_DEFAULT_SZ;
 
     {
         PROFILE("{reach-objects}::garbageCollect")
@@ -269,19 +264,15 @@ void garbageCollect(JStarVM* vm) {
     {
         PROFILE("{recursively-reach}::garbageCollect")
 
-        while(vm->reachedCount != 0) {
-            recursevelyReach(vm, vm->reachedStack[--vm->reachedCount]);
+        while(vm->reachedStack.count != 0) {
+            recursevelyReach(vm, vm->reachedStack.items[--vm->reachedStack.count]);
         }
     }
 
     sweepStrings(&vm->stringPool);
     sweepObjects(vm);
 
-    free(vm->reachedStack);
-    vm->reachedStack = NULL;
-    vm->reachedCapacity = 0;
-    vm->reachedCount = 0;
-
+    vm->reachedStack.count = 0;
     vm->nextGC = vm->allocated * vm->heapGrowRate;
 
 #ifdef JSTAR_DBG_PRINT_GC

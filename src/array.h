@@ -35,4 +35,31 @@
         memset(arr, 0, sizeof(*arr)); \
     } while(0)
 
+#define arrayReserveGC(vm, arr, newCapacity)                                         \
+    do {                                                                             \
+        size_t oldCap = (arr)->capacity;                                             \
+        if((newCapacity) > (arr)->capacity) {                                        \
+            if((arr)->capacity == 0) {                                               \
+                (arr)->capacity = ARRAY_INIT_CAP;                                    \
+            }                                                                        \
+            while((newCapacity) > (arr)->capacity) {                                 \
+                (arr)->capacity *= 2;                                                \
+            }                                                                        \
+            (arr)->items = gcAlloc(vm, (arr)->items, oldCap * sizeof(*(arr)->items), \
+                                   (arr)->capacity * sizeof(*(arr)->items));         \
+            JSR_ASSERT((arr)->items, "GC out of memory");                            \
+        }                                                                            \
+    } while(0)
+
+#define arrayAppendGC(vm, arr, item)                 \
+    do {                                             \
+        arrayReserveGC(vm, (arr), (arr)->count + 1); \
+        (arr)->items[(arr)->count++] = (item);       \
+    } while(0)
+
+#define arrayFreeGC(vm, arr)                                                   \
+    do {                                                                       \
+        gcAlloc(vm, (arr)->items, (arr)->capacity * sizeof(*(arr)->items), 0); \
+    } while(0)
+
 #endif

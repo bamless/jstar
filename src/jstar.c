@@ -394,7 +394,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
 
 void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
     ObjList* argvList = vm->argv;
-    argvList->size = 0;
+    argvList->count = 0;
     for(int i = 0; i < argc; i++) {
         Value arg = OBJ_VAL(copyString(vm, argv[i], strlen(argv[i])));
         listAppend(vm, argvList, arg);
@@ -539,7 +539,7 @@ void jsrPushTuple(JStarVM* vm, size_t size) {
     checkStack(vm);
     ObjTuple* tup = newTuple(vm, size);
     for(size_t i = 1; i <= size; i++) {
-        tup->arr[size - i] = pop(vm);
+        tup->items[size - i] = pop(vm);
     }
     push(vm, OBJ_VAL(tup));
 }
@@ -627,7 +627,7 @@ void jsrListInsert(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    JSR_ASSERT(i < lst->size, "Out of bounds");
+    JSR_ASSERT(i < lst->count, "Out of bounds");
     listInsert(vm, lst, (size_t)i, peek(vm));
 }
 
@@ -635,7 +635,7 @@ void jsrListRemove(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    JSR_ASSERT(i < lst->size, "Out of bounds");
+    JSR_ASSERT(i < lst->count, "Out of bounds");
     listRemove(vm, lst, (size_t)i);
 }
 
@@ -643,28 +643,28 @@ void jsrListGet(JStarVM* vm, size_t i, int slot) {
     Value lstVal = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
-    JSR_ASSERT(i < lst->size, "Out of bounds");
-    push(vm, lst->arr[i]);
+    JSR_ASSERT(i < lst->count, "Out of bounds");
+    push(vm, lst->items[i]);
 }
 
 size_t jsrListGetLength(const JStarVM* vm, int slot) {
     Value lst = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_LIST(lst), "Not a list");
-    return AS_LIST(lst)->size;
+    return AS_LIST(lst)->count;
 }
 
 void jsrTupleGet(JStarVM* vm, size_t i, int slot) {
     Value tupVal = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_TUPLE(tupVal), "Not a tuple");
     ObjTuple* tuple = AS_TUPLE(tupVal);
-    JSR_ASSERT(i < tuple->size, "Out of bounds");
-    push(vm, tuple->arr[i]);
+    JSR_ASSERT(i < tuple->count, "Out of bounds");
+    push(vm, tuple->items[i]);
 }
 
 size_t jsrTupleGetLength(const JStarVM* vm, int slot) {
     Value tup = apiStackSlot(vm, slot);
     JSR_ASSERT(IS_TUPLE(tup), "Not a tuple");
-    return AS_TUPLE(tup)->size;
+    return AS_TUPLE(tup)->count;
 }
 
 bool jsrSubscriptGet(JStarVM* vm, int slot) {

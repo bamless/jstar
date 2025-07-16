@@ -147,23 +147,23 @@ struct ObjClass {
 // An instance of a user defined Class
 struct ObjInstance {
     Obj base;
-    size_t capacity;  // Size of the fields array
-    Value* fields;    // Array of fields of the instance
+    size_t size;    // Size of the fields array
+    Value* fields;  // Array of fields of the instance
 };
 
 // A J* List. Lists are mutable sequences of values.
 struct ObjList {
     Obj base;
-    size_t capacity;  // Size of the List (how much space is currently allocated)
-    size_t size;      // How many objects are currently in the list
-    Value* arr;       // List elements
+    Value* items;     // List elements
+    size_t capacity;  // How much space is currently allocated in the list
+    size_t count;     // How many objects are currently in the list
 };
 
 // A J* Tuple. Tuples are immutable sequences of values.
 struct ObjTuple {
     Obj base;
-    size_t size;  // Number of elements of the tuple
-    Value arr[];  // Tuple elements (flexible array)
+    size_t count;   // Number of elements of the tuple
+    Value items[];  // Tuple elements (flexible array)
 };
 
 struct TableEntry {
@@ -174,9 +174,9 @@ struct TableEntry {
 // A J* Table. Tables are hash tables that map keys to values.
 struct ObjTable {
     Obj base;
-    size_t capacityMask;  // The size of the entries array
-    size_t numEntries;    // The number of entries in the Table (including tombstones)
-    size_t size;          // The number of actual entries in the Table (i.e. excluding tombstones)
+    size_t capacityMask;  // How much space is allocated in the table (minus 1)
+    size_t count;         // The number of actual entries in the Table, i.e. excluding tombstones
+    size_t numEntries;    // The number of entries in the Table including tombstones
     TableEntry* entries;  // The actual array of entries
 };
 
@@ -258,10 +258,11 @@ struct FrameRecord {
 // Used for storing the trace of an unhandled exception
 struct ObjStackTrace {
     Obj base;
+    struct {
+        FrameRecord* items;
+        size_t capacity, count;
+    } records;
     int lastTracedFrame;
-    int recordCapacity;
-    int recordSize;
-    FrameRecord* records;
 };
 
 // Garbage collected user data
@@ -337,7 +338,7 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
 
 // Misc functions
 // Get the value array of a List or a Tuple
-Value* getValues(Obj* obj, size_t* size);
+Value* getValues(Obj* obj, size_t* count);
 // Get the prototype field of a Function object
 Prototype* getPrototype(Obj* fn);
 // Convert a JStarBuffer into an ObjString and zeroes `b`

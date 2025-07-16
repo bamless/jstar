@@ -205,8 +205,8 @@ static void adjustStackUsage(Compiler* c, int num) {
 }
 
 static int correctLineNumber(Compiler* c, int line) {
-    if(line == 0 && c->func->code.lineSize > 0) {
-        return c->func->code.lines[c->func->code.lineSize - 1];
+    if(line == 0 && c->func->code.lines.count > 0) {
+        return c->func->code.lines.items[c->func->code.lines.count - 1];
     }
     return line;
 }
@@ -230,7 +230,7 @@ static size_t emitShort(Compiler* c, uint16_t s, int line) {
 }
 
 static size_t getCurrentAddr(Compiler* c) {
-    return c->func->code.size;
+    return c->func->code.bytecode.count;
 }
 
 static bool inGlobalScope(Compiler* c) {
@@ -429,8 +429,8 @@ static Variable resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     arrayAppend(c->fwdRefs, fwdRef);
 
     return (Variable){
-         VAR_GLOBAL,
-        {.global = { id}},
+        VAR_GLOBAL,
+        {.global = {id}},
     };
 }
 
@@ -511,7 +511,7 @@ static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, JStarLoc loc)
 
 static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, JStarLoc loc) {
     Code* code = &c->func->code;
-    Opcode jmpOp = code->bytecode[jumpAddr];
+    Opcode jmpOp = code->bytecode.items[jumpAddr];
     assertJumpOpcode(jmpOp);
 
     int32_t offset = target - (jumpAddr + opcodeArgsNumber(jmpOp) + 1);
@@ -519,8 +519,8 @@ static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, JStarLoc loc)
         error(c, loc, "Too much code to jump over");
     }
 
-    code->bytecode[jumpAddr + 1] = ((uint16_t)offset >> 8) & 0xff;
-    code->bytecode[jumpAddr + 2] = ((uint16_t)offset) & 0xff;
+    code->bytecode.items[jumpAddr + 1] = ((uint16_t)offset >> 8) & 0xff;
+    code->bytecode.items[jumpAddr + 2] = ((uint16_t)offset) & 0xff;
 }
 
 static void startLoop(Compiler* c, Loop* loop) {
@@ -532,12 +532,12 @@ static void startLoop(Compiler* c, Loop* loop) {
 
 static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_t brkAddr) {
     for(size_t i = start; i < getCurrentAddr(c); i++) {
-        Opcode op = c->func->code.bytecode[i];
+        Opcode op = c->func->code.bytecode.items[i];
         if(op == OP_END) {
-            c->func->code.bytecode[i] = OP_JUMP;
+            c->func->code.bytecode.items[i] = OP_JUMP;
 
             // Patch jump with correct offset to break loop
-            int mark = c->func->code.bytecode[i + 1];
+            int mark = c->func->code.bytecode.items[i + 1];
             JSR_ASSERT(mark == CONTINUE_MARK || mark == BREAK_MARK, "Unknown loop breaking marker");
 
             setJumpTo(c, i, mark == CONTINUE_MARK ? contAddr : brkAddr, (JStarLoc){0});

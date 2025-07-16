@@ -175,6 +175,11 @@ inline bool valueEquals(Value v1, Value v2) {
 
 #endif
 
+typedef struct Values {
+    Value* items;
+    size_t capacity, count;
+} Values;
+
 // Check wheter a Value is an integral Number
 inline bool valueIsInt(Value val) {
     if(!IS_NUM(val)) return false;
@@ -186,19 +191,6 @@ inline bool valueIsInt(Value val) {
 inline bool valueToBool(Value v) {
     return IS_BOOL(v) ? AS_BOOL(v) : !IS_NULL(v);
 }
-
-// -----------------------------------------------------------------------------
-// VALUE ARRAY
-// -----------------------------------------------------------------------------
-
-typedef struct ValueArray {
-    int capacity, size;
-    Value* arr;
-} ValueArray;
-
-void initValueArray(ValueArray* a);
-void freeValueArray(ValueArray* a);
-int valueArrayAppend(ValueArray* a, Value v);
 
 void printValue(Value val);
 

@@ -5,32 +5,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define ARRAY_DEF_CAP 8
-
-// Append an item to a dynamic array, resizing it if necessary, using gcAlloc
-#define ARRAY_GC_APPEND(vm, arr, count, cap, items, val)                             \
-    do {                                                                             \
-        if((arr)->count >= (arr)->cap) {                                             \
-            size_t oldCap = (arr)->cap;                                              \
-            (arr)->cap = (arr)->cap == 0 ? ARRAY_DEF_CAP : (arr)->cap * 2;           \
-            (arr)->items = gcAlloc(vm, (arr)->items, oldCap * sizeof(*(arr)->items), \
-                                   (arr)->cap * sizeof(*(arr)->items));              \
-            JSR_ASSERT((arr)->items, "Out of memory");                               \
-        }                                                                            \
-        (arr)->items[(arr)->count++] = (val);                                        \
-    } while(0)
-
-// Append an item to a dynamic array, resizing it if necessary, using realloc
-#define ARRAY_APPEND(arr, count, cap, items, val)                                     \
-    do {                                                                              \
-        if((arr)->count >= (arr)->cap) {                                              \
-            (arr)->cap = (arr)->cap == 0 ? ARRAY_DEF_CAP : (arr)->cap * 2;            \
-            (arr)->items = realloc((arr)->items, (arr)->cap * sizeof(*(arr)->items)); \
-            JSR_ASSERT((arr)->items, "Out of memory");                                \
-        }                                                                             \
-        (arr)->items[(arr)->count++] = (val);                                         \
-    } while(0)
-
 // Reinterprets the bits of the value `v` from type F to type T
 #define REINTERPRET_CAST(F, T, v) \
     ((union {                     \

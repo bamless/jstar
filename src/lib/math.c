@@ -78,8 +78,8 @@ JSR_NATIVE(jsr_frexp) {
     int e;
     m = frexp(jsrGetNumber(vm, 1), &e);
     ObjTuple* ret = newTuple(vm, 2);
-    ret->arr[0] = NUM_VAL(m);
-    ret->arr[1] = NUM_VAL(e);
+    ret->items[0] = NUM_VAL(m);
+    ret->items[1] = NUM_VAL(e);
     push(vm, OBJ_VAL(ret));
     return true;
 }
@@ -108,8 +108,8 @@ JSR_NATIVE(jsr_modf) {
     double integer, frac;
     integer = modf(jsrGetNumber(vm, 1), &frac);
     ObjTuple* ret = newTuple(vm, 2);
-    ret->arr[0] = NUM_VAL(integer);
-    ret->arr[1] = NUM_VAL(frac);
+    ret->items[0] = NUM_VAL(integer);
+    ret->items[1] = NUM_VAL(frac);
     push(vm, OBJ_VAL(ret));
     return true;
 }

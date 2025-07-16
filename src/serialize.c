@@ -1,9 +1,11 @@
 #include "serialize.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "array.h"
 #include "code.h"
 #include "endianness.h"
 #include "gc.h"
@@ -107,10 +109,10 @@ static void serializeNative(JStarBuffer* buf, ObjNative* n) {
     serializePrototype(buf, &n->proto);
 }
 
-static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
-    serializeShort(buf, consts->size);
-    for(int i = 0; i < consts->size; i++) {
-        Value c = consts->arr[i];
+static void serializeConstants(JStarBuffer* buf, Values consts) {
+    serializeShort(buf, consts.count);
+    for(size_t i = 0; i < consts.count; i++) {
+        Value c = consts.items[i];
         if(IS_FUNC(c)) {
             serializeByte(buf, CONST_FUN);
             serializeFunction(buf, AS_FUNC(c));
@@ -123,10 +125,10 @@ static void serializeConstants(JStarBuffer* buf, ValueArray* consts) {
     }
 }
 
-static void serializeSymbols(JStarBuffer* buf, Symbol* symbols, int count) {
-    serializeShort(buf, count);
-    for(int i = 0; i < count; i++) {
-        serializeShort(buf, symbols[i].constant);
+static void serializeSymbols(JStarBuffer* buf, Symbols symbols) {
+    serializeShort(buf, symbols.count);
+    for(size_t i = 0; i < symbols.count; i++) {
+        serializeShort(buf, symbols.items[i].constant);
     }
 }
 
@@ -134,13 +136,13 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
     // TODO: store (compressed) line information? maybe give option in application
 
     // serialize bytecode
-    serializeUint64(buf, c->size);
-    for(size_t i = 0; i < c->size; i++) {
-        serializeByte(buf, c->bytecode[i]);
+    serializeUint64(buf, c->bytecode.count);
+    for(size_t i = 0; i < c->bytecode.count; i++) {
+        serializeByte(buf, c->bytecode.items[i]);
     }
 
-    serializeConstants(buf, &c->consts);
-    serializeSymbols(buf, c->symbols, c->symbolCount);
+    serializeConstants(buf, c->consts);
+    serializeSymbols(buf, c->symbols);
 }
 
 static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
@@ -350,14 +352,12 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
     return true;
 }
 
-static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
+static bool deserializeConstants(Deserializer* d, Values* consts) {
     uint16_t constsSize;
     if(!deserializeShort(d, &constsSize)) return false;
 
-    consts->arr = malloc(sizeof(Value) * constsSize);
-    zeroValueArray(consts->arr, constsSize);
-    consts->capacity = constsSize;
-    consts->size = constsSize;
+    arrayReserve(consts, constsSize);
+    zeroValueArray(consts->items, constsSize);
 
     for(int i = 0; i < constsSize; i++) {
         uint8_t constType;
@@ -367,17 +367,19 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
         case CONST_FUN: {
             ObjFunction* fn;
             if(!deserializeFunction(d, &fn)) return false;
-            consts->arr[i] = OBJ_VAL(fn);
+            consts->items[consts->count++] = OBJ_VAL(fn);
             break;
         }
         case CONST_NAT: {
             ObjNative* nat;
             if(!deserializeNative(d, &nat)) return false;
-            consts->arr[i] = OBJ_VAL(nat);
+            consts->items[consts->count++] = OBJ_VAL(nat);
             break;
         }
         default:
-            if(!deserializeConstLiteral(d, constType, &consts->arr[i])) return false;
+            if(!deserializeConstLiteral(d, constType, &consts->items[consts->count++])) {
+                return false;
+            }
             break;
         }
     }
@@ -385,17 +387,15 @@ static bool deserializeConstants(Deserializer* d, ValueArray* consts) {
     return true;
 }
 
-static bool deserializeSymbols(Deserializer* d, Code* c) {
+static bool deserializeSymbols(Deserializer* d, Symbols* s) {
     uint16_t symbolCount;
     if(!deserializeShort(d, &symbolCount)) return false;
 
-    c->symbolCount = symbolCount;
-    c->symbols = malloc(sizeof(Symbol) * symbolCount);
-
+    arrayReserve(s, symbolCount);
     for(int i = 0; i < symbolCount; i++) {
         uint16_t constant;
         if(!deserializeShort(d, &constant)) return false;
-        c->symbols[i] = (Symbol){.constant = constant};
+        s->items[s->count++] = (Symbol){.constant = constant};
     }
 
     return true;
@@ -405,13 +405,12 @@ static bool deserializeCode(Deserializer* d, Code* c) {
     uint64_t codeSize;
     if(!deserializeUint64(d, &codeSize)) return false;
 
-    c->bytecode = malloc(codeSize);
-    c->size = codeSize;
-    c->capacity = codeSize;
+    arrayReserve(&c->bytecode, codeSize);
+    if(!read(d, c->bytecode.items, codeSize)) return false;
+    c->bytecode.count = codeSize;
 
-    if(!read(d, c->bytecode, codeSize)) return false;
     if(!deserializeConstants(d, &c->consts)) return false;
-    if(!deserializeSymbols(d, c)) return false;
+    if(!deserializeSymbols(d, &c->symbols)) return false;
 
     return true;
 }

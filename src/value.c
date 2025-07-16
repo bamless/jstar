@@ -2,23 +2,8 @@
 
 #include <float.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "object.h"
-#include "util.h"
-
-void initValueArray(ValueArray* a) {
-    *a = (ValueArray){0};
-}
-
-void freeValueArray(ValueArray* a) {
-    free(a->arr);
-}
-
-int valueArrayAppend(ValueArray* a, Value v) {
-    ARRAY_APPEND(a, size, capacity, arr, v);
-    return a->size - 1;
-}
 
 void printValue(Value val) {
     if(IS_OBJ(val)) {

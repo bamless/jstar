@@ -3,48 +3,47 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "array.h"
 #include "conf.h"
-#include "util.h"
 
 void initCode(Code* c) {
     *c = (Code){0};
-    initValueArray(&c->consts);
 }
 
 void freeCode(Code* c) {
-    free(c->bytecode);
-    free(c->lines);
-    freeValueArray(&c->consts);
-    free(c->symbols);
+    arrayFree(&c->bytecode);
+    arrayFree(&c->lines);
+    arrayFree(&c->consts);
+    arrayFree(&c->symbols);
 }
 
 size_t writeByte(Code* c, uint8_t b, int line) {
-    ARRAY_APPEND(c, size, capacity, bytecode, b);
-    ARRAY_APPEND(c, lineSize, lineCapacity, lines, line);
-    return c->size - 1;
+    arrayAppend(&c->bytecode, b);
+    arrayAppend(&c->lines, line);
+    return c->bytecode.count - 1;
 }
 
 int getBytecodeSrcLine(const Code* c, size_t index) {
-    if(c->lines == NULL) return -1;
-    JSR_ASSERT(index < c->lineSize, "Line buffer overflow");
-    return c->lines[index];
+    if(!c->lines.items) return -1;
+    JSR_ASSERT(index < c->lines.count, "Line buffer overflow");
+    return c->lines.items[index];
 }
 
 int addConstant(Code* c, Value constant) {
-    ValueArray* consts = &c->consts;
-    if(consts->size == UINT16_MAX) return -1;
+    if(c->consts.count == UINT16_MAX) return -1;
 
-    for(int i = 0; i < consts->size; i++) {
-        if(valueEquals(consts->arr[i], constant)) {
+    for(size_t i = 0; i < c->consts.count; i++) {
+        if(valueEquals(c->consts.items[i], constant)) {
             return i;
         }
     }
 
-    return valueArrayAppend(&c->consts, constant);
+    arrayAppend(&c->consts, constant);
+    return c->consts.count - 1;
 }
 
 int addSymbol(Code* c, uint16_t constant) {
-    if(c->symbolCount == UINT16_MAX) return -1;
-    ARRAY_APPEND(c, symbolCount, symbolCapacity, symbols, (Symbol){.constant = constant});
-    return c->symbolCount - 1;
+    if(c->symbols.count == UINT16_MAX) return -1;
+    arrayAppend(&c->symbols, ((Symbol){.constant = constant}));
+    return c->symbols.count - 1;
 }

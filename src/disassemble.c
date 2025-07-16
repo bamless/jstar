@@ -17,11 +17,11 @@ static uint16_t readShortAt(const uint8_t* code, size_t i) {
 
 static size_t countInstructions(const Code* c) {
     size_t count = 0;
-    for(size_t i = 0; i < c->size;) {
+    for(size_t i = 0; i < c->bytecode.count;) {
         count++;
-        Opcode instr = c->bytecode[i];
+        Opcode instr = c->bytecode.items[i];
         if(instr == OP_CLOSURE) {
-            Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
+            Value func = c->consts.items[readShortAt(c->bytecode.items, i + 1)];
             i += AS_FUNC(func)->upvalueCount * 2;
         }
         i += opcodeArgsNumber(instr) + 1;
@@ -30,11 +30,11 @@ static size_t countInstructions(const Code* c) {
 }
 
 static void disassembleCode(const Code* c, int indent) {
-    for(size_t i = 0; i < c->size;) {
+    for(size_t i = 0; i < c->bytecode.count;) {
         disassembleInstr(c, indent, i);
-        Opcode instr = c->bytecode[i];
+        Opcode instr = c->bytecode.items[i];
         if(instr == OP_CLOSURE) {
-            Value func = c->consts.arr[readShortAt(c->bytecode, i + 1)];
+            Value func = c->consts.items[readShortAt(c->bytecode.items, i + 1)];
             i += AS_FUNC(func)->upvalueCount * 2;
         }
         i += opcodeArgsNumber(instr) + 1;
@@ -64,8 +64,8 @@ void disassembleFunction(const ObjFunction* fn) {
     disassemblePrototype(&fn->proto, fn->upvalueCount);
     disassembleCode(&fn->code, INDENT);
 
-    for(int i = 0; i < fn->code.consts.size; i++) {
-        Value c = fn->code.consts.arr[i];
+    for(size_t i = 0; i < fn->code.consts.count; i++) {
+        Value c = fn->code.consts.items[i];
         if(IS_FUNC(c)) {
             printf("\n");
             disassembleFunction(AS_FUNC(c));
@@ -90,59 +90,59 @@ void disassembleNative(const ObjNative* nat) {
 }
 
 static void signedOffsetInstruction(const Code* c, size_t i) {
-    int16_t off = (int16_t)readShortAt(c->bytecode, i + 1);
+    int16_t off = (int16_t)readShortAt(c->bytecode.items, i + 1);
     printf("%d (to %zu)", off, (size_t)(i + off + 3));
 }
 
 static void constInstruction(const Code* c, size_t i) {
-    int arg = readShortAt(c->bytecode, i + 1);
+    int arg = readShortAt(c->bytecode.items, i + 1);
     printf("%d (", arg);
-    printValue(c->consts.arr[arg]);
+    printValue(c->consts.items[arg]);
     printf(")");
 }
 
 static void symbolInstruction(const Code* c, size_t i) {
-    int arg = readShortAt(c->bytecode, i + 1);
+    int arg = readShortAt(c->bytecode.items, i + 1);
     printf("%d (", arg);
-    printValue(c->consts.arr[c->symbols[arg].constant]);
+    printValue(c->consts.items[c->symbols.items[arg].constant]);
     printf(")");
 }
 
 static void const2Instruction(const Code* c, size_t i) {
-    int arg1 = readShortAt(c->bytecode, i + 1);
-    int arg2 = readShortAt(c->bytecode, i + 3);
+    int arg1 = readShortAt(c->bytecode.items, i + 1);
+    int arg2 = readShortAt(c->bytecode.items, i + 3);
     printf("%d %d (", arg1, arg2);
-    printValue(c->consts.arr[arg1]);
+    printValue(c->consts.items[arg1]);
     printf(", ");
-    printValue(c->consts.arr[arg2]);
+    printValue(c->consts.items[arg2]);
     printf(")");
 }
 
 static void invokeInstruction(const Code* c, size_t i) {
-    int argc = c->bytecode[i + 1];
-    int name = readShortAt(c->bytecode, i + 2);
+    int argc = c->bytecode.items[i + 1];
+    int name = readShortAt(c->bytecode.items, i + 2);
     printf("%d %d (", argc, name);
-    printValue(c->consts.arr[c->symbols[name].constant]);
+    printValue(c->consts.items[c->symbols.items[name].constant]);
     printf(")");
 }
 
 static void unsignedByteInstruction(const Code* c, size_t i) {
-    printf("%d", c->bytecode[i + 1]);
+    printf("%d", c->bytecode.items[i + 1]);
 }
 
 static void closureInstruction(const Code* c, int indent, size_t i) {
-    int op = readShortAt(c->bytecode, i + 1);
+    int op = readShortAt(c->bytecode.items, i + 1);
 
     printf("%d (", op);
-    printValue(c->consts.arr[op]);
+    printValue(c->consts.items[op]);
     printf(")");
 
-    ObjFunction* fn = AS_FUNC(c->consts.arr[op]);
+    ObjFunction* fn = AS_FUNC(c->consts.items[op]);
 
     size_t offset = i + 3;
     for(uint8_t j = 0; j < fn->upvalueCount; j++) {
-        bool isLocal = c->bytecode[offset++];
-        int index = c->bytecode[offset++];
+        bool isLocal = c->bytecode.items[offset++];
+        int index = c->bytecode.items[offset++];
 
         printf("\n");
         for(int i = 0; i < indent; i++) {
@@ -156,9 +156,9 @@ void disassembleInstr(const Code* c, int indent, size_t instr) {
     for(int i = 0; i < indent; i++) {
         printf(" ");
     }
-    printf("%.4zu %s ", instr, OpcodeNames[c->bytecode[instr]]);
+    printf("%.4zu %s ", instr, OpcodeNames[c->bytecode.items[instr]]);
 
-    switch((Opcode)c->bytecode[instr]) {
+    switch((Opcode)c->bytecode.items[instr]) {
     case OP_IMPORT:
     case OP_IMPORT_FROM:
     case OP_NEW_CLASS:

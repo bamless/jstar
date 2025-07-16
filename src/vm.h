@@ -146,8 +146,10 @@ struct JStarVM {
     int heapGrowRate;  // Rate at which the heap will grow after a GC
 
     // Stack used to recursevely reach all the fields of reached objects
-    Obj** reachedStack;
-    size_t reachedCapacity, reachedCount;
+    struct {
+        Obj** items;
+        size_t capacity, count;
+    } reachedStack;
 };
 
 // -----------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "array.h"
 #include "conf.h"
 #include "gc.h"
 #include "import.h"
@@ -124,6 +125,8 @@ void jsrFreeVM(JStarVM* vm) {
             GC_FREE(vm, JStarSymbol, sym);
             sym = next;
         }
+
+        arrayFree(&vm->reachedStack);
     }
 
     sweepObjects(vm);
@@ -158,7 +161,7 @@ static Frame* initFrame(JStarVM* vm, Prototype* proto) {
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = initFrame(vm, &closure->fn->proto);
     callFrame->fn = (Obj*)closure;
-    callFrame->ip = closure->fn->code.bytecode;
+    callFrame->ip = closure->fn->code.bytecode.items;
     return callFrame;
 }
 
@@ -264,7 +267,7 @@ static bool unwindHandlers(JStarVM* vm, Frame* frame, Value retVal) {
 static void packVarargs(JStarVM* vm, uint8_t count) {
     ObjTuple* args = newTuple(vm, count);
     for(int i = count - 1; i >= 0; i--) {
-        args->arr[i] = pop(vm);
+        args->items[i] = pop(vm);
     }
     push(vm, OBJ_VAL(args));
 }
@@ -549,25 +552,25 @@ static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, Symbol
 }
 
 static bool checkSliceIndex(JStarVM* vm, ObjTuple* slice, size_t size, size_t* low, size_t* high) {
-    if(slice->size != 2) {
+    if(slice->count != 2) {
         jsrRaise(vm, "TypeException", "Slice index must have two elements.");
         return false;
     }
 
-    if(!IS_INT(slice->arr[0]) || !IS_INT(slice->arr[1])) {
+    if(!IS_INT(slice->items[0]) || !IS_INT(slice->items[1])) {
         jsrRaise(vm, "TypeException", "Slice index must be two integers.");
         return false;
     }
 
-    size_t a = jsrCheckIndexNum(vm, AS_NUM(slice->arr[0]), size + 1);
+    size_t a = jsrCheckIndexNum(vm, AS_NUM(slice->items[0]), size + 1);
     if(a == SIZE_MAX) return false;
-    size_t b = jsrCheckIndexNum(vm, AS_NUM(slice->arr[1]), size + 1);
+    size_t b = jsrCheckIndexNum(vm, AS_NUM(slice->items[1]), size + 1);
     if(b == SIZE_MAX) return false;
 
     if(a > b) {
         jsrRaise(vm, "InvalidArgException",
                  "Invalid slice indices (%g, %g), first must be <= than second",
-                 AS_NUM(slice->arr[0]), AS_NUM(slice->arr[1]));
+                 AS_NUM(slice->items[0]), AS_NUM(slice->items[1]));
         return false;
     }
 
@@ -580,21 +583,21 @@ static bool getListSubscript(JStarVM* vm) {
     Value arg = peek(vm);
 
     if(IS_INT(arg)) {
-        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->size);
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), lst->count);
         if(idx == SIZE_MAX) return false;
 
         pop(vm), pop(vm);
-        push(vm, lst->arr[idx]);
+        push(vm, lst->items[idx]);
         return true;
     }
     if(IS_TUPLE(arg)) {
         size_t low = 0, high = 0;
-        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->size, &low, &high)) return false;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), lst->count, &low, &high)) return false;
 
         ObjList* ret = newList(vm, high - low);
-        ret->size = high - low;
+        ret->count = high - low;
         for(size_t i = low; i < high; i++) {
-            ret->arr[i - low] = lst->arr[i];
+            ret->items[i - low] = lst->items[i];
         }
 
         pop(vm), pop(vm);
@@ -611,20 +614,20 @@ static bool getTupleSubscript(JStarVM* vm) {
     Value arg = peek(vm);
 
     if(IS_INT(arg)) {
-        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), tup->size);
+        size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), tup->count);
         if(idx == SIZE_MAX) return false;
 
         pop(vm), pop(vm);
-        push(vm, tup->arr[idx]);
+        push(vm, tup->items[idx]);
         return true;
     }
     if(IS_TUPLE(arg)) {
         size_t low = 0, high = 0;
-        if(!checkSliceIndex(vm, AS_TUPLE(arg), tup->size, &low, &high)) return false;
+        if(!checkSliceIndex(vm, AS_TUPLE(arg), tup->count, &low, &high)) return false;
 
         ObjTuple* ret = newTuple(vm, high - low);
         for(size_t i = low; i < high; i++) {
-            ret->arr[i - low] = tup->arr[i];
+            ret->items[i - low] = tup->items[i];
         }
 
         pop(vm), pop(vm);
@@ -710,7 +713,7 @@ static bool unaryOverload(JStarVM* vm, const char* op, SpecialMethod overload) {
 
 static bool unpackArgs(JStarVM* vm, uint8_t* out) {
     ObjList* args = AS_LIST(pop(vm));
-    size_t argsCount = args->size;
+    size_t argsCount = args->count;
 
     if(argsCount >= UINT8_MAX) {
         jsrRaise(vm, "TypeException", "Too many arguments for function call: %zu", argsCount);
@@ -721,18 +724,18 @@ static bool unpackArgs(JStarVM* vm, uint8_t* out) {
 
     reserveStack(vm, argsCount + 1);
     for(size_t i = 0; i < argsCount; i++) {
-        push(vm, args->arr[i]);
+        push(vm, args->items[i]);
     }
 
     return true;
 }
 
 static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
-    size_t size;
-    Value* array = getValues(o, &size);
+    size_t count;
+    Value* array = getValues(o, &count);
 
-    if(n > size) {
-        jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %zu", n, size);
+    if(n > count) {
+        jsrRaise(vm, "TypeException", "Too few values to unpack: expected %d, got %zu", n, count);
         return false;
     }
 
@@ -971,10 +974,10 @@ inline bool setValueSubscript(JStarVM* vm) {
         }
 
         ObjList* list = AS_LIST(operand);
-        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->size);
+        size_t index = jsrCheckIndexNum(vm, AS_NUM(arg), list->count);
         if(index == SIZE_MAX) return false;
 
-        list->arr[index] = val;
+        list->items[index] = val;
         return true;
     }
 
@@ -1246,10 +1249,10 @@ bool runEval(JStarVM* vm, int evalDepth) {
 #define NEXT_CODE()  (*ip++)
 #define NEXT_SHORT() (ip += 2, ((uint16_t)ip[-2] << 8) | ip[-1])
 
-#define GET_CONST()          (fn->code.consts.arr[NEXT_SHORT()])
+#define GET_CONST()          (fn->code.consts.items[NEXT_SHORT()])
 #define GET_STRING()         (AS_STRING(GET_CONST()))
-#define GET_SYMBOL()         (&fn->code.symbols[NEXT_SHORT()])
-#define GET_SYMBOL_NAME(sym) (AS_STRING(fn->code.consts.arr[(sym)->constant]))
+#define GET_SYMBOL()         (&fn->code.symbols.items[NEXT_SHORT()])
+#define GET_SYMBOL_NAME(sym) (AS_STRING(fn->code.consts.items[(sym)->constant]))
 
 #define EXIT_EVAL()    goto exit_eval;
 #define UNWIND_STACK() goto stack_unwind;
@@ -1789,8 +1792,8 @@ op_return:
     TARGET(OP_LIST_TO_TUPLE): {
         JSR_ASSERT(IS_LIST(peek(vm)), "Top of stack isn't a List");
         ObjList* lst = AS_LIST(peek(vm));
-        ObjTuple* tup = newTuple(vm, lst->size);
-        memcpy(tup->arr, lst->arr, sizeof(Value) * lst->size);
+        ObjTuple* tup = newTuple(vm, lst->count);
+        memcpy(tup->items, lst->items, sizeof(Value) * lst->count);
         pop(vm);
         push(vm, OBJ_VAL(tup));
         DISPATCH();
@@ -1800,7 +1803,7 @@ op_return:
         uint8_t size = NEXT_CODE();
         ObjTuple* t = newTuple(vm, size);
         for(int i = size - 1; i >= 0; i--) {
-            t->arr[i] = pop(vm);
+            t->items[i] = pop(vm);
         }
         push(vm, OBJ_VAL(t));
         DISPATCH();

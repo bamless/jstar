@@ -432,7 +432,7 @@ JSR_NATIVE(jsr_re_match) {
 
         for(int i = 1; i < rs.captureCount; i++) {
             if(!pushCapture(vm, &rs, i)) return false;
-            ret->arr[i - 1] = pop(vm);
+            ret->items[i - 1] = pop(vm);
         }
     }
 
@@ -455,12 +455,12 @@ JSR_NATIVE(jsr_re_find) {
     ptrdiff_t start = rs.captures[0].start - rs.string;
     ptrdiff_t end = start + rs.captures[0].length;
 
-    ret->arr[0] = NUM_VAL(start);
-    ret->arr[1] = NUM_VAL(end);
+    ret->items[0] = NUM_VAL(start);
+    ret->items[1] = NUM_VAL(end);
 
     for(int i = 1; i < rs.captureCount; i++) {
         if(!pushCapture(vm, &rs, i)) return false;
-        ret->arr[i + 1] = pop(vm);
+        ret->items[i + 1] = pop(vm);
     }
 
     return true;
@@ -510,7 +510,7 @@ JSR_NATIVE(jsr_re_matchAll) {
 
             for(int i = 1; i < rs.captureCount; i++) {
                 if(!pushCapture(vm, &rs, i)) return false;
-                tup->arr[i - 1] = pop(vm);
+                tup->items[i - 1] = pop(vm);
             }
 
             jsrListAppend(vm, -2);

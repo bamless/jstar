@@ -1,6 +1,7 @@
 #include "excs.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -38,17 +39,17 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
         ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
-        if(stacktrace->recordSize > 0) {
+        if(stacktrace->records.count > 0) {
             FrameRecord* lastRecord = NULL;
 
             fprintf(stderr, "Traceback (most recent call last):\n");
-            for(int i = stacktrace->recordSize - 1; i >= 0; i--) {
-                FrameRecord* record = &stacktrace->records[i];
+            for(int i = stacktrace->records.count - 1; i >= 0; i--) {
+                FrameRecord* record = &stacktrace->records.items[i];
 
                 if(recordEquals(lastRecord, record)) {
                     int repetitions = 1;
                     while(i > 0) {
-                        record = &stacktrace->records[i - 1];
+                        record = &stacktrace->records.items[i - 1];
                         if(!recordEquals(lastRecord, record)) break;
                         repetitions++, i--;
                     }
@@ -111,17 +112,17 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
 
         ObjStackTrace* stacktrace = AS_STACK_TRACE(stval);
 
-        if(stacktrace->recordSize > 0) {
+        if(stacktrace->records.count > 0) {
             FrameRecord* lastRecord = NULL;
 
             jsrBufferAppendf(&buf, "Traceback (most recent call last):\n");
-            for(int i = stacktrace->recordSize - 1; i >= 0; i--) {
-                FrameRecord* record = &stacktrace->records[i];
+            for(int i = stacktrace->records.count - 1; i >= 0; i--) {
+                FrameRecord* record = &stacktrace->records.items[i];
 
                 if(recordEquals(lastRecord, record)) {
                     int repetitions = 1;
                     while(i > 0) {
-                        record = &stacktrace->records[i - 1];
+                        record = &stacktrace->records.items[i - 1];
                         if(!recordEquals(lastRecord, record)) break;
                         repetitions++, i--;
                     }

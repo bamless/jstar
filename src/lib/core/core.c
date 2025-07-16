@@ -455,7 +455,7 @@ JSR_NATIVE(jsr_Function_defaults) {
     ObjTuple* defaultTuple = newTuple(vm, prototype->defCount);
     push(vm, OBJ_VAL(defaultTuple));
     if(prototype->defCount) {
-        memcpy(defaultTuple->arr, prototype->defaults, prototype->defCount * sizeof(Value));
+        memcpy(defaultTuple->items, prototype->defaults, prototype->defCount * sizeof(Value));
     }
     return true;
 }
@@ -554,11 +554,11 @@ JSR_NATIVE(jsr_List_construct) {
                 jsrPushValue(vm, 2);
                 jsrPushNumber(vm, i);
                 if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
-                lst->arr[lst->size++] = pop(vm);
+                lst->items[lst->count++] = pop(vm);
             }
         } else {
             for(size_t i = 0; i < count; i++) {
-                lst->arr[lst->size++] = vm->apiStack[2];
+                lst->items[lst->count++] = vm->apiStack[2];
             }
         }
     } else {
@@ -582,7 +582,7 @@ JSR_NATIVE(jsr_List_add) {
 
 JSR_NATIVE(jsr_List_insert) {
     ObjList* l = AS_LIST(vm->apiStack[0]);
-    size_t index = jsrCheckIndex(vm, 1, l->size + 1, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->count + 1, "i");
     if(index == SIZE_MAX) return false;
 
     listInsert(vm, l, index, vm->apiStack[2]);
@@ -591,7 +591,7 @@ JSR_NATIVE(jsr_List_insert) {
 }
 
 JSR_NATIVE(jsr_List_len) {
-    push(vm, NUM_VAL(AS_LIST(vm->apiStack[0])->size));
+    push(vm, NUM_VAL(AS_LIST(vm->apiStack[0])->count));
     return true;
 }
 
@@ -601,10 +601,10 @@ JSR_NATIVE(jsr_List_plus) {
     ObjList* lst1 = AS_LIST(vm->apiStack[0]);
     ObjList* lst2 = AS_LIST(vm->apiStack[1]);
 
-    ObjList* concat = newList(vm, lst1->size + lst2->size);
-    memcpy(concat->arr, lst1->arr, lst1->size * sizeof(Value));
-    memcpy(concat->arr + lst1->size, lst2->arr, lst2->size * sizeof(Value));
-    concat->size = concat->capacity;
+    ObjList* concat = newList(vm, lst1->count + lst2->count);
+    memcpy(concat->items, lst1->items, lst1->count * sizeof(Value));
+    memcpy(concat->items + lst1->count, lst2->items, lst2->count * sizeof(Value));
+    concat->count = concat->capacity;
 
     push(vm, OBJ_VAL(concat));
     return true;
@@ -620,13 +620,13 @@ JSR_NATIVE(jsr_List_eq) {
 
     ObjList* other = AS_LIST(vm->apiStack[1]);
 
-    if(other->size != lst->size) {
+    if(other->count != lst->count) {
         jsrPushBoolean(vm, false);
         return true;
     }
 
     bool res = false;
-    if(!compareValues(vm, lst->arr, other->arr, lst->size, &res)) return false;
+    if(!compareValues(vm, lst->items, other->items, lst->count, &res)) return false;
 
     jsrPushBoolean(vm, res);
     return true;
@@ -634,17 +634,17 @@ JSR_NATIVE(jsr_List_eq) {
 
 JSR_NATIVE(jsr_List_removeAt) {
     ObjList* l = AS_LIST(vm->apiStack[0]);
-    size_t index = jsrCheckIndex(vm, 1, l->size, "i");
+    size_t index = jsrCheckIndex(vm, 1, l->count, "i");
     if(index == SIZE_MAX) return false;
 
-    Value r = l->arr[index];
+    Value r = l->items[index];
     listRemove(vm, l, index);
     push(vm, r);
     return true;
 }
 
 JSR_NATIVE(jsr_List_clear) {
-    AS_LIST(vm->apiStack[0])->size = 0;
+    AS_LIST(vm->apiStack[0])->count = 0;
     jsrPushNull(vm);
     return true;
 }
@@ -746,7 +746,7 @@ static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
 JSR_NATIVE(jsr_List_sort) {
     ObjList* list = AS_LIST(vm->apiStack[0]);
     Value comp = vm->apiStack[1];
-    if(!mergeSort(vm, list->arr, list->size, comp)) return false;
+    if(!mergeSort(vm, list->items, list->count, comp)) return false;
     jsrPushNull(vm);
     return true;
 }
@@ -754,14 +754,14 @@ JSR_NATIVE(jsr_List_sort) {
 JSR_NATIVE(jsr_List_iter) {
     ObjList* lst = AS_LIST(vm->apiStack[0]);
 
-    if(IS_NULL(vm->apiStack[1]) && lst->size != 0) {
+    if(IS_NULL(vm->apiStack[1]) && lst->count != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx < lst->size - 1) {
+        if(idx < lst->count - 1) {
             push(vm, NUM_VAL(idx + 1));
             return true;
         }
@@ -776,8 +776,8 @@ JSR_NATIVE(jsr_List_next) {
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx < lst->size) {
-            push(vm, lst->arr[idx]);
+        if(idx < lst->count) {
+            push(vm, lst->items[idx]);
             return true;
         }
     }
@@ -812,10 +812,10 @@ JSR_NATIVE(jsr_Tuple_construct) {
 
     // Convert the list to a tuple
     ObjList* list = AS_LIST(vm->sp[-1]);
-    ObjTuple* tuple = newTuple(vm, list->size);
+    ObjTuple* tuple = newTuple(vm, list->count);
 
-    if(list->size > 0) {
-        memcpy(tuple->arr, list->arr, sizeof(Value) * list->size);
+    if(list->count > 0) {
+        memcpy(tuple->items, list->items, sizeof(Value) * list->count);
     }
 
     push(vm, OBJ_VAL(tuple));
@@ -823,7 +823,7 @@ JSR_NATIVE(jsr_Tuple_construct) {
 }
 
 JSR_NATIVE(jsr_Tuple_len) {
-    push(vm, NUM_VAL(AS_TUPLE(vm->apiStack[0])->size));
+    push(vm, NUM_VAL(AS_TUPLE(vm->apiStack[0])->count));
     return true;
 }
 
@@ -833,9 +833,9 @@ JSR_NATIVE(jsr_Tuple_add) {
     ObjTuple* tup1 = AS_TUPLE(vm->apiStack[0]);
     ObjTuple* tup2 = AS_TUPLE(vm->apiStack[1]);
 
-    ObjTuple* concat = newTuple(vm, tup1->size + tup2->size);
-    memcpy(concat->arr, tup1->arr, tup1->size * sizeof(Value));
-    memcpy(concat->arr + tup1->size, tup2->arr, tup2->size * sizeof(Value));
+    ObjTuple* concat = newTuple(vm, tup1->count + tup2->count);
+    memcpy(concat->items, tup1->items, tup1->count * sizeof(Value));
+    memcpy(concat->items + tup1->count, tup2->items, tup2->count * sizeof(Value));
 
     push(vm, OBJ_VAL(concat));
     return true;
@@ -851,13 +851,13 @@ JSR_NATIVE(jsr_Tuple_eq) {
 
     ObjTuple* other = AS_TUPLE(vm->apiStack[1]);
 
-    if(other->size != tup->size) {
+    if(other->count != tup->count) {
         jsrPushBoolean(vm, false);
         return true;
     }
 
     bool res = false;
-    if(!compareValues(vm, tup->arr, other->arr, tup->size, &res)) return false;
+    if(!compareValues(vm, tup->items, other->items, tup->count, &res)) return false;
 
     jsrPushBoolean(vm, res);
     return true;
@@ -866,14 +866,14 @@ JSR_NATIVE(jsr_Tuple_eq) {
 JSR_NATIVE(jsr_Tuple_iter) {
     ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
-    if(IS_NULL(vm->apiStack[1]) && tup->size != 0) {
+    if(IS_NULL(vm->apiStack[1]) && tup->count != 0) {
         push(vm, NUM_VAL(0));
         return true;
     }
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx < tup->size - 1) {
+        if(idx < tup->count - 1) {
             push(vm, NUM_VAL(idx + 1));
             return true;
         }
@@ -888,8 +888,8 @@ JSR_NATIVE(jsr_Tuple_next) {
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx < tup->size) {
-            push(vm, tup->arr[idx]);
+        if(idx < tup->count) {
+            push(vm, tup->items[idx]);
             return true;
         }
     }
@@ -902,8 +902,8 @@ JSR_NATIVE(jsr_Tuple_hash) {
     ObjTuple* tup = AS_TUPLE(vm->apiStack[0]);
 
     uint32_t hash = 1;
-    for(size_t i = 0; i < tup->size; i++) {
-        push(vm, tup->arr[i]);
+    for(size_t i = 0; i < tup->count; i++) {
+        push(vm, tup->items[i]);
         if(jsrCallMethod(vm, "__hash__", 0) != JSR_SUCCESS) return false;
         JSR_CHECK(Number, -1, "__hash__() return value");
         uint32_t elemHash = jsrGetNumber(vm, -1);
@@ -1203,9 +1203,9 @@ JSR_NATIVE(jsr_String_mul) {
 static bool getFmtArgument(JStarVM* vm, Value args, size_t i, Value* out) {
     if(IS_TUPLE(args)) {
         ObjTuple* argsTuple = AS_TUPLE(args);
-        size_t idx = jsrCheckIndexNum(vm, i, argsTuple->size);
+        size_t idx = jsrCheckIndexNum(vm, i, argsTuple->count);
         if(idx == SIZE_MAX) return false;
-        *out = argsTuple->arr[i];
+        *out = argsTuple->items[i];
         return true;
     } else {
         size_t idx = jsrCheckIndexNum(vm, i, 1);
@@ -1407,7 +1407,7 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
         newEntries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
 
-    t->numEntries = 0, t->size = 0;
+    t->numEntries = 0, t->count = 0;
     if(t->capacityMask != 0) {
         for(size_t i = 0; i <= t->capacityMask; i++) {
             TableEntry* e = &t->entries[i];
@@ -1416,7 +1416,7 @@ static void growEntries(JStarVM* vm, ObjTable* t) {
             TableEntry* dest;
             findEntry(vm, newEntries, newCap - 1, e->key, &dest);
             *dest = (TableEntry){e->key, e->val};
-            t->numEntries++, t->size++;
+            t->numEntries++, t->count++;
         }
         GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
     }
@@ -1428,7 +1428,7 @@ JSR_NATIVE(jsr_Table_construct) {
     ObjTable* table = newTable(vm);
     push(vm, OBJ_VAL(table));
 
-    if(IS_TABLE(vm->apiStack[1]) && AS_TABLE(vm->apiStack[1])->size) {
+    if(IS_TABLE(vm->apiStack[1]) && AS_TABLE(vm->apiStack[1])->count) {
         ObjTable* other = AS_TABLE(vm->apiStack[1]);
         for(size_t i = 0; i <= other->capacityMask; i++) {
             TableEntry* e = &other->entries[i];
@@ -1450,12 +1450,12 @@ JSR_NATIVE(jsr_Table_construct) {
                               getClass(vm, peek(vm))->name->data);
                 }
 
-                size_t size;
-                Value* array = getValues(AS_OBJ(peek(vm)), &size);
+                size_t count;
+                Value* array = getValues(AS_OBJ(peek(vm)), &count);
 
-                if(size != 2) {
+                if(count != 2) {
                     JSR_RAISE(vm, "TypeException", "Iterable element of length %zu, must be 2",
-                              size);
+                              count);
                 }
 
                 push(vm, OBJ_VAL(table));
@@ -1514,7 +1514,7 @@ JSR_NATIVE(jsr_Table_set) {
 
     bool newEntry = IS_NULL(e->key);
     if(newEntry) {
-        t->size++;
+        t->count++;
         if(IS_NULL(e->val)) t->numEntries++;
     }
 
@@ -1543,7 +1543,7 @@ JSR_NATIVE(jsr_Table_delete) {
     }
 
     *toDelete = (TableEntry){NULL_VAL, TOMB_MARKER};
-    t->size--;
+    t->count--;
 
     push(vm, BOOL_VAL(true));
     return true;
@@ -1551,7 +1551,7 @@ JSR_NATIVE(jsr_Table_delete) {
 
 JSR_NATIVE(jsr_Table_clear) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    t->numEntries = t->size = 0;
+    t->numEntries = t->count = 0;
     for(size_t i = 0; i < t->capacityMask + 1; i++) {
         t->entries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
@@ -1561,7 +1561,7 @@ JSR_NATIVE(jsr_Table_clear) {
 
 JSR_NATIVE(jsr_Table_len) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    push(vm, NUM_VAL(t->size));
+    push(vm, NUM_VAL(t->count));
     return true;
 }
 

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "array.h"
 #include "conf.h"
 #include "gc.h"
 #include "int_hashtable.h"
@@ -132,7 +133,7 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
 
 ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
     ObjInstance* inst = (ObjInstance*)newObj(vm, sizeof(*inst), cls, OBJ_INST);
-    inst->capacity = 0;
+    inst->size = 0;
     inst->fields = NULL;
     return inst;
 }
@@ -178,8 +179,8 @@ ObjTuple* newTuple(JStarVM* vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
     ObjTuple* tuple = (ObjTuple*)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass,
                                            OBJ_TUPLE);
-    zeroValueArray(tuple->arr, size);
-    tuple->size = size;
+    zeroValueArray(tuple->items, size);
+    tuple->count = size;
     return tuple;
 }
 
@@ -194,9 +195,9 @@ ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*)) {
 ObjStackTrace* newStackTrace(JStarVM* vm) {
     ObjStackTrace* st = (ObjStackTrace*)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
     st->lastTracedFrame = -1;
-    st->recordCapacity = 0;
-    st->recordSize = 0;
-    st->records = NULL;
+    st->records.items = NULL;
+    st->records.capacity = 0;
+    st->records.count = 0;
     return st;
 }
 
@@ -205,8 +206,8 @@ ObjList* newList(JStarVM* vm, size_t capacity) {
     if(capacity > 0) arr = GC_ALLOC(vm, sizeof(Value) * capacity);
     ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), vm->lstClass, OBJ_LIST);
     lst->capacity = capacity;
-    lst->size = 0;
-    lst->arr = arr;
+    lst->count = 0;
+    lst->items = arr;
     return lst;
 }
 
@@ -214,7 +215,7 @@ ObjTable* newTable(JStarVM* vm) {
     ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), vm->tableClass, OBJ_TABLE);
     table->capacityMask = 0;
     table->numEntries = 0;
-    table->size = 0;
+    table->count = 0;
     table->entries = NULL;
     return table;
 }
@@ -273,7 +274,7 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_INST: {
         ObjInstance* i = (ObjInstance*)o;
-        GC_FREE_ARRAY(vm, Value, i->fields, i->capacity);
+        GC_FREE_ARRAY(vm, Value, i->fields, i->size);
         GC_FREE(vm, ObjInstance, i);
         break;
     }
@@ -291,13 +292,13 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_LIST: {
         ObjList* l = (ObjList*)o;
-        GC_FREE_ARRAY(vm, Value, l->arr, l->capacity);
+        GC_FREE_ARRAY(vm, Value, l->items, l->capacity);
         GC_FREE(vm, ObjList, l);
         break;
     }
     case OBJ_TUPLE: {
         ObjTuple* t = (ObjTuple*)o;
-        GC_FREE_VAR(vm, ObjTuple, Value, t->size, t);
+        GC_FREE_VAR(vm, ObjTuple, Value, t->count, t);
         break;
     }
     case OBJ_TABLE: {
@@ -310,9 +311,7 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_STACK_TRACE: {
         ObjStackTrace* st = (ObjStackTrace*)o;
-        if(st->records != NULL) {
-            GC_FREE_ARRAY(vm, FrameRecord, st->records, st->recordCapacity);
-        }
+        arrayFreeGC(vm, &st->records);
         GC_FREE(vm, ObjStackTrace, st);
         break;
     }
@@ -346,7 +345,7 @@ void freeObject(JStarVM* vm, Obj* o) {
 // OBJECT MANIPULATION FUNCTIONS
 // -----------------------------------------------------------------------------
 
-#define GROW_VALUES(vm, off, arr, size)                                           \
+#define ENSURE_VALUES(vm, off, arr, size)                                         \
     if((size_t)off >= (size_t)size) {                                             \
         size_t oldSize = size;                                                    \
         size_t newSize = oldSize ? oldSize : 8;                                   \
@@ -359,13 +358,13 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
 
 bool instanceGetFieldAtOffset(ObjInstance* inst, int offset, Value* out) {
-    if((size_t)offset >= inst->capacity) return false;
+    if((size_t)offset >= inst->size) return false;
     *out = inst->fields[offset];
     return true;
 }
 
 void instanceSetFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val) {
-    GROW_VALUES(vm, offset, inst->fields, inst->capacity);
+    ENSURE_VALUES(vm, offset, inst->fields, inst->size);
     inst->fields[offset] = val;
 }
 
@@ -396,7 +395,7 @@ bool instanceGetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* 
 int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
     int offset;
     if(!hashTableIntGet(&cls->fields, key, &offset)) return -1;
-    return (size_t)offset >= inst->capacity ? -1 : offset;
+    return (size_t)offset >= inst->size ? -1 : offset;
 }
 
 void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* out) {
@@ -405,7 +404,7 @@ void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* out) {
 }
 
 void moduleSetGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val) {
-    GROW_VALUES(vm, offset, mod->globals, mod->globalsCapacity);
+    ENSURE_VALUES(vm, offset, mod->globals, mod->globalsCapacity);
     if(offset >= mod->globalsCount) mod->globalsCount = offset + 1;
     mod->globals[offset] = val;
 }
@@ -442,21 +441,21 @@ int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key) {
 
 void listAppend(JStarVM* vm, ObjList* lst, Value val) {
     push(vm, val);
-    ARRAY_GC_APPEND(vm, lst, size, capacity, arr, val);
+    arrayAppendGC(vm, lst, val);
     pop(vm);
 }
 
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
-    JSR_ASSERT(index <= lst->size, "Index out of bounds");
-    ARRAY_GC_APPEND(vm, lst, size, capacity, arr, NULL_VAL);
-    memmove(lst->arr + index + 1, lst->arr + index, sizeof(Value) * (lst->size - index - 1));
-    lst->arr[index] = val;
+    JSR_ASSERT(index <= lst->count, "Index out of bounds");
+    arrayAppendGC(vm, lst, NULL_VAL);
+    memmove(lst->items + index + 1, lst->items + index, sizeof(Value) * (lst->count - index - 1));
+    lst->items[index] = val;
 }
 
 void listRemove(JStarVM* vm, ObjList* lst, size_t index) {
-    JSR_ASSERT(index < lst->size, "Index out of bounds");
-    memmove(lst->arr + index, lst->arr + index + 1, sizeof(Value) * (lst->size - index - 1));
-    lst->size--;
+    JSR_ASSERT(index < lst->count, "Index out of bounds");
+    memmove(lst->items + index, lst->items + index + 1, sizeof(Value) * (lst->count - index - 1));
+    lst->count--;
 }
 
 uint32_t stringGetHash(ObjString* str) {
@@ -483,9 +482,9 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         ObjFunction* fn = closure->fn;
         Code* code = &fn->code;
 
-        size_t op = f->ip - code->bytecode - 1;
-        if(op >= code->size) {
-            op = code->size - 1;
+        size_t op = f->ip - code->bytecode.items - 1;
+        if(op >= code->bytecode.count) {
+            op = code->bytecode.count - 1;
         }
 
         record.line = getBytecodeSrcLine(code, op);
@@ -506,21 +505,21 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         JSR_UNREACHABLE();
     }
 
-    ARRAY_GC_APPEND(vm, st, recordSize, recordCapacity, records, record);
+    arrayAppendGC(vm, &st->records, record);
 }
 
-Value* getValues(Obj* obj, size_t* size) {
+Value* getValues(Obj* obj, size_t* count) {
     JSR_ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
     switch(obj->type) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj;
-        *size = lst->size;
-        return lst->arr;
+        *count = lst->count;
+        return lst->items;
     }
     case OBJ_TUPLE: {
         ObjTuple* tup = (ObjTuple*)obj;
-        *size = tup->size;
-        return tup->arr;
+        *count = tup->count;
+        return tup->items;
     }
     default:
         JSR_UNREACHABLE();
@@ -628,9 +627,9 @@ void printObj(Obj* o) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)o;
         printf("[");
-        for(size_t i = 0; i < lst->size; i++) {
-            printValue(lst->arr[i]);
-            if(i != lst->size - 1) printf(", ");
+        for(size_t i = 0; i < lst->count; i++) {
+            printValue(lst->items[i]);
+            if(i != lst->count - 1) printf(", ");
         }
         printf("]");
         break;
@@ -638,9 +637,9 @@ void printObj(Obj* o) {
     case OBJ_TUPLE: {
         ObjTuple* t = (ObjTuple*)o;
         printf("(");
-        for(size_t i = 0; i < t->size; i++) {
-            printValue(t->arr[i]);
-            if(i != t->size - 1) printf(", ");
+        for(size_t i = 0; i < t->count; i++) {
+            printValue(t->items[i]);
+            if(i != t->count - 1) printf(", ");
         }
         printf(")");
         break;
