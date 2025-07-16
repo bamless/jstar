@@ -117,6 +117,7 @@ struct Compiler {
     ObjModule* module;
 
     const char* file;
+    const JStarStmt* ast;
 
     int depth;
     Compiler* prev;
@@ -125,7 +126,6 @@ struct Compiler {
 
     FuncType type;
     ObjFunction* func;
-    const JStarStmt* ast;
 
     uint8_t localsCount;
     Local locals[MAX_LOCALS];
@@ -151,11 +151,11 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
         .vm = vm,
         .module = module,
         .file = file,
+        .ast = ast,
         .prev = prev,
         .type = type,
         .globals = globals,
         .fwdRefs = fwdRefs,
-        .ast = ast,
         // 1 for the receiver (always present)
         .stackUsage = 1,
     };
@@ -317,10 +317,7 @@ static int addLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
         return -1;
     }
     Local* local = &c->locals[c->localsCount];
-    local->loc = loc;
-    local->id = id;
-    local->isUpvalue = false;
-    local->depth = -1;
+    *local = (Local){.loc = loc, id, false, -1};
     return c->localsCount++;
 }
 
@@ -952,8 +949,8 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
     JStarExpr* r = e->as.compoundAssign.rval;
 
     // expand compound assignement (e.g. a op= b -> a = a op b)
-    JStarExpr binary = {e->loc, JSR_BINARY, .as = {.binary = {op, l, r}}};
-    JStarExpr assignment = {e->loc, JSR_ASSIGN, .as = {.assign = {l, &binary}}};
+    JStarExpr binary = {e->loc, JSR_BINARY, {.binary = {op, l, r}}};
+    JStarExpr assignment = {e->loc, JSR_ASSIGN, {.assign = {l, &binary}}};
 
     // compile as a normal assignment
     compileAssignExpr(c, &assignment);
