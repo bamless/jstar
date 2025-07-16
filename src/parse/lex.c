@@ -86,6 +86,7 @@ static bool match(JStarLex* lex, char c) {
 void jsrInitLexer(JStarLex* lex, const char* src, size_t len) {
     lex->source = src;
     lex->sourceLen = len;
+    lex->lineStart = src;
     lex->tokenStart = src;
     lex->current = src;
     lex->currLine = 1;
@@ -104,9 +105,10 @@ static void skipSpacesAndComments(JStarLex* lex) {
         switch(peekChar(lex)) {
         case '\\':
             if(peekChar2(lex) == '\n') {
+                advance(lex);
+                advance(lex);
                 lex->currLine++;
-                advance(lex);
-                advance(lex);
+                lex->lineStart = lex->current;
             } else {
                 return;
             }
@@ -149,14 +151,16 @@ static void makeToken(JStarLex* lex, JStarTok* tok, JStarTokType type) {
     tok->type = type;
     tok->lexeme = lex->tokenStart;
     tok->length = (int)(lex->current - lex->tokenStart);
-    tok->line = lex->currLine;
+    tok->loc.line = lex->currLine;
+    tok->loc.col = (int)(lex->tokenStart - lex->lineStart) + 1;
 }
 
 static void eofToken(JStarLex* lex, JStarTok* tok) {
     tok->type = TOK_EOF;
     tok->lexeme = lex->current;
     tok->length = 0;
-    tok->line = lex->currLine;
+    tok->loc.line = lex->currLine;
+    tok->loc.col = 0;
 }
 
 static void integer(JStarLex* lex) {
@@ -192,28 +196,28 @@ static void hexNumber(JStarLex* lex, JStarTok* tok) {
     makeToken(lex, tok, TOK_NUMBER);
 }
 
-static bool stringBody(JStarLex* lex, char end) {
+static void string(JStarLex* lex, char end, JStarTok* tok) {
+    const char* lineStart = lex->current;
+    int currLine = lex->currLine;
+
     while(peekChar(lex) != end && !isAtEnd(lex)) {
-        if(peekChar(lex) == '\n') lex->currLine++;
+        if(peekChar(lex) == '\n') {
+            lineStart = lex->current + 1;
+            currLine++;
+        }
         if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
         advance(lex);
     }
 
-    // unterminated string
     if(isAtEnd(lex)) {
-        return false;
-    }
-
-    advance(lex);
-    return true;
-}
-
-static void string(JStarLex* lex, char end, JStarTok* tok) {
-    if(!stringBody(lex, end)) {
         makeToken(lex, tok, TOK_UNTERMINATED_STR);
     } else {
+        advance(lex);
         makeToken(lex, tok, TOK_STRING);
     }
+
+    lex->lineStart = lineStart;
+    lex->currLine = currLine; 
 }
 
 static void identifier(JStarLex* lex, JStarTok* tok) {
@@ -313,74 +317,52 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
         }
         break;
     case '-':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_MINUS_EQ);
-        else
-            makeToken(lex, tok, TOK_MINUS);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_MINUS_EQ);
+        else makeToken(lex, tok, TOK_MINUS);
         break;
     case '+':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_PLUS_EQ);
-        else
-            makeToken(lex, tok, TOK_PLUS);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_PLUS_EQ);
+        else makeToken(lex, tok, TOK_PLUS);
         break;
     case '/':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_DIV_EQ);
-        else
-            makeToken(lex, tok, TOK_DIV);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_DIV_EQ);
+        else makeToken(lex, tok, TOK_DIV);
         break;
     case '*':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_MULT_EQ);
-        else
-            makeToken(lex, tok, TOK_MULT);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_MULT_EQ);
+        else makeToken(lex, tok, TOK_MULT);
         break;
     case '%':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_MOD_EQ);
-        else
-            makeToken(lex, tok, TOK_MOD);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_MOD_EQ);
+        else makeToken(lex, tok, TOK_MOD);
         break;
     case '!':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_BANG_EQ);
-        else
-            makeToken(lex, tok, TOK_BANG);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_BANG_EQ);
+        else makeToken(lex, tok, TOK_BANG);
         break;
     case '=':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_EQUAL_EQUAL);
-        else if(match(lex, '>'))
-            makeToken(lex, tok, TOK_ARROW);
-        else
-            makeToken(lex, tok, TOK_EQUAL);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_EQUAL_EQUAL);
+        else if(match(lex, '>')) makeToken(lex, tok, TOK_ARROW);
+        else makeToken(lex, tok, TOK_EQUAL);
         break;
     case '<':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_LE);
-        else if(match(lex, '<'))
-            makeToken(lex, tok, TOK_LSHIFT);
-        else
-            makeToken(lex, tok, TOK_LT);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_LE);
+        else if(match(lex, '<')) makeToken(lex, tok, TOK_LSHIFT);
+        else makeToken(lex, tok, TOK_LT);
         break;
     case '>':
-        if(match(lex, '='))
-            makeToken(lex, tok, TOK_GE);
-        else if(match(lex, '>'))
-            makeToken(lex, tok, TOK_RSHIFT);
-        else
-            makeToken(lex, tok, TOK_GT);
+        if(match(lex, '=')) makeToken(lex, tok, TOK_GE);
+        else if(match(lex, '>')) makeToken(lex, tok, TOK_RSHIFT);
+        else makeToken(lex, tok, TOK_GT);
         break;
     case '#':
-        if(match(lex, '#'))
-            makeToken(lex, tok, TOK_HASH_HASH);
-        else
-            makeToken(lex, tok, TOK_HASH);
+        if(match(lex, '#')) makeToken(lex, tok, TOK_HASH_HASH);
+        else makeToken(lex, tok, TOK_HASH);
         break;
     case '\n':
         makeToken(lex, tok, TOK_NEWLINE);
         lex->currLine++;
+        lex->lineStart = lex->current;
         break;
     default:
         makeToken(lex, tok, TOK_ERR);
@@ -388,8 +370,9 @@ void jsrNextToken(JStarLex* lex, JStarTok* tok) {
     }
 }
 
-void jsrLexRewind(JStarLex* lex, JStarTok* tok) {
+void jsrLexRewind(JStarLex* lex, const JStarTok* tok) {
     if(tok->lexeme == NULL) return;
+    lex->lineStart = tok->lexeme - (tok->loc.col - 1);
+    lex->currLine = tok->loc.line;
     lex->tokenStart = lex->current = tok->lexeme;
-    lex->currLine = tok->line;
 }

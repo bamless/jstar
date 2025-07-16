@@ -94,9 +94,9 @@ JSR_NATIVE(jsr_print) {
     return true;
 }
 
-static void parseError(const char* file, int line, const char* error, void* udata) {
+static void parseError(const char* file, JStarLoc loc, const char* error, void* udata) {
     JStarVM* vm = udata;
-    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, loc, error);
 }
 
 JSR_NATIVE(jsr_eval) {

@@ -31,6 +31,7 @@
 
 #include "buffer.h"  // IWYU pragma: export
 #include "conf.h"    // IWYU pragma: export
+#include "parse/lex.h"
 
 // -----------------------------------------------------------------------------
 // FORWARD DECLARATIONS
@@ -77,11 +78,11 @@ typedef JStarImportResult (*JStarImportCB)(JStarVM* vm, const char* moduleName);
 
 // J* error function callback. Invoked when syntax, compilation, dederializtion
 // or syntax errors are encountered.
-typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, int line,
+typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc,
                              const char* error);
 
 // Default implementation of the error callback that prints all errors to stderr
-JSTAR_API void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line,
+JSTAR_API void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc,
                                const char* error);
 
 // -----------------------------------------------------------------------------

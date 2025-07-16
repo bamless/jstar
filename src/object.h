@@ -249,6 +249,7 @@ struct ObjGenerator {
 
 struct FrameRecord {
     int line;
+    ObjString* path;
     ObjString* moduleName;
     ObjString* funcName;
 };

@@ -42,7 +42,7 @@
 
 // String constants
 #define THIS_STR       "this"
-#define ANON_FMT       "anonymous[line:%d]"
+#define ANON_FMT       "anonymous:%d:%d"
 #define UNPACK_ARG_FMT "@unpack:%d"
 
 typedef enum VariableScope {
@@ -68,6 +68,7 @@ typedef struct Variable {
 } Variable;
 
 typedef struct Local {
+    JStarLoc loc;
     JStarIdentifier id;
     bool isUpvalue;
     int depth;
@@ -92,7 +93,7 @@ typedef struct TryBlock {
 
 typedef struct FwdRef {
     JStarIdentifier id;
-    int line;
+    JStarLoc loc;
 } FwdRef;
 
 typedef enum FuncType {
@@ -167,7 +168,7 @@ static void endCompiler(Compiler* c) {
 // UTILITY FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static void error(Compiler* c, int line, const char* format, ...) {
+static void error(Compiler* c, JStarLoc loc, const char* format, ...) {
     JStarVM* vm = c->vm;
     c->hadError = true;
 
@@ -180,7 +181,7 @@ static void error(Compiler* c, int line, const char* format, ...) {
         jsrBufferAppendvf(&error, format, args);
         va_end(args);
 
-        vm->errorCallback(vm, JSR_COMPILE_ERR, c->file, line, error.data);
+        vm->errorCallback(vm, JSR_COMPILE_ERR, c->file, loc, error.data);
 
         jsrBufferFree(&error);
     }
@@ -228,9 +229,9 @@ static bool inGlobalScope(Compiler* c) {
 
 static void discardLocal(Compiler* c, const Local* local) {
     if(local->isUpvalue) {
-        emitByte(c, OP_CLOSE_UPVALUE, 0);
+        emitByte(c, OP_CLOSE_UPVALUE, local->loc.line);
     } else {
-        emitByte(c, OP_POP, 0);
+        emitByte(c, OP_POP, local->loc.line);
     }
 }
 
@@ -245,7 +246,6 @@ static int discardScopes(Compiler* c, int depth) {
     }
 
     int toPop = c->localsCount - locals;
-
     if(toPop > 1) {
         emitByte(c, OP_POPN, 0);
         emitByte(c, toPop, 0);
@@ -270,10 +270,10 @@ static void exitFunctionScope(Compiler* c) {
     c->depth--;
 }
 
-static uint16_t createConst(Compiler* c, Value constant, int line) {
+static uint16_t createConst(Compiler* c, Value constant, JStarLoc loc) {
     int index = addConstant(&c->func->code, constant);
     if(index == -1) {
-        error(c, line, "Too many constants in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many constants in function %s", c->func->proto.name->data);
         return 0;
     }
     return (uint16_t)index;
@@ -283,33 +283,34 @@ static JStarIdentifier createIdentifier(const char* name) {
     return (JStarIdentifier){strlen(name), name};
 }
 
-static uint16_t stringConst(Compiler* c, const char* str, size_t length, int line) {
+static uint16_t stringConst(Compiler* c, const char* str, size_t length, JStarLoc loc) {
     ObjString* string = copyString(c->vm, str, length);
-    return createConst(c, OBJ_VAL(string), line);
+    return createConst(c, OBJ_VAL(string), loc);
 }
 
-static uint16_t identifierConst(Compiler* c, const JStarIdentifier* id, int line) {
-    return stringConst(c, id->name, id->length, line);
+static uint16_t identifierConst(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+    return stringConst(c, id->name, id->length, loc);
 }
 
-static uint16_t identifierSymbol(Compiler* c, const JStarIdentifier* id, int line) {
-    int index = addSymbol(&c->func->code, identifierConst(c, id, line));
+static uint16_t identifierSymbol(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+    int index = addSymbol(&c->func->code, identifierConst(c, id, loc));
     if(index == -1) {
-        error(c, line, "Too many symbols in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many symbols in function %s", c->func->proto.name->data);
         return 0;
     }
     return (uint16_t)index;
 }
 
-static int addLocal(Compiler* c, const JStarIdentifier* id, int line) {
+static int addLocal(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
     if(c->localsCount == MAX_LOCALS) {
-        error(c, line, "Too many local variables in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many local variables in function %s", c->func->proto.name->data);
         return -1;
     }
     Local* local = &c->locals[c->localsCount];
+    local->loc = loc;
+    local->id = *id;
     local->isUpvalue = false;
     local->depth = -1;
-    local->id = *id;
     return c->localsCount++;
 }
 
@@ -318,12 +319,12 @@ static void initializeLocal(Compiler* c, int idx) {
     c->locals[idx].depth = c->depth;
 }
 
-static Variable resolveLocal(Compiler* c, const JStarIdentifier* id, int line) {
+static Variable resolveLocal(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
         Local* local = &c->locals[i];
         if(jsrIdentifierEq(&local->id, id)) {
             if(local->depth == -1) {
-                error(c, line, "Cannot read local variable `%.*s` in its own initializer",
+                error(c, loc, "Cannot read local variable `%.*s` in its own initializer",
                       local->id.length, local->id.name);
                 return (Variable){.scope = VAR_ERR};
             }
@@ -333,7 +334,7 @@ static Variable resolveLocal(Compiler* c, const JStarIdentifier* id, int line) {
     return (Variable){.scope = VAR_ERR};
 }
 
-static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
+static int addUpvalue(Compiler* c, uint8_t index, bool local, JStarLoc loc) {
     uint8_t upvalueCount = c->func->upvalueCount;
     for(uint8_t i = 0; i < upvalueCount; i++) {
         Upvalue* upval = &c->upvalues[i];
@@ -343,7 +344,7 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
     }
 
     if(c->func->upvalueCount == MAX_LOCALS) {
-        error(c, line, "Too many upvalues in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many upvalues in function %s", c->func->proto.name->data);
         return -1;
     }
 
@@ -352,21 +353,21 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, int line) {
     return c->func->upvalueCount++;
 }
 
-static Variable resolveUpvalue(Compiler* c, const JStarIdentifier* id, int line) {
+static Variable resolveUpvalue(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
     if(c->prev == NULL) {
         return (Variable){.scope = VAR_ERR};
     }
 
-    Variable var = resolveLocal(c->prev, id, line);
+    Variable var = resolveLocal(c->prev, id, loc);
     if(var.scope == VAR_LOCAL) {
-        int upvalueIdx = addUpvalue(c, var.as.local.localIdx, true, line);
+        int upvalueIdx = addUpvalue(c, var.as.local.localIdx, true, loc);
         c->prev->locals[var.as.local.localIdx].isUpvalue = true;
         return (Variable){.scope = VAR_UPVALUE, .as = {.upvalue = {.upvalueIdx = upvalueIdx}}};
     }
 
-    var = resolveUpvalue(c->prev, id, line);
+    var = resolveUpvalue(c->prev, id, loc);
     if(var.scope == VAR_UPVALUE) {
-        int upvalueIdx = addUpvalue(c, var.as.upvalue.upvalueIdx, false, line);
+        int upvalueIdx = addUpvalue(c, var.as.upvalue.upvalueIdx, false, loc);
         return (Variable){.scope = VAR_UPVALUE, .as = {.upvalue = {.upvalueIdx = upvalueIdx}}};
     }
 
@@ -394,13 +395,13 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
     return (Variable){.scope = VAR_ERR};
 }
 
-static Variable resolveVar(Compiler* c, const JStarIdentifier* id, int line) {
-    Variable var = resolveLocal(c, id, line);
+static Variable resolveVar(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+    Variable var = resolveLocal(c, id, loc);
     if(var.scope != VAR_ERR) {
         return var;
     }
 
-    var = resolveUpvalue(c, id, line);
+    var = resolveUpvalue(c, id, loc);
     if(var.scope != VAR_ERR) {
         return var;
     }
@@ -414,7 +415,7 @@ static Variable resolveVar(Compiler* c, const JStarIdentifier* id, int line) {
         return (Variable){.scope = VAR_ERR};
     }
 
-    FwdRef fwdRef = {*id, line};
+    FwdRef fwdRef = {*id, loc};
     ext_vec_push_back(*c->fwdRefs, fwdRef);
 
     return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
@@ -430,25 +431,27 @@ static Variable declareGlobal(Compiler* c, const JStarIdentifier* id) {
     return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
 }
 
-static Variable declareVar(Compiler* c, const JStarIdentifier* id, bool forceLocal, int line) {
+static Variable declareVar(Compiler* c, const JStarIdentifier* id, bool forceLocal, JStarLoc loc) {
     if(inGlobalScope(c) && !forceLocal) {
         return declareGlobal(c, id);
     }
 
     if(!inGlobalScope(c) && forceLocal) {
-        error(c, line, "static declaration can only appear in global scope");
+        error(c, loc, "static declaration can only appear in global scope");
         return (Variable){.scope = VAR_ERR};
     }
 
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
         if(jsrIdentifierEq(&c->locals[i].id, id)) {
-            error(c, line, "Variable `%.*s` already declared", id->length, id->name);
+            const Local* other = &c->locals[i];
+            error(c, loc, "Variable `%.*s` already declared", id->length, id->name);
+            error(c, other->loc, "NOTE: previous declaration of `%.*s` is here", id->length, id->name);
             return (Variable){.scope = VAR_ERR};
         }
     }
 
-    int index = addLocal(c, id, line);
+    int index = addLocal(c, id, loc);
     if(index == -1) {
         return (Variable){.scope = VAR_ERR};
     }
@@ -456,11 +459,11 @@ static Variable declareVar(Compiler* c, const JStarIdentifier* id, bool forceLoc
     return (Variable){.scope = VAR_LOCAL, .as = {.local = {.localIdx = index}}};
 }
 
-static void defineVar(Compiler* c, const Variable* var, int line) {
+static void defineVar(Compiler* c, const Variable* var, JStarLoc loc) {
     switch(var->scope) {
     case VAR_GLOBAL:
-        emitOpcode(c, OP_DEFINE_GLOBAL, line);
-        emitShort(c, identifierSymbol(c, &var->as.global.id, line), line);
+        emitOpcode(c, OP_DEFINE_GLOBAL, loc.line);
+        emitShort(c, identifierSymbol(c, &var->as.global.id, loc), loc.line);
         break;
     case VAR_LOCAL:
         initializeVar(c, var);
@@ -479,27 +482,27 @@ static void assertJumpOpcode(Opcode op) {
                "Not a jump opcode");
 }
 
-static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, int line) {
+static size_t emitJumpTo(Compiler* c, Opcode jmpOp, size_t target, JStarLoc loc) {
     assertJumpOpcode(jmpOp);
 
     int32_t offset = target - (getCurrentAddr(c) + opcodeArgsNumber(jmpOp) + 1);
     if(offset > INT16_MAX || offset < INT16_MIN) {
-        error(c, line, "Too much code to jump over");
+        error(c, loc, "Too much code to jump over");
     }
 
-    size_t jmpAddr = emitOpcode(c, jmpOp, line);
-    emitShort(c, (uint16_t)offset, line);
+    size_t jmpAddr = emitOpcode(c, jmpOp, loc.line);
+    emitShort(c, (uint16_t)offset, loc.line);
     return jmpAddr;
 }
 
-static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, int line) {
+static void setJumpTo(Compiler* c, size_t jumpAddr, size_t target, JStarLoc loc) {
     Code* code = &c->func->code;
     Opcode jmpOp = code->bytecode[jumpAddr];
     assertJumpOpcode(jmpOp);
 
     int32_t offset = target - (jumpAddr + opcodeArgsNumber(jmpOp) + 1);
     if(offset > INT16_MAX || offset < INT16_MIN) {
-        error(c, line, "Too much code to jump over");
+        error(c, loc, "Too much code to jump over");
     }
 
     code->bytecode[jumpAddr + 1] = ((uint16_t)offset >> 8) & 0xff;
@@ -523,7 +526,7 @@ static void patchLoopExitStmts(Compiler* c, size_t start, size_t contAddr, size_
             int mark = c->func->code.bytecode[i + 1];
             JSR_ASSERT(mark == CONTINUE_MARK || mark == BREAK_MARK, "Unknown loop breaking marker");
 
-            setJumpTo(c, i, mark == CONTINUE_MARK ? contAddr : brkAddr, 0);
+            setJumpTo(c, i, mark == CONTINUE_MARK ? contAddr : brkAddr, (JStarLoc){0});
 
             i += opcodeArgsNumber(OP_JUMP);
         } else {
@@ -541,11 +544,12 @@ static void endLoop(Compiler* c) {
 static void inlineMethodCall(Compiler* c, const char* name, int args) {
     JSR_ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
     JStarIdentifier meth = createIdentifier(name);
-    emitOpcode(c, OP_INVOKE_0 + args, 0);
-    emitShort(c, identifierSymbol(c, &meth, 0), 0);
+    JStarLoc loc = {0};
+    emitOpcode(c, OP_INVOKE_0 + args, loc.line);
+    emitShort(c, identifierSymbol(c, &meth, loc), loc.line);
 }
 
-static void enterTryBlock(Compiler* c, TryBlock* exc, int numHandlers, int line) {
+static void enterTryBlock(Compiler* c, TryBlock* exc, int numHandlers, JStarLoc loc) {
     exc->depth = c->depth;
     exc->numHandlers = numHandlers;
     exc->parent = c->tryBlocks;
@@ -553,7 +557,7 @@ static void enterTryBlock(Compiler* c, TryBlock* exc, int numHandlers, int line)
     c->tryDepth += numHandlers;
 
     if(c->tryDepth > MAX_HANDLERS) {
-        error(c, line, "Exceeded max number of nested exception handlers: max %d, got %d",
+        error(c, loc, "Exceeded max number of nested exception handlers: max %d, got %d",
               MAX_HANDLERS, c->tryDepth);
     }
 }
@@ -586,7 +590,7 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
                 }
             }
             if(j == numEscapes) {
-                error(c, e->line, "Invalid escape character `%c`", str[i + 1]);
+                error(c, e->loc, "Invalid escape character `%c`", str[i + 1]);
             }
         } else {
             jsrBufferAppendChar(&sb, str[i]);
@@ -662,56 +666,56 @@ static void compileBinaryExpr(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.binary.right);
     switch(e->as.binary.op) {
     case TOK_PLUS:
-        emitOpcode(c, OP_ADD, e->line);
+        emitOpcode(c, OP_ADD, e->loc.line);
         break;
     case TOK_MINUS:
-        emitOpcode(c, OP_SUB, e->line);
+        emitOpcode(c, OP_SUB, e->loc.line);
         break;
     case TOK_MULT:
-        emitOpcode(c, OP_MUL, e->line);
+        emitOpcode(c, OP_MUL, e->loc.line);
         break;
     case TOK_DIV:
-        emitOpcode(c, OP_DIV, e->line);
+        emitOpcode(c, OP_DIV, e->loc.line);
         break;
     case TOK_MOD:
-        emitOpcode(c, OP_MOD, e->line);
+        emitOpcode(c, OP_MOD, e->loc.line);
         break;
     case TOK_AMPER:
-        emitOpcode(c, OP_BAND, e->line);
+        emitOpcode(c, OP_BAND, e->loc.line);
         break;
     case TOK_PIPE:
-        emitOpcode(c, OP_BOR, e->line);
+        emitOpcode(c, OP_BOR, e->loc.line);
         break;
     case TOK_TILDE:
-        emitOpcode(c, OP_XOR, e->line);
+        emitOpcode(c, OP_XOR, e->loc.line);
         break;
     case TOK_LSHIFT:
-        emitOpcode(c, OP_LSHIFT, e->line);
+        emitOpcode(c, OP_LSHIFT, e->loc.line);
         break;
     case TOK_RSHIFT:
-        emitOpcode(c, OP_RSHIFT, e->line);
+        emitOpcode(c, OP_RSHIFT, e->loc.line);
         break;
     case TOK_EQUAL_EQUAL:
-        emitOpcode(c, OP_EQ, e->line);
+        emitOpcode(c, OP_EQ, e->loc.line);
         break;
     case TOK_GT:
-        emitOpcode(c, OP_GT, e->line);
+        emitOpcode(c, OP_GT, e->loc.line);
         break;
     case TOK_GE:
-        emitOpcode(c, OP_GE, e->line);
+        emitOpcode(c, OP_GE, e->loc.line);
         break;
     case TOK_LT:
-        emitOpcode(c, OP_LT, e->line);
+        emitOpcode(c, OP_LT, e->loc.line);
         break;
     case TOK_LE:
-        emitOpcode(c, OP_LE, e->line);
+        emitOpcode(c, OP_LE, e->loc.line);
         break;
     case TOK_IS:
-        emitOpcode(c, OP_IS, e->line);
+        emitOpcode(c, OP_IS, e->loc.line);
         break;
     case TOK_BANG_EQ:
-        emitOpcode(c, OP_EQ, e->line);
-        emitOpcode(c, OP_NOT, e->line);
+        emitOpcode(c, OP_EQ, e->loc.line);
+        emitOpcode(c, OP_NOT, e->loc.line);
         break;
     default:
         JSR_UNREACHABLE();
@@ -720,29 +724,29 @@ static void compileBinaryExpr(Compiler* c, const JStarExpr* e) {
 
 static void compileLogicExpr(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.binary.left);
-    emitOpcode(c, OP_DUP, e->line);
+    emitOpcode(c, OP_DUP, e->loc.line);
 
     Opcode jmpOp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
     size_t shortCircuit = emitOpcode(c, jmpOp, 0);
     emitShort(c, 0, 0);
 
-    emitOpcode(c, OP_POP, e->line);
+    emitOpcode(c, OP_POP, e->loc.line);
     compileExpr(c, e->as.binary.right);
 
-    setJumpTo(c, shortCircuit, getCurrentAddr(c), e->line);
+    setJumpTo(c, shortCircuit, getCurrentAddr(c), e->loc);
 }
 
 static void compileUnaryExpr(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.unary.operand);
     switch(e->as.unary.op) {
     case TOK_MINUS:
-        emitOpcode(c, OP_NEG, e->line);
+        emitOpcode(c, OP_NEG, e->loc.line);
         break;
     case TOK_BANG:
-        emitOpcode(c, OP_NOT, e->line);
+        emitOpcode(c, OP_NOT, e->loc.line);
         break;
     case TOK_TILDE:
-        emitOpcode(c, OP_INVERT, e->line);
+        emitOpcode(c, OP_INVERT, e->loc.line);
         break;
     case TOK_HASH:
         inlineMethodCall(c, "__len__", 0);
@@ -758,48 +762,48 @@ static void compileUnaryExpr(Compiler* c, const JStarExpr* e) {
 static void compileTernaryExpr(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.ternary.cond);
 
-    size_t falseJmp = emitOpcode(c, OP_JUMPF, e->line);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, e->loc.line);
     emitShort(c, 0, 0);
 
     compileExpr(c, e->as.ternary.thenExpr);
-    size_t exitJmp = emitOpcode(c, OP_JUMP, e->line);
+    size_t exitJmp = emitOpcode(c, OP_JUMP, e->loc.line);
     emitShort(c, 0, 0);
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), e->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), e->loc);
     compileExpr(c, e->as.ternary.elseExpr);
 
-    setJumpTo(c, exitJmp, getCurrentAddr(c), e->line);
+    setJumpTo(c, exitJmp, getCurrentAddr(c), e->loc);
 }
 
-static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, int line) {
-    Variable var = resolveVar(c, id, line);
+static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, JStarLoc loc) {
+    Variable var = resolveVar(c, id, loc);
     switch(var.scope) {
     case VAR_LOCAL:
         if(set) {
-            emitOpcode(c, OP_SET_LOCAL, line);
+            emitOpcode(c, OP_SET_LOCAL, loc.line);
         } else {
-            emitOpcode(c, OP_GET_LOCAL, line);
+            emitOpcode(c, OP_GET_LOCAL, loc.line);
         }
-        emitByte(c, var.as.local.localIdx, line);
+        emitByte(c, var.as.local.localIdx, loc.line);
         break;
     case VAR_UPVALUE:
         if(set) {
-            emitOpcode(c, OP_SET_UPVALUE, line);
+            emitOpcode(c, OP_SET_UPVALUE, loc.line);
         } else {
-            emitOpcode(c, OP_GET_UPVALUE, line);
+            emitOpcode(c, OP_GET_UPVALUE, loc.line);
         }
-        emitByte(c, var.as.upvalue.upvalueIdx, line);
+        emitByte(c, var.as.upvalue.upvalueIdx, loc.line);
         break;
     case VAR_GLOBAL:
         if(set) {
-            emitOpcode(c, OP_SET_GLOBAL, line);
+            emitOpcode(c, OP_SET_GLOBAL, loc.line);
         } else {
-            emitOpcode(c, OP_GET_GLOBAL, line);
+            emitOpcode(c, OP_GET_GLOBAL, loc.line);
         }
-        emitShort(c, identifierSymbol(c, &var.as.global.id, line), line);
+        emitShort(c, identifierSymbol(c, &var.as.global.id, loc), loc.line);
         break;
     case VAR_ERR:
-        error(c, line, "Cannot resolve name `%.*s`", id->length, id->name);
+        error(c, loc, "Cannot resolve name `%.*s`", id->length, id->name);
         break;
     }
 }
@@ -807,8 +811,8 @@ static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, int 
 static void compileFunLiteral(Compiler* c, const JStarExpr* e, const JStarIdentifier* name) {
     JStarStmt* func = e->as.funLit.func;
     if(!name) {
-        char anonName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) + 1];
-        sprintf(anonName, ANON_FMT, func->line);
+        char anonName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) * 2 + 1];
+        sprintf(anonName, ANON_FMT, func->loc.line, func->loc.col);
         compileFunction(c, TYPE_FUNC, copyString(c->vm, anonName, strlen(anonName)), func);
     } else {
         func->as.decl.as.fun.id = *name;
@@ -819,18 +823,18 @@ static void compileFunLiteral(Compiler* c, const JStarExpr* e, const JStarIdenti
 static void compileLval(Compiler* c, const JStarExpr* e) {
     switch(e->type) {
     case JSR_VAR:
-        compileVarLit(c, &e->as.varLiteral.id, true, e->line);
+        compileVarLit(c, &e->as.varLiteral.id, true, e->loc);
         break;
     case JSR_PROPERTY_ACCESS: {
         compileExpr(c, e->as.propertyAccess.left);
-        emitOpcode(c, OP_SET_FIELD, e->line);
-        emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->line), e->line);
+        emitOpcode(c, OP_SET_FIELD, e->loc.line);
+        emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->loc), e->loc.line);
         break;
     }
     case JSR_INDEX: {
         compileExpr(c, e->as.index.index);
         compileExpr(c, e->as.index.left);
-        emitOpcode(c, OP_SUBSCR_SET, e->line);
+        emitOpcode(c, OP_SUBSCR_SET, e->loc.line);
         break;
     }
     default:
@@ -852,7 +856,7 @@ static void compileRval(Compiler* c, const JStarExpr* e, const JStarIdentifier* 
 static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
                                const ext_vector(JStarIdentifier) names) {
     if(ext_vec_size(exprs->as.exprList) < (size_t)lvals) {
-        error(c, exprs->line, "Too few values to unpack: expected %d, got %zu", lvals,
+        error(c, exprs->loc, "Too few values to unpack: expected %d, got %zu", lvals,
               ext_vec_size(exprs->as.exprList));
     }
 
@@ -877,7 +881,7 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
     size_t lvalCount = ext_vec_size(lvals->as.exprList);
 
     if(lvalCount >= UINT8_MAX) {
-        error(c, e->line, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
+        error(c, e->loc, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
     }
 
     JStarExpr* rval = e->as.assign.rval;
@@ -888,8 +892,8 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
         compileConstUnpack(c, exprs, lvalCount, NULL);
     } else {
         compileRval(c, rval, NULL);
-        emitOpcode(c, OP_UNPACK, e->line);
-        emitByte(c, (uint8_t)lvalCount, e->line);
+        emitOpcode(c, OP_UNPACK, e->loc.line);
+        emitByte(c, (uint8_t)lvalCount, e->loc.line);
         adjustStackUsage(c, lvalCount - 1);
     }
 
@@ -898,7 +902,7 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
     for(int n = lvalCount - 1; n >= 0; n--) {
         JStarExpr* lval = lvals->as.exprList[n];
         compileLval(c, lval);
-        if(n != 0) emitOpcode(c, OP_POP, e->line);
+        if(n != 0) emitOpcode(c, OP_POP, e->loc.line);
     }
 }
 
@@ -936,8 +940,8 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
     JStarExpr* r = e->as.compoundAssign.rval;
 
     // expand compound assignement (e.g. a op= b -> a = a op b)
-    JStarExpr binary = {e->line, JSR_BINARY, .as = {.binary = {op, l, r}}};
-    JStarExpr assignment = {e->line, JSR_ASSIGN, .as = {.assign = {l, &binary}}};
+    JStarExpr binary = {e->loc, JSR_BINARY, .as = {.binary = {op, l, r}}};
+    JStarExpr assignment = {e->loc, JSR_ASSIGN, .as = {.assign = {l, &binary}}};
 
     // compile as a normal assignment
     compileAssignExpr(c, &assignment);
@@ -950,13 +954,13 @@ static void compileArguments(Compiler* c, const JStarExpr* args) {
 
     size_t argsCount = ext_vec_size(args->as.exprList);
     if(argsCount >= UINT8_MAX) {
-        error(c, args->line, "Exceeded maximum number of arguments (%d) for function %s",
+        error(c, args->loc, "Exceeded maximum number of arguments (%d) for function %s",
               (int)UINT8_MAX, c->func->proto.name->data);
     }
 }
 
 static void compileUnpackArguments(Compiler* c, JStarExpr* args) {
-    JStarExpr argsList = (JStarExpr){args->line, JSR_LIST, .as = {.listLiteral = {args}}};
+    JStarExpr argsList = (JStarExpr){args->loc, JSR_LIST, .as = {.listLiteral = {args}}};
     compileListLit(c, &argsList);
 }
 
@@ -999,29 +1003,29 @@ static void compileCallExpr(Compiler* c, const JStarExpr* e) {
     }
 
     uint8_t argsCount = ext_vec_size(args->as.exprList);
-    emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->line);
+    emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->loc.line);
 
     if(isMethod) {
-        emitShort(c, identifierSymbol(c, &callee->as.propertyAccess.id, e->line), e->line);
+        emitShort(c, identifierSymbol(c, &callee->as.propertyAccess.id, e->loc), e->loc.line);
     }
 }
 
 static void compileSuper(Compiler* c, const JStarExpr* e) {
     // TODO: replace check to support super calls in closures nested in methods
     if(c->type != TYPE_METHOD && c->type != TYPE_CTOR) {
-        error(c, e->line, "Can only use `super` in method call");
+        error(c, e->loc, "Can only use `super` in method call");
         return;
     }
 
     // place `this` on top of the stack
-    emitOpcode(c, OP_GET_LOCAL, e->line);
-    emitByte(c, 0, e->line);
+    emitOpcode(c, OP_GET_LOCAL, e->loc.line);
+    emitByte(c, 0, e->loc.line);
 
     uint16_t methodSym;
     if(e->as.sup.name.name != NULL) {
-        methodSym = identifierSymbol(c, &e->as.sup.name, e->line);
+        methodSym = identifierSymbol(c, &e->as.sup.name, e->loc);
     } else {
-        methodSym = identifierSymbol(c, &c->ast->as.decl.as.fun.id, e->line);
+        methodSym = identifierSymbol(c, &c->ast->as.decl.as.fun.id, e->loc);
     }
 
     JStarIdentifier superName = createIdentifier("super");
@@ -1037,60 +1041,60 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
         }
 
         uint8_t argsCount = ext_vec_size(args->as.exprList);
-        compileVarLit(c, &superName, false, e->line);
-        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->line);
-        emitShort(c, methodSym, e->line);
+        compileVarLit(c, &superName, false, e->loc);
+        emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->loc.line);
+        emitShort(c, methodSym, e->loc.line);
     } else {
-        compileVarLit(c, &superName, false, e->line);
-        emitOpcode(c, OP_SUPER_BIND, e->line);
-        emitShort(c, methodSym, e->line);
+        compileVarLit(c, &superName, false, e->loc);
+        emitOpcode(c, OP_SUPER_BIND, e->loc.line);
+        emitShort(c, methodSym, e->loc.line);
     }
 }
 
 static void compileAccessExpression(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.propertyAccess.left);
-    emitOpcode(c, OP_GET_FIELD, e->line);
-    emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->line), e->line);
+    emitOpcode(c, OP_GET_FIELD, e->loc.line);
+    emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->loc), e->loc.line);
 }
 
 static void compileArraryAccExpression(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.index.left);
     compileExpr(c, e->as.index.index);
-    emitOpcode(c, OP_SUBSCR_GET, e->line);
+    emitOpcode(c, OP_SUBSCR_GET, e->loc.line);
 }
 
 static void compilePowExpr(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.pow.base);
     compileExpr(c, e->as.pow.exp);
-    emitOpcode(c, OP_POW, e->line);
+    emitOpcode(c, OP_POW, e->loc.line);
 }
 
 static void compileListLit(Compiler* c, const JStarExpr* e) {
-    emitOpcode(c, OP_NEW_LIST, e->line);
+    emitOpcode(c, OP_NEW_LIST, e->loc.line);
 
     ext_vec_foreach(JStarExpr** it, e->as.listLiteral.exprs->as.exprList) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
-            emitOpcode(c, OP_DUP, e->line);
+            emitOpcode(c, OP_DUP, e->loc.line);
         }
 
         compileExpr(c, expr);
 
         if(isSpreadExpr(expr)) {
             inlineMethodCall(c, "addAll", 1);
-            emitOpcode(c, OP_POP, expr->line);
+            emitOpcode(c, OP_POP, expr->loc.line);
         } else {
-            emitOpcode(c, OP_APPEND_LIST, e->line);
+            emitOpcode(c, OP_APPEND_LIST, e->loc.line);
         }
     }
 }
 
 static void compileSpreadTupleLit(Compiler* c, const JStarExpr* e) {
-    JStarExpr toList = (JStarExpr){e->line, JSR_LIST,
+    JStarExpr toList = (JStarExpr){e->loc, JSR_LIST,
                                    .as = {.listLiteral = {e->as.tupleLiteral.exprs}}};
     compileListLit(c, &toList);
-    emitOpcode(c, OP_LIST_TO_TUPLE, e->line);
+    emitOpcode(c, OP_LIST_TO_TUPLE, e->loc.line);
 }
 
 static void compileTupleLit(Compiler* c, const JStarExpr* e) {
@@ -1105,15 +1109,15 @@ static void compileTupleLit(Compiler* c, const JStarExpr* e) {
 
     size_t tupleSize = ext_vec_size(e->as.tupleLiteral.exprs->as.exprList);
     if(tupleSize >= UINT8_MAX) {
-        error(c, e->line, "Too many elements in Tuple literal");
+        error(c, e->loc, "Too many elements in Tuple literal");
     }
 
-    emitOpcode(c, OP_NEW_TUPLE, e->line);
-    emitByte(c, tupleSize, e->line);
+    emitOpcode(c, OP_NEW_TUPLE, e->loc.line);
+    emitByte(c, tupleSize, e->loc.line);
 }
 
 static void compileTableLit(Compiler* c, const JStarExpr* e) {
-    emitOpcode(c, OP_NEW_TABLE, e->line);
+    emitOpcode(c, OP_NEW_TABLE, e->loc.line);
 
     JStarExpr* keyVals = e->as.tableLiteral.keyVals;
     for(JStarExpr** it = ext_vec_begin(keyVals->as.exprList);
@@ -1121,22 +1125,22 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
-            emitOpcode(c, OP_DUP, e->line);
+            emitOpcode(c, OP_DUP, e->loc.line);
             compileExpr(c, expr);
             inlineMethodCall(c, "addAll", 1);
-            emitOpcode(c, OP_POP, e->line);
+            emitOpcode(c, OP_POP, e->loc.line);
 
             it += 1;
         } else {
             const JStarExpr* key = expr;
             const JStarExpr* val = *(it + 1);
 
-            emitOpcode(c, OP_DUP, e->line);
+            emitOpcode(c, OP_DUP, e->loc.line);
             compileExpr(c, key);
             compileExpr(c, val);
 
             inlineMethodCall(c, "__set__", 2);
-            emitOpcode(c, OP_POP, e->line);
+            emitOpcode(c, OP_POP, e->loc.line);
 
             it += 2;
         }
@@ -1145,21 +1149,21 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
 
 static void compileYield(Compiler* c, const JStarExpr* e) {
     if(c->type == TYPE_CTOR) {
-        error(c, e->line, "Cannot use yield in constructor");
+        error(c, e->loc, "Cannot use yield in constructor");
     }
 
     if(e->as.yield.expr != NULL) {
         compileExpr(c, e->as.yield.expr);
     } else {
-        emitOpcode(c, OP_NULL, e->line);
+        emitOpcode(c, OP_NULL, e->loc.line);
     }
 
-    emitOpcode(c, OP_YIELD, e->line);
+    emitOpcode(c, OP_YIELD, e->loc.line);
 }
 
-static void emitValueConst(Compiler* c, Value val, int line) {
-    emitOpcode(c, OP_GET_CONST, line);
-    emitShort(c, createConst(c, val, line), line);
+static void emitValueConst(Compiler* c, Value val, JStarLoc loc) {
+    emitOpcode(c, OP_GET_CONST, loc.line);
+    emitShort(c, createConst(c, val, loc), loc.line);
 }
 
 static void compileExpr(Compiler* c, const JStarExpr* e) {
@@ -1199,19 +1203,19 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         compilePowExpr(c, e);
         break;
     case JSR_NUMBER:
-        emitValueConst(c, NUM_VAL(e->as.num), e->line);
+        emitValueConst(c, NUM_VAL(e->as.num), e->loc);
         break;
     case JSR_BOOL:
-        emitValueConst(c, BOOL_VAL(e->as.boolean), e->line);
+        emitValueConst(c, BOOL_VAL(e->as.boolean), e->loc);
         break;
     case JSR_STRING:
-        emitValueConst(c, OBJ_VAL(readString(c, e)), e->line);
+        emitValueConst(c, OBJ_VAL(readString(c, e)), e->loc);
         break;
     case JSR_VAR:
-        compileVarLit(c, &e->as.varLiteral.id, false, e->line);
+        compileVarLit(c, &e->as.varLiteral.id, false, e->loc);
         break;
     case JSR_NULL:
-        emitOpcode(c, OP_NULL, e->line);
+        emitOpcode(c, OP_NULL, e->loc.line);
         break;
     case JSR_LIST:
         compileListLit(c, e);
@@ -1255,20 +1259,20 @@ static void compileStatements(Compiler* c, ext_vector(JStarStmt*) stmts) {
 
 static void compileReturnStatement(Compiler* c, const JStarStmt* s) {
     if(c->type == TYPE_CTOR) {
-        error(c, s->line, "Cannot use return in constructor");
+        error(c, s->loc, "Cannot use return in constructor");
     }
 
     if(s->as.returnStmt.e != NULL) {
         compileExpr(c, s->as.returnStmt.e);
     } else {
-        emitOpcode(c, OP_NULL, s->line);
+        emitOpcode(c, OP_NULL, s->loc.line);
     }
 
     if(c->ast->as.decl.as.fun.isGenerator) {
-        emitOpcode(c, OP_GENERATOR_CLOSE, s->line);
+        emitOpcode(c, OP_GENERATOR_CLOSE, s->loc.line);
     }
 
-    emitOpcode(c, OP_RETURN, s->line);
+    emitOpcode(c, OP_RETURN, s->loc.line);
 }
 
 static void compileIfStatement(Compiler* c, const JStarStmt* s) {
@@ -1285,11 +1289,11 @@ static void compileIfStatement(Compiler* c, const JStarStmt* s) {
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), s->loc);
 
     if(s->as.ifStmt.elseStmt != NULL) {
         compileStatement(c, s->as.ifStmt.elseStmt);
-        setJumpTo(c, exitJmp, getCurrentAddr(c), s->line);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), s->loc);
     }
 }
 
@@ -1312,7 +1316,7 @@ static void compileForStatement(Compiler* c, const JStarStmt* s) {
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
         emitOpcode(c, OP_POP, 0);
-        setJumpTo(c, firstJmp, getCurrentAddr(c), 0);
+        setJumpTo(c, firstJmp, getCurrentAddr(c), s->loc);
     }
 
     size_t exitJmp = 0;
@@ -1323,10 +1327,10 @@ static void compileForStatement(Compiler* c, const JStarStmt* s) {
     }
 
     compileStatement(c, s->as.forStmt.body);
-    emitJumpTo(c, OP_JUMP, l.start, s->line);
+    emitJumpTo(c, OP_JUMP, l.start, s->loc);
 
     if(s->as.forStmt.cond != NULL) {
-        setJumpTo(c, exitJmp, getCurrentAddr(c), 0);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), s->loc);
     }
 
     endLoop(c);
@@ -1352,14 +1356,14 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
 
     // Evaluate `iterable` once and store it in a local
     JStarIdentifier exprName = createIdentifier(".expr");
-    Variable exprVar = declareVar(c, &exprName, false, s->as.forEach.iterable->line);
-    defineVar(c, &exprVar, s->as.forEach.iterable->line);
+    Variable exprVar = declareVar(c, &exprName, false, s->as.forEach.iterable->loc);
+    defineVar(c, &exprVar, s->as.forEach.iterable->loc);
     compileExpr(c, s->as.forEach.iterable);
 
     // Set the iterator variable with a name that it's not an identifier.
     JStarIdentifier iteratorName = createIdentifier(".iter");
-    Variable iterVar = declareVar(c, &iteratorName, false, s->line);
-    defineVar(c, &iterVar, s->line);
+    Variable iterVar = declareVar(c, &iteratorName, false, s->loc);
+    defineVar(c, &iterVar, s->loc);
     emitOpcode(c, OP_NULL, 0);  // initialize `.iter` to null
 
     // FOR_PREP will cache the __iter__ and __next__ methods as locals
@@ -1367,17 +1371,17 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
 
     // Declare variables for cached methods
     JStarIdentifier iterMethName = createIdentifier(".__iter__");
-    Variable iterMethVar = declareVar(c, &iterMethName, false, s->line);
-    defineVar(c, &iterMethVar, s->line);
+    Variable iterMethVar = declareVar(c, &iterMethName, false, s->loc);
+    defineVar(c, &iterMethVar, s->loc);
 
     JStarIdentifier nextMethName = createIdentifier(".__next__");
-    Variable nextMethVar = declareVar(c, &nextMethName, false, s->line);
-    defineVar(c, &nextMethVar, s->line);
+    Variable nextMethVar = declareVar(c, &nextMethName, false, s->loc);
+    defineVar(c, &nextMethVar, s->loc);
 
     Loop l;
     startLoop(c, &l);
 
-    emitOpcode(c, OP_FOR_ITER, s->line);
+    emitOpcode(c, OP_FOR_ITER, s->loc.line);
     size_t exitJmp = emitOpcode(c, OP_FOR_NEXT, 0);
     emitShort(c, 0, 0);
 
@@ -1385,14 +1389,14 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
     enterScope(c);
 
     ext_vec_foreach(JStarIdentifier * name, varDecl->as.decl.as.var.ids) {
-        Variable var = declareVar(c, name, false, s->line);
-        defineVar(c, &var, s->line);
+        Variable var = declareVar(c, name, false, s->loc);
+        defineVar(c, &var, s->loc);
     }
 
     uint8_t numDecls = ext_vec_size(varDecl->as.decl.as.var.ids);
     if(varDecl->as.decl.as.var.isUnpack) {
-        emitOpcode(c, OP_UNPACK, s->line);
-        emitByte(c, numDecls, s->line);
+        emitOpcode(c, OP_UNPACK, s->loc.line);
+        emitByte(c, numDecls, s->loc.line);
         adjustStackUsage(c, numDecls);
     }
 
@@ -1401,8 +1405,8 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
 
     exitScope(c);
 
-    emitJumpTo(c, OP_JUMP, l.start, s->line);
-    setJumpTo(c, exitJmp, getCurrentAddr(c), s->line);
+    emitJumpTo(c, OP_JUMP, l.start, s->loc);
+    setJumpTo(c, exitJmp, getCurrentAddr(c), s->loc);
 
     endLoop(c);
     exitScope(c);
@@ -1418,8 +1422,8 @@ static void compileWhileStatement(Compiler* c, const JStarStmt* s) {
 
     compileStatement(c, s->as.whileStmt.body);
 
-    emitJumpTo(c, OP_JUMP, l.start, s->line);
-    setJumpTo(c, exitJmp, getCurrentAddr(c), s->line);
+    emitJumpTo(c, OP_JUMP, l.start, s->loc);
+    setJumpTo(c, exitJmp, getCurrentAddr(c), s->loc);
 
     endLoop(c);
 }
@@ -1436,22 +1440,22 @@ static void compileImportStatement(Compiler* c, const JStarStmt* s) {
     Variable modVar;
     if(!importFor) {
         const JStarIdentifier* name = importAs ? &s->as.importStmt.as : &modules[0];
-        modVar = declareVar(c, name, false, s->line);
+        modVar = declareVar(c, name, false, s->loc);
     }
 
     ext_vec_foreach(const JStarIdentifier* submoduleName, modules) {
         jsrBufferAppend(&nameBuf, submoduleName->name, submoduleName->length);
 
         if(importAs && submoduleName == ext_vec_end(modules) - 1) {
-            emitOpcode(c, OP_IMPORT, s->line);
+            emitOpcode(c, OP_IMPORT, s->loc.line);
         } else if(submoduleName == ext_vec_begin(modules) && !(importAs || importFor)) {
-            emitOpcode(c, OP_IMPORT, s->line);
+            emitOpcode(c, OP_IMPORT, s->loc.line);
         } else {
-            emitOpcode(c, OP_IMPORT_FROM, s->line);
+            emitOpcode(c, OP_IMPORT_FROM, s->loc.line);
         }
 
-        emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
-        emitOpcode(c, OP_POP, s->line);
+        emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->loc), s->loc.line);
+        emitOpcode(c, OP_POP, s->loc.line);
 
         if(submoduleName != ext_vec_end(modules) - 1) {
             jsrBufferAppendChar(&nameBuf, '.');
@@ -1460,15 +1464,15 @@ static void compileImportStatement(Compiler* c, const JStarStmt* s) {
 
     if(importFor) {
         ext_vec_foreach(const JStarIdentifier* name, names) {
-            emitOpcode(c, OP_IMPORT_NAME, s->line);
-            emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->line), s->line);
-            emitShort(c, identifierConst(c, name, s->line), s->line);
+            emitOpcode(c, OP_IMPORT_NAME, s->loc.line);
+            emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->loc), s->loc.line);
+            emitShort(c, identifierConst(c, name, s->loc), s->loc.line);
 
-            Variable nameVar = declareVar(c, name, false, s->line);
-            defineVar(c, &nameVar, s->line);
+            Variable nameVar = declareVar(c, name, false, s->loc);
+            defineVar(c, &nameVar, s->loc);
         }
     } else {
-        defineVar(c, &modVar, s->line);
+        defineVar(c, &modVar, s->loc);
     }
 
     jsrBufferFree(&nameBuf);
@@ -1479,7 +1483,7 @@ static void compileExcepts(Compiler* c, ext_vector(JStarStmt*) excepts, size_t c
 
     // Retrieve the exception by using its phny variable name
     JStarIdentifier exceptionName = createIdentifier(".exception");
-    compileVarLit(c, &exceptionName, false, except->line);
+    compileVarLit(c, &exceptionName, false, except->loc);
 
     // Test the exception's class
     compileExpr(c, except->as.excStmt.cls);
@@ -1493,18 +1497,18 @@ static void compileExcepts(Compiler* c, ext_vector(JStarStmt*) excepts, size_t c
     adjustStackUsage(c, 1);
 
     // Retrieve the exception again, this time binding it to a local
-    compileVarLit(c, &exceptionName, false, except->line);
-    Variable excVar = declareVar(c, &except->as.excStmt.var, false, except->line);
-    defineVar(c, &excVar, except->line);
+    compileVarLit(c, &exceptionName, false, except->loc);
+    Variable excVar = declareVar(c, &except->as.excStmt.var, false, except->loc);
+    defineVar(c, &excVar, except->loc);
 
     JStarStmt* body = except->as.excStmt.block;
     compileStatements(c, body->as.blockStmt.stmts);
 
     // Set the exception cause to `null` to signal that the exception has been handled
     JStarIdentifier causeName = createIdentifier(".cause");
-    emitOpcode(c, OP_NULL, except->line);
-    compileVarLit(c, &causeName, true, except->line);
-    emitOpcode(c, OP_POP, except->line);
+    emitOpcode(c, OP_NULL, except->loc.line);
+    compileVarLit(c, &causeName, true, except->loc);
+    emitOpcode(c, OP_POP, except->loc.line);
 
     adjustStackUsage(c, -1);
     exitScope(c);
@@ -1515,12 +1519,12 @@ static void compileExcepts(Compiler* c, ext_vector(JStarStmt*) excepts, size_t c
         emitShort(c, 0, 0);
     }
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), except->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), except->loc);
 
     // Compile the next handler
     if(curr < ext_vec_size(excepts) - 1) {
         compileExcepts(c, excepts, curr + 1);
-        setJumpTo(c, exitJmp, getCurrentAddr(c), except->line);
+        setJumpTo(c, exitJmp, getCurrentAddr(c), except->loc);
     }
 }
 
@@ -1530,52 +1534,52 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
     int numHandlers = (hasExcepts ? 1 : 0) + (hasEnsure ? 1 : 0);
 
     TryBlock tryBlock;
-    enterTryBlock(c, &tryBlock, numHandlers, s->line);
+    enterTryBlock(c, &tryBlock, numHandlers, s->loc);
 
     size_t ensureSetup = 0, exceptSetup = 0;
 
     if(hasEnsure) {
-        ensureSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
+        ensureSetup = emitOpcode(c, OP_SETUP_ENSURE, s->loc.line);
         emitShort(c, 0, 0);
     }
 
     if(hasExcepts) {
-        exceptSetup = emitOpcode(c, OP_SETUP_EXCEPT, s->line);
+        exceptSetup = emitOpcode(c, OP_SETUP_EXCEPT, s->loc.line);
         emitShort(c, 0, 0);
     }
 
     compileStatement(c, s->as.tryStmt.block);
 
     if(hasExcepts) {
-        emitOpcode(c, OP_POP_HANDLER, s->line);
+        emitOpcode(c, OP_POP_HANDLER, s->loc.line);
     }
 
     if(hasEnsure) {
-        emitOpcode(c, OP_POP_HANDLER, s->line);
+        emitOpcode(c, OP_POP_HANDLER, s->loc.line);
         // Reached end of try block during normal execution flow, set exception and unwind
         // cause to null to signal the ensure handler that no exception was raised
-        emitOpcode(c, OP_NULL, s->line);
-        emitOpcode(c, OP_NULL, s->line);
+        emitOpcode(c, OP_NULL, s->loc.line);
+        emitOpcode(c, OP_NULL, s->loc.line);
     }
 
     enterScope(c);
 
     // Phony variable for the exception
     JStarIdentifier exceptionName = createIdentifier(".exception");
-    Variable excVar = declareVar(c, &exceptionName, false, 0);
-    defineVar(c, &excVar, 0);
+    Variable excVar = declareVar(c, &exceptionName, false, s->loc);
+    defineVar(c, &excVar, s->loc);
 
     // Phony variable for the unwing cause enum
     JStarIdentifier causeName = createIdentifier(".cause");
-    Variable causeVar = declareVar(c, &causeName, false, 0);
-    defineVar(c, &causeVar, 0);
+    Variable causeVar = declareVar(c, &causeName, false, s->loc);
+    defineVar(c, &causeVar, s->loc);
 
     // Compile excepts (if any)
     if(hasExcepts) {
         size_t excJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
 
-        setJumpTo(c, exceptSetup, getCurrentAddr(c), s->line);
+        setJumpTo(c, exceptSetup, getCurrentAddr(c), s->loc);
         compileExcepts(c, s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
@@ -1585,12 +1589,12 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
             exitScope(c);
         }
 
-        setJumpTo(c, excJmp, getCurrentAddr(c), 0);
+        setJumpTo(c, excJmp, getCurrentAddr(c), s->loc);
     }
 
     // Compile ensure block (if any)
     if(hasEnsure) {
-        setJumpTo(c, ensureSetup, getCurrentAddr(c), s->line);
+        setJumpTo(c, ensureSetup, getCurrentAddr(c), s->loc);
         compileStatement(c, s->as.tryStmt.ensure);
         emitOpcode(c, OP_END_HANDLER, 0);
         exitScope(c);
@@ -1601,7 +1605,7 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
 
 static void compileRaiseStmt(Compiler* c, const JStarStmt* s) {
     compileExpr(c, s->as.raiseStmt.exc);
-    emitOpcode(c, OP_RAISE, s->line);
+    emitOpcode(c, OP_RAISE, s->loc.line);
 }
 
 /*
@@ -1623,55 +1627,61 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     enterScope(c);
 
     // var x
-    emitOpcode(c, OP_NULL, s->line);
-    Variable var = declareVar(c, &s->as.withStmt.var, false, s->line);
-    defineVar(c, &var, s->line);
+    emitOpcode(c, OP_NULL, s->loc.line);
+    Variable var = declareVar(c, &s->as.withStmt.var, false, s->loc);
+    defineVar(c, &var, s->loc);
 
     // try
     TryBlock tryBlock;
-    enterTryBlock(c, &tryBlock, 1, s->line);
+    enterTryBlock(c, &tryBlock, 1, s->loc);
 
-    size_t ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->line);
+    size_t ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->loc.line);
     emitShort(c, 0, 0);
 
     // x = closable
-    JStarExpr lval = {.line = s->line, .type = JSR_VAR, .as = {.varLiteral = {s->as.withStmt.var}}};
-    JStarExpr assign = {.line = s->line,
-                        .type = JSR_ASSIGN,
-                        .as = {.assign = {.lval = &lval, .rval = s->as.withStmt.e}}};
+    JStarExpr lval = {
+        .loc = s->loc,
+        .type = JSR_VAR,
+        .as = {.varLiteral = {s->as.withStmt.var}},
+    };
+    JStarExpr assign = {
+        .loc = s->loc,
+        .type = JSR_ASSIGN,
+        .as = {.assign = {.lval = &lval, .rval = s->as.withStmt.e}},
+    };
     compileExpr(c, &assign);
-    emitOpcode(c, OP_POP, s->line);
+    emitOpcode(c, OP_POP, s->loc.line);
 
     // code
     compileStatement(c, s->as.withStmt.block);
 
-    emitOpcode(c, OP_POP_HANDLER, s->line);
-    emitOpcode(c, OP_NULL, s->line);
-    emitOpcode(c, OP_NULL, s->line);
+    emitOpcode(c, OP_POP_HANDLER, s->loc.line);
+    emitOpcode(c, OP_NULL, s->loc.line);
+    emitOpcode(c, OP_NULL, s->loc.line);
 
     // ensure
     enterScope(c);
 
     JStarIdentifier exceptionName = createIdentifier(".exception");
-    Variable excVar = declareVar(c, &exceptionName, false, 0);
-    defineVar(c, &excVar, 0);
+    Variable excVar = declareVar(c, &exceptionName, false, s->loc);
+    defineVar(c, &excVar, s->loc);
 
     JStarIdentifier causeName = createIdentifier(".cause");
-    Variable causeVar = declareVar(c, &causeName, false, 0);
-    defineVar(c, &causeVar, 0);
+    Variable causeVar = declareVar(c, &causeName, false, s->loc);
+    defineVar(c, &causeVar, s->loc);
 
-    setJumpTo(c, ensSetup, getCurrentAddr(c), s->line);
+    setJumpTo(c, ensSetup, getCurrentAddr(c), s->loc);
 
     // if x then x.close() end
-    compileVarLit(c, &s->as.withStmt.var, false, s->line);
-    size_t falseJmp = emitOpcode(c, OP_JUMPF, s->line);
+    compileVarLit(c, &s->as.withStmt.var, false, s->loc);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, s->loc.line);
     emitShort(c, 0, 0);
 
-    compileVarLit(c, &s->as.withStmt.var, false, s->line);
+    compileVarLit(c, &s->as.withStmt.var, false, s->loc);
     inlineMethodCall(c, "close", 0);
-    emitOpcode(c, OP_POP, s->line);
+    emitOpcode(c, OP_POP, s->loc.line);
 
-    setJumpTo(c, falseJmp, getCurrentAddr(c), s->line);
+    setJumpTo(c, falseJmp, getCurrentAddr(c), s->loc);
 
     emitOpcode(c, OP_END_HANDLER, 0);
     exitScope(c);
@@ -1684,32 +1694,32 @@ static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
     bool isBreak = s->type == JSR_BREAK;
 
     if(c->loops == NULL) {
-        error(c, s->line, "Cannot use %s outside loop", isBreak ? "break" : "continue");
+        error(c, s->loc, "Cannot use %s outside loop", isBreak ? "break" : "continue");
         return;
     }
 
     if(c->tryDepth != 0 && c->tryBlocks->depth >= c->loops->depth) {
-        error(c, s->line, "Cannot %s out of a try block", isBreak ? "break" : "continue");
+        error(c, s->loc, "Cannot %s out of a try block", isBreak ? "break" : "continue");
     }
 
     discardScopes(c, c->loops->depth);
 
     // Emit place-holder instruction that will be patched at the end of loop compilation
     // when we know the offset to emit for a break or continue jump
-    emitOpcode(c, OP_END, s->line);
-    emitByte(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->line);
-    emitByte(c, 0, s->line);
+    emitOpcode(c, OP_END, s->loc.line);
+    emitByte(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->loc.line);
+    emitByte(c, 0, s->loc.line);
 }
 
 // -----------------------------------------------------------------------------
 // DECLARATIONS
 // -----------------------------------------------------------------------------
 
-static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx, int line) {
+static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx) {
     switch(arg->type) {
     case SIMPLE: {
-        Variable var = declareVar(c, &arg->as.simple, false, line);
-        defineVar(c, &var, line);
+        Variable var = declareVar(c, &arg->as.simple, false, arg->loc);
+        defineVar(c, &var, arg->loc);
         break;
     }
     case UNPACK: {
@@ -1718,21 +1728,21 @@ static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx,
         ext_vec_push_back(c->syntheticNames, name);
 
         JStarIdentifier id = createIdentifier(name);
-        Variable var = declareVar(c, &id, false, line);
-        defineVar(c, &var, line);
+        Variable var = declareVar(c, &id, false, arg->loc);
+        defineVar(c, &var, arg->loc);
         break;
     }
     }
 }
 
-static void compileFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args, int line) {
+static void compileFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args) {
     int argIdx = 0;
     ext_vec_foreach(const JStarFormalArg* arg, args) {
-        compileFormalArg(c, arg, argIdx++, line);
+        compileFormalArg(c, arg, argIdx++);
     }
 }
 
-static void unpackFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args, int line) {
+static void unpackFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args, JStarLoc loc) {
     int argIdx = 0;
     ext_vec_foreach(const JStarFormalArg* arg, args) {
         if(arg->type == SIMPLE) {
@@ -1743,13 +1753,13 @@ static void unpackFormalArgs(Compiler* c, const ext_vector(JStarFormalArg) args,
         sprintf(name, UNPACK_ARG_FMT, argIdx);
         JStarIdentifier id = createIdentifier(name);
 
-        compileVarLit(c, &id, false, line);
-        emitOpcode(c, OP_UNPACK, line);
-        emitByte(c, ext_vec_size(arg->as.unpack), line);
+        compileVarLit(c, &id, false, loc);
+        emitOpcode(c, OP_UNPACK, loc.line);
+        emitByte(c, ext_vec_size(arg->as.unpack), loc.line);
 
         ext_vec_foreach(const JStarIdentifier* id, arg->as.unpack) {
-            Variable unpackedArg = declareVar(c, id, false, line);
-            defineVar(c, &unpackedArg, line);
+            Variable unpackedArg = declareVar(c, id, false, loc);
+            defineVar(c, &unpackedArg, loc);
         }
 
         argIdx++;
@@ -1769,21 +1779,21 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     //  - In the case of functions the receiver is the function itself.
     //  - In the case of methods the receiver is the class instance on which the method was called.
     JStarIdentifier receiverName = createIdentifier("this");
-    int receiverLocal = addLocal(c, &receiverName, s->line);
+    int receiverLocal = addLocal(c, &receiverName, s->loc);
     initializeLocal(c, receiverLocal);
 
-    compileFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->line);
+    compileFormalArgs(c, s->as.decl.as.fun.formalArgs.args);
 
     if(isVararg) {
-        Variable vararg = declareVar(c, varargName, false, s->line);
-        defineVar(c, &vararg, s->line);
+        Variable vararg = declareVar(c, varargName, false, s->loc);
+        defineVar(c, &vararg, s->loc);
     }
 
     if(s->as.decl.as.fun.isGenerator) {
-        emitOpcode(c, OP_GENERATOR, s->line);
+        emitOpcode(c, OP_GENERATOR, s->loc.line);
     }
 
-    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->line);
+    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->loc);
 
     JStarStmt* body = s->as.decl.as.fun.body;
     compileStatements(c, body->as.blockStmt.stmts);
@@ -1823,12 +1833,12 @@ static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, const JStar
     return native;
 }
 
-static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, int line) {
-    emitOpcode(c, OP_CLOSURE, line);
-    emitShort(c, createConst(c, OBJ_VAL(fn), line), line);
+static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, JStarLoc loc) {
+    emitOpcode(c, OP_CLOSURE, loc.line);
+    emitShort(c, createConst(c, OBJ_VAL(fn), loc), loc.line);
     for(uint8_t i = 0; i < fn->upvalueCount; i++) {
-        emitByte(c, upvalues[i].isLocal ? 1 : 0, line);
-        emitByte(c, upvalues[i].index, line);
+        emitByte(c, upvalues[i].isLocal ? 1 : 0, loc.line);
+        emitByte(c, upvalues[i].index, loc.line);
     }
 }
 
@@ -1840,7 +1850,7 @@ static void compileFunction(Compiler* c, FuncType type, ObjString* name, const J
     ObjFunction* func = function(&compiler, c->func->proto.module, name, fn);
     exitFunctionScope(&compiler);
 
-    emitClosure(c, func, compiler.upvalues, fn->line);
+    emitClosure(c, func, compiler.upvalues, fn->loc);
 
     endCompiler(&compiler);
 }
@@ -1850,11 +1860,11 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, con
 
     ObjNative* nat = native(c, c->func->proto.module, name, s);
     const JStarIdentifier* nativeName = &s->as.decl.as.native.id;
-    uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->line);
+    uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->loc);
 
-    emitOpcode(c, nativeOp, s->line);
-    emitShort(c, identifierConst(c, nativeName, s->line), s->line);
-    emitShort(c, nativeConst, s->line);
+    emitOpcode(c, nativeOp, s->loc.line);
+    emitShort(c, identifierConst(c, nativeName, s->loc), s->loc.line);
+    emitShort(c, nativeConst, s->loc.line);
 
     return nativeConst;
 }
@@ -1868,7 +1878,7 @@ static void compileDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
 static void callDecorators(Compiler* c, ext_vector(JStarExpr*) decorators) {
     ext_vec_foreach(JStarExpr** e, decorators) {
         JStarExpr* decorator = *e;
-        emitOpcode(c, OP_CALL_1, decorator->line);
+        emitOpcode(c, OP_CALL_1, decorator->loc.line);
     }
 }
 
@@ -1898,8 +1908,8 @@ static void compileMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s)
     compileFunction(c, type, createMethodName(c, clsName, methName), s);
     callDecorators(c, decorators);
 
-    emitOpcode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, methName, s->line), cls->line);
+    emitOpcode(c, OP_DEF_METHOD, cls->loc.line);
+    emitShort(c, identifierConst(c, methName, s->loc), cls->loc.line);
 }
 
 static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s) {
@@ -1908,18 +1918,18 @@ static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarSt
 
     ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
     if(ext_vec_size(decorators)) {
-        emitOpcode(c, OP_POP, cls->line);
+        emitOpcode(c, OP_POP, cls->loc.line);
 
         compileDecorators(c, decorators);
 
-        emitOpcode(c, OP_GET_CONST, cls->line);
-        emitShort(c, nativeConst, s->line);
+        emitOpcode(c, OP_GET_CONST, cls->loc.line);
+        emitShort(c, nativeConst, s->loc.line);
 
         callDecorators(c, decorators);
     }
 
-    emitOpcode(c, OP_DEF_METHOD, cls->line);
-    emitShort(c, identifierConst(c, &s->as.decl.as.native.id, s->line), cls->line);
+    emitOpcode(c, OP_DEF_METHOD, cls->loc.line);
+    emitShort(c, identifierConst(c, &s->as.decl.as.native.id, s->loc), cls->loc.line);
 }
 
 static void compileMethods(Compiler* c, const JStarStmt* s) {
@@ -1939,47 +1949,47 @@ static void compileMethods(Compiler* c, const JStarStmt* s) {
 }
 
 static void compileClassDecl(Compiler* c, const JStarStmt* s) {
-    emitOpcode(c, OP_NEW_CLASS, s->line);
-    emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->line), s->line);
+    emitOpcode(c, OP_NEW_CLASS, s->loc.line);
+    emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->loc), s->loc.line);
 
-    Variable clsVar = declareVar(c, &s->as.decl.as.cls.id, s->as.decl.isStatic, s->line);
-    defineVar(c, &clsVar, s->line);
+    Variable clsVar = declareVar(c, &s->as.decl.as.cls.id, s->as.decl.isStatic, s->loc);
+    defineVar(c, &clsVar, s->loc);
 
     enterScope(c);
 
     JStarIdentifier superName = createIdentifier("super");
-    Variable superVar = declareVar(c, &superName, false, s->line);
-    defineVar(c, &superVar, s->line);
+    Variable superVar = declareVar(c, &superName, false, s->loc);
+    defineVar(c, &superVar, s->loc);
 
     if(!s->as.decl.as.cls.sup) {
-        emitOpcode(c, OP_GET_OBJECT, s->line);
+        emitOpcode(c, OP_GET_OBJECT, s->loc.line);
     } else {
         compileExpr(c, s->as.decl.as.cls.sup);
     }
 
-    compileVarLit(c, &s->as.decl.as.cls.id, false, s->line);
-    emitOpcode(c, OP_SUBCLASS, s->line);
+    compileVarLit(c, &s->as.decl.as.cls.id, false, s->loc);
+    emitOpcode(c, OP_SUBCLASS, s->loc.line);
 
     compileMethods(c, s);
 
-    emitOpcode(c, OP_POP, s->line);
+    emitOpcode(c, OP_POP, s->loc.line);
     exitScope(c);
 
     ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
 
     if(ext_vec_size(decorators)) {
         compileDecorators(c, decorators);
-        compileVarLit(c, &s->as.decl.as.cls.id, false, s->line);
+        compileVarLit(c, &s->as.decl.as.cls.id, false, s->loc);
         callDecorators(c, decorators);
 
-        compileVarLit(c, &s->as.decl.as.cls.id, true, s->line);
-        emitOpcode(c, OP_POP, s->line);
+        compileVarLit(c, &s->as.decl.as.cls.id, true, s->loc);
+        emitOpcode(c, OP_POP, s->loc.line);
     }
 }
 
 static void compileFunDecl(Compiler* c, const JStarStmt* s) {
     const JStarIdentifier* funName = &s->as.decl.as.fun.id;
-    Variable funVar = declareVar(c, funName, s->as.decl.isStatic, s->line);
+    Variable funVar = declareVar(c, funName, s->as.decl.isStatic, s->loc);
 
     // If local initialize the variable in order to permit the function to reference itself
     if(funVar.scope == VAR_LOCAL) {
@@ -1992,12 +2002,12 @@ static void compileFunDecl(Compiler* c, const JStarStmt* s) {
     compileFunction(c, TYPE_FUNC, copyString(c->vm, funName->name, funName->length), s);
     callDecorators(c, decorators);
 
-    defineVar(c, &funVar, s->line);
+    defineVar(c, &funVar, s->loc);
 }
 
 static void compileNativeDecl(Compiler* c, const JStarStmt* s) {
     const JStarIdentifier* natName = &s->as.decl.as.native.id;
-    Variable natVar = declareVar(c, natName, s->as.decl.isStatic, s->line);
+    Variable natVar = declareVar(c, natName, s->as.decl.isStatic, s->loc);
 
     ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
 
@@ -2005,7 +2015,7 @@ static void compileNativeDecl(Compiler* c, const JStarStmt* s) {
     compileNative(c, copyString(c->vm, natName->name, natName->length), OP_NATIVE, s);
     callDecorators(c, decorators);
 
-    defineVar(c, &natVar, s->line);
+    defineVar(c, &natVar, s->loc);
 }
 
 static void compileVarDecl(Compiler* c, const JStarStmt* s) {
@@ -2013,14 +2023,14 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
     Variable vars[MAX_LOCALS];
 
     ext_vec_foreach(const JStarIdentifier* varName, s->as.decl.as.var.ids) {
-        Variable var = declareVar(c, varName, s->as.decl.isStatic, s->line);
+        Variable var = declareVar(c, varName, s->as.decl.isStatic, s->loc);
         if(varsCount == MAX_LOCALS) break;
         vars[varsCount++] = var;
     }
 
     ext_vector(JStarExpr*) decorators = s->as.decl.decorators;
     if(s->as.decl.as.var.isUnpack && ext_vec_size(decorators)) {
-        error(c, decorators[0]->line, "Unpacking declaration cannot be decorated");
+        error(c, decorators[0]->loc, "Unpacking declaration cannot be decorated");
     }
 
     compileDecorators(c, decorators);
@@ -2036,15 +2046,15 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
         } else {
             compileRval(c, init, &s->as.decl.as.var.ids[0]);
             if(isUnpack) {
-                emitOpcode(c, OP_UNPACK, s->line);
-                emitByte(c, (uint8_t)varsCount, s->line);
+                emitOpcode(c, OP_UNPACK, s->loc.line);
+                emitByte(c, (uint8_t)varsCount, s->loc.line);
                 adjustStackUsage(c, varsCount - 1);
             }
         }
     } else {
         // Default initialize the variables to null
         for(int i = 0; i < varsCount; i++) {
-            emitOpcode(c, OP_NULL, s->line);
+            emitOpcode(c, OP_NULL, s->loc.line);
         }
     }
 
@@ -2053,7 +2063,7 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
     // define in reverse order in order to assign correct
     // values to variables in case of a const unpack
     for(int i = varsCount - 1; i >= 0; i--) {
-        defineVar(c, &vars[i], s->line);
+        defineVar(c, &vars[i], s->loc);
     }
 }
 
@@ -2122,7 +2132,7 @@ static void resolveFwdRefs(Compiler* c) {
         const JStarIdentifier* id = &fwdRef->id;
         Variable global = resolveGlobal(c, id);
         if(global.scope == VAR_ERR) {
-            error(c, fwdRef->line, "Cannot resolve name `%.*s`", id->length, id->name);
+            error(c, fwdRef->loc, "Cannot resolve name `%.*s`", id->length, id->name);
         }
     }
 }

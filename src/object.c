@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "conf.h"
 #include "gc.h"
 #include "int_hashtable.h"
 #include "jstar.h"
+#include "object_types.h"
 #include "util.h"
 #include "value.h"
 #include "value_hashtable.h"
@@ -487,23 +489,21 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
         }
 
         record.line = getBytecodeSrcLine(code, op);
+        record.path = fn->proto.module->path;
         record.moduleName = fn->proto.module->name;
         record.funcName = fn->proto.name;
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* nat = (ObjNative*)f->fn;
-        record.line = -1;
+        record.line = 0;
+        record.path = nat->proto.module->path;
         record.moduleName = nat->proto.module->name;
         record.funcName = nat->proto.name;
         break;
     }
     default:
         JSR_UNREACHABLE();
-    }
-
-    if(!record.funcName) {
-        record.funcName = copyString(vm, "<main>", 6);
     }
 
     ARRAY_GC_APPEND(vm, st, recordSize, recordCapacity, records, record);

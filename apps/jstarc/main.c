@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "jstar/jstar.h"
+#include "jstar/parse/lex.h"
 #include "path.h"
 #include "profiler.h"
 
@@ -34,12 +35,12 @@ static JStarVM* vm;
 // -----------------------------------------------------------------------------
 
 // Custom J* error callback.
-static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc, const char* err) {
     PROFILE_FUNC()
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
-        fprintf(stderr, "File %s [line:%d]:\n", file, ln);
+        fprintf(stderr, "%s:%d:%d: error\n", file, loc.line, loc.col);
         fprintf(stderr, "%s\n", err);
         break;
     default:

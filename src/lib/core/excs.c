@@ -17,6 +17,7 @@ static bool recordEquals(FrameRecord* f1, FrameRecord* f2) {
            (strcmp(f1->funcName->data, f2->funcName->data) == 0) && (f1->line == f2->line);
 }
 
+// TODO: unify printStacktrace and getStacktrace
 JSR_NATIVE(jsr_Exception_printStacktrace) {
     ObjInstance* exc = AS_INSTANCE(vm->apiStack[0]);
     ObjClass* cls = exc->base.cls;
@@ -58,12 +59,12 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
                 fprintf(stderr, INDENT);
 
-                if(record->line >= 0) {
-                    fprintf(stderr, "[line %d]", record->line);
+                if(record->line > 0) {
+                    fprintf(stderr, "%s:%d", record->path->data, record->line);
                 } else {
-                    fprintf(stderr, "[line ?]");
+                    fprintf(stderr, "%s:?", record->path->data);
                 }
-                fprintf(stderr, " module %s in %s\n", record->moduleName->data,
+                fprintf(stderr, " error in %s.%s())\n", record->moduleName->data,
                         record->funcName->data);
 
                 lastRecord = record;
@@ -132,13 +133,13 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
 
                 jsrBufferAppendStr(&buf, "    ");
 
-                if(record->line >= 0) {
-                    jsrBufferAppendf(&buf, "[line %d]", record->line);
+                if(record->line > 0) {
+                    jsrBufferAppendf(&buf, "%s:%d:", record->path->data, record->line);
                 } else {
-                    jsrBufferAppendStr(&buf, "[line ?]");
+                    jsrBufferAppendf(&buf, "%s:?:", record->path->data);
                 }
 
-                jsrBufferAppendf(&buf, " module %s in %s\n", record->moduleName->data,
+                jsrBufferAppendf(&buf, " error in %s.%s()\n", record->moduleName->data,
                                  record->funcName->data);
 
                 lastRecord = record;

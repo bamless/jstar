@@ -5,8 +5,9 @@
 
 #include "ast.h"
 #include "jstar/conf.h"
+#include "lex.h"
 
-typedef void (*ParseErrorCB)(const char* file, int line, const char* error, void* userData);
+typedef void (*ParseErrorCB)(const char* file, JStarLoc loc, const char* error, void* userData);
 
 JSTAR_API JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB errFn,
                               void* data);

@@ -7,6 +7,7 @@
 #include "jstar.h"
 #include "lib/builtins.h"
 #include "object.h"
+#include "parse/lex.h"
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
@@ -37,10 +38,10 @@ JStarResult deserializeModule(JStarVM* vm, const char* path, ObjString* name, co
     PROFILE_FUNC()
     JStarResult res = deserialize(vm, getOrCreateModule(vm, path, name), code, len, out);
     if(res == JSR_VERSION_ERR) {
-        vm->errorCallback(vm, res, path, -1, "Incompatible binary file version");
+        vm->errorCallback(vm, res, path, (JStarLoc){0}, "Incompatible binary file version");
     }
     if(res == JSR_DESERIALIZE_ERR) {
-        vm->errorCallback(vm, res, path, -1, "Malformed binary file");
+        vm->errorCallback(vm, res, path, (JStarLoc){0}, "Malformed binary file");
     }
     return res;
 }
@@ -78,9 +79,9 @@ ObjModule* getModule(JStarVM* vm, ObjString* name) {
     return AS_MODULE(module);
 }
 
-static void parseError(const char* file, int line, const char* error, void* udata) {
+static void parseError(const char* file, JStarLoc loc, const char* error, void* udata) {
     JStarVM* vm = udata;
-    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, loc, error);
 }
 
 static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src,
@@ -131,7 +132,7 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
     size_t len;
     const void* bltinCode = readBuiltInModule(name->data, &len);
     if(bltinCode != NULL) {
-        return importBinary(vm, "builtin", name, bltinCode, len);
+        return importBinary(vm, name->data, name, bltinCode, len);
     }
 
     if(!vm->importCallback) {

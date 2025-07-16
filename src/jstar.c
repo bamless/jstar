@@ -13,6 +13,7 @@
 #include "object.h"
 #include "object_types.h"
 #include "parse/ast.h"
+#include "parse/lex.h"
 #include "parse/parser.h"
 #include "profiler.h"
 #include "serialize.h"
@@ -69,18 +70,18 @@ static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
     return res;
 }
 
-void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, int line, const char* error) {
-    if(line >= 0) {
-        fprintf(stderr, "File %s [line:%d]:\n", file, line);
+void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc, const char* error) {
+    if(loc.line > 0) {
+        fprintf(stderr, "%s:%d:%d error\n", file, loc.line, loc.col);
     } else {
-        fprintf(stderr, "File %s:\n", file);
+        fprintf(stderr, "%s error\n", file);
     }
     fprintf(stderr, "%s\n", error);
 }
 
-static void parseError(const char* file, int line, const char* error, void* udata) {
+static void parseError(const char* file, JStarLoc loc, const char* error, void* udata) {
     JStarVM* vm = udata;
-    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, line, error);
+    vm->errorCallback(vm, JSR_SYNTAX_ERR, file, loc, error);
 }
 
 JStarConf jsrGetConf(void) {
@@ -102,11 +103,12 @@ void* jsrGetCustomData(const JStarVM* vm) {
 static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
+    fn->proto.module->path = copyString(vm, path, strlen(path));
 
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
         jsrGetStacktrace(vm, -1);
-        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, -1, jsrGetString(vm, -1));
+        vm->errorCallback(vm, JSR_RUNTIME_ERR, path, (JStarLoc){0}, jsrGetString(vm, -1));
         pop(vm);
     }
 

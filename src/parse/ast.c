@@ -14,156 +14,156 @@ bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier* id2) {
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-static JStarExpr* newExpr(int line, JStarExprType type) {
+static JStarExpr* newExpr(JStarLoc loc, JStarExprType type) {
     JStarExpr* e = malloc(sizeof(*e));
     JSR_ASSERT(e, "Out of memory");
-    e->line = line;
+    e->loc = loc;
     e->type = type;
     return e;
 }
 
-JStarExpr* jsrBinaryExpr(int line, JStarTokType op, JStarExpr* l, JStarExpr* r) {
-    JStarExpr* e = newExpr(line, JSR_BINARY);
+JStarExpr* jsrBinaryExpr(JStarLoc loc, JStarTokType op, JStarExpr* l, JStarExpr* r) {
+    JStarExpr* e = newExpr(loc, JSR_BINARY);
     e->as.binary.op = op;
     e->as.binary.left = l;
     e->as.binary.right = r;
     return e;
 }
 
-JStarExpr* jsrAssignExpr(int line, JStarExpr* lval, JStarExpr* rval) {
-    JStarExpr* e = newExpr(line, JSR_ASSIGN);
+JStarExpr* jsrAssignExpr(JStarLoc loc, JStarExpr* lval, JStarExpr* rval) {
+    JStarExpr* e = newExpr(loc, JSR_ASSIGN);
     e->as.assign.lval = lval;
     e->as.assign.rval = rval;
     return e;
 }
 
-JStarExpr* jsrUnaryExpr(int line, JStarTokType op, JStarExpr* operand) {
-    JStarExpr* e = newExpr(line, JSR_UNARY);
+JStarExpr* jsrUnaryExpr(JStarLoc loc, JStarTokType op, JStarExpr* operand) {
+    JStarExpr* e = newExpr(loc, JSR_UNARY);
     e->as.unary.op = op;
     e->as.unary.operand = operand;
     return e;
 }
 
-JStarExpr* jsrNullLiteral(int line) {
-    JStarExpr* e = newExpr(line, JSR_NULL);
+JStarExpr* jsrNullLiteral(JStarLoc loc) {
+    JStarExpr* e = newExpr(loc, JSR_NULL);
     return e;
 }
 
-JStarExpr* jsrNumLiteral(int line, double num) {
-    JStarExpr* e = newExpr(line, JSR_NUMBER);
+JStarExpr* jsrNumLiteral(JStarLoc loc, double num) {
+    JStarExpr* e = newExpr(loc, JSR_NUMBER);
     e->as.num = num;
     return e;
 }
 
-JStarExpr* jsrBoolLiteral(int line, bool boolean) {
-    JStarExpr* e = newExpr(line, JSR_BOOL);
+JStarExpr* jsrBoolLiteral(JStarLoc loc, bool boolean) {
+    JStarExpr* e = newExpr(loc, JSR_BOOL);
     e->as.boolean = boolean;
     return e;
 }
 
-JStarExpr* jsrStrLiteral(int line, const char* str, size_t len) {
-    JStarExpr* e = newExpr(line, JSR_STRING);
+JStarExpr* jsrStrLiteral(JStarLoc loc, const char* str, size_t len) {
+    JStarExpr* e = newExpr(loc, JSR_STRING);
     e->as.stringLiteral.str = str;
     e->as.stringLiteral.length = len;
     return e;
 }
 
-JStarExpr* jsrVarLiteral(int line, const char* var, size_t len) {
-    JStarExpr* e = newExpr(line, JSR_VAR);
+JStarExpr* jsrVarLiteral(JStarLoc loc, const char* var, size_t len) {
+    JStarExpr* e = newExpr(loc, JSR_VAR);
     e->as.varLiteral.id.name = var;
     e->as.varLiteral.id.length = len;
     return e;
 }
 
-JStarExpr* jsrListLiteral(int line, JStarExpr* exprs) {
-    JStarExpr* a = newExpr(line, JSR_LIST);
+JStarExpr* jsrListLiteral(JStarLoc loc, JStarExpr* exprs) {
+    JStarExpr* a = newExpr(loc, JSR_LIST);
     a->as.listLiteral.exprs = exprs;
     return a;
 }
 
-JStarExpr* jsrYieldExpr(int line, JStarExpr* expr) {
-    JStarExpr* e = newExpr(line, JSR_YIELD);
+JStarExpr* jsrYieldExpr(JStarLoc loc, JStarExpr* expr) {
+    JStarExpr* e = newExpr(loc, JSR_YIELD);
     e->as.yield.expr = expr;
     return e;
 }
 
-JStarExpr* jsrTupleLiteral(int line, JStarExpr* exprs) {
-    JStarExpr* a = newExpr(line, JSR_TUPLE);
+JStarExpr* jsrTupleLiteral(JStarLoc loc, JStarExpr* exprs) {
+    JStarExpr* a = newExpr(loc, JSR_TUPLE);
     a->as.tupleLiteral.exprs = exprs;
     return a;
 }
 
-JStarExpr* jsrTableLiteral(int line, JStarExpr* keyVals) {
-    JStarExpr* t = newExpr(line, JSR_TABLE);
+JStarExpr* jsrTableLiteral(JStarLoc loc, JStarExpr* keyVals) {
+    JStarExpr* t = newExpr(loc, JSR_TABLE);
     t->as.tableLiteral.keyVals = keyVals;
     return t;
 }
 
-JStarExpr* jsrSpreadExpr(int line, JStarExpr* expr) {
-    JStarExpr* s = newExpr(line, JSR_SPREAD);
+JStarExpr* jsrSpreadExpr(JStarLoc loc, JStarExpr* expr) {
+    JStarExpr* s = newExpr(loc, JSR_SPREAD);
     s->as.spread.expr = expr;
     return s;
 }
 
-JStarExpr* jsrExprList(int line, ext_vector(JStarExpr*) exprs) {
-    JStarExpr* e = newExpr(line, JSR_EXPR_LST);
+JStarExpr* jsrExprList(JStarLoc loc, ext_vector(JStarExpr*) exprs) {
+    JStarExpr* e = newExpr(loc, JSR_EXPR_LST);
     e->as.exprList = exprs;
     return e;
 }
 
-JStarExpr* jsrCallExpr(int line, JStarExpr* callee, JStarExpr* args) {
-    JStarExpr* e = newExpr(line, JSR_CALL);
+JStarExpr* jsrCallExpr(JStarLoc loc, JStarExpr* callee, JStarExpr* args) {
+    JStarExpr* e = newExpr(loc, JSR_CALL);
     e->as.call.callee = callee;
     e->as.call.args = args;
     return e;
 }
 
-JStarExpr* jsrPowExpr(int line, JStarExpr* base, JStarExpr* exp) {
-    JStarExpr* e = newExpr(line, JSR_POWER);
+JStarExpr* jsrPowExpr(JStarLoc loc, JStarExpr* base, JStarExpr* exp) {
+    JStarExpr* e = newExpr(loc, JSR_POWER);
     e->as.pow.base = base;
     e->as.pow.exp = exp;
     return e;
 }
 
-JStarExpr* jsrPropertyAccessExpr(int line, JStarExpr* left, const char* name, size_t length) {
-    JStarExpr* e = newExpr(line, JSR_PROPERTY_ACCESS);
+JStarExpr* jsrPropertyAccessExpr(JStarLoc loc, JStarExpr* left, const char* name, size_t length) {
+    JStarExpr* e = newExpr(loc, JSR_PROPERTY_ACCESS);
     e->as.propertyAccess.left = left;
     e->as.propertyAccess.id.name = name;
     e->as.propertyAccess.id.length = length;
     return e;
 }
 
-JStarExpr* jsrIndexExpr(int line, JStarExpr* left, JStarExpr* index) {
-    JStarExpr* e = newExpr(line, JSR_INDEX);
+JStarExpr* jsrIndexExpr(JStarLoc loc, JStarExpr* left, JStarExpr* index) {
+    JStarExpr* e = newExpr(loc, JSR_INDEX);
     e->as.index.left = left;
     e->as.index.index = index;
     return e;
 }
 
-JStarExpr* jsrTernaryExpr(int line, JStarExpr* cond, JStarExpr* thenExpr, JStarExpr* elseExpr) {
-    JStarExpr* e = newExpr(line, JSR_TERNARY);
+JStarExpr* jsrTernaryExpr(JStarLoc loc, JStarExpr* cond, JStarExpr* thenExpr, JStarExpr* elseExpr) {
+    JStarExpr* e = newExpr(loc, JSR_TERNARY);
     e->as.ternary.cond = cond;
     e->as.ternary.thenExpr = thenExpr;
     e->as.ternary.elseExpr = elseExpr;
     return e;
 }
 
-JStarExpr* jsrCompundAssignExpr(int line, JStarTokType op, JStarExpr* lval, JStarExpr* rval) {
-    JStarExpr* e = newExpr(line, JSR_COMPOUND_ASSIGN);
+JStarExpr* jsrCompundAssignExpr(JStarLoc loc, JStarTokType op, JStarExpr* lval, JStarExpr* rval) {
+    JStarExpr* e = newExpr(loc, JSR_COMPOUND_ASSIGN);
     e->as.compoundAssign.op = op;
     e->as.compoundAssign.lval = lval;
     e->as.compoundAssign.rval = rval;
     return e;
 }
 
-JStarExpr* jsrFunLiteral(int line, const JStarFormalArgs* args, bool isGenerator, JStarStmt* body) {
-    JStarExpr* e = newExpr(line, JSR_FUN_LIT);
-    e->as.funLit.func = jsrFuncDecl(line, &(JStarIdentifier){0}, args, isGenerator, body);
+JStarExpr* jsrFunLiteral(JStarLoc loc, const JStarFormalArgs* args, bool isGenerator, JStarStmt* body) {
+    JStarExpr* e = newExpr(loc, JSR_FUN_LIT);
+    e->as.funLit.func = jsrFuncDecl(loc, &(JStarIdentifier){0}, args, isGenerator, body);
     return e;
 }
 
-JStarExpr* jsrSuperLiteral(int line, JStarTok* name, JStarExpr* args) {
-    JStarExpr* e = newExpr(line, JSR_SUPER);
+JStarExpr* jsrSuperLiteral(JStarLoc loc, JStarTok* name, JStarExpr* args) {
+    JStarExpr* e = newExpr(loc, JSR_SUPER);
     e->as.sup.name = (JStarIdentifier){name->length, name->lexeme};
     e->as.sup.args = args;
     return e;
@@ -251,19 +251,19 @@ void jsrExprFree(JStarExpr* e) {
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-static JStarStmt* newStmt(int line, JStarStmtType type) {
+static JStarStmt* newStmt(JStarLoc loc, JStarStmtType type) {
     JStarStmt* s = malloc(sizeof(*s));
     JSR_ASSERT(s, "Out of memory");
-    s->line = line;
+    s->loc = loc;
     s->type = type;
     return s;
 }
 
-static JStarStmt* newDecl(int line, JStarStmtType type) {
+static JStarStmt* newDecl(JStarLoc loc, JStarStmtType type) {
     JSR_ASSERT((type == JSR_VARDECL || type == JSR_FUNCDECL || type == JSR_CLASSDECL ||
                 type == JSR_NATIVEDECL),
                "Not a declaration");
-    JStarStmt* s = newStmt(line, type);
+    JStarStmt* s = newStmt(loc, type);
     JSR_ASSERT(s, "Out of memory");
     s->as.decl.isStatic = false;
     s->as.decl.decorators = NULL;
@@ -272,9 +272,9 @@ static JStarStmt* newDecl(int line, JStarStmtType type) {
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args,
+JStarStmt* jsrFuncDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFormalArgs* args,
                        bool isGenerator, JStarStmt* body) {
-    JStarStmt* f = newDecl(line, JSR_FUNCDECL);
+    JStarStmt* f = newDecl(loc, JSR_FUNCDECL);
     f->as.decl.as.fun.id = *name;
     f->as.decl.as.fun.formalArgs = *args;
     f->as.decl.as.fun.body = body;
@@ -282,24 +282,24 @@ JStarStmt* jsrFuncDecl(int line, const JStarIdentifier* name, const JStarFormalA
     return f;
 }
 
-JStarStmt* jsrNativeDecl(int line, const JStarIdentifier* name, const JStarFormalArgs* args) {
-    JStarStmt* n = newDecl(line, JSR_NATIVEDECL);
+JStarStmt* jsrNativeDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFormalArgs* args) {
+    JStarStmt* n = newDecl(loc, JSR_NATIVEDECL);
     n->as.decl.as.native.id = *name;
     n->as.decl.as.native.formalArgs = *args;
     return n;
 }
 
-JStarStmt* jsrClassDecl(int line, const JStarIdentifier* clsName, JStarExpr* sup,
+JStarStmt* jsrClassDecl(JStarLoc loc, const JStarIdentifier* clsName, JStarExpr* sup,
                         ext_vector(JStarStmt*) methods) {
-    JStarStmt* c = newDecl(line, JSR_CLASSDECL);
+    JStarStmt* c = newDecl(loc, JSR_CLASSDECL);
     c->as.decl.as.cls.sup = sup;
     c->as.decl.as.cls.id = *clsName;
     c->as.decl.as.cls.methods = methods;
     return c;
 }
 
-JStarStmt* jsrVarDecl(int line, bool isUnpack, ext_vector(JStarIdentifier) ids, JStarExpr* init) {
-    JStarStmt* s = newDecl(line, JSR_VARDECL);
+JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, ext_vector(JStarIdentifier) ids, JStarExpr* init) {
+    JStarStmt* s = newDecl(loc, JSR_VARDECL);
     s->as.decl.as.var.ids = ids;
     s->as.decl.as.var.isUnpack = isUnpack;
     s->as.decl.as.var.init = init;
@@ -308,16 +308,16 @@ JStarStmt* jsrVarDecl(int line, bool isUnpack, ext_vector(JStarIdentifier) ids, 
 
 // Control flow statements
 
-JStarStmt* jsrWithStmt(int line, JStarExpr* e, const JStarIdentifier* varName, JStarStmt* block) {
-    JStarStmt* w = newStmt(line, JSR_WITH);
+JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, const JStarIdentifier* varName, JStarStmt* block) {
+    JStarStmt* w = newStmt(loc, JSR_WITH);
     w->as.withStmt.e = e;
     w->as.withStmt.var = *varName;
     w->as.withStmt.block = block;
     return w;
 }
 
-JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act, JStarStmt* body) {
-    JStarStmt* s = newStmt(line, JSR_FOR);
+JStarStmt* jsrForStmt(JStarLoc loc, JStarStmt* init, JStarExpr* cond, JStarExpr* act, JStarStmt* body) {
+    JStarStmt* s = newStmt(loc, JSR_FOR);
     s->as.forStmt.init = init;
     s->as.forStmt.cond = cond;
     s->as.forStmt.act = act;
@@ -325,87 +325,87 @@ JStarStmt* jsrForStmt(int line, JStarStmt* init, JStarExpr* cond, JStarExpr* act
     return s;
 }
 
-JStarStmt* jsrForEachStmt(int line, JStarStmt* var, JStarExpr* iter, JStarStmt* body) {
-    JStarStmt* s = newStmt(line, JSR_FOREACH);
+JStarStmt* jsrForEachStmt(JStarLoc loc, JStarStmt* var, JStarExpr* iter, JStarStmt* body) {
+    JStarStmt* s = newStmt(loc, JSR_FOREACH);
     s->as.forEach.var = var;
     s->as.forEach.iterable = iter;
     s->as.forEach.body = body;
     return s;
 }
 
-JStarStmt* jsrWhileStmt(int line, JStarExpr* cond, JStarStmt* body) {
-    JStarStmt* s = newStmt(line, JSR_WHILE);
+JStarStmt* jsrWhileStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* body) {
+    JStarStmt* s = newStmt(loc, JSR_WHILE);
     s->as.whileStmt.cond = cond;
     s->as.whileStmt.body = body;
     return s;
 }
 
-JStarStmt* jsrReturnStmt(int line, JStarExpr* e) {
-    JStarStmt* s = newStmt(line, JSR_RETURN);
+JStarStmt* jsrReturnStmt(JStarLoc loc, JStarExpr* e) {
+    JStarStmt* s = newStmt(loc, JSR_RETURN);
     s->as.returnStmt.e = e;
     return s;
 }
 
-JStarStmt* jsrIfStmt(int line, JStarExpr* cond, JStarStmt* thenStmt, JStarStmt* elseStmt) {
-    JStarStmt* s = newStmt(line, JSR_IF);
+JStarStmt* jsrIfStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* thenStmt, JStarStmt* elseStmt) {
+    JStarStmt* s = newStmt(loc, JSR_IF);
     s->as.ifStmt.cond = cond;
     s->as.ifStmt.thenStmt = thenStmt;
     s->as.ifStmt.elseStmt = elseStmt;
     return s;
 }
 
-JStarStmt* jsrBlockStmt(int line, ext_vector(JStarStmt*) list) {
-    JStarStmt* s = newStmt(line, JSR_BLOCK);
+JStarStmt* jsrBlockStmt(JStarLoc loc, ext_vector(JStarStmt*) list) {
+    JStarStmt* s = newStmt(loc, JSR_BLOCK);
     s->as.blockStmt.stmts = list;
     return s;
 }
 
-JStarStmt* jsrImportStmt(int line, ext_vector(JStarIdentifier) modules,
+JStarStmt* jsrImportStmt(JStarLoc loc, ext_vector(JStarIdentifier) modules,
                          ext_vector(JStarIdentifier) names, const JStarIdentifier* as) {
-    JStarStmt* s = newStmt(line, JSR_IMPORT);
+    JStarStmt* s = newStmt(loc, JSR_IMPORT);
     s->as.importStmt.modules = modules;
     s->as.importStmt.names = names;
     s->as.importStmt.as = *as;
     return s;
 }
 
-JStarStmt* jsrExprStmt(int line, JStarExpr* e) {
-    JStarStmt* s = newStmt(line, JSR_EXPR_STMT);
+JStarStmt* jsrExprStmt(JStarLoc loc, JStarExpr* e) {
+    JStarStmt* s = newStmt(loc, JSR_EXPR_STMT);
     s->as.exprStmt = e;
     return s;
 }
 
-JStarStmt* jsrTryStmt(int line, JStarStmt* blck, ext_vector(JStarStmt*) excs, JStarStmt* ensure) {
-    JStarStmt* s = newStmt(line, JSR_TRY);
+JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, ext_vector(JStarStmt*) excs, JStarStmt* ensure) {
+    JStarStmt* s = newStmt(loc, JSR_TRY);
     s->as.tryStmt.block = blck;
     s->as.tryStmt.excs = excs;
     s->as.tryStmt.ensure = ensure;
     return s;
 }
 
-JStarStmt* jsrExceptStmt(int line, JStarExpr* cls, const JStarIdentifier* varName,
+JStarStmt* jsrExceptStmt(JStarLoc loc, JStarExpr* cls, const JStarIdentifier* varName,
                          JStarStmt* block) {
-    JStarStmt* s = newStmt(line, JSR_EXCEPT);
+    JStarStmt* s = newStmt(loc, JSR_EXCEPT);
     s->as.excStmt.block = block;
     s->as.excStmt.cls = cls;
     s->as.excStmt.var = *varName;
     return s;
 }
 
-JStarStmt* jsrRaiseStmt(int line, JStarExpr* e) {
-    JStarStmt* s = newStmt(line, JSR_RAISE);
+JStarStmt* jsrRaiseStmt(JStarLoc loc, JStarExpr* e) {
+    JStarStmt* s = newStmt(loc, JSR_RAISE);
     s->as.raiseStmt.exc = e;
     return s;
 }
 
-JStarStmt* jsrContinueStmt(int line) {
-    JStarStmt* s = newStmt(line, JSR_CONTINUE);
+JStarStmt* jsrContinueStmt(JStarLoc loc) {
+    JStarStmt* s = newStmt(loc, JSR_CONTINUE);
     s->as.exprStmt = NULL;
     return s;
 }
 
-JStarStmt* jsrBreakStmt(int line) {
-    JStarStmt* s = newStmt(line, JSR_BREAK);
+JStarStmt* jsrBreakStmt(JStarLoc loc) {
+    JStarStmt* s = newStmt(loc, JSR_BREAK);
     s->as.exprStmt = NULL;
     return s;
 }

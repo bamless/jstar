@@ -181,16 +181,16 @@ void initCoreModule(JStarVM* vm) {
         const char* code = readBuiltInModule(JSR_CORE_MODULE, &len);
 
         // Execute core module
-        JStarResult res = jsrEvalModule(vm, JSR_CORE_MODULE, JSR_CORE_MODULE, code, len);
+        JStarResult res = jsrEvalModule(vm, "core", JSR_CORE_MODULE, code, len);
 
         JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
-        (void)res;  // Not actually used aside from the assert
+        (void)res;
     }
 
-    // Cache builtin class objects in JStarVM
     {
         PROFILE("{cache-bltins}::initCore")
 
+        // Cache builtin class objects in JStarVM
         vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
         vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
         vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));

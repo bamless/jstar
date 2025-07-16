@@ -71,12 +71,12 @@ static Replxx* replxx;
 // -----------------------------------------------------------------------------
 
 // J* error callback that prints colored error messages
-static void errorCallback(JStarVM* vm, JStarResult res, const char* file, int ln, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc, const char* err) {
     PROFILE_FUNC()
-    if(ln >= 0) {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "File %s [line:%d]:\n", file, ln);
+    if(loc.line > 0) {
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s:%d:%d: error\n", file, loc.line, loc.col);
     } else {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "File %s:\n", file);
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s: error\n", file);
     }
     fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s\n", err);
 }
