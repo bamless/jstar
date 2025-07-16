@@ -188,7 +188,7 @@ typedef struct {
     size_t count, capacity;
 } JStarFormalArgs;
 
-typedef struct JStarFormalArgs {
+typedef struct JStarFormalArgsList {
     JStarFormalArgs args;
     JStarExprs defaults;
     JStarIdentifier vararg;
