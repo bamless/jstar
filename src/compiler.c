@@ -1720,11 +1720,11 @@ static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
 // DECLARATIONS
 // -----------------------------------------------------------------------------
 
-static void compileFormalArg(Compiler* c, JStarFormalArg arg, int argIdx) {
-    switch(arg.type) {
+static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx) {
+    switch(arg->type) {
     case SIMPLE: {
-        Variable var = declareVar(c, arg.as.simple, false, arg.loc);
-        defineVar(c, &var, arg.loc);
+        Variable var = declareVar(c, arg->as.simple, false, arg->loc);
+        defineVar(c, &var, arg->loc);
         break;
     }
     case UNPACK: {
@@ -1732,8 +1732,8 @@ static void compileFormalArg(Compiler* c, JStarFormalArg arg, int argIdx) {
         sprintf(name, UNPACK_ARG_FMT, argIdx);
         arrayAppend(&c->syntheticNames, name);
 
-        Variable var = declareVar(c, createIdentifier(name), false, arg.loc);
-        defineVar(c, &var, arg.loc);
+        Variable var = declareVar(c, createIdentifier(name), false, arg->loc);
+        defineVar(c, &var, arg->loc);
         break;
     }
     }
@@ -1742,7 +1742,7 @@ static void compileFormalArg(Compiler* c, JStarFormalArg arg, int argIdx) {
 static void compileFormalArgs(Compiler* c, JStarFormalArgs args) {
     int argIdx = 0;
     arrayForeach(JStarFormalArg, arg, &args) {
-        compileFormalArg(c, *arg, argIdx++);
+        compileFormalArg(c, arg, argIdx++);
     }
 }
 
