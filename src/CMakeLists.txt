@@ -9,7 +9,6 @@ set(JSTAR_SOURCES
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/ast.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/lex.h
     ${PROJECT_SOURCE_DIR}/include/jstar/parse/parser.h
-    ${PROJECT_SOURCE_DIR}/include/jstar/parse/vector.h
 
     parse/ast.c
     parse/lex.c
@@ -26,6 +25,7 @@ set(JSTAR_SOURCES
     lib/builtins.h
     lib/builtins.c
 
+    array.h
     buffer.c
     code.c
     code.h

@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "dynload.h"
-#include "jstar/parse/vector.h"
 #include "path.h"
 #include "profiler.h"
 
@@ -38,9 +37,6 @@
 // having them as globals saves a lot of allocations during imports.
 static Path import;
 static Path nativeExt;
-
-// Vector that keeps track of loaded shared libraries. Used during shutdown to free resources.
-static ext_vector(void*) sharedLibs;
 
 // Init the `importPaths` list by appending the script directory (or the current working
 // directory if no script was provided) and all the paths present in the JSTARPATH env variable.
@@ -100,16 +96,11 @@ void initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
     initImportPaths(vm, scriptPath, ignoreEnv);
     import = pathNew();
     nativeExt = pathNew();
-    sharedLibs = NULL;
 }
 
 void freeImports(void) {
     pathFree(&import);
     pathFree(&nativeExt);
-    ext_vec_foreach(void** dynlib, sharedLibs) {
-        dynfree(*dynlib);
-    }
-    ext_vec_free(sharedLibs);
 }
 
 // Loads a native extension module and returns its `native registry` to J*
@@ -136,9 +127,6 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
             return NULL;
         }
     }
-
-    // Track the loaded shared library in the global list of all open shared libraries
-    ext_vec_push_back(sharedLibs, dynlib);
 
     return (*registry)();
 }

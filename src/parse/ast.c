@@ -2,9 +2,9 @@
 
 #include <string.h>
 
+#include "array.h"
 #include "conf.h"
 #include "parse/lex.h"
-#include "parse/vector.h"
 
 bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier* id2) {
     return id1->length == id2->length && (memcmp(id1->name, id2->name, id1->length) == 0);
@@ -105,7 +105,7 @@ JStarExpr* jsrSpreadExpr(JStarLoc loc, JStarExpr* expr) {
     return s;
 }
 
-JStarExpr* jsrExprList(JStarLoc loc, ext_vector(JStarExpr*) exprs) {
+JStarExpr* jsrExprList(JStarLoc loc, JStarExprs exprs) {
     JStarExpr* e = newExpr(loc, JSR_EXPR_LST);
     e->as.exprList = exprs;
     return e;
@@ -156,7 +156,8 @@ JStarExpr* jsrCompundAssignExpr(JStarLoc loc, JStarTokType op, JStarExpr* lval, 
     return e;
 }
 
-JStarExpr* jsrFunLiteral(JStarLoc loc, const JStarFormalArgs* args, bool isGenerator, JStarStmt* body) {
+JStarExpr* jsrFunLiteral(JStarLoc loc, const JStarFormalArgsList* args, bool isGenerator,
+                         JStarStmt* body) {
     JStarExpr* e = newExpr(loc, JSR_FUN_LIT);
     e->as.funLit.func = jsrFuncDecl(loc, &(JStarIdentifier){0}, args, isGenerator, body);
     return e;
@@ -194,10 +195,10 @@ void jsrExprFree(JStarExpr* e) {
         jsrExprFree(e->as.tableLiteral.keyVals);
         break;
     case JSR_EXPR_LST: {
-        ext_vec_foreach(JStarExpr** expr, e->as.exprList) {
+        arrayForeach(JStarExpr*, expr, &e->as.exprList) {
             jsrExprFree(*expr);
         }
-        ext_vec_free(e->as.exprList);
+        arrayFree(&e->as.exprList);
         break;
     }
     case JSR_CALL:
@@ -266,13 +267,13 @@ static JStarStmt* newDecl(JStarLoc loc, JStarStmtType type) {
     JStarStmt* s = newStmt(loc, type);
     JSR_ASSERT(s, "Out of memory");
     s->as.decl.isStatic = false;
-    s->as.decl.decorators = NULL;
+    s->as.decl.decorators = (JStarExprs){0};
     return s;
 }
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFormalArgs* args,
+JStarStmt* jsrFuncDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFormalArgsList* args,
                        bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(loc, JSR_FUNCDECL);
     f->as.decl.as.fun.id = *name;
@@ -282,7 +283,8 @@ JStarStmt* jsrFuncDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFor
     return f;
 }
 
-JStarStmt* jsrNativeDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFormalArgs* args) {
+JStarStmt* jsrNativeDecl(JStarLoc loc, const JStarIdentifier* name,
+                         const JStarFormalArgsList* args) {
     JStarStmt* n = newDecl(loc, JSR_NATIVEDECL);
     n->as.decl.as.native.id = *name;
     n->as.decl.as.native.formalArgs = *args;
@@ -290,7 +292,7 @@ JStarStmt* jsrNativeDecl(JStarLoc loc, const JStarIdentifier* name, const JStarF
 }
 
 JStarStmt* jsrClassDecl(JStarLoc loc, const JStarIdentifier* clsName, JStarExpr* sup,
-                        ext_vector(JStarStmt*) methods) {
+                        JStarStmts methods) {
     JStarStmt* c = newDecl(loc, JSR_CLASSDECL);
     c->as.decl.as.cls.sup = sup;
     c->as.decl.as.cls.id = *clsName;
@@ -298,7 +300,7 @@ JStarStmt* jsrClassDecl(JStarLoc loc, const JStarIdentifier* clsName, JStarExpr*
     return c;
 }
 
-JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, ext_vector(JStarIdentifier) ids, JStarExpr* init) {
+JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, JStarIdentifiers ids, JStarExpr* init) {
     JStarStmt* s = newDecl(loc, JSR_VARDECL);
     s->as.decl.as.var.ids = ids;
     s->as.decl.as.var.isUnpack = isUnpack;
@@ -308,7 +310,8 @@ JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, ext_vector(JStarIdentifier) i
 
 // Control flow statements
 
-JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, const JStarIdentifier* varName, JStarStmt* block) {
+JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, const JStarIdentifier* varName,
+                       JStarStmt* block) {
     JStarStmt* w = newStmt(loc, JSR_WITH);
     w->as.withStmt.e = e;
     w->as.withStmt.var = *varName;
@@ -316,7 +319,8 @@ JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, const JStarIdentifier* varNam
     return w;
 }
 
-JStarStmt* jsrForStmt(JStarLoc loc, JStarStmt* init, JStarExpr* cond, JStarExpr* act, JStarStmt* body) {
+JStarStmt* jsrForStmt(JStarLoc loc, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
+                      JStarStmt* body) {
     JStarStmt* s = newStmt(loc, JSR_FOR);
     s->as.forStmt.init = init;
     s->as.forStmt.cond = cond;
@@ -354,14 +358,14 @@ JStarStmt* jsrIfStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* thenStmt, JStarSt
     return s;
 }
 
-JStarStmt* jsrBlockStmt(JStarLoc loc, ext_vector(JStarStmt*) list) {
+JStarStmt* jsrBlockStmt(JStarLoc loc, JStarStmts list) {
     JStarStmt* s = newStmt(loc, JSR_BLOCK);
     s->as.blockStmt.stmts = list;
     return s;
 }
 
-JStarStmt* jsrImportStmt(JStarLoc loc, ext_vector(JStarIdentifier) modules,
-                         ext_vector(JStarIdentifier) names, const JStarIdentifier* as) {
+JStarStmt* jsrImportStmt(JStarLoc loc, JStarIdentifiers modules, JStarIdentifiers names,
+                         const JStarIdentifier* as) {
     JStarStmt* s = newStmt(loc, JSR_IMPORT);
     s->as.importStmt.modules = modules;
     s->as.importStmt.names = names;
@@ -375,7 +379,7 @@ JStarStmt* jsrExprStmt(JStarLoc loc, JStarExpr* e) {
     return s;
 }
 
-JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, ext_vector(JStarStmt*) excs, JStarStmt* ensure) {
+JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, JStarStmts excs, JStarStmt* ensure) {
     JStarStmt* s = newStmt(loc, JSR_TRY);
     s->as.tryStmt.block = blck;
     s->as.tryStmt.excs = excs;
@@ -417,11 +421,11 @@ static void freeDeclaration(JStarStmt* s) {
                "Not a declaration");
     (void)type;
 
-    ext_vec_foreach(JStarExpr** e, s->as.decl.decorators) {
+    arrayForeach(JStarExpr*, e, &s->as.decl.decorators) {
         jsrExprFree(*e);
     }
 
-    ext_vec_free(s->as.decl.decorators);
+    arrayFree(&s->as.decl.decorators);
 }
 
 void jsrStmtFree(JStarStmt* s) {
@@ -455,63 +459,63 @@ void jsrStmtFree(JStarStmt* s) {
         jsrExprFree(s->as.exprStmt);
         break;
     case JSR_BLOCK: {
-        ext_vec_foreach(JStarStmt** stmt, s->as.blockStmt.stmts) {
+        arrayForeach(JStarStmt*, stmt, &s->as.blockStmt.stmts) {
             jsrStmtFree(*stmt);
         }
-        ext_vec_free(s->as.blockStmt.stmts);
+        arrayFree(&s->as.blockStmt.stmts);
         break;
     }
     case JSR_FUNCDECL: {
         freeDeclaration(s);
-        ext_vec_foreach(JStarFormalArg * arg, s->as.decl.as.fun.formalArgs.args) {
+        arrayForeach(JStarFormalArg, arg, &s->as.decl.as.fun.formalArgs.args) {
             if(arg->type == UNPACK) {
-                ext_vec_free(arg->as.unpack);
+                arrayFree(&arg->as.unpack);
             }
         }
-        ext_vec_free(s->as.decl.as.fun.formalArgs.args);
-        ext_vec_foreach(JStarExpr** e, s->as.decl.as.fun.formalArgs.defaults) {
+        arrayFree(&s->as.decl.as.fun.formalArgs.args);
+        arrayForeach(JStarExpr*, e, &s->as.decl.as.fun.formalArgs.defaults) {
             jsrExprFree(*e);
         }
-        ext_vec_free(s->as.decl.as.fun.formalArgs.defaults);
+        arrayFree(&s->as.decl.as.fun.formalArgs.defaults);
         jsrStmtFree(s->as.decl.as.fun.body);
         break;
     }
     case JSR_NATIVEDECL: {
         freeDeclaration(s);
-        ext_vec_foreach(JStarFormalArg * arg, s->as.decl.as.fun.formalArgs.args) {
+        arrayForeach(JStarFormalArg, arg, &s->as.decl.as.fun.formalArgs.args) {
             if(arg->type == UNPACK) {
-                ext_vec_free(arg->as.unpack);
+                arrayFree(&arg->as.unpack);
             }
         }
-        ext_vec_free(s->as.decl.as.fun.formalArgs.args);
-        ext_vec_foreach(JStarExpr** e, s->as.decl.as.fun.formalArgs.defaults) {
+        arrayFree(&s->as.decl.as.fun.formalArgs.args);
+        arrayForeach(JStarExpr*, e, &s->as.decl.as.fun.formalArgs.defaults) {
             jsrExprFree(*e);
         }
-        ext_vec_free(s->as.decl.as.fun.formalArgs.defaults);
+        arrayFree(&s->as.decl.as.fun.formalArgs.defaults);
         break;
     }
     case JSR_CLASSDECL: {
         freeDeclaration(s);
         jsrExprFree(s->as.decl.as.cls.sup);
-        ext_vec_foreach(JStarStmt** stmt, s->as.decl.as.cls.methods) {
+        arrayForeach(JStarStmt*, stmt, &s->as.decl.as.cls.methods) {
             jsrStmtFree(*stmt);
         }
-        ext_vec_free(s->as.decl.as.cls.methods);
+        arrayFree(&s->as.decl.as.cls.methods);
         break;
     }
     case JSR_VARDECL: {
         freeDeclaration(s);
         jsrExprFree(s->as.decl.as.var.init);
-        ext_vec_free(s->as.decl.as.var.ids);
+        arrayFree(&s->as.decl.as.var.ids);
         break;
     }
     case JSR_TRY:
         jsrStmtFree(s->as.tryStmt.block);
         jsrStmtFree(s->as.tryStmt.ensure);
-        ext_vec_foreach(JStarStmt** stmt, s->as.tryStmt.excs) {
+        arrayForeach(JStarStmt*, stmt, &s->as.tryStmt.excs) {
             jsrStmtFree(*stmt);
         }
-        ext_vec_free(s->as.tryStmt.excs);
+        arrayFree(&s->as.tryStmt.excs);
         break;
     case JSR_EXCEPT:
         jsrExprFree(s->as.excStmt.cls);
@@ -525,8 +529,8 @@ void jsrStmtFree(JStarStmt* s) {
         jsrStmtFree(s->as.withStmt.block);
         break;
     case JSR_IMPORT: {
-        ext_vec_free(s->as.importStmt.modules);
-        ext_vec_free(s->as.importStmt.names);
+        arrayFree(&s->as.importStmt.modules);
+        arrayFree(&s->as.importStmt.names);
         break;
     }
     case JSR_CONTINUE:

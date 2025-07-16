@@ -2,20 +2,35 @@
 #define JSTAR_AST_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 #include "jstar/conf.h"
 #include "lex.h"
-#include "vector.h"
 
 typedef struct JStarExpr JStarExpr;
 typedef struct JStarStmt JStarStmt;
 typedef struct JStarDecl JStarDecl;
 
-typedef struct JStarIdentifier {
+typedef struct {
     size_t length;
     const char* name;
 } JStarIdentifier;
+
+typedef struct {
+    JStarIdentifier* items;
+    size_t count, capacity;
+} JStarIdentifiers;
+
+typedef struct {
+    JStarExpr** items;
+    size_t count, capacity;
+} JStarExprs;
+
+typedef struct {
+    JStarStmt** items;
+    size_t count, capacity;
+} JStarStmts;
 
 // -----------------------------------------------------------------------------
 // EXPRESSION NODES
@@ -149,7 +164,7 @@ struct JStarExpr {
         JStarListLiteralExpr listLiteral;
         JStarTupleLiteralExpr tupleLiteral;
         JStarTableLiteralExpr tableLiteral;
-        ext_vector(JStarExpr*) exprList;
+        JStarExprs exprList;
         double num;
         bool boolean;
     } as;
@@ -164,43 +179,48 @@ typedef struct JStarFormalArg {
     JStarLoc loc;
     union {
         JStarIdentifier simple;
-        ext_vector(JStarIdentifier) unpack;
+        JStarIdentifiers unpack;
     } as;
 } JStarFormalArg;
 
-typedef struct JStarFormalArgs {
-    ext_vector(JStarFormalArg) args;
-    ext_vector(JStarExpr*) defaults;
-    JStarIdentifier vararg;
+typedef struct {
+    JStarFormalArg* items;
+    size_t count, capacity;
 } JStarFormalArgs;
+
+typedef struct JStarFormalArgs {
+    JStarFormalArgs args;
+    JStarExprs defaults;
+    JStarIdentifier vararg;
+} JStarFormalArgsList;
 
 typedef struct JStarVarDecl {
     bool isUnpack;
-    ext_vector(JStarIdentifier) ids;
+    JStarIdentifiers ids;
     JStarExpr* init;
 } JStarVarDecl;
 
 typedef struct JStarFunDecl {
     JStarIdentifier id;
-    JStarFormalArgs formalArgs;
+    JStarFormalArgsList formalArgs;
     bool isGenerator;
     JStarStmt* body;
 } JStarFunDecl;
 
 typedef struct JStarNativeDecl {
     JStarIdentifier id;
-    JStarFormalArgs formalArgs;
+    JStarFormalArgsList formalArgs;
 } JStarNativeDecl;
 
 typedef struct JStarClassDecl {
     JStarIdentifier id;
     JStarExpr* sup;
-    ext_vector(JStarStmt*) methods;
+    JStarStmts methods;
 } JStarClassDecl;
 
 struct JStarDecl {
     bool isStatic;
-    ext_vector(JStarExpr*) decorators;
+    JStarExprs decorators;
     union {
         JStarVarDecl var;
         JStarFunDecl fun;
@@ -257,18 +277,18 @@ typedef struct JStarWhileStmt {
 } JStarWhileStmt;
 
 typedef struct JStarBlockStmt {
-    ext_vector(JStarStmt*) stmts;
+    JStarStmts stmts;
 } JStarBlockStmt;
 
 typedef struct JStarImportStmt {
-    ext_vector(JStarIdentifier) modules;
+    JStarIdentifiers modules;
     JStarIdentifier as;
-    ext_vector(JStarIdentifier) names;
+    JStarIdentifiers names;
 } JStarImportStmt;
 
 typedef struct JStarTryStmt {
     JStarStmt* block;
-    ext_vector(JStarStmt*) excs;
+    JStarStmts excs;
     JStarStmt* ensure;
 } JStarTryStmt;
 
@@ -287,10 +307,6 @@ typedef struct JStarWithStmt {
     JStarIdentifier var;
     JStarStmt* block;
 } JStarWithStmt;
-
-typedef struct JStarStmtList {
-    ext_vector(JStarStmt*) stmts;
-} JStarStmtList;
 
 typedef struct JStarReturnStmt {
     JStarExpr* e;
@@ -326,7 +342,7 @@ JSTAR_API bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFunLiteral(JStarLoc loc, const JStarFormalArgs* args, bool isGenerator,
+JSTAR_API JStarExpr* jsrFunLiteral(JStarLoc loc, const JStarFormalArgsList* args, bool isGenerator,
                                    JStarStmt* body);
 JSTAR_API JStarExpr* jsrTernaryExpr(JStarLoc loc, JStarExpr* cond, JStarExpr* thenExpr,
                                     JStarExpr* elseExpr);
@@ -345,7 +361,7 @@ JSTAR_API JStarExpr* jsrAssignExpr(JStarLoc loc, JStarExpr* lval, JStarExpr* rva
 JSTAR_API JStarExpr* jsrPowExpr(JStarLoc loc, JStarExpr* base, JStarExpr* exp);
 JSTAR_API JStarExpr* jsrTableLiteral(JStarLoc loc, JStarExpr* keyVals);
 JSTAR_API JStarExpr* jsrSpreadExpr(JStarLoc loc, JStarExpr* expr);
-JSTAR_API JStarExpr* jsrExprList(JStarLoc loc, ext_vector(JStarExpr*) exprs);
+JSTAR_API JStarExpr* jsrExprList(JStarLoc loc, JStarExprs exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(JStarLoc loc, bool boolean);
 JSTAR_API JStarExpr* jsrTupleLiteral(JStarLoc loc, JStarExpr* exprs);
 JSTAR_API JStarExpr* jsrListLiteral(JStarLoc loc, JStarExpr* exprs);
@@ -359,19 +375,18 @@ JSTAR_API void jsrExprFree(JStarExpr* e);
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFuncDecl(JStarLoc loc, const JStarIdentifier* name,
-                                 const JStarFormalArgs* args, bool isGenerator, JStarStmt* body);
+                                 const JStarFormalArgsList* args, bool isGenerator,
+                                 JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(JStarLoc loc, const JStarIdentifier* name,
-                                   const JStarFormalArgs* args);
+                                   const JStarFormalArgsList* args);
 JSTAR_API JStarStmt* jsrForStmt(JStarLoc loc, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
                                 JStarStmt* body);
 JSTAR_API JStarStmt* jsrClassDecl(JStarLoc loc, const JStarIdentifier* clsName, JStarExpr* sup,
-                                  ext_vector(JStarStmt*) methods);
-JSTAR_API JStarStmt* jsrImportStmt(JStarLoc loc, ext_vector(JStarIdentifier) modules,
-                                   ext_vector(JStarIdentifier) names, const JStarIdentifier* as);
-JSTAR_API JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, ext_vector(JStarIdentifier) ids,
-                                JStarExpr* init);
-JSTAR_API JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, ext_vector(JStarStmt*) excs,
-                                JStarStmt* ensure);
+                                  JStarStmts methods);
+JSTAR_API JStarStmt* jsrImportStmt(JStarLoc loc, JStarIdentifiers modules, JStarIdentifiers names,
+                                   const JStarIdentifier* as);
+JSTAR_API JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, JStarIdentifiers ids, JStarExpr* init);
+JSTAR_API JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, JStarStmts excs, JStarStmt* ensure);
 JSTAR_API JStarStmt* jsrIfStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* thenStmt,
                                JStarStmt* elseStmt);
 JSTAR_API JStarStmt* jsrForEachStmt(JStarLoc loc, JStarStmt* varDecl, JStarExpr* iter,
@@ -381,7 +396,7 @@ JSTAR_API JStarStmt* jsrExceptStmt(JStarLoc loc, JStarExpr* cls, const JStarIden
 JSTAR_API JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, const JStarIdentifier* varName,
                                  JStarStmt* block);
 JSTAR_API JStarStmt* jsrWhileStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* body);
-JSTAR_API JStarStmt* jsrBlockStmt(JStarLoc loc, ext_vector(JStarStmt*) list);
+JSTAR_API JStarStmt* jsrBlockStmt(JStarLoc loc, JStarStmts list);
 JSTAR_API JStarStmt* jsrReturnStmt(JStarLoc loc, JStarExpr* e);
 JSTAR_API JStarStmt* jsrRaiseStmt(JStarLoc loc, JStarExpr* e);
 JSTAR_API JStarStmt* jsrExprStmt(JStarLoc loc, JStarExpr* e);
