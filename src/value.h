@@ -5,9 +5,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "conf.h"
+#include "conf.h"          // IWYU pragma: keep
 #include "object_types.h"  // IWYU pragma: keep
-#include "util.h"
+#include "util.h"          // IWYU pragma: keep
 
 /**
  * Here we define the Value type. This is a C type that can store any type
@@ -143,13 +143,13 @@ typedef struct Value {
 #define AS_NUM(val)    ((val).as.num)
 #define AS_OBJ(val)    ((val).as.obj)
 
-#define HANDLE_VAL(h) ((Value){VAL_HANDLE, .as = {.handle = h}})
-#define NUM_VAL(n)    ((Value){VAL_NUM, .as = {.num = n}})
-#define BOOL_VAL(b)   ((Value){VAL_BOOL, .as = {.boolean = b}})
-#define OBJ_VAL(val)  ((Value){VAL_OBJ, .as = {.obj = (Obj*)val}})
-#define TRUE_VAL      ((Value){VAL_BOOL, .as = {.boolean = true}})
-#define FALSE_VAL     ((Value){VAL_BOOL, .as = {.boolean = false}})
-#define NULL_VAL      ((Value){VAL_NULL, .as = {.num = 0}})
+#define HANDLE_VAL(h) ((Value){VAL_HANDLE, {.handle = h}})
+#define NUM_VAL(n)    ((Value){VAL_NUM, {.num = n}})
+#define BOOL_VAL(b)   ((Value){VAL_BOOL, {.boolean = b}})
+#define OBJ_VAL(val)  ((Value){VAL_OBJ, {.obj = (Obj*)val}})
+#define TRUE_VAL      ((Value){VAL_BOOL, {.boolean = true}})
+#define FALSE_VAL     ((Value){VAL_BOOL, {.boolean = false}})
+#define NULL_VAL      ((Value){VAL_NULL, {.num = 0}})
 
 // clang-format on
 

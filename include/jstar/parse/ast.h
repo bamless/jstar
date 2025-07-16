@@ -13,7 +13,7 @@ typedef struct JStarStmt JStarStmt;
 typedef struct JStarDecl JStarDecl;
 
 typedef struct JStarIdentifier {
-    size_t length;
+    int length;
     const char* name;
 } JStarIdentifier;
 

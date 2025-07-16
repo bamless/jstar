@@ -351,9 +351,9 @@ static JStarFormalArg parseUnpackArgument(Parser* p) {
     require(p, TOK_RPAREN);
 
     return (JStarFormalArg){
-        .type = UNPACK,
-        .loc = lparen.loc,
-        .as = {.unpack = names},
+        UNPACK,
+        lparen.loc,
+        {.unpack = names},
     };
 }
 
@@ -372,9 +372,9 @@ static JStarFormalArgsList formalArgs(Parser* p, JStarTokType open, JStarTokType
         } else {
             JStarTok tok = advance(p);
             arg = (JStarFormalArg){
-                .type = SIMPLE,
-                .loc = tok.loc,
-                .as = {.simple = createIdentifier(&tok)},
+                SIMPLE,
+                tok.loc,
+                {.simple = createIdentifier(&tok)},
             };
         }
 
@@ -720,13 +720,11 @@ static void freeDecorators(JStarExprs* decorators) {
     arrayFree(decorators);
 }
 
-static JStarIdentifier ctorName(void) {
+static JStarIdentifier ctorName(JStarLoc loc) {
     return (JStarIdentifier){strlen(CONSTRUCT_ID), CONSTRUCT_ID};
 }
 
 static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
-    JStarLoc loc = p->peek.loc;
-
     Function fn;
     beginFunction(p, &fn);
 
@@ -736,7 +734,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarIdentifier funcName;
     if(parseCtor && funTok.type == TOK_CTOR) {
         fn.isCtor = true;
-        funcName = ctorName();
+        funcName = ctorName(funTok.loc);
     } else {
         JStarTok fun = require(p, TOK_IDENTIFIER);
         funcName = createIdentifier(&fun);
@@ -748,7 +746,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(loc, funcName, args, p->function->isGenerator, body);
+    JStarStmt* decl = jsrFuncDecl(funTok.loc, funcName, args, p->function->isGenerator, body);
 
     endFunction(p);
 
@@ -763,8 +761,8 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
 
     JStarIdentifier nativeName;
     if(parseCtor && p->peek.type == TOK_CTOR) {
-        advance(p);
-        nativeName = ctorName();
+        JStarTok ctor = advance(p);
+        nativeName = ctorName(ctor.loc);
     } else {
         JStarTok nat = require(p, TOK_IDENTIFIER);
         nativeName = createIdentifier(&nat);

@@ -237,7 +237,7 @@ void initCoreModule(JStarVM* vm) {
 bool resolveCoreSymbol(JStarIdentifier id) {
     for(const char** name = coreSymbols; *name; name++) {
         size_t len = strlen(*name);
-        if(len == id.length && memcmp(id.name, *name, len) == 0) {
+        if(len == (size_t)id.length && memcmp(id.name, *name, len) == 0) {
             return true;
         }
     }

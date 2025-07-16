@@ -338,7 +338,7 @@ static Variable resolveLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
                       local->id.length, local->id.name);
                 return (Variable){.scope = VAR_ERR};
             }
-            return (Variable){.scope = VAR_LOCAL, .as = {.local = {.localIdx = i}}};
+            return (Variable){VAR_LOCAL, {.local = {i}}};
         }
     }
     return (Variable){.scope = VAR_ERR};
@@ -372,20 +372,20 @@ static Variable resolveUpvalue(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     if(var.scope == VAR_LOCAL) {
         int upvalueIdx = addUpvalue(c, var.as.local.localIdx, true, loc);
         c->prev->locals[var.as.local.localIdx].isUpvalue = true;
-        return (Variable){.scope = VAR_UPVALUE, .as = {.upvalue = {.upvalueIdx = upvalueIdx}}};
+        return (Variable){VAR_UPVALUE, {.upvalue = {upvalueIdx}}};
     }
 
     var = resolveUpvalue(c->prev, id, loc);
     if(var.scope == VAR_UPVALUE) {
         int upvalueIdx = addUpvalue(c, var.as.upvalue.upvalueIdx, false, loc);
-        return (Variable){.scope = VAR_UPVALUE, .as = {.upvalue = {.upvalueIdx = upvalueIdx}}};
+        return (Variable){VAR_UPVALUE, {.upvalue = {upvalueIdx}}};
     }
 
     return var;
 }
 
 static Variable resolveGlobal(Compiler* c, JStarIdentifier id) {
-    Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = id}}};
+    Variable global = (Variable){VAR_GLOBAL, {.global = {id}}};
 
     if(c->module) {
         if(hashTableIntGetString(&c->module->globalNames, id.name, id.length,
@@ -429,8 +429,8 @@ static Variable resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     arrayAppend(c->fwdRefs, fwdRef);
 
     return (Variable){
-        .scope = VAR_GLOBAL,
-        .as = {.global = {.id = id}},
+         VAR_GLOBAL,
+        {.global = { id}},
     };
 }
 
@@ -441,7 +441,7 @@ static void initializeVar(Compiler* c, const Variable* var) {
 
 static Variable declareGlobal(Compiler* c, JStarIdentifier id) {
     arrayAppend(c->globals, id);
-    return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = id}}};
+    return (Variable){VAR_GLOBAL, {.global = {id}}};
 }
 
 static Variable declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JStarLoc loc) {
@@ -470,7 +470,7 @@ static Variable declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JSt
         return (Variable){.scope = VAR_ERR};
     }
 
-    return (Variable){.scope = VAR_LOCAL, .as = {.local = {.localIdx = index}}};
+    return (Variable){VAR_LOCAL, {.local = {index}}};
 }
 
 static void defineVar(Compiler* c, const Variable* var, JStarLoc loc) {
