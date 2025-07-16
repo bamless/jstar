@@ -6,8 +6,8 @@
 #include "conf.h"
 #include "parse/lex.h"
 
-bool jsrIdentifierEq(const JStarIdentifier* id1, const JStarIdentifier* id2) {
-    return id1->length == id2->length && (memcmp(id1->name, id2->name, id1->length) == 0);
+bool jsrIdentifierEq(JStarIdentifier id1, JStarIdentifier id2) {
+    return id1.length == id2.length && (memcmp(id1.name, id2.name, id1.length) == 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -156,10 +156,10 @@ JStarExpr* jsrCompundAssignExpr(JStarLoc loc, JStarTokType op, JStarExpr* lval, 
     return e;
 }
 
-JStarExpr* jsrFunLiteral(JStarLoc loc, const JStarFormalArgsList* args, bool isGenerator,
+JStarExpr* jsrFunLiteral(JStarLoc loc, JStarFormalArgsList args, bool isGenerator,
                          JStarStmt* body) {
     JStarExpr* e = newExpr(loc, JSR_FUN_LIT);
-    e->as.funLit.func = jsrFuncDecl(loc, &(JStarIdentifier){0}, args, isGenerator, body);
+    e->as.funLit.func = jsrFuncDecl(loc, (JStarIdentifier){0}, args, isGenerator, body);
     return e;
 }
 
@@ -273,29 +273,27 @@ static JStarStmt* newDecl(JStarLoc loc, JStarStmtType type) {
 
 // Declarations
 
-JStarStmt* jsrFuncDecl(JStarLoc loc, const JStarIdentifier* name, const JStarFormalArgsList* args,
+JStarStmt* jsrFuncDecl(JStarLoc loc, JStarIdentifier name, JStarFormalArgsList args,
                        bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(loc, JSR_FUNCDECL);
-    f->as.decl.as.fun.id = *name;
-    f->as.decl.as.fun.formalArgs = *args;
+    f->as.decl.as.fun.id = name;
+    f->as.decl.as.fun.formalArgs = args;
     f->as.decl.as.fun.body = body;
     f->as.decl.as.fun.isGenerator = isGenerator;
     return f;
 }
 
-JStarStmt* jsrNativeDecl(JStarLoc loc, const JStarIdentifier* name,
-                         const JStarFormalArgsList* args) {
+JStarStmt* jsrNativeDecl(JStarLoc loc, JStarIdentifier name, JStarFormalArgsList args) {
     JStarStmt* n = newDecl(loc, JSR_NATIVEDECL);
-    n->as.decl.as.native.id = *name;
-    n->as.decl.as.native.formalArgs = *args;
+    n->as.decl.as.native.id = name;
+    n->as.decl.as.native.formalArgs = args;
     return n;
 }
 
-JStarStmt* jsrClassDecl(JStarLoc loc, const JStarIdentifier* clsName, JStarExpr* sup,
-                        JStarStmts methods) {
+JStarStmt* jsrClassDecl(JStarLoc loc, JStarIdentifier clsName, JStarExpr* sup, JStarStmts methods) {
     JStarStmt* c = newDecl(loc, JSR_CLASSDECL);
     c->as.decl.as.cls.sup = sup;
-    c->as.decl.as.cls.id = *clsName;
+    c->as.decl.as.cls.id = clsName;
     c->as.decl.as.cls.methods = methods;
     return c;
 }
@@ -310,11 +308,10 @@ JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, JStarIdentifiers ids, JStarEx
 
 // Control flow statements
 
-JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, const JStarIdentifier* varName,
-                       JStarStmt* block) {
+JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, JStarIdentifier varName, JStarStmt* block) {
     JStarStmt* w = newStmt(loc, JSR_WITH);
     w->as.withStmt.e = e;
-    w->as.withStmt.var = *varName;
+    w->as.withStmt.var = varName;
     w->as.withStmt.block = block;
     return w;
 }
@@ -365,11 +362,11 @@ JStarStmt* jsrBlockStmt(JStarLoc loc, JStarStmts list) {
 }
 
 JStarStmt* jsrImportStmt(JStarLoc loc, JStarIdentifiers modules, JStarIdentifiers names,
-                         const JStarIdentifier* as) {
+                         JStarIdentifier as) {
     JStarStmt* s = newStmt(loc, JSR_IMPORT);
     s->as.importStmt.modules = modules;
     s->as.importStmt.names = names;
-    s->as.importStmt.as = *as;
+    s->as.importStmt.as = as;
     return s;
 }
 
@@ -387,12 +384,11 @@ JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, JStarStmts excs, JStarStmt*
     return s;
 }
 
-JStarStmt* jsrExceptStmt(JStarLoc loc, JStarExpr* cls, const JStarIdentifier* varName,
-                         JStarStmt* block) {
+JStarStmt* jsrExceptStmt(JStarLoc loc, JStarExpr* cls, JStarIdentifier varName, JStarStmt* block) {
     JStarStmt* s = newStmt(loc, JSR_EXCEPT);
     s->as.excStmt.block = block;
     s->as.excStmt.cls = cls;
-    s->as.excStmt.var = *varName;
+    s->as.excStmt.var = varName;
     return s;
 }
 

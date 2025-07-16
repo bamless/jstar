@@ -10,7 +10,7 @@
 void initCoreModule(JStarVM* vm);
 
 // Resolve a core module name
-bool resolveCoreSymbol(const JStarIdentifier* id);
+bool resolveCoreSymbol(JStarIdentifier id);
 
 // J* core module native functions and methods
 

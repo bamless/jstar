@@ -298,11 +298,11 @@ static uint16_t stringConst(Compiler* c, const char* str, size_t length, JStarLo
     return createConst(c, OBJ_VAL(string), loc);
 }
 
-static uint16_t identifierConst(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
-    return stringConst(c, id->name, id->length, loc);
+static uint16_t identifierConst(Compiler* c, JStarIdentifier id, JStarLoc loc) {
+    return stringConst(c, id.name, id.length, loc);
 }
 
-static uint16_t identifierSymbol(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+static uint16_t identifierSymbol(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     int index = addSymbol(&c->func->code, identifierConst(c, id, loc));
     if(index == -1) {
         error(c, loc, "Too many symbols in function %s", c->func->proto.name->data);
@@ -329,10 +329,10 @@ static void initializeLocal(Compiler* c, int idx) {
     c->locals[idx].depth = c->depth;
 }
 
-static Variable resolveLocal(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+static Variable resolveLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
         Local* local = &c->locals[i];
-        if(jsrIdentifierEq(&local->id, id)) {
+        if(jsrIdentifierEq(local->id, id)) {
             if(local->depth == -1) {
                 error(c, loc, "Cannot read local variable `%.*s` in its own initializer",
                       local->id.length, local->id.name);
@@ -363,7 +363,7 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, JStarLoc loc) {
     return c->func->upvalueCount++;
 }
 
-static Variable resolveUpvalue(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+static Variable resolveUpvalue(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     if(c->prev == NULL) {
         return (Variable){.scope = VAR_ERR};
     }
@@ -384,12 +384,12 @@ static Variable resolveUpvalue(Compiler* c, const JStarIdentifier* id, JStarLoc 
     return var;
 }
 
-static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
-    Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
+static Variable resolveGlobal(Compiler* c, JStarIdentifier id) {
+    Variable global = (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = id}}};
 
     if(c->module) {
-        if(hashTableIntGetString(&c->module->globalNames, id->name, id->length,
-                                 hashBytes(id->name, id->length))) {
+        if(hashTableIntGetString(&c->module->globalNames, id.name, id.length,
+                                 hashBytes(id.name, id.length))) {
             return global;
         }
     } else if(resolveCoreSymbol(id)) {
@@ -397,7 +397,7 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
     }
 
     arrayForeach(JStarIdentifier, globalId, c->globals) {
-        if(jsrIdentifierEq(id, globalId)) {
+        if(jsrIdentifierEq(id, *globalId)) {
             return global;
         }
     }
@@ -405,7 +405,7 @@ static Variable resolveGlobal(Compiler* c, const JStarIdentifier* id) {
     return (Variable){.scope = VAR_ERR};
 }
 
-static Variable resolveVar(Compiler* c, const JStarIdentifier* id, JStarLoc loc) {
+static Variable resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     Variable var = resolveLocal(c, id, loc);
     if(var.scope != VAR_ERR) {
         return var;
@@ -425,10 +425,13 @@ static Variable resolveVar(Compiler* c, const JStarIdentifier* id, JStarLoc loc)
         return (Variable){.scope = VAR_ERR};
     }
 
-    FwdRef fwdRef = {*id, loc};
+    FwdRef fwdRef = {id, loc};
     arrayAppend(c->fwdRefs, fwdRef);
 
-    return (Variable){.scope = VAR_GLOBAL, .as = {.global = {.id = *id}}};
+    return (Variable){
+        .scope = VAR_GLOBAL,
+        .as = {.global = {.id = id}},
+    };
 }
 
 static void initializeVar(Compiler* c, const Variable* var) {
@@ -453,7 +456,7 @@ static Variable declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JSt
 
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
-        if(jsrIdentifierEq(&c->locals[i].id, &id)) {
+        if(jsrIdentifierEq(c->locals[i].id, id)) {
             const Local* other = &c->locals[i];
             error(c, loc, "Variable `%.*s` already declared", id.length, id.name);
             error(c, other->loc, "NOTE: previous declaration of `%.*s` is here", id.length,
@@ -474,7 +477,7 @@ static void defineVar(Compiler* c, const Variable* var, JStarLoc loc) {
     switch(var->scope) {
     case VAR_GLOBAL:
         emitOpcode(c, OP_DEFINE_GLOBAL, loc.line);
-        emitShort(c, identifierSymbol(c, &var->as.global.id, loc), loc.line);
+        emitShort(c, identifierSymbol(c, var->as.global.id, loc), loc.line);
         break;
     case VAR_LOCAL:
         initializeVar(c, var);
@@ -554,10 +557,10 @@ static void endLoop(Compiler* c) {
 
 static void inlineMethodCall(Compiler* c, const char* name, int args) {
     JSR_ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
-    JStarIdentifier meth = createIdentifier(name);
     JStarLoc loc = {0};
+    JStarIdentifier methId = createIdentifier(name);
     emitOpcode(c, OP_INVOKE_0 + args, loc.line);
-    emitShort(c, identifierSymbol(c, &meth, loc), loc.line);
+    emitShort(c, identifierSymbol(c, methId, loc), loc.line);
 }
 
 static void enterTryBlock(Compiler* c, TryBlock* exc, int numHandlers, JStarLoc loc) {
@@ -784,7 +787,7 @@ static void compileTernaryExpr(Compiler* c, const JStarExpr* e) {
     setJumpTo(c, exitJmp, getCurrentAddr(c), e->loc);
 }
 
-static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, JStarLoc loc) {
+static void compileVarLit(Compiler* c, JStarIdentifier id, bool set, JStarLoc loc) {
     Variable var = resolveVar(c, id, loc);
     switch(var.scope) {
     case VAR_LOCAL:
@@ -809,35 +812,35 @@ static void compileVarLit(Compiler* c, const JStarIdentifier* id, bool set, JSta
         } else {
             emitOpcode(c, OP_GET_GLOBAL, loc.line);
         }
-        emitShort(c, identifierSymbol(c, &var.as.global.id, loc), loc.line);
+        emitShort(c, identifierSymbol(c, var.as.global.id, loc), loc.line);
         break;
     case VAR_ERR:
-        error(c, loc, "Cannot resolve name `%.*s`", id->length, id->name);
+        error(c, loc, "Cannot resolve name `%.*s`", id.length, id.name);
         break;
     }
 }
 
-static void compileFunLiteral(Compiler* c, const JStarExpr* e, const JStarIdentifier* name) {
+static void compileFunLiteral(Compiler* c, const JStarExpr* e, JStarIdentifier name) {
     JStarStmt* func = e->as.funLit.func;
-    if(!name) {
+    if(name.name) {
         char anonName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) * 2 + 1];
         sprintf(anonName, ANON_FMT, func->loc.line, func->loc.col);
         compileFunction(c, TYPE_FUNC, copyString(c->vm, anonName, strlen(anonName)), func);
     } else {
-        func->as.decl.as.fun.id = *name;
-        compileFunction(c, TYPE_FUNC, copyString(c->vm, name->name, name->length), func);
+        func->as.decl.as.fun.id = name;
+        compileFunction(c, TYPE_FUNC, copyString(c->vm, name.name, name.length), func);
     }
 }
 
 static void compileLval(Compiler* c, const JStarExpr* e) {
     switch(e->type) {
     case JSR_VAR:
-        compileVarLit(c, &e->as.varLiteral.id, true, e->loc);
+        compileVarLit(c, e->as.varLiteral.id, true, e->loc);
         break;
     case JSR_PROPERTY_ACCESS: {
         compileExpr(c, e->as.propertyAccess.left);
         emitOpcode(c, OP_SET_FIELD, e->loc.line);
-        emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->loc), e->loc.line);
+        emitShort(c, identifierSymbol(c, e->as.propertyAccess.id, e->loc), e->loc.line);
         break;
     }
     case JSR_INDEX: {
@@ -854,7 +857,7 @@ static void compileLval(Compiler* c, const JStarExpr* e) {
 // The `name` argument is the name of the variable to which we are assigning to.
 // In case of a function literal we use it to give the function a meaningful name, instead
 // of just using the default name for anonymous functions (that is: `anon:<line_number>`)
-static void compileRval(Compiler* c, const JStarExpr* e, const JStarIdentifier* name) {
+static void compileRval(Compiler* c, const JStarExpr* e, JStarIdentifier name) {
     if(e->type == JSR_FUN_LIT) {
         compileFunLiteral(c, e, name);
     } else {
@@ -871,9 +874,9 @@ static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
 
     int i = 0;
     arrayForeach(JStarExpr*, it, &exprs->as.exprList) {
-        const JStarIdentifier* name = NULL;
+        JStarIdentifier name = {0};
         if(names.count && i < lvals) {
-            name = &names.items[i];
+            name = names.items[i];
         }
 
         compileRval(c, *it, name);
@@ -900,7 +903,7 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
         JStarExpr* exprs = getExpressions(rval);
         compileConstUnpack(c, exprs, lvalCount, (JStarIdentifiers){0});
     } else {
-        compileRval(c, rval, NULL);
+        compileRval(c, rval, (JStarIdentifier){0});
         emitOpcode(c, OP_UNPACK, e->loc.line);
         emitByte(c, (uint8_t)lvalCount, e->loc.line);
         adjustStackUsage(c, lvalCount - 1);
@@ -918,19 +921,19 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
 static void compileAssignExpr(Compiler* c, const JStarExpr* e) {
     switch(e->as.assign.lval->type) {
     case JSR_VAR: {
-        JStarIdentifier* name = &e->as.assign.lval->as.varLiteral.id;
+        JStarIdentifier name = e->as.assign.lval->as.varLiteral.id;
         compileRval(c, e->as.assign.rval, name);
         compileLval(c, e->as.assign.lval);
         break;
     }
     case JSR_PROPERTY_ACCESS: {
-        JStarIdentifier* name = &e->as.assign.lval->as.propertyAccess.id;
+        JStarIdentifier name = e->as.assign.lval->as.propertyAccess.id;
         compileRval(c, e->as.assign.rval, name);
         compileLval(c, e->as.assign.lval);
         break;
     }
     case JSR_INDEX: {
-        compileRval(c, e->as.assign.rval, NULL);
+        compileRval(c, e->as.assign.rval, (JStarIdentifier){0});
         compileLval(c, e->as.assign.lval);
         break;
     }
@@ -1014,7 +1017,7 @@ static void compileCallExpr(Compiler* c, const JStarExpr* e) {
     emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->loc.line);
 
     if(isMethod) {
-        emitShort(c, identifierSymbol(c, &callee->as.propertyAccess.id, e->loc), e->loc.line);
+        emitShort(c, identifierSymbol(c, callee->as.propertyAccess.id, e->loc), e->loc.line);
     }
 }
 
@@ -1031,12 +1034,12 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
 
     uint16_t methodSym;
     if(e->as.sup.name.name != NULL) {
-        methodSym = identifierSymbol(c, &e->as.sup.name, e->loc);
+        methodSym = identifierSymbol(c, e->as.sup.name, e->loc);
     } else {
-        methodSym = identifierSymbol(c, &c->ast->as.decl.as.fun.id, e->loc);
+        methodSym = identifierSymbol(c, c->ast->as.decl.as.fun.id, e->loc);
     }
 
-    JStarIdentifier superName = createIdentifier("super");
+    JStarIdentifier superId = createIdentifier("super");
     JStarExpr* args = e->as.sup.args;
 
     if(args != NULL) {
@@ -1049,11 +1052,11 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
         }
 
         uint8_t argsCount = args->as.exprList.count;
-        compileVarLit(c, &superName, false, e->loc);
+        compileVarLit(c, superId, false, e->loc);
         emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->loc.line);
         emitShort(c, methodSym, e->loc.line);
     } else {
-        compileVarLit(c, &superName, false, e->loc);
+        compileVarLit(c, superId, false, e->loc);
         emitOpcode(c, OP_SUPER_BIND, e->loc.line);
         emitShort(c, methodSym, e->loc.line);
     }
@@ -1062,7 +1065,7 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
 static void compileAccessExpression(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.propertyAccess.left);
     emitOpcode(c, OP_GET_FIELD, e->loc.line);
-    emitShort(c, identifierSymbol(c, &e->as.propertyAccess.id, e->loc), e->loc.line);
+    emitShort(c, identifierSymbol(c, e->as.propertyAccess.id, e->loc), e->loc.line);
 }
 
 static void compileArraryAccExpression(Compiler* c, const JStarExpr* e) {
@@ -1218,7 +1221,7 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         emitValueConst(c, OBJ_VAL(readString(c, e)), e->loc);
         break;
     case JSR_VAR:
-        compileVarLit(c, &e->as.varLiteral.id, false, e->loc);
+        compileVarLit(c, e->as.varLiteral.id, false, e->loc);
         break;
     case JSR_NULL:
         emitOpcode(c, OP_NULL, e->loc.line);
@@ -1236,7 +1239,7 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         compileSuper(c, e);
         break;
     case JSR_FUN_LIT:
-        compileFunLiteral(c, e, NULL);
+        compileFunLiteral(c, e, (JStarIdentifier){0});
         break;
     case JSR_SPREAD:
         compileExpr(c, e->as.spread.expr);
@@ -1471,7 +1474,7 @@ static void compileImportStatement(Compiler* c, const JStarStmt* s) {
         arrayForeach(JStarIdentifier, name, names) {
             emitOpcode(c, OP_IMPORT_NAME, s->loc.line);
             emitShort(c, stringConst(c, nameBuf.data, nameBuf.size, s->loc), s->loc.line);
-            emitShort(c, identifierConst(c, name, s->loc), s->loc.line);
+            emitShort(c, identifierConst(c, *name, s->loc), s->loc.line);
 
             Variable nameVar = declareVar(c, *name, false, s->loc);
             defineVar(c, &nameVar, s->loc);
@@ -1487,8 +1490,8 @@ static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
     const JStarStmt* except = excepts.items[curr];
 
     // Retrieve the exception by using its phny variable name
-    JStarIdentifier exceptionName = createIdentifier(".exception");
-    compileVarLit(c, &exceptionName, false, except->loc);
+    JStarIdentifier exceptionId = createIdentifier(".exception");
+    compileVarLit(c, exceptionId, false, except->loc);
 
     // Test the exception's class
     compileExpr(c, except->as.excStmt.cls);
@@ -1502,7 +1505,7 @@ static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
     adjustStackUsage(c, 1);
 
     // Retrieve the exception again, this time binding it to a local
-    compileVarLit(c, &exceptionName, false, except->loc);
+    compileVarLit(c, exceptionId, false, except->loc);
     Variable excVar = declareVar(c, except->as.excStmt.var, false, except->loc);
     defineVar(c, &excVar, except->loc);
 
@@ -1512,7 +1515,7 @@ static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
     // Set the exception cause to `null` to signal that the exception has been handled
     JStarIdentifier causeName = createIdentifier(".cause");
     emitOpcode(c, OP_NULL, except->loc.line);
-    compileVarLit(c, &causeName, true, except->loc);
+    compileVarLit(c, causeName, true, except->loc);
     emitOpcode(c, OP_POP, except->loc.line);
 
     adjustStackUsage(c, -1);
@@ -1678,11 +1681,11 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     setJumpTo(c, ensSetup, getCurrentAddr(c), s->loc);
 
     // if x then x.close() end
-    compileVarLit(c, &s->as.withStmt.var, false, s->loc);
+    compileVarLit(c, s->as.withStmt.var, false, s->loc);
     size_t falseJmp = emitOpcode(c, OP_JUMPF, s->loc.line);
     emitShort(c, 0, 0);
 
-    compileVarLit(c, &s->as.withStmt.var, false, s->loc);
+    compileVarLit(c, s->as.withStmt.var, false, s->loc);
     inlineMethodCall(c, "close", 0);
     emitOpcode(c, OP_POP, s->loc.line);
 
@@ -1757,7 +1760,7 @@ static void unpackFormalArgs(Compiler* c, JStarFormalArgs args, JStarLoc loc) {
         sprintf(name, UNPACK_ARG_FMT, argIdx);
         JStarIdentifier id = createIdentifier(name);
 
-        compileVarLit(c, &id, false, loc);
+        compileVarLit(c, id, false, loc);
         emitOpcode(c, OP_UNPACK, loc.line);
         emitByte(c, arg->as.unpack.count, loc.line);
 
@@ -1864,11 +1867,11 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, con
     JSR_ASSERT(nativeOp == OP_NATIVE || nativeOp == OP_NATIVE_METHOD, "Not a native opcode");
 
     ObjNative* nat = native(c, c->func->proto.module, name, s);
-    const JStarIdentifier* nativeName = &s->as.decl.as.native.id;
+    JStarIdentifier nativeId = s->as.decl.as.native.id;
     uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->loc);
 
     emitOpcode(c, nativeOp, s->loc.line);
-    emitShort(c, identifierConst(c, nativeName, s->loc), s->loc.line);
+    emitShort(c, identifierConst(c, nativeId, s->loc), s->loc.line);
     emitShort(c, nativeConst, s->loc.line);
 
     return nativeConst;
@@ -1887,37 +1890,36 @@ static void callDecorators(Compiler* c, JStarExprs decorators) {
     }
 }
 
-static ObjString* createMethodName(Compiler* c, const JStarIdentifier* clsName,
-                                   const JStarIdentifier* methName) {
-    size_t length = clsName->length + methName->length + 1;
+static ObjString* createMethodName(Compiler* c, JStarIdentifier clsName, JStarIdentifier methName) {
+    size_t length = clsName.length + methName.length + 1;
     ObjString* name = allocateString(c->vm, length);
-    memcpy(name->data, clsName->name, clsName->length);
-    name->data[clsName->length] = '.';
-    memcpy(name->data + clsName->length + 1, methName->name, methName->length);
+    memcpy(name->data, clsName.name, clsName.length);
+    name->data[clsName.length] = '.';
+    memcpy(name->data + clsName.length + 1, methName.name, methName.length);
     return name;
 }
 
 static void compileMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s) {
     FuncType type = TYPE_METHOD;
-    const JStarIdentifier* clsName = &cls->as.decl.as.cls.id;
-    const JStarIdentifier* methName = &s->as.decl.as.fun.id;
+    JStarIdentifier clsId = cls->as.decl.as.cls.id;
+    JStarIdentifier methId = s->as.decl.as.fun.id;
 
-    JStarIdentifier ctorName = createIdentifier(JSR_CONSTRUCT);
-    if(jsrIdentifierEq(methName, &ctorName)) {
+    JStarIdentifier ctorId = createIdentifier(JSR_CONSTRUCT);
+    if(jsrIdentifierEq(methId, ctorId)) {
         type = TYPE_CTOR;
     }
 
     JStarExprs decorators = s->as.decl.decorators;
     compileDecorators(c, decorators);
-    compileFunction(c, type, createMethodName(c, clsName, methName), s);
+    compileFunction(c, type, createMethodName(c, clsId, methId), s);
     callDecorators(c, decorators);
 
     emitOpcode(c, OP_DEF_METHOD, cls->loc.line);
-    emitShort(c, identifierConst(c, methName, s->loc), cls->loc.line);
+    emitShort(c, identifierConst(c, methId, s->loc), cls->loc.line);
 }
 
 static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s) {
-    ObjString* name = createMethodName(c, &cls->as.decl.as.cls.id, &s->as.decl.as.fun.id);
+    ObjString* name = createMethodName(c, cls->as.decl.as.cls.id, s->as.decl.as.fun.id);
     uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, s);
 
     JStarExprs decorators = s->as.decl.decorators;
@@ -1933,7 +1935,7 @@ static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarSt
     }
 
     emitOpcode(c, OP_DEF_METHOD, cls->loc.line);
-    emitShort(c, identifierConst(c, &s->as.decl.as.native.id, s->loc), cls->loc.line);
+    emitShort(c, identifierConst(c, s->as.decl.as.native.id, s->loc), cls->loc.line);
 }
 
 static void compileMethods(Compiler* c, const JStarStmt* s) {
@@ -1954,7 +1956,7 @@ static void compileMethods(Compiler* c, const JStarStmt* s) {
 
 static void compileClassDecl(Compiler* c, const JStarStmt* s) {
     emitOpcode(c, OP_NEW_CLASS, s->loc.line);
-    emitShort(c, identifierConst(c, &s->as.decl.as.cls.id, s->loc), s->loc.line);
+    emitShort(c, identifierConst(c, s->as.decl.as.cls.id, s->loc), s->loc.line);
 
     Variable clsVar = declareVar(c, s->as.decl.as.cls.id, s->as.decl.isStatic, s->loc);
     defineVar(c, &clsVar, s->loc);
@@ -1971,7 +1973,7 @@ static void compileClassDecl(Compiler* c, const JStarStmt* s) {
         compileExpr(c, s->as.decl.as.cls.sup);
     }
 
-    compileVarLit(c, &s->as.decl.as.cls.id, false, s->loc);
+    compileVarLit(c, s->as.decl.as.cls.id, false, s->loc);
     emitOpcode(c, OP_SUBCLASS, s->loc.line);
 
     compileMethods(c, s);
@@ -1982,10 +1984,10 @@ static void compileClassDecl(Compiler* c, const JStarStmt* s) {
     JStarExprs decorators = s->as.decl.decorators;
     if(decorators.count > 0) {
         compileDecorators(c, decorators);
-        compileVarLit(c, &s->as.decl.as.cls.id, false, s->loc);
+        compileVarLit(c, s->as.decl.as.cls.id, false, s->loc);
         callDecorators(c, decorators);
 
-        compileVarLit(c, &s->as.decl.as.cls.id, true, s->loc);
+        compileVarLit(c, s->as.decl.as.cls.id, true, s->loc);
         emitOpcode(c, OP_POP, s->loc.line);
     }
 }
@@ -2047,7 +2049,7 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
             JStarExpr* exprs = getExpressions(init);
             compileConstUnpack(c, exprs, varsCount, s->as.decl.as.var.ids);
         } else {
-            compileRval(c, init, &s->as.decl.as.var.ids.items[0]);
+            compileRval(c, init, s->as.decl.as.var.ids.items[0]);
             if(isUnpack) {
                 emitOpcode(c, OP_UNPACK, s->loc.line);
                 emitByte(c, (uint8_t)varsCount, s->loc.line);
@@ -2132,10 +2134,9 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
 
 static void resolveFwdRefs(Compiler* c) {
     arrayForeach(FwdRef, fwdRef, c->fwdRefs) {
-        const JStarIdentifier* id = &fwdRef->id;
-        Variable global = resolveGlobal(c, id);
+        Variable global = resolveGlobal(c, fwdRef->id);
         if(global.scope == VAR_ERR) {
-            error(c, fwdRef->loc, "Cannot resolve name `%.*s`", id->length, id->name);
+            error(c, fwdRef->loc, "Cannot resolve name `%.*s`", fwdRef->id.length, fwdRef->id.name);
         }
     }
 }

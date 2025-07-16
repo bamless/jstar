@@ -32,13 +32,13 @@ typedef struct Parser {
     bool panic, hadError;
 } Parser;
 
-static void initParser(Parser* p, const char* path, const char* src, size_t len, ParseErrorCB errFn,
-                       void* data) {
+static void initParser(Parser* p, const char* path, const char* src, size_t len,
+                       ParseErrorCB errorCallback, void* data) {
     p->panic = false;
     p->hadError = false;
     p->function = NULL;
     p->path = path;
-    p->errorCallback = errFn;
+    p->errorCallback = errorCallback;
     p->userData = data;
     jsrInitLexer(&p->lex, src, len);
     jsrNextToken(&p->lex, &p->peek);
@@ -634,7 +634,7 @@ static JStarStmt* importStmt(Parser* p) {
     }
 
     requireStmtEnd(p);
-    return jsrImportStmt(loc, modules, importNames, &asName);
+    return jsrImportStmt(loc, modules, importNames, asName);
 }
 
 static JStarStmt* tryStmt(Parser* p) {
@@ -657,7 +657,7 @@ static JStarStmt* tryStmt(Parser* p) {
         JStarIdentifier varName = createIdentifier(&var);
 
         JStarStmt* block = blockStmt(p);
-        arrayAppend(&excs, jsrExceptStmt(excLoc, cls, &varName, block));
+        arrayAppend(&excs, jsrExceptStmt(excLoc, cls, varName, block));
     }
 
     if(match(p, TOK_ENSURE)) {
@@ -699,7 +699,7 @@ static JStarStmt* withStmt(Parser* p) {
     JStarStmt* block = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrWithStmt(loc, e, &varName, block);
+    return jsrWithStmt(loc, e, varName, block);
 }
 
 static JStarExprs parseDecorators(Parser* p) {
@@ -748,7 +748,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(loc, &funcName, &args, p->function->isGenerator, body);
+    JStarStmt* decl = jsrFuncDecl(loc, funcName, args, p->function->isGenerator, body);
 
     endFunction(p);
 
@@ -775,7 +775,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     JStarFormalArgsList args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return jsrNativeDecl(loc, &nativeName, &args);
+    return jsrNativeDecl(loc, nativeName, args);
 }
 
 static JStarStmt* classDecl(Parser* p) {
@@ -828,7 +828,7 @@ static JStarStmt* classDecl(Parser* p) {
     }
 
     require(p, TOK_END);
-    return jsrClassDecl(loc, &clsName, sup, methods);
+    return jsrClassDecl(loc, clsName, sup, methods);
 }
 
 static JStarStmt* staticDecl(Parser* p) {
@@ -949,7 +949,7 @@ static JStarStmt* parseProgram(Parser* p) {
     // Top level function doesn't have name or arguments, so pass them empty
     JStarFormalArgsList args = {0};
     JStarLoc loc = {0};
-    return jsrFuncDecl(loc, &(JStarIdentifier){0}, &args, false, jsrBlockStmt(loc, stmts));
+    return jsrFuncDecl(loc, (JStarIdentifier){0}, args, false, jsrBlockStmt(loc, stmts));
 }
 
 // -----------------------------------------------------------------------------
@@ -1299,7 +1299,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        JStarExpr* lit = jsrFunLiteral(loc, &args, p->function->isGenerator, body);
+        JStarExpr* lit = jsrFunLiteral(loc, args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1321,7 +1321,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         arrayAppend(&anonFuncStmts, jsrReturnStmt(loc, e));
         JStarStmt* body = jsrBlockStmt(loc, anonFuncStmts);
 
-        JStarExpr* lit = jsrFunLiteral(loc, &args, p->function->isGenerator, body);
+        JStarExpr* lit = jsrFunLiteral(loc, args, p->function->isGenerator, body);
 
         endFunction(p);
 
