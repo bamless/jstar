@@ -30,6 +30,7 @@ typedef struct JStarBuffer {
 
 JSTAR_API void jsrBufferInit(struct JStarVM* vm, JStarBuffer* b);
 JSTAR_API void jsrBufferInitCapacity(struct JStarVM* vm, JStarBuffer* b, size_t capacity);
+JSTAR_API void jsrBufferReserve(JStarBuffer* b, size_t newCap);
 JSTAR_API void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len);
 JSTAR_API void jsrBufferAppendStr(JStarBuffer* b, const char* str);
 JSTAR_API void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap);

@@ -32,6 +32,10 @@ void jsrBufferInitCapacity(JStarVM* vm, JStarBuffer* b, size_t capacity) {
     b->data = GC_ALLOC(vm, capacity);
 }
 
+void jsrBufferReserve(JStarBuffer* b, size_t newCap) {
+    bufferGrow(b, newCap);
+}
+
 void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len) {
     if(b->size + len >= b->capacity) {
         bufferGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include "buffer.h"
+#include "jstar.h"
 
 #if defined(JSTAR_POSIX)
     #define USE_POPEN
@@ -22,36 +24,28 @@
 // static helper functions
 
 static bool readline(JStarVM* vm, FILE* file) {
-    char buf[4096];
+    JStarBuffer buf;
+    jsrBufferInitCapacity(vm, &buf, 256);
 
-    char* line = fgets(buf, sizeof(buf), file);
-    if(line == NULL) {
-        if(feof(file)) {
-            jsrPushNull(vm);
-            return true;
-        } else {
-            return false;
-        }
+    while(fgets(buf.data + buf.size, buf.capacity - buf.size, file) != NULL) {
+        buf.size += strlen(buf.data + buf.size);
+        if(buf.data[buf.size - 1] == '\n') break;
+        jsrBufferReserve(&buf, buf.capacity * 2);
     }
 
-    JStarBuffer data;
-    jsrBufferInit(vm, &data);
-    jsrBufferAppendStr(&data, buf);
-
-    while(strrchr(buf, '\n') == NULL) {
-        line = fgets(buf, sizeof(buf), file);
-        if(line == NULL) {
-            if(feof(file)) {
-                break;
-            } else {
-                jsrBufferFree(&data);
-                return false;
-            }
-        }
-        jsrBufferAppendStr(&data, buf);
+    if(ferror(file)) {
+        jsrRaise(vm, "IOException", strerror(errno));
+        jsrBufferFree(&buf);
+        return false;
     }
 
-    jsrBufferPush(&data);
+    if(buf.size == 0 && feof(file)) {
+        jsrPushNull(vm);
+        jsrBufferFree(&buf);
+        return true;
+    }
+
+    jsrBufferPush(&buf);
     return true;
 }
 
@@ -229,12 +223,8 @@ JSR_NATIVE(jsr_File_readLine) {
     if(!checkClosed(vm)) return false;
     if(!jsrGetField(vm, 0, M_FILE_HANDLE)) return false;
     JSR_CHECK(Handle, -1, M_FILE_HANDLE);
-
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
-    if(!readline(vm, f)) {
-        JSR_RAISE(vm, "IOException", strerror(errno));
-    }
-
+    if(!readline(vm, f)) return false;
     return true;
 }
 
