@@ -2,10 +2,10 @@
 
 #include <string.h>
 
+#include "builtins/builtins.h"
 #include "compiler.h"
 #include "conf.h"
 #include "jstar.h"
-#include "lib/builtins.h"
 #include "object.h"
 #include "parse/lex.h"
 #include "parse/parser.h"

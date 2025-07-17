@@ -14,16 +14,16 @@ set(JSTAR_SOURCES
     parse/lex.c
     parse/parser.c
 
-    lib/core/core.c
-    lib/core/core.h
-    lib/core/std.h
-    lib/core/std.c
-    lib/core/excs.h
-    lib/core/excs.c
-    lib/core/iter.h
-    lib/core/iter.c
-    lib/builtins.h
-    lib/builtins.c
+    builtins/core/core.c
+    builtins/core/core.h
+    builtins/core/std.h
+    builtins/core/std.c
+    builtins/core/excs.h
+    builtins/core/excs.c
+    builtins/core/iter.h
+    builtins/core/iter.c
+    builtins/builtins.h
+    builtins/builtins.c
 
     array.h
     buffer.c
@@ -60,32 +60,32 @@ set(JSTAR_SOURCES
 
 # J* standard library files
 set(JSTAR_STDLIB
-    lib/core/core.jsc
-    lib/core/std.jsc
-    lib/core/excs.jsc
-    lib/core/iter.jsc
+    builtins/core/core.jsc
+    builtins/core/std.jsc
+    builtins/core/excs.jsc
+    builtins/core/iter.jsc
 )
 
 # Add optional module source files
 if(JSTAR_SYS)
-    list(APPEND JSTAR_SOURCES lib/sys.h lib/sys.c)
-    list(APPEND JSTAR_STDLIB  lib/sys.jsc)
+    list(APPEND JSTAR_SOURCES builtins/sys.h builtins/sys.c)
+    list(APPEND JSTAR_STDLIB  builtins/sys.jsc)
 endif()
 if(JSTAR_IO)
-    list(APPEND JSTAR_SOURCES lib/io.h lib/io.c)
-    list(APPEND JSTAR_STDLIB  lib/io.jsc)
+    list(APPEND JSTAR_SOURCES builtins/io.h builtins/io.c)
+    list(APPEND JSTAR_STDLIB  builtins/io.jsc)
 endif()
 if(JSTAR_MATH)
-    list(APPEND JSTAR_SOURCES lib/math.h lib/math.c)
-    list(APPEND JSTAR_STDLIB  lib/math.jsc)
+    list(APPEND JSTAR_SOURCES builtins/math.h builtins/math.c)
+    list(APPEND JSTAR_STDLIB  builtins/math.jsc)
 endif()
 if(JSTAR_DEBUG)
-    list(APPEND JSTAR_SOURCES lib/debug.h lib/debug.c)
-    list(APPEND JSTAR_STDLIB  lib/debug.jsc)
+    list(APPEND JSTAR_SOURCES builtins/debug.h builtins/debug.c)
+    list(APPEND JSTAR_STDLIB  builtins/debug.jsc)
 endif()
 if(JSTAR_RE)
-    list(APPEND JSTAR_SOURCES lib/re.h lib/re.c)
-    list(APPEND JSTAR_STDLIB  lib/re.jsc)
+    list(APPEND JSTAR_SOURCES builtins/re.h builtins/re.c)
+    list(APPEND JSTAR_STDLIB  builtins/re.jsc)
 endif()
 
 # Generate J* sandard library source headers

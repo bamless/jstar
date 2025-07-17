@@ -5,13 +5,13 @@
 #include <string.h>
 
 #include "array.h"
+#include "builtins/builtins.h"
+#include "builtins/core/core.h"
+#include "builtins/core/excs.h"
 #include "conf.h"
 #include "gc.h"
 #include "import.h"
 #include "jstar.h"
-#include "lib/builtins.h"
-#include "lib/core/core.h"
-#include "lib/core/excs.h"
 #include "object.h"
 #include "opcode.h"
 #include "profiler.h"

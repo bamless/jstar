@@ -8,13 +8,13 @@
 #include <string.h>
 
 #include "array.h"
+#include "builtins/core/core.h"
 #include "code.h"
 #include "conf.h"
 #include "gc.h"
 #include "int_hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
-#include "lib/core/core.h"
 #include "object.h"
 #include "opcode.h"
 #include "parse/ast.h"
