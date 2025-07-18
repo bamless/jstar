@@ -109,7 +109,7 @@ typedef enum FuncType {
 } FuncType;
 
 typedef struct {
-    char** items;
+    JStarBuffer* items;
     size_t count, capacity;
 } SyntheticNames;
 
@@ -163,8 +163,8 @@ static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* mo
 }
 
 static void endCompiler(Compiler* c) {
-    arrayForeach(char*, it, &c->syntheticNames) {
-        GC_FREE_ARRAY(c->vm, char, *it, sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
+    arrayForeach(JStarBuffer, b, &c->syntheticNames) {
+        jsrBufferFree(b);
     }
     arrayFree(&c->syntheticNames);
 
@@ -292,6 +292,17 @@ static uint16_t createConst(Compiler* c, Value constant, JStarLoc loc) {
 
 static JStarIdentifier createIdentifier(const char* name) {
     return (JStarIdentifier){strlen(name), name};
+}
+
+static JStarIdentifier createSyntheticIdentifier(Compiler* c, const char* fmt, ...) {
+    JStarBuffer buf;
+    va_list ap;
+    va_start(ap, fmt);
+    jsrBufferInitCapacity(c->vm, &buf, strlen(fmt) * 2);
+    jsrBufferAppendvf(&buf, fmt, ap);
+    arrayAppend(&c->syntheticNames, buf);
+    va_end(ap);
+    return (JStarIdentifier){buf.size, buf.data};
 }
 
 static uint16_t stringConst(Compiler* c, const char* str, size_t length, JStarLoc loc) {
@@ -1730,11 +1741,8 @@ static void compileFormalArg(Compiler* c, const JStarFormalArg* arg, int argIdx)
         break;
     }
     case UNPACK: {
-        char* name = GC_ALLOC(c->vm, sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int) + 1);
-        sprintf(name, UNPACK_ARG_FMT, argIdx);
-        arrayAppend(&c->syntheticNames, name);
-
-        Variable var = declareVar(c, createIdentifier(name), false, arg->loc);
+        JStarIdentifier id = createSyntheticIdentifier(c, UNPACK_ARG_FMT, argIdx);
+        Variable var = declareVar(c, id, false, arg->loc);
         defineVar(c, &var, arg->loc);
         break;
     }
