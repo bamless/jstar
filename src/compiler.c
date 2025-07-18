@@ -1781,13 +1781,13 @@ static void unpackFormalArgs(Compiler* c, JStarFormalArgs args, JStarLoc loc) {
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const JStarStmt* s) {
-    size_t defaults = s->as.decl.as.fun.formalArgs.defaults.count;
+    JStarExprs defaults = s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = vargId.name != NULL;
 
-    c->func = newFunction(c->vm, m, name, arity, defaults, isVararg);
-    addFunctionDefaults(c, &c->func->proto, s->as.decl.as.fun.formalArgs.defaults);
+    c->func = newFunction(c->vm, m, name, arity, defaults.count, isVararg);
+    addFunctionDefaults(c, &c->func->proto, defaults);
 
     // The receiver:
     //  - In the case of functions the receiver is the function itself.
@@ -1827,22 +1827,21 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     }
 
     emitOpcode(c, OP_RETURN, 0);
-
     return c->func;
 }
 
 static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, const JStarStmt* s) {
-    size_t defaults = s->as.decl.as.fun.formalArgs.defaults.count;
+    JStarExprs defaults = s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = vargId.name != NULL;
 
-    ObjNative* native = newNative(c->vm, c->func->proto.module, name, arity, defaults, isVararg,
-                                  NULL);
+    ObjNative* native = newNative(c->vm, c->func->proto.module, name, arity, defaults.count,
+                                  isVararg, NULL);
 
     // Push the native on the stack in case `addFunctionDefaults` triggers a collection
     push(c->vm, OBJ_VAL(native));
-    addFunctionDefaults(c, &native->proto, s->as.decl.as.native.formalArgs.defaults);
+    addFunctionDefaults(c, &native->proto, defaults);
     pop(c->vm);
 
     return native;
@@ -1866,7 +1865,6 @@ static void compileFunction(Compiler* c, FuncType type, ObjString* name, const J
     exitFunctionScope(&compiler);
 
     emitClosure(c, func, compiler.upvalues, fn->loc);
-
     endCompiler(&compiler);
 }
 
@@ -2009,7 +2007,6 @@ static void compileFunDecl(Compiler* c, const JStarStmt* s) {
     }
 
     JStarExprs decorators = s->as.decl.decorators;
-
     compileDecorators(c, decorators);
     compileFunction(c, TYPE_FUNC, copyString(c->vm, funId.name, funId.length), s);
     callDecorators(c, decorators);
@@ -2022,7 +2019,6 @@ static void compileNativeDecl(Compiler* c, const JStarStmt* s) {
     Variable natVar = declareVar(c, nativeId, s->as.decl.isStatic, s->loc);
 
     JStarExprs decorators = s->as.decl.decorators;
-
     compileDecorators(c, decorators);
     compileNative(c, copyString(c->vm, nativeId.name, nativeId.length), OP_NATIVE, s);
     callDecorators(c, decorators);
@@ -2160,7 +2156,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
 
     Compiler c;
     initCompiler(&c, vm, NULL, module, filename, TYPE_FUNC, &globals, &fwdRefs, ast);
-    ObjFunction* func = function(&c, module, copyString(vm, "<main>", 6), ast);
+    ObjFunction* func = function(&c, module, copyString(vm, "<main>", strlen("<main>")), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
 
