@@ -97,7 +97,10 @@ void jsrInitRuntime(JStarVM* vm) {
     initCoreModule(vm);
 
     // Initialize main module
-    jsrEvalModuleString(vm, "main", JSR_MAIN_MODULE, "");
+    ObjString* name = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
+    push(vm, OBJ_VAL(name));
+    setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
+    pop(vm);
 
     // Create singletons
     vm->emptyTup = newTuple(vm, 0);

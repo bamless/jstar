@@ -127,7 +127,6 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     moduleSetGlobal(vm, mod, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
 
     pop(vm);
-
     return mod;
 }
 
@@ -437,6 +436,13 @@ int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key) {
     int offset;
     if(!hashTableIntGet(&mod->globalNames, key, &offset)) return -1;
     return offset >= mod->globalsCount ? -1 : offset;
+}
+
+void moduleSetPath(JStarVM* vm, ObjModule* mod, const char* path) {
+    mod->path = copyString(vm, path, strlen(path));
+    push(vm, OBJ_VAL(mod->path));
+    moduleSetGlobal(vm, mod, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
+    pop(vm);
 }
 
 void listAppend(JStarVM* vm, ObjList* lst, Value val) {

@@ -322,6 +322,7 @@ void moduleSetGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val)
 bool moduleGetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* out);
 void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* out);
 int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key);
+void moduleSetPath(JStarVM* vm, ObjModule* mod, const char* path);
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);

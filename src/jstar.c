@@ -103,7 +103,8 @@ void* jsrGetCustomData(const JStarVM* vm) {
 static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
-    fn->proto.module->path = copyString(vm, path, strlen(path));
+
+    moduleSetPath(vm, fn->proto.module, path);
 
     JStarResult res = jsrCall(vm, 0);
     if(res != JSR_SUCCESS) {
