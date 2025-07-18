@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "array.h"
+#include "buffer.h"
 #include "builtins/core/core.h"
 #include "code.h"
 #include "conf.h"
@@ -42,7 +43,7 @@
 
 // String constants
 #define THIS_STR       "this"
-#define ANON_FMT       "anonymous:%d:%d"
+#define ANON_FMT       "<anonymous>:%d:%d"
 #define UNPACK_ARG_FMT "@unpack:%d"
 
 typedef enum VariableScope {
@@ -819,10 +820,11 @@ static void compileVarLit(Compiler* c, JStarIdentifier id, bool set, JStarLoc lo
 
 static void compileFunLiteral(Compiler* c, const JStarExpr* e, JStarIdentifier name) {
     JStarStmt* func = e->as.funLit.func;
-    if(name.name) {
-        char anonName[sizeof(ANON_FMT) + STRLEN_FOR_INT(int) * 2 + 1];
-        sprintf(anonName, ANON_FMT, func->loc.line, func->loc.col);
-        compileFunction(c, TYPE_FUNC, copyString(c->vm, anonName, strlen(anonName)), func);
+    if(!name.name) {
+        JStarBuffer buf;
+        jsrBufferInitCapacity(c->vm, &buf, sizeof(ANON_FMT) * 2);
+        jsrBufferAppendf(&buf, ANON_FMT, func->loc.line, func->loc.col);
+        compileFunction(c, TYPE_FUNC, jsrBufferToString(&buf), func);
     } else {
         func->as.decl.as.fun.id = name;
         compileFunction(c, TYPE_FUNC, copyString(c->vm, name.name, name.length), func);

@@ -380,7 +380,6 @@ JSR_NATIVE(jsr_Function_string) {
     Prototype* proto = getPrototype(fn);
 
     const char* fnType = NULL;
-
     switch(fn->type) {
     case OBJ_CLOSURE:
         fnType = "function";
