@@ -372,9 +372,9 @@ bool jsrNextToken(JStarLex* lex, JStarTok* tok) {
     return true;
 }
 
-void jsrLexRewind(JStarLex* lex, JStarTok tok) {
-    if(tok.lexeme == NULL) return;
-    lex->lineStart = tok.lexeme - (tok.loc.col - 1);
-    lex->currLine = tok.loc.line;
-    lex->tokenStart = lex->current = tok.lexeme;
+void jsrLexRewind(JStarLex* lex, const JStarTok* tok) {
+    if(tok->lexeme == NULL) return;
+    lex->lineStart = tok->lexeme - (tok->loc.col - 1);
+    lex->currLine = tok->loc.line;
+    lex->tokenStart = lex->current = tok->lexeme;
 }

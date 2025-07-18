@@ -184,7 +184,7 @@ static JStarTok require(Parser* p, JStarTokType type) {
     }
     error(p, "Expected token `%s`, instead `%s` found", JStarTokName[type],
           JStarTokName[p->peek.type]);
-    return (JStarTok){0, NULL, 0, {0}};
+    return (JStarTok){0};
 }
 
 static void synchronize(Parser* p) {
@@ -385,7 +385,7 @@ static JStarFormalArgsList formalArgs(Parser* p, JStarTokType open, JStarTokType
                 error(p, "Unpack argument cannot have default value");
             }
 
-            jsrLexRewind(&p->lex, peek);
+            jsrLexRewind(&p->lex, &peek);
             jsrNextToken(&p->lex, &p->peek);
             break;
         }

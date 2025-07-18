@@ -19,8 +19,8 @@ typedef struct JStarLoc {
 
 typedef struct JStarTok {
     JStarTokType type;
-    const char* lexeme;
     int length;
+    const char* lexeme;
     JStarLoc loc;
 } JStarTok;
 
@@ -35,6 +35,6 @@ typedef struct JStarLex {
 
 JSTAR_API void jsrInitLexer(JStarLex* lex, const char* src, size_t len);
 JSTAR_API bool jsrNextToken(JStarLex* lex, JStarTok* tok);
-JSTAR_API void jsrLexRewind(JStarLex* lex, JStarTok tok);
+JSTAR_API void jsrLexRewind(JStarLex* lex, const JStarTok* tok);
 
 #endif
