@@ -338,19 +338,19 @@ static void initializeLocal(Compiler* c, int idx) {
     c->locals[idx].depth = c->depth;
 }
 
-static Variable resolveLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
+static int resolveLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     for(int i = c->localsCount - 1; i >= 0; i--) {
         Local* local = &c->locals[i];
         if(jsrIdentifierEq(local->id, id)) {
             if(local->depth == -1) {
                 error(c, loc, "Cannot read local variable `%.*s` in its own initializer",
                       local->id.length, local->id.name);
-                return (Variable){.scope = VAR_ERR};
+                return -1;
             }
-            return (Variable){VAR_LOCAL, {.local = {i}}};
+            return i;
         }
     }
-    return (Variable){.scope = VAR_ERR};
+    return -1;
 }
 
 static int addUpvalue(Compiler* c, uint8_t index, bool local, JStarLoc loc) {
@@ -372,62 +372,59 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, JStarLoc loc) {
     return c->func->upvalueCount++;
 }
 
-static Variable resolveUpvalue(Compiler* c, JStarIdentifier id, JStarLoc loc) {
+static int resolveUpvalue(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     if(c->prev == NULL) {
-        return (Variable){.scope = VAR_ERR};
+        return -1;
     }
 
-    Variable var = resolveLocal(c->prev, id, loc);
-    if(var.scope == VAR_LOCAL) {
-        int upvalueIdx = addUpvalue(c, var.as.local.localIdx, true, loc);
-        c->prev->locals[var.as.local.localIdx].isUpvalue = true;
-        return (Variable){VAR_UPVALUE, {.upvalue = {upvalueIdx}}};
+    int idx = resolveLocal(c->prev, id, loc);
+    if(idx != -1) {
+        int upvalueIdx = addUpvalue(c, idx, true, loc);
+        c->prev->locals[idx].isUpvalue = true;
+        return upvalueIdx;
     }
 
-    var = resolveUpvalue(c->prev, id, loc);
-    if(var.scope == VAR_UPVALUE) {
-        int upvalueIdx = addUpvalue(c, var.as.upvalue.upvalueIdx, false, loc);
-        return (Variable){VAR_UPVALUE, {.upvalue = {upvalueIdx}}};
+    idx = resolveUpvalue(c->prev, id, loc);
+    if(idx != -1) {
+        int upvalueIdx = addUpvalue(c, idx, false, loc);
+        return upvalueIdx;
     }
 
-    return var;
+    return idx;
 }
 
-static Variable resolveGlobal(Compiler* c, JStarIdentifier id) {
-    Variable global = (Variable){VAR_GLOBAL, {.global = {id}}};
-
+static bool resolveGlobal(Compiler* c, JStarIdentifier id) {
     if(c->module) {
         if(hashTableIntGetString(&c->module->globalNames, id.name, id.length,
                                  hashBytes(id.name, id.length))) {
-            return global;
+            return true;
         }
     } else if(resolveCoreSymbol(id)) {
-        return global;
+        return true;
     }
 
     arrayForeach(JStarIdentifier, globalId, c->globals) {
         if(jsrIdentifierEq(id, *globalId)) {
-            return global;
+            return true;
         }
     }
 
-    return (Variable){.scope = VAR_ERR};
+    return false;
 }
 
 static Variable resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
-    Variable var = resolveLocal(c, id, loc);
-    if(var.scope != VAR_ERR) {
-        return var;
+    int localIdx = resolveLocal(c, id, loc);
+    if(localIdx != -1) {
+        return (Variable){VAR_LOCAL, {.local = {localIdx}}};
     }
 
-    var = resolveUpvalue(c, id, loc);
-    if(var.scope != VAR_ERR) {
-        return var;
+    int upvalueIdx = resolveUpvalue(c, id, loc);
+    if(upvalueIdx != -1) {
+        return (Variable){VAR_UPVALUE, {.upvalue = {upvalueIdx}}};
     }
 
-    var = resolveGlobal(c, id);
-    if(var.scope != VAR_ERR) {
-        return var;
+    if(resolveGlobal(c, id)) {
+        return (Variable){VAR_GLOBAL, {.global = {id}}};
     }
 
     if(inGlobalScope(c)) {
@@ -436,11 +433,7 @@ static Variable resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
 
     FwdRef fwdRef = {id, loc};
     arrayAppend(c->fwdRefs, fwdRef);
-
-    return (Variable){
-        VAR_GLOBAL,
-        {.global = {id}},
-    };
+    return (Variable){VAR_GLOBAL, {.global = {id}}};
 }
 
 static void initializeVar(Compiler* c, const Variable* var) {
@@ -448,14 +441,10 @@ static void initializeVar(Compiler* c, const Variable* var) {
     initializeLocal(c, var->as.local.localIdx);
 }
 
-static Variable declareGlobal(Compiler* c, JStarIdentifier id) {
-    arrayAppend(c->globals, id);
-    return (Variable){VAR_GLOBAL, {.global = {id}}};
-}
-
 static Variable declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JStarLoc loc) {
     if(inGlobalScope(c) && !forceLocal) {
-        return declareGlobal(c, id);
+        arrayAppend(c->globals, id);
+        return (Variable){VAR_GLOBAL, {.global = {id}}};
     }
 
     if(!inGlobalScope(c) && forceLocal) {
@@ -466,7 +455,7 @@ static Variable declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JSt
     for(int i = c->localsCount - 1; i >= 0; i--) {
         if(c->locals[i].depth != -1 && c->locals[i].depth < c->depth) break;
         if(jsrIdentifierEq(c->locals[i].id, id)) {
-            const Local* other = &c->locals[i];
+            Local* other = &c->locals[i];
             error(c, loc, "Variable `%.*s` already declared", id.length, id.name);
             error(c, other->loc, "NOTE: previous declaration of `%.*s` is here", id.length,
                   id.name);
@@ -1792,9 +1781,8 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     // The receiver:
     //  - In the case of functions the receiver is the function itself.
     //  - In the case of methods the receiver is the class instance on which the method was called.
-    JStarIdentifier receiverName = createIdentifier("this");
-    int receiverLocal = addLocal(c, receiverName, s->loc);
-    initializeLocal(c, receiverLocal);
+    Variable receiver = declareVar(c, createIdentifier(THIS_STR), false, s->loc);
+    defineVar(c, &receiver, s->loc);
 
     compileFormalArgs(c, s->as.decl.as.fun.formalArgs.args);
 
@@ -2137,8 +2125,7 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
 
 static void resolveFwdRefs(Compiler* c) {
     arrayForeach(FwdRef, fwdRef, c->fwdRefs) {
-        Variable global = resolveGlobal(c, fwdRef->id);
-        if(global.scope == VAR_ERR) {
+        if(!resolveGlobal(c, fwdRef->id)) {
             error(c, fwdRef->loc, "Cannot resolve name `%.*s`", fwdRef->id.length, fwdRef->id.name);
         }
     }

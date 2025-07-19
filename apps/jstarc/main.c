@@ -14,6 +14,9 @@
 #define JSR_EXT ".jsr"
 #define JSC_EXT ".jsc"
 
+#define COLOR_RED   "\033[0;22;31m"
+#define COLOR_RESET "\033[0m"
+
 typedef struct Options {
     char *input, *output;
     bool disassemble;
@@ -35,13 +38,16 @@ static JStarVM* vm;
 // -----------------------------------------------------------------------------
 
 // Custom J* error callback.
-static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
+                          const char* err) {
     PROFILE_FUNC()
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
+        fprintf(stderr, COLOR_RED);
         fprintf(stderr, "%s:%d:%d: error\n", file, loc.line, loc.col);
         fprintf(stderr, "%s\n", err);
+        fprintf(stderr, COLOR_RESET);
         break;
     default:
         break;
@@ -273,10 +279,15 @@ static void parseArguments(int argc, char** argv) {
         OPT_HELP(),
         OPT_GROUP("Options"),
         OPT_STRING('o', "output", &opts.output, "Output file or directory"),
-        OPT_BOOLEAN('r', "recursive", &opts.recursive, "Recursively compile/disassemble files in <directory>, does nothing if passed argument is a <file>"),
-        OPT_BOOLEAN('l', "list", &opts.list, "List the compiled bytecode instead of saving it on file"),
-        OPT_BOOLEAN('d', "disassemble", &opts.disassemble, "Disassemble already compiled jsc files and list their content"),
-        OPT_BOOLEAN('c', "compile-only", &opts.compileOnly, "Compile files but do not generate output files. Used for syntax checking"),
+        OPT_BOOLEAN('r', "recursive", &opts.recursive,
+                    "Recursively compile/disassemble files in <directory>, does nothing if passed "
+                    "argument is a <file>"),
+        OPT_BOOLEAN('l', "list", &opts.list,
+                    "List the compiled bytecode instead of saving it on file"),
+        OPT_BOOLEAN('d', "disassemble", &opts.disassemble,
+                    "Disassemble already compiled jsc files and list their content"),
+        OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
+                    "Compile files but do not generate output files. Used for syntax checking"),
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit"),
         OPT_END(),
     };
