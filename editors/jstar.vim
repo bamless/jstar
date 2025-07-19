@@ -15,7 +15,7 @@ endif
 syntax case match
 
 " --- Keywords ---
-syntax keyword jstarKeyword and or not fun construct native var static yield
+syntax keyword jstarKeyword and or fun construct native var static yield
 syntax keyword jstarKeyword return if elif else while for break continue in
 syntax keyword jstarKeyword true false null super this
 syntax keyword jstarKeyword import as try ensure except raise with begin end is
@@ -41,26 +41,25 @@ syntax match jstarFunctionName /\<[a-z][a-zA-Z0-9_]*\>/
 syntax match jstarClass /^\s*class\s\+\zs\k\+/ contains=jstarClassName
 syntax match jstarClassName /\<[A-Z][a-zA-Z0-9_]*\>/
 
-
 " --- Function calls ---
 syntax match jstarFunctionCall /\<\k\+\ze\s*(/ contains=jstarFunctionName
 
 " --- Class calls ---
 syntax match jstarClassCall /\<\k\+\ze\s*(/ contains=jstarClassName
 
-
 " --- Constants: ALL CAPS with optional underscores/digits ---
 syntax match jstarConstant /\<[A-Z_][A-Z0-9_]*\>/
-
-" --- Comments ---
-syntax match jstarComment "//.*$"
-
-" TODOs in comments
-syntax match jstarTodo /TODO\|FIXME\|NOTE/
 
 " --- Strings ---
 syntax region jstarString start=+"+ skip=+\\\\\|\\"+ end=+"+
 syntax region jstarString start=+'+ skip=+\\\\\\|\\'+ end=+'+
+
+" --- Comments ---
+syntax region jstarComment start="//" end="$" contains=jstarTodo
+syntax keyword jstarTodo TODO XXX FIXME NOTE
+
+" --- Shabang ---
+syntax match jstarShabang /^#!.*$/
 
 " --- Numbers ---
 syntax match jstarNumber /\v0x[a-fA-F0-9]+|\d+(\.\d+)?([eE][+-]?\d+)?/
@@ -84,6 +83,7 @@ hi def link jstarClassCall    Function
 hi def link jstarClassName    Type
 hi def link jstarConstant     Constant
 hi def link jstarComment      Comment
+hi def link jstarShabang      Comment
 hi def link jstarTodo         Todo
 hi def link jstarString       String
 hi def link jstarNumber       Number
