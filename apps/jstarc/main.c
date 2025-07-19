@@ -11,6 +11,14 @@
 #include "path.h"
 #include "profiler.h"
 
+#ifdef _WIN32
+    #include <io.h>
+    #define isatty _isatty
+    #define fileno _fileno
+#else
+    #include <unistd.h>
+#endif
+
 #define JSR_EXT ".jsr"
 #define JSC_EXT ".jsc"
 
@@ -23,6 +31,7 @@ typedef struct Options {
     bool compileOnly;
     bool recursive;
     bool showVersion;
+    bool disableColors;
     bool list;
 } Options;
 
@@ -44,10 +53,14 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarL
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
-        fprintf(stderr, COLOR_RED);
+        if(!opts.disableColors && isatty(fileno(stderr))){
+            fprintf(stderr, COLOR_RED);
+        }
         fprintf(stderr, "%s:%d:%d: error\n", file, loc.line, loc.col);
         fprintf(stderr, "%s\n", err);
-        fprintf(stderr, COLOR_RESET);
+        if(!opts.disableColors && isatty(fileno(stderr))){
+            fprintf(stderr, COLOR_RESET);
+        }
         break;
     default:
         break;
@@ -288,6 +301,8 @@ static void parseArguments(int argc, char** argv) {
                     "Disassemble already compiled jsc files and list their content"),
         OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
                     "Compile files but do not generate output files. Used for syntax checking"),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
+                    "Disable output coloring. Hints are disabled as well"),
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit"),
         OPT_END(),
     };
