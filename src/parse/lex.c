@@ -150,18 +150,18 @@ static bool isAlphaNum(char c) {
 
 static void makeToken(JStarLex* lex, JStarTok* tok, JStarTokType type) {
     tok->type = type;
-    tok->lexeme = lex->tokenStart;
     tok->length = (int)(lex->current - lex->tokenStart);
+    tok->lexeme = lex->tokenStart;
     tok->loc.line = lex->currLine;
     tok->loc.col = (int)(lex->tokenStart - lex->lineStart) + 1;
 }
 
 static void eofToken(JStarLex* lex, JStarTok* tok) {
     tok->type = TOK_EOF;
-    tok->lexeme = lex->current;
     tok->length = 0;
+    tok->lexeme = lex->current;
     tok->loc.line = lex->currLine;
-    tok->loc.col = 0;
+    tok->loc.col = 1;
 }
 
 static void integer(JStarLex* lex) {

@@ -102,6 +102,7 @@ static void errorvfmt(Parser* p, JStarTok tok, const char* msg, va_list vargs) {
 
         const char* lineStart = tok.lexeme - (tok.loc.col - 1);
         int lineLen = strchrWithNul(tok.lexeme, '\n') - lineStart;
+        JSR_ASSERT(lineLen >= 0, "negative line length");
         int pos = printSourceSnippet(error, lineStart, lineLen, tok.loc.col - 1);
 
         va_list ap;
@@ -1085,9 +1086,10 @@ static JStarExpr* literal(Parser* p) {
         advance(p);
         return jsrNullLiteral(loc);
     case TOK_NUMBER: {
-        char* endptr;
-        JStarExpr* e = jsrNumLiteral(loc, strtod(tok->lexeme, &endptr));
-        JSR_ASSERT(endptr == tok->lexeme + tok->length, "Couldn't parse number token");
+        double val;
+        int res = sscanf(tok->lexeme, "%lf", &val);
+        JSR_ASSERT(res == 1, "Couldn't parse number token");
+        JStarExpr* e = jsrNumLiteral(loc, val);
         advance(p);
         return e;
     }
