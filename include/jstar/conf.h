@@ -95,7 +95,7 @@
                  __func__),                                                                       \
          abort())
 #else
-    #define JSR_ASSERT(cond, msg) ((void)0)
+    #define JSR_ASSERT(cond, msg) ((void)(cond))
 
     #if defined(__GNUC__) || defined(__clang__)
         #define JSR_UNREACHABLE() __builtin_unreachable()
