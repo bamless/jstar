@@ -42,13 +42,10 @@ syntax match jstarClass /^\s*class\s\+\zs\k\+/ contains=jstarClassName
 syntax match jstarClassName /\<[A-Z][a-zA-Z0-9_]*\>/
 
 " --- Function calls ---
-syntax match jstarFunctionCall /\<\k\+\ze\s*(/ contains=jstarFunctionName
-
-" --- Class calls ---
-syntax match jstarClassCall /\<\k\+\ze\s*(/ contains=jstarClassName
+syntax match jstarFunctionCall /\<\k\+\ze\s*(/ contains=jstarClassName
 
 " --- Constants: ALL CAPS with optional underscores/digits ---
-syntax match jstarConstant /\<[A-Z_][A-Z0-9_]*\>/
+syntax match jstarConstant /\<[A-Z][A-Z0-9_]*\>/
 
 " --- Strings ---
 syntax region jstarString start=+"+ skip=+\\\\\|\\"+ end=+"+
@@ -57,6 +54,9 @@ syntax region jstarString start=+'+ skip=+\\\\\\|\\'+ end=+'+
 " --- Comments ---
 syntax region jstarComment start="//" end="$" contains=jstarTodo
 syntax keyword jstarTodo TODO XXX FIXME NOTE
+
+" --- Decorators ---
+syntax match jstarDecorator /@\k\+/
 
 " --- Shabang ---
 syntax match jstarShabang /^#!.*$/
@@ -79,7 +79,7 @@ hi def link jstarInclude      Include
 hi def link jstarFunction     Define
 hi def link jstarClass        Define
 hi def link jstarFunctionCall Function
-hi def link jstarClassCall    Function
+hi def link jstarDecorator    Define
 hi def link jstarClassName    Type
 hi def link jstarConstant     Constant
 hi def link jstarComment      Comment
