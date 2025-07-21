@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include "conf.h"
 
 const char* JStarTokName[] = {
 #define TOKEN(tok, name) name,
@@ -16,6 +17,7 @@ typedef struct Keyword {
 
 // clang-format off
 
+JSR_STATIC_ASSERT(TOK_EOF == 78, "Number of token changed, update keyword if necessary");
 static Keyword keywords[] = {
 #define STR(s) (s), sizeof(s) - 1
     {STR("and"),       TOK_AND},
