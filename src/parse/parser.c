@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1086,10 +1087,7 @@ static JStarExpr* literal(Parser* p) {
         advance(p);
         return jsrNullLiteral(loc);
     case TOK_NUMBER: {
-        double val;
-        int res = sscanf(tok->lexeme, "%lf", &val);
-        JSR_ASSERT(res == 1, "Couldn't parse number token");
-        JStarExpr* e = jsrNumLiteral(loc, val);
+        JStarExpr* e = jsrNumLiteral(loc, strtod(tok->lexeme, NULL));
         advance(p);
         return e;
     }
