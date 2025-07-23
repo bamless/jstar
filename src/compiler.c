@@ -1,5 +1,4 @@
 #include "compiler.h"
-
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -145,8 +144,8 @@ struct Compiler {
 };
 
 static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
-                         const char* file, FuncType type, JStarIdentifiers* globals,
-                         FwdRefs* fwdRefs, const JStarStmt* ast) {
+                         const char* file, FuncType type, const JStarStmt* ast,
+                         JStarIdentifiers* globals, FwdRefs* fwdRefs) {
     vm->currCompiler = c;
     *c = (Compiler){
         .vm = vm,
@@ -615,9 +614,9 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
     return string;
 }
 
-static void addFunctionDefaults(Compiler* c, Prototype* proto, JStarExprs defaults) {
+static void addFunctionDefaults(Compiler* c, Prototype* proto, const JStarExprs* defaults) {
     int i = 0;
-    arrayForeach(JStarExpr*, it, &defaults) {
+    arrayForeach(JStarExpr*, it, defaults) {
         const JStarExpr* e = *it;
         switch(e->type) {
         case JSR_NUMBER:
@@ -865,7 +864,7 @@ static void compileRval(Compiler* c, const JStarExpr* e, JStarIdentifier name) {
 }
 
 static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
-                               JStarIdentifiers names) {
+                               const JStarIdentifiers* names) {
     if(exprs->as.exprList.count < (size_t)lvals) {
         error(c, exprs->loc, "Too few values to unpack: expected %d, got %zu", lvals,
               exprs->as.exprList.count);
@@ -874,8 +873,8 @@ static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
     int i = 0;
     arrayForeach(JStarExpr*, it, &exprs->as.exprList) {
         JStarIdentifier name = {0};
-        if(names.count && i < lvals) {
-            name = names.items[i];
+        if(names->count && i < lvals) {
+            name = names->items[i];
         }
 
         compileRval(c, *it, name);
@@ -900,7 +899,7 @@ static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
     // Optimize constant unpacks by omitting tuple allocation
     if(IS_CONST_UNPACK(rval->type)) {
         JStarExpr* exprs = getExpressions(rval);
-        compileConstUnpack(c, exprs, lvalCount, (JStarIdentifiers){0});
+        compileConstUnpack(c, exprs, lvalCount, &(JStarIdentifiers){0});
     } else {
         compileRval(c, rval, (JStarIdentifier){0});
         emitOpcode(c, OP_UNPACK, e->loc.line);
@@ -1259,8 +1258,8 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
 
 static void compileStatement(Compiler* c, const JStarStmt* s);
 
-static void compileStatements(Compiler* c, JStarStmts stmts) {
-    arrayForeach(JStarStmt*, it, &stmts) {
+static void compileStatements(Compiler* c, const JStarStmts* stmts) {
+    arrayForeach(JStarStmt*, it, stmts) {
         compileStatement(c, *it);
     }
 }
@@ -1409,7 +1408,7 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
     }
 
     JStarStmt* body = s->as.forEach.body;
-    compileStatements(c, body->as.blockStmt.stmts);
+    compileStatements(c, &body->as.blockStmt.stmts);
 
     exitScope(c);
 
@@ -1485,8 +1484,8 @@ static void compileImportStatement(Compiler* c, const JStarStmt* s) {
     jsrBufferFree(&nameBuf);
 }
 
-static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
-    const JStarStmt* except = excepts.items[curr];
+static void compileExcepts(Compiler* c, const JStarStmts* excepts, size_t curr) {
+    const JStarStmt* except = excepts->items[curr];
 
     // Retrieve the exception by using its phny variable name
     JStarIdentifier exceptionId = createIdentifier(".exception");
@@ -1509,7 +1508,7 @@ static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
     defineVar(c, &excVar, except->loc);
 
     JStarStmt* body = except->as.excStmt.block;
-    compileStatements(c, body->as.blockStmt.stmts);
+    compileStatements(c, &body->as.blockStmt.stmts);
 
     // Set the exception cause to `null` to signal that the exception has been handled
     JStarIdentifier causeName = createIdentifier(".cause");
@@ -1521,7 +1520,7 @@ static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
     exitScope(c);
 
     size_t exitJmp = 0;
-    if(curr < excepts.count - 1) {
+    if(curr < excepts->count - 1) {
         exitJmp = emitOpcode(c, OP_JUMP, 0);
         emitShort(c, 0, 0);
     }
@@ -1529,7 +1528,7 @@ static void compileExcepts(Compiler* c, JStarStmts excepts, size_t curr) {
     setJumpTo(c, falseJmp, getCurrentAddr(c), except->loc);
 
     // Compile the next handler
-    if(curr < excepts.count - 1) {
+    if(curr < excepts->count - 1) {
         compileExcepts(c, excepts, curr + 1);
         setJumpTo(c, exitJmp, getCurrentAddr(c), except->loc);
     }
@@ -1587,7 +1586,7 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
         emitShort(c, 0, 0);
 
         setJumpTo(c, exceptSetup, getCurrentAddr(c), s->loc);
-        compileExcepts(c, s->as.tryStmt.excs, 0);
+        compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
             emitOpcode(c, OP_POP_HANDLER, 0);
@@ -1770,12 +1769,12 @@ static void unpackFormalArgs(Compiler* c, JStarFormalArgs args, JStarLoc loc) {
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const JStarStmt* s) {
-    JStarExprs defaults = s->as.decl.as.fun.formalArgs.defaults;
+    const JStarExprs* defaults = &s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = vargId.name != NULL;
 
-    c->func = newFunction(c->vm, m, name, arity, defaults.count, isVararg);
+    c->func = newFunction(c->vm, m, name, arity, defaults->count, isVararg);
     addFunctionDefaults(c, &c->func->proto, defaults);
 
     // The receiver:
@@ -1798,7 +1797,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     unpackFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->loc);
 
     JStarStmt* body = s->as.decl.as.fun.body;
-    compileStatements(c, body->as.blockStmt.stmts);
+    compileStatements(c, &body->as.blockStmt.stmts);
 
     switch(c->type) {
     case TYPE_FUNC:
@@ -1819,12 +1818,12 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
 }
 
 static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, const JStarStmt* s) {
-    JStarExprs defaults = s->as.decl.as.fun.formalArgs.defaults;
+    const JStarExprs* defaults = &s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = vargId.name != NULL;
 
-    ObjNative* native = newNative(c->vm, c->func->proto.module, name, arity, defaults.count,
+    ObjNative* native = newNative(c->vm, c->func->proto.module, name, arity, defaults->count,
                                   isVararg, NULL);
 
     // Push the native on the stack in case `addFunctionDefaults` triggers a collection
@@ -1846,7 +1845,7 @@ static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, JStarLo
 
 static void compileFunction(Compiler* c, FuncType type, ObjString* name, const JStarStmt* fn) {
     Compiler compiler;
-    initCompiler(&compiler, c->vm, c, c->module, c->file, type, c->globals, c->fwdRefs, fn);
+    initCompiler(&compiler, c->vm, c, c->module, c->file, type, fn, c->globals, c->fwdRefs);
 
     enterFunctionScope(&compiler);
     ObjFunction* func = function(&compiler, c->func->proto.module, name, fn);
@@ -1870,14 +1869,14 @@ static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, con
     return nativeConst;
 }
 
-static void compileDecorators(Compiler* c, JStarExprs decorators) {
-    arrayForeach(JStarExpr*, it, &decorators) {
+static void compileDecorators(Compiler* c, const JStarExprs* decorators) {
+    arrayForeach(JStarExpr*, it, decorators) {
         compileExpr(c, *it);
     }
 }
 
-static void callDecorators(Compiler* c, JStarExprs decorators) {
-    arrayForeach(JStarExpr*, it, &decorators) {
+static void callDecorators(Compiler* c, const JStarExprs* decorators) {
+    arrayForeach(JStarExpr*, it, decorators) {
         JStarExpr* decorator = *it;
         emitOpcode(c, OP_CALL_1, decorator->loc.line);
     }
@@ -1902,7 +1901,7 @@ static void compileMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s)
         type = TYPE_CTOR;
     }
 
-    JStarExprs decorators = s->as.decl.decorators;
+    const JStarExprs* decorators = &s->as.decl.decorators;
     compileDecorators(c, decorators);
     compileFunction(c, type, createMethodName(c, clsId, methId), s);
     callDecorators(c, decorators);
@@ -1915,8 +1914,8 @@ static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarSt
     ObjString* name = createMethodName(c, cls->as.decl.as.cls.id, s->as.decl.as.fun.id);
     uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, s);
 
-    JStarExprs decorators = s->as.decl.decorators;
-    if(decorators.count > 0) {
+    const JStarExprs* decorators = &s->as.decl.decorators;
+    if(decorators->count > 0) {
         emitOpcode(c, OP_POP, cls->loc.line);
 
         compileDecorators(c, decorators);
@@ -1974,8 +1973,8 @@ static void compileClassDecl(Compiler* c, const JStarStmt* s) {
     emitOpcode(c, OP_POP, s->loc.line);
     exitScope(c);
 
-    JStarExprs decorators = s->as.decl.decorators;
-    if(decorators.count > 0) {
+    const JStarExprs* decorators = &s->as.decl.decorators;
+    if(decorators->count > 0) {
         compileDecorators(c, decorators);
         compileVarLit(c, s->as.decl.as.cls.id, false, s->loc);
         callDecorators(c, decorators);
@@ -1994,7 +1993,7 @@ static void compileFunDecl(Compiler* c, const JStarStmt* s) {
         initializeVar(c, &funVar);
     }
 
-    JStarExprs decorators = s->as.decl.decorators;
+    const JStarExprs* decorators = &s->as.decl.decorators;
     compileDecorators(c, decorators);
     compileFunction(c, TYPE_FUNC, copyString(c->vm, funId.name, funId.length), s);
     callDecorators(c, decorators);
@@ -2006,7 +2005,7 @@ static void compileNativeDecl(Compiler* c, const JStarStmt* s) {
     JStarIdentifier nativeId = s->as.decl.as.native.id;
     Variable natVar = declareVar(c, nativeId, s->as.decl.isStatic, s->loc);
 
-    JStarExprs decorators = s->as.decl.decorators;
+    const JStarExprs* decorators = &s->as.decl.decorators;
     compileDecorators(c, decorators);
     compileNative(c, copyString(c->vm, nativeId.name, nativeId.length), OP_NATIVE, s);
     callDecorators(c, decorators);
@@ -2024,9 +2023,9 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
         vars[varsCount++] = var;
     }
 
-    JStarExprs decorators = s->as.decl.decorators;
-    if(s->as.decl.as.var.isUnpack && decorators.count > 0) {
-        error(c, decorators.items[0]->loc, "Unpacking declaration cannot be decorated");
+    const JStarExprs* decorators = &s->as.decl.decorators;
+    if(s->as.decl.as.var.isUnpack && decorators->count > 0) {
+        error(c, decorators->items[0]->loc, "Unpacking declaration cannot be decorated");
     }
 
     compileDecorators(c, decorators);
@@ -2038,7 +2037,7 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
         // Optimize constant unpacks by omitting tuple allocation
         if(isUnpack && IS_CONST_UNPACK(init->type)) {
             JStarExpr* exprs = getExpressions(init);
-            compileConstUnpack(c, exprs, varsCount, s->as.decl.as.var.ids);
+            compileConstUnpack(c, exprs, varsCount, &s->as.decl.as.var.ids);
         } else {
             compileRval(c, init, s->as.decl.as.var.ids.items[0]);
             if(isUnpack) {
@@ -2080,7 +2079,7 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
         break;
     case JSR_BLOCK:
         enterScope(c);
-        compileStatements(c, s->as.blockStmt.stmts);
+        compileStatements(c, &s->as.blockStmt.stmts);
         exitScope(c);
         break;
     case JSR_RETURN:
@@ -2142,7 +2141,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
     FwdRefs fwdRefs = {0};
 
     Compiler c;
-    initCompiler(&c, vm, NULL, module, filename, TYPE_FUNC, &globals, &fwdRefs, ast);
+    initCompiler(&c, vm, NULL, module, filename, TYPE_FUNC, ast, &globals, &fwdRefs);
     ObjFunction* func = function(&c, module, copyString(vm, "<main>", strlen("<main>")), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
