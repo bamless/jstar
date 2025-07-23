@@ -5,8 +5,8 @@
 
 " Install:
 " 1. Copy this file in ~/.vim/syntax/jstar.vim
-" 2. Add this to your .vimrc
-"   autocmd BufRead,BufNewFile *.jsr set filetype=jstar
+" 2. Add this to your .vimrc:
+" autocmd BufRead,BufNewFile *.jsr set filetype=jstar
 
 if exists("b:current_syntax")
   finish
@@ -28,7 +28,7 @@ syntax keyword jstarConditional if elif else try except ensure raise end
 syntax keyword jstarRepeat for while break continue end
 
 " --- Exception keywords ---
-syntax keyword jstarException try except ensure raise
+syntax keyword jstarException raise
 
 " --- Include/Import ---
 syntax keyword jstarInclude import
