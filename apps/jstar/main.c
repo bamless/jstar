@@ -350,11 +350,6 @@ static void freeApp(void) {
     replxx_end(replxx);
 }
 
-typedef struct {
-    int** items;
-    size_t count, capacity;
-} Arr;
-
 int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
