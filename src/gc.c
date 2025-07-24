@@ -26,7 +26,7 @@ void* gcAlloc(JStarVM* vm, void* ptr, size_t oldSz, size_t newSz) {
         }
 #endif
     }
-    void* mem = vm->realloc(ptr, oldSz, newSz, vm->userData);
+    void* mem = vm->realloc(ptr, oldSz, newSz);
     if(newSz != 0) {
         JSR_ASSERT(mem, "Out of memory");
     }

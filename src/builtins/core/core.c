@@ -725,7 +725,7 @@ static bool merge(MergeState* state, int64_t left, int64_t mid, int64_t right) {
 static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
     bool res = true;
 
-    Value* tmp = vm->realloc(NULL, 0, sizeof(Value) * length, vm->userData);
+    Value* tmp = vm->realloc(NULL, 0, sizeof(Value) * length);
     if(length > 0) {
         JSR_ASSERT(tmp, "Out of memory");
     }
@@ -745,7 +745,7 @@ static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
     }
 
 exit:
-    vm->realloc(tmp, sizeof(Value) * length, 0, vm->userData);
+    vm->realloc(tmp, sizeof(Value) * length, 0);
     return res;
 }
 

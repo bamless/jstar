@@ -66,7 +66,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     PROFILE_FUNC()
 
     JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
-    JStarVM* vm = reallocate(NULL, 0, sizeof(*vm), conf->userData);
+    JStarVM* vm = reallocate(NULL, 0, sizeof(*vm));
     JSR_ASSERT(vm, "Out of memory");
     memset(vm, 0, sizeof(*vm));
 
@@ -74,16 +74,15 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
     vm->errorCallback = conf->errorCallback;
     vm->importCallback = conf->importCallback;
     vm->userData = conf->userData;
-    vm->astArena.userData = conf->userData;
 
     // VM program stack
     vm->stackSz = roundUp(conf->startingStackSize, MAX_LOCALS + 1);
     vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
 
-    vm->stack = vm->realloc(NULL, 0, sizeof(Value) * vm->stackSz, vm->userData);
+    vm->stack = vm->realloc(NULL, 0, sizeof(Value) * vm->stackSz);
     JSR_ASSERT(vm->stack, "Out of memory");
 
-    vm->frames = vm->realloc(NULL, 0, sizeof(Frame) * vm->frameSz, vm->userData);
+    vm->frames = vm->realloc(NULL, 0, sizeof(Frame) * vm->frameSz);
     JSR_ASSERT(vm->frames, "Out of memory");
 
     resetStack(vm);
@@ -129,8 +128,8 @@ void jsrFreeVM(JStarVM* vm) {
     {
         PROFILE("{free-vm-state}::jsrFreeVM")
 
-        vm->realloc(vm->stack, vm->stackSz, 0, vm->userData);
-        vm->realloc(vm->frames, vm->frameSz, 0, vm->userData);
+        vm->realloc(vm->stack, vm->stackSz, 0);
+        vm->realloc(vm->frames, vm->frameSz, 0);
         freeValueHashTable(&vm->stringPool);
         freeValueHashTable(&vm->modules);
 
@@ -151,7 +150,7 @@ void jsrFreeVM(JStarVM* vm) {
     printf("Allocated at exit: %lu bytes.\n", vm->allocated);
 #endif
 
-    vm->realloc(vm, sizeof(*vm), 0, vm->userData);
+    vm->realloc(vm, sizeof(*vm), 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -162,8 +161,7 @@ static Frame* getFrame(JStarVM* vm) {
     if(vm->frameCount + 1 == vm->frameSz) {
         size_t oldSz = vm->frameSz;
         vm->frameSz *= 2;
-        vm->frames = vm->realloc(vm->frames, oldSz * sizeof(Frame), vm->frameSz * sizeof(Frame),
-                                 vm->userData);
+        vm->frames = vm->realloc(vm->frames, oldSz * sizeof(Frame), vm->frameSz * sizeof(Frame));
         JSR_ASSERT(vm->frames, "Out of memory");
     }
     return &vm->frames[vm->frameCount++];
@@ -832,6 +830,15 @@ static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym,
 // VM API
 // -----------------------------------------------------------------------------
 
+void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz) {
+    (void)newSz;
+    if(newSz == 0) {
+        free(ptr);
+        return NULL;
+    }
+    return realloc(ptr, newSz);
+}
+
 inline bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
     Value val = peek(vm);
     if(IS_OBJ(val)) {
@@ -1208,8 +1215,7 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
     Value* oldStack = vm->stack;
     size_t oldSz = vm->stackSz;
     vm->stackSz = powerOf2Ceil(vm->stackSz + needed);
-    vm->stack = vm->realloc(vm->stack, oldSz * sizeof(Value), vm->stackSz * sizeof(Value),
-                            vm->userData);
+    vm->stack = vm->realloc(vm->stack, oldSz * sizeof(Value), vm->stackSz * sizeof(Value));
     JSR_ASSERT(vm->stack, "Out of memory");
 
     if(vm->stack != oldStack) {

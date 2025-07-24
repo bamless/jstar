@@ -163,6 +163,8 @@ struct JStarVM {
 // VM API
 // -----------------------------------------------------------------------------
 
+void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz);
+
 bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
 bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
 

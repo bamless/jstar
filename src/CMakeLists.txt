@@ -50,7 +50,6 @@ set(JSTAR_SOURCES
     serialize.c
     serialize.h
     util.h
-    util.c
     value.c
     value.h
     value_hashtable.h

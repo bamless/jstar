@@ -57,19 +57,11 @@ typedef struct Options {
     int argsCount;
 } Options;
 
-// -----------------------------------------------------------------------------
-// APP STATE
-// -----------------------------------------------------------------------------
-
 static Options opts;
 static JStarVM* vm;
 static JStarBuffer completionBuf;
 static JStarASTArena arena;
 static Replxx* replxx;
-
-// -----------------------------------------------------------------------------
-// CALLBACKS AND HOOKS
-// -----------------------------------------------------------------------------
 
 // J* error callback that prints colored error messages
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
@@ -104,10 +96,6 @@ static void indent(const char* input, replxx_completions* completions, int* ctxL
     replxx_add_completion(completions, completionBuf.data);
 }
 
-// -----------------------------------------------------------------------------
-// UTILITY FUNCTIONS
-// -----------------------------------------------------------------------------
-
 // Print the J* version along with its compilation environment.
 static void printVersion(void) {
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
@@ -138,10 +126,6 @@ static JStarResult evaluateString(const char* path, const char* src) {
     return res;
 }
 
-// -----------------------------------------------------------------------------
-// SCRIPT EXECUTION
-// -----------------------------------------------------------------------------
-
 // Execute a J* source or compiled file from disk.
 static JStarResult execScript(const char* script, int argc, char** args) {
     PROFILE_BEGIN_SESSION("jstar-run.json")
@@ -167,10 +151,6 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     PROFILE_END_SESSION()
     return res;
 }
-
-// -----------------------------------------------------------------------------
-// REPL
-// -----------------------------------------------------------------------------
 
 // Counts the number of blocks in a single line of J* code.
 // Used to handle multiline input in the repl.
@@ -278,10 +258,6 @@ static JStarResult doRepl(void) {
     PROFILE_END_SESSION()
     return res;
 }
-
-// -----------------------------------------------------------------------------
-// APP INITIALIZATION AND MAIN FUNCTION
-// -----------------------------------------------------------------------------
 
 // Parse the app arguments into an Option struct
 static void parseArguments(int argc, char** argv) {

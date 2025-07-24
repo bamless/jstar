@@ -47,7 +47,7 @@ typedef struct JStarNativeReg JStarNativeReg;
 typedef bool (*JStarNative)(JStarVM* vm);
 
 // A generic function that handles all memory allocations/frees done  by jstar
-typedef void* (*JStarRealloc)(void* ptr, size_t oldSz, size_t newSz, void* userData);
+typedef void* (*JStarRealloc)(void* ptr, size_t oldSz, size_t newSz);
 
 // JStarSymbol is an handle to a resolved method, field or global variable
 typedef struct JStarSymbol JStarSymbol;

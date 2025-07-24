@@ -6,7 +6,7 @@
 #include "array.h"
 #include "conf.h"
 #include "jstar.h"
-#include "vm.h"
+#include "vm.h"  // IWYU pragma: export
 
 void initCode(Code* c) {
     *c = (Code){0};

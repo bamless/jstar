@@ -8,7 +8,7 @@
 #include "jstar/conf.h"
 #include "lex.h"
 
-typedef void* (*JStarASTArenaRealloc)(void* ptr, size_t oldSize, size_t newSz, void* userData);
+typedef void* (*JStarASTArenaRealloc)(void* ptr, size_t oldSize, size_t newSz);
 
 typedef struct JStarExpr JStarExpr;
 typedef struct JStarStmt JStarStmt;
@@ -366,7 +366,6 @@ struct JStarStmt {
 typedef struct JStarASTArenaPage JStarASTArenaPage;
 typedef struct {
     JStarASTArenaRealloc realloc;
-    void* userData;
     JStarASTArenaPage *first, *last;
     JStarASTArenaPage* overflow;
     size_t allocated;

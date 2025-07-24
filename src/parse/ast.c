@@ -7,11 +7,7 @@
 #include "conf.h"
 #include "jstar.h"
 #include "parse/lex.h"
-#include "util.h"
-
-// -----------------------------------------------------------------------------
-// AST ARENA
-// -----------------------------------------------------------------------------
+#include "vm.h"
 
 #define ARENA_ALIGN(o, s) (-(uintptr_t)(o) & (s - 1))
 #define ARENA_ALIGNMENT   (sizeof(void*))
@@ -31,7 +27,7 @@ static JStarASTArenaPage* newPage(JStarASTArena* a, size_t requestedSize) {
 
     requestedSize += sizeof(JStarASTArenaPage);
     size_t pageSize = requestedSize <= ARENA_PAGE_SZ ? ARENA_PAGE_SZ : requestedSize;
-    JStarASTArenaPage* page = reallocate(NULL, 0, pageSize, a->userData);
+    JStarASTArenaPage* page = reallocate(NULL, 0, pageSize);
     JSR_ASSERT(page, "Out of memory");
 
     page->next = NULL;
@@ -42,7 +38,7 @@ static JStarASTArenaPage* newPage(JStarASTArena* a, size_t requestedSize) {
 
 static void freePage(JStarASTArena* a, JStarASTArenaPage* page) {
     JStarRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
-    reallocate(page, (char*)page->end - (char*)page, 0, a->userData);
+    reallocate(page, (char*)page->end - (char*)page, 0);
 }
 
 void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
