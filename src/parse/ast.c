@@ -7,6 +7,10 @@
 #include "conf.h"
 #include "parse/lex.h"
 
+// -----------------------------------------------------------------------------
+// AST ARENA
+// -----------------------------------------------------------------------------
+
 #define ARENA_ALIGN(o, s) (-(uintptr_t)(o) & (s - 1))
 #define ARENA_ALIGNMENT   (sizeof(void*))
 #define ARENA_PAGE_SZ     (4096)
@@ -32,7 +36,6 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
     size += ARENA_ALIGN(size, ARENA_ALIGNMENT);
 
     if(size > ARENA_PAGE_SZ - sizeof(JStarASTArenaPage)) {
-        printf("[DEBUG] overflow\n");
         // Allocation is too large, add page to overflow list
         JStarASTArenaPage* page = newPage(a, size);
         JSR_ASSERT((size_t)(page->end - page->start) == size + sizeof(JStarASTArenaPage),
@@ -116,7 +119,7 @@ void jsrASTArenaFree(JStarASTArena* a) {
 }
 
 // -----------------------------------------------------------------------------
-// Identifiers
+// IDENTIFIER
 // -----------------------------------------------------------------------------
 
 bool jsrIdentifierEq(JStarIdentifier id1, JStarIdentifier id2) {
@@ -307,8 +310,6 @@ static JStarStmt* newDecl(JStarASTArena* a, JStarLoc loc, JStarStmtType type) {
     return s;
 }
 
-// Declarations
-
 JStarStmt* jsrFuncDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
                        JStarFormalArgsList args, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(a, loc, JSR_FUNCDECL);
@@ -344,8 +345,6 @@ JStarStmt* jsrVarDecl(JStarASTArena* a, JStarLoc loc, bool isUnpack, JStarIdenti
     s->as.decl.as.var.init = init;
     return s;
 }
-
-// Control flow statements
 
 JStarStmt* jsrWithStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* e, JStarIdentifier varName,
                        JStarStmt* block) {

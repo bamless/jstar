@@ -10,7 +10,6 @@
 
 typedef struct JStarExpr JStarExpr;
 typedef struct JStarStmt JStarStmt;
-typedef struct JStarDecl JStarDecl;
 
 typedef struct JStarIdentifier {
     int length;
@@ -218,7 +217,7 @@ typedef struct JStarClassDecl {
     JStarStmts methods;
 } JStarClassDecl;
 
-struct JStarDecl {
+typedef struct JStarDecl {
     bool isStatic;
     JStarExprs decorators;
     union {
@@ -227,7 +226,7 @@ struct JStarDecl {
         JStarNativeDecl native;
         JStarClassDecl cls;
     } as;
-};
+} JStarDecl;
 
 // -----------------------------------------------------------------------------
 // STATEMENT NODES
@@ -375,7 +374,7 @@ JSTAR_API void jsrASTArenaReset(JStarASTArena* a);
 JSTAR_API void jsrASTArenaFree(JStarASTArena* a);
 
 // -----------------------------------------------------------------------------
-// IDENTIFIER FUNCTIONS
+// IDENTIFIER
 // -----------------------------------------------------------------------------
 
 JSTAR_API bool jsrIdentifierEq(JStarIdentifier id1, JStarIdentifier id2);
