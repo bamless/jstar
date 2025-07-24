@@ -365,7 +365,7 @@ static bool matchRegex(RegexState* rs, const char* str, size_t len, const char* 
 }
 
 // -----------------------------------------------------------------------------
-// J* NATIVES AND HELPER FUNCTIONS
+// J* NATIVES
 // -----------------------------------------------------------------------------
 
 typedef enum FindRes {

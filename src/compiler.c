@@ -165,7 +165,7 @@ static void endCompiler(Compiler* c) {
     arrayForeach(JStarBuffer, b, &c->syntheticNames) {
         jsrBufferFree(b);
     }
-    arrayFree(&c->syntheticNames);
+    arrayFree(c->vm, &c->syntheticNames);
 
     if(c->prev != NULL) {
         c->prev->hadError |= c->hadError;
@@ -214,12 +214,12 @@ static int correctLineNumber(Compiler* c, int line) {
 static size_t emitOpcode(Compiler* c, Opcode op, int line) {
     int correctedLine = correctLineNumber(c, line);
     adjustStackUsage(c, opcodeStackUsage(op));
-    return writeByte(&c->func->code, op, correctedLine);
+    return writeByte(c->vm, &c->func->code, op, correctedLine);
 }
 
 static size_t emitByte(Compiler* c, uint8_t b, int line) {
     int correctedLine = correctLineNumber(c, line);
-    return writeByte(&c->func->code, b, correctedLine);
+    return writeByte(c->vm, &c->func->code, b, correctedLine);
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
@@ -281,7 +281,7 @@ static void exitFunctionScope(Compiler* c) {
 }
 
 static uint16_t createConst(Compiler* c, Value constant, JStarLoc loc) {
-    int index = addConstant(&c->func->code, constant);
+    int index = addConstant(c->vm, &c->func->code, constant);
     if(index == -1) {
         error(c, loc, "Too many constants in function %s", c->func->proto.name->data);
         return 0;
@@ -299,7 +299,7 @@ static JStarIdentifier createSyntheticIdentifier(Compiler* c, const char* fmt, .
     va_start(ap, fmt);
     jsrBufferInitCapacity(c->vm, &buf, strlen(fmt) * 2);
     jsrBufferAppendvf(&buf, fmt, ap);
-    arrayAppend(&c->syntheticNames, buf);
+    arrayAppend(c->vm, &c->syntheticNames, buf);
     va_end(ap);
     return (JStarIdentifier){buf.size, buf.data};
 }
@@ -314,7 +314,7 @@ static uint16_t identifierConst(Compiler* c, JStarIdentifier id, JStarLoc loc) {
 }
 
 static uint16_t identifierSymbol(Compiler* c, JStarIdentifier id, JStarLoc loc) {
-    int index = addSymbol(&c->func->code, identifierConst(c, id, loc));
+    int index = addSymbol(c->vm, &c->func->code, identifierConst(c, id, loc));
     if(index == -1) {
         error(c, loc, "Too many symbols in function %s", c->func->proto.name->data);
         return 0;
@@ -431,7 +431,7 @@ static Variable resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     }
 
     FwdRef fwdRef = {id, loc};
-    arrayAppend(c->fwdRefs, fwdRef);
+    arrayAppend(c->vm, c->fwdRefs, fwdRef);
     return (Variable){VAR_GLOBAL, {.global = {id}}};
 }
 
@@ -442,7 +442,7 @@ static void initializeVar(Compiler* c, const Variable* var) {
 
 static Variable declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JStarLoc loc) {
     if(inGlobalScope(c) && !forceLocal) {
-        arrayAppend(c->globals, id);
+        arrayAppend(c->vm, c->globals, id);
         return (Variable){VAR_GLOBAL, {.global = {id}}};
     }
 
@@ -2146,8 +2146,8 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
     resolveFwdRefs(&c);
     endCompiler(&c);
 
-    arrayFree(&fwdRefs);
-    arrayFree(&globals);
+    arrayFree(vm, &fwdRefs);
+    arrayFree(vm, &globals);
 
     return c.hadError ? NULL : func;
 }

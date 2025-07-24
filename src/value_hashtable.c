@@ -6,6 +6,7 @@
 #include "hashtable.h"
 #include "object.h"  // IWYU pragma: keep
 #include "value.h"
+#include "vm.h"  // IWYU pragma: keep
 
 #define TOMB_MARKER    NULL_VAL
 #define INVALID_VAL    NULL_VAL

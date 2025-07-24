@@ -3,10 +3,6 @@
 
 #include "conf.h"
 
-// -----------------------------------------------------------------------------
-// ENDIANNESS MACROS
-// -----------------------------------------------------------------------------
-
 #if defined(JSTAR_LINUX) || defined(JSTAR_EMSCRIPTEN)
     #include <endian.h>  // IWYU pragma: export
 #elif defined(JSTAR_MACOS) || defined(JSTAR_IOS)

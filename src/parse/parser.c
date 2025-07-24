@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "array.h"
 #include "conf.h"
 #include "parse/ast.h"
 #include "parse/lex.h"
@@ -30,17 +29,19 @@ typedef struct Parser {
     const char* lineStart;
     ParseErrorCB errorCallback;
     void* userData;
+    JStarASTArena* arena;
     bool panic, hadError;
 } Parser;
 
 static void initParser(Parser* p, const char* path, const char* src, size_t len,
-                       ParseErrorCB errorCallback, void* data) {
+                       ParseErrorCB errorCallback, JStarASTArena* arena, void* data) {
     p->panic = false;
     p->hadError = false;
     p->function = NULL;
     p->path = path;
     p->errorCallback = errorCallback;
     p->userData = data;
+    p->arena = arena;
     jsrInitLexer(&p->lex, src, len);
     jsrNextToken(&p->lex, &p->peek);
 }
@@ -290,7 +291,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    arrayForeach(JStarExpr*, it, &lvals->as.exprList) {
+    jsrASTArrayForeach(JStarExpr*, it, &lvals->as.exprList) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "left hand side of unpack assignment must be composed of lvalues");
@@ -340,7 +341,7 @@ static JStarFormalArg parseUnpackArgument(Parser* p) {
         JStarTok id = require(p, TOK_IDENTIFIER);
         skipNewLines(p);
 
-        arrayAppend(&names, createIdentifier(id));
+        jsrASTArrayAppend(p->arena, &names, createIdentifier(id));
 
         if(!match(p, TOK_COMMA)) {
             break;
@@ -392,7 +393,7 @@ static JStarFormalArgsList formalArgs(Parser* p, JStarTokType open, JStarTokType
             break;
         }
 
-        arrayAppend(&args.args, arg);
+        jsrASTArrayAppend(p->arena, &args.args, arg);
 
         if(!match(p, close)) {
             require(p, TOK_COMMA);
@@ -419,8 +420,8 @@ static JStarFormalArgsList formalArgs(Parser* p, JStarTokType open, JStarTokType
             .loc = tok.loc,
             .as = {.simple = createIdentifier(tok)},
         };
-        arrayAppend(&args.args, arg);
-        arrayAppend(&args.defaults, constant);
+        jsrASTArrayAppend(p->arena, &args.args, arg);
+        jsrASTArrayAppend(p->arena, &args.defaults, constant);
 
         if(!match(p, close)) {
             require(p, TOK_COMMA);
@@ -449,11 +450,11 @@ static JStarStmt* blockStmt(Parser* p) {
 
     JStarStmts stmts = {0};
     while(!isImplicitEnd(p->peek)) {
-        arrayAppend(&stmts, parseStmt(p));
+        jsrASTArrayAppend(p->arena, &stmts, parseStmt(p));
         skipNewLines(p);
     }
 
-    return jsrBlockStmt(loc, stmts);
+    return jsrBlockStmt(p->arena, loc, stmts);
 }
 
 static JStarStmt* ifBody(Parser* p, JStarLoc loc) {
@@ -471,7 +472,7 @@ static JStarStmt* ifBody(Parser* p, JStarLoc loc) {
         elseBody = blockStmt(p);
     }
 
-    return jsrIfStmt(loc, cond, thenBody, elseBody);
+    return jsrIfStmt(p->arena, loc, cond, thenBody, elseBody);
 }
 
 static JStarStmt* ifStmt(Parser* p) {
@@ -496,7 +497,7 @@ static JStarStmt* whileStmt(Parser* p) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrWhileStmt(loc, cond, body);
+    return jsrWhileStmt(p->arena, loc, cond, body);
 }
 
 static JStarStmt* varDecl(Parser* p) {
@@ -510,7 +511,7 @@ static JStarStmt* varDecl(Parser* p) {
 
     do {
         JStarTok id = require(p, TOK_IDENTIFIER);
-        arrayAppend(&identifiers, createIdentifier(id));
+        jsrASTArrayAppend(p->arena, &identifiers, createIdentifier(id));
 
         if(match(p, TOK_COMMA)) {
             advance(p);
@@ -527,7 +528,7 @@ static JStarStmt* varDecl(Parser* p) {
         init = expression(p, true);
     }
 
-    return jsrVarDecl(loc, isUnpack, identifiers, init);
+    return jsrVarDecl(p->arena, loc, isUnpack, identifiers, init);
 }
 
 static JStarStmt* forEach(Parser* p, JStarTok tok, JStarStmt* var, JStarLoc loc) {
@@ -542,7 +543,7 @@ static JStarStmt* forEach(Parser* p, JStarTok tok, JStarStmt* var, JStarLoc loc)
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrForEachStmt(loc, var, e, body);
+    return jsrForEachStmt(p->arena, loc, var, e, body);
 }
 
 static JStarStmt* forStmt(Parser* p) {
@@ -562,7 +563,7 @@ static JStarStmt* forStmt(Parser* p) {
             }
         } else {
             JStarExpr* e = expression(p, true);
-            init = jsrExprStmt(e->loc, e);
+            init = jsrExprStmt(p->arena, e->loc, e);
         }
     }
 
@@ -578,7 +579,7 @@ static JStarStmt* forStmt(Parser* p) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrForStmt(loc, init, cond, act, body);
+    return jsrForStmt(p->arena, loc, init, cond, act, body);
 }
 
 static JStarStmt* returnStmt(Parser* p) {
@@ -595,7 +596,7 @@ static JStarStmt* returnStmt(Parser* p) {
     }
 
     requireStmtEnd(p);
-    return jsrReturnStmt(loc, e);
+    return jsrReturnStmt(p->arena, loc, e);
 }
 
 static JStarStmt* importStmt(Parser* p) {
@@ -608,7 +609,7 @@ static JStarStmt* importStmt(Parser* p) {
 
     for(;;) {
         JStarTok name = require(p, TOK_IDENTIFIER);
-        arrayAppend(&modules, createIdentifier(name));
+        jsrASTArrayAppend(p->arena, &modules, createIdentifier(name));
         if(!match(p, TOK_DOT)) break;
         advance(p);
         skipNewLines(p);
@@ -623,7 +624,7 @@ static JStarStmt* importStmt(Parser* p) {
 
         for(;;) {
             JStarTok name = require(p, TOK_IDENTIFIER);
-            arrayAppend(&importNames, createIdentifier(name));
+            jsrASTArrayAppend(p->arena, &importNames, createIdentifier(name));
             if(!match(p, TOK_COMMA)) break;
             advance(p);
             skipNewLines(p);
@@ -636,7 +637,7 @@ static JStarStmt* importStmt(Parser* p) {
     }
 
     requireStmtEnd(p);
-    return jsrImportStmt(loc, modules, importNames, asName);
+    return jsrImportStmt(p->arena, loc, modules, importNames, asName);
 }
 
 static JStarStmt* tryStmt(Parser* p) {
@@ -659,7 +660,7 @@ static JStarStmt* tryStmt(Parser* p) {
         JStarIdentifier varName = createIdentifier(var);
 
         JStarStmt* block = blockStmt(p);
-        arrayAppend(&excs, jsrExceptStmt(excLoc, cls, varName, block));
+        jsrASTArrayAppend(p->arena, &excs, jsrExceptStmt(p->arena, excLoc, cls, varName, block));
     }
 
     if(match(p, TOK_ENSURE)) {
@@ -672,7 +673,7 @@ static JStarStmt* tryStmt(Parser* p) {
     }
 
     require(p, TOK_END);
-    return jsrTryStmt(loc, tryBlock, excs, ensure);
+    return jsrTryStmt(p->arena, loc, tryBlock, excs, ensure);
 }
 
 static JStarStmt* raiseStmt(Parser* p) {
@@ -684,7 +685,7 @@ static JStarStmt* raiseStmt(Parser* p) {
     JStarExpr* exc = expression(p, true);
     requireStmtEnd(p);
 
-    return jsrRaiseStmt(loc, exc);
+    return jsrRaiseStmt(p->arena, loc, exc);
 }
 
 static JStarStmt* withStmt(Parser* p) {
@@ -701,7 +702,7 @@ static JStarStmt* withStmt(Parser* p) {
     JStarStmt* block = blockStmt(p);
     require(p, TOK_END);
 
-    return jsrWithStmt(loc, e, varName, block);
+    return jsrWithStmt(p->arena, loc, e, varName, block);
 }
 
 static JStarExprs parseDecorators(Parser* p) {
@@ -709,17 +710,10 @@ static JStarExprs parseDecorators(Parser* p) {
     while(match(p, TOK_AT)) {
         advance(p);
         JStarExpr* expr = expression(p, false);
-        arrayAppend(&decorators, expr);
+        jsrASTArrayAppend(p->arena, &decorators, expr);
         skipNewLines(p);
     }
     return decorators;
-}
-
-static void freeDecorators(JStarExprs* decorators) {
-    arrayForeach(JStarExpr*, e, decorators) {
-        jsrExprFree(*e);
-    }
-    arrayFree(decorators);
 }
 
 static JStarIdentifier ctorName(JStarLoc loc) {
@@ -748,7 +742,8 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(funTok.loc, funcName, args, p->function->isGenerator, body);
+    JStarStmt* decl = jsrFuncDecl(p->arena, funTok.loc, funcName, args, p->function->isGenerator,
+                                  body);
 
     endFunction(p);
 
@@ -775,7 +770,7 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
     JStarFormalArgsList args = formalArgs(p, TOK_LPAREN, TOK_RPAREN);
     requireStmtEnd(p);
 
-    return jsrNativeDecl(loc, nativeName, args);
+    return jsrNativeDecl(p->arena, loc, nativeName, args);
 }
 
 static JStarStmt* classDecl(Parser* p) {
@@ -822,13 +817,13 @@ static JStarStmt* classDecl(Parser* p) {
             break;
         }
 
-        arrayAppend(&methods, method);
+        jsrASTArrayAppend(p->arena, &methods, method);
         skipNewLines(p);
         if(p->panic) classSynchronize(p);
     }
 
     require(p, TOK_END);
-    return jsrClassDecl(loc, clsName, sup, methods);
+    return jsrClassDecl(p->arena, loc, clsName, sup, methods);
 }
 
 static JStarStmt* staticDecl(Parser* p) {
@@ -851,7 +846,6 @@ static JStarStmt* decoratedDecl(Parser* p) {
 
     if(!match(p, TOK_STATIC) && !isDeclaration(p->peek)) {
         error(p, "Decorators can only be applied to declarations");
-        freeDecorators(&decorators);
         return NULL;
     }
 
@@ -875,7 +869,7 @@ static JStarStmt* exprStmt(Parser* p) {
         l = assignmentExpr(p, l, true);
     }
 
-    return jsrExprStmt(l->loc, l);
+    return jsrExprStmt(p->arena, l->loc, l);
 }
 
 static JStarStmt* parseStmt(Parser* p) {
@@ -922,11 +916,11 @@ static JStarStmt* parseStmt(Parser* p) {
     case TOK_CONTINUE:
         advance(p);
         requireStmtEnd(p);
-        return jsrContinueStmt(loc);
+        return jsrContinueStmt(p->arena, loc);
     case TOK_BREAK:
         advance(p);
         requireStmtEnd(p);
-        return jsrBreakStmt(loc);
+        return jsrBreakStmt(p->arena, loc);
     default:
         break;
     }
@@ -941,7 +935,7 @@ static JStarStmt* parseProgram(Parser* p) {
 
     JStarStmts stmts = {0};
     while(!match(p, TOK_EOF)) {
-        arrayAppend(&stmts, parseStmt(p));
+        jsrASTArrayAppend(p->arena, &stmts, parseStmt(p));
         skipNewLines(p);
         if(p->panic) synchronize(p);
     }
@@ -949,7 +943,8 @@ static JStarStmt* parseProgram(Parser* p) {
     // Top level function doesn't have name or arguments, so pass them empty
     JStarFormalArgsList args = {0};
     JStarLoc loc = {0};
-    return jsrFuncDecl(loc, (JStarIdentifier){0}, args, false, jsrBlockStmt(loc, stmts));
+    JStarStmt* body = jsrBlockStmt(p->arena, loc, stmts);
+    return jsrFuncDecl(p->arena, loc, (JStarIdentifier){0}, args, false, body);
 }
 
 // -----------------------------------------------------------------------------
@@ -969,10 +964,10 @@ static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close
         skipNewLines(p);
 
         if(isSpread) {
-            e = jsrSpreadExpr(loc, e);
+            e = jsrSpreadExpr(p->arena, loc, e);
         }
 
-        arrayAppend(&exprs, e);
+        jsrASTArrayAppend(p->arena, &exprs, e);
 
         if(!match(p, TOK_COMMA)) {
             break;
@@ -983,7 +978,7 @@ static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close
     }
 
     require(p, close);
-    return jsrExprList(loc, exprs);
+    return jsrExprList(p->arena, loc, exprs);
 }
 
 static JStarExpr* parseTableLiteral(Parser* p) {
@@ -999,14 +994,14 @@ static JStarExpr* parseTableLiteral(Parser* p) {
         if(isSpread) {
             JStarExpr* expr = expression(p, false);
             skipNewLines(p);
-            expr = jsrSpreadExpr(expr->loc, expr);
-            arrayAppend(&keyVals, expr);
+            expr = jsrSpreadExpr(p->arena, expr->loc, expr);
+            jsrASTArrayAppend(p->arena, &keyVals, expr);
         } else {
             JStarExpr* key;
             if(match(p, TOK_DOT)) {
                 advance(p);
                 JStarTok id = require(p, TOK_IDENTIFIER);
-                key = jsrStrLiteral(id.loc, id.lexeme, id.length);
+                key = jsrStrLiteral(p->arena, id.loc, id.lexeme, id.length);
             } else {
                 key = expression(p, false);
             }
@@ -1022,8 +1017,8 @@ static JStarExpr* parseTableLiteral(Parser* p) {
                 break;
             }
 
-            arrayAppend(&keyVals, key);
-            arrayAppend(&keyVals, val);
+            jsrASTArrayAppend(p->arena, &keyVals, key);
+            jsrASTArrayAppend(p->arena, &keyVals, val);
         }
 
         if(!match(p, TOK_RCURLY)) {
@@ -1033,7 +1028,7 @@ static JStarExpr* parseTableLiteral(Parser* p) {
     }
 
     require(p, TOK_RCURLY);
-    return jsrTableLiteral(loc, jsrExprList(loc, keyVals));
+    return jsrTableLiteral(p->arena, loc, jsrExprList(p->arena, loc, keyVals));
 }
 
 static JStarExpr* parseSuperLiteral(Parser* p) {
@@ -1053,17 +1048,17 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
     } else if(match(p, TOK_LCURLY)) {
         JStarExprs tableCallArgs = {0};
-        arrayAppend(&tableCallArgs, parseTableLiteral(p));
-        args = jsrExprList(loc, tableCallArgs);
+        jsrASTArrayAppend(p->arena, &tableCallArgs, parseTableLiteral(p));
+        args = jsrExprList(p->arena, loc, tableCallArgs);
     }
 
-    return jsrSuperLiteral(loc, &name, args);
+    return jsrSuperLiteral(p->arena, loc, &name, args);
 }
 
 JStarExpr* parseListLiteral(Parser* p) {
     JStarLoc loc = p->peek.loc;
     JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
-    return jsrListLiteral(loc, exprs);
+    return jsrListLiteral(p->arena, loc, exprs);
 }
 
 static JStarExpr* literal(Parser* p) {
@@ -1079,25 +1074,25 @@ static JStarExpr* literal(Parser* p) {
         return parseListLiteral(p);
     case TOK_TRUE:
         advance(p);
-        return jsrBoolLiteral(loc, true);
+        return jsrBoolLiteral(p->arena, loc, true);
     case TOK_FALSE:
         advance(p);
-        return jsrBoolLiteral(loc, false);
+        return jsrBoolLiteral(p->arena, loc, false);
     case TOK_NULL:
         advance(p);
-        return jsrNullLiteral(loc);
+        return jsrNullLiteral(p->arena, loc);
     case TOK_NUMBER: {
-        JStarExpr* e = jsrNumLiteral(loc, strtod(tok->lexeme, NULL));
+        JStarExpr* e = jsrNumLiteral(p->arena, loc, strtod(tok->lexeme, NULL));
         advance(p);
         return e;
     }
     case TOK_IDENTIFIER: {
-        JStarExpr* e = jsrVarLiteral(loc, tok->lexeme, tok->length);
+        JStarExpr* e = jsrVarLiteral(p->arena, loc, tok->lexeme, tok->length);
         advance(p);
         return e;
     }
     case TOK_STRING: {
-        JStarExpr* e = jsrStrLiteral(loc, tok->lexeme + 1, tok->length - 2);
+        JStarExpr* e = jsrStrLiteral(p->arena, loc, tok->lexeme + 1, tok->length - 2);
         advance(p);
         return e;
     }
@@ -1107,7 +1102,7 @@ static JStarExpr* literal(Parser* p) {
 
         if(match(p, TOK_RPAREN)) {
             advance(p);
-            return jsrTupleLiteral(loc, jsrExprList(loc, (JStarExprs){0}));
+            return jsrTupleLiteral(p->arena, loc, jsrExprList(p->arena, loc, (JStarExprs){0}));
         }
 
         JStarExpr* e = expression(p, true);
@@ -1132,7 +1127,7 @@ static JStarExpr* literal(Parser* p) {
     }
 
     // Return dummy expression to avoid NULL
-    return jsrNullLiteral(loc);
+    return jsrNullLiteral(p->arena, loc);
 }
 
 static JStarExpr* postfixExpr(Parser* p) {
@@ -1146,27 +1141,27 @@ static JStarExpr* postfixExpr(Parser* p) {
             advance(p);
             skipNewLines(p);
             JStarTok attr = require(p, TOK_IDENTIFIER);
-            lit = jsrPropertyAccessExpr(loc, lit, attr.lexeme, attr.length);
+            lit = jsrPropertyAccessExpr(p->arena, loc, lit, attr.lexeme, attr.length);
             break;
         }
         case TOK_LCURLY: {
             JStarExprs tableCallArgs = {0};
-            arrayAppend(&tableCallArgs, parseTableLiteral(p));
-            JStarExpr* args = jsrExprList(loc, tableCallArgs);
-            lit = jsrCallExpr(loc, lit, args);
+            jsrASTArrayAppend(p->arena, &tableCallArgs, parseTableLiteral(p));
+            JStarExpr* args = jsrExprList(p->arena, loc, tableCallArgs);
+            lit = jsrCallExpr(p->arena, loc, lit, args);
             break;
         }
         case TOK_LSQUARE: {
             require(p, TOK_LSQUARE);
             skipNewLines(p);
-            lit = jsrIndexExpr(loc, lit, expression(p, true));
+            lit = jsrIndexExpr(p->arena, loc, lit, expression(p, true));
             skipNewLines(p);
             require(p, TOK_RSQUARE);
             break;
         }
         case TOK_LPAREN: {
             JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
-            lit = jsrCallExpr(loc, lit, args);
+            lit = jsrCallExpr(p->arena, loc, lit, args);
             break;
         }
         default:
@@ -1186,7 +1181,7 @@ static JStarExpr* powExpr(Parser* p) {
         JStarTok powOp = advance(p);
         skipNewLines(p);
         JStarExpr* exp = unaryExpr(p);
-        base = jsrPowExpr(powOp.loc, base, exp);
+        base = jsrPowExpr(p->arena, powOp.loc, base, exp);
     }
 
     return base;
@@ -1198,7 +1193,7 @@ static JStarExpr* unaryExpr(Parser* p) {
     if(matchAny(p, tokens, ARRAY_SIZE(tokens))) {
         JStarTok op = advance(p);
         skipNewLines(p);
-        return jsrUnaryExpr(op.loc, op.type, unaryExpr(p));
+        return jsrUnaryExpr(p->arena, op.loc, op.type, unaryExpr(p));
     }
 
     return powExpr(p);
@@ -1212,7 +1207,7 @@ static JStarExpr* parseBinary(Parser* p, const JStarTokType* tokens, int count,
         JStarTok op = advance(p);
         skipNewLines(p);
         JStarExpr* r = (*operand)(p);
-        l = jsrBinaryExpr(op.loc, op.type, l, r);
+        l = jsrBinaryExpr(p->arena, op.loc, op.type, l, r);
     }
 
     return l;
@@ -1277,7 +1272,7 @@ static JStarExpr* ternaryExpr(Parser* p) {
         skipNewLines(p);
 
         JStarExpr* elseExpr = ternaryExpr(p);
-        return jsrTernaryExpr(loc, cond, expr, elseExpr);
+        return jsrTernaryExpr(p->arena, loc, cond, expr, elseExpr);
     }
 
     return expr;
@@ -1297,7 +1292,7 @@ static JStarExpr* funcLiteral(Parser* p) {
         JStarStmt* body = blockStmt(p);
         require(p, TOK_END);
 
-        JStarExpr* lit = jsrFunLiteral(loc, args, p->function->isGenerator, body);
+        JStarExpr* lit = jsrFunLiteral(p->arena, loc, args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1316,10 +1311,10 @@ static JStarExpr* funcLiteral(Parser* p) {
 
         JStarExpr* e = expression(p, false);
         JStarStmts anonFuncStmts = {0};
-        arrayAppend(&anonFuncStmts, jsrReturnStmt(loc, e));
-        JStarStmt* body = jsrBlockStmt(loc, anonFuncStmts);
+        jsrASTArrayAppend(p->arena, &anonFuncStmts, jsrReturnStmt(p->arena, loc, e));
+        JStarStmt* body = jsrBlockStmt(p->arena, loc, anonFuncStmts);
 
-        JStarExpr* lit = jsrFunLiteral(loc, args, p->function->isGenerator, body);
+        JStarExpr* lit = jsrFunLiteral(p->arena, loc, args, p->function->isGenerator, body);
 
         endFunction(p);
 
@@ -1345,7 +1340,7 @@ static JStarExpr* yieldExpr(Parser* p) {
             expr = expression(p, false);
         }
 
-        return jsrYieldExpr(yield.loc, expr);
+        return jsrYieldExpr(p->arena, yield.loc, expr);
     }
     return funcLiteral(p);
 }
@@ -1362,12 +1357,12 @@ static JStarExpr* tupleLiteral(Parser* p) {
                   "Cannot use spread operator here. Consider adding a `,` to make this a Tuple "
                   "literal");
         }
-        e = jsrSpreadExpr(e->loc, e);
+        e = jsrSpreadExpr(p->arena, e->loc, e);
     }
 
     if(match(p, TOK_COMMA)) {
         JStarExprs exprs = {0};
-        arrayAppend(&exprs, e);
+        jsrASTArrayAppend(p->arena, &exprs, e);
 
         while(match(p, TOK_COMMA)) {
             advance(p);
@@ -1380,13 +1375,13 @@ static JStarExpr* tupleLiteral(Parser* p) {
             JStarExpr* e = yieldExpr(p);
 
             if(isSpread) {
-                e = jsrSpreadExpr(e->loc, e);
+                e = jsrSpreadExpr(p->arena, e->loc, e);
             }
 
-            arrayAppend(&exprs, e);
+            jsrASTArrayAppend(p->arena, &exprs, e);
         }
 
-        e = jsrTupleLiteral(loc, jsrExprList(loc, exprs));
+        e = jsrTupleLiteral(p->arena, loc, jsrExprList(p->arena, loc, exprs));
     }
 
     return e;
@@ -1399,9 +1394,9 @@ static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple) {
 
     if(isCompoundAssign(assignToken)) {
         JStarTokType op = assignToOperator(assignToken.type);
-        l = jsrCompundAssignExpr(assignToken.loc, op, l, r);
+        l = jsrCompundAssignExpr(p->arena, assignToken.loc, op, l, r);
     } else {
-        l = jsrAssignExpr(assignToken.loc, l, r);
+        l = jsrAssignExpr(p->arena, assignToken.loc, l, r);
     }
 
     return l;
@@ -1421,11 +1416,12 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
 // API
 // -----------------------------------------------------------------------------
 
-JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB errFn, void* data) {
+JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB errFn,
+                    JStarASTArena* a, void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, len, errFn, data);
+    initParser(&p, path, src, len, errFn, a, data);
 
     JStarStmt* program = parseProgram(&p);
     skipNewLines(&p);
@@ -1435,7 +1431,6 @@ JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB 
     }
 
     if(p.hadError) {
-        jsrStmtFree(program);
         return NULL;
     }
 
@@ -1443,11 +1438,11 @@ JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB 
 }
 
 JStarExpr* jsrParseExpression(const char* path, const char* src, size_t len, ParseErrorCB errFn,
-                              void* data) {
+                              JStarASTArena* a, void* data) {
     PROFILE_FUNC()
 
     Parser p;
-    initParser(&p, path, src, len, errFn, data);
+    initParser(&p, path, src, len, errFn, a, data);
 
     JStarExpr* expr = expression(&p, true);
     skipNewLines(&p);
@@ -1457,7 +1452,6 @@ JStarExpr* jsrParseExpression(const char* path, const char* src, size_t len, Par
     }
 
     if(p.hadError) {
-        jsrExprFree(expr);
         return NULL;
     }
 

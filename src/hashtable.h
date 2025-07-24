@@ -2,8 +2,8 @@
 #define HASHTABLE_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>  // IWYU pragma: keep
 #include <string.h>
 
 /**
@@ -22,11 +22,12 @@
     } name##Entry;                                                                   \
                                                                                      \
     typedef struct name##HashTable {                                                 \
+        JStarVM* vm;                                                                 \
         size_t sizeMask, numEntries;                                                 \
         name##Entry* entries;                                                        \
     } name##HashTable;                                                               \
                                                                                      \
-    void init##name##HashTable(name##HashTable* t);                                  \
+    void init##name##HashTable(JStarVM* vm, name##HashTable* t);                     \
     void free##name##HashTable(name##HashTable* t);                                  \
     bool hashTable##name##Put(name##HashTable* t, ObjString* key, V val);            \
     bool hashTable##name##Get(const name##HashTable* t, ObjString* key, V* res);     \
@@ -45,8 +46,8 @@
     JSR_STATIC_ASSERT(((INITIAL_CAPACITY) & ((INITIAL_CAPACITY) - 1)) == 0,                \
                       "Initial capacity must be a power of 2");                            \
                                                                                            \
-    void init##name##HashTable(name##HashTable* t) {                                       \
-        *t = (name##HashTable){0};                                                         \
+    void init##name##HashTable(JStarVM* vm, name##HashTable* t) {                          \
+        *t = (name##HashTable){.vm = vm};                                                  \
     }                                                                                      \
                                                                                            \
     void free##name##HashTable(name##HashTable* t) {                                       \
@@ -74,7 +75,7 @@
                                                                                            \
     static void growEntries(name##HashTable* t) {                                          \
         size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY; \
-        name##Entry* newEntries = malloc(sizeof(name##Entry) * newSize);                   \
+        name##Entry* newEntries = t->vm->realloc(NULL, 0, sizeof(name##Entry) * newSize);  \
                                                                                            \
         for(size_t i = 0; i < newSize; i++) {                                              \
             newEntries[i] = (name##Entry){NULL, INVALID_VAL};                              \
@@ -92,7 +93,7 @@
             }                                                                              \
         }                                                                                  \
                                                                                            \
-        free(t->entries);                                                                  \
+        t->vm->realloc(t->entries, (t->sizeMask + 1) * sizeof(name##Entry), 0);            \
         t->entries = newEntries;                                                           \
         t->sizeMask = newSize - 1;                                                         \
     }                                                                                      \

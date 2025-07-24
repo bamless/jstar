@@ -19,10 +19,6 @@ typedef struct JStarBuffer {
     char* data;
 } JStarBuffer;
 
-// -----------------------------------------------------------------------------
-// JSTARBUFFER API
-// -----------------------------------------------------------------------------
-
 /*
  * The following functions are safe to call prior to runtime initialization, with the obvious
  * exception of `jsrBufferPush`.

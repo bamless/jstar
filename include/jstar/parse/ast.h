@@ -8,9 +8,10 @@
 #include "jstar/conf.h"
 #include "lex.h"
 
+typedef void* (*JStarASTArenaRealloc)(void* ptr, size_t oldSize, size_t newSz);
+
 typedef struct JStarExpr JStarExpr;
 typedef struct JStarStmt JStarStmt;
-typedef struct JStarDecl JStarDecl;
 
 typedef struct JStarIdentifier {
     int length;
@@ -218,7 +219,7 @@ typedef struct JStarClassDecl {
     JStarStmts methods;
 } JStarClassDecl;
 
-struct JStarDecl {
+typedef struct JStarDecl {
     bool isStatic;
     JStarExprs decorators;
     union {
@@ -227,7 +228,7 @@ struct JStarDecl {
         JStarNativeDecl native;
         JStarClassDecl cls;
     } as;
-};
+} JStarDecl;
 
 // -----------------------------------------------------------------------------
 // STATEMENT NODES
@@ -333,7 +334,50 @@ struct JStarStmt {
 };
 
 // -----------------------------------------------------------------------------
-// IDENTIFIER FUNCTIONS
+// AST ARENA
+// -----------------------------------------------------------------------------
+
+#define JSR_AST_ARRAY_INIT_CAP 8
+
+#define jsrASTArrayForeach(T, it, arr) \
+    for(T* it = (arr)->items; it < (arr)->items + (arr)->count; ++it)
+
+#define jsrASTArrayReserve(arena, arr, newCapacity)                                                \
+    do {                                                                                           \
+        if((newCapacity) > (arr)->capacity) {                                                      \
+            size_t oldCap = (arr)->capacity;                                                       \
+            if((arr)->capacity == 0) {                                                             \
+                (arr)->capacity = JSR_AST_ARRAY_INIT_CAP;                                          \
+            }                                                                                      \
+            while((newCapacity) > (arr)->capacity) {                                               \
+                (arr)->capacity *= 2;                                                              \
+            }                                                                                      \
+            (arr)->items = jsrASTArenaRealloc(arena, (arr)->items, oldCap * sizeof(*(arr)->items), \
+                                              (arr)->capacity * sizeof(*(arr)->items));            \
+        }                                                                                          \
+    } while(0)
+
+#define jsrASTArrayAppend(arena, arr, item)               \
+    do {                                                  \
+        jsrASTArrayReserve(arena, arr, (arr)->count + 1); \
+        (arr)->items[(arr)->count++] = (item);            \
+    } while(0)
+
+typedef struct JStarASTArenaPage JStarASTArenaPage;
+typedef struct {
+    JStarASTArenaRealloc realloc;
+    JStarASTArenaPage *first, *last;
+    JStarASTArenaPage* overflow;
+    size_t allocated;
+} JStarASTArena;
+
+JSTAR_API void* jsrASTArenaAlloc(JStarASTArena* a, size_t size);
+JSTAR_API void* jsrASTArenaRealloc(JStarASTArena* a, void* ptr, size_t oldSize, size_t newSize);
+JSTAR_API void jsrASTArenaReset(JStarASTArena* a);
+JSTAR_API void jsrASTArenaFree(JStarASTArena* a);
+
+// -----------------------------------------------------------------------------
+// IDENTIFIER
 // -----------------------------------------------------------------------------
 
 JSTAR_API bool jsrIdentifierEq(JStarIdentifier id1, JStarIdentifier id2);
@@ -342,64 +386,71 @@ JSTAR_API bool jsrIdentifierEq(JStarIdentifier id1, JStarIdentifier id2);
 // EXPRESSION NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarExpr* jsrFunLiteral(JStarLoc loc, JStarFormalArgsList args, bool isGenerator,
-                                   JStarStmt* body);
-JSTAR_API JStarExpr* jsrTernaryExpr(JStarLoc loc, JStarExpr* cond, JStarExpr* thenExpr,
-                                    JStarExpr* elseExpr);
-JSTAR_API JStarExpr* jsrCompundAssignExpr(JStarLoc loc, JStarTokType op, JStarExpr* lval,
-                                          JStarExpr* rval);
-JSTAR_API JStarExpr* jsrPropertyAccessExpr(JStarLoc loc, JStarExpr* left, const char* name,
-                                           size_t length);
-JSTAR_API JStarExpr* jsrSuperLiteral(JStarLoc loc, JStarTok* name, JStarExpr* args);
-JSTAR_API JStarExpr* jsrCallExpr(JStarLoc loc, JStarExpr* callee, JStarExpr* args);
-JSTAR_API JStarExpr* jsrVarLiteral(JStarLoc loc, const char* str, size_t len);
-JSTAR_API JStarExpr* jsrStrLiteral(JStarLoc loc, const char* str, size_t len);
-JSTAR_API JStarExpr* jsrIndexExpr(JStarLoc loc, JStarExpr* left, JStarExpr* index);
-JSTAR_API JStarExpr* jsrBinaryExpr(JStarLoc loc, JStarTokType op, JStarExpr* l, JStarExpr* r);
-JSTAR_API JStarExpr* jsrUnaryExpr(JStarLoc loc, JStarTokType op, JStarExpr* operand);
-JSTAR_API JStarExpr* jsrAssignExpr(JStarLoc loc, JStarExpr* lval, JStarExpr* rval);
-JSTAR_API JStarExpr* jsrPowExpr(JStarLoc loc, JStarExpr* base, JStarExpr* exp);
-JSTAR_API JStarExpr* jsrTableLiteral(JStarLoc loc, JStarExpr* keyVals);
-JSTAR_API JStarExpr* jsrSpreadExpr(JStarLoc loc, JStarExpr* expr);
-JSTAR_API JStarExpr* jsrExprList(JStarLoc loc, JStarExprs exprs);
-JSTAR_API JStarExpr* jsrBoolLiteral(JStarLoc loc, bool boolean);
-JSTAR_API JStarExpr* jsrTupleLiteral(JStarLoc loc, JStarExpr* exprs);
-JSTAR_API JStarExpr* jsrListLiteral(JStarLoc loc, JStarExpr* exprs);
-JSTAR_API JStarExpr* jsrYieldExpr(JStarLoc loc, JStarExpr* expr);
-JSTAR_API JStarExpr* jsrNumLiteral(JStarLoc loc, double num);
-JSTAR_API JStarExpr* jsrNullLiteral(JStarLoc loc);
-JSTAR_API void jsrExprFree(JStarExpr* e);
+JSTAR_API JStarExpr* jsrFunLiteral(JStarASTArena* a, JStarLoc loc, JStarFormalArgsList args,
+                                   bool isGenerator, JStarStmt* body);
+JSTAR_API JStarExpr* jsrTernaryExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* cond,
+                                    JStarExpr* thenExpr, JStarExpr* elseExpr);
+JSTAR_API JStarExpr* jsrCompundAssignExpr(JStarASTArena* a, JStarLoc loc, JStarTokType op,
+                                          JStarExpr* lval, JStarExpr* rval);
+JSTAR_API JStarExpr* jsrPropertyAccessExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* left,
+                                           const char* name, size_t length);
+JSTAR_API JStarExpr* jsrSuperLiteral(JStarASTArena* a, JStarLoc loc, JStarTok* name,
+                                     JStarExpr* args);
+JSTAR_API JStarExpr* jsrCallExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* callee,
+                                 JStarExpr* args);
+JSTAR_API JStarExpr* jsrVarLiteral(JStarASTArena* a, JStarLoc loc, const char* str, size_t len);
+JSTAR_API JStarExpr* jsrStrLiteral(JStarASTArena* a, JStarLoc loc, const char* str, size_t len);
+JSTAR_API JStarExpr* jsrIndexExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* left,
+                                  JStarExpr* index);
+JSTAR_API JStarExpr* jsrBinaryExpr(JStarASTArena* a, JStarLoc loc, JStarTokType op, JStarExpr* l,
+                                   JStarExpr* r);
+JSTAR_API JStarExpr* jsrUnaryExpr(JStarASTArena* a, JStarLoc loc, JStarTokType op,
+                                  JStarExpr* operand);
+JSTAR_API JStarExpr* jsrAssignExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* lval,
+                                   JStarExpr* rval);
+JSTAR_API JStarExpr* jsrPowExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* base, JStarExpr* exp);
+JSTAR_API JStarExpr* jsrTableLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* keyVals);
+JSTAR_API JStarExpr* jsrSpreadExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* expr);
+JSTAR_API JStarExpr* jsrExprList(JStarASTArena* a, JStarLoc loc, JStarExprs exprs);
+JSTAR_API JStarExpr* jsrBoolLiteral(JStarASTArena* a, JStarLoc loc, bool boolean);
+JSTAR_API JStarExpr* jsrTupleLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* exprs);
+JSTAR_API JStarExpr* jsrListLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* exprs);
+JSTAR_API JStarExpr* jsrYieldExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* expr);
+JSTAR_API JStarExpr* jsrNumLiteral(JStarASTArena* a, JStarLoc loc, double num);
+JSTAR_API JStarExpr* jsrNullLiteral(JStarASTArena* a, JStarLoc loc);
 
 // -----------------------------------------------------------------------------
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarStmt* jsrFuncDecl(JStarLoc loc, JStarIdentifier name, JStarFormalArgsList args,
-                                 bool isGenerator, JStarStmt* body);
-JSTAR_API JStarStmt* jsrNativeDecl(JStarLoc loc, JStarIdentifier name, JStarFormalArgsList args);
-JSTAR_API JStarStmt* jsrForStmt(JStarLoc loc, JStarStmt* init, JStarExpr* cond, JStarExpr* act,
-                                JStarStmt* body);
-JSTAR_API JStarStmt* jsrClassDecl(JStarLoc loc, JStarIdentifier clsName, JStarExpr* sup,
-                                  JStarStmts methods);
-JSTAR_API JStarStmt* jsrImportStmt(JStarLoc loc, JStarIdentifiers modules, JStarIdentifiers names,
-                                   JStarIdentifier as);
-JSTAR_API JStarStmt* jsrVarDecl(JStarLoc loc, bool isUnpack, JStarIdentifiers ids, JStarExpr* init);
-JSTAR_API JStarStmt* jsrTryStmt(JStarLoc loc, JStarStmt* blck, JStarStmts excs, JStarStmt* ensure);
-JSTAR_API JStarStmt* jsrIfStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* thenStmt,
+JSTAR_API JStarStmt* jsrFuncDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
+                                 JStarFormalArgsList args, bool isGenerator, JStarStmt* body);
+JSTAR_API JStarStmt* jsrNativeDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
+                                   JStarFormalArgsList args);
+JSTAR_API JStarStmt* jsrForStmt(JStarASTArena* a, JStarLoc loc, JStarStmt* init, JStarExpr* cond,
+                                JStarExpr* act, JStarStmt* body);
+JSTAR_API JStarStmt* jsrClassDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier clsName,
+                                  JStarExpr* sup, JStarStmts methods);
+JSTAR_API JStarStmt* jsrImportStmt(JStarASTArena* a, JStarLoc loc, JStarIdentifiers modules,
+                                   JStarIdentifiers names, JStarIdentifier as);
+JSTAR_API JStarStmt* jsrVarDecl(JStarASTArena* a, JStarLoc loc, bool isUnpack, JStarIdentifiers ids,
+                                JStarExpr* init);
+JSTAR_API JStarStmt* jsrTryStmt(JStarASTArena* a, JStarLoc loc, JStarStmt* blck, JStarStmts excs,
+                                JStarStmt* ensure);
+JSTAR_API JStarStmt* jsrIfStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* cond, JStarStmt* thenStmt,
                                JStarStmt* elseStmt);
-JSTAR_API JStarStmt* jsrForEachStmt(JStarLoc loc, JStarStmt* varDecl, JStarExpr* iter,
-                                    JStarStmt* body);
-JSTAR_API JStarStmt* jsrExceptStmt(JStarLoc loc, JStarExpr* cls, JStarIdentifier varName,
-                                   JStarStmt* block);
-JSTAR_API JStarStmt* jsrWithStmt(JStarLoc loc, JStarExpr* e, JStarIdentifier varName,
-                                 JStarStmt* block);
-JSTAR_API JStarStmt* jsrWhileStmt(JStarLoc loc, JStarExpr* cond, JStarStmt* body);
-JSTAR_API JStarStmt* jsrBlockStmt(JStarLoc loc, JStarStmts list);
-JSTAR_API JStarStmt* jsrReturnStmt(JStarLoc loc, JStarExpr* e);
-JSTAR_API JStarStmt* jsrRaiseStmt(JStarLoc loc, JStarExpr* e);
-JSTAR_API JStarStmt* jsrExprStmt(JStarLoc loc, JStarExpr* e);
-JSTAR_API JStarStmt* jsrContinueStmt(JStarLoc loc);
-JSTAR_API JStarStmt* jsrBreakStmt(JStarLoc loc);
-JSTAR_API void jsrStmtFree(JStarStmt* s);
+JSTAR_API JStarStmt* jsrForEachStmt(JStarASTArena* a, JStarLoc loc, JStarStmt* varDecl,
+                                    JStarExpr* iter, JStarStmt* body);
+JSTAR_API JStarStmt* jsrExceptStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* cls,
+                                   JStarIdentifier varName, JStarStmt* block);
+JSTAR_API JStarStmt* jsrWithStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* e,
+                                 JStarIdentifier varName, JStarStmt* block);
+JSTAR_API JStarStmt* jsrWhileStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* cond, JStarStmt* body);
+JSTAR_API JStarStmt* jsrBlockStmt(JStarASTArena* a, JStarLoc loc, JStarStmts list);
+JSTAR_API JStarStmt* jsrReturnStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* e);
+JSTAR_API JStarStmt* jsrRaiseStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* e);
+JSTAR_API JStarStmt* jsrExprStmt(JStarASTArena* a, JStarLoc loc, JStarExpr* e);
+JSTAR_API JStarStmt* jsrContinueStmt(JStarASTArena* a, JStarLoc loc);
+JSTAR_API JStarStmt* jsrBreakStmt(JStarASTArena* a, JStarLoc loc);
 
 #endif

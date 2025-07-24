@@ -11,6 +11,7 @@
 #include "jstar_limits.h"
 #include "object.h"
 #include "object_types.h"
+#include "parse/ast.h"
 #include "symbol.h"
 #include "value.h"
 #include "value_hashtable.h"
@@ -121,12 +122,15 @@ struct JStarVM {
     // Callback used to resolve `import`s
     JStarImportCB importCallback;
 
+    // Allocation function
+    JStarRealloc realloc;
+
     // If set, the VM will break the eval loop as soon as possible.
     // Can be set asynchronously by a signal handler
     volatile sig_atomic_t evalBreak;
 
     // Custom data associated with the VM
-    void* customData;
+    void* userData;
 
     // Linked list of all created symbols
     JStarSymbol* symbols;
@@ -136,6 +140,9 @@ struct JStarVM {
 #endif
 
     // ---- Memory management ----
+
+    // AST arena used in parsing
+    JStarASTArena astArena;
 
     // Linked list of all allocated objects (used in
     // the sweep phase of GC to free unreached objects)
@@ -155,6 +162,8 @@ struct JStarVM {
 // -----------------------------------------------------------------------------
 // VM API
 // -----------------------------------------------------------------------------
+
+void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz);
 
 bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
 bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);

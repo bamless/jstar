@@ -5,21 +5,23 @@
 
 #include "array.h"
 #include "conf.h"
+#include "jstar.h"
+#include "vm.h"  // IWYU pragma: export
 
 void initCode(Code* c) {
     *c = (Code){0};
 }
 
-void freeCode(Code* c) {
-    arrayFree(&c->bytecode);
-    arrayFree(&c->lines);
-    arrayFree(&c->consts);
-    arrayFree(&c->symbols);
+void freeCode(JStarVM* vm, Code* c) {
+    arrayFree(vm, &c->bytecode);
+    arrayFree(vm, &c->lines);
+    arrayFree(vm, &c->consts);
+    arrayFree(vm, &c->symbols);
 }
 
-size_t writeByte(Code* c, uint8_t b, int line) {
-    arrayAppend(&c->bytecode, b);
-    arrayAppend(&c->lines, line);
+size_t writeByte(JStarVM* vm, Code* c, uint8_t b, int line) {
+    arrayAppend(vm, &c->bytecode, b);
+    arrayAppend(vm, &c->lines, line);
     return c->bytecode.count - 1;
 }
 
@@ -29,7 +31,7 @@ int getBytecodeSrcLine(const Code* c, size_t index) {
     return c->lines.items[index];
 }
 
-int addConstant(Code* c, Value constant) {
+int addConstant(JStarVM* vm, Code* c, Value constant) {
     if(c->consts.count == UINT16_MAX) return -1;
 
     for(size_t i = 0; i < c->consts.count; i++) {
@@ -38,12 +40,12 @@ int addConstant(Code* c, Value constant) {
         }
     }
 
-    arrayAppend(&c->consts, constant);
+    arrayAppend(vm, &c->consts, constant);
     return c->consts.count - 1;
 }
 
-int addSymbol(Code* c, uint16_t constant) {
+int addSymbol(JStarVM* vm, Code* c, uint16_t constant) {
     if(c->symbols.count == UINT16_MAX) return -1;
-    arrayAppend(&c->symbols, ((Symbol){.constant = constant}));
+    arrayAppend(vm, &c->symbols, ((Symbol){.constant = constant}));
     return c->symbols.count - 1;
 }

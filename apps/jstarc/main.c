@@ -35,16 +35,8 @@ typedef struct Options {
     bool list;
 } Options;
 
-// -----------------------------------------------------------------------------
-// APP STATE
-// -----------------------------------------------------------------------------
-
 static Options opts;
 static JStarVM* vm;
-
-// -----------------------------------------------------------------------------
-// CALLBACKS AND HOOKS
-// -----------------------------------------------------------------------------
 
 // Custom J* error callback.
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
@@ -67,10 +59,6 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarL
     }
 }
 
-// -----------------------------------------------------------------------------
-// UTILITY FUNCTIONS
-// -----------------------------------------------------------------------------
-
 // Print the J* version along with its compilation environment.
 static void printVersion(void) {
     printf("J* Version %s\n", JSTAR_VERSION_STRING);
@@ -86,10 +74,6 @@ static bool isDirectory(const char* path) {
     }
     return false;
 }
-
-// -----------------------------------------------------------------------------
-// FILE COMPILATION AND DISASSEMBLY
-// -----------------------------------------------------------------------------
 
 // Write a JStarBuffer to file.
 // The buffer is written as a binary file in order to avoid \n -> \r\n conversions on windows.
@@ -179,10 +163,6 @@ static bool disassembleFile(const Path* path) {
 
     return true;
 }
-
-// -----------------------------------------------------------------------------
-// DIRECTORY COMPILATION
-// -----------------------------------------------------------------------------
 
 // Generates the the full output path using the input root directory, output root directory,
 // the current position in the directory tree and a file name.
@@ -275,10 +255,6 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
 
     return allok;
 }
-
-// -----------------------------------------------------------------------------
-// APP INITIALIZATION AND MAIN FUNCTION
-// -----------------------------------------------------------------------------
 
 // Parse the app arguments into an Options struct
 static void parseArguments(int argc, char** argv) {
