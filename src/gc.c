@@ -7,6 +7,7 @@
 
 #include "array.h"
 #include "compiler.h"
+#include "conf.h"
 #include "int_hashtable.h"
 #include "object.h"
 #include "profiler.h"
@@ -14,9 +15,9 @@
 #include "value_hashtable.h"
 #include "vm.h"
 
-void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
-    vm->allocated += size - oldsize;
-    if(size > oldsize) {
+void* gcAlloc(JStarVM* vm, void* ptr, size_t oldSz, size_t newSz) {
+    vm->allocated += newSz - oldSz;
+    if(newSz > oldSz) {
 #ifdef JSTAR_DBG_STRESS_GC
         garbageCollect(vm);
 #else
@@ -25,18 +26,10 @@ void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size) {
         }
 #endif
     }
-
-    if(size == 0) {
-        free(ptr);
-        return NULL;
+    void* mem = vm->realloc(ptr, oldSz, newSz, vm->userData);
+    if(newSz != 0) {
+        JSR_ASSERT(mem, "Out of memory");
     }
-
-    void* mem = realloc(ptr, size);
-    if(!mem) {
-        perror("GC out of memory");
-        abort();
-    }
-
     return mem;
 }
 
@@ -70,7 +63,7 @@ void reachObject(JStarVM* vm, Obj* o) {
 #endif
 
     o->reached = true;
-    arrayAppend(&vm->reachedStack, o);
+    arrayAppend(vm, &vm->reachedStack, o);
 }
 
 void reachValue(JStarVM* vm, Value v) {

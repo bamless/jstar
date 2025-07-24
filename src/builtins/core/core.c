@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "../builtins.h"
+#include "conf.h"
 #include "gc.h"
 #include "import.h"
 #include "int_hashtable.h"
@@ -722,7 +723,12 @@ static bool merge(MergeState* state, int64_t left, int64_t mid, int64_t right) {
 
 // Iterative bottom-up mergesort
 static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
-    Value* tmp = malloc(sizeof(Value) * length);
+    bool res = true;
+
+    Value* tmp = vm->realloc(NULL, 0, sizeof(Value) * length, vm->userData);
+    if(length > 0) {
+        JSR_ASSERT(tmp, "Out of memory");
+    }
     memcpy(tmp, list, sizeof(Value) * length);
     MergeState state = {vm, list, tmp, length, comp};
 
@@ -732,14 +738,15 @@ static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
             int64_t left = i, mid = i + blk - 1, right = i + 2 * blk - 1;
             if(right > high) right = high;
             if(!merge(&state, left, mid, right)) {
-                free(tmp);
-                return false;
+                res = false;
+                goto exit;
             }
         }
     }
 
-    free(tmp);
-    return true;
+exit:
+    vm->realloc(tmp, sizeof(Value) * length, 0, vm->userData);
+    return res;
 }
 
 JSR_NATIVE(jsr_List_sort) {

@@ -46,6 +46,9 @@ typedef struct JStarNativeReg JStarNativeReg;
 // A C function callable from J*
 typedef bool (*JStarNative)(JStarVM* vm);
 
+// A generic function that handles all memory allocations/frees done  by jstar
+typedef void* (*JStarRealloc)(void* ptr, size_t oldSz, size_t newSz, void* userData);
+
 // JStarSymbol is an handle to a resolved method, field or global variable
 typedef struct JStarSymbol JStarSymbol;
 
@@ -96,7 +99,8 @@ typedef struct JstarConf {
     int heapGrowRate;               // The rate at which the heap will grow after a GC pass
     JStarErrorCB errorCallback;     // Error callback
     JStarImportCB importCallback;   // Import callback (can be NULL)
-    void* customData;               // Custom data associated with the VM (can be NULL)
+    JStarRealloc realloc;           // Allocation callback (can be NULL)
+    void* userData;                 // User data associated with the VM (can be NULL)
 } JStarConf;
 
 // Retuns a JStarConf struct initialized with default values

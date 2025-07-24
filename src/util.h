@@ -33,4 +33,6 @@ static inline uint32_t hashBytes(const void* data, size_t length) {
     return hash;
 }
 
+void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz, void* userData);
+
 #endif

@@ -356,7 +356,7 @@ static bool deserializeConstants(Deserializer* d, Values* consts) {
     uint16_t constsSize;
     if(!deserializeShort(d, &constsSize)) return false;
 
-    arrayReserve(consts, constsSize);
+    arrayReserve(d->vm, consts, constsSize);
     zeroValueArray(consts->items, constsSize);
 
     for(int i = 0; i < constsSize; i++) {
@@ -391,7 +391,7 @@ static bool deserializeSymbols(Deserializer* d, Symbols* s) {
     uint16_t symbolCount;
     if(!deserializeShort(d, &symbolCount)) return false;
 
-    arrayReserve(s, symbolCount);
+    arrayReserve(d->vm, s, symbolCount);
     for(int i = 0; i < symbolCount; i++) {
         uint16_t constant;
         if(!deserializeShort(d, &constant)) return false;
@@ -405,7 +405,7 @@ static bool deserializeCode(Deserializer* d, Code* c) {
     uint64_t codeSize;
     if(!deserializeUint64(d, &codeSize)) return false;
 
-    arrayReserve(&c->bytecode, codeSize);
+    arrayReserve(d->vm, &c->bytecode, codeSize);
     if(!read(d, c->bytecode.items, codeSize)) return false;
     c->bytecode.count = codeSize;
 

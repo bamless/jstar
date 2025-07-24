@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "jstar.h"
 #include "symbol.h"
 #include "value.h"
 
@@ -34,11 +35,11 @@ typedef struct Code {
 } Code;
 
 void initCode(Code* c);
-void freeCode(Code* c);
+void freeCode(JStarVM* vm, Code* c);
 
-size_t writeByte(Code* c, uint8_t b, int line);
-int addConstant(Code* c, Value constant);
-int addSymbol(Code* c, uint16_t constant);
+size_t writeByte(JStarVM* vm, Code* c, uint8_t b, int line);
+int addConstant(JStarVM* vm, Code* c, Value constant);
+int addSymbol(JStarVM* vm, Code* c, uint16_t constant);
 int getBytecodeSrcLine(const Code* c, size_t index);
 
 #endif

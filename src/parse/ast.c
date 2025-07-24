@@ -5,7 +5,9 @@
 #include <string.h>
 
 #include "conf.h"
+#include "jstar.h"
 #include "parse/lex.h"
+#include "util.h"
 
 // -----------------------------------------------------------------------------
 // AST ARENA
@@ -22,19 +24,29 @@ struct JStarASTArenaPage {
 };
 
 static JStarASTArenaPage* newPage(JStarASTArena* a, size_t requestedSize) {
+    JStarASTArenaRealloc reallocate = a->realloc;
+    if(!reallocate) {
+        reallocate = defaultRealloc;
+    }
+
     requestedSize += sizeof(JStarASTArenaPage);
     size_t pageSize = requestedSize <= ARENA_PAGE_SZ ? ARENA_PAGE_SZ : requestedSize;
-    JStarASTArenaPage* page = malloc(pageSize);
+    JStarASTArenaPage* page = reallocate(NULL, 0, pageSize, a->userData);
     JSR_ASSERT(page, "Out of memory");
+
     page->next = NULL;
     page->start = page->data;
     page->end = page->data + pageSize - sizeof(JStarASTArenaPage);
     return page;
 }
 
+static void freePage(JStarASTArena* a, JStarASTArenaPage* page) {
+    JStarRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
+    reallocate(page, (char*)page->end - (char*)page, 0, a->userData);
+}
+
 void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
     size += ARENA_ALIGN(size, ARENA_ALIGNMENT);
-
     if(size > ARENA_PAGE_SZ - sizeof(JStarASTArenaPage)) {
         // Allocation is too large, add page to overflow list
         JStarASTArenaPage* page = newPage(a, size);
@@ -90,7 +102,7 @@ static void freeOverflowPages(JStarASTArena* a) {
     while(page) {
         JStarASTArenaPage* next = page->next;
         // TODO: do we actually want to just free overflow pages?
-        free(page);
+        freePage(a, page);
         page = next;
     }
     a->overflow = NULL;
@@ -109,7 +121,7 @@ void jsrASTArenaFree(JStarASTArena* a) {
     JStarASTArenaPage* page = a->first;
     while(page) {
         JStarASTArenaPage* next = page->next;
-        free(page);
+        freePage(a, page);
         page = next;
     }
     freeOverflowPages(a);

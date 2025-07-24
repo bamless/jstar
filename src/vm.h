@@ -122,12 +122,15 @@ struct JStarVM {
     // Callback used to resolve `import`s
     JStarImportCB importCallback;
 
+    // Allocation function
+    JStarRealloc realloc;
+
     // If set, the VM will break the eval loop as soon as possible.
     // Can be set asynchronously by a signal handler
     volatile sig_atomic_t evalBreak;
 
     // Custom data associated with the VM
-    void* customData;
+    void* userData;
 
     // Linked list of all created symbols
     JStarSymbol* symbols;

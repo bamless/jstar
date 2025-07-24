@@ -87,8 +87,8 @@ ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
     cls->name = name;
     cls->superCls = superCls;
     cls->fieldCount = 0;
-    initIntHashTable(&cls->fields);
-    initValueHashTable(&cls->methods);
+    initIntHashTable(vm, &cls->fields);
+    initValueHashTable(vm, &cls->methods);
     return cls;
 }
 
@@ -113,7 +113,7 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     mod->globalsCount = 0;
     mod->globalsCapacity = 0;
     mod->globals = NULL;
-    initIntHashTable(&mod->globalNames);
+    initIntHashTable(vm, &mod->globalNames);
 
     // Implicitly import core
     if(vm->core) {
@@ -259,7 +259,7 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
-        freeCode(&f->code);
+        freeCode(vm, &f->code);
         GC_FREE_ARRAY(vm, Value, f->proto.defaults, f->proto.defCount);
         GC_FREE(vm, ObjFunction, f);
         break;

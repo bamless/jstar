@@ -1,4 +1,3 @@
-#include "jstar.h"
 
 #include <errno.h>
 #include <stdarg.h>
@@ -70,7 +69,8 @@ static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
     return res;
 }
 
-void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc, const char* error) {
+void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc,
+                     const char* error) {
     if(loc.line > 0) {
         fprintf(stderr, "%s:%d:%d error\n", file, loc.line, loc.col);
     } else {
@@ -85,19 +85,19 @@ static void parseError(const char* file, JStarLoc loc, const char* error, void* 
 }
 
 JStarConf jsrGetConf(void) {
-    // Default configuration
-    JStarConf conf;
-    conf.startingStackSize = 100;
-    conf.firstGCCollectionPoint = 1024 * 1024 * 20;  // 20 MiB
-    conf.heapGrowRate = 2;
-    conf.errorCallback = &jsrPrintErrorCB;
-    conf.importCallback = NULL;
-    conf.customData = NULL;
-    return conf;
+    return (JStarConf){
+        100,
+        1024 * 1024 * 20,  // 20 MiB
+        2,
+        &jsrPrintErrorCB,
+        NULL,
+        NULL,
+        NULL,
+    };
 }
 
 void* jsrGetCustomData(const JStarVM* vm) {
-    return vm->customData;
+    return vm->userData;
 }
 
 static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
@@ -488,10 +488,8 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
         push(vm, v1);
         push(vm, v2);
         JStarResult res = jsrCallMethod(vm, "__eq__", 1);
-        if(res == JSR_SUCCESS)
-            return valueToBool(pop(vm));
-        else
-            return pop(vm), false;
+        if(res == JSR_SUCCESS) return valueToBool(pop(vm));
+        else return pop(vm), false;
     } else {
         return valueEquals(v1, v2);
     }
