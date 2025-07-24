@@ -64,6 +64,7 @@ typedef struct Options {
 static Options opts;
 static JStarVM* vm;
 static JStarBuffer completionBuf;
+static JStarASTArena arena;
 static Replxx* replxx;
 
 // -----------------------------------------------------------------------------
@@ -71,10 +72,12 @@ static Replxx* replxx;
 // -----------------------------------------------------------------------------
 
 // J* error callback that prints colored error messages
-static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc, const char* err) {
+static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
+                          const char* err) {
     PROFILE_FUNC()
     if(loc.line > 0) {
-        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s:%d:%d: error\n", file, loc.line, loc.col);
+        fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s:%d:%d: error\n", file, loc.line,
+                      loc.col);
     } else {
         fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s: error\n", file);
     }
@@ -226,12 +229,12 @@ static void registerPrintFunction(void) {
 // Also, the current expression is assigned to `_` in order to permit calculation chaining.
 static void addReplPrint(JStarBuffer* sb) {
     PROFILE_FUNC()
-    JStarExpr* e = jsrParseExpression("<repl>", sb->data, sb->size, NULL, NULL);
+    JStarExpr* e = jsrParseExpression("<repl>", sb->data, sb->size, NULL, &arena, NULL);
     if(e != NULL) {
         jsrBufferPrependStr(sb, "var _ = ");
         jsrBufferAppendf(sb, ";%s(_)", REPL_PRINT);
-        jsrExprFree(e);
     }
+    jsrASTArenaReset(&arena);
 }
 
 // The interactive read-eval-print loop.
@@ -290,11 +293,17 @@ static void parseArguments(int argc, char** argv) {
     static struct argparse_option options[] = {
         OPT_HELP(),
         OPT_GROUP("Options"),
-        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion, "Don't print version information when entering the REPL"),
-        OPT_STRING('e', "exec", &opts.execStmt, "Execute the given statement. If 'script' is provided it is executed after this"),
-        OPT_BOOLEAN('i', "interactive", &opts.interactive, "Enter the REPL after executing 'script' and/or '-e' statement"),
-        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv, "Ignore environment variables such as JSTARPATH"),
-        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring. Hints are disabled as well"),
+        OPT_BOOLEAN('V', "skip-version", &opts.skipVersion,
+                    "Don't print version information when entering the REPL"),
+        OPT_STRING(
+            'e', "exec", &opts.execStmt,
+            "Execute the given statement. If 'script' is provided it is executed after this"),
+        OPT_BOOLEAN('i', "interactive", &opts.interactive,
+                    "Enter the REPL after executing 'script' and/or '-e' statement"),
+        OPT_BOOLEAN('E', "ignore-env", &opts.ignoreEnv,
+                    "Ignore environment variables such as JSTARPATH"),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
+                    "Disable output coloring. Hints are disabled as well"),
         OPT_BOOLEAN('H', "no-hints", &opts.disableHints, "Disable hinting support"),
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit", 0),
         OPT_END(),
@@ -351,6 +360,7 @@ static void initApp(int argc, char** argv) {
 // Free the app state
 static void freeApp(void) {
     jsrBufferFree(&completionBuf);
+    jsrASTArenaFree(&arena);
 
     // Free  the J* VM
     PROFILE_BEGIN_SESSION("jstar-free.json")
@@ -363,6 +373,11 @@ static void freeApp(void) {
     replxx_history_clear(replxx);
     replxx_end(replxx);
 }
+
+typedef struct {
+    int** items;
+    size_t count, capacity;
+} Arr;
 
 int main(int argc, char** argv) {
     initApp(argc, argv);

@@ -130,14 +130,15 @@ static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
 
 static JStarResult evalString(JStarVM* vm, const char* path, const char* module, const char* src,
                               size_t len) {
-    JStarStmt* program = jsrParse(path, src, len, parseError, vm);
+    JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
+        jsrASTArenaReset(&vm->astArena);
         return JSR_SYNTAX_ERR;
     }
 
     ObjString* name = copyString(vm, module, strlen(module));
     ObjFunction* fn = compileModule(vm, path, name, program);
-    jsrStmtFree(program);
+    jsrASTArenaReset(&vm->astArena);
 
     if(fn == NULL) {
         return JSR_COMPILE_ERR;
@@ -183,14 +184,15 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
     PROFILE_FUNC()
 
-    JStarStmt* program = jsrParse(path, src, strlen(src), parseError, vm);
+    JStarStmt* program = jsrParse(path, src, strlen(src), parseError, &vm->astArena, vm);
     if(program == NULL) {
+        jsrASTArenaReset(&vm->astArena);
         return JSR_SYNTAX_ERR;
     }
 
     // The function won't be executed, only compiled, so pass null module
     ObjFunction* fn = compile(vm, path, NULL, program);
-    jsrStmtFree(program);
+    jsrASTArenaReset(&vm->astArena);
 
     if(fn == NULL) {
         return JSR_COMPILE_ERR;

@@ -109,14 +109,15 @@ JSR_NATIVE(jsr_eval) {
     const char* src = jsrGetString(vm, 1);
     size_t len = jsrGetStringSz(vm, 1);
 
-    JStarStmt* program = jsrParse("<eval>", src, len, parseError, vm);
+    JStarStmt* program = jsrParse("<eval>", src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
+        jsrASTArenaReset(&vm->astArena);
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
     Prototype* proto = getPrototype(vm->frames[vm->frameCount - 2].fn);
     ObjFunction* fn = compileModule(vm, "<eval>", proto->module->name, program);
-    jsrStmtFree(program);
+    jsrASTArenaReset(&vm->astArena);
 
     if(fn == NULL) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");

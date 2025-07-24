@@ -7,6 +7,7 @@
 #include "conf.h"
 #include "jstar.h"
 #include "object.h"
+#include "parse/ast.h"
 #include "parse/lex.h"
 #include "parse/parser.h"
 #include "profiler.h"
@@ -88,13 +89,14 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
                                size_t len) {
     PROFILE_FUNC()
 
-    JStarStmt* program = jsrParse(path, src, len, parseError, vm);
+    JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
+        jsrASTArenaReset(&vm->astArena);
         return NULL;
     }
 
     ObjFunction* fn = compileModule(vm, path, name, program);
-    jsrStmtFree(program);
+    jsrASTArenaReset(&vm->astArena);
 
     if(fn == NULL) {
         return NULL;

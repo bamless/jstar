@@ -14,6 +14,7 @@
 #include "jstar.h"
 #include "object.h"
 #include "opcode.h"
+#include "parse/ast.h"
 #include "profiler.h"
 #include "symbol.h"
 #include "util.h"
@@ -132,6 +133,7 @@ void jsrFreeVM(JStarVM* vm) {
         arrayFree(&vm->reachedStack);
     }
 
+    jsrASTArenaFree(&vm->astArena);
     sweepObjects(vm);
 
 #ifdef JSTAR_DBG_PRINT_GC

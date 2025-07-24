@@ -11,6 +11,7 @@
 #include "jstar_limits.h"
 #include "object.h"
 #include "object_types.h"
+#include "parse/ast.h"
 #include "symbol.h"
 #include "value.h"
 #include "value_hashtable.h"
@@ -136,6 +137,9 @@ struct JStarVM {
 #endif
 
     // ---- Memory management ----
+
+    // AST arena used in parsing
+    JStarASTArena astArena;
 
     // Linked list of all allocated objects (used in
     // the sweep phase of GC to free unreached objects)
