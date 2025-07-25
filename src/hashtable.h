@@ -51,7 +51,7 @@
     }                                                                                      \
                                                                                            \
     void free##name##HashTable(name##HashTable* t) {                                       \
-        free(t->entries);                                                                  \
+        t->vm->realloc(t->entries, (t->sizeMask + 1) * sizeof(name##Entry), 0);            \
     }                                                                                      \
                                                                                            \
     static name##Entry* findEntry(name##Entry* entries, size_t sizeMask, ObjString* key) { \

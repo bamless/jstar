@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "array.h"
+#include "buffer.h"
 #include "code.h"
 #include "endianness.h"
 #include "gc.h"
@@ -252,13 +253,14 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         if(!deserializeCString(d, str, length)) return false;
         *out = copyString(d->vm, str, length);
     } else {
-        char* str = calloc(length, 1);
-        if(!deserializeCString(d, str, length)) {
-            free(str);
+        JStarBuffer str;
+        jsrBufferInitCapacity(d->vm, &str, length);
+        if(!deserializeCString(d, str.data, length)) {
+            jsrBufferFree(&str);
             return false;
         }
-        *out = copyString(d->vm, str, length);
-        free(str);
+        str.size = length;
+        *out = jsrBufferToString(&str);
     }
 
     return true;
