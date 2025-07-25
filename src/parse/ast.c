@@ -20,10 +20,7 @@ struct JStarASTArenaPage {
 };
 
 static JStarASTArenaPage* newPage(JStarASTArena* a, size_t requestedSize) {
-    JStarASTArenaRealloc reallocate = a->realloc;
-    if(!reallocate) {
-        reallocate = defaultRealloc;
-    }
+    JStarASTArenaRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
 
     requestedSize += sizeof(JStarASTArenaPage);
     size_t pageSize = requestedSize <= ARENA_PAGE_SZ ? ARENA_PAGE_SZ : requestedSize;
