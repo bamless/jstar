@@ -51,6 +51,7 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
         page->next = a->overflow;
         a->overflow = page;
         page->start = page->end;
+        a->allocated += size;
         return page->data;
     }
 
