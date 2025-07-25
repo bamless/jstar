@@ -61,8 +61,8 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
         a->last = page;
     }
 
-    ptrdiff_t available = a->last->end - a->last->start;
-    while(available < (ptrdiff_t)size) {
+    size_t available = a->last->end - a->last->start;
+    while(available < size) {
         JStarASTArenaPage* nextPage = a->last->next;
         if(!nextPage) {
             a->last->next = newPage(a, size);
@@ -75,7 +75,7 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
         }
     }
 
-    JSR_ASSERT(available >= (ptrdiff_t)size, "Not enough space in arena");
+    JSR_ASSERT(available >= size, "Not enough space in arena");
 
     void* p = a->last->start;
     JSR_ASSERT(ARENA_ALIGN(p, ARENA_ALIGNMENT) == 0,
