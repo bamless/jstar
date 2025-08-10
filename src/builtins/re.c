@@ -649,7 +649,7 @@ JSR_NATIVE(jsr_re_substituteAll) {
 /**
  * MIT LICENSE
  *
- * Copyright (c) 2021 Fabrizio Pietrucci
+ * Copyright (c) 2025 Fabrizio Pietrucci
  * Copyright (C) 1994–2021 Lua.org, PUC-Rio.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
