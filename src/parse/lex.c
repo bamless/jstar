@@ -163,7 +163,7 @@ static void eofToken(JStarLex* lex, JStarTok* tok) {
     tok->length = 0;
     tok->lexeme = lex->current;
     tok->loc.line = lex->currLine;
-    tok->loc.col = 1;
+    tok->loc.col = (int)(lex->current - lex->lineStart) + 1;
 }
 
 static void integer(JStarLex* lex) {

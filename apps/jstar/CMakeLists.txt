@@ -1,12 +1,12 @@
 # Cli app
 add_executable(cli
+    completion.h
+    completion.c
     console_print.h
     console_print.c
     dynload.h
     highlighter.h
     highlighter.c
-    hints.h
-    hints.c
     import.h
     import.c
     main.c

@@ -7,10 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "completion.h"
 #include "console_print.h"
 #include "highlighter.h"
-#include "hints.h"
 #include "import.h"
+#include "jstar/buffer.h"
+#include "jstar/conf.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/ast.h"
 #include "jstar/parse/lex.h"
@@ -20,7 +22,6 @@
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
 #define REPL_PRINT   "__replprint"
-#define INDENT       "    "
 
 JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed, update tokenDepth if needed");
 // Token depth table for tracking the number of open blocks in the REPL.
@@ -28,6 +29,7 @@ static const int tokenDepth[TOK_EOF] = {
     // Tokens that start a new block
     [TOK_LSQUARE] = 1,
     [TOK_LCURLY] = 1,
+    [TOK_LPAREN] = 1,
     [TOK_BEGIN] = 1,
     [TOK_CLASS] = 1,
     [TOK_WHILE] = 1,
@@ -41,6 +43,7 @@ static const int tokenDepth[TOK_EOF] = {
     // Tokens that end a block
     [TOK_RSQUARE] = -1,
     [TOK_RCURLY] = -1,
+    [TOK_RPAREN] = -1,
     [TOK_END] = -1,
 };
 
@@ -59,9 +62,9 @@ typedef struct Options {
 
 static Options opts;
 static JStarVM* vm;
-static JStarBuffer completionBuf;
 static JStarASTArena arena;
 static Replxx* replxx;
+static CompletionState completionState;
 
 // J* error callback that prints colored error messages
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
@@ -76,24 +79,11 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarL
     fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s\n", err);
 }
 
-// Replxx autocompletion hook with indentation support
-static void indent(const char* input, replxx_completions* completions, int* ctxLen, void* ud) {
-    Replxx* replxx = ud;
-    jsrBufferClear(&completionBuf);
-
-    ReplxxState state;
-    replxx_get_state(replxx, &state);
-
-    int cursorPos = state.cursorPosition;
-    int inputLen = strlen(input);
-    int indentLen = strlen(INDENT);
-
-    // Indent the current context up to a multiple of strlen(INDENT)
-    jsrBufferAppendf(&completionBuf, "%.*s", *ctxLen, input + inputLen - *ctxLen);
-    jsrBufferAppendf(&completionBuf, "%.*s", indentLen - (cursorPos % indentLen), INDENT);
-
-    // Give the processed output to replxx for visualization
-    replxx_add_completion(completions, completionBuf.data);
+// Parse error callback used in block counting
+void blockParseError(const char* file, JStarLoc loc, const char* error, void* userData) {
+    (void)file, (void)error;
+    JStarLoc* data = userData;
+    *data = loc;
 }
 
 // Print the J* version along with its compilation environment.
@@ -154,8 +144,15 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 
 // Counts the number of blocks in a single line of J* code.
 // Used to handle multiline input in the repl.
-static int countBlocks(const char* line) {
+static int countBlocks(const char* line, int cur) {
     PROFILE_FUNC()
+
+    JStarLoc err = {0};
+    JStarStmt* e = jsrParse("<repl>", line, strlen(line), blockParseError, &arena, &err);
+    // parsing failed at end of line, need more
+    bool cont = !e && (cur != 0 || err.col > (int)strlen(line));
+    jsrASTArenaReset(&arena);
+    if(!cont) return 0;
 
     JStarLex lex;
     JStarTok tok;
@@ -163,10 +160,8 @@ static int countBlocks(const char* line) {
     jsrInitLexer(&lex, line, strlen(line));
     jsrNextToken(&lex, &tok);
 
-    if(!tokenDepth[tok.type]) return 0;
-
     int depth = 0;
-    while(tok.type != TOK_EOF && tok.type != TOK_NEWLINE) {
+    while(tok.type != TOK_EOF) {
         depth += tokenDepth[tok.type];
         jsrNextToken(&lex, &tok);
     }
@@ -236,12 +231,12 @@ static JStarResult doRepl(void) {
 
         const char* line;
         while((line = replxx_input(replxx, JSTAR_PROMPT)) != NULL) {
-            int depth = countBlocks(line);
+            int depth = countBlocks(line, 0);
             replxx_history_add(replxx, line);
             jsrBufferAppendStr(&src, line);
 
             while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
-                depth += countBlocks(line);
+                depth += countBlocks(line, depth);
                 replxx_history_add(replxx, line);
                 jsrBufferAppendChar(&src, '\n');
                 jsrBufferAppendStr(&src, line);
@@ -295,7 +290,6 @@ static void parseArguments(int argc, char** argv) {
         printVersion();
         exit(EXIT_SUCCESS);
     }
-
     if(args > 0) {
         opts.script = argv[0];
     }
@@ -314,40 +308,33 @@ static void initApp(int argc, char** argv) {
     conf.errorCallback = &errorCallback;
     conf.importCallback = &importCallback;
 
-    // Init the J* VM
     PROFILE_BEGIN_SESSION("jstar-init.json")
-
     vm = jsrNewVM(&conf);
     jsrInitRuntime(vm);
-
     initImports(vm, opts.script, opts.ignoreEnv);
-    jsrBufferInit(vm, &completionBuf);
-
     PROFILE_END_SESSION()
 
-    // Init replxx for repl and output coloring/hints support
+    // Replxx initialization
     replxx = replxx_init();
-    replxx_set_completion_callback(replxx, &indent, replxx);
     replxx_set_no_color(replxx, opts.disableColors);
-    if(!opts.disableColors) replxx_set_highlighter_callback(replxx, &highlighter, replxx);
-    if(!opts.disableColors && !opts.disableHints) replxx_set_hint_callback(replxx, &hints, vm);
+    jsrBufferInit(vm, &completionState.completionBuf);
+    setCompletionCallback(replxx, &completionState);
+    if(!opts.disableColors && !opts.disableHints) setHintCallback(replxx, vm);
+    if(!opts.disableColors) setHighlighterCallback(replxx);
 }
 
 // Free the app state
 static void freeApp(void) {
-    jsrBufferFree(&completionBuf);
-    jsrASTArenaFree(&arena);
-
-    // Free  the J* VM
-    PROFILE_BEGIN_SESSION("jstar-free.json")
-    jsrFreeVM(vm);
-    PROFILE_END_SESSION()
-
-    freeImports();
-
-    // Free replxx
+    jsrBufferFree(&completionState.completionBuf);
     replxx_history_clear(replxx);
     replxx_end(replxx);
+
+    jsrASTArenaFree(&arena);
+
+    PROFILE_BEGIN_SESSION("jstar-free.json")
+    jsrFreeVM(vm);
+    freeImports();
+    PROFILE_END_SESSION()
 }
 
 int main(int argc, char** argv) {
