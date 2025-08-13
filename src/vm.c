@@ -98,7 +98,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
     // Create string constants of special method names
     for(int i = 0; i < METH_SIZE; i++) {
-        vm->specialMethods[i] = copyString(vm, specialMethods[i], strlen(specialMethods[i]));
+        vm->specialMethods[i] = copyCString(vm, specialMethods[i]);
     }
 
     return vm;
@@ -109,16 +109,16 @@ void jsrInitRuntime(JStarVM* vm) {
     initCoreModule(vm);
 
     // Initialize main module
-    ObjString* name = copyString(vm, JSR_MAIN_MODULE, strlen(JSR_MAIN_MODULE));
+    ObjString* name = copyCString(vm, JSR_MAIN_MODULE);
     push(vm, OBJ_VAL(name));
     setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
     pop(vm);
 
     // Create singletons
     vm->emptyTup = newTuple(vm, 0);
-    vm->excErr = copyString(vm, EXC_ERR, strlen(EXC_ERR));
-    vm->excTrace = copyString(vm, EXC_TRACE, strlen(EXC_TRACE));
-    vm->excCause = copyString(vm, EXC_CAUSE, strlen(EXC_CAUSE));
+    vm->excErr = copyCString(vm, EXC_ERR);
+    vm->excTrace = copyCString(vm, EXC_TRACE);
+    vm->excCause = copyCString(vm, EXC_CAUSE);
 }
 
 void jsrFreeVM(JStarVM* vm) {

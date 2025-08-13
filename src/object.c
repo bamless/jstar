@@ -121,10 +121,10 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     }
 
     // Set builtin names for the module object
-    mod->path = copyString(vm, path, strlen(path));
-    moduleSetGlobal(vm, mod, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
-    moduleSetGlobal(vm, mod, copyString(vm, MOD_NAME, strlen(MOD_NAME)), OBJ_VAL(mod->name));
-    moduleSetGlobal(vm, mod, copyString(vm, MOD_THIS, strlen(MOD_THIS)), OBJ_VAL(mod));
+    mod->path = copyCString(vm, path);
+    moduleSetGlobal(vm, mod, copyCString(vm, MOD_PATH), OBJ_VAL(mod->path));
+    moduleSetGlobal(vm, mod, copyCString(vm, MOD_NAME), OBJ_VAL(mod->name));
+    moduleSetGlobal(vm, mod, copyCString(vm, MOD_THIS), OBJ_VAL(mod));
 
     pop(vm);
     return mod;
@@ -230,17 +230,21 @@ ObjString* allocateString(JStarVM* vm, size_t length) {
     return str;
 }
 
-ObjString* copyString(JStarVM* vm, const char* str, size_t length) {
-    uint32_t hash = hashBytes(str, length);
-    ObjString* interned = hashTableValueGetString(&vm->stringPool, str, length, hash);
+ObjString* copyString(JStarVM* vm, const void* data, size_t length) {
+    uint32_t hash = hashBytes(data, length);
+    ObjString* interned = hashTableValueGetString(&vm->stringPool, data, length, hash);
     if(interned == NULL) {
         interned = allocateString(vm, length);
-        memcpy(interned->data, str, length);
+        memcpy(interned->data, data, length);
         interned->hash = hash;
         interned->interned = true;
         hashTableValuePut(&vm->stringPool, interned, NULL_VAL);
     }
     return interned;
+}
+
+ObjString* copyCString(JStarVM* vm, const char* str) {
+    return copyString(vm, str, strlen(str));
 }
 
 void freeObject(JStarVM* vm, Obj* o) {
@@ -441,7 +445,7 @@ int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key) {
 void moduleSetPath(JStarVM* vm, ObjModule* mod, const char* path) {
     mod->path = copyString(vm, path, strlen(path));
     push(vm, OBJ_VAL(mod->path));
-    moduleSetGlobal(vm, mod, copyString(vm, MOD_PATH, strlen(MOD_PATH)), OBJ_VAL(mod->path));
+    moduleSetGlobal(vm, mod, copyCString(vm, MOD_PATH), OBJ_VAL(mod->path));
     pop(vm);
 }
 

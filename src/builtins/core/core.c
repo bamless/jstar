@@ -83,7 +83,7 @@ static const char* coreSymbols[] = {
 };
 
 static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const char* name) {
-    ObjString* n = copyString(vm, name, strlen(name));
+    ObjString* n = copyCString(vm, name);
     push(vm, OBJ_VAL(n));
     ObjClass* c = newClass(vm, n, sup);
     pop(vm);
@@ -93,13 +93,13 @@ static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const cha
 
 static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
-    moduleGetGlobal(vm, m, copyString(vm, name, strlen(name)), &v);
+    moduleGetGlobal(vm, m, copyCString(vm, name), &v);
     return v;
 }
 
 static void defMethod(JStarVM* vm, ObjModule* m, ObjClass* cls, JStarNative nat, const char* name,
                       uint8_t argc) {
-    ObjString* nativeName = copyString(vm, name, strlen(name));
+    ObjString* nativeName = copyCString(vm, name);
     ObjNative* native = newNative(vm, m, nativeName, argc, 0, false, nat);
     hashTableValuePut(&cls->methods, nativeName, OBJ_VAL(native));
 }
@@ -149,7 +149,7 @@ void initCoreModule(JStarVM* vm) {
     PROFILE_FUNC()
 
     // Create and register core module
-    ObjString* coreModName = copyString(vm, JSR_CORE_MODULE, strlen(JSR_CORE_MODULE));
+    ObjString* coreModName = copyCString(vm, JSR_CORE_MODULE);
 
     push(vm, OBJ_VAL(coreModName));
     ObjModule* core = newModule(vm, JSR_CORE_MODULE, coreModName);

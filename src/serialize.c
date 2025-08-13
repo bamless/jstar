@@ -340,7 +340,7 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
 
     // Create native and push it as root in case a gc is triggered
     jsrEnsureStack(vm, 1);
-    ObjNative* nat = newNative(vm, mod, copyString(vm, "", 0), 0, 0, false, NULL);
+    ObjNative* nat = newNative(vm, mod, copyCString(vm, ""), 0, 0, false, NULL);
     push(vm, OBJ_VAL(nat));
 
     if(!deserializePrototype(d, &nat->proto)) {
@@ -423,7 +423,7 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
 
     // Create function and push it as root in case a gc is triggered
     jsrEnsureStack(vm, 1);
-    ObjFunction* fn = newFunction(vm, mod, copyString(vm, "", 0), 0, 0, false);
+    ObjFunction* fn = newFunction(vm, mod, copyCString(vm, ""), 0, 0, false);
     push(vm, OBJ_VAL(fn));
 
     if(!deserializePrototype(d, &fn->proto)) {

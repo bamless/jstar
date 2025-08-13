@@ -2142,7 +2142,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
 
     Compiler c;
     initCompiler(&c, vm, NULL, module, filename, TYPE_FUNC, ast, &globals, &fwdRefs);
-    ObjFunction* func = function(&c, module, copyString(vm, "<main>", strlen("<main>")), ast);
+    ObjFunction* func = function(&c, module, copyCString(vm, "<main>"), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
 

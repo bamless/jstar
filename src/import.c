@@ -64,7 +64,7 @@ static void registerInParent(JStarVM* vm, ObjModule* module) {
         module->registry = parent->registry;
     }
 
-    moduleSetGlobal(vm, parent, copyString(vm, simpleName, strlen(simpleName)), OBJ_VAL(module));
+    moduleSetGlobal(vm, parent, copyCString(vm, simpleName), OBJ_VAL(module));
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {
