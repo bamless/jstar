@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "../builtins.h"
+#include "buffer.h"
 #include "conf.h"
 #include "gc.h"
 #include "import.h"
@@ -564,11 +565,11 @@ JSR_NATIVE(jsr_List_construct) {
     } else {
         JSR_CHECK(Null, 2, "when calling List with an Iterable init");
         jsrPushList(vm);
-        JSR_FOREACH(
-            1, {
-                jsrListAppend(vm, 3);
-                jsrPop(vm);
-            }, )
+        JSR_FOREACH(1) {
+            if(err) return false;
+            jsrListAppend(vm, 3);
+            jsrPop(vm);
+        }
     }
     return true;
 }
@@ -809,11 +810,11 @@ JSR_NATIVE(jsr_Tuple_construct) {
     // Consume the iterable into list
     if(!IS_LIST(vm->apiStack[1])) {
         jsrPushList(vm);
-        JSR_FOREACH(
-            1, {
-                jsrListAppend(vm, 2);
-                jsrPop(vm);
-            }, )
+        JSR_FOREACH(1) {
+            if(err) return false;
+            jsrListAppend(vm, 2);
+            jsrPop(vm);
+        }
     }
 
     // Convert the list to a tuple
@@ -928,24 +929,23 @@ JSR_NATIVE(jsr_String_construct) {
     JStarBuffer stringBuf;
     jsrBufferInit(vm, &stringBuf);
 
-    JSR_FOREACH(
-        1,
-        {
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
-                jsrBufferFree(&stringBuf);
-                return false;
-            }
-            if(!jsrIsString(vm, -1)) {
-                jsrBufferFree(&stringBuf);
-                JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
-            }
-            jsrBufferAppendStr(&stringBuf, jsrGetString(vm, -1));
-            jsrPop(vm);
-        },
-        jsrBufferFree(&stringBuf));
+    JSR_FOREACH(1) {
+        if(err) goto error;
+        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) goto error;
+        if(!jsrIsString(vm, -1)) {
+            jsrRaise(vm, "TypeException", "__string__() didn't return a String");
+            goto error;
+        }
+        jsrBufferAppendStr(&stringBuf, jsrGetString(vm, -1));
+        jsrPop(vm);
+    }
 
     jsrBufferPush(&stringBuf);
     return true;
+
+error:
+    jsrBufferFree(&stringBuf);
+    return false;
 }
 
 JSR_NATIVE(jsr_String_findSubstr) {
@@ -1447,32 +1447,31 @@ JSR_NATIVE(jsr_Table_construct) {
             }
         }
     } else if(!IS_NULL(vm->apiStack[1])) {
-        JSR_FOREACH(
-            1, {
-                if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
-                    JSR_RAISE(vm, "TypeException",
-                              "Iterable elements in table costructor must be either a List or a "
-                              "Tuple, got %s",
-                              getClass(vm, peek(vm))->name->data);
-                }
+        JSR_FOREACH(1) {
+            if(err) return false;
+            if(!IS_LIST(peek(vm)) && !IS_TUPLE(peek(vm))) {
+                JSR_RAISE(vm, "TypeException",
+                          "Iterable elements in table costructor must be either a List or a "
+                          "Tuple, got %s",
+                          getClass(vm, peek(vm))->name->data);
+            }
 
-                size_t count;
-                Value* array = getValues(AS_OBJ(peek(vm)), &count);
+            size_t count;
+            Value* array = getValues(AS_OBJ(peek(vm)), &count);
 
-                if(count != 2) {
-                    JSR_RAISE(vm, "TypeException", "Iterable element of length %zu, must be 2",
-                              count);
-                }
+            if(count != 2) {
+                JSR_RAISE(vm, "TypeException", "Iterable element of length %zu, must be 2", count);
+            }
 
-                push(vm, OBJ_VAL(table));
-                push(vm, array[0]);
-                push(vm, array[1]);
+            push(vm, OBJ_VAL(table));
+            push(vm, array[0]);
+            push(vm, array[1]);
 
-                if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+            if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
 
-                pop(vm);
-                pop(vm);
-            }, )
+            pop(vm);
+            pop(vm);
+        }
     }
 
     return true;
@@ -1761,31 +1760,30 @@ JSR_NATIVE(jsr_Enum_construct) {
     }
 
     int iota = 0;
-    JSR_FOREACH(
-        2, {
-            if(!checkEnumElem(vm, cls, inst)) return false;
+    JSR_FOREACH(2) {
+        if(!checkEnumElem(vm, cls, inst)) return false;
 
-            if(isCustom) {
-                jsrPushValue(vm, -1);
-                if(!jsrSubscriptGet(vm, 2)) return false;
-            } else {
-                jsrPushNumber(vm, iota);
-            }
+        if(isCustom) {
+            jsrPushValue(vm, -1);
+            if(!jsrSubscriptGet(vm, 2)) return false;
+        } else {
+            jsrPushNumber(vm, iota);
+        }
 
-            jsrSetField(vm, 0, jsrGetString(vm, -2));
+        jsrSetField(vm, 0, jsrGetString(vm, -2));
 
-            jsrGetField(vm, 0, M_VALUE_NAME);
-            jsrPushValue(vm, -2);
-            jsrPushValue(vm, -4);
-            if(!jsrSubscriptSet(vm, -3)) return false;
-            jsrPop(vm);
-            jsrPop(vm);
+        jsrGetField(vm, 0, M_VALUE_NAME);
+        jsrPushValue(vm, -2);
+        jsrPushValue(vm, -4);
+        if(!jsrSubscriptSet(vm, -3)) return false;
+        jsrPop(vm);
+        jsrPop(vm);
 
-            jsrPop(vm);
-            jsrPop(vm);
+        jsrPop(vm);
+        jsrPop(vm);
 
-            iota++;
-        }, );
+        iota++;
+    }
 
     if(iota == 0) {
         JSR_RAISE(vm, "InvalidArgException", "Cannot create empty Enum");

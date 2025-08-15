@@ -308,25 +308,22 @@ JSTAR_API bool jsrIter(JStarVM* vm, int iterable, int res, bool* err);
 JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
 
 // Macro that automatically configures the loop to iterate over a J* iterable using jsrIter and
-// jsrNext.
-// `iter` is the slot of the iterable we want to iterate over and `code` a block used as the body.
-// `cleanup` is used as the cleanup code before exiting in case of an error and it is optional.
-// Beware that the macro pushes a new value on top of the stack to store the result of jsrIter, so
-// negative slot indeces to access previously pushed elements should be offset by one
-#define JSR_FOREACH(iter, code, cleanup)         \
-    {                                            \
-        bool _err = false;                       \
-        jsrEnsureStack(vm, 2);                   \
-        jsrPushNull(vm);                         \
-        while(jsrIter(vm, iter, -1, &_err)) {    \
-            if(_err || !jsrNext(vm, iter, -1)) { \
-                cleanup;                         \
-                return false;                    \
-            }                                    \
-            code                                 \
-        }                                        \
-        jsrPop(vm);                              \
-    }
+// jsrNext. `iter` is the slot of the iterable we want to iterate over.
+//
+// USAGE:
+// ```c
+// JSR_FOREACH(1) {
+//     if(err) return false;
+//     // ... your code here
+//     // slot `-1` contains the current element
+// }
+// ```
+#define JSR_FOREACH(iter)                                                                    \
+    jsrEnsureStack(vm, 2);                                                                   \
+    jsrPushNull(vm);                                                                         \
+    for(bool err = false;                                                                    \
+        (jsrIter(vm, iter, -1, &err) ? (err ? (true) : (err = !jsrNext(vm, iter, -1)), true) \
+                                     : (jsrPop(vm), false));)
 
 // -----------------------------------------------------------------------------
 // SEQUENCE API
