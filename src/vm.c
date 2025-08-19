@@ -1396,7 +1396,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         UNWIND_STACK();
     }
-    
+
     uint8_t op;
     DECODE(op) {
 
@@ -1412,7 +1412,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-    
+
     TARGET(OP_MOD): {
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
             double b = AS_NUM(pop(vm));
@@ -1423,7 +1423,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         }
         DISPATCH();
     }
-            
+
     TARGET(OP_POW): {
         if(IS_NUM(peek(vm)) && IS_NUM(peek2(vm))) {
             double y = AS_NUM(pop(vm));
@@ -1657,7 +1657,7 @@ invoke:;
         if(!res) UNWIND_STACK();
         DISPATCH();
     }
-    
+
     {
         uint8_t argc;
         ObjClass* superCls;
@@ -1791,10 +1791,10 @@ op_return:
             callFunction(vm, AS_CLOSURE(peek(vm)), 0);
             LOAD_STATE();
         }
-    
+
         DISPATCH();
     }
-    
+
     TARGET(OP_IMPORT_NAME): {
         ObjModule* module = getModule(vm, GET_STRING());
         ObjString* name = GET_STRING();
@@ -1827,7 +1827,7 @@ op_return:
         push(vm, OBJ_VAL(tup));
         DISPATCH();
     }
-    
+
     TARGET(OP_NEW_TUPLE): {
         uint8_t size = NEXT_CODE();
         ObjTuple* t = newTuple(vm, size);
@@ -1906,7 +1906,7 @@ op_return:
         }
         DISPATCH();
     }
-    
+
     // TODO: rework super with upvalue
     TARGET(OP_DEF_METHOD): {
         ObjClass* cls = AS_CLASS(peek2(vm));
@@ -1936,7 +1936,7 @@ op_return:
         push(vm, OBJ_VAL(native));
         DISPATCH();
     }
-    
+
     TARGET(OP_GET_CONST): {
         push(vm, GET_CONST());
         DISPATCH();
@@ -1967,7 +1967,7 @@ op_return:
     }
 
 
-    TARGET(OP_SETUP_EXCEPT): 
+    TARGET(OP_SETUP_EXCEPT):
     TARGET(OP_SETUP_ENSURE): {
         uint16_t offset = NEXT_SHORT();
         Handler* handler = &frame->handlers[frame->handlerCount++];
@@ -1976,7 +1976,7 @@ op_return:
         handler->savedSp = vm->sp;
         DISPATCH();
     }
-    
+
     TARGET(OP_END_HANDLER): {
         if(!IS_NULL(peek(vm))) { // Is the exception still unhandled?
             JSR_ASSERT(IS_NUM(peek(vm)), "Top of stack isn't an unwind cause");
