@@ -1765,7 +1765,7 @@ op_return:
         DISPATCH();
     }
 
-    TARGET(OP_IMPORT): 
+    TARGET(OP_IMPORT):
     TARGET(OP_IMPORT_FROM): {
         ObjString* name = GET_STRING();
 
