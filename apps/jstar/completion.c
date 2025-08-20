@@ -108,8 +108,8 @@ static void indent(CompletionState* s, const char* ctx, size_t ctxLen,
     size_t indentLen = strlen(INDENT);
 
     // Indent the current context up to a multiple of strlen(INDENT)
-    jsrBufferAppendf(&s->completionBuf, "%.*s", ctxLen, ctx + inputLen - ctxLen);
-    jsrBufferAppendf(&s->completionBuf, "%.*s", indentLen - (cursorPos % indentLen), INDENT);
+    jsrBufferAppendf(&s->completionBuf, "%.*s", (int)ctxLen, ctx + inputLen - ctxLen);
+    jsrBufferAppendf(&s->completionBuf, "%.*s", (int)(indentLen - (cursorPos % indentLen)), INDENT);
 
     // Give the processed output to replxx for visualization
     replxx_add_completion(completions, s->completionBuf.data);

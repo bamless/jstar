@@ -74,25 +74,25 @@ static void printVersion(void) {
 static bool compileFile(const Path* path, const Path* out) {
     PROFILE_FUNC()
 
-    StringBuffer sb = {0};
-    if(!read_file(path->data, &sb)) return false;
-    sb_append_char(&sb, '\0');
+    StringBuffer src;
+    if(!read_file(path->items, &src)) return false;
+    sb_append_char(&src, '\0');
 
-    ext_log(INFO, "compiling %s to %s", path->data, out->data);
+    printf("Compiling %s to %s\n", path->items, out->items);
 
     JStarBuffer compiled;
-    JStarResult res = jsrCompileCode(vm, path->data, sb.items, &compiled);
-    sb_free(&sb);
+    JStarResult res = jsrCompileCode(vm, path->items, src.items, &compiled);
+    sb_free(&src);
 
     if(res != JSR_SUCCESS) {
-        ext_log(ERROR, "couldn't compile file %s", path->data);
+        fprintf(stderr, "Error compiling file '%s'\n", path->items);
         return false;
     }
 
     if(opts.list) {
-        jsrDisassembleCode(vm, path->data, compiled.data, compiled.size);
+        jsrDisassembleCode(vm, path->items, compiled.data, compiled.size);
     } else if(!opts.compileOnly) {
-        if(!write_file(out->data, compiled.data, compiled.size)) {
+        if(!write_file(out->items, compiled.data, compiled.size)) {
             jsrBufferFree(&compiled);
             return false;
         }
@@ -107,46 +107,34 @@ static bool compileFile(const Path* path, const Path* out) {
 static bool disassembleFile(const Path* path) {
     PROFILE_FUNC()
 
-    StringBuffer sb = {0};
-    if(!read_file(path->data, &sb)) return false;
-    ext_log(INFO, "disassembling %s", path->data);
+    StringBuffer code;
+    if(!read_file(path->items, &code)) return false;
 
-    JStarResult res = jsrDisassembleCode(vm, path->data, sb.items, sb.size);
-    sb_free(&sb);
+    printf("Disassembling %s\n", path->items);
+
+    JStarResult res = jsrDisassembleCode(vm, path->items, code.items, code.size);
+    sb_free(&code);
 
     if(res != JSR_SUCCESS) {
-        ext_log(ERROR, "couldn't disassemble file %s", path->data);
+        fprintf(stderr, "Error disassembling file '%s'\n", path->items);
         return false;
     }
 
     return true;
 }
 
-// Creates the output directory path using the input root directory, output root directory and
-// the current position in the directory tree.
-static Path makeOutPath(const Path* in, const Path* out, const Path* curr) {
-    Path outPath = pathCopy(out);
-    size_t commonPath = pathIntersectOffset(in, curr);
-    if(commonPath) {
-        pathJoinStr(&outPath, curr->data + commonPath);
-    } else if(strcmp(curr->data, ".") != 0) {
-        pathJoinStr(&outPath, curr->data);
-    }
-    return outPath;
-}
-
 // Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
 // or `.jsc` extension. Returns true on success, false on failure.
 static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
     Paths files = {0};
-    if(!read_dir(curr->data, &files)) return false;
+    if(!read_dir(curr->items, &files)) return false;
 
-    Path outPath = makeOutPath(in, out, curr);
+    Path outPath = pathNew(in->items, curr->items + pathIntersectOffset(in, curr));
     ext_context->log_level = NO_LOGGING;
-    FileType dt = get_file_type(outPath.data);
+    FileType dt = get_file_type(outPath.items);
     ext_context->log_level = INFO;
     if(dt == FILE_ERR && errno == ENOENT) {
-        if(!create_dir(outPath.data)) {
+        if(!create_dir(outPath.items)) {
             free_paths(&files);
             return false;
         }
@@ -155,10 +143,9 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
     bool allok = true;
     array_foreach(char*, it, &files) {
         const char* file = *it;
-        Path filePath = pathCopy(curr);
-        pathJoinStr(&filePath, file);
+        Path filePath = pathNew(curr->items, file);
 
-        switch(get_file_type(filePath.data)) {
+        switch(get_file_type(filePath.items)) {
         case FILE_DIR: {
             if(opts.recursive) {
                 allok &= compileDirectory(in, out, &filePath);
@@ -173,8 +160,7 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
             }
             if(extension && strcmp(extension, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
                 if(!opts.disassemble) {
-                    Path outFile = pathCopy(&outPath);
-                    pathJoinStr(&outFile, file);
+                    Path outFile = pathNew(outPath.items, file);
                     pathChangeExtension(&outFile, JSC_EXT);
                     allok &= compileFile(&filePath, &outFile);
                     pathFree(&outFile);
@@ -235,12 +221,12 @@ static void parseArguments(int argc, char** argv) {
     }
 
     if((opts.compileOnly || opts.list || opts.disassemble) && opts.output) {
-        ext_log(ERROR, "option `-o` cannot be used with `-c`, `-l` or `-d`");
+        fprintf(stderr, "option `-o` cannot be used with `-c`, `-l` or `-d`\n");
         exit(EXIT_FAILURE);
     }
 
     if(args != 1) {
-        ext_log(ERROR, "missing <file> or <directory> argument");
+        fprintf(stderr, "missing <file> or <directory> argument\n");
         argparse_usage(&argparse);
         exit(EXIT_FAILURE);
     }
@@ -274,17 +260,17 @@ int main(int argc, char** argv) {
     FileType input_type = get_file_type(opts.input);
     if(input_type == FILE_ERR) return 1;
 
-    Path inputPath = pathNew();
+    Path inputPath = {0};
     pathAppendStr(&inputPath, opts.input);
     pathNormalize(&inputPath);
 
-    Path outputPath = pathNew();
+    Path outputPath;
     if(opts.output) {
-        pathAppendStr(&outputPath, opts.output);
+        outputPath = pathNew(opts.output);
         pathNormalize(&outputPath);
     } else {
         // Copy input path and change extension if no output path is provided
-        outputPath = pathCopy(&inputPath);
+        outputPath = pathNew(inputPath.items);
         if(input_type != FILE_DIR) {
             pathChangeExtension(&outputPath, JSC_EXT);
         }

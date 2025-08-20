@@ -565,7 +565,8 @@ JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* 
 JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code,
                                          size_t len);
 
-// Reads a J* source or compiled file, placing the output in out.
+// Reads a J* source or compiled file, placing the output in out. If the file is not J* compiled
+// bytecode, the result is NUL terminated.
 // Returns true on success, false on error setting errno to the approriate value.
 // Tipically used alongside jsrEval to execute a J* source or compiled file.
 JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);

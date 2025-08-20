@@ -9,6 +9,7 @@
 
 #include "completion.h"
 #include "console_print.h"
+#include "extlib.h"
 #include "highlighter.h"
 #include "import.h"
 #include "jstar/buffer.h"
@@ -100,18 +101,9 @@ static void sigintHandler(int sig) {
 
 // Wrapper function to evaluate source or binary J* code.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluate(const char* path, const JStarBuffer* code) {
+static JStarResult evaluate(const char* path, const void* code, size_t size) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEval(vm, path, code->data, code->size);
-    signal(SIGINT, SIG_DFL);
-    return res;
-}
-
-// Wrapper function to evaluate J* source code passed in as a c-string.
-// Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluateString(const char* path, const char* src) {
-    signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEvalString(vm, path, src);
+    JStarResult res = jsrEval(vm, path, code, size);
     signal(SIGINT, SIG_DFL);
     return res;
 }
@@ -123,18 +115,14 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     JStarResult res;
     {
         PROFILE_FUNC()
-
         JStarBuffer code;
         if(!jsrReadFile(vm, script, &code)) {
             fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
                           script, strerror(errno));
             exit(EXIT_FAILURE);
         }
-
-        // Execute the script; make sure to use the absolute path for consistency
         jsrInitCommandLineArgs(vm, argc, (const char**)args);
-        res = evaluate(script, &code);
-
+        res = evaluate(script, code.data, code.size);
         jsrBufferFree(&code);
     }
 
@@ -243,7 +231,7 @@ static JStarResult doRepl(void) {
             }
 
             addReplPrint(&src);
-            res = evaluateString("<stdin>", src.data);
+            res = evaluate("<stdin>", src.data, src.size);
             jsrBufferClear(&src);
         }
 
@@ -342,7 +330,7 @@ int main(int argc, char** argv) {
     atexit(&freeApp);
 
     if(opts.execStmt) {
-        JStarResult res = evaluateString("<string>", opts.execStmt);
+        JStarResult res = evaluate("<string>", opts.execStmt, strlen(opts.execStmt));
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args);
         }

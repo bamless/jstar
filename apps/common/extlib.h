@@ -797,7 +797,7 @@ char *ext_arena_vsprintf(Ext_Arena *a, const char *fmt, va_list ap);
     do {                                                                        \
         ext_array_reserve(a, (a)->size + (count));                              \
         memcpy((a)->items + (a)->size, (elems), (count) * sizeof(*(a)->items)); \
-        (a)->size = (count);                                                    \
+        (a)->size += (count);                                                    \
     } while(0)
 
 // Removes and returns the last element in the dynamic array. Complexity O(1).
@@ -1741,7 +1741,7 @@ EXT_STATIC_ASSERT(((EXT_DEFAULT_ALIGNMENT) & ((EXT_DEFAULT_ALIGNMENT)-1)) == 0,
                   "default alignment must be a power of 2");
 
 #ifndef EXT_DEFAULT_TEMP_SIZE
-#define EXT_DEFAULT_TEMP_SIZE (8 * 1024 * 1024)
+#define EXT_DEFAULT_TEMP_SIZE (256 * 1024 * 1024)
 #endif
 
 static void *ext_default_alloc(Ext_Allocator *a, size_t size) {

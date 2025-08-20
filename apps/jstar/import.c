@@ -44,17 +44,16 @@ static Path nativeExt;
 static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
     jsrGetGlobal(vm, JSR_CORE_MODULE, IMPORT_PATHS);
 
-    Path mainImport = pathNew();
+    Path mainImport = {0};
     if(scriptPath) {
         pathAppendStr(&mainImport, scriptPath);
         pathDirname(&mainImport);
     } else {
         pathAppendStr(&mainImport, "./");
     }
-
     pathToAbsolute(&mainImport);
 
-    jsrPushString(vm, mainImport.data);
+    jsrPushString(vm, mainImport.items);
     jsrListAppend(vm, -2);
     jsrPop(vm);
 
@@ -63,7 +62,7 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
     // Add all other paths appearing in the JSTARPATH environment variable
     const char* jstarPath;
     if(!ignoreEnv && (jstarPath = getenv(JSTAR_PATH))) {
-        Path importPath = pathNew();
+        Path importPath = {0};
 
         size_t pathLen = strlen(jstarPath);
         for(size_t i = 0, last = 0; i <= pathLen; i++) {
@@ -72,7 +71,7 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
                 pathToAbsolute(&importPath);
 
                 // Add it to the list
-                jsrPushString(vm, importPath.data);
+                jsrPushString(vm, importPath.items);
                 jsrListAppend(vm, -2);
                 jsrPop(vm);
 
@@ -94,8 +93,6 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
 
 void initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
     initImportPaths(vm, scriptPath, ignoreEnv);
-    import = pathNew();
-    nativeExt = pathNew();
 }
 
 void freeImports(void) {
@@ -106,13 +103,13 @@ void freeImports(void) {
 // Loads a native extension module and returns its `native registry` to J*
 static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
     PROFILE_FUNC()
-    pathAppend(&nativeExt, modulePath->data, modulePath->size);
+    pathAppend(&nativeExt, modulePath->items, modulePath->size);
     pathChangeExtension(&nativeExt, DL_SUFFIX);
 
     void* dynlib;
     {
         PROFILE("loadNativeExtension::dynload")
-        dynlib = dynload(nativeExt.data);
+        dynlib = dynload(nativeExt.items);
         if(!dynlib) {
             return NULL;
         }
@@ -134,7 +131,7 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
 // Reads a whole file into memory and returns its content and length
 static void* readFile(const Path* p, size_t* length) {
     PROFILE_FUNC()
-    FILE* f = fopen(p->data, "rb");
+    FILE* f = fopen(p->items, "rb");
     if(!f) {
         return NULL;
     }
@@ -190,7 +187,7 @@ static JStarImportResult createImportResult(char* data, size_t length, const Pat
     res.finalize = &finalizeImport;
     res.code = data;
     res.codeLength = length;
-    res.path = path->data;
+    res.path = path->items;
     res.reg = loadNativeExtension(path);
     res.userData = data;
     return res;
@@ -223,12 +220,12 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
             }
 
             pathAppend(&import, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-            size_t moduleStart = import.size;
+            size_t moduleStart = import.size - 1;
 
             pathJoinStr(&import, moduleName);
-            size_t moduleEnd = import.size;
+            size_t moduleEnd = import.size - 1;
 
-            pathReplace(&import, moduleStart, '.', PATH_SEP_CHAR);
+            pathReplace(&import, moduleStart, ".", PATH_SEP_CHAR);
 
             char* data;
             size_t length;
