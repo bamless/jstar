@@ -153,20 +153,15 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
             break;
         }
         case FILE_REGULAR: {
-            size_t fileNameLen = strlen(file);
-            const char* extension = NULL;
-            if(fileNameLen > strlen(JSR_EXT)) {
-                extension = file + (fileNameLen - strlen(JSR_EXT));
-            }
-            if(extension && strcmp(extension, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
-                if(!opts.disassemble) {
-                    Path outFile = pathNew(outPath.items, file);
-                    pathChangeExtension(&outFile, JSC_EXT);
-                    allok &= compileFile(&filePath, &outFile);
-                    pathFree(&outFile);
-                } else {
+            if(opts.disassemble) {
+                if(ss_ends_with(SS(file), SS(JSC_EXT))) {
                     allok &= disassembleFile(&filePath);
                 }
+            } else if(ss_ends_with(SS(file), SS(JSR_EXT))) {
+                Path outFile = pathNew(outPath.items, file);
+                pathChangeExtension(&outFile, JSC_EXT);
+                allok &= compileFile(&filePath, &outFile);
+                pathFree(&outFile);
             }
             break;
         }

@@ -797,7 +797,7 @@ char *ext_arena_vsprintf(Ext_Arena *a, const char *fmt, va_list ap);
     do {                                                                        \
         ext_array_reserve(a, (a)->size + (count));                              \
         memcpy((a)->items + (a)->size, (elems), (count) * sizeof(*(a)->items)); \
-        (a)->size += (count);                                                    \
+        (a)->size += (count);                                                   \
     } while(0)
 
 // Removes and returns the last element in the dynamic array. Complexity O(1).
@@ -974,6 +974,10 @@ typedef struct {
 // ```
 #define Ext_SS_Fmt     "%.*s"
 #define Ext_SS_Arg(ss) (int)(ss).size, (ss).data
+
+// Creates a StringSlice from a cstring.
+// This is a utility macro equivalent to doing: `ss_from_cstr(cstr)`
+#define Ext_SS(cstr) ext_ss_from_cstr(cstr)
 
 // Creates a new string slice from a string buffer. The string slice will act as a 'view' into
 // the buffer.
@@ -3202,6 +3206,7 @@ typedef Ext_StringBuffer StringBuffer;
 typedef Ext_StringSlice StringSlice;
 #define SS_Fmt              Ext_SS_Fmt
 #define SS_Arg              Ext_SS_Arg
+#define SS                  Ext_SS
 #define sb_to_ss            ext_sb_to_ss
 #define ss_from             ext_ss_from
 #define ss_from_cstr        ext_ss_from_cstr
