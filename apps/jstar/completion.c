@@ -24,8 +24,8 @@ typedef void (*IterCB)(const char* res, void* data);
 // Iterates all matching J* keywords.
 static void iterKeywords(const char* ctxStart, int ctxLen, IterCB cb, void* data) {
     for(const char** kw = keywords; *kw; kw++) {
-        int kwLen = strlen(*kw);
-        if(kwLen > ctxLen && strncmp(ctxStart, *kw, ctxLen) == 0) {
+        size_t kwLen = strlen(*kw);
+        if((int)kwLen > ctxLen && strncmp(ctxStart, *kw, ctxLen) == 0) {
             cb(*kw, data);
         }
     }
@@ -55,9 +55,9 @@ static void iterNames(JStarVM* vm, const char* ctxStart, int ctxLen, IterCB cb, 
         (void)ok;
 
         const char* global = jsrGetString(vm, -1);
-        int globalLen = jsrGetStringSz(vm, -1);
+        size_t globalLen = jsrGetStringSz(vm, -1);
 
-        if(globalLen > ctxLen && strncmp(ctxStart, global, ctxLen) == 0) {
+        if((int)globalLen > ctxLen && strncmp(ctxStart, global, ctxLen) == 0) {
             cb(global, data);
         }
 
@@ -104,8 +104,8 @@ static void indent(CompletionState* s, const char* ctx, size_t ctxLen,
     replxx_get_state(s->replxx, &state);
 
     int cursorPos = state.cursorPosition;
-    int inputLen = strlen(ctx);
-    int indentLen = strlen(INDENT);
+    size_t inputLen = strlen(ctx);
+    size_t indentLen = strlen(INDENT);
 
     // Indent the current context up to a multiple of strlen(INDENT)
     jsrBufferAppendf(&s->completionBuf, "%.*s", ctxLen, ctx + inputLen - ctxLen);
