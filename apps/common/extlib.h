@@ -2510,7 +2510,7 @@ bool ext_read_file(const char *path, Ext_StringBuffer *sb) {
     if(ferror(f)) ext_return_exit(false, exit, res);
     sb->size = size;
 
-exit:
+exit:;
     int saved_errno = errno;
     if(!res) ext_log(EXT_ERROR, "couldn't read file %s: %s", path, strerror(errno));
     if(f) fclose(f);
@@ -2531,7 +2531,7 @@ bool ext_write_file(const char *path, const void *mem, size_t size) {
         data += written;
     }
 
-exit:
+exit:;
     int saved_errno = errno;
     if(!res) ext_log(EXT_ERROR, "couldn't write file %s: %s", path, strerror(errno));
     if(f) fclose(f);
@@ -2871,7 +2871,7 @@ int ext_cmd_read(const char *cmd, Ext_StringBuffer *sb) {
         if(feof(p)) break;
     }
 
-exit:
+exit:;
     int saved_errno = errno;
     if(res) ext_log(EXT_ERROR, "couldn't exec cmd '%s' for read: %s", cmd, strerror(errno));
     if(p && (res = pclose(p))) ext_log(EXT_ERROR, "command returned exit code %d", res);
@@ -2900,7 +2900,7 @@ int ext_cmd_write(const char *cmd, const void *mem, size_t size) {
         data += written;
     }
 
-exit:
+exit:;
     int saved_errno = errno;
     if(res) ext_log(EXT_ERROR, "couldn't exec cmd '%s' for write: %s", cmd, strerror(errno));
     if(p && (res = pclose(p))) ext_log(EXT_ERROR, "command returned exit code %d", res);
