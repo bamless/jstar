@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "extlib.h"
+
 #if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
     #define PATH_SEP      "\\"
     #define PATH_SEP_CHAR '\\'
@@ -12,13 +14,10 @@
     #define PATH_SEP_CHAR '/'
 #endif
 
-typedef struct Path {
-    char* data;
-    size_t size, capacity;
-} Path;
+typedef StringBuffer Path;
 
-Path pathNew(void);
-Path pathCopy(const Path* o);
+#define pathNew(...) pathNew_((const char*[]){__VA_ARGS__, NULL});
+Path pathNew_(const char* args[]);
 void pathFree(Path* p);
 
 void pathClear(Path* p);
@@ -34,7 +33,7 @@ bool pathIsAbsolute(const Path* p);
 void pathChangeExtension(Path* p, const char* newExt);
 void pathNormalize(Path* p);
 void pathToAbsolute(Path* p);
-void pathReplace(Path* p, size_t off, char c, char r);
+void pathReplace(Path* p, size_t off, const char* chars, char r);
 void pathTruncate(Path* p, size_t off);
 size_t pathIntersectOffset(const Path* p, const Path* o);
 

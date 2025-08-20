@@ -1,5 +1,5 @@
 # Static library
-add_library(common STATIC path.h path.c)
+add_library(common STATIC extlib.h extlib.c path.h path.c)
 target_link_libraries(common PRIVATE cwalk)
 target_include_directories(common
     PUBLIC

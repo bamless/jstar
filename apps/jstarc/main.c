@@ -1,11 +1,12 @@
 #include <argparse.h>
-#include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "extlib.h"
+#include "jstar/buffer.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/lex.h"
 #include "path.h"
@@ -45,12 +46,12 @@ static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarL
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
-        if(!opts.disableColors && isatty(fileno(stderr))){
+        if(!opts.disableColors && isatty(fileno(stderr))) {
             fprintf(stderr, COLOR_RED);
         }
         fprintf(stderr, "%s:%d:%d: error\n", file, loc.line, loc.col);
         fprintf(stderr, "%s\n", err);
-        if(!opts.disableColors && isatty(fileno(stderr))){
+        if(!opts.disableColors && isatty(fileno(stderr))) {
             fprintf(stderr, COLOR_RESET);
         }
         break;
@@ -65,40 +66,6 @@ static void printVersion(void) {
     printf("%s on %s\n", JSTAR_COMPILER, JSTAR_PLATFORM);
 }
 
-// Returns whether `path` is a directory or not.
-static bool isDirectory(const char* path) {
-    DIR* d = opendir(path);
-    if(d != NULL) {
-        if(closedir(d)) exit(errno);
-        return true;
-    }
-    return false;
-}
-
-// Write a JStarBuffer to file.
-// The buffer is written as a binary file in order to avoid \n -> \r\n conversions on windows.
-static bool writeToFile(const JStarBuffer* buf, const Path* path) {
-    PROFILE_FUNC()
-
-    FILE* f = fopen(path->data, "wb");
-    if(f == NULL) {
-        return false;
-    }
-
-    if(fwrite(buf->data, 1, buf->size, f) < buf->size) {
-        int saveErrno = errno;
-        if(fclose(f)) return false;
-        errno = saveErrno;
-        return false;
-    }
-
-    if(fclose(f)) {
-        return false;
-    }
-
-    return true;
-}
-
 // Compile the file at `path` and store the result in a new file at `out`.
 // If `out` is NULL, then an output path will be generated from the input one by changing
 // the file extension.
@@ -107,29 +74,25 @@ static bool writeToFile(const JStarBuffer* buf, const Path* path) {
 static bool compileFile(const Path* path, const Path* out) {
     PROFILE_FUNC()
 
-    JStarBuffer src;
-    if(!jsrReadFile(vm, path->data, &src)) {
-        fprintf(stderr, "Cannot open file %s: %s\n", path->data, strerror(errno));
-        return false;
-    }
+    StringBuffer src = {0};
+    if(!read_file(path->items, &src)) return false;
+    sb_append_char(&src, '\0');
 
-    printf("Compiling %s to %s...\n", path->data, out->data);
-    fflush(stdout);
+    printf("Compiling %s to %s\n", path->items, out->items);
 
     JStarBuffer compiled;
-    JStarResult res = jsrCompileCode(vm, path->data, src.data, &compiled);
-    jsrBufferFree(&src);
+    JStarResult res = jsrCompileCode(vm, path->items, src.items, &compiled);
+    sb_free(&src);
 
     if(res != JSR_SUCCESS) {
-        fprintf(stderr, "Error compiling file %s\n", path->data);
+        fprintf(stderr, "Error compiling file '%s'\n", path->items);
         return false;
     }
 
     if(opts.list) {
-        jsrDisassembleCode(vm, path->data, compiled.data, compiled.size);
+        jsrDisassembleCode(vm, path->items, compiled.data, compiled.size);
     } else if(!opts.compileOnly) {
-        if(!writeToFile(&compiled, out)) {
-            fprintf(stderr, "Failed to write %s: %s\n", out->data, strerror(errno));
+        if(!write_file(out->items, compiled.data, compiled.size)) {
             jsrBufferFree(&compiled);
             return false;
         }
@@ -144,101 +107,66 @@ static bool compileFile(const Path* path, const Path* out) {
 static bool disassembleFile(const Path* path) {
     PROFILE_FUNC()
 
-    JStarBuffer code;
-    if(!jsrReadFile(vm, path->data, &code)) {
-        fprintf(stderr, "Cannot open file %s: %s\n", path->data, strerror(errno));
-        return false;
-    }
+    StringBuffer code = {0};
+    if(!read_file(path->items, &code)) return false;
 
-    printf("Disassembling %s...\n", path->data);
-    fflush(stdout);
+    printf("Disassembling %s\n", path->items);
 
-    JStarResult res = jsrDisassembleCode(vm, path->data, code.data, code.size);
-    jsrBufferFree(&code);
+    JStarResult res = jsrDisassembleCode(vm, path->items, code.items, code.size);
+    sb_free(&code);
 
     if(res != JSR_SUCCESS) {
-        fprintf(stderr, "Error disassembling file %s\n", path->data);
+        fprintf(stderr, "Error disassembling file '%s'\n", path->items);
         return false;
     }
 
     return true;
 }
 
-// Generates the the full output path using the input root directory, output root directory,
-// the current position in the directory tree and a file name.
-static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
-                           const char* fileName) {
-    Path outPath = pathCopy(out);
-
-    size_t commonPath = pathIntersectOffset(in, curr);
-    if(commonPath) {
-        pathJoinStr(&outPath, curr->data + commonPath);
-    }
-
-    pathJoinStr(&outPath, fileName);
-    pathChangeExtension(&outPath, JSC_EXT);
-
-    return outPath;
-}
-
-// Compiles (or disassembles) a J* source file during directory compilation.
-// Compiles or disassembles the file based on application options.
-// Returns true on success, false on failure.
-static bool compileDirFile(const Path* in, const Path* out, const Path* curr,
-                           const char* fileName) {
-    Path filePath = pathCopy(curr);
-    pathJoinStr(&filePath, fileName);
-
-    bool ok;
-    if(!opts.disassemble) {
-        Path outPath = makeOutputPath(in, out, curr, fileName);
-        ok = compileFile(&filePath, &outPath);
-        pathFree(&outPath);
-    } else {
-        ok = disassembleFile(&filePath);
-    }
-
-    pathFree(&filePath);
-    return ok;
-}
-
-// Walk a directory (recursively, if `-r` was specified) and process
-// all files that end in a `.jsr` or `.jsc` extension.
-// Returns true on success, false on failure.
+// Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
+// or `.jsc` extension. Returns true on success, false on failure.
 static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
-    DIR* directory = opendir(curr->data);
-    if(directory == NULL) {
-        fprintf(stderr, "Cannot open directory %s: %s\n", curr->data, strerror(errno));
-        return false;
+    Paths files = {0};
+    if(!read_dir(curr->items, &files)) return false;
+
+    Path outPath = pathNew(out->items, curr->items + pathIntersectOffset(in, curr));
+    ext_context->log_level = NO_LOGGING;
+    FileType dt = get_file_type(outPath.items);
+    ext_context->log_level = INFO;
+    if(dt == FILE_ERR && errno == ENOENT) {
+        if(!create_dir(outPath.items)) {
+            free_paths(&files);
+            return false;
+        }
     }
 
     bool allok = true;
-    struct dirent* dirent;
-    while((dirent = readdir(directory)) != NULL) {
-        if(strcmp(dirent->d_name, ".") == 0 || strcmp(dirent->d_name, "..") == 0) {
-            continue;
-        }
+    array_foreach(char*, it, &files) {
+        const char* file = *it;
+        Path filePath = pathNew(curr->items, file);
 
-        switch(dirent->d_type) {
-        case DT_DIR: {
+        switch(get_file_type(filePath.items)) {
+        case FILE_DIR: {
             if(opts.recursive) {
-                Path subDirectory = pathCopy(curr);
-                pathJoinStr(&subDirectory, dirent->d_name);
-                allok &= compileDirectory(in, out, &subDirectory);
-                pathFree(&subDirectory);
+                allok &= compileDirectory(in, out, &filePath);
             }
             break;
         }
-        case DT_REG: {
-            size_t fileNameLen = strlen(dirent->d_name);
-
+        case FILE_REGULAR: {
+            size_t fileNameLen = strlen(file);
             const char* extension = NULL;
             if(fileNameLen > strlen(JSR_EXT)) {
-                extension = dirent->d_name + (fileNameLen - strlen(JSR_EXT));
+                extension = file + (fileNameLen - strlen(JSR_EXT));
             }
-
             if(extension && strcmp(extension, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
-                allok &= compileDirFile(in, out, curr, dirent->d_name);
+                if(!opts.disassemble) {
+                    Path outFile = pathNew(outPath.items, file);
+                    pathChangeExtension(&outFile, JSC_EXT);
+                    allok &= compileFile(&filePath, &outFile);
+                    pathFree(&outFile);
+                } else {
+                    allok &= disassembleFile(&filePath);
+                }
             }
             break;
         }
@@ -246,13 +174,12 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
             // Ignore other file types
             break;
         }
+
+        pathFree(&filePath);
     }
 
-    if(closedir(directory)) {
-        fprintf(stderr, "Cannot close dir %s: %s\n", curr->data, strerror(errno));
-        return false;
-    }
-
+    free_paths(&files);
+    pathFree(&outPath);
     return allok;
 }
 
@@ -277,8 +204,7 @@ static void parseArguments(int argc, char** argv) {
                     "Disassemble already compiled jsc files and list their content"),
         OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
                     "Compile files but do not generate output files. Used for syntax checking"),
-        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
-                    "Disable output coloring. Hints are disabled as well"),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring"),
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit"),
         OPT_END(),
     };
@@ -294,7 +220,13 @@ static void parseArguments(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
+    if((opts.compileOnly || opts.list || opts.disassemble) && opts.output) {
+        fprintf(stderr, "option `-o` cannot be used with `-c`, `-l` or `-d`\n");
+        exit(EXIT_FAILURE);
+    }
+
     if(args != 1) {
+        fprintf(stderr, "missing <file> or <directory> argument\n");
         argparse_usage(&argparse);
         exit(EXIT_FAILURE);
     }
@@ -325,21 +257,21 @@ int main(int argc, char** argv) {
     initApp(argc, argv);
     atexit(&freeApp);
 
-    bool directoryCompile = isDirectory(opts.input);
+    FileType input_type = get_file_type(opts.input);
+    if(input_type == FILE_ERR) return 1;
 
-    // Create input path
-    Path inputPath = pathNew();
+    Path inputPath = {0};
     pathAppendStr(&inputPath, opts.input);
     pathNormalize(&inputPath);
 
-    // Create ouput path (copy input and change extension if no output path is provided)
-    Path outputPath = pathNew();
+    Path outputPath;
     if(opts.output) {
-        pathAppendStr(&outputPath, opts.output);
+        outputPath = pathNew(opts.output);
         pathNormalize(&outputPath);
     } else {
-        outputPath = pathCopy(&inputPath);
-        if(!directoryCompile) {
+        // Copy input path and change extension if no output path is provided
+        outputPath = pathNew(inputPath.items);
+        if(input_type != FILE_DIR) {
             pathChangeExtension(&outputPath, JSC_EXT);
         }
     }
@@ -347,7 +279,7 @@ int main(int argc, char** argv) {
     PROFILE_BEGIN_SESSION("jstar-run.json")
 
     bool ok;
-    if(directoryCompile) {
+    if(input_type == FILE_DIR) {
         ok = compileDirectory(&inputPath, &outputPath, &inputPath);
     } else if(opts.disassemble) {
         ok = disassembleFile(&inputPath);

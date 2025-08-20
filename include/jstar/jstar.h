@@ -137,7 +137,7 @@ JSTAR_API void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym);
 // CODE EXECUTION
 // -----------------------------------------------------------------------------
 
-// Evaluate J* code read with `jsrReadFile` in the context of module (or __main__ in jsrEval).
+// Evaluate J* bytedcode or source code in the context of module (or __main__ in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
 // will be returned.
@@ -149,8 +149,6 @@ JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* m
 
 // Similar to the `jsrEval` family of functions, but takes in a c string of the J* source code to
 // evaluate.
-// The provided string can be any c string, and it doesn't have to be the result of a call
-// to `jsrReadFile`. This means that these functions cannot execute compiled J* code, only source
 JSTAR_API JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src);
 JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                           const char* src);
@@ -564,10 +562,5 @@ JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* 
 // Prints nothing if the provided `code` buffer doesn't contain valid bytecode
 JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code,
                                          size_t len);
-
-// Reads a J* source or compiled file, placing the output in out.
-// Returns true on success, false on error setting errno to the approriate value.
-// Tipically used alongside jsrEval to execute a J* source or compiled file.
-JSTAR_API bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out);
 
 #endif

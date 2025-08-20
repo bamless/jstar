@@ -9,6 +9,7 @@
 
 #include "completion.h"
 #include "console_print.h"
+#include "extlib.h"
 #include "highlighter.h"
 #include "import.h"
 #include "jstar/buffer.h"
@@ -100,20 +101,17 @@ static void sigintHandler(int sig) {
 
 // Wrapper function to evaluate source or binary J* code.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluate(const char* path, const JStarBuffer* code) {
+static JStarResult evaluate(const char* path, const void* code, size_t size) {
     signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEval(vm, path, code->data, code->size);
+    JStarResult res = jsrEval(vm, path, code, size);
     signal(SIGINT, SIG_DFL);
     return res;
 }
 
 // Wrapper function to evaluate J* source code passed in as a c-string.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
-static JStarResult evaluateString(const char* path, const char* src) {
-    signal(SIGINT, &sigintHandler);
-    JStarResult res = jsrEvalString(vm, path, src);
-    signal(SIGINT, SIG_DFL);
-    return res;
+static JStarResult evaluateStr(const char* path, const char* cstr) {
+    return evaluate(path, cstr, strlen(cstr));
 }
 
 // Execute a J* source or compiled file from disk.
@@ -123,19 +121,11 @@ static JStarResult execScript(const char* script, int argc, char** args) {
     JStarResult res;
     {
         PROFILE_FUNC()
-
-        JStarBuffer code;
-        if(!jsrReadFile(vm, script, &code)) {
-            fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "Error reading script '%s': %s\n",
-                          script, strerror(errno));
-            exit(EXIT_FAILURE);
-        }
-
-        // Execute the script; make sure to use the absolute path for consistency
+        StringBuffer code = {0};
+        if(!read_file(script, &code)) return false;
         jsrInitCommandLineArgs(vm, argc, (const char**)args);
-        res = evaluate(script, &code);
-
-        jsrBufferFree(&code);
+        res = evaluate(script, code.items, code.size);
+        sb_free(&code);
     }
 
     PROFILE_END_SESSION()
@@ -202,12 +192,12 @@ static void registerPrintFunction(void) {
 
 // Add an additional print statement if the current input is a valid J* expression.
 // Also, the current expression is assigned to `_` in order to permit calculation chaining.
-static void addReplPrint(JStarBuffer* sb) {
+static void addReplPrint(StringBuffer* sb) {
     PROFILE_FUNC()
-    JStarExpr* e = jsrParseExpression("<repl>", sb->data, sb->size, NULL, &arena, NULL);
+    JStarExpr* e = jsrParseExpression("<repl>", sb->items, sb->size, NULL, &arena, NULL);
     if(e != NULL) {
-        jsrBufferPrependStr(sb, "var _ = ");
-        jsrBufferAppendf(sb, ";%s(_)", REPL_PRINT);
+        sb_prepend_cstr(sb, "var _ = ");
+        sb_appendf(sb, ";%s(_)", REPL_PRINT);
     }
     jsrASTArenaReset(&arena);
 }
@@ -226,28 +216,27 @@ static JStarResult doRepl(void) {
             printVersion();
         }
 
-        JStarBuffer src;
-        jsrBufferInit(vm, &src);
-
         const char* line;
+        StringBuffer src = {0};
         while((line = replxx_input(replxx, JSTAR_PROMPT)) != NULL) {
             int depth = countBlocks(line, 0);
             replxx_history_add(replxx, line);
-            jsrBufferAppendStr(&src, line);
+            sb_append_cstr(&src, line);
 
             while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
                 depth += countBlocks(line, depth);
                 replxx_history_add(replxx, line);
-                jsrBufferAppendChar(&src, '\n');
-                jsrBufferAppendStr(&src, line);
+                sb_append_char(&src, '\n');
+                sb_append_cstr(&src, line);
             }
 
             addReplPrint(&src);
-            res = evaluateString("<stdin>", src.data);
-            jsrBufferClear(&src);
+            sb_append_char(&src, '\0');
+            res = evaluateStr("<stdin>", src.items);
+            src.size = 0;
         }
 
-        jsrBufferFree(&src);
+        sb_free(&src);
     }
 
     PROFILE_END_SESSION()
@@ -317,7 +306,7 @@ static void initApp(int argc, char** argv) {
     // Replxx initialization
     replxx = replxx_init();
     replxx_set_no_color(replxx, opts.disableColors);
-    jsrBufferInit(vm, &completionState.completionBuf);
+    completionState = (CompletionState){.vm = vm, .replxx = replxx};
     setCompletionCallback(replxx, &completionState);
     if(!opts.disableColors && !opts.disableHints) setHintCallback(replxx, vm);
     if(!opts.disableColors) setHighlighterCallback(replxx);
@@ -325,7 +314,7 @@ static void initApp(int argc, char** argv) {
 
 // Free the app state
 static void freeApp(void) {
-    jsrBufferFree(&completionState.completionBuf);
+    sb_free(&completionState.completionBuf);
     replxx_history_clear(replxx);
     replxx_end(replxx);
 
@@ -342,7 +331,7 @@ int main(int argc, char** argv) {
     atexit(&freeApp);
 
     if(opts.execStmt) {
-        JStarResult res = evaluateString("<string>", opts.execStmt);
+        JStarResult res = evaluateStr("<string>", opts.execStmt);
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args);
         }

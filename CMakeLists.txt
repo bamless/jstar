@@ -122,7 +122,6 @@ if(JSTAR_INSTALL)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE DESTINATION share/licenses/jstar)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/argparse/LICENSE DESTINATION share/licenses/jstar/argparse)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/cwalk/LICENSE.md DESTINATION share/licenses/jstar/cwalk)
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/dirent/LICENSE DESTINATION share/licenses/jstar/dirent)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/extern/replxx/LICENSE.md DESTINATION share/licenses/jstar/replxx)
 
     # On Windows install required runtime dlls alongside exe
