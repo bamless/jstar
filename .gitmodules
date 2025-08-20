@@ -1,9 +1,6 @@
 [submodule "extern/cwalk"]
 	path = extern/cwalk
 	url = https://github.com/bamless/cwalk.git
-[submodule "extern/dirent"]
-	path = extern/dirent
-	url = https://github.com/bamless/dirent.git
 [submodule "extern/replxx"]
 	path = extern/replxx
 	url = https://github.com/bamless/replxx.git
