@@ -172,13 +172,16 @@ static bool compileDirFile(const Path* in, const Path* out, const Path* curr,
 // all files that end in a `.jsr` or `.jsc` extension.
 // Returns true on success, false on failure.
 static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
-    Paths paths = {0};
-    if(!read_dir(curr->data, &paths)) return false;
+    Paths files = {0};
+    if(!read_dir(curr->data, &files)) return false;
 
     bool allok = true;
-    array_foreach(char*, it, &paths) {
-        const char* path = *it;
-        FileType t = get_file_type(path);
+    array_foreach(char*, it, &files) {
+        const char* file = *it;
+        Path abs_path = pathCopy(curr);
+        pathJoinStr(&abs_path, file);
+
+        FileType t = get_file_type(abs_path.data);
         if(t == FILE_ERR) {
             allok = false;
             continue;
@@ -187,22 +190,18 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
         switch(t) {
         case FILE_DIR: {
             if(opts.recursive) {
-                Path subDirectory = pathCopy(curr);
-                pathJoinStr(&subDirectory, path);
-                allok &= compileDirectory(in, out, &subDirectory);
-                pathFree(&subDirectory);
+                allok &= compileDirectory(in, out, &abs_path);
             }
             break;
         }
         case FILE_REGULAR: {
-            size_t fileNameLen = strlen(path);
+            size_t fileNameLen = strlen(file);
             const char* extension = NULL;
             if(fileNameLen > strlen(JSR_EXT)) {
-                extension = path + (fileNameLen - strlen(JSR_EXT));
+                extension = file + (fileNameLen - strlen(JSR_EXT));
             }
-
             if(extension && strcmp(extension, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
-                allok &= compileDirFile(in, out, curr, path);
+                allok &= compileDirFile(in, out, curr, file);
             }
             break;
         }
@@ -210,9 +209,11 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
             // Ignore other file types
             break;
         }
+
+        pathFree(&abs_path);
     }
 
-    free_paths(&paths);
+    free_paths(&files);
     return allok;
 }
 
