@@ -1706,7 +1706,7 @@ void *ext_realloc(void *ptr, size_t old_sz, size_t new_sz) {
 }
 
 void ext_free(void *ptr, size_t size) {
-    return ext_context->alloc->free(ext_context->alloc, ptr, size);
+    ext_context->alloc->free(ext_context->alloc, ptr, size);
 }
 
 char *ext_strdup(const char *s) {
