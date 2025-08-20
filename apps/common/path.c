@@ -5,16 +5,10 @@
 #include <errno.h>
 #include <string.h>
 
+#include "extlib.h"
 #include "profiler.h"
 
 #define INIT_CAPACITY 16
-
-#if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
-    #include <direct.h>
-    #define getcwd _getcwd
-#else
-    #include <unistd.h>
-#endif
 
 Path pathNew(void) {
     return (Path){0};
@@ -116,22 +110,6 @@ void pathNormalize(Path* p) {
     p->size = newSize;
 }
 
-static char* getCurrentDirectory(void) {
-    size_t cwdLen = 128;
-    char* cwd = malloc(cwdLen);
-    while(!getcwd(cwd, cwdLen)) {
-        if(errno != ERANGE) {
-            int saveErrno = errno;
-            free(cwd);
-            errno = saveErrno;
-            return NULL;
-        }
-        cwdLen *= 2;
-        cwd = realloc(cwd, cwdLen);
-    }
-    return cwd;
-}
-
 void pathToAbsolute(Path* p) {
     Path absolute = pathAbsolute(p);
     free(p->data);
@@ -165,13 +143,10 @@ Path pathIntersect(const Path* p1, const Path* p2) {
 }
 
 Path pathAbsolute(const Path* p) {
-    char* cwd = getCurrentDirectory();
-    if(!cwd) {
-        return (Path){0};
-    }
+    char* cwd = get_cwd();
+    if(!cwd) return (Path){0};
 
     Path absolute = pathNew();
-
     size_t newSize = 0;
     do {
         if(newSize) ensureCapacity(&absolute, newSize + 1);
@@ -180,6 +155,5 @@ Path pathAbsolute(const Path* p) {
 
     absolute.size = newSize;
     free(cwd);
-
     return absolute;
 }

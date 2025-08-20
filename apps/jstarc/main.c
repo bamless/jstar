@@ -1,4 +1,5 @@
 #include <argparse.h>
+#include <asm-generic/errno-base.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -74,21 +75,18 @@ static void printVersion(void) {
 static bool compileFile(const Path* path, const Path* out) {
     PROFILE_FUNC()
 
-    JStarBuffer src;
-    if(!jsrReadFile(vm, path->data, &src)) {
-        fprintf(stderr, "Cannot open file %s: %s\n", path->data, strerror(errno));
-        return false;
-    }
+    StringBuffer sb = {0};
+    if(!read_file(path->data, &sb)) return false;
+    sb_append_char(&sb, '\0');
 
-    printf("Compiling %s to %s...\n", path->data, out->data);
-    fflush(stdout);
+    ext_log(INFO, "compiling %s to %s", path->data, out->data);
 
     JStarBuffer compiled;
-    JStarResult res = jsrCompileCode(vm, path->data, src.data, &compiled);
-    jsrBufferFree(&src);
+    JStarResult res = jsrCompileCode(vm, path->data, sb.items, &compiled);
+    sb_free(&sb);
 
     if(res != JSR_SUCCESS) {
-        fprintf(stderr, "Error compiling file %s\n", path->data);
+        ext_log(ERROR, "couldn't compile file %s", path->data);
         return false;
     }
 
@@ -110,87 +108,61 @@ static bool compileFile(const Path* path, const Path* out) {
 static bool disassembleFile(const Path* path) {
     PROFILE_FUNC()
 
-    JStarBuffer code;
-    if(!jsrReadFile(vm, path->data, &code)) {
-        fprintf(stderr, "Cannot open file %s: %s\n", path->data, strerror(errno));
-        return false;
-    }
+    StringBuffer sb = {0};
+    if(!read_file(path->data, &sb)) return false;
+    ext_log(INFO, "disassembling %s", path->data);
 
-    printf("Disassembling %s...\n", path->data);
-    fflush(stdout);
-
-    JStarResult res = jsrDisassembleCode(vm, path->data, code.data, code.size);
-    jsrBufferFree(&code);
+    JStarResult res = jsrDisassembleCode(vm, path->data, sb.items, sb.size);
+    sb_free(&sb);
 
     if(res != JSR_SUCCESS) {
-        fprintf(stderr, "Error disassembling file %s\n", path->data);
+        ext_log(ERROR, "couldn't disassemble file %s", path->data);
         return false;
     }
 
     return true;
 }
 
-// Generates the the full output path using the input root directory, output root directory,
-// the current position in the directory tree and a file name.
-static Path makeOutputPath(const Path* in, const Path* out, const Path* curr,
-                           const char* fileName) {
+// Creates the output directory path using the input root directory, output root directory and
+// the current position in the directory tree.
+static Path makeOutPath(const Path* in, const Path* out, const Path* curr) {
     Path outPath = pathCopy(out);
-
     size_t commonPath = pathIntersectOffset(in, curr);
     if(commonPath) {
         pathJoinStr(&outPath, curr->data + commonPath);
+    } else if(strcmp(curr->data, ".") != 0) {
+        pathJoinStr(&outPath, curr->data);
     }
-
-    pathJoinStr(&outPath, fileName);
-    pathChangeExtension(&outPath, JSC_EXT);
-
     return outPath;
 }
 
-// Compiles (or disassembles) a J* source file during directory compilation.
-// Compiles or disassembles the file based on application options.
-// Returns true on success, false on failure.
-static bool compileDirFile(const Path* in, const Path* out, const Path* curr,
-                           const char* fileName) {
-    Path filePath = pathCopy(curr);
-    pathJoinStr(&filePath, fileName);
-
-    bool ok;
-    if(!opts.disassemble) {
-        Path outPath = makeOutputPath(in, out, curr, fileName);
-        ok = compileFile(&filePath, &outPath);
-        pathFree(&outPath);
-    } else {
-        ok = disassembleFile(&filePath);
-    }
-
-    pathFree(&filePath);
-    return ok;
-}
-
-// Walk a directory (recursively, if `-r` was specified) and process
-// all files that end in a `.jsr` or `.jsc` extension.
-// Returns true on success, false on failure.
+// Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
+// or `.jsc` extension. Returns true on success, false on failure.
 static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
     Paths files = {0};
     if(!read_dir(curr->data, &files)) return false;
 
+    Path outPath = makeOutPath(in, out, curr);
+    ext_context->log_level = NO_LOGGING;
+    FileType dt = get_file_type(outPath.data);
+    ext_context->log_level = INFO;
+    if(dt == FILE_ERR && errno == ENOENT) {
+        if(!create_dir(outPath.data)) {
+            free_paths(&files);
+            return false;
+        }
+    }
+
     bool allok = true;
     array_foreach(char*, it, &files) {
         const char* file = *it;
-        Path abs_path = pathCopy(curr);
-        pathJoinStr(&abs_path, file);
+        Path filePath = pathCopy(curr);
+        pathJoinStr(&filePath, file);
 
-        FileType t = get_file_type(abs_path.data);
-        if(t == FILE_ERR) {
-            allok = false;
-            continue;
-        }
-
-        switch(t) {
+        switch(get_file_type(filePath.data)) {
         case FILE_DIR: {
             if(opts.recursive) {
-                allok &= compileDirectory(in, out, &abs_path);
+                allok &= compileDirectory(in, out, &filePath);
             }
             break;
         }
@@ -201,7 +173,15 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
                 extension = file + (fileNameLen - strlen(JSR_EXT));
             }
             if(extension && strcmp(extension, opts.disassemble ? JSC_EXT : JSR_EXT) == 0) {
-                allok &= compileDirFile(in, out, curr, file);
+                if(!opts.disassemble) {
+                    Path outFile = pathCopy(&outPath);
+                    pathJoinStr(&outFile, file);
+                    pathChangeExtension(&outFile, JSC_EXT);
+                    allok &= compileFile(&filePath, &outFile);
+                    pathFree(&outFile);
+                } else {
+                    allok &= disassembleFile(&filePath);
+                }
             }
             break;
         }
@@ -210,10 +190,11 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
             break;
         }
 
-        pathFree(&abs_path);
+        pathFree(&filePath);
     }
 
     free_paths(&files);
+    pathFree(&outPath);
     return allok;
 }
 
@@ -238,8 +219,7 @@ static void parseArguments(int argc, char** argv) {
                     "Disassemble already compiled jsc files and list their content"),
         OPT_BOOLEAN('c', "compile-only", &opts.compileOnly,
                     "Compile files but do not generate output files. Used for syntax checking"),
-        OPT_BOOLEAN('C', "no-colors", &opts.disableColors,
-                    "Disable output coloring. Hints are disabled as well"),
+        OPT_BOOLEAN('C', "no-colors", &opts.disableColors, "Disable output coloring"),
         OPT_BOOLEAN('v', "version", &opts.showVersion, "Print version information and exit"),
         OPT_END(),
     };
@@ -255,7 +235,13 @@ static void parseArguments(int argc, char** argv) {
         exit(EXIT_SUCCESS);
     }
 
+    if((opts.compileOnly || opts.list || opts.disassemble) && opts.output) {
+        ext_log(ERROR, "option `-o` cannot be used with `-c`, `-l` or `-d`");
+        exit(EXIT_FAILURE);
+    }
+
     if(args != 1) {
+        ext_log(ERROR, "missing <file> or <directory> argument");
         argparse_usage(&argparse);
         exit(EXIT_FAILURE);
     }
@@ -289,17 +275,16 @@ int main(int argc, char** argv) {
     FileType input_type = get_file_type(opts.input);
     if(input_type == FILE_ERR) return 1;
 
-    // Create input path
     Path inputPath = pathNew();
     pathAppendStr(&inputPath, opts.input);
     pathNormalize(&inputPath);
 
-    // Create ouput path (copy input and change extension if no output path is provided)
     Path outputPath = pathNew();
     if(opts.output) {
         pathAppendStr(&outputPath, opts.output);
         pathNormalize(&outputPath);
     } else {
+        // Copy input path and change extension if no output path is provided
         outputPath = pathCopy(&inputPath);
         if(input_type != FILE_DIR) {
             pathChangeExtension(&outputPath, JSC_EXT);
