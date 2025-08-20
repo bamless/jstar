@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "extlib.h"
 #include "jstar/buffer.h"
 #include "jstar/jstar.h"
 #include "jstar/parse/lex.h"
@@ -98,7 +99,7 @@ static void addCompletion(const char* str, void* data) {
 
 static void indent(CompletionState* s, const char* ctx, size_t ctxLen,
                    replxx_completions* completions) {
-    jsrBufferClear(&s->completionBuf);
+    s->completionBuf.size = 0;
 
     ReplxxState state;
     replxx_get_state(s->replxx, &state);
@@ -108,11 +109,12 @@ static void indent(CompletionState* s, const char* ctx, size_t ctxLen,
     size_t indentLen = strlen(INDENT);
 
     // Indent the current context up to a multiple of strlen(INDENT)
-    jsrBufferAppendf(&s->completionBuf, "%.*s", (int)ctxLen, ctx + inputLen - ctxLen);
-    jsrBufferAppendf(&s->completionBuf, "%.*s", (int)(indentLen - (cursorPos % indentLen)), INDENT);
+    sb_appendf(&s->completionBuf, "%.*s", (int)ctxLen, ctx + inputLen - ctxLen);
+    sb_appendf(&s->completionBuf, "%.*s", (int)(indentLen - (cursorPos % indentLen)), INDENT);
+    sb_append_char(&s->completionBuf, '\0');
 
     // Give the processed output to replxx for visualization
-    replxx_add_completion(completions, s->completionBuf.data);
+    replxx_add_completion(completions, s->completionBuf.items);
 }
 
 static void completions(const char* ctx, replxx_completions* completions, int* ctxLen, void* data) {
@@ -122,7 +124,7 @@ static void completions(const char* ctx, replxx_completions* completions, int* c
         return;
     }
 
-    JStarVM* vm = cs->completionBuf.vm;
+    JStarVM* vm = cs->vm;
     const char* ctxStart = ctx + strlen(ctx) - *ctxLen;
 
     AddCompletion ac = {.completions = completions};
@@ -138,6 +140,5 @@ void setHintCallback(Replxx* replxx, JStarVM* vm) {
 }
 
 void setCompletionCallback(Replxx* replxx, CompletionState* completionState) {
-    completionState->replxx = replxx;
     replxx_set_completion_callback(replxx, completions, completionState);
 }

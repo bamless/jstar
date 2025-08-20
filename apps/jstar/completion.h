@@ -4,9 +4,12 @@
 #include <jstar/jstar.h>
 #include <replxx.h>
 
+#include "extlib.h"
+
 typedef struct {
+    JStarVM* vm;
     Replxx* replxx;
-    JStarBuffer completionBuf;
+    StringBuffer completionBuf;
 } CompletionState;
 
 // Sets replxx hints callback with global name resolution support

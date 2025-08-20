@@ -74,7 +74,7 @@ static void printVersion(void) {
 static bool compileFile(const Path* path, const Path* out) {
     PROFILE_FUNC()
 
-    StringBuffer src;
+    StringBuffer src = {0};
     if(!read_file(path->items, &src)) return false;
     sb_append_char(&src, '\0');
 
@@ -107,7 +107,7 @@ static bool compileFile(const Path* path, const Path* out) {
 static bool disassembleFile(const Path* path) {
     PROFILE_FUNC()
 
-    StringBuffer code;
+    StringBuffer code = {0};
     if(!read_file(path->items, &code)) return false;
 
     printf("Disassembling %s\n", path->items);

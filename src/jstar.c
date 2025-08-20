@@ -416,52 +416,6 @@ bool jsrValidateStack(const JStarVM* vm) {
     return validateStack(vm);
 }
 
-bool jsrReadFile(JStarVM* vm, const char* path, JStarBuffer* out) {
-    bool res = false;
-    int saveErrno;
-
-    FILE* src = fopen(path, "rb");
-    if(src == NULL) {
-        return false;
-    }
-
-    if(fseek(src, 0, SEEK_END)) {
-        goto exit_file;
-    }
-
-    long size = ftell(src);
-    if(size < 0) goto exit_file;
-    rewind(src);
-
-    jsrBufferInitCapacity(vm, out, size + 1);
-
-    size_t read = fread(out->data, 1, size, src);
-    if(read < (size_t)size) {
-        goto exit_buf;
-    }
-
-    out->size = size;
-
-    if(!isCompiledCode(out->data, size)) {
-        out->data[size] = '\0';
-    }
-
-    res = true;
-    goto exit_file;
-
-exit_buf:;
-    saveErrno = errno;
-    jsrBufferFree(out);
-    errno = saveErrno;
-
-exit_file:
-    saveErrno = errno;
-    if(fclose(src)) return false;
-    errno = saveErrno;
-
-    return res;
-}
-
 bool jsrIs(const JStarVM* vm, int slot, int classSlot) {
     Value v = apiStackSlot(vm, slot);
     Value cls = apiStackSlot(vm, classSlot);
