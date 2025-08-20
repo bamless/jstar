@@ -129,7 +129,7 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
     Paths files = {0};
     if(!read_dir(curr->items, &files)) return false;
 
-    Path outPath = pathNew(in->items, curr->items + pathIntersectOffset(in, curr));
+    Path outPath = pathNew(out->items, curr->items + pathIntersectOffset(in, curr));
     ext_context->log_level = NO_LOGGING;
     FileType dt = get_file_type(outPath.items);
     ext_context->log_level = INFO;
