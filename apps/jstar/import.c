@@ -43,12 +43,12 @@ static Path nativeExt;
 bool initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
     jsrGetGlobal(vm, JSR_CORE_MODULE, IMPORT_PATHS);
 
-    Path mainImport = {0};
+    Path mainImport;
     if(scriptPath) {
-        pathAppendStr(&mainImport, scriptPath);
+        mainImport = pathNew(scriptPath);
         pathDirname(&mainImport);
     } else {
-        pathAppendStr(&mainImport, "./");
+        mainImport = pathNew("./");
     }
     if(!pathToAbsolute(&mainImport)) return false;
 

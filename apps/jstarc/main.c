@@ -254,8 +254,7 @@ int main(int argc, char** argv) {
     FileType input_type = get_file_type(opts.input);
     if(input_type == FILE_ERR) return 1;
 
-    Path inputPath = {0};
-    pathAppendStr(&inputPath, opts.input);
+    Path inputPath = pathNew(opts.input);
     pathNormalize(&inputPath);
 
     Path outputPath;
