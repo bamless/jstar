@@ -9,10 +9,10 @@
 struct JStarVM;
 
 // Dynamic Buffer that holds memory allocated by the J* garbage collector.
-// This memory is owned by J*, but cannot be collected until the buffer
-// is pushed on the stack using the jsrBufferPush method.
-// Can be used for efficient creation of Strings in the native API or
-// to efficiently store binary data.
+// This memory is owned by J*, but cannot be collected until the buffer is pushed on the stack
+// using the jsrBufferPush method.
+// Can be used for efficient creation of Strings in the native API or to store binary data.
+// The data in a JStarBuffer is always NUL terminated, so it is safe to treat it like a c string.
 typedef struct JStarBuffer {
     struct JStarVM* vm;
     size_t capacity, size;
@@ -27,7 +27,7 @@ typedef struct JStarBuffer {
 JSTAR_API void jsrBufferInit(struct JStarVM* vm, JStarBuffer* b);
 JSTAR_API void jsrBufferInitCapacity(struct JStarVM* vm, JStarBuffer* b, size_t capacity);
 JSTAR_API void jsrBufferReserve(JStarBuffer* b, size_t newCap);
-JSTAR_API void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len);
+JSTAR_API void jsrBufferAppend(JStarBuffer* b, const void* data, size_t len);
 JSTAR_API void jsrBufferAppendStr(JStarBuffer* b, const char* str);
 JSTAR_API void jsrBufferAppendvf(JStarBuffer* b, const char* fmt, va_list ap);
 JSTAR_API void jsrBufferAppendf(JStarBuffer* b, const char* fmt, ...);

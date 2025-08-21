@@ -14,6 +14,8 @@
     #define PATH_SEP_CHAR '/'
 #endif
 
+// Path is a `StringBuffer` that is always NUL terminated and that supports special operations on
+// filesystem paths
 typedef StringBuffer Path;
 
 #define pathNew(...) pathNew_((const char*[]){__VA_ARGS__, NULL});
@@ -23,8 +25,8 @@ void pathFree(Path* p);
 void pathClear(Path* p);
 void pathAppend(Path* p, const char* str, size_t length);
 void pathAppendStr(Path* p, const char* str);
-void pathJoinStr(Path* p1, const char* str);
 void pathJoin(Path* p, const Path* o);
+void pathJoinStr(Path* p1, const char* str);
 void pathDirname(Path* p);
 const char* pathGetExtension(const Path* p, size_t* length);
 bool pathHasExtension(const Path* p);
@@ -32,7 +34,7 @@ bool pathIsRelative(const Path* p);
 bool pathIsAbsolute(const Path* p);
 void pathChangeExtension(Path* p, const char* newExt);
 void pathNormalize(Path* p);
-void pathToAbsolute(Path* p);
+bool pathToAbsolute(Path* p);
 void pathReplace(Path* p, size_t off, const char* chars, char r);
 void pathTruncate(Path* p, size_t off);
 size_t pathIntersectOffset(const Path* p, const Path* o);

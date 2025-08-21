@@ -181,10 +181,11 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     return eval(vm, path, fn);
 }
 
-JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, JStarBuffer* out) {
+JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
+                           JStarBuffer* out) {
     PROFILE_FUNC()
 
-    JStarStmt* program = jsrParse(path, src, strlen(src), parseError, &vm->astArena, vm);
+    JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
         jsrASTArenaReset(&vm->astArena);
         return JSR_SYNTAX_ERR;

@@ -1,7 +1,7 @@
 #ifndef DYNLOAD_H
 #define DYNLOAD_H
 
-#include "jstar/jstar.h"
+#include <jstar/jstar.h>
 
 /**
  * Wrap platform specific shared library load functions.

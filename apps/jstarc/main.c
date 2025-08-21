@@ -1,18 +1,16 @@
 #include <argparse.h>
 #include <errno.h>
+#include <extlib.h>
+#include <jstar/buffer.h>
+#include <jstar/jstar.h>
+#include <jstar/parse/lex.h>
+#include <path.h>
+#include <profiler.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include "extlib.h"
-#include "jstar/buffer.h"
-#include "jstar/jstar.h"
-#include "jstar/parse/lex.h"
-#include "path.h"
-#include "profiler.h"
-
-#ifdef _WIN32
+#ifdef JSTAR_WINDOWS
     #include <io.h>
     #define isatty _isatty
     #define fileno _fileno
@@ -76,12 +74,11 @@ static bool compileFile(const Path* path, const Path* out) {
 
     StringBuffer src = {0};
     if(!read_file(path->items, &src)) return false;
-    sb_append_char(&src, '\0');
 
     printf("Compiling %s to %s\n", path->items, out->items);
 
     JStarBuffer compiled;
-    JStarResult res = jsrCompileCode(vm, path->items, src.items, &compiled);
+    JStarResult res = jsrCompileCode(vm, path->items, src.items, src.size, &compiled);
     sb_free(&src);
 
     if(res != JSR_SUCCESS) {
@@ -126,21 +123,21 @@ static bool disassembleFile(const Path* path) {
 // Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
 // or `.jsc` extension. Returns true on success, false on failure.
 static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
+    bool res = true;
     Paths files = {0};
-    if(!read_dir(curr->items, &files)) return false;
-
     Path outPath = pathNew(out->items, curr->items + pathIntersectOffset(in, curr));
-    ext_context->log_level = NO_LOGGING;
+
+    if(!read_dir(curr->items, &files)) return_exit(false);
+
+    Context ctx = *ext_context;
+    ctx.log_level = NO_LOGGING;
+    push_context(&ctx);
     FileType dt = get_file_type(outPath.items);
-    ext_context->log_level = INFO;
+    pop_context();
     if(dt == FILE_ERR && errno == ENOENT) {
-        if(!create_dir(outPath.items)) {
-            free_paths(&files);
-            return false;
-        }
+        if(!create_dir(outPath.items)) return_exit(false);
     }
 
-    bool allok = true;
     array_foreach(char*, it, &files) {
         const char* file = *it;
         Path filePath = pathNew(curr->items, file);
@@ -148,19 +145,19 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
         switch(get_file_type(filePath.items)) {
         case FILE_DIR: {
             if(opts.recursive) {
-                allok &= compileDirectory(in, out, &filePath);
+                res &= compileDirectory(in, out, &filePath);
             }
             break;
         }
         case FILE_REGULAR: {
             if(opts.disassemble) {
                 if(ss_ends_with(SS(file), SS(JSC_EXT))) {
-                    allok &= disassembleFile(&filePath);
+                    res &= disassembleFile(&filePath);
                 }
             } else if(ss_ends_with(SS(file), SS(JSR_EXT))) {
                 Path outFile = pathNew(outPath.items, file);
                 pathChangeExtension(&outFile, JSC_EXT);
-                allok &= compileFile(&filePath, &outFile);
+                res &= compileFile(&filePath, &outFile);
                 pathFree(&outFile);
             }
             break;
@@ -173,9 +170,10 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
         pathFree(&filePath);
     }
 
+exit:
     free_paths(&files);
     pathFree(&outPath);
-    return allok;
+    return res;
 }
 
 // Parse the app arguments into an Options struct
@@ -216,7 +214,8 @@ static void parseArguments(int argc, char** argv) {
     }
 
     if((opts.compileOnly || opts.list || opts.disassemble) && opts.output) {
-        fprintf(stderr, "option `-o` cannot be used with `-c`, `-l` or `-d`\n");
+        fprintf(stderr, "error: option `-o` cannot be used with `-c`, `-l` or `-d`\n");
+        argparse_usage(&argparse);
         exit(EXIT_FAILURE);
     }
 
@@ -272,20 +271,17 @@ int main(int argc, char** argv) {
     }
 
     PROFILE_BEGIN_SESSION("jstar-run.json")
-
-    bool ok;
+    bool res;
     if(input_type == FILE_DIR) {
-        ok = compileDirectory(&inputPath, &outputPath, &inputPath);
+        res = compileDirectory(&inputPath, &outputPath, &inputPath);
     } else if(opts.disassemble) {
-        ok = disassembleFile(&inputPath);
+        res = disassembleFile(&inputPath);
     } else {
-        ok = compileFile(&inputPath, &outputPath);
+        res = compileFile(&inputPath, &outputPath);
     }
-
     PROFILE_END_SESSION()
 
     pathFree(&inputPath);
     pathFree(&outputPath);
-
-    exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+    exit(res ? EXIT_SUCCESS : EXIT_FAILURE);
 }

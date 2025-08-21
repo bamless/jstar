@@ -36,11 +36,11 @@ void jsrBufferReserve(JStarBuffer* b, size_t newCap) {
     bufferGrow(b, newCap);
 }
 
-void jsrBufferAppend(JStarBuffer* b, const char* str, size_t len) {
+void jsrBufferAppend(JStarBuffer* b, const void* data, size_t len) {
     if(b->size + len >= b->capacity) {
         bufferGrow(b, len + 1);  // the >= and the +1 are for the terminating NUL
     }
-    memcpy(&b->data[b->size], str, len);
+    memcpy(&b->data[b->size], data, len);
     b->size += len;
     b->data[b->size] = '\0';
 }

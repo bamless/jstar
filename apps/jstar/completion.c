@@ -1,13 +1,10 @@
 #include "completion.h"
 
-#include <assert.h>
+#include <extlib.h>
+#include <jstar/jstar.h>
+#include <jstar/parse/lex.h>
+#include <replxx.h>
 #include <string.h>
-
-#include "extlib.h"
-#include "jstar/buffer.h"
-#include "jstar/jstar.h"
-#include "jstar/parse/lex.h"
-#include "replxx.h"
 
 #define INDENT "    "
 
@@ -36,8 +33,7 @@ static void iterKeywords(const char* ctxStart, int ctxLen, IterCB cb, void* data
 // We assert on errors as all calls should succeed on a correctly functioning J* VM.
 static void iterNames(JStarVM* vm, const char* ctxStart, int ctxLen, IterCB cb, void* data) {
     bool ok = jsrGetGlobal(vm, JSR_MAIN_MODULE, "__this__");
-    assert(ok);
-    (void)ok;
+    JSR_ASSERT(ok, "`jsrGetGlobal(vm, JSR_MAIN_MODULE, \"__this__\")` failed");
 
     JStarResult res = jsrCallMethod(vm, "globals", 0);
     if(res != JSR_SUCCESS) {
@@ -49,11 +45,10 @@ static void iterNames(JStarVM* vm, const char* ctxStart, int ctxLen, IterCB cb, 
     jsrPushNull(vm);
 
     while(jsrIter(vm, -2, -1, &err)) {
-        assert(!err);
+        JSR_ASSERT(!err, "`jsrIter(vm, -2, -1, &err)` failed");
 
         bool ok = jsrNext(vm, -2, -1);
-        assert(ok && jsrIsString(vm, -1));
-        (void)ok;
+        JSR_ASSERT(ok && jsrIsString(vm, -1), "`jsrNext(vm, -2, -1)` failed");
 
         const char* global = jsrGetString(vm, -1);
         size_t globalLen = jsrGetStringSz(vm, -1);
@@ -130,7 +125,6 @@ static void completions(const char* ctx, replxx_completions* completions, int* c
     AddCompletion ac = {.completions = completions};
     iterNames(vm, ctxStart, *ctxLen, addCompletion, &ac);
     iterKeywords(ctxStart, *ctxLen, addCompletion, &ac);
-
     // No completions, indent line
     if(ac.count == 0) indent(cs, ctx, *ctxLen, completions);
 }

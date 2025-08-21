@@ -1,11 +1,13 @@
 #include "import.h"
 
+#include <extlib.h>
+#include <jstar/jstar.h>
+#include <path.h>
+#include <profiler.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "dynload.h"
-#include "path.h"
-#include "profiler.h"
 
 #define PACKAGE_FILE    "__package__"    // Name of the file executed during package imports
 #define JSR_EXT         ".jsr"           // Normal J* source file extension
@@ -38,10 +40,7 @@
 static Path import;
 static Path nativeExt;
 
-// Init the `importPaths` list by appending the script directory (or the current working
-// directory if no script was provided) and all the paths present in the JSTARPATH env variable.
-// All paths are converted to absolute ones.
-static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
+bool initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
     jsrGetGlobal(vm, JSR_CORE_MODULE, IMPORT_PATHS);
 
     Path mainImport = {0};
@@ -51,7 +50,7 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
     } else {
         pathAppendStr(&mainImport, "./");
     }
-    pathToAbsolute(&mainImport);
+    if(!pathToAbsolute(&mainImport)) return false;
 
     jsrPushString(vm, mainImport.items);
     jsrListAppend(vm, -2);
@@ -68,7 +67,7 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
         for(size_t i = 0, last = 0; i <= pathLen; i++) {
             if(jstarPath[i] == IMPORT_PATHS_SEP || i == pathLen) {
                 pathAppend(&importPath, jstarPath + last, i - last);
-                pathToAbsolute(&importPath);
+                if(!pathToAbsolute(&importPath)) return false;
 
                 // Add it to the list
                 jsrPushString(vm, importPath.items);
@@ -89,10 +88,7 @@ static void initImportPaths(JStarVM* vm, const char* scriptPath, bool ignoreEnv)
     jsrPop(vm);
 
     jsrPop(vm);
-}
-
-void initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv) {
-    initImportPaths(vm, scriptPath, ignoreEnv);
+    return true;
 }
 
 void freeImports(void) {
@@ -128,46 +124,13 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
     return (*registry)();
 }
 
-// Reads a whole file into memory and returns its content and length
-static void* readFile(const Path* p, size_t* length) {
-    PROFILE_FUNC()
-    FILE* f = fopen(p->items, "rb");
-    if(!f) {
-        return NULL;
-    }
-
-    if(fseek(f, 0, SEEK_END)) {
-        fclose(f);
-        return NULL;
-    }
-
-    long size = ftell(f);
-    if(size < 0) {
-        fclose(f);
-        return NULL;
-    }
-
-    *length = size;
-
-    if(fseek(f, 0, SEEK_SET)) {
-        fclose(f);
-        return NULL;
-    }
-
-    uint8_t* data = malloc(size);
-    if(!data) {
-        fclose(f);
-        return NULL;
-    }
-
-    if(fread(data, 1, size, f) != *length) {
-        fclose(f);
-        free(data);
-        return NULL;
-    }
-
-    fclose(f);
-    return data;
+static bool readFileAtPath(const Path* p, StringBuffer* sb) {
+    Context ctx = *ext_context;
+    ctx.log_level = NO_LOGGING;
+    push_context(&ctx);
+    bool res = read_file(p->items, sb);
+    pop_context();
+    return res;
 }
 
 // Callback called by J* when an import statement is finished.
@@ -181,15 +144,15 @@ static void finalizeImport(void* userData) {
 
 // Creates a `JStarImportResult` and sets all relevant fields such as
 // the finalization callback and the native registry structure
-static JStarImportResult createImportResult(char* data, size_t length, const Path* path) {
+static JStarImportResult makeImportResult(const Path* path, StringBuffer sb) {
     PROFILE_FUNC()
     JStarImportResult res;
     res.finalize = &finalizeImport;
-    res.code = data;
-    res.codeLength = length;
+    res.code = sb.items ? sb.items : "";
+    res.codeLength = sb.size;
     res.path = path->items;
     res.reg = loadNativeExtension(path);
-    res.userData = data;
+    res.userData = sb.items;
     return res;
 }
 
@@ -202,13 +165,13 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
         return (JStarImportResult){0};
     }
 
+    // If its not a list fail
     if(!jsrIsList(vm, -1)) {
         jsrPop(vm);
         return (JStarImportResult){0};
     }
 
     size_t importLen = jsrListGetLength(vm, -1);
-
     {
         PROFILE("importCallback::resolutionLoop")
 
@@ -227,24 +190,21 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
 
             pathReplace(&import, moduleStart, ".", PATH_SEP_CHAR);
 
-            char* data;
-            size_t length;
+            StringBuffer sb = {.allocator = &default_allocator.base};
 
             // Try loading a package (__package__ file inside a directory)
             pathJoinStr(&import, PACKAGE_FILE);
 
             // Try binary package
             pathChangeExtension(&import, JSC_EXT);
-            if((data = readFile(&import, &length)) != NULL) {
-                jsrPopN(vm, 2);
-                return createImportResult(data, length, &import);
+            if(readFileAtPath(&import, &sb)) {
+                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
             }
 
             // Try source package
             pathChangeExtension(&import, JSR_EXT);
-            if((data = readFile(&import, &length)) != NULL) {
-                jsrPopN(vm, 2);
-                return createImportResult(data, length, &import);
+            if(readFileAtPath(&import, &sb)) {
+                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
             }
 
             // If no package is found, try to load a module
@@ -252,16 +212,14 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
 
             // Try binary module
             pathChangeExtension(&import, JSC_EXT);
-            if((data = readFile(&import, &length)) != NULL) {
-                jsrPopN(vm, 2);
-                return createImportResult(data, length, &import);
+            if(readFileAtPath(&import, &sb)) {
+                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
             }
 
             // Try source module
             pathChangeExtension(&import, JSR_EXT);
-            if((data = readFile(&import, &length)) != NULL) {
-                jsrPopN(vm, 2);
-                return createImportResult(data, length, &import);
+            if(readFileAtPath(&import, &sb)) {
+                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
             }
 
             pathClear(&import);

@@ -1,10 +1,9 @@
 #ifndef HINTS_H
 #define HINTS_H
 
+#include <extlib.h>
 #include <jstar/jstar.h>
 #include <replxx.h>
-
-#include "extlib.h"
 
 typedef struct {
     JStarVM* vm;

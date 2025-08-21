@@ -1,11 +1,10 @@
 #include "highlighter.h"
 
+#include <jstar/conf.h>
+#include <jstar/parse/lex.h>
+#include <replxx.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "jstar/conf.h"
-#include "jstar/parse/lex.h"
-#include "replxx.h"
 
 // -----------------------------------------------------------------------------
 // COLOR THEME DEFINITION

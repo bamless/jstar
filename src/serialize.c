@@ -43,7 +43,7 @@ typedef enum ConstType {
 // -----------------------------------------------------------------------------
 
 static void write(JStarBuffer* buf, const void* data, size_t size) {
-    jsrBufferAppend(buf, (const char*)data, size);
+    jsrBufferAppend(buf, data, size);
 }
 
 static void serializeUint64(JStarBuffer* buf, uint64_t num) {

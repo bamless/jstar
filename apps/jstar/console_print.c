@@ -1,10 +1,11 @@
 #include "console_print.h"
 
-#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 
-#ifdef _WIN32
+#include "jstar/conf.h"
+
+#ifdef JSTAR_WINDOWS
     #include <io.h>
     #define isatty _isatty
     #define fileno _fileno
@@ -42,8 +43,7 @@ static FILE* replxxStdToFile(ReplxxStdFile std) {
     case REPLXX_STDIN:
         return stdin;
     }
-    assert(false);
-    return NULL;
+    JSR_UNREACHABLE();
 }
 
 int vfConsolePrint(Replxx* replxx, ReplxxStdFile std, Color color, const char* fmt, va_list ap) {

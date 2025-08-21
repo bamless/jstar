@@ -137,12 +137,12 @@ JSTAR_API void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym);
 // CODE EXECUTION
 // -----------------------------------------------------------------------------
 
-// Evaluate J* bytedcode or source code in the context of module (or __main__ in jsrEval).
+// Evaluate J* bytecode or source code in the context of 'module' (or '__main__' in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
 // will be returned.
 // All errors will be forwared to the error callback as well.
-// The `path` argument is the file path that will passed to the forward callback on errors
+// The `path` argument is the file path that will passed to the callback on errors.
 JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len);
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const void* code, size_t len);
@@ -547,19 +547,19 @@ struct JStarNativeReg {
 
 // Compiles the provided source to bytecode, placing the result in `out`.
 // JSR_SUCCESS will be returned if the compilation completed normally.
-// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned.
-// All errors will be forwarded to the error callback as well.
-// The `path` argument is the file path that will passed to the forward callback on errors
-// Please note that the vm always compiles source code before execution, so using this function
-// just to immediately call jsrEval on the result is useless and less efficient than directly
-// calling jsrEvalString. Its intended use is to compile some code to later store it on file, send
-// it over the network, etc...
-JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src,
+// In case of errors either JSR_SYNTAX_ERR or JSR_COMPILE_ERR will be returned. All errors will be
+// forwarded to the error callback as well.
+// The `path` argument is the file path that will passed to the error callback on errors.
+//
+// NOTE: The vm always compiles source code before execution, so using this function just to
+// immediately call jsrEval on the result is useless and less efficient than directly calling
+// jsrEvalString. Its intended use is to compile some code to later store it on file, send it over
+// the network, etc...
+JSTAR_API JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
                                      JStarBuffer* out);
 
 // Disassembles the bytecode provided in `code` and prints it to stdout
-// The `path` argument is the file path that will passed to the forward callback on errors
-// Prints nothing if the provided `code` buffer doesn't contain valid bytecode
+// The `path` argument is the file path that will passed to the error callback on errors.
 JSTAR_API JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code,
                                          size_t len);
 

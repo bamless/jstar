@@ -2699,8 +2699,7 @@ Ext_FileType ext_get_file_type(const char *path) {
 #ifdef EXT_WINDOWS
     DWORD attr = GetFileAttributesA(path);
     if(attr == INVALID_FILE_ATTRIBUTES) {
-        ext_log(EXT_ERROR, "Couldn't get file attributes of '%s': %s", path,
-                win32_strerror(GetLastError()));
+        ext_log(EXT_ERROR, "Couldn't stat '%s': %s", path, win32_strerror(GetLastError()));
         return EXT_FILE_ERR;
     }
     if(attr & FILE_ATTRIBUTE_DIRECTORY) return EXT_FILE_DIR;
@@ -2708,7 +2707,7 @@ Ext_FileType ext_get_file_type(const char *path) {
 #else
     struct stat statbuf;
     if(stat(path, &statbuf) < 0) {
-        ext_log(EXT_ERROR, "Couldn't get stat of '%s': %s", path, strerror(errno));
+        ext_log(EXT_ERROR, "Couldn't stat '%s': %s", path, strerror(errno));
         return EXT_FILE_ERR;
     }
     if(S_ISREG(statbuf.st_mode)) return EXT_FILE_REGULAR;

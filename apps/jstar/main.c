@@ -1,5 +1,11 @@
 #include <argparse.h>
-#include <errno.h>
+#include <extlib.h>
+#include <jstar/conf.h>
+#include <jstar/jstar.h>
+#include <jstar/parse/ast.h>
+#include <jstar/parse/lex.h>
+#include <jstar/parse/parser.h>
+#include <profiler.h>
 #include <replxx.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -9,16 +15,8 @@
 
 #include "completion.h"
 #include "console_print.h"
-#include "extlib.h"
 #include "highlighter.h"
 #include "import.h"
-#include "jstar/buffer.h"
-#include "jstar/conf.h"
-#include "jstar/jstar.h"
-#include "jstar/parse/ast.h"
-#include "jstar/parse/lex.h"
-#include "jstar/parse/parser.h"
-#include "profiler.h"
 
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
@@ -300,8 +298,9 @@ static void initApp(int argc, char** argv) {
     PROFILE_BEGIN_SESSION("jstar-init.json")
     vm = jsrNewVM(&conf);
     jsrInitRuntime(vm);
-    initImports(vm, opts.script, opts.ignoreEnv);
     PROFILE_END_SESSION()
+
+    if(!initImports(vm, opts.script, opts.ignoreEnv)) exit(EXIT_FAILURE);
 
     // Replxx initialization
     replxx = replxx_init();
@@ -314,15 +313,15 @@ static void initApp(int argc, char** argv) {
 
 // Free the app state
 static void freeApp(void) {
+    freeImports();
+    jsrASTArenaFree(&arena);
+
     sb_free(&completionState.completionBuf);
     replxx_history_clear(replxx);
     replxx_end(replxx);
 
-    jsrASTArenaFree(&arena);
-
     PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);
-    freeImports();
     PROFILE_END_SESSION()
 }
 

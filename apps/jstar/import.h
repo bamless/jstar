@@ -1,10 +1,12 @@
 #ifndef IMPORT_H
 #define IMPORT_H
 
-#include "jstar/jstar.h"
+#include <jstar/jstar.h>
 
-// Inits the`CLI` app import system
-void initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv);
+// Init the `importPaths` list by appending the script directory (or the current working
+// directory if `scriptPath` is NULL) and all the paths present in the JSTARPATH env variable.
+// All paths are converted to absolute ones.
+bool initImports(JStarVM* vm, const char* scriptPath, bool ignoreEnv);
 // Frees all resources associated with the import system
 void freeImports(void);
 

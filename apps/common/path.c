@@ -1,6 +1,7 @@
 #include "path.h"
 
 #include <cwalk.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "extlib.h"
@@ -81,7 +82,7 @@ void pathChangeExtension(Path* p, const char* newExt) {
             break;
         }
     };
-    p->size = newSize;
+    p->size = newSize + 1;
 }
 
 void pathNormalize(Path* p) {
@@ -95,13 +96,15 @@ void pathNormalize(Path* p) {
             break;
         }
     }
-    p->size = newSize;
+    p->size = newSize + 1;
 }
 
-void pathToAbsolute(Path* p) {
+bool pathToAbsolute(Path* p) {
     Path absolute = pathAbsolute(p);
     pathFree(p);
+    if(!absolute.items) return false;
     *p = absolute;
+    return true;
 }
 
 void pathReplace(Path* p, size_t off, const char* chars, char r) {
@@ -139,7 +142,7 @@ Path pathAbsolute(const Path* p) {
             break;
         }
     }
-    absolute.size = newSize;
+    absolute.size = newSize + 1;
     free(cwd);
 
     return absolute;

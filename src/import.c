@@ -132,27 +132,20 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
     }
 
     size_t len;
-    const void* bltinCode = readBuiltInModule(name->data, &len);
-    if(bltinCode != NULL) {
-        return importBinary(vm, name->data, name, bltinCode, len);
-    }
+    const void* builtin = readBuiltInModule(name->data, &len);
+    if(builtin) return importBinary(vm, name->data, name, builtin, len);
 
-    if(!vm->importCallback) {
-        return NULL;
-    }
+    if(!vm->importCallback) return NULL;
 
     // An import callback is similar to a native function call (can use the J* API and can be
-    // re-entrant), so setup the apiStack to the current stack pointer, so that push/pop operations
-    // are relative to the current position
+    // re-entrant), so we need to setup the apiStack to the current stack pointer, so that push/pop
+    // operations are relative to the current position
     size_t apiStackOffset = vm->apiStack - vm->stack;
     vm->apiStack = vm->sp;
-
     JStarImportResult res = vm->importCallback(vm, name->data);
     vm->apiStack = vm->stack + apiStackOffset;
 
-    if(!res.code) {
-        return NULL;
-    }
+    if(!res.code) return NULL;
 
     ObjModule* module;
     if(isCompiledCode(res.code, res.codeLength)) {
@@ -161,17 +154,8 @@ ObjModule* importModule(JStarVM* vm, ObjString* name) {
         module = importSource(vm, res.path, name, res.code, res.codeLength);
     }
 
-    if(res.finalize) {
-        res.finalize(res.userData);
-    }
-
-    if(module == NULL) {
-        return NULL;
-    }
-
-    if(res.reg) {
-        module->registry = res.reg;
-    }
-
+    if(res.finalize) res.finalize(res.userData);
+    if(module == NULL) return NULL;
+    if(res.reg) module->registry = res.reg;
     return module;
 }
