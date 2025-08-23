@@ -126,9 +126,8 @@ parts of the implementation.
 
 # Compilation
 
-The **J\*** library requires a C99 compiler, CMake (>= 3.9) and Python (>= 2.7) to be built, 
-and is known to compile on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, 
-clang).
+The **J\*** library requires a C99 compiler and CMake (>= 3.9) to be built, and is known to compile
+on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, clang).
 
 To build the provided **command line interface** `jstar`, a C++11 compiler is required as one of its
 dependencies, is written in C++.
