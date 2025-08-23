@@ -105,6 +105,8 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 }
 
 void jsrInitRuntime(JStarVM* vm) {
+    JSR_ASSERT(!vm->core, "Runtime already initialized");
+
     // Core module bootstrap
     initCoreModule(vm);
 
@@ -1259,6 +1261,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
     ObjFunction* fn;
     uint8_t* ip;
 
+    JSR_ASSERT(vm->core, "Runtime not initialized, call `jsrInitRuntime`");
     JSR_ASSERT(vm->frameCount != 0, "No frame to evaluate");
     JSR_ASSERT(vm->frameCount >= evalDepth, "Too few frame to evaluate");
 
