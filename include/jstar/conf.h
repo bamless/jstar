@@ -22,6 +22,7 @@
 /* #undef JSTAR_DBG_PRINT_GC */
 /* #undef JSTAR_DBG_STRESS_GC */
 /* #undef JSTAR_DBG_CACHE_STATS */
+/* #undef JSTAR_INSTRUMENT */
 
 #define JSTAR_SYS
 #define JSTAR_IO

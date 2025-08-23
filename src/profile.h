@@ -1,7 +1,7 @@
-#ifndef PROFILER_H
-#define PROFILER_H
+#ifndef PROFILE_H
+#define PROFILE_H
 
-#include "profileconf.h"
+#include "conf.h"
 
 #ifdef JSTAR_INSTRUMENT
 

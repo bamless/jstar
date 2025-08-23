@@ -10,7 +10,7 @@
 #include "conf.h"
 #include "parse/ast.h"
 #include "parse/lex.h"
-#include "profiler.h"
+#include "profile.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define MAX_ERR_SIZE    512

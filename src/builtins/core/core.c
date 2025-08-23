@@ -20,7 +20,7 @@
 #include "jstar.h"
 #include "object.h"
 #include "object_types.h"
-#include "profiler.h"
+#include "profile.h"
 #include "util.h"
 #include "value.h"
 #include "value_hashtable.h"

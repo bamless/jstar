@@ -47,6 +47,8 @@ set(JSTAR_SOURCES
     object.h
     opcode.h
     opcode.c
+    profile.h
+    profile.c
     serialize.c
     serialize.h
     util.h
@@ -94,8 +96,8 @@ foreach(jsr ${JSTAR_STDLIB})
     list(APPEND JSTAR_STDLIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc)
     add_custom_command(
         OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
-        COMMAND ${Python_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/bin2incl.py ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}
+        COMMAND bin2incl ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
+        DEPENDS bin2incl ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}
     )
 endforeach()
 
@@ -131,7 +133,6 @@ target_include_directories(jstar_static
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/jstar
-        ${PROJECT_SOURCE_DIR}/profile
         ${PROJECT_BINARY_DIR}
 )
 if(NOT WIN32)
@@ -151,7 +152,6 @@ target_include_directories(jstar
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/jstar
-        ${PROJECT_SOURCE_DIR}/profile
         ${PROJECT_BINARY_DIR}
 )
 set_target_properties(jstar PROPERTIES
@@ -161,15 +161,14 @@ set_target_properties(jstar PROPERTIES
     C_VISIBILITY_PRESET hidden
 )
 
-if(JSTAR_INSTRUMENT)
-    target_link_libraries(jstar PRIVATE profile)
-endif()
-
 # Enable link-time optimization if supported
 if(LTO)
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
+
+add_dependencies(jstar        bin2incl)
+add_dependencies(jstar_static bin2incl)
 
 # -----------------------------------------------------------------------------
 # Installation

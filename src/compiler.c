@@ -19,7 +19,7 @@
 #include "opcode.h"
 #include "parse/ast.h"
 #include "parse/lex.h"
-#include "profiler.h"
+#include "profile.h"
 #include "util.h"
 #include "value.h"
 #include "vm.h"

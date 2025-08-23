@@ -1,48 +1,60 @@
-#include "profiler.h"
+#include "profile.h"
 
 #ifdef JSTAR_INSTRUMENT
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
 
-static FILE* sessionFile = NULL;
-static int profileCount = 0;
+typedef struct ProfileSession {
+    FILE* sessionFile;
+    int profileCount;
+    struct ProfileSession* prev;
+} ProfileSession;
+
+ProfileSession* session;
 
 static void writeHeader(void) {
-    fputs("{\"otherData\": {},\"traceEvents\":[", sessionFile);
-    fflush(sessionFile);
+    fputs("{\"otherData\": {},\"traceEvents\":[", session->sessionFile);
+    fflush(session->sessionFile);
 }
 
 static void writeFooter(void) {
-    fputs("]}", sessionFile);
-    fflush(sessionFile);
+    fputs("]}", session->sessionFile);
+    fflush(session->sessionFile);
 }
 
 void startProfileSession(const char* filePath) {
-    sessionFile = fopen(filePath, "w");
+    FILE* sessionFile = fopen(filePath, "w");
     if(!sessionFile) {
         fprintf(stderr, "Cannot open session file\n");
         abort();
     }
+
+    ProfileSession* new_session = calloc(1, sizeof(*new_session));
+    new_session->sessionFile = sessionFile;
+    new_session->prev = session;
+    session = new_session;
+
     writeHeader();
 }
 
 void endProfileSession(void) {
     writeFooter();
 
-    int res = fclose(sessionFile);
+    int res = fclose(session->sessionFile);
     if(res) {
         fprintf(stderr, "Cannot close session file\n");
         abort();
     }
 
-    sessionFile = NULL;
-    profileCount = 0;
+    ProfileSession* old = session;
+    session = session->prev;
+    free(old);
 }
 
 static void writeInstrumentRecord(const char* name, uint64_t startNano, uint64_t endNano) {
-    if(!sessionFile) {
+    if(!session) {
         fprintf(stderr, "No session started\n");
         abort();
     }
@@ -50,10 +62,10 @@ static void writeInstrumentRecord(const char* name, uint64_t startNano, uint64_t
     double timestamp = startNano / 1000.0;
     double elapsed = (endNano - startNano) / 1000.0;
 
-    if(profileCount++ > 0) {
-        fputc(',', sessionFile);
+    if(session->profileCount++ > 0) {
+        fputc(',', session->sessionFile);
     }
-    fprintf(sessionFile,
+    fprintf(session->sessionFile,
             "{\"cat\":\"function\",\"dur\":%lf,\"name\":\"%s\",\"ph\":\"X\",\"pid\":0,\"tid\":0,"
             "\"ts\":%lf}",
             elapsed, name, timestamp);

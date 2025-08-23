@@ -3,7 +3,6 @@
 #include <extlib.h>
 #include <jstar/jstar.h>
 #include <path.h>
-#include <profiler.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -98,13 +97,11 @@ void freeImports(void) {
 
 // Loads a native extension module and returns its `native registry` to J*
 static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
-    PROFILE_FUNC()
     pathAppend(&nativeExt, modulePath->items, modulePath->size);
     pathChangeExtension(&nativeExt, DL_SUFFIX);
 
     void* dynlib;
     {
-        PROFILE("loadNativeExtension::dynload")
         dynlib = dynload(nativeExt.items);
         if(!dynlib) {
             return NULL;
@@ -113,7 +110,6 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
 
     JStarNativeReg* (*registry)(void);
     {
-        PROFILE("loadNativeExtension::dynsim")
         registry = dynsim(dynlib, OPEN_NATIVE_EXT);
         if(!registry) {
             dynfree(dynlib);
@@ -145,7 +141,6 @@ static void finalizeImport(void* userData) {
 // Creates a `JStarImportResult` and sets all relevant fields such as
 // the finalization callback and the native registry structure
 static JStarImportResult makeImportResult(const Path* path, StringBuffer sb) {
-    PROFILE_FUNC()
     JStarImportResult res;
     res.finalize = &finalizeImport;
     res.code = sb.items ? sb.items : "";
@@ -157,8 +152,6 @@ static JStarImportResult makeImportResult(const Path* path, StringBuffer sb) {
 }
 
 JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
-    PROFILE_FUNC()
-
     // Retrieve the import paths list from the core module
     if(!jsrGetGlobal(vm, JSR_CORE_MODULE, IMPORT_PATHS)) {
         jsrPop(vm);
@@ -172,59 +165,55 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
     }
 
     size_t importLen = jsrListGetLength(vm, -1);
-    {
-        PROFILE("importCallback::resolutionLoop")
-
-        for(size_t i = 0; i < importLen; i++) {
-            jsrListGet(vm, i, -1);
-            if(!jsrIsString(vm, -1)) {
-                jsrPop(vm);
-                continue;
-            }
-
-            pathAppend(&import, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-            size_t moduleStart = import.size - 1;
-
-            pathJoinStr(&import, moduleName);
-            size_t moduleEnd = import.size - 1;
-
-            pathReplace(&import, moduleStart, ".", PATH_SEP_CHAR);
-
-            StringBuffer sb = {.allocator = &default_allocator.base};
-
-            // Try loading a package (__package__ file inside a directory)
-            pathJoinStr(&import, PACKAGE_FILE);
-
-            // Try binary package
-            pathChangeExtension(&import, JSC_EXT);
-            if(readFileAtPath(&import, &sb)) {
-                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
-            }
-
-            // Try source package
-            pathChangeExtension(&import, JSR_EXT);
-            if(readFileAtPath(&import, &sb)) {
-                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
-            }
-
-            // If no package is found, try to load a module
-            pathTruncate(&import, moduleEnd);
-
-            // Try binary module
-            pathChangeExtension(&import, JSC_EXT);
-            if(readFileAtPath(&import, &sb)) {
-                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
-            }
-
-            // Try source module
-            pathChangeExtension(&import, JSR_EXT);
-            if(readFileAtPath(&import, &sb)) {
-                return (jsrPopN(vm, 2), makeImportResult(&import, sb));
-            }
-
-            pathClear(&import);
+    for(size_t i = 0; i < importLen; i++) {
+        jsrListGet(vm, i, -1);
+        if(!jsrIsString(vm, -1)) {
             jsrPop(vm);
+            continue;
         }
+
+        pathAppend(&import, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
+        size_t moduleStart = import.size - 1;
+
+        pathJoinStr(&import, moduleName);
+        size_t moduleEnd = import.size - 1;
+
+        pathReplace(&import, moduleStart, ".", PATH_SEP_CHAR);
+
+        StringBuffer sb = {.allocator = &default_allocator.base};
+
+        // Try loading a package (__package__ file inside a directory)
+        pathJoinStr(&import, PACKAGE_FILE);
+
+        // Try binary package
+        pathChangeExtension(&import, JSC_EXT);
+        if(readFileAtPath(&import, &sb)) {
+            return (jsrPopN(vm, 2), makeImportResult(&import, sb));
+        }
+
+        // Try source package
+        pathChangeExtension(&import, JSR_EXT);
+        if(readFileAtPath(&import, &sb)) {
+            return (jsrPopN(vm, 2), makeImportResult(&import, sb));
+        }
+
+        // If no package is found, try to load a module
+        pathTruncate(&import, moduleEnd);
+
+        // Try binary module
+        pathChangeExtension(&import, JSC_EXT);
+        if(readFileAtPath(&import, &sb)) {
+            return (jsrPopN(vm, 2), makeImportResult(&import, sb));
+        }
+
+        // Try source module
+        pathChangeExtension(&import, JSR_EXT);
+        if(readFileAtPath(&import, &sb)) {
+            return (jsrPopN(vm, 2), makeImportResult(&import, sb));
+        }
+
+        pathClear(&import);
+        jsrPop(vm);
     }
 
     jsrPop(vm);

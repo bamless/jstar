@@ -10,7 +10,7 @@
 #include "parse/ast.h"
 #include "parse/lex.h"
 #include "parse/parser.h"
-#include "profiler.h"
+#include "profile.h"
 #include "serialize.h"
 #include "value.h"
 #include "value_hashtable.h"

@@ -14,7 +14,7 @@
 #include "parse/ast.h"
 #include "parse/lex.h"
 #include "parse/parser.h"
-#include "profiler.h"
+#include "profile.h"
 #include "serialize.h"
 #include "value.h"
 #include "value_hashtable.h"
@@ -101,6 +101,8 @@ void* jsrGetCustomData(const JStarVM* vm) {
 }
 
 static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
+    PROFILE_BEGIN_SESSION("jstar-eval.json")
+
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
 
@@ -125,11 +127,15 @@ static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
     vm->cacheHits = vm->cacheMisses = 0;
 #endif
 
+    PROFILE_END_SESSION()
+
     return res;
 }
 
 static JStarResult evalString(JStarVM* vm, const char* path, const char* module, const char* src,
                               size_t len) {
+    PROFILE_BEGIN_SESSION("jstar-eval.json")
+
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
         jsrASTArenaReset(&vm->astArena);
@@ -144,11 +150,12 @@ static JStarResult evalString(JStarVM* vm, const char* path, const char* module,
         return JSR_COMPILE_ERR;
     }
 
+    PROFILE_END_SESSION()
+
     return eval(vm, path, fn);
 }
 
 JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
-    PROFILE_FUNC()
     return jsrEvalModuleString(vm, path, JSR_MAIN_MODULE, src);
 }
 
@@ -158,14 +165,11 @@ JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* modul
 }
 
 JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len) {
-    PROFILE_FUNC()
     return jsrEvalModule(vm, path, JSR_MAIN_MODULE, code, len);
 }
 
 JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, const void* code,
                           size_t len) {
-    PROFILE_FUNC()
-
     if(!isCompiledCode(code, len)) {
         return evalString(vm, path, module, code, len);
     }
@@ -183,8 +187,6 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
                            JStarBuffer* out) {
-    PROFILE_FUNC()
-
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
         jsrASTArenaReset(&vm->astArena);
@@ -204,8 +206,6 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_
 }
 
 JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, size_t len) {
-    PROFILE_FUNC()
-
     if(!isCompiledCode(code, len)) {
         return JSR_DESERIALIZE_ERR;
     }

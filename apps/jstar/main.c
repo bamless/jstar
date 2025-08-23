@@ -5,7 +5,6 @@
 #include <jstar/parse/ast.h>
 #include <jstar/parse/lex.h>
 #include <jstar/parse/parser.h>
-#include <profiler.h>
 #include <replxx.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -68,7 +67,6 @@ static CompletionState completionState;
 // J* error callback that prints colored error messages
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
                           const char* err) {
-    PROFILE_FUNC()
     if(loc.line > 0) {
         fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s:%d:%d: error\n", file, loc.line,
                       loc.col);
@@ -114,27 +112,17 @@ static JStarResult evaluateStr(const char* path, const char* cstr) {
 
 // Execute a J* source or compiled file from disk.
 static JStarResult execScript(const char* script, int argc, char** args) {
-    PROFILE_BEGIN_SESSION("jstar-run.json")
-
-    JStarResult res;
-    {
-        PROFILE_FUNC()
-        StringBuffer code = {0};
-        if(!read_file(script, &code)) return false;
-        jsrInitCommandLineArgs(vm, argc, (const char**)args);
-        res = evaluate(script, code.items, code.size);
-        sb_free(&code);
-    }
-
-    PROFILE_END_SESSION()
+    StringBuffer code = {0};
+    if(!read_file(script, &code)) return false;
+    jsrInitCommandLineArgs(vm, argc, (const char**)args);
+    JStarResult res = evaluate(script, code.items, code.size);
+    sb_free(&code);
     return res;
 }
 
 // Counts the number of blocks in a single line of J* code.
 // Used to handle multiline input in the repl.
 static int countBlocks(const char* line, int cur) {
-    PROFILE_FUNC()
-
     JStarLoc err = {0};
     JStarStmt* e = jsrParse("<repl>", line, strlen(line), blockParseError, &arena, &err);
     // parsing failed at end of line, need more
@@ -191,7 +179,6 @@ static void registerPrintFunction(void) {
 // Add an additional print statement if the current input is a valid J* expression.
 // Also, the current expression is assigned to `_` in order to permit calculation chaining.
 static void addReplPrint(StringBuffer* sb) {
-    PROFILE_FUNC()
     JStarExpr* e = jsrParseExpression("<repl>", sb->items, sb->size, NULL, &arena, NULL);
     if(e != NULL) {
         sb_prepend_cstr(sb, "var _ = ");
@@ -202,42 +189,34 @@ static void addReplPrint(StringBuffer* sb) {
 
 // The interactive read-eval-print loop.
 static JStarResult doRepl(void) {
-    PROFILE_BEGIN_SESSION("jstar-repl.json")
-
     JStarResult res = JSR_SUCCESS;
-    {
-        PROFILE_FUNC()
+    registerPrintFunction();
 
-        registerPrintFunction();
-
-        if(!opts.skipVersion) {
-            printVersion();
-        }
-
-        const char* line;
-        StringBuffer src = {0};
-        while((line = replxx_input(replxx, JSTAR_PROMPT)) != NULL) {
-            int depth = countBlocks(line, 0);
-            replxx_history_add(replxx, line);
-            sb_append_cstr(&src, line);
-
-            while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
-                depth += countBlocks(line, depth);
-                replxx_history_add(replxx, line);
-                sb_append_char(&src, '\n');
-                sb_append_cstr(&src, line);
-            }
-
-            addReplPrint(&src);
-            sb_append_char(&src, '\0');
-            res = evaluateStr("<stdin>", src.items);
-            src.size = 0;
-        }
-
-        sb_free(&src);
+    if(!opts.skipVersion) {
+        printVersion();
     }
 
-    PROFILE_END_SESSION()
+    const char* line;
+    StringBuffer src = {0};
+    while((line = replxx_input(replxx, JSTAR_PROMPT)) != NULL) {
+        int depth = countBlocks(line, 0);
+        replxx_history_add(replxx, line);
+        sb_append_cstr(&src, line);
+
+        while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
+            depth += countBlocks(line, depth);
+            replxx_history_add(replxx, line);
+            sb_append_char(&src, '\n');
+            sb_append_cstr(&src, line);
+        }
+
+        addReplPrint(&src);
+        sb_append_char(&src, '\0');
+        res = evaluateStr("<stdin>", src.items);
+        src.size = 0;
+    }
+
+    sb_free(&src);
     return res;
 }
 
@@ -295,11 +274,8 @@ static void initApp(int argc, char** argv) {
     conf.errorCallback = &errorCallback;
     conf.importCallback = &importCallback;
 
-    PROFILE_BEGIN_SESSION("jstar-init.json")
     vm = jsrNewVM(&conf);
     jsrInitRuntime(vm);
-    PROFILE_END_SESSION()
-
     if(!initImports(vm, opts.script, opts.ignoreEnv)) exit(EXIT_FAILURE);
 
     // Replxx initialization
@@ -320,9 +296,7 @@ static void freeApp(void) {
     replxx_history_clear(replxx);
     replxx_end(replxx);
 
-    PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);
-    PROFILE_END_SESSION()
 }
 
 int main(int argc, char** argv) {

@@ -10,7 +10,7 @@
 #include "conf.h"
 #include "int_hashtable.h"
 #include "object.h"
-#include "profiler.h"
+#include "profile.h"
 #include "value.h"
 #include "value_hashtable.h"
 #include "vm.h"

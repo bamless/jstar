@@ -12,7 +12,7 @@
 #include "gc.h"
 #include "jstar.h"
 #include "object.h"
-#include "profiler.h"
+#include "profile.h"
 #include "symbol.h"
 #include "util.h"
 #include "value.h"

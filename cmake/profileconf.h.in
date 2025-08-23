@@ -1,6 +1,0 @@
-#ifndef PROFILECONF_H
-#define PROFILECONF_H
-
-#cmakedefine JSTAR_INSTRUMENT
-
-#endif

@@ -5,7 +5,6 @@
 #include <jstar/jstar.h>
 #include <jstar/parse/lex.h>
 #include <path.h>
-#include <profiler.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +39,6 @@ static JStarVM* vm;
 // Custom J* error callback.
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
                           const char* err) {
-    PROFILE_FUNC()
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:
@@ -70,8 +68,6 @@ static void printVersion(void) {
 // If `-l` or `-c` were passed to the application, then no output file is generated.
 // Returns true on success, false on failure.
 static bool compileFile(const Path* path, const Path* out) {
-    PROFILE_FUNC()
-
     StringBuffer src = {0};
     if(!read_file(path->items, &src)) return false;
 
@@ -102,8 +98,6 @@ static bool compileFile(const Path* path, const Path* out) {
 // Disassemble the file at `path` and print the bytecode to standard output.
 // Returns true on success, false on failure.
 static bool disassembleFile(const Path* path) {
-    PROFILE_FUNC()
-
     StringBuffer code = {0};
     if(!read_file(path->items, &code)) return false;
 
@@ -231,20 +225,14 @@ static void parseArguments(int argc, char** argv) {
 // Init the app state by parsing arguments and initializing the J* vm
 static void initApp(int argc, char** argv) {
     parseArguments(argc, argv);
-
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
-
-    PROFILE_BEGIN_SESSION("jstar-init.json")
     vm = jsrNewVM(&conf);
-    PROFILE_END_SESSION()
 }
 
 // Free the app state
 static void freeApp(void) {
-    PROFILE_BEGIN_SESSION("jstar-free.json")
     jsrFreeVM(vm);
-    PROFILE_END_SESSION()
 }
 
 int main(int argc, char** argv) {
@@ -269,7 +257,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    PROFILE_BEGIN_SESSION("jstar-run.json")
     bool res;
     if(input_type == FILE_DIR) {
         res = compileDirectory(&inputPath, &outputPath, &inputPath);
@@ -278,7 +265,6 @@ int main(int argc, char** argv) {
     } else {
         res = compileFile(&inputPath, &outputPath);
     }
-    PROFILE_END_SESSION()
 
     pathFree(&inputPath);
     pathFree(&outputPath);

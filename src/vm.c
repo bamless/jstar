@@ -15,7 +15,7 @@
 #include "object.h"
 #include "opcode.h"
 #include "parse/ast.h"
-#include "profiler.h"
+#include "profile.h"
 #include "symbol.h"
 #include "util.h"
 #include "value.h"
@@ -63,97 +63,110 @@ static size_t roundUp(size_t num, size_t multiple) {
 }
 
 JStarVM* jsrNewVM(const JStarConf* conf) {
-    PROFILE_FUNC()
+    PROFILE_BEGIN_SESSION("jstar-new.json");
+    JStarVM* vm;
+    {
+        PROFILE_FUNC()
 
-    JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
-    JStarVM* vm = reallocate(NULL, 0, sizeof(*vm));
-    JSR_ASSERT(vm, "Out of memory");
-    memset(vm, 0, sizeof(*vm));
+        JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
+        vm = reallocate(NULL, 0, sizeof(*vm));
+        JSR_ASSERT(vm, "Out of memory");
+        memset(vm, 0, sizeof(*vm));
 
-    vm->realloc = reallocate;
-    vm->astArena.realloc = reallocate;
-    vm->errorCallback = conf->errorCallback;
-    vm->importCallback = conf->importCallback;
-    vm->userData = conf->userData;
+        vm->realloc = reallocate;
+        vm->astArena.realloc = reallocate;
+        vm->errorCallback = conf->errorCallback;
+        vm->importCallback = conf->importCallback;
+        vm->userData = conf->userData;
 
-    // VM program stack
-    vm->stackSz = roundUp(conf->startingStackSize, MAX_LOCALS + 1);
-    vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
+        // VM program stack
+        vm->stackSz = roundUp(conf->startingStackSize, MAX_LOCALS + 1);
+        vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
 
-    vm->stack = vm->realloc(NULL, 0, sizeof(Value) * vm->stackSz);
-    JSR_ASSERT(vm->stack, "Out of memory");
+        vm->stack = vm->realloc(NULL, 0, sizeof(Value) * vm->stackSz);
+        JSR_ASSERT(vm->stack, "Out of memory");
 
-    vm->frames = vm->realloc(NULL, 0, sizeof(Frame) * vm->frameSz);
-    JSR_ASSERT(vm->frames, "Out of memory");
+        vm->frames = vm->realloc(NULL, 0, sizeof(Frame) * vm->frameSz);
+        JSR_ASSERT(vm->frames, "Out of memory");
 
-    resetStack(vm);
+        resetStack(vm);
 
-    // GC Values
-    vm->nextGC = conf->firstGCCollectionPoint;
-    vm->heapGrowRate = conf->heapGrowRate;
+        // GC Values
+        vm->nextGC = conf->firstGCCollectionPoint;
+        vm->heapGrowRate = conf->heapGrowRate;
 
-    // Module cache and interned string pool
-    initValueHashTable(vm, &vm->modules);
-    initValueHashTable(vm, &vm->stringPool);
+        // Module cache and interned string pool
+        initValueHashTable(vm, &vm->modules);
+        initValueHashTable(vm, &vm->stringPool);
 
-    // Create string constants of special method names
-    for(int i = 0; i < METH_SIZE; i++) {
-        vm->specialMethods[i] = copyCString(vm, specialMethods[i]);
+        // Create string constants of special method names
+        for(int i = 0; i < METH_SIZE; i++) {
+            vm->specialMethods[i] = copyCString(vm, specialMethods[i]);
+        }
     }
-
+    PROFILE_END_SESSION();
     return vm;
 }
 
 void jsrInitRuntime(JStarVM* vm) {
-    JSR_ASSERT(!vm->core, "Runtime already initialized");
+    PROFILE_BEGIN_SESSION("jstar-init.json");
+    {
+        JSR_ASSERT(!vm->core, "Runtime already initialized");
+        PROFILE_FUNC()
 
-    // Core module bootstrap
-    initCoreModule(vm);
+        // Core module bootstrap
+        initCoreModule(vm);
 
-    // Initialize main module
-    ObjString* name = copyCString(vm, JSR_MAIN_MODULE);
-    push(vm, OBJ_VAL(name));
-    setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
-    pop(vm);
+        // Initialize main module
+        ObjString* name = copyCString(vm, JSR_MAIN_MODULE);
+        push(vm, OBJ_VAL(name));
+        setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
+        pop(vm);
 
-    // Create singletons
-    vm->emptyTup = newTuple(vm, 0);
-    vm->excErr = copyCString(vm, EXC_ERR);
-    vm->excTrace = copyCString(vm, EXC_TRACE);
-    vm->excCause = copyCString(vm, EXC_CAUSE);
+        // Create singletons
+        vm->emptyTup = newTuple(vm, 0);
+        vm->excErr = copyCString(vm, EXC_ERR);
+        vm->excTrace = copyCString(vm, EXC_TRACE);
+        vm->excCause = copyCString(vm, EXC_CAUSE);
+    }
+    PROFILE_END_SESSION();
 }
 
 void jsrFreeVM(JStarVM* vm) {
-    PROFILE_FUNC()
-
-    resetStack(vm);
-
+    PROFILE_BEGIN_SESSION("jstar-free.json");
     {
-        PROFILE("{free-vm-state}::jsrFreeVM")
+        PROFILE_FUNC()
 
-        vm->realloc(vm->stack, vm->stackSz, 0);
-        vm->realloc(vm->frames, vm->frameSz, 0);
-        freeValueHashTable(&vm->stringPool);
-        freeValueHashTable(&vm->modules);
+        resetStack(vm);
 
-        JStarSymbol* sym = vm->symbols;
-        while(sym) {
-            JStarSymbol* next = sym->next;
-            GC_FREE(vm, JStarSymbol, sym);
-            sym = next;
+        {
+            PROFILE("{free-vm-state}::jsrFreeVM")
+
+            vm->realloc(vm->stack, vm->stackSz, 0);
+            vm->realloc(vm->frames, vm->frameSz, 0);
+            freeValueHashTable(&vm->stringPool);
+            freeValueHashTable(&vm->modules);
+
+            JStarSymbol* sym = vm->symbols;
+            while(sym) {
+                JStarSymbol* next = sym->next;
+                GC_FREE(vm, JStarSymbol, sym);
+                sym = next;
+            }
+
+            arrayFree(vm, &vm->reachedStack);
         }
 
-        arrayFree(vm, &vm->reachedStack);
-    }
-
-    jsrASTArenaFree(&vm->astArena);
-    sweepObjects(vm);
+        jsrASTArenaFree(&vm->astArena);
+        sweepObjects(vm);
 
 #ifdef JSTAR_DBG_PRINT_GC
-    printf("Allocated at exit: %lu bytes.\n", vm->allocated);
+        printf("Allocated at exit: %lu bytes.\n", vm->allocated);
 #endif
 
-    vm->realloc(vm, sizeof(*vm), 0);
+        vm->realloc(vm, sizeof(*vm), 0);
+    }
+    PROFILE_END_SESSION();
 }
 
 // -----------------------------------------------------------------------------
