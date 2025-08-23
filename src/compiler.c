@@ -166,11 +166,7 @@ static void endCompiler(Compiler* c) {
         jsrBufferFree(b);
     }
     arrayFree(c->vm, &c->syntheticNames);
-
-    if(c->prev != NULL) {
-        c->prev->hadError |= c->hadError;
-    }
-
+    if(c->prev != NULL) c->prev->hadError |= c->hadError;
     c->vm->currCompiler = c->prev;
 }
 
@@ -192,7 +188,6 @@ static void error(Compiler* c, JStarLoc loc, const char* format, ...) {
         va_end(args);
 
         vm->errorCallback(vm, JSR_COMPILE_ERR, c->file, loc, error.data);
-
         jsrBufferFree(&error);
     }
 }
