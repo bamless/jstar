@@ -171,7 +171,7 @@ Various CMake options are available to switch on or off certain functionalities 
 
 # Building without CMake
 
-On unixes, an hand-written Makefile is also provided if you don't want to use cmake.
+On unixes, an hand-written Makefile is also provided if you don't want to use cmake.  
 To build a debug build using it:
 ```sh
     make -j
