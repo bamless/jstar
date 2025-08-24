@@ -11,7 +11,7 @@ CFLAGS ?= \
 BUILDDIR ?= build
 PREFIX   ?= /usr/local
 
-# ---- Options
+# ---- OPTIONS
 # Enable Optimizations, strip executables and don't include debug information
 ifneq ($(RELEASE),)
 	CFLAGS  += -O3 -DNDEBUG
@@ -26,7 +26,32 @@ ifneq ($(USE_LTO),)
 		LDFLAGS += -fuse-ld=lld
 	endif
 endif
-# ----
+ifeq ($(shell uname),Darwin)
+	SO = dylib
+else
+	SO = so
+endif
+# ---- END OPTIONS
+
+# ---- TOP-LEVEL TARGETS
+.PHONY: all libjstar jstar jstarc
+
+all: argparse replxx includes
+	@$(MAKE) --no-print-directory      \
+	    $(BUILDDIR)/lib/libjstar.$(SO) \
+	    $(BUILDDIR)/lib/libjstar.a     \
+	    $(BUILDDIR)/bin/jstar          \
+	    $(BUILDDIR)/bin/jstarc
+
+libjstar: includes
+	@$(MAKE) --no-print-directory $(BUILDDIR)/lib/libjstar.$(SO) $(BUILDDIR)/lib/libjstar.a
+
+jstarc: argparse includes
+	@$(MAKE) --no-print-directory $(BUILDDIR)/bin/jstarc
+
+jstar: argparse replxx includes
+	@$(MAKE) --no-print-directory $(BUILDDIR)/bin/jstar
+# ---- END TOP-LEVEL TARGETS
 
 SOURCES = \
     parse/ast.c          \
@@ -70,56 +95,16 @@ JSTAR_BLTINS = \
 	builtins/re.jsc
 
 JSTAR_CFLAGS  = -I./include/
-JSTAR_LDFLAGS = -L$(BUILDDIR)/lib -ljstar
+JSTAR_LDFLAGS = -L$(BUILDDIR)/lib -l:libjstar.so.$(VERSION_MAJOR)
 OBJECTS       = $(SOURCES:%.c=$(BUILDDIR)/src/%.o)
 INCLUDES      = $(JSTAR_BLTINS:%.jsc=src/%.jsc.inc)
 DEPS          = $(OBJECTS:.o=.d)
-
-ifeq ($(shell uname),Darwin)
-	SO = dylib
-else
-	SO = so
-endif
 
 ifeq ($(shell $(CC) --version 2>&1 | head -n1 | grep -ic gcc),1)
 	VM_CFLAGS = -fno-crossjumping
 else
 	VM_CFLAGS =
 endif
-
-# ---- Top level targets
-.PHONY: all
-all: argparse replxx libcommon includes
-	@$(MAKE) --no-print-directory      \
-	    $(BUILDDIR)/lib/libjstar.$(SO) \
-	    $(BUILDDIR)/lib/libjstar.a     \
-	    $(BUILDDIR)/bin/jstar          \
-	    $(BUILDDIR)/bin/jstarc
-
-.PHONY: libjstar
-libjstar: libcommon includes
-	@$(MAKE) --no-print-directory $(BUILDDIR)/lib/libjstar.$(SO) $(BUILDDIR)/lib/libjstar.a
-
-.PHONY: jstarc
-jstarc: argparse libcommon includes
-	@$(MAKE) --no-print-directory $(BUILDDIR)/bin/jstarc
-
-.PHONY: jstar
-jstar: argparse replxx libcommon includes
-	@$(MAKE) --no-print-directory $(BUILDDIR)/bin/jstar
-
-.PHONY: bin2incl
-bin2incl: libcommon
-	@$(MAKE) --no-print-directory $(BUILDDIR)/bin2incl
-
-.PHONY: libcommon
-libcommon: cwalk
-	@$(MAKE) --no-print-directory $(BUILDDIR)/libcommon.a
-# ----
-
-.PHONY: includes
-includes: cwalk
-	@$(MAKE) --no-print-directory $(INCLUDES)
 
 $(BUILDDIR)/src/vm.o: src/vm.c
 	@mkdir -p $(dir $@)
@@ -145,9 +130,12 @@ $(BUILDDIR)/lib/libjstar.$(SO).$(VERSION_MAJOR): $(BUILDDIR)/lib/libjstar.$(SO).
 $(BUILDDIR)/lib/libjstar.$(SO): $(BUILDDIR)/lib/libjstar.$(SO).$(VERSION_MAJOR)
 	ln -fs ./libjstar.$(SO).$(VERSION) $(BUILDDIR)/lib/libjstar.$(SO)
 
-# ---- Apps
+.PHONY: includes
+includes: cwalk
+	@$(MAKE) --no-print-directory $(INCLUDES)
 
-RPATH = -Wl,-rpath,$(shell pwd)/build/lib
+# ---- Apps
+RPATH = -Wl,-rpath,$(shell pwd)/$(BUILDDIR)/lib
 
 # -- jstar repl
 JSTAR_SOURCES = \
@@ -201,35 +189,35 @@ $(BUILDDIR)/apps/common/%.o: apps/common/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -MP -MMD -I./extern/cwalk/include -I./src -fPIC -c $< -o $@
 
-$(BUILDDIR)/libcommon.a: $(COMMON_OBJECTS)
+$(BUILDDIR)/libcommon.a: $(COMMON_OBJECTS) $(BUILDDIR)/cwalk/libcwalk.a
 	$(AR) cr $@ $(COMMON_OBJECTS)
 
-$(BUILDDIR)/bin2incl: apps/bin2incl/main.c $(BUILDDIR)/libcommon.a $(BUILDDIR)/cwalk/libcwalk.a
+# -- bin2incl
+$(BUILDDIR)/bin2incl: apps/bin2incl/main.c $(BUILDDIR)/libcommon.a
 	$(CC) -o $@ -MP -MMD $(CFLAGS) $(LDFLAGS) $< $(COMMON_CFLAGS) $(COMMON_LDFLAGS)
 
 -include $(DEPS)
+# ----
 
 # ---- Dependencies
 CMAKE_BUILD_TYPE = Debug
 ifneq ($(RELEASE),)
 	CMAKE_BUILD_TYPE = Release
 endif
+.PHONY: cwalk argparse replxx
 
-.PHONY: cwalk
 CWALK_CFLAGS  = -I./extern/cwalk/include
 CWALK_LDFLAGS = -L$(BUILDDIR)/cwalk -l:libcwalk.a
 cwalk:
 	@[ -d $(BUILDDIR)/cwalk ] || (mkdir -p $(BUILDDIR)/cwalk; cmake -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -S ./extern/cwalk/ -B $(BUILDDIR)/cwalk)
 	@$(MAKE) --no-print-directory -C $(BUILDDIR)/cwalk
 
-.PHONY: argparse
 ARGPARSE_CFLAGS  = -I./extern/argparse/
 ARGPARSE_LDFLAGS = -L$(BUILDDIR)/argparse -l:libargparse.a
 argparse:
 	@[ -d $(BUILDDIR)/argparse ] || (mkdir -p $(BUILDDIR)/argparse; cmake -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -S ./extern/argparse/ -B $(BUILDDIR)/argparse)
 	@$(MAKE) --no-print-directory -C $(BUILDDIR)/argparse
 
-.PHONY: replxx
 REPLXX_CFLAGS  = -I./extern/replxx/include/
 REPLXX_LDFLAGS = -L$(BUILDDIR)/replxx/ -l:libreplxx.a
 replxx:
@@ -238,6 +226,7 @@ replxx:
 	@if [ -f $(BUILDDIR)/replxx/libreplxx-d.a ]; then \
 		cp $(BUILDDIR)/replxx/libreplxx-d.a $(BUILDDIR)/replxx/libreplxx.a; \
 	fi
+# ----
 
 .PHONY: clean
 clean:
