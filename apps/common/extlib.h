@@ -2510,8 +2510,9 @@ bool ext_read_file(const char *path, Ext_StringBuffer *sb) {
     if(fseek(f, 0, SEEK_SET) < 0) ext_return_exit(false);
 
     ext_sb_reserve_exact(sb, sb->size + size);
-    fread(sb->items + sb->size, 1, size, f);
-    if(ferror(f)) ext_return_exit(false, exit, res);
+    size_t nread = fread(sb->items + sb->size, 1, size, f);
+    if(nread < (size_t)size) ext_return_exit(false);
+    if(ferror(f)) ext_return_exit(false);
     sb->size = size;
 
 exit:;
