@@ -1812,7 +1812,7 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     return c->func;
 }
 
-static ObjNative* native(Compiler* c, ObjModule* m, ObjString* name, const JStarStmt* s) {
+static ObjNative* native(Compiler* c, ObjString* name, const JStarStmt* s) {
     const JStarExprs* defaults = &s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
@@ -1853,7 +1853,7 @@ static void compileFunction(Compiler* c, FuncType type, ObjString* name, const J
 static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, const JStarStmt* s) {
     JSR_ASSERT(nativeOp == OP_NATIVE || nativeOp == OP_NATIVE_METHOD, "Not a native opcode");
 
-    ObjNative* nat = native(c, c->func->proto.module, name, s);
+    ObjNative* nat = native(c, name, s);
     JStarIdentifier nativeId = s->as.decl.as.native.id;
     uint16_t nativeConst = createConst(c, OBJ_VAL(nat), s->loc);
 

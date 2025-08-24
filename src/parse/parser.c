@@ -716,7 +716,7 @@ static JStarExprs parseDecorators(Parser* p) {
     return decorators;
 }
 
-static JStarIdentifier ctorName(JStarLoc loc) {
+static JStarIdentifier ctorName(void) {
     return (JStarIdentifier){strlen(CONSTRUCT_ID), CONSTRUCT_ID};
 }
 
@@ -730,7 +730,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarIdentifier funcName;
     if(parseCtor && funTok.type == TOK_CTOR) {
         fn.isCtor = true;
-        funcName = ctorName(funTok.loc);
+        funcName = ctorName();
     } else {
         JStarTok fun = require(p, TOK_IDENTIFIER);
         funcName = createIdentifier(fun);
@@ -758,8 +758,8 @@ static JStarStmt* nativeDecl(Parser* p, bool parseCtor) {
 
     JStarIdentifier nativeName;
     if(parseCtor && p->peek.type == TOK_CTOR) {
-        JStarTok ctor = advance(p);
-        nativeName = ctorName(ctor.loc);
+        advance(p);
+        nativeName = ctorName();
     } else {
         JStarTok nat = require(p, TOK_IDENTIFIER);
         nativeName = createIdentifier(nat);

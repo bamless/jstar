@@ -67,6 +67,7 @@ static CompletionState completionState;
 // J* error callback that prints colored error messages
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
                           const char* err) {
+    (void)vm, (void)res;
     if(loc.line > 0) {
         fConsolePrint(replxx, REPLXX_STDERR, COLOR_RED, "%s:%d:%d: error\n", file, loc.line,
                       loc.col);

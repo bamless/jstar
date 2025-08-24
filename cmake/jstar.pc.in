@@ -16,4 +16,4 @@ URL: @CMAKE_PROJECT_HOMEPAGE_URL@
 Version: @JSTAR_VERSION@
 Cflags: -I"${includedir}"
 Libs: -L"${libdir}" -ljstar
-Libs.private: -l@EXTRA_LIBS@
+Libs.private: -lm -ldl

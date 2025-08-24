@@ -71,6 +71,7 @@ static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
 
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc,
                      const char* error) {
+    (void)vm, (void)err;
     if(loc.line > 0) {
         fprintf(stderr, "%s:%d:%d error\n", file, loc.line, loc.col);
     } else {
@@ -347,7 +348,7 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     ObjClass* cls = exception->base.cls;
 
     Value value = NULL_VAL;
-    instanceGetField(vm, cls, exception, vm->excTrace, &value);
+    instanceGetField(cls, exception, vm->excTrace, &value);
     ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
     st->lastTracedFrame = -1;
 
@@ -369,7 +370,7 @@ void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
     JSR_ASSERT(IS_CLASS(peek(vm)), "Trying to raise a non-class");
     ObjClass* excCls = AS_CLASS(peek(vm));
 
-    if(!isSubClass(vm, excCls, vm->excClass)) {
+    if(!isSubClass(excCls, vm->excClass)) {
         jsrRaise(vm, "TypeException", "Can only raise Exception subclasses");
         return;
     }
@@ -592,7 +593,7 @@ void jsrListRemove(JStarVM* vm, size_t i, int slot) {
     JSR_ASSERT(IS_LIST(lstVal), "Not a list");
     ObjList* lst = AS_LIST(lstVal);
     JSR_ASSERT(i < lst->count, "Out of bounds");
-    listRemove(vm, lst, (size_t)i);
+    listRemove(lst, (size_t)i);
 }
 
 void jsrListGet(JStarVM* vm, size_t i, int slot) {

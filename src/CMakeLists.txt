@@ -108,7 +108,7 @@ endforeach()
 # set extra libraries that we need to link
 set(EXTRA_LIBS)
 if(UNIX)
-    set(EXTRA_LIBS m)
+    set(EXTRA_LIBS m dl)
 endif()
 
 if(JSTAR_COMPUTED_GOTOS)

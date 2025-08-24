@@ -39,6 +39,7 @@ static JStarVM* vm;
 // Custom J* error callback.
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,
                           const char* err) {
+    (void)vm;
     switch(res) {
     case JSR_SYNTAX_ERR:
     case JSR_COMPILE_ERR:

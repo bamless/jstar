@@ -240,7 +240,7 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
     JSR_UNREACHABLE();
 }
 
-inline bool isSubClass(const JStarVM* vm, ObjClass* sub, ObjClass* super) {
+inline bool isSubClass(ObjClass* sub, ObjClass* super) {
     for(ObjClass* c = sub; c != NULL; c = c->superCls) {
         if(c == super) {
             return true;
@@ -250,7 +250,7 @@ inline bool isSubClass(const JStarVM* vm, ObjClass* sub, ObjClass* super) {
 }
 
 inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls) {
-    return isSubClass(vm, getClass(vm, i), cls);
+    return isSubClass(getClass(vm, i), cls);
 }
 
 #endif

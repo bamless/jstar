@@ -131,6 +131,8 @@ static void setTokColor(const char* in, const JStarTok* tok, ReplxxColor color, 
 }
 
 static void highlighter(const char* input, ReplxxColor* colors, int size, void* userData) {
+    (void)size, (void)userData;
+
     JStarLex lex;
     jsrInitLexer(&lex, input, strlen(input));
 

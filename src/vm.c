@@ -224,7 +224,7 @@ static bool isInt(double n) {
     return trunc(n) == n;
 }
 
-static bool isSymbolCached(JStarVM* vm, Obj* key, const SymbolCache* sym) {
+static bool isSymbolCached(Obj* key, const SymbolCache* sym) {
     bool hit = sym->key == key;
 #ifdef JSTAR_DBG_CACHE_STATS
     if(hit) vm->cacheHits++;
@@ -527,7 +527,7 @@ static bool invokeMethod(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t ar
 
 static bool invokeMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, uint8_t argc,
                                SymbolCache* sym) {
-    if(isSymbolCached(vm, (Obj*)cls, sym)) {
+    if(isSymbolCached((Obj*)cls, sym)) {
         JSR_ASSERT(sym->type == SYMBOL_METHOD, "Invalid symbol type");
         return callValue(vm, sym->as.method, argc);
     }
@@ -562,7 +562,7 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 }
 
 static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, SymbolCache* sym) {
-    if(isSymbolCached(vm, (Obj*)cls, sym)) {
+    if(isSymbolCached((Obj*)cls, sym)) {
         JSR_ASSERT(sym->type == SYMBOL_METHOD, "Invalid symbol type");
         push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
         return true;
@@ -807,7 +807,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
 }
 
 static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
-    if(!isSymbolCached(vm, key, sym)) {
+    if(!isSymbolCached(key, sym)) {
         return false;
     }
 
@@ -828,15 +828,14 @@ static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache*
     JSR_UNREACHABLE();
 }
 
-static bool getCachedField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, const SymbolCache* sym,
-                           Value* out) {
-    if(!isSymbolCached(vm, (Obj*)cls, sym)) return false;
+static bool getCachedField(ObjClass* cls, ObjInstance* inst, const SymbolCache* sym, Value* out) {
+    if(!isSymbolCached((Obj*)cls, sym)) return false;
     JSR_ASSERT(sym->type == SYMBOL_FIELD, "Cached symbol is not a field");
     return instanceGetFieldAtOffset(inst, sym->as.offset, out);
 }
 
-static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym, Value* out) {
-    if(!isSymbolCached(vm, (Obj*)mod, sym)) return false;
+static bool getCachedGlobal(ObjModule* mod, const SymbolCache* sym, Value* out) {
+    if(!isSymbolCached((Obj*)mod, sym)) return false;
     JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Cached symbol is not a global");
     moduleGetGlobalAtOffset(mod, sym->as.offset, out);
     return true;
@@ -847,7 +846,7 @@ static bool getCachedGlobal(JStarVM* vm, ObjModule* mod, const SymbolCache* sym,
 // -----------------------------------------------------------------------------
 
 void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz) {
-    (void)newSz;
+    (void)newSz, (void)oldSz;
     if(newSz == 0) {
         free(ptr);
         return NULL;
@@ -865,14 +864,14 @@ inline bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
 
             // Check if the name resolution has been cached
             Value field;
-            if(getCachedField(vm, cls, inst, sym, &field)) {
+            if(getCachedField(cls, inst, sym, &field)) {
                 pop(vm);
                 push(vm, field);
                 return true;
             }
 
             // Try to find a field
-            int off = instanceGetFieldOffset(vm, cls, inst, name);
+            int off = instanceGetFieldOffset(cls, inst, name);
             if(off != -1) {
                 sym->type = SYMBOL_FIELD;
                 sym->key = (Obj*)cls;
@@ -897,14 +896,14 @@ inline bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
 
             // Check if the name resolution has been cached
             Value global;
-            if(getCachedGlobal(vm, mod, sym, &global)) {
+            if(getCachedGlobal(mod, sym, &global)) {
                 pop(vm);
                 push(vm, global);
                 return true;
             }
 
             // Try to find global variable
-            int off = moduleGetGlobalOffset(vm, mod, name);
+            int off = moduleGetGlobalOffset(mod, name);
             if(off != -1) {
                 sym->type = SYMBOL_GLOBAL;
                 sym->key = (Obj*)mod;
@@ -947,7 +946,7 @@ inline bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
             ObjInstance* inst = AS_INSTANCE(val);
             ObjClass* cls = inst->base.cls;
 
-            if(isSymbolCached(vm, (Obj*)cls, sym)) {
+            if(isSymbolCached((Obj*)cls, sym)) {
                 JSR_ASSERT(sym->type == SYMBOL_FIELD, "Cached symbol is not a field");
                 instanceSetFieldAtOffset(vm, inst, sym->as.offset, peek(vm));
                 return true;
@@ -962,7 +961,7 @@ inline bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
         case OBJ_MODULE: {
             ObjModule* mod = AS_MODULE(val);
 
-            if(isSymbolCached(vm, (Obj*)mod, sym)) {
+            if(isSymbolCached((Obj*)mod, sym)) {
                 JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Cached symbol is not a global");
                 moduleSetGlobalAtOffset(vm, mod, sym->as.offset, peek(vm));
                 return true;
@@ -1120,7 +1119,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // If no method is found try a field
-            int off = instanceGetFieldOffset(vm, cls, inst, name);
+            int off = instanceGetFieldOffset(cls, inst, name);
             if(off != -1) {
                 sym->type = SYMBOL_FIELD;
                 sym->key = (Obj*)cls;
@@ -1154,7 +1153,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // If no method is found on the module object, try to get a global variable
-            int off = moduleGetGlobalOffset(vm, mod, name);
+            int off = moduleGetGlobalOffset(mod, name);
             if(off != -1) {
                 sym->type = SYMBOL_GLOBAL;
                 sym->key = (Obj*)mod;
@@ -1180,7 +1179,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
 }
 
 inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
-    if(isSymbolCached(vm, (Obj*)mod, sym)) {
+    if(isSymbolCached((Obj*)mod, sym)) {
         JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Invalid symbol type");
         mod->globals[sym->as.offset] = peek(vm);
     } else {
@@ -1192,12 +1191,12 @@ inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCa
 }
 
 inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
-    if(getCachedGlobal(vm, mod, sym, vm->sp)) {
+    if(getCachedGlobal(mod, sym, vm->sp)) {
         vm->sp++;
         return true;
     }
 
-    int off = moduleGetGlobalOffset(vm, mod, name);
+    int off = moduleGetGlobalOffset(mod, name);
     if(off == -1) {
         jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
                  mod->name->data);
@@ -1814,7 +1813,7 @@ op_return:
     TARGET(OP_IMPORT_NAME): {
         ObjModule* module = getModule(vm, GET_STRING());
         ObjString* name = GET_STRING();
-        if(!moduleGetGlobal(vm, module, name, vm->sp)) {
+        if(!moduleGetGlobal(module, name, vm->sp)) {
             jsrRaise(vm, "NameException", "Name `%s` not defined in module `%s`.", name->data,
                      module->name->data);
             UNWIND_STACK();
@@ -2104,7 +2103,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     ObjClass* cls = exception->base.cls;
 
     Value stacktraceVal = NULL_VAL;
-    instanceGetField(vm, cls, exception, vm->excTrace, &stacktraceVal);
+    instanceGetField(cls, exception, vm->excTrace, &stacktraceVal);
 
     JSR_ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
@@ -2163,5 +2162,5 @@ extern inline Value peek2(const JStarVM* vm);
 extern inline void swapStackSlots(JStarVM* vm, int a, int b);
 extern inline Value peekn(const JStarVM* vm, int n);
 extern inline ObjClass* getClass(const JStarVM* vm, Value v);
-extern inline bool isSubClass(const JStarVM* vm, ObjClass* sub, ObjClass* super);
+extern inline bool isSubClass(ObjClass* sub, ObjClass* super);
 extern inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls);

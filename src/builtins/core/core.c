@@ -94,7 +94,7 @@ static ObjClass* createClass(JStarVM* vm, ObjModule* m, ObjClass* sup, const cha
 
 static Value getDefinedName(JStarVM* vm, ObjModule* m, const char* name) {
     Value v = NULL_VAL;
-    moduleGetGlobal(vm, m, copyCString(vm, name), &v);
+    moduleGetGlobal(m, copyCString(vm, name), &v);
     return v;
 }
 
@@ -639,7 +639,7 @@ JSR_NATIVE(jsr_List_removeAt) {
     if(index == SIZE_MAX) return false;
 
     Value r = l->items[index];
-    listRemove(vm, l, index);
+    listRemove(l, index);
     push(vm, r);
     return true;
 }
@@ -1272,6 +1272,7 @@ JSR_NATIVE(jsr_String_len) {
 }
 
 JSR_NATIVE(jsr_String_string) {
+    (void)vm;
     return true;
 }
 
@@ -1728,7 +1729,7 @@ static bool checkEnumElem(JStarVM* vm, ObjClass* cls, ObjInstance* inst) {
         }
 
         Value val;
-        if(instanceGetField(vm, cls, inst, enumElem, &val)) {
+        if(instanceGetField(cls, inst, enumElem, &val)) {
             JSR_RAISE(vm, "InvalidArgException", "Duplicate Enum element `%s`", enumElem->data);
         }
 

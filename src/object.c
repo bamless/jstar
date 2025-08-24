@@ -388,14 +388,14 @@ int instanceSetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* k
     }
 }
 
-bool instanceGetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* out) {
-    int offset = instanceGetFieldOffset(vm, cls, inst, key);
+bool instanceGetField(ObjClass* cls, ObjInstance* inst, ObjString* key, Value* out) {
+    int offset = instanceGetFieldOffset(cls, inst, key);
     if(offset == -1) return false;
     *out = inst->fields[offset];
     return true;
 }
 
-int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key) {
+int instanceGetFieldOffset(ObjClass* cls, ObjInstance* inst, ObjString* key) {
     int offset;
     if(!hashTableIntGet(&cls->fields, key, &offset)) return -1;
     return (size_t)offset >= inst->size ? -1 : offset;
@@ -429,14 +429,14 @@ int moduleSetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val) {
     }
 }
 
-bool moduleGetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* out) {
-    int offset = moduleGetGlobalOffset(vm, mod, key);
+bool moduleGetGlobal(ObjModule* mod, ObjString* key, Value* out) {
+    int offset = moduleGetGlobalOffset(mod, key);
     if(offset == -1) return false;
     *out = mod->globals[offset];
     return true;
 }
 
-int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key) {
+int moduleGetGlobalOffset(ObjModule* mod, ObjString* key) {
     int offset;
     if(!hashTableIntGet(&mod->globalNames, key, &offset)) return -1;
     return offset >= mod->globalsCount ? -1 : offset;
@@ -462,7 +462,7 @@ void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val) {
     lst->items[index] = val;
 }
 
-void listRemove(JStarVM* vm, ObjList* lst, size_t index) {
+void listRemove(ObjList* lst, size_t index) {
     JSR_ASSERT(index < lst->count, "Index out of bounds");
     memmove(lst->items + index, lst->items + index + 1, sizeof(Value) * (lst->count - index - 1));
     lst->count--;

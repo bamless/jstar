@@ -313,22 +313,22 @@ void freeObject(JStarVM* vm, Obj* o);
 // ObjInstance functions
 int instanceSetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value val);
 void instanceSetFieldAtOffset(JStarVM* vm, ObjInstance* inst, int offset, Value val);
-bool instanceGetField(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key, Value* out);
+bool instanceGetField(ObjClass* cls, ObjInstance* inst, ObjString* key, Value* out);
 bool instanceGetFieldAtOffset(ObjInstance* inst, int offset, Value* out);
-int instanceGetFieldOffset(JStarVM* vm, ObjClass* cls, ObjInstance* inst, ObjString* key);
+int instanceGetFieldOffset(ObjClass* cls, ObjInstance* inst, ObjString* key);
 
 // ObjModule functions
 int moduleSetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value val);
 void moduleSetGlobalAtOffset(JStarVM* vm, ObjModule* mod, int offset, Value val);
-bool moduleGetGlobal(JStarVM* vm, ObjModule* mod, ObjString* key, Value* out);
+bool moduleGetGlobal(ObjModule* mod, ObjString* key, Value* out);
 void moduleGetGlobalAtOffset(ObjModule* mod, int offset, Value* out);
-int moduleGetGlobalOffset(JStarVM* vm, ObjModule* mod, ObjString* key);
+int moduleGetGlobalOffset(ObjModule* mod, ObjString* key);
 void moduleSetPath(JStarVM* vm, ObjModule* mod, const char* path);
 
 // ObjList functions
 void listAppend(JStarVM* vm, ObjList* lst, Value v);
 void listInsert(JStarVM* vm, ObjList* lst, size_t index, Value val);
-void listRemove(JStarVM* vm, ObjList* lst, size_t index);
+void listRemove(ObjList* lst, size_t index);
 
 // ObjString functions
 uint32_t stringGetHash(ObjString* str);

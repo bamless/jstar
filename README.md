@@ -10,12 +10,12 @@
 
 **J\*** is a dynamic embeddable scripting language designed to be as easy as possible to embed into
 another program. It arises from the need of having a modern scripting language with built-in
-support for OOP whilst mantaning simplicity of use and a low memory footprint. It can be viewed as 
-a middle ground between Python, a more complete scripting language with lots of features and 
-libraries, and Lua, a small and compact language that is simple to embed but doesn't  provide OOP 
-functionalities out of the box.  
-J* tries to take the best of both worlds, implementing a fully featured class system while 
-maintaining a small footprint and employing the use of a stack based API for communication 
+support for OOP whilst mantaning simplicity of use and a low memory footprint. It can be viewed as
+a middle ground between Python, a more complete scripting language with lots of features and
+libraries, and Lua, a small and compact language that is simple to embed but doesn't  provide OOP
+functionalities out of the box.
+J* tries to take the best of both worlds, implementing a fully featured class system while
+maintaining a small footprint and employing the use of a stack based API for communication
 among the language and host program, rendering embedding simple.
 
 **J\*** is:
@@ -27,7 +27,7 @@ among the language and host program, rendering embedding simple.
  - **Fully object oriented**. Every entity, from numbers to class instances, is an object in **J\***
  - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
  - **Easily extensible**. The language can be easily extended by creating C functions callable from
-   **J\*** using the API, or by importing [C extensions](https://github.com/bamless/jsocket) 
+   **J\*** using the API, or by importing [C extensions](https://github.com/bamless/jsocket)
    provided as dynamic libraries.
 
 To get a feel of the language, [try it in your browser](https://bamless.github.io/jstar/demo)!
@@ -35,7 +35,7 @@ To get a feel of the language, [try it in your browser](https://bamless.github.i
 # The **jstar** command line interface
 
 Besides the language implementation, a simple command line interface called `jstar` is provided to
-start using the language without embedding it into another program.  
+start using the language without embedding it into another program.
 If the `jstar` binary is executed without
 arguments it behaves like your usual read-eval-print loop, accepting a line at a time and executing
 it:
@@ -57,8 +57,8 @@ J*>> _
 ```
 When you eventually get bored, simply press Ctrl+d or Ctrl+c to exit the interpreter.
 
-If you instead want to execute code written in some file, you can pass it as an argument to `jstar`. 
-All arguments after the first will be passed to the language as script arguments, you can then read 
+If you instead want to execute code written in some file, you can pass it as an argument to `jstar`.
+All arguments after the first will be passed to the language as script arguments, you can then read
 them from the script this way:
 ```lua
 if #argv > 0
@@ -70,9 +70,9 @@ end
 The `jstar` executable can also accept various options that modify the behaviour of the command line
 app. To see all of them alongside a description, simply pass the `-h` option to the executable.
 
-In addition to being a useful tool to directly use the programming language, the command line 
-interface is also a good starting point to learn how **J\*** can be embedded in a program, as it 
-uses the API to implement all of its functionalities. You can find the code in 
+In addition to being a useful tool to directly use the programming language, the command line
+interface is also a good starting point to learn how **J\*** can be embedded in a program, as it
+uses the API to implement all of its functionalities. You can find the code in
 [**apps/jstar/**](https://github.com/bamless/jstar/blob/master/apps/jstar/).
 
 # The **jstarc** compiler
@@ -101,7 +101,7 @@ compile source to bytecote before execution, but have nonetheless some nice adva
    space
  - **Faster startup**. Reading a compiled file is orders of magnitude faster than parsing and
    compiling source code, so there's almost no delay between importing and actual execution
- - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option 
+ - **Obfuscation**. If you don't want your source to be viewed, compiled files are a nice option
    since all the source and almost all debug information are stripped
  - **Platform indipendence**. Compiled files are cross-platform, just like normal source files. This
    means that they can be compiled once and shared across all systems that have a J* interpreter.
@@ -109,7 +109,7 @@ compile source to bytecote before execution, but have nonetheless some nice adva
 # Linting and IDE support
 
 Check out the [Pulsar](https://github.com/bamless/pulsar) static analyzer for code linting and
-static analysis from the command line.  
+static analysis from the command line.
 Check the [VSCode J* extension](https://marketplace.visualstudio.com/items?itemName=bamless.vsc-jstar-extension&utm_source=VSCode.pro&utm_campaign=AhmadAwais)
 for linting and syntax highlighting support in VSCode.
 
@@ -117,20 +117,20 @@ for linting and syntax highlighting support in VSCode.
 Special thanks to Bob Nystrom and the invaluable [crafting interpreters](https://craftinginterpreters.com/)
 book, on which the VM is based.
 
-My gratitude goes to the [Lua](http://www.lua.org/) project as well, for inspiring the stack-based 
-C API and its amazing [pattern matching](https://www.lua.org/pil/20.2.html) library, on which the 
+My gratitude goes to the [Lua](http://www.lua.org/) project as well, for inspiring the stack-based
+C API and its amazing [pattern matching](https://www.lua.org/pil/20.2.html) library, on which the
 `re` module is based on.
-Also, the [closures in Lua](https://www.cs.tufts.edu/~nr/cs257/archive/roberto-ierusalimschy/closures-draft.pdf) 
+Also, the [closures in Lua](https://www.cs.tufts.edu/~nr/cs257/archive/roberto-ierusalimschy/closures-draft.pdf)
 and [implementation of Lua 5](https://www.lua.org/doc/jucs05.pdf) articles were crucial for some
 parts of the implementation.
 
-# Compilation
+# Building from source
 
 The **J\*** library requires a C99 compiler and CMake (>= 3.9) to be built, and is known to compile
 on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, clang).
 
 To build the provided **command line interface** `jstar`, a C++11 compiler is required as one of its
-dependencies, is written in C++.
+dependencies is written in C++.
 
 You can clone the latest **J\*** sources using git:
 
@@ -139,7 +139,7 @@ git clone --recurse-submodules https://github.com/bamless/jstar.git
 ```
 
 After cloning, use CMake to generate build files for your build system of choice and build the `all`
-target to generate the language dynamic/static libraries and the command line interface. On 
+target to generate the language dynamic/static libraries and the command line interface. On
 UNIX-like systems this can be simply achieved by issuing this in the command line:
 
 ```bash
@@ -168,6 +168,24 @@ Various CMake options are available to switch on or off certain functionalities 
 | JSTAR_DBG_STRESS_GC  |   OFF   | Stress the garbage collector by calling it on every allocation |
 | JSTAR_DBG_PRINT_GC   |   OFF   | Trace the execution of the garbage collector |
 | JSTAR_INSTRUMENT     |   OFF   | Enable instrumentation timers scattered throughout the code. Running J* will then produce 3 json files importable from `chrome://tracing` to view a timeline of executed functions. Supported only when using the GCC compiler on POSIX systems |
+
+# Building without CMake
+
+On unixes, an hand-written Makefile is also provided if you don't want to use cmake.
+To build a debug build using it:
+```sh
+    make -j
+    make install
+```
+For a release build:
+```sh
+    # USE_LTO optionally enables link-time optimizations
+    RELEASE=1 USE_LTO=1 make -j
+    make install
+```
+
+To configure the build using the options reported above, you can directly modify
+`./include/jstar/conf.h`
 
 # Binaries
 
