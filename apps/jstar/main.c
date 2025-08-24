@@ -153,7 +153,7 @@ static bool replPrint(JStarVM* vm) {
 
     jsrDup(vm);
     bool isString = jsrIsString(vm, 1);
-    if(jsrCallMethod(vm, isString ? "escaped" : "__string__", 0) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, isString ? "escaped" : "__string__", 0)) return false;
     JSR_CHECK(String, -1, "Cannot convert result to String");
 
     if(jsrIsString(vm, 1)) {

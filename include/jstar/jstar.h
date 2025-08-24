@@ -139,7 +139,7 @@ JSTAR_API void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym);
 
 // Evaluate J* bytecode or source code in the context of 'module' (or '__main__' in jsrEval).
 // JSR_SUCCESS will be returned if the execution completed normally.
-// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, _JSR_DESERIALIZE_ERR or JSR_VER_ERR
+// In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, JSR_DESERIALIZE_ERR or JSR_VER_ERR
 // will be returned.
 // All errors will be forwared to the error callback as well.
 // The `path` argument is the file path that will passed to the callback on errors.
@@ -162,21 +162,21 @@ JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const c
 //          |               |
 //        object        arguments
 //
-// In case of success JSR_SUCCSESS will be returned, and the result will be placed on the top of the
+// In case of success true will be returned, and the result will be placed on the top of the
 // stack in place of the callable object. The state of the stack after a succesful call will be:
 //
 //  ... [result] $top [arg1][arg2] ... [argn] <-- the arguments are popped
 //
-// If an exception has been raised instead, JSR_RUNTIME_ERR will be returned and the exception will
+// If an exception has been raised instead, false will be returned and the exception will
 // be placed in place of the callable object as a result.
-JSTAR_API JStarResult jsrCall(JStarVM* vm, uint8_t argc);
+JSTAR_API bool jsrCall(JStarVM* vm, uint8_t argc);
 
 // Similar to the above, but tries to call a method called `name` on an object.
-JSTAR_API JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
+JSTAR_API bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
 // Similar to the above, but caches the method lookup in the provided symbol.
 // Can be more efficient if the same method is called multiple times on the same object type.
-JSTAR_API JStarResult jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc,
+JSTAR_API bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc,
                                           JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------

@@ -69,7 +69,7 @@ JSR_NATIVE(jsr_ascii) {
 
 JSR_NATIVE(jsr_print) {
     jsrPushValue(vm, 1);
-    if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "__string__", 0)) return false;
     if(!jsrIsString(vm, -1)) {
         JSR_RAISE(vm, "TypeException", "s.__string__() didn't return a String");
     }
@@ -78,7 +78,7 @@ JSR_NATIVE(jsr_print) {
 
     JSR_FOREACH(2) {
         if(err) return false;
-        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) return false;
+        if(!jsrCallMethod(vm, "__string__", 0)) return false;
         if(!jsrIsString(vm, -1)) {
             JSR_RAISE(vm, "TypeException", "__string__() didn't return a String");
         }
@@ -126,7 +126,7 @@ JSR_NATIVE(jsr_eval) {
     pop(vm);
 
     push(vm, OBJ_VAL(closure));
-    if(jsrCall(vm, 0) != JSR_SUCCESS) return false;
+    if(!jsrCall(vm, 0)) return false;
     pop(vm);
 
     jsrPushNull(vm);

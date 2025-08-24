@@ -402,7 +402,7 @@ static bool createStdFile(JStarVM* vm, const char* name, FILE* stdfile) {
     jsrPushNull(vm);
     jsrPushNull(vm);
     jsrPushHandle(vm, stdfile);
-    if(jsrCall(vm, 3) != JSR_SUCCESS) return false;
+    if(!jsrCall(vm, 3)) return false;
     jsrSetGlobal(vm, NULL, name);
     jsrPop(vm);
     return true;

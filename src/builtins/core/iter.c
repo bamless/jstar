@@ -19,7 +19,7 @@ JSR_NATIVE(jsr_core_iter_join) {
     JSR_FOREACH(1) {
         if(err) goto error;
         if(!jsrIsString(vm, -1)) {
-            if((jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS)) goto error;
+            if(!jsrCallMethod(vm, "__string__", 0)) goto error;
             if(!jsrIsString(vm, -1)) {
                 jsrRaise(vm, "TypeException", "s.__string__() didn't return a String");
                 goto error;

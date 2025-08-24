@@ -35,8 +35,7 @@ static void iterNames(JStarVM* vm, const char* ctxStart, int ctxLen, IterCB cb, 
     bool ok = jsrGetGlobal(vm, JSR_MAIN_MODULE, "__this__");
     JSR_ASSERT(ok, "`jsrGetGlobal(vm, JSR_MAIN_MODULE, \"__this__\")` failed");
 
-    JStarResult res = jsrCallMethod(vm, "globals", 0);
-    if(res != JSR_SUCCESS) {
+    if(!jsrCallMethod(vm, "globals", 0)) {
         jsrPop(vm);
         return;
     }

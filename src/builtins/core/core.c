@@ -122,7 +122,7 @@ static bool compareValues(JStarVM* vm, const Value* v1, const Value* v2, size_t 
         push(vm, v1[i]);
         push(vm, v2[i]);
 
-        if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) {
+        if(!jsrCallMethod(vm, "__eq__", 1)) {
             return false;
         }
 
@@ -184,7 +184,6 @@ void initCoreModule(JStarVM* vm) {
 
         // Execute core module
         JStarResult res = jsrEvalModule(vm, "core", JSR_CORE_MODULE, code, len);
-
         JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
         (void)res;
     }
@@ -554,7 +553,7 @@ JSR_NATIVE(jsr_List_construct) {
             for(size_t i = 0; i < count; i++) {
                 jsrPushValue(vm, 2);
                 jsrPushNumber(vm, i);
-                if(jsrCall(vm, 1) != JSR_SUCCESS) return false;
+                if(!jsrCall(vm, 1)) return false;
                 lst->items[lst->count++] = pop(vm);
             }
         } else {
@@ -664,7 +663,7 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, a);
         push(vm, b);
 
-        if(jsrCall(vm, 2) != JSR_SUCCESS) return false;
+        if(!jsrCall(vm, 2)) return false;
 
         if(!IS_NUM(peek(vm))) {
             JSR_RAISE(vm, "TypeException", "`comparator` didn't return a Number, got %s",
@@ -678,7 +677,7 @@ static bool lessEqCompare(JStarVM* vm, Value a, Value b, Value comparator, bool*
         push(vm, a);
         push(vm, b);
 
-        if(jsrCallMethod(vm, "__le__", 1) != JSR_SUCCESS) {
+        if(!jsrCallMethod(vm, "__le__", 1)) {
             jsrPop(vm);
             jsrRaise(vm, "TypeException", "Operator <= not defined for type %s, %s",
                      getClass(vm, a)->name->data, getClass(vm, b)->name->data);
@@ -911,7 +910,7 @@ JSR_NATIVE(jsr_Tuple_hash) {
     uint32_t hash = 1;
     for(size_t i = 0; i < tup->count; i++) {
         push(vm, tup->items[i]);
-        if(jsrCallMethod(vm, "__hash__", 0) != JSR_SUCCESS) return false;
+        if(!jsrCallMethod(vm, "__hash__", 0)) return false;
         JSR_CHECK(Number, -1, "__hash__() return value");
         uint32_t elemHash = jsrGetNumber(vm, -1);
         pop(vm);
@@ -931,7 +930,7 @@ JSR_NATIVE(jsr_String_construct) {
 
     JSR_FOREACH(1) {
         if(err) goto error;
-        if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) goto error;
+        if(!jsrCallMethod(vm, "__string__", 0)) goto error;
         if(!jsrIsString(vm, -1)) {
             jsrRaise(vm, "TypeException", "__string__() didn't return a String");
             goto error;
@@ -1241,7 +1240,7 @@ JSR_NATIVE(jsr_String_mod) {
                 }
                 push(vm, fmtArg);
 
-                if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS) {
+                if(!jsrCallMethod(vm, "__string__", 0)) {
                     jsrBufferFree(&buf);
                     return false;
                 }
@@ -1350,7 +1349,7 @@ static bool tableKeyHash(JStarVM* vm, Value key, uint32_t* hash) {
     }
 
     push(vm, key);
-    if(jsrCallMethod(vm, "__hash__", 0) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "__hash__", 0)) return false;
     JSR_CHECK(Number, -1, "__hash__() return value");
     *hash = (uint32_t)AS_NUM(pop(vm));
 
@@ -1369,7 +1368,7 @@ static bool tableKeyEquals(JStarVM* vm, Value k1, Value k2, bool* eq) {
 
     push(vm, k1);
     push(vm, k2);
-    if(jsrCallMethod(vm, "__eq__", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "__eq__", 1)) return false;
     *eq = valueToBool(pop(vm));
 
     return true;
@@ -1443,7 +1442,7 @@ JSR_NATIVE(jsr_Table_construct) {
                 push(vm, OBJ_VAL(table));
                 push(vm, e->key);
                 push(vm, e->val);
-                if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+                if(!jsrCallMethod(vm, "__set__", 2)) return false;
                 pop(vm);
             }
         }
@@ -1468,7 +1467,7 @@ JSR_NATIVE(jsr_Table_construct) {
             push(vm, array[0]);
             push(vm, array[1]);
 
-            if(jsrCallMethod(vm, "__set__", 2) != JSR_SUCCESS) return false;
+            if(!jsrCallMethod(vm, "__set__", 2)) return false;
 
             pop(vm);
             pop(vm);
@@ -1684,7 +1683,7 @@ JSR_NATIVE(jsr_Table_string) {
             if(IS_NULL(entries[i].key)) continue;
 
             push(vm, entries[i].key);
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
+            if(!jsrCallMethod(vm, "__string__", 0) || !jsrIsString(vm, -1)) {
                 jsrBufferFree(&buf);
                 return false;
             }
@@ -1693,7 +1692,7 @@ JSR_NATIVE(jsr_Table_string) {
             jsrPop(vm);
 
             push(vm, entries[i].val);
-            if(jsrCallMethod(vm, "__string__", 0) != JSR_SUCCESS || !jsrIsString(vm, -1)) {
+            if(!jsrCallMethod(vm, "__string__", 0) || !jsrIsString(vm, -1)) {
                 jsrBufferFree(&buf);
                 return false;
             }
@@ -1804,7 +1803,7 @@ JSR_NATIVE(jsr_Enum_value) {
 JSR_NATIVE(jsr_Enum_name) {
     if(!jsrGetField(vm, 0, M_VALUE_NAME)) return false;
     jsrPushValue(vm, 1);
-    if(jsrCallMethod(vm, "__get__", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "__get__", 1)) return false;
     return true;
 }
 // end

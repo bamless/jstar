@@ -32,7 +32,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
 
         if(isInstance(vm, cause, vm->excClass)) {
             push(vm, cause);
-            if(jsrCallMethod(vm, "printStacktrace", 0) != JSR_SUCCESS) return false;
+            if(!jsrCallMethod(vm, "printStacktrace", 0)) return false;
             pop(vm);
             fprintf(stderr, "\nAbove Excetption caused:\n");
         }
@@ -101,7 +101,7 @@ JSR_NATIVE(jsr_Exception_getStacktrace) {
 
         if(isInstance(vm, cause, vm->excClass)) {
             push(vm, cause);
-            if(jsrCallMethod(vm, "getStacktrace", 0) != JSR_SUCCESS) return false;
+            if(!jsrCallMethod(vm, "getStacktrace", 0)) return false;
             Value stackTrace = peek(vm);
             if(IS_STRING(stackTrace)) {
                 jsrBufferAppend(&buf, AS_STRING(stackTrace)->data, AS_STRING(stackTrace)->length);

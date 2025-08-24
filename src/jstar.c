@@ -1,4 +1,6 @@
 
+#include "jstar.h"
+
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -101,19 +103,19 @@ void* jsrGetCustomData(const JStarVM* vm) {
     return vm->userData;
 }
 
-static JStarResult eval(JStarVM* vm, const char* path, ObjFunction* fn) {
+static bool eval(JStarVM* vm, const char* path, ObjFunction* fn) {
     PROFILE_BEGIN_SESSION("jstar-eval.json")
+    bool res = true;
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
-
     moduleSetPath(vm, fn->proto.module, path);
 
-    JStarResult res = jsrCall(vm, 0);
-    if(res != JSR_SUCCESS) {
+    if(!jsrCall(vm, 0)) {
         jsrGetStacktrace(vm, -1);
         vm->errorCallback(vm, JSR_RUNTIME_ERR, path, (JStarLoc){0}, jsrGetString(vm, -1));
         pop(vm);
+        res = false;
     }
 
     pop(vm);
@@ -147,13 +149,11 @@ static JStarResult evalString(JStarVM* vm, const char* path, const char* module,
     ObjFunction* fn = compileModule(vm, path, name, program);
     jsrASTArenaReset(&vm->astArena);
 
-    if(fn == NULL) {
-        return JSR_COMPILE_ERR;
-    }
+    if(fn == NULL) return JSR_COMPILE_ERR;
+    if(!eval(vm, path, fn)) return JSR_RUNTIME_ERR;
 
     PROFILE_END_SESSION()
-
-    return eval(vm, path, fn);
+    return JSR_SUCCESS;
 }
 
 JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
@@ -174,16 +174,12 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     if(!isCompiledCode(code, len)) {
         return evalString(vm, path, module, code, len);
     }
-
     ObjFunction* fn;
     ObjString* name = copyCString(vm, module);
     JStarResult res = deserializeModule(vm, path, name, code, len, &fn);
-
-    if(res != JSR_SUCCESS) {
-        return res;
-    }
-
-    return eval(vm, path, fn);
+    if(res != JSR_SUCCESS) return res;
+    if(!eval(vm, path, fn)) return JSR_RUNTIME_ERR;
+    return JSR_SUCCESS;
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
@@ -241,22 +237,22 @@ static bool executeCall(JStarVM* vm, int evalDepth) {
     return true;
 }
 
-JStarResult jsrCall(JStarVM* vm, uint8_t argc) {
+bool jsrCall(JStarVM* vm, uint8_t argc) {
     int evalDepth = vm->frameCount;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
         callError(vm, evalDepth, argc);
-        return JSR_RUNTIME_ERR;
+        return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
-        return JSR_RUNTIME_ERR;
+        return false;
     }
 
-    return JSR_SUCCESS;
+    return true;
 }
 
-JStarResult jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
+bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     JStarSymbol sym = {0};
     return jsrCallMethodCached(vm, name, argc, &sym);
 }
@@ -286,19 +282,19 @@ void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym) {
     GC_FREE(vm, JStarSymbol, sym);
 }
 
-JStarResult jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
+bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
     int evalDepth = vm->frameCount;
 
     if(!invokeValue(vm, copyCString(vm, name), argc, &sym->sym)) {
         callError(vm, evalDepth, argc);
-        return JSR_RUNTIME_ERR;
+        return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
-        return JSR_RUNTIME_ERR;
+        return false;
     }
 
-    return JSR_SUCCESS;
+    return true;
 }
 
 void jsrEvalBreak(JStarVM* vm) {
@@ -314,7 +310,7 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
     push(vm, exc);
 
     // Can fail with a stack overflow (for example if there is a cycle in exception causes)
-    if(jsrCallMethod(vm, "printStacktrace", 0) != JSR_SUCCESS) {
+    if(!jsrCallMethod(vm, "printStacktrace", 0)) {
         jsrPrintStacktrace(vm, -1);
     }
 
@@ -330,7 +326,7 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
     push(vm, exc);
 
     // Can fail with a stack overflow (for example if there is a cycle in exception causes)
-    if(jsrCallMethod(vm, "getStacktrace", 0) != JSR_SUCCESS) {
+    if(!jsrCallMethod(vm, "getStacktrace", 0)) {
         jsrGetStacktrace(vm, -1);
     }
 }
@@ -443,9 +439,11 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
     if(hashTableValueGet(&cls->methods, vm->specialMethods[METH_EQ], &eqOverload)) {
         push(vm, v1);
         push(vm, v2);
-        JStarResult res = jsrCallMethod(vm, "__eq__", 1);
-        if(res == JSR_SUCCESS) return valueToBool(pop(vm));
-        else return pop(vm), false;
+        if(jsrCallMethod(vm, "__eq__", 1)) {
+            return valueToBool(pop(vm));
+        } else {
+            return pop(vm), false;
+        }
     } else {
         return valueEquals(v1, v2);
     }
@@ -552,8 +550,8 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
     jsrPushValue(vm, iterable);
     jsrPushValue(vm, res < 0 ? res - 1 : res);
 
-    if(jsrCallMethod(vm, "__iter__", 1) != JSR_SUCCESS) {
-        return *err = true;
+    if(!jsrCallMethod(vm, "__iter__", 1)) {
+        return (*err = true);
     }
     if(jsrIsNull(vm, -1) || (jsrIsBoolean(vm, -1) && !jsrGetBoolean(vm, -1))) {
         pop(vm);
@@ -570,7 +568,7 @@ bool jsrIter(JStarVM* vm, int iterable, int res, bool* err) {
 bool jsrNext(JStarVM* vm, int iterable, int res) {
     jsrPushValue(vm, iterable);
     jsrPushValue(vm, res < 0 ? res - 1 : res);
-    if(jsrCallMethod(vm, "__next__", 1) != JSR_SUCCESS) return false;
+    if(!jsrCallMethod(vm, "__next__", 1)) return false;
     return true;
 }
 
@@ -639,7 +637,7 @@ bool jsrSubscriptSet(JStarVM* vm, int slot) {
 size_t jsrGetLength(JStarVM* vm, int slot) {
     push(vm, apiStackSlot(vm, slot));
 
-    if(jsrCallMethod(vm, "__len__", 0) != JSR_SUCCESS) {
+    if(!jsrCallMethod(vm, "__len__", 0)) {
         return SIZE_MAX;
     }
 
