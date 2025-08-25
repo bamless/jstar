@@ -65,7 +65,7 @@ JSR_NATIVE(jsr_Exception_printStacktrace) {
                 } else {
                     fprintf(stderr, "%s:?", record->path->data);
                 }
-                fprintf(stderr, " error in %s.%s())\n", record->moduleName->data,
+                fprintf(stderr, " error in %s.%s()\n", record->moduleName->data,
                         record->funcName->data);
 
                 lastRecord = record;
