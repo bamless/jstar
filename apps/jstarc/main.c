@@ -117,12 +117,13 @@ static bool disassembleFile(const Path* path) {
 
 // Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
 // or `.jsc` extension. Returns true on success, false on failure.
-static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
+static bool compileDirectory(const Path* in, const Path* out, const Path* curr, Paths* files) {
     bool res = true;
-    Paths files = {0};
     Path outPath = pathNew(out->items, curr->items + pathIntersectOffset(in, curr));
 
-    if(!read_dir(curr->items, &files)) return_exit(false);
+    size_t files_start = files->size;
+    if(!read_dir(curr->items, files)) return_exit(false);
+    size_t files_end = files->size;
 
     Context ctx = *ext_context;
     ctx.log_level = NO_LOGGING;
@@ -133,14 +134,15 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
         if(!create_dir(outPath.items)) return_exit(false);
     }
 
-    array_foreach(char*, it, &files) {
-        const char* file = *it;
+    for(size_t i = files_start; i < files_end; i++) {
+        const char* file = files->items[i];
         Path filePath = pathNew(curr->items, file);
 
         switch(get_file_type(filePath.items)) {
         case FILE_DIR: {
             if(opts.recursive) {
-                res &= compileDirectory(in, out, &filePath);
+                res &= compileDirectory(in, out, &filePath, files);
+                files->size = files_end;
             }
             break;
         }
@@ -166,7 +168,6 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr) 
     }
 
 exit:
-    free_paths(&files);
     pathFree(&outPath);
     return res;
 }
@@ -260,7 +261,9 @@ int main(int argc, char** argv) {
 
     bool res;
     if(input_type == FILE_DIR) {
-        res = compileDirectory(&inputPath, &outputPath, &inputPath);
+        Paths files = {0};
+        res = compileDirectory(&inputPath, &outputPath, &inputPath, &files);
+        free_paths(&files);
     } else if(opts.disassemble) {
         res = disassembleFile(&inputPath);
     } else {
