@@ -1,4 +1,3 @@
-
 #include "jstar.h"
 
 #include <errno.h>
@@ -695,11 +694,18 @@ bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name, JStar
 }
 
 void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
-    Value cls = apiStackSlot(vm, clsSlot);
-    Value nat = apiStackSlot(vm, natSlot);
-    JSR_ASSERT(IS_CLASS(cls), "clsSlot is not a Class");
-    JSR_ASSERT(IS_NATIVE(nat), "natSlot is not a Native Function");
-    hashTableValuePut(&AS_CLASS(cls)->methods, AS_NATIVE(nat)->proto.name, nat);
+    Value clsVal = apiStackSlot(vm, clsSlot);
+    Value natVal = apiStackSlot(vm, natSlot);
+    JSR_ASSERT(IS_CLASS(clsVal), "clsSlot is not a Class");
+    JSR_ASSERT(IS_NATIVE(natVal), "natSlot is not a Native Function");
+    ObjNative* nat = AS_NATIVE(natVal);
+    ObjClass* cls = AS_CLASS(clsVal);
+    ObjString* name = nat->proto.name;
+    hashTableValuePut(&cls->methods, name, natVal);
+    nat->proto.name = allocateString(vm, name->length + cls->name->length + 1);
+    memcpy(nat->proto.name->data, cls->name->data, cls->name->length);
+    memcpy(nat->proto.name->data + cls->name->length, ".", 1);
+    memcpy(nat->proto.name->data + cls->name->length + 1, name->data, name->length);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {
