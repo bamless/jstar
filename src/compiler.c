@@ -1,4 +1,5 @@
 #include "compiler.h"
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -143,9 +144,9 @@ struct Compiler {
     bool hadError;
 };
 
-static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, ObjModule* module,
-                         const char* file, FuncType type, const JStarStmt* ast,
-                         JStarIdentifiers* globals, FwdRefs* fwdRefs) {
+static void initCompiler(Compiler* c, JStarVM* vm, Compiler* prev, const char* file, FuncType type,
+                         const JStarStmt* ast, ObjModule* module, JStarIdentifiers* globals,
+                         FwdRefs* fwdRefs) {
     vm->currCompiler = c;
     *c = (Compiler){
         .vm = vm,
@@ -199,28 +200,18 @@ static void adjustStackUsage(Compiler* c, int num) {
     }
 }
 
-static int correctLineNumber(Compiler* c, int line) {
-    if(line == 0 && c->func->code.lines.count > 0) {
-        return c->func->code.lines.items[c->func->code.lines.count - 1];
-    }
-    return line;
-}
-
 static size_t emitOpcode(Compiler* c, Opcode op, int line) {
-    int correctedLine = correctLineNumber(c, line);
     adjustStackUsage(c, opcodeStackUsage(op));
-    return writeByte(c->vm, &c->func->code, op, correctedLine);
+    return writeByte(c->vm, &c->func->code, op, line);
 }
 
 static size_t emitByte(Compiler* c, uint8_t b, int line) {
-    int correctedLine = correctLineNumber(c, line);
-    return writeByte(c->vm, &c->func->code, b, correctedLine);
+    return writeByte(c->vm, &c->func->code, b, line);
 }
 
 static size_t emitShort(Compiler* c, uint16_t s, int line) {
-    int correctedLine = correctLineNumber(c, line);
-    size_t addr = emitByte(c, (s >> 8) & 0xff, correctedLine);
-    emitByte(c, s & 0xff, correctedLine);
+    size_t addr = emitByte(c, (s >> 8) & 0xff, line);
+    emitByte(c, s & 0xff, line);
     return addr;
 }
 
@@ -244,7 +235,7 @@ static void enterScope(Compiler* c) {
     c->depth++;
 }
 
-static int discardScopes(Compiler* c, int depth) {
+static int discardScopes(Compiler* c, int depth, int line) {
     int locals = c->localsCount;
     while(locals > 0 && c->locals[locals - 1].depth > depth) {
         locals--;
@@ -252,8 +243,8 @@ static int discardScopes(Compiler* c, int depth) {
 
     int toPop = c->localsCount - locals;
     if(toPop > 1) {
-        emitByte(c, OP_POPN, 0);
-        emitByte(c, toPop, 0);
+        emitByte(c, OP_POPN, line);
+        emitByte(c, toPop, line);
     } else if(toPop == 1) {
         discardLocal(c, &c->locals[locals]);
     }
@@ -261,8 +252,8 @@ static int discardScopes(Compiler* c, int depth) {
     return toPop;
 }
 
-static void exitScope(Compiler* c) {
-    int popped = discardScopes(c, --c->depth);
+static void exitScope(Compiler* c, int line) {
+    int popped = discardScopes(c, --c->depth, line);
     c->localsCount -= popped;
     c->stackUsage -= popped;
 }
@@ -547,9 +538,8 @@ static void endLoop(Compiler* c) {
     c->loops = c->loops->parent;
 }
 
-static void inlineMethodCall(Compiler* c, const char* name, int args) {
+static void inlineMethodCall(Compiler* c, const char* name, int args, JStarLoc loc) {
     JSR_ASSERT(args <= MAX_INLINE_ARGS, "Too many arguments for inline call");
-    JStarLoc loc = {0};
     JStarIdentifier methId = createIdentifier(name);
     emitOpcode(c, OP_INVOKE_0 + args, loc.line);
     emitShort(c, identifierSymbol(c, methId, loc), loc.line);
@@ -731,8 +721,8 @@ static void compileLogicExpr(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_DUP, e->loc.line);
 
     Opcode jmpOp = e->as.binary.op == TOK_AND ? OP_JUMPF : OP_JUMPT;
-    size_t shortCircuit = emitOpcode(c, jmpOp, 0);
-    emitShort(c, 0, 0);
+    size_t shortCircuit = emitOpcode(c, jmpOp, e->loc.line);
+    emitShort(c, 0, e->loc.line);
 
     emitOpcode(c, OP_POP, e->loc.line);
     compileExpr(c, e->as.binary.right);
@@ -753,10 +743,10 @@ static void compileUnaryExpr(Compiler* c, const JStarExpr* e) {
         emitOpcode(c, OP_INVERT, e->loc.line);
         break;
     case TOK_HASH:
-        inlineMethodCall(c, "__len__", 0);
+        inlineMethodCall(c, "__len__", 0, e->loc);
         break;
     case TOK_HASH_HASH:
-        inlineMethodCall(c, "__string__", 0);
+        inlineMethodCall(c, "__string__", 0, e->loc);
         break;
     default:
         JSR_UNREACHABLE();
@@ -767,11 +757,11 @@ static void compileTernaryExpr(Compiler* c, const JStarExpr* e) {
     compileExpr(c, e->as.ternary.cond);
 
     size_t falseJmp = emitOpcode(c, OP_JUMPF, e->loc.line);
-    emitShort(c, 0, 0);
+    emitShort(c, 0, e->loc.line);
 
     compileExpr(c, e->as.ternary.thenExpr);
     size_t exitJmp = emitOpcode(c, OP_JUMP, e->loc.line);
-    emitShort(c, 0, 0);
+    emitShort(c, 0, e->loc.line);
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), e->loc);
     compileExpr(c, e->as.ternary.elseExpr);
@@ -872,10 +862,11 @@ static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
             name = names->items[i];
         }
 
-        compileRval(c, *it, name);
+        JStarExpr* e = *it;
+        compileRval(c, e, name);
 
         if(++i > lvals) {
-            emitOpcode(c, OP_POP, 0);
+            emitOpcode(c, OP_POP, e->loc.line);
         }
     }
 }
@@ -1086,7 +1077,7 @@ static void compileListLit(Compiler* c, const JStarExpr* e) {
         compileExpr(c, expr);
 
         if(isSpreadExpr(expr)) {
-            inlineMethodCall(c, "addAll", 1);
+            inlineMethodCall(c, "addAll", 1, expr->loc);
             emitOpcode(c, OP_POP, expr->loc.line);
         } else {
             emitOpcode(c, OP_APPEND_LIST, e->loc.line);
@@ -1130,7 +1121,7 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
         if(isSpreadExpr(expr)) {
             emitOpcode(c, OP_DUP, e->loc.line);
             compileExpr(c, expr);
-            inlineMethodCall(c, "addAll", 1);
+            inlineMethodCall(c, "addAll", 1, e->loc);
             emitOpcode(c, OP_POP, e->loc.line);
 
             i += 1;
@@ -1141,7 +1132,7 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
             compileExpr(c, expr);
             compileExpr(c, val);
 
-            inlineMethodCall(c, "__set__", 2);
+            inlineMethodCall(c, "__set__", 2, e->loc);
             emitOpcode(c, OP_POP, e->loc.line);
 
             i += 2;
@@ -1280,15 +1271,15 @@ static void compileReturnStatement(Compiler* c, const JStarStmt* s) {
 static void compileIfStatement(Compiler* c, const JStarStmt* s) {
     compileExpr(c, s->as.ifStmt.cond);
 
-    size_t falseJmp = emitOpcode(c, OP_JUMPF, 0);
-    emitShort(c, 0, 0);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, s->loc.line);
+    emitShort(c, 0, s->loc.line);
 
     compileStatement(c, s->as.ifStmt.thenStmt);
 
     size_t exitJmp = 0;
     if(s->as.ifStmt.elseStmt != NULL) {
-        exitJmp = emitOpcode(c, OP_JUMP, 0);
-        emitShort(c, 0, 0);
+        exitJmp = emitOpcode(c, OP_JUMP, s->loc.line);
+        emitShort(c, 0, s->loc.line);
     }
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), s->loc);
@@ -1308,8 +1299,8 @@ static void compileForStatement(Compiler* c, const JStarStmt* s) {
 
     size_t firstJmp = 0;
     if(s->as.forStmt.act != NULL) {
-        firstJmp = emitOpcode(c, OP_JUMP, 0);
-        emitShort(c, 0, 0);
+        firstJmp = emitOpcode(c, OP_JUMP, s->loc.line);
+        emitShort(c, 0, s->loc.line);
     }
 
     Loop l;
@@ -1317,15 +1308,15 @@ static void compileForStatement(Compiler* c, const JStarStmt* s) {
 
     if(s->as.forStmt.act != NULL) {
         compileExpr(c, s->as.forStmt.act);
-        emitOpcode(c, OP_POP, 0);
+        emitOpcode(c, OP_POP, s->loc.line);
         setJumpTo(c, firstJmp, getCurrentAddr(c), s->loc);
     }
 
     size_t exitJmp = 0;
     if(s->as.forStmt.cond != NULL) {
         compileExpr(c, s->as.forStmt.cond);
-        exitJmp = emitOpcode(c, OP_JUMPF, 0);
-        emitShort(c, 0, 0);
+        exitJmp = emitOpcode(c, OP_JUMPF, s->loc.line);
+        emitShort(c, 0, s->loc.line);
     }
 
     compileStatement(c, s->as.forStmt.body);
@@ -1336,7 +1327,7 @@ static void compileForStatement(Compiler* c, const JStarStmt* s) {
     }
 
     endLoop(c);
-    exitScope(c);
+    exitScope(c, s->loc.line);
 }
 
 /*
@@ -1366,10 +1357,10 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
     JStarIdentifier iteratorName = createIdentifier(".iter");
     Variable iterVar = declareVar(c, iteratorName, false, s->loc);
     defineVar(c, &iterVar, s->loc);
-    emitOpcode(c, OP_NULL, 0);  // initialize `.iter` to null
+    emitOpcode(c, OP_NULL, s->loc.line);  // initialize `.iter` to null
 
     // FOR_PREP will cache the __iter__ and __next__ methods as locals
-    emitOpcode(c, OP_FOR_PREP, 0);
+    emitOpcode(c, OP_FOR_PREP, s->loc.line);
 
     // Declare variables for cached methods
     JStarIdentifier iterMethName = createIdentifier(".__iter__");
@@ -1384,8 +1375,8 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
     startLoop(c, &l);
 
     emitOpcode(c, OP_FOR_ITER, s->loc.line);
-    size_t exitJmp = emitOpcode(c, OP_FOR_NEXT, 0);
-    emitShort(c, 0, 0);
+    size_t exitJmp = emitOpcode(c, OP_FOR_NEXT, s->loc.line);
+    emitShort(c, 0, s->loc.line);
 
     JStarStmt* varDecl = s->as.forEach.var;
     enterScope(c);
@@ -1405,13 +1396,13 @@ static void compileForEach(Compiler* c, const JStarStmt* s) {
     JStarStmt* body = s->as.forEach.body;
     compileStatements(c, &body->as.blockStmt.stmts);
 
-    exitScope(c);
+    exitScope(c, s->loc.line);
 
     emitJumpTo(c, OP_JUMP, l.start, s->loc);
     setJumpTo(c, exitJmp, getCurrentAddr(c), s->loc);
 
     endLoop(c);
-    exitScope(c);
+    exitScope(c, s->loc.line);
 }
 
 static void compileWhileStatement(Compiler* c, const JStarStmt* s) {
@@ -1419,8 +1410,8 @@ static void compileWhileStatement(Compiler* c, const JStarStmt* s) {
     startLoop(c, &l);
 
     compileExpr(c, s->as.whileStmt.cond);
-    size_t exitJmp = emitOpcode(c, OP_JUMPF, 0);
-    emitShort(c, 0, 0);
+    size_t exitJmp = emitOpcode(c, OP_JUMPF, s->loc.line);
+    emitShort(c, 0, s->loc.line);
 
     compileStatement(c, s->as.whileStmt.body);
 
@@ -1488,10 +1479,10 @@ static void compileExcepts(Compiler* c, const JStarStmts* excepts, size_t curr) 
 
     // Test the exception's class
     compileExpr(c, except->as.excStmt.cls);
-    emitOpcode(c, OP_IS, 0);
+    emitOpcode(c, OP_IS, except->loc.line);
 
-    size_t falseJmp = emitOpcode(c, OP_JUMPF, 0);
-    emitShort(c, 0, 0);
+    size_t falseJmp = emitOpcode(c, OP_JUMPF, except->loc.line);
+    emitShort(c, 0, except->loc.line);
 
     // Compile the handler code
     enterScope(c);
@@ -1512,12 +1503,12 @@ static void compileExcepts(Compiler* c, const JStarStmts* excepts, size_t curr) 
     emitOpcode(c, OP_POP, except->loc.line);
 
     adjustStackUsage(c, -1);
-    exitScope(c);
+    exitScope(c, except->loc.line);
 
     size_t exitJmp = 0;
     if(curr < excepts->count - 1) {
-        exitJmp = emitOpcode(c, OP_JUMP, 0);
-        emitShort(c, 0, 0);
+        exitJmp = emitOpcode(c, OP_JUMP, except->loc.line);
+        emitShort(c, 0, except->loc.line);
     }
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), except->loc);
@@ -1541,12 +1532,12 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
 
     if(hasEnsure) {
         ensureSetup = emitOpcode(c, OP_SETUP_ENSURE, s->loc.line);
-        emitShort(c, 0, 0);
+        emitShort(c, 0, s->loc.line);
     }
 
     if(hasExcepts) {
         exceptSetup = emitOpcode(c, OP_SETUP_EXCEPT, s->loc.line);
-        emitShort(c, 0, 0);
+        emitShort(c, 0, s->loc.line);
     }
 
     compileStatement(c, s->as.tryStmt.block);
@@ -1577,17 +1568,17 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
 
     // Compile excepts (if any)
     if(hasExcepts) {
-        size_t excJmp = emitOpcode(c, OP_JUMP, 0);
-        emitShort(c, 0, 0);
+        size_t excJmp = emitOpcode(c, OP_JUMP, s->loc.line);
+        emitShort(c, 0, s->loc.line);
 
         setJumpTo(c, exceptSetup, getCurrentAddr(c), s->loc);
         compileExcepts(c, &s->as.tryStmt.excs, 0);
 
         if(hasEnsure) {
-            emitOpcode(c, OP_POP_HANDLER, 0);
+            emitOpcode(c, OP_POP_HANDLER, s->loc.line);
         } else {
-            emitOpcode(c, OP_END_HANDLER, 0);
-            exitScope(c);
+            emitOpcode(c, OP_END_HANDLER, s->loc.line);
+            exitScope(c, s->loc.line);
         }
 
         setJumpTo(c, excJmp, getCurrentAddr(c), s->loc);
@@ -1597,8 +1588,8 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
     if(hasEnsure) {
         setJumpTo(c, ensureSetup, getCurrentAddr(c), s->loc);
         compileStatement(c, s->as.tryStmt.ensure);
-        emitOpcode(c, OP_END_HANDLER, 0);
-        exitScope(c);
+        emitOpcode(c, OP_END_HANDLER, s->loc.line);
+        exitScope(c, s->loc.line);
     }
 
     exitTryBlock(c);
@@ -1637,7 +1628,7 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     enterTryBlock(c, &tryBlock, 1, s->loc);
 
     size_t ensSetup = emitOpcode(c, OP_SETUP_ENSURE, s->loc.line);
-    emitShort(c, 0, 0);
+    emitShort(c, 0, s->loc.line);
 
     // x = closable
     JStarExpr lval = {
@@ -1676,19 +1667,19 @@ static void compileWithStatement(Compiler* c, const JStarStmt* s) {
     // if x then x.close() end
     compileVarLit(c, s->as.withStmt.var, false, s->loc);
     size_t falseJmp = emitOpcode(c, OP_JUMPF, s->loc.line);
-    emitShort(c, 0, 0);
+    emitShort(c, 0, s->loc.line);
 
     compileVarLit(c, s->as.withStmt.var, false, s->loc);
-    inlineMethodCall(c, "close", 0);
+    inlineMethodCall(c, "close", 0, s->loc);
     emitOpcode(c, OP_POP, s->loc.line);
 
     setJumpTo(c, falseJmp, getCurrentAddr(c), s->loc);
 
-    emitOpcode(c, OP_END_HANDLER, 0);
-    exitScope(c);
+    emitOpcode(c, OP_END_HANDLER, s->loc.line);
+    exitScope(c, s->loc.line);
 
     exitTryBlock(c);
-    exitScope(c);
+    exitScope(c, s->loc.line);
 }
 
 static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
@@ -1703,7 +1694,7 @@ static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
         error(c, s->loc, "Cannot %s out of a try block", isBreak ? "break" : "continue");
     }
 
-    discardScopes(c, c->loops->depth);
+    discardScopes(c, c->loops->depth, s->loc.line);
 
     // Emit place-holder instruction that will be patched at the end of loop compilation
     // when we know the offset to emit for a break or continue jump
@@ -1763,13 +1754,13 @@ static void unpackFormalArgs(Compiler* c, JStarFormalArgs args, JStarLoc loc) {
     }
 }
 
-static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const JStarStmt* s) {
+static ObjFunction* function(Compiler* c, ObjModule* mod, ObjString* name, const JStarStmt* s) {
     const JStarExprs* defaults = &s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = vargId.name != NULL;
 
-    c->func = newFunction(c->vm, m, name, arity, defaults->count, isVararg);
+    c->func = newFunction(c->vm, mod, name, arity, defaults->count, isVararg);
     addFunctionDefaults(c, &c->func->proto, defaults);
 
     // The receiver:
@@ -1797,18 +1788,18 @@ static ObjFunction* function(Compiler* c, ObjModule* m, ObjString* name, const J
     switch(c->type) {
     case TYPE_FUNC:
     case TYPE_METHOD:
-        emitOpcode(c, OP_NULL, 0);
+        emitOpcode(c, OP_NULL, s->loc.line);
         if(s->as.decl.as.fun.isGenerator) {
-            emitOpcode(c, OP_GENERATOR_CLOSE, 0);
+            emitOpcode(c, OP_GENERATOR_CLOSE, s->loc.line);
         }
         break;
     case TYPE_CTOR:
-        emitOpcode(c, OP_GET_LOCAL, 0);
-        emitByte(c, 0, 0);
+        emitOpcode(c, OP_GET_LOCAL, s->loc.line);
+        emitByte(c, 0, s->loc.line);
         break;
     }
 
-    emitOpcode(c, OP_RETURN, 0);
+    emitOpcode(c, OP_RETURN, s->loc.line);
     return c->func;
 }
 
@@ -1839,15 +1830,15 @@ static void emitClosure(Compiler* c, ObjFunction* fn, Upvalue* upvalues, JStarLo
 }
 
 static void compileFunction(Compiler* c, FuncType type, ObjString* name, const JStarStmt* fn) {
-    Compiler compiler;
-    initCompiler(&compiler, c->vm, c, c->module, c->file, type, fn, c->globals, c->fwdRefs);
+    Compiler newCompiler;
+    initCompiler(&newCompiler, c->vm, c, c->file, type, fn, c->module, c->globals, c->fwdRefs);
 
-    enterFunctionScope(&compiler);
-    ObjFunction* func = function(&compiler, c->func->proto.module, name, fn);
-    exitFunctionScope(&compiler);
+    enterFunctionScope(&newCompiler);
+    ObjFunction* func = function(&newCompiler, c->func->proto.module, name, fn);
+    exitFunctionScope(&newCompiler);
 
-    emitClosure(c, func, compiler.upvalues, fn->loc);
-    endCompiler(&compiler);
+    emitClosure(c, func, newCompiler.upvalues, fn->loc);
+    endCompiler(&newCompiler);
 }
 
 static uint16_t compileNative(Compiler* c, ObjString* name, Opcode nativeOp, const JStarStmt* s) {
@@ -1966,7 +1957,7 @@ static void compileClassDecl(Compiler* c, const JStarStmt* s) {
     compileMethods(c, s);
 
     emitOpcode(c, OP_POP, s->loc.line);
-    exitScope(c);
+    exitScope(c, s->loc.line);
 
     const JStarExprs* decorators = &s->as.decl.decorators;
     if(decorators->count > 0) {
@@ -2075,7 +2066,7 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
     case JSR_BLOCK:
         enterScope(c);
         compileStatements(c, &s->as.blockStmt.stmts);
-        exitScope(c);
+        exitScope(c, s->loc.line);
         break;
     case JSR_RETURN:
         compileReturnStatement(c, s);
@@ -2098,7 +2089,7 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
         break;
     case JSR_EXPR_STMT:
         compileExpr(c, s->as.exprStmt);
-        emitOpcode(c, OP_POP, 0);
+        emitOpcode(c, OP_POP, s->loc.line);
         break;
     case JSR_VARDECL:
         compileVarDecl(c, s);
@@ -2136,14 +2127,13 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
     FwdRefs fwdRefs = {0};
 
     Compiler c;
-    initCompiler(&c, vm, NULL, module, filename, TYPE_FUNC, ast, &globals, &fwdRefs);
+    initCompiler(&c, vm, NULL, filename, TYPE_FUNC, ast, module, &globals, &fwdRefs);
     ObjFunction* func = function(&c, module, copyCString(vm, "<main>"), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
 
     arrayFree(vm, &fwdRefs);
     arrayFree(vm, &globals);
-
     return c.hadError ? NULL : func;
 }
 
