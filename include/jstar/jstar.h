@@ -79,8 +79,8 @@ typedef struct JStarImportResult {
 // J* import callback, invoked when executing `import`s in the VM
 typedef JStarImportResult (*JStarImportCB)(JStarVM* vm, const char* moduleName);
 
-// J* error function callback. Invoked when syntax, compilation, dederializtion
-// or syntax errors are encountered.
+// J* error function callback. Invoked when syntax, compilation or dederialization errors are
+// encountered.
 typedef void (*JStarErrorCB)(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc,
                              const char* error);
 
@@ -176,8 +176,7 @@ JSTAR_API bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 
 // Similar to the above, but caches the method lookup in the provided symbol.
 // Can be more efficient if the same method is called multiple times on the same object type.
-JSTAR_API bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc,
-                                          JStarSymbol* sym);
+JSTAR_API bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------
 // C TO J* VALUE CONVERSION API
@@ -328,11 +327,11 @@ JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
 // -----------------------------------------------------------------------------
 
 // These functions are similar to jsrTupleGet, jsrListGet/jsrListSet and jsrList/jsrTupleGetLength
-// above, but operate on generic types. Uslually working with the former is more convinient, as
+// above, but operate on generic types. Usually working with the former is more convenient, as
 // some operations cannot fail when applied on Tuples or Lists and therefore require less error
 // checking and less stack manipulation. Nonetheless, if you require operating on heterogeneous
-// types that may overload __get__ and __set__, you should use these.
-// Also, they perform bounds checking automatically.
+// types that may overload __get__ and __set__, such as tables or custom types, you should use
+// these. Also, they perform bounds checking automatically.
 
 // Returns the result of subscritping the value at `slot` with the value on top of the stack
 // In case of success returns true and the result of the operation is placed on top of the stack
@@ -380,14 +379,14 @@ JSTAR_API bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarS
 
 // Set the global `name` of the module `module` with the value on top of the stack.
 // The value is not popped.
-// If calling inside a native "module" can be NULL, and the used module will be the current one.
+// If calling inside a native, "module" can be NULL and the used module will be the current one.
 // Returns true in case of success, false if the module could not be found, leaving an exception
 // on top of the stack.
 JSTAR_API bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
 
 // Set the global `name` of the module `module` with the value on top of the stack using the
-// provided symbol. The symbol is used to cache the global lookup and can be used to speed up
-// subsequent lookups.
+// provided symbol. If calling inside a native, "module" can be NULL and the used module will be the
+// current one. The symbol is used to cache the global lookup and speeds up subsequent lookups.
 JSTAR_API bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name,
                                   JStarSymbol* sym);
 
@@ -395,11 +394,12 @@ JSTAR_API bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* n
 // Returns true in case of success leaving the result on the top of the stack.
 // Returns false if the module could not be found or the name could not be found in the module,
 // leaving an exception on top of the stack.
-// If calling inside a native "module" can be NULL, and the used module will be the current one.
+// If calling inside a native, "module" can be NULL and the used module will be the current one.
 JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
 
-// Get the global `name` of the module `module` using the provided symbol. The symbol is used to
-// cache the global lookup and can be used to speed up subsequent lookups.
+// Get the global `name` of the module `module` using the provided symbol.
+// If calling inside a native "module" can be NULL, and the used module will be the current one.
+// The symbol is used to cache the global lookup and speeds up subsequent lookups.
 JSTAR_API bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name,
                                   JStarSymbol* sym);
 
@@ -422,8 +422,8 @@ JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 // USERDATA API
 // -----------------------------------------------------------------------------
 
-// Get the memory associated with the UserDatum at `slot`
-// Does not perform type checking, the user must ensure `slot` is a Userdatum
+// Get the memory associated with the UserDatum at `slot`.
+// Does not perform type checking, the user must ensure `slot` is a Userdatum.
 JSTAR_API void* jsrGetUserdata(JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
@@ -460,7 +460,19 @@ JSTAR_API bool jsrCheckFunction(JStarVM* vm, int slot, const char* name);
 JSTAR_API bool jsrCheckUserdata(JStarVM* vm, int slot, const char* name);
 
 // Utility macro for checking a value type in the stack.
-// In case of error it exits signaling the error
+// In case of error it exits signaling the error.
+//
+// USAGE:
+// ```c
+// bool native_fun(JStarVM* vm) {
+//     // Ensure the argument is a number, exiting with an exception if not
+//     JSR_CHECK(Number, 1, "firstArg");
+//     double firstArg = jsrGetNumber(vm, 1);
+//     ...
+//     jsrPushNull(vm);
+//     return true;
+// }
+// ```
 #define JSR_CHECK(type, slot, name) \
     if(!jsrCheck##type(vm, slot, name)) return false
 
@@ -492,6 +504,17 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 
 // Utility macro for raising an exception from a native function.
 // It raises the exception and exits signaling the error.
+//
+// USAGE:
+// ```c
+// bool native_fun(JStarVM* vm) {
+//     // Ensure the first argument is not null
+//     if(jsrIsNull(vm, 1)) {
+//         JSR_RAISE(vm, "InvalidArgException", "Argument must not be null");
+//     }
+//     ...
+// }
+// ```
 #define JSR_RAISE(vm, cls, err, ...)           \
     do {                                       \
         jsrRaise(vm, cls, err, ##__VA_ARGS__); \
@@ -527,6 +550,15 @@ struct JStarNativeReg {
 };
 
 // Macros to simplify native registry creation
+//
+// USAGE:
+// ```
+// JStarNativeReg reg[] = {
+//   JSR_REGFUNC(myFunction, my_c_function)
+//   JSR_REGMETH(MyClass, myMethod, MyClass_my_c_method)
+//   JSR_REGEND
+// }
+// ```
 #define JSR_REGFUNC(name, func)      {REG_FUNCTION, {.function = {#name, func}}},
 #define JSR_REGMETH(cls, name, meth) {REG_METHOD, {.method = {#cls, #name, meth}}},
 #define JSR_REGEND                     \
