@@ -22,35 +22,31 @@
 #define CAPTURE_UNFINISHED -1
 #define CAPTURE_POSITION   -2
 
-typedef struct Substring {
+typedef struct {
     const char* start;
     ptrdiff_t length;
-} Substring;
+} StringSlice;
 
 typedef struct RegexState {
     const char *string, *end;
-    bool hadError;
+    bool error;
     char errorMessage[MAX_ERROR];
     int captureCount;
-    Substring captures[MAX_CAPTURES];
+    StringSlice captures[MAX_CAPTURES];
 } RegexState;
 
 static void initState(RegexState* rs, const char* string, size_t length) {
     rs->string = string;
     rs->end = string + length;
-    rs->hadError = false;
+    rs->error = false;
     rs->captureCount = 1;
     rs->captures[0].start = string;
     rs->captures[0].length = CAPTURE_UNFINISHED;
 }
 
-static bool hadError(RegexState* rs) {
-    return rs->hadError;
-}
-
 static void setError(RegexState* rs, const char* fmt, ...) {
-    if(rs->hadError) return;
-    rs->hadError = true;
+    if(rs->error) return;
+    rs->error = true;
     va_list args;
     va_start(args, fmt);
     int written = vsnprintf(rs->errorMessage, MAX_ERROR, fmt, args);
@@ -59,15 +55,10 @@ static void setError(RegexState* rs, const char* fmt, ...) {
     (void)written;
 }
 
-static const char* getError(RegexState* rs) {
-    return rs->errorMessage;
-}
-
 // -----------------------------------------------------------------------------
 // MATCHING ENGINE
 // -----------------------------------------------------------------------------
 
-// Forward declaration as the regex matching algorithm is mutually recursive
 static const char* match(RegexState* rs, const char* str, const char* regex);
 
 static bool isAtEnd(const char* ptr) {
@@ -220,7 +211,7 @@ static const char* greedyMatch(RegexState* rs, const char* stringPtr, const char
         if(res != NULL) {
             return res;
         }
-        if(rs->hadError) {
+        if(rs->error) {
             return NULL;
         }
         i--;
@@ -236,7 +227,7 @@ static const char* lazyMatch(RegexState* rs, const char* stringPtr, const char* 
         if(res != NULL) {
             return res;
         }
-        if(rs->hadError) {
+        if(rs->error) {
             return NULL;
         }
     } while(!isAtEnd(stringPtr) && matchClassOrChar(*stringPtr++, regexPtr, clsEnd));
@@ -358,7 +349,7 @@ static bool matchRegex(RegexState* rs, const char* str, size_t len, const char* 
             rs->captures[0].length = res - str;
             return true;
         }
-        if(rs->hadError) return false;
+        if(rs->error) return false;
     } while(!isAtEnd(str++));
 
     return false;
@@ -386,8 +377,8 @@ static FindRes find(JStarVM* vm, RegexState* rs) {
     double offset = jsrGetNumber(vm, 3);
 
     if(!matchRegex(rs, string, len, regex, offset)) {
-        if(hadError(rs)) {
-            jsrRaise(vm, "RegexException", "%s\n", getError(rs));
+        if(rs->error) {
+            jsrRaise(vm, "RegexException", "%s\n", rs->error);
             return FIND_ERR;
         }
         jsrPushNull(vm);
@@ -466,8 +457,8 @@ JSR_NATIVE(jsr_re_find) {
     return true;
 }
 
-static bool madeProgress(const Substring* match, const char* lastMatch) {
-    return match->start != lastMatch || match->length != 0;
+static bool madeProgress(StringSlice match, const char* lastMatch) {
+    return match.start != lastMatch || match.length != 0;
 }
 
 JSR_NATIVE(jsr_re_matchAll) {
@@ -486,13 +477,13 @@ JSR_NATIVE(jsr_re_matchAll) {
     while(offset <= len) {
         RegexState rs;
         if(!matchRegex(&rs, str, len, regex, offset)) {
-            if(hadError(&rs)) {
-                JSR_RAISE(vm, "RegexException", getError(&rs));
+            if(rs.error) {
+                JSR_RAISE(vm, "RegexException", rs.errorMessage);
             }
             return true;
         }
 
-        const Substring* match = &rs.captures[0];
+        StringSlice match = rs.captures[0];
 
         // We got an empty match, increase the offset and try again
         if(!madeProgress(match, lastMatch)) {
@@ -517,9 +508,9 @@ JSR_NATIVE(jsr_re_matchAll) {
             jsrPop(vm);
         }
 
-        ptrdiff_t offsetSinceLastMatch = match->start - (lastMatch ? lastMatch : str);
-        offset += offsetSinceLastMatch + match->length;
-        lastMatch = match->start + match->length;
+        ptrdiff_t offsetSinceLastMatch = match.start - (lastMatch ? lastMatch : str);
+        offset += offsetSinceLastMatch + match.length;
+        lastMatch = match.start + match.length;
     }
 
     return true;
@@ -532,7 +523,7 @@ static bool substitute(JStarVM* vm, RegexState* rs, JStarBuffer* b, const char* 
             sub++;
 
             if(isAtEnd(sub) || !isdigit(*sub)) {
-                JSR_RAISE(vm, "RegexException", "Invalid sub string", ESCAPE);
+                JSR_RAISE(vm, "RegexException", "Invalid substring", ESCAPE);
             }
 
             int digitCount = 0;
@@ -574,7 +565,7 @@ JSR_NATIVE(jsr_re_substituteAll) {
     JSR_CHECK(Int, 4, "num");
 
     if(!jsrIsString(vm, 3) && !jsrIsFunction(vm, 3)) {
-        JSR_RAISE(vm, "TypeException", "sub must be either a String or a Function.");
+        JSR_RAISE(vm, "TypeException", "`sub` must be either a String or a Function.");
     }
 
     size_t len = jsrGetStringSz(vm, 1);
@@ -592,14 +583,14 @@ JSR_NATIVE(jsr_re_substituteAll) {
     while(offset <= len) {
         RegexState rs;
         if(!matchRegex(&rs, str, len, regex, offset)) {
-            if(hadError(&rs)) {
+            if(rs.error) {
                 jsrBufferFree(&buf);
-                JSR_RAISE(vm, "RegexException", getError(&rs));
+                JSR_RAISE(vm, "RegexException", rs.errorMessage);
             }
             break;
         }
 
-        const Substring* match = &rs.captures[0];
+        StringSlice match = rs.captures[0];
 
         // We got an empty match, increase the offset and try again
         if(!madeProgress(match, lastMatch)) {
@@ -608,7 +599,7 @@ JSR_NATIVE(jsr_re_substituteAll) {
         }
 
         // Append the characters between last match and current one to the output
-        ptrdiff_t offsetSinceLastMatch = match->start - (lastMatch ? lastMatch : str);
+        ptrdiff_t offsetSinceLastMatch = match.start - (lastMatch ? lastMatch : str);
         jsrBufferAppend(&buf, lastMatch ? lastMatch : str, offsetSinceLastMatch);
 
         if(jsrIsString(vm, 3)) {
@@ -624,8 +615,8 @@ JSR_NATIVE(jsr_re_substituteAll) {
             }
         }
 
-        offset += offsetSinceLastMatch + match->length;
-        lastMatch = match->start + match->length;
+        offset += offsetSinceLastMatch + match.length;
+        lastMatch = match.start + match.length;
 
         numSub++;
         if(num > 0 && numSub >= num) {
