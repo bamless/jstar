@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "buffer.h"
 #include "jstar.h"
 
@@ -196,25 +197,36 @@ JSR_NATIVE(jsr_File_readAll) {
     JSR_CHECK(Handle, -1, M_FILE_HANDLE);
 
     FILE* f = (FILE*)jsrGetHandle(vm, -1);
-
-    JStarBuffer data;
-    jsrBufferInitCapacity(vm, &data, 512);
-
-    size_t read;
-    char buf[4096];
-    while((read = fread(buf, 1, sizeof(buf), f)) == sizeof(buf)) {
-        jsrBufferAppend(&data, buf, read);
-    }
-
-    if(feof(f) && read > 0) {
-        jsrBufferAppend(&data, buf, read);
-    }
-
-    if(ferror(f)) {
-        jsrBufferFree(&data);
+    if(fseek(f, 0, SEEK_END) < 0) {
         JSR_RAISE(vm, "IOException", strerror(errno));
     }
 
+    long long size;
+#ifdef JSTAR_WINDOWS
+    size = _ftelli64(f);
+#else
+    size = ftell(f);
+#endif  // JSTAR_WINDOWS
+
+    if(size < 0) {
+        JSR_RAISE(vm, "IOException", strerror(errno));
+    }
+
+    if(fseek(f, 0, SEEK_SET) < 0) {
+        JSR_RAISE(vm, "IOException", strerror(errno));
+    }
+
+    JStarBuffer data;
+    jsrBufferInitCapacity(vm, &data, size);
+
+    size_t read = fread(data.data, 1, size, f);
+    if(read < (size_t)size || ferror(f)) {
+        int savedErrno = errno;
+        jsrBufferFree(&data);
+        JSR_RAISE(vm, "IOException", strerror(savedErrno));
+    }
+
+    data.size = size;
     jsrBufferPush(&data);
     return true;
 }
