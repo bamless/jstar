@@ -847,12 +847,14 @@ static bool getCachedGlobal(ObjModule* mod, const SymbolCache* sym, Value* out) 
 // -----------------------------------------------------------------------------
 
 void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz) {
-    (void)newSz, (void)oldSz;
+    (void)oldSz;
     if(newSz == 0) {
         free(ptr);
         return NULL;
     }
-    return realloc(ptr, newSz);
+    void* mem = realloc(ptr, newSz);
+    JSR_ASSERT(mem, "Out of memory");
+    return mem;
 }
 
 inline bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
