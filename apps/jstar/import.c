@@ -100,21 +100,15 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
     pathAppend(&nativeExt, modulePath->items, modulePath->size);
     pathChangeExtension(&nativeExt, DL_SUFFIX);
 
-    void* dynlib;
-    {
-        dynlib = dynload(nativeExt.items);
-        if(!dynlib) {
-            return NULL;
-        }
+    void* dynlib = dynload(nativeExt.items);
+    if(!dynlib) {
+        return NULL;
     }
 
-    JStarNativeReg* (*registry)(void);
-    {
-        registry = dynsim(dynlib, OPEN_NATIVE_EXT);
-        if(!registry) {
-            dynfree(dynlib);
-            return NULL;
-        }
+    JStarNativeReg* (*registry)(void) = dynsim(dynlib, OPEN_NATIVE_EXT);
+    if(!registry) {
+        dynfree(dynlib);
+        return NULL;
     }
 
     return (*registry)();
