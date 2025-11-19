@@ -115,11 +115,10 @@ static JStarNativeReg* loadNativeExtension(const Path* modulePath) {
 }
 
 static bool readFileAtPath(const Path* p, StringBuffer* sb) {
-    Context ctx = *ext_context;
-    ctx.log_level = NO_LOGGING;
-    push_context(&ctx);
-    bool res = read_file(p->items, sb);
-    pop_context();
+    bool res;
+    LOGGING_LEVEL(EXT_NO_LOGGING) {
+        res = read_file(p->items, sb);
+    }
     return res;
 }
 

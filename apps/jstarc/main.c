@@ -125,11 +125,10 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr, 
     if(!read_dir(curr->items, files)) return_exit(false);
     size_t files_end = files->size;
 
-    Context ctx = *ext_context;
-    ctx.log_level = NO_LOGGING;
-    push_context(&ctx);
-    FileType dt = get_file_type(outPath.items);
-    pop_context();
+    FileType dt;
+    LOGGING_LEVEL(NO_LOGGING) {
+        dt = get_file_type(outPath.items);
+    }
     if(dt == FILE_ERR && errno == ENOENT) {
         if(!create_dir(outPath.items)) return_exit(false);
     }

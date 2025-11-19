@@ -90,7 +90,7 @@
 
 #ifndef EXTLIB_NO_STD
 #include <assert.h>
-#include <errno.h>
+#include <errno.h> // IWYU pragma: export
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -376,7 +376,7 @@ Ext_Context *ext_pop_context(void);
 // PUSH_CONTEXT(&myctx) {
 //    // ... do stuff
 // }
-// // context automatically popped
+// // ... context automatically popped
 // ```
 #define EXT_PUSH_CONTEXT(ctx) \
     for(int i_ = (ext_push_context(ctx), 0); i_ != 1; (ext_pop_context(), i_ = 1))
@@ -389,11 +389,28 @@ Ext_Context *ext_pop_context(void);
 // PUSH_ALLOCATOR(&temp_allocator.base) {
 //    // ... do stuff
 // }
-// // context automatically popped
+// // ... context automatically popped
 // ```
 #define EXT_PUSH_ALLOCATOR(allocator)                                          \
     Ext_Context EXT_CONCAT_(ctx_, __LINE__) = *ext_context;                    \
     EXT_CONCAT_(ctx_, __LINE__).alloc = (allocator);                           \
+    for(int i_ = (ext_push_context(&EXT_CONCAT_(ctx_, __LINE__)), 0); i_ != 1; \
+        (ext_pop_context(), i_ = 1))
+
+// Utility macro to push/pop a context with the given logging level set.
+// Simplifies pushing when the only thing you want to customize is the logging level.
+//
+// USAGE:
+// ```c
+// LOGGING_LEVEL(EXT_NO_LOGGING) {
+//    // ... do stuff
+//    // ... nothing will log anymore between these
+// }
+// // ... context automatically popped
+// ```
+#define EXT_LOGGING_LEVEL(level)                                               \
+    Ext_Context EXT_CONCAT_(ctx_, __LINE__) = *ext_context;                    \
+    EXT_CONCAT_(ctx_, __LINE__).log_level = (level);                           \
     for(int i_ = (ext_push_context(&EXT_CONCAT_(ctx_, __LINE__)), 0); i_ != 1; \
         (ext_pop_context(), i_ = 1))
 
@@ -449,9 +466,9 @@ typedef struct Ext_Allocator {
 //   Allocates a new value of size `sizeof(T)` using `ext_alloc`
 // ext_new_array:
 //   Allocates a new array of size `sizeof(T)*count` using `ext_alloc`
-// ext_free:
+// ext_delete:
 //   Deletes allocated memory of `sizeof(T)` using `ext_free`
-// ext_free_array:
+// ext_delete_array:
 //   Deletes an array of `sizeof(T)*count` using `ext_free`
 // ext_clone:
 //   Creates a copy of the provided pointer using `ext_memdup`
@@ -589,14 +606,14 @@ typedef enum {
 // An arena allocator simplifies memory management by allowing multiple allocations to be freed
 // as a group, as well as enabling efficient memory management by reusing a previously reset arena.
 // `Arena` conforms to the `Allocator` interface, making it possible to use it as a context
-// allocator, or the allocator of a dynamic array or hasmap.
+// allocator, or the allocator of a dynamic array or hashmap.
 //
 // USAGE
 // ```c
 // Arena a = default_arena()      // creates an arena with default parameters
 // a = new_arena(.alignment = 32) // or, initialize the arena with custom parameters
 //
-// // ... allocate memory, push it as context allocator, ext
+// // ... allocate memory, push it as context allocator, etc...
 //
 // arena_reset(&a)              // reset the arena all at once
 // arena_rewind(&a, checkpoint) // or, better yet, restore its state to a checkpoint, so that
@@ -606,7 +623,6 @@ typedef enum {
 // ```
 typedef struct Ext_Arena {
     Ext_Allocator base;
-
     // `Allocator` used to allocate pages. By default uses the current context allocator.
     Ext_Allocator *page_allocator;
     // The alignment of the allocations returned by the arena. By default is
@@ -616,10 +632,10 @@ typedef struct Ext_Arena {
     size_t page_size;
     // Arena flags. See `ArenaFlags` enum
     Ext_ArenaFlags flags;
-
+    // Currently allocated bytes in the arena
+    size_t allocated;
     // Private fields
     Ext_ArenaPage *first_page, *last_page;
-    size_t allocated;
 } Ext_Arena;
 
 // Creates a new arena. Defined as a macro so it can be used in a const context.
@@ -735,7 +751,7 @@ char *ext_arena_vsprintf(Ext_Arena *a, const char *fmt, va_list ap);
         (void *)it < (void *)end; it++)
 
 // Reserves at least `requested_cap` elements in the dynamic array, growing the backing array if
-// necessary. `requested_ap` is treated as an absolute value, so if you want to the the current
+// necessary. `requested_cap` is treated as an absolute value, so if you want to take the current
 // size into account you'll have to do it yourself: `array_reserve(&a, a.size + new_cap)`.
 #define ext_array_reserve(arr, requested_cap)                                              \
     do {                                                                                   \
@@ -834,7 +850,7 @@ char *ext_arena_vsprintf(Ext_Arena *a, const char *fmt, va_list ap);
 
 // Resizes the array in place so that its size is `new_sz`. If `new_sz` is greater than the
 // current size, the array is extended by the difference, otherwise it is simply truncated.
-// Beware that in case `new_size` > size the new elements will be uninitialized.
+// Beware that in case `new_size > size` the new elements will be uninitialized.
 #define ext_array_resize(a, new_sz)             \
     do {                                        \
         ext_array_reserve_exact((a), (new_sz)); \
@@ -945,7 +961,7 @@ typedef struct {
 void ext_sb_replace(Ext_StringBuffer *sb, size_t start, const char *to_replace, char replacement);
 // Transforms the string buffer to a cstring, by appending NUL and shrinking it to fit its size.
 // The string buffer is reset after this operation.
-// BEWARE: you still need to free the returned string with the string buffer's allocator after this
+// BEWARE: you still need to free the returned string with the stringbuffer's allocator after this
 // operation, otherwise memory will be leaked
 char *ext_sb_to_cstr(Ext_StringBuffer *sb);
 #ifndef EXTLIB_NO_STD
@@ -1018,7 +1034,7 @@ Ext_StringSlice ext_ss_trim_start(Ext_StringSlice ss);
 Ext_StringSlice ext_ss_trim_end(Ext_StringSlice ss);
 // Returns a new string slice with all white space removed from both ends
 Ext_StringSlice ext_ss_trim(Ext_StringSlice ss);
-// Returns a new string slice strating from `n` bytes into `ss`.
+// Returns a new string slice starting from `n` bytes into `ss`.
 Ext_StringSlice ext_ss_cut(Ext_StringSlice ss, size_t n);
 // Returns a new string slice of size `n`.
 Ext_StringSlice ext_ss_trunc(Ext_StringSlice ss, size_t n);
@@ -1078,17 +1094,17 @@ bool ext_delete_dir_recursively(const char *path);
 Ext_FileType ext_get_file_type(const char *path);
 // Renames a file (or directory)
 bool ext_rename_file(const char *old_path, const char *new_path);
-// Renames a file (or empty directory)
+// Deletes a file (or empty directory)
 bool ext_delete_file(const char *path);
 // Gets the current working directory using the current context allocator. Returns NULL on failure.
 char *ext_get_cwd(void);
-// Gets the current working directory using the provided allocator. Returns NULL on failure.
-char *ext_get_cwd_alloc(Ext_Allocator *a);
 // Gets the current working directory using the temporary allocator. Returns NULL on failure.
 char *ext_get_cwd_temp(void);
+// Gets the current working directory using the provided allocator. Returns NULL on failure.
+char *ext_get_cwd_alloc(Ext_Allocator *a);
 // Sets the current working directory
 bool ext_set_cwd(const char *cwd);
-// Transforsms `path` into an absolute path. Allocates using the provided allocator.
+// Transforms `path` into an absolute path. Allocates using the provided allocator.
 char *ext_get_abs_path_alloc(const char *path, Ext_Allocator *a);
 // Transforsms `path` into an absolute path. Allocates using the temp allocator.
 char *ext_get_abs_path_temp(const char *path);
@@ -1866,7 +1882,7 @@ void *ext_temp_alloc(size_t size) {
 
 void *ext_temp_realloc(void *ptr, size_t old_size, size_t new_size) {
     ptrdiff_t alignment = EXT_ALIGN(old_size, EXT_DEFAULT_ALIGNMENT);
-    // Reallocating last allocated memory, can grow/shrink in-place
+    // Reallocating last allocated memory, can shrink page in-place
     if(ext_temp_allocator.start - old_size - alignment == ptr) {
         ext_temp_allocator.start -= old_size + alignment;
         return ext_temp_alloc(new_size);
@@ -2040,19 +2056,18 @@ void *ext_arena_realloc(Ext_Arena *a, void *ptr, size_t old_size, size_t new_siz
     Ext_Arena *arena = (Ext_Arena *)a;
     EXT_ASSERT(EXT_ALIGN(ptr, arena->alignment) == 0,
                "ptr is not aligned to the arena's alignment");
-
     Ext_ArenaPage *page = arena->last_page;
     EXT_ASSERT(page, "No pages in arena");
 
     size_t alignment = EXT_ALIGN(old_size, arena->alignment);
     if(page->start - old_size - alignment == ptr) {
-        // Reallocating last allocated memory, can grow/shrink in-place
+        // Reallocating last allocated memory, can grow/shrink page in-place
         page->start -= old_size + alignment;
         arena->allocated -= old_size + alignment;
         void *new_ptr = ext_arena_alloc(a, new_size);
-        if(new_ptr != ptr) {
-            memcpy(new_ptr, ptr, old_size);
-        }
+        // Can still get a different pointer in case the arena runs out of page space and needs to
+        // allocate a brand new one. In this case we fallback on copying the data over.
+        if(new_ptr != ptr) memcpy(new_ptr, ptr, old_size);
         return new_ptr;
     } else if(new_size > old_size) {
         void *new_ptr = ext_arena_alloc(a, new_size);
@@ -2069,15 +2084,14 @@ void ext_arena_free(Ext_Arena *a, void *ptr, size_t size) {
     Ext_Arena *arena = (Ext_Arena *)a;
     EXT_ASSERT(EXT_ALIGN(ptr, arena->alignment) == 0,
                "ptr is not aligned to the arena's alignment");
-
     Ext_ArenaPage *page = arena->last_page;
     EXT_ASSERT(page, "No pages in arena");
 
-    size_t alignment = EXT_ALIGN(size, arena->alignment);
-    if(page->start - size - alignment == ptr) {
+    size += EXT_ALIGN(size, arena->alignment);
+    if(page->start - size == ptr) {
         // Deallocating last allocated memory, can shrink in-place
-        page->start -= size + alignment;
-        arena->allocated -= size + alignment;
+        page->start -= size;
+        arena->allocated -= size;
         return;
     }
 
@@ -2085,7 +2099,7 @@ void ext_arena_free(Ext_Arena *a, void *ptr, size_t size) {
     if(arena->flags & EXT_ARENA_STACK_ALLOC) {
 #ifndef EXTLIB_NO_STD
         ext_log(EXT_ERROR, "Deallocating memory in non-LIFO order: got %p, expected %p", ptr,
-                (void *)(page->start - size - alignment));
+                (void *)(page->start - size));
         abort();
 #else
         EXT_ASSERT(false, "Deallocating memory in non-LIFO order");
@@ -3121,18 +3135,19 @@ static inline int ext_dbg_unknown(const char *name, const char *file, int line, 
 #define ERROR      EXT_ERROR
 #define NO_LOGGING EXT_NO_LOGGING
 
-typedef Ext_Context Context;
+#define Context                Ext_Context
 #define PUSH_CONTEXT           EXT_PUSH_CONTEXT
 #define PUSH_ALLOCATOR         EXT_PUSH_ALLOCATOR
+#define LOGGING_LEVEL          EXT_LOGGING_LEVEL
 #define push_context_allocator ext_push_context_allocator
 #define push_context           ext_push_context
 #define pop_context            ext_pop_context
 
-typedef Ext_Allocator Allocator;
-typedef Ext_DefaultAllocator DefaultAllocator;
+#define Allocator         Ext_Allocator
+#define DefaultAllocator  Ext_DefaultAllocator
 #define default_allocator ext_default_allocator
 
-typedef Ext_TempAllocator TempAllocator;
+#define TempAllocator   Ext_TempAllocator
 #define temp_allocator  ext_temp_allocator
 #define temp_set_mem    ext_temp_set_mem
 #define temp_alloc      ext_temp_alloc
@@ -3148,24 +3163,24 @@ typedef Ext_TempAllocator TempAllocator;
 #define temp_vsprintf ext_temp_vsprintf
 #endif  // EXTLIB_NO_STD
 
-typedef Ext_ArenaFlags ArenaFlags;
+#define ArenaFlags          Ext_ArenaFlags
 #define ARENA_STACK_ALLOC   EXT_ARENA_STACK_ALLOC
 #define ARENA_ZERO_ALLOC    EXT_ARENA_ZERO_ALLOC
 #define ARENA_FLEXIBLE_PAGE EXT_ARENA_FLEXIBLE_PAGE
-typedef Ext_Arena Arena;
-typedef Ext_ArenaPage ArenaPage;
-typedef Ext_ArenaCheckpoint ArenaCheckpoint;
-#define new_arena        ext_new_arena
-#define arena_init       ext_arena_init
-#define arena_alloc      ext_arena_alloc
-#define arena_realloc    ext_arena_realloc
-#define arena_free       ext_arena_free
-#define arena_checkpoint ext_arena_checkpoint
-#define arena_rewind     ext_arena_rewind
-#define arena_reset      ext_arena_reset
-#define arena_destroy    ext_arena_destroy
-#define arena_strdup     ext_arena_strdup
-#define arena_memdup     ext_arena_memdup
+#define Arena               Ext_Arena
+#define ArenaPage           Ext_ArenaPage
+#define ArenaCheckpoint     Ext_ArenaCheckpoint
+#define new_arena           ext_new_arena
+#define arena_init          ext_arena_init
+#define arena_alloc         ext_arena_alloc
+#define arena_realloc       ext_arena_realloc
+#define arena_free          ext_arena_free
+#define arena_checkpoint    ext_arena_checkpoint
+#define arena_rewind        ext_arena_rewind
+#define arena_reset         ext_arena_reset
+#define arena_destroy       ext_arena_destroy
+#define arena_strdup        ext_arena_strdup
+#define arena_memdup        ext_arena_memdup
 #ifndef EXTLIB_NO_STD
 #define arena_sprintf  ext_arena_sprintf
 #define arena_vsprintf ext_arena_vsprintf
@@ -3184,7 +3199,7 @@ typedef Ext_ArenaCheckpoint ArenaCheckpoint;
 #define array_resize        ext_array_resize
 #define array_shrink_to_fit ext_array_shrink_to_fit
 
-typedef Ext_StringBuffer StringBuffer;
+#define StringBuffer     Ext_StringBuffer
 #define SB_Fmt           Ext_SB_Fmt
 #define SB_Arg           Ext_SB_Arg
 #define sb_free          ext_sb_free
@@ -3203,7 +3218,7 @@ typedef Ext_StringBuffer StringBuffer;
 #define sb_appendvf ext_sb_appendvf
 #endif  // EXTLIB_NO_STD
 
-typedef Ext_StringSlice StringSlice;
+#define StringSlice         Ext_StringSlice
 #define SS_Fmt              Ext_SS_Fmt
 #define SS_Arg              Ext_SS_Arg
 #define SS                  Ext_SS
@@ -3233,9 +3248,9 @@ typedef Ext_StringSlice StringSlice;
 #define ss_to_cstr_alloc    ext_ss_to_cstr_alloc
 
 #ifndef EXTLIB_NO_STD
-typedef Ext_Paths Paths;
-#define free_paths ext_free_paths
-typedef Ext_FileType FileType;
+#define Paths                  Ext_Paths
+#define free_paths             ext_free_paths
+#define FileType               Ext_FileType
 #define FILE_ERR               EXT_FILE_ERR
 #define FILE_REGULAR           EXT_FILE_REGULAR
 #define FILE_DIR               EXT_FILE_DIR
