@@ -43,7 +43,7 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
     if(size > ARENA_PAGE_SZ - sizeof(JStarASTArenaPage)) {
         // Allocation is too large, add page to overflow list
         JStarASTArenaPage* page = newPage(a, size);
-        JSR_ASSERT((size_t)(page->end - page->start) == size + sizeof(JStarASTArenaPage),
+        JSR_ASSERT((size_t)(page->end - page->start) == size,
                    "Overflow page should be exactly `size + sizeof(JStarASTArenaPage)`");
         page->next = a->overflow;
         a->overflow = page;
