@@ -7,6 +7,7 @@
 
 #include "buffer.h"
 #include "compiler.h"
+#include "conf.h"
 #include "disassemble.h"
 #include "gc.h"
 #include "import.h"
@@ -136,6 +137,10 @@ static bool eval(JStarVM* vm, const char* path, ObjFunction* fn) {
 
 static JStarResult evalString(JStarVM* vm, const char* path, const char* module, const char* src,
                               size_t len) {
+    JSR_ASSERT(path, "path cannot be NULL");
+    JSR_ASSERT(module, "module cannot be NULL");
+    JSR_ASSERT(src, "src cannot be NULL");
+
     PROFILE_BEGIN_SESSION("jstar-eval.json")
 
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
@@ -170,9 +175,14 @@ JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len)
 
 JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, const void* code,
                           size_t len) {
+    JSR_ASSERT(path, "path cannot be NULL");
+    JSR_ASSERT(module, "module cannot be NULL");
+    JSR_ASSERT(code, "code cannot be null");
+
     if(!isCompiledCode(code, len)) {
         return evalString(vm, path, module, code, len);
     }
+
     ObjFunction* fn;
     ObjString* name = copyCString(vm, module);
     JStarResult res = deserializeModule(vm, path, name, code, len, &fn);
@@ -183,6 +193,9 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
                            JStarBuffer* out) {
+    JSR_ASSERT(path, "path cannot be NULL");
+    JSR_ASSERT(src, "src cannot be NULL");
+
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
         jsrASTArenaReset(&vm->astArena);
@@ -202,6 +215,9 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_
 }
 
 JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, size_t len) {
+    JSR_ASSERT(path, "path cannot be NULL");
+    JSR_ASSERT(code, "src cannot be NULL");
+
     if(!isCompiledCode(code, len)) {
         return JSR_DESERIALIZE_ERR;
     }
