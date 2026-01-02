@@ -939,7 +939,7 @@ static JStarStmt* parseProgram(Parser* p) {
         skipNewLines(p);
         if(p->panic) synchronize(p);
     }
-    JStarLoc loc = stmts.count ? stmts.items[0]->loc : p->peek.loc;
+    JStarLoc loc = p->peek.loc;
     JStarStmt* body = jsrBlockStmt(p->arena, loc, stmts);
     return jsrFuncDecl(p->arena, loc, (JStarIdentifier){0}, (JStarFormalArgsList){0}, false, body);
 }
