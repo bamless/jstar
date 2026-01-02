@@ -849,10 +849,13 @@ static JStarStmt* decoratedDecl(Parser* p) {
         return NULL;
     }
 
-    JStarStmt* decl = parseStmt(p);
-    decl->as.decl.decorators = decorators;
+    JStarStmt* stmt = parseStmt(p);
+    JSR_ASSERT(stmt->type == JSR_VARDECL || stmt->type == JSR_FUNCDECL ||
+               stmt->type == JSR_NATIVEDECL || stmt->type == JSR_CLASSDECL,
+               "Not a declaration");
+    stmt->as.decl.decorators = decorators;
 
-    return decl;
+    return stmt;
 }
 
 static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple);
@@ -932,7 +935,6 @@ static JStarStmt* parseStmt(Parser* p) {
 
 static JStarStmt* parseProgram(Parser* p) {
     skipNewLines(p);
-
     JStarStmts stmts = {0};
     while(!match(p, TOK_EOF)) {
         jsrASTArrayAppend(p->arena, &stmts, parseStmt(p));
