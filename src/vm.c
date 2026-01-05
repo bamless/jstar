@@ -1082,7 +1082,7 @@ inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
                 }
             } else if(argc != 0) {
                 jsrRaise(vm, "TypeException",
-                         "Function %s.new() Expected 0 args, but instead `%d` supplied.",
+                         "Constructor for %s Expected 0 args, but instead %d supplied.",
                          cls->name->data, argc);
                 return false;
             }
