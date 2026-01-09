@@ -22,7 +22,7 @@ option(JSTAR_DBG_STRESS_GC   "Stress the garbage collector by calling it on ever
 option(JSTAR_DBG_CACHE_STATS "Enable inline cache statistics" OFF)
 option(JSTAR_INSTRUMENT      "Enable function instrumentation" OFF)
 
-# Options for optional libraries
+# Optional language libraries
 option(JSTAR_SYS   "Include the 'sys' module in the language" ON)
 option(JSTAR_IO    "Include the 'io' module in the language" ON)
 option(JSTAR_MATH  "Include the 'math' module in the language" ON)
@@ -54,11 +54,11 @@ endif()
 # Set compiler flags
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror=switch")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -fno-plt -s")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -fno-plt")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=switch")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -fno-plt -s")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 elseif(MSVC)
     # Disable secure warnings for the useless _s variants of standard functions.
