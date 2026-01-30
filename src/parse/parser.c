@@ -367,17 +367,17 @@ static JStarFormalArgsList formalArgs(Parser* p, JStarTokType open, JStarTokType
     skipNewLines(p);
 
     while(match(p, TOK_IDENTIFIER) || match(p, TOK_LPAREN)) {
-        JStarTok peek = p->peek;
+        JStarTok argStart = p->peek;
         JStarFormalArg arg;
 
-        if(peek.type == TOK_LPAREN) {
+        if(argStart.type == TOK_LPAREN) {
             arg = parseUnpackArgument(p);
         } else {
-            JStarTok tok = advance(p);
+            JStarTok name = advance(p);
             arg = (JStarFormalArg){
                 SIMPLE,
-                tok.loc,
-                {.simple = createIdentifier(tok)},
+                name.loc,
+                {.simple = createIdentifier(name)},
             };
         }
 
@@ -386,10 +386,10 @@ static JStarFormalArgsList formalArgs(Parser* p, JStarTokType open, JStarTokType
         if(match(p, TOK_EQUAL)) {
             if(arg.type == UNPACK) {
                 error(p, "Unpack argument cannot have default value");
+            } else {
+                jsrLexRewind(&p->lex, argStart);
+                jsrNextToken(&p->lex, &p->peek);
             }
-
-            jsrLexRewind(&p->lex, &peek);
-            jsrNextToken(&p->lex, &p->peek);
             break;
         }
 
@@ -851,7 +851,7 @@ static JStarStmt* decoratedDecl(Parser* p) {
 
     JStarStmt* stmt = parseStmt(p);
     JSR_ASSERT(stmt->type == JSR_VARDECL || stmt->type == JSR_FUNCDECL ||
-               stmt->type == JSR_NATIVEDECL || stmt->type == JSR_CLASSDECL,
+                   stmt->type == JSR_NATIVEDECL || stmt->type == JSR_CLASSDECL,
                "Not a declaration");
     stmt->as.decl.decorators = decorators;
 
