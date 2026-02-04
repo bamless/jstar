@@ -118,8 +118,7 @@ if(LIBDL)
 endif()
 
 if(JSTAR_COMPUTED_GOTOS)
-    if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU")
-        # disable crossjumping optimization on vm.c for an extra ~15% dispatch performance
+    if(${CMAKE_C_COMPILER_ID} STREQUAL "GNU") # disable crossjumping optimization on vm.c for an extra ~15% dispatch performance
         set_property(SOURCE vm.c PROPERTY COMPILE_FLAGS -fno-crossjumping)
     endif()
 endif()
@@ -133,7 +132,7 @@ add_library(jstar_static STATIC ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR
 target_compile_definitions(jstar_static PUBLIC JSTAR_STATIC)
 target_link_libraries(jstar_static PUBLIC ${SYSTEM_LIBS})
 target_include_directories(jstar_static
-    INTERFACE
+    PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
@@ -152,7 +151,7 @@ endif()
 add_library(jstar SHARED ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
 target_link_libraries(jstar PUBLIC ${SYSTEM_LIBS})
 target_include_directories(jstar
-    INTERFACE
+    PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
@@ -166,9 +165,7 @@ set_target_properties(jstar PROPERTIES
     SOVERSION ${JSTAR_VERSION_MAJOR}
     C_VISIBILITY_PRESET hidden
 )
-if(LIBDL)
-    list(APPEND SYS_LIBS ${LIBDL})
-endif()
+
 if(LTO) # Enable link-time optimization if supported
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
