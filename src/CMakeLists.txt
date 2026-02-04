@@ -105,10 +105,16 @@ endforeach()
 # Prepare extra libraries
 # -----------------------------------------------------------------------------
 
-# set extra libraries that we need to link
-set(EXTRA_LIBS)
-if(UNIX)
-    set(EXTRA_LIBS m dl)
+set(SYSTEM_LIBS)
+
+find_library(LIBM m)
+if(LIBM)
+    list(APPEND SYSTEM_LIBS ${LIBM})
+endif()
+
+find_library(LIBDL dl)
+if(LIBDL)
+    list(APPEND SYSTEM_LIBS ${LIBDL})
 endif()
 
 if(JSTAR_COMPUTED_GOTOS)
@@ -125,9 +131,9 @@ endif()
 # static library
 add_library(jstar_static STATIC ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
 target_compile_definitions(jstar_static PUBLIC JSTAR_STATIC)
-target_link_libraries(jstar_static PUBLIC ${EXTRA_LIBS})
+target_link_libraries(jstar_static PUBLIC ${SYSTEM_LIBS})
 target_include_directories(jstar_static
-    PUBLIC
+    INTERFACE
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
@@ -144,9 +150,9 @@ endif()
 
 #shared library
 add_library(jstar SHARED ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
-target_link_libraries(jstar PUBLIC ${EXTRA_LIBS})
+target_link_libraries(jstar PUBLIC ${SYSTEM_LIBS})
 target_include_directories(jstar
-    PUBLIC
+    INTERFACE
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
@@ -160,13 +166,15 @@ set_target_properties(jstar PROPERTIES
     SOVERSION ${JSTAR_VERSION_MAJOR}
     C_VISIBILITY_PRESET hidden
 )
-
-# Enable link-time optimization if supported
-if(LTO)
+if(LIBDL)
+    list(APPEND SYS_LIBS ${LIBDL})
+endif()
+if(LTO) # Enable link-time optimization if supported
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
+# Add dependency to bin2incl, as we need to convert standard lib pre-compiled code to headers for compiling the vm
 add_dependencies(jstar        bin2incl)
 add_dependencies(jstar_static bin2incl)
 
