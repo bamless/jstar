@@ -22,7 +22,11 @@ function updateThemeIcon() {
 function applyTheme() {
     const pref = localStorage.getItem("jtd-color") || "auto";
     const isDark = isDarkPreference(pref);
-    jtd.setTheme(isDark ? DARK_THEME : LIGHT_THEME);
+
+    document.documentElement.setAttribute('data-theme', isDark ? DARK_THEME : LIGHT_THEME);
+    if (typeof jtd !== 'undefined' && jtd.setTheme) {
+        jtd.setTheme(isDark ? DARK_THEME : LIGHT_THEME);
+    }
 
     const prism = document.getElementById("prism-theme");
     if (prism) {
@@ -52,6 +56,7 @@ function selectTheme(pref) {
 }
 
 // Apply the theme immediately
+document.write('<link rel="stylesheet" href="{{ "/assets/css/just-the-docs-blue-dark.css" | absolute_url }}">');
 applyTheme();
 
 // Sync the icon once the header is in the DOM, and wire up outside-click dismissal of the dropdown.
