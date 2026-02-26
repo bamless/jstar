@@ -1,0 +1,39 @@
+// Custom styles for the `demo` page
+
+.demo-style {
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+    background-color: $code-background-color;
+    border-radius: 3px;
+    border: 1px solid $border-color;
+    font-size: 13px;
+    padding: 1em;
+    tab-size: 4;
+}
+
+.demo-editor {
+    resize: none !important;
+}
+
+.codejar-linenumbers {
+    mix-blend-mode: normal !important;
+    color: $code-linenumber-color !important;
+    background-color: $code-background-color !important;
+    border: 1px solid $border-color;
+    border-right: 1px solid $border-color;
+    text-align: right;
+    padding-right: 0.7em;
+    white-space: pre;
+}
+
+.demo-output {
+    overflow-x: auto;
+}
+
+.demo-error {
+    color: red;
+}
+
+.demo-error-label {
+    float: right;
+    margin-top: 2em;
+}

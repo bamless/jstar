@@ -1,0 +1,45 @@
+// Custom styles for all pages of the site
+
+.runnable-snippet {
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+    background-color: $code-background-color;
+    font-size: 13px;
+    tab-size: 4;
+}
+
+.snippet-buttons {
+    display: flex;
+    gap: .25rem;
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.snippet-editor {
+    resize: none !important;
+}
+
+.snippet-button {
+    background: none;
+    border: none;
+    color: $body-text-color !important;
+    transition-duration: 0.4s;
+    cursor: pointer;
+}
+
+.snippet-button:hover {
+    color: $link-color !important;
+}
+
+.snippet-output {
+    padding: 0.5em;
+    margin-top: 0 !important;
+    margin-bottom: 0.25em;
+    font-size: 13px;
+    background-color: $code-background-color;
+}
+
+.snippet-error {
+    color: red;
+}

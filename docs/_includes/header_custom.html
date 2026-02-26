@@ -1,0 +1,23 @@
+<div id="theme-dropdown" style="position: relative;">
+  <button
+    id="theme-toggle"
+    onclick="toggleThemeDropdown()"
+    aria-label="Select color scheme"
+    title="Select color scheme"
+    style="
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0.2rem 0.4rem;
+      opacity: 0.8;
+    "
+  ><i id="theme-icon" class="fas fa-adjust"></i></button>
+  <div id="theme-menu" class="theme-menu" style="display: none;">
+    <button onclick="selectTheme('auto')"><i class="fas fa-adjust"></i> Auto</button>
+    <button onclick="selectTheme('light')"><i class="fas fa-sun"></i> Light</button>
+    <button onclick="selectTheme('dark')"><i class="fas fa-moon"></i> Dark</button>
+  </div>
+</div>
