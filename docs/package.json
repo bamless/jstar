@@ -1,0 +1,16 @@
+{
+  "name": "jstar-docs",
+  "private": true,
+  "scripts": {
+    "copy-assets": "node scripts/copy-assets.js",
+    "postinstall": "npm run copy-assets"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "codejar": "^4.3.0",
+    "prismjs": "^1.29.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

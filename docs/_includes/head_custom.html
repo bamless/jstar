@@ -1,18 +1,23 @@
 <!-- Prism configuration -->
 <link id="prism-theme" rel="stylesheet" href="{{ 'assets/css/prism.css' | absolute_url }}">
 <script src="{{ 'assets/js/prism.js' | absolute_url }}"></script>
+<script src="{{ 'assets/js/prism-jstar.js' | absolute_url }}"></script>
 
 <!-- Font Awesome -->
 <link href="{{ 'assets/css/fontawesome.min.css' | absolute_url }}" rel="stylesheet">
 <link href="{{ 'assets/css/brands.min.css' | absolute_url }}" rel="stylesheet">
 <link href="{{ 'assets/css/solid.min.css' | absolute_url }}" rel="stylesheet">
 
-<!-- Include J* WASM -->
-<script type="text/javascript" src="{{ 'assets/js/jstar-api.js' | absolute_url }}"></script>
-<script async type="text/javascript" src="{{ 'assets/js/jstar.js' | absolute_url }}"></script>
+<!-- Preload dark theme -->
+<link rel="preload" href="{{ 'assets/css/just-the-docs-blue-dark.css' | absolute_url }}" as="style">
+<link rel="preload" href="{{ 'assets/css/prism-dark.css' | absolute_url }}" as="style">
 
 <!-- Theme -->
 <script src="{{ 'assets/js/theme.js' | absolute_url }}"></script>
+
+<!-- Include J* WASM -->
+<script type="text/javascript" src="{{ 'assets/js/jstar-api.js' | absolute_url }}"></script>
+<script async type="text/javascript" src="{{ 'assets/js/jstar.js' | absolute_url }}"></script>
 
 <!-- Code Jar Editor -->
 <script src="{{ 'assets/js/codejar.js' | absolute_url }}"></script>

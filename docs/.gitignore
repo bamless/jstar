@@ -1,3 +1,4 @@
+# Jekyll
 _site
 .sass-cache
 .jekyll-cache
@@ -6,3 +7,18 @@ vendor
 Gemfile.lock
 build
 .vscode
+
+# npm
+node_modules
+package-lock.json
+
+# Generated assets — produced by `npm install` via scripts/copy-assets.js
+assets/js/codejar.js
+assets/js/prism.js
+assets/css/prism.css
+assets/css/prism-dark.css
+assets/css/fontawesome.min.css
+assets/css/brands.min.css
+assets/css/solid.min.css
+assets/webfonts/
+

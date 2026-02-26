@@ -1,62 +1,68 @@
+$code-linenumber-color: #272822 !default;
+
 pre {
-    border-radius: 3px;
-    border: 1px solid $border-color;
-    padding: 0.6em !important;
+  border-radius: 3px;
+  border: 1px solid $border-color;
+  font-size: 14px !important;
+  background-color: $code-background-color !important;
+  padding: 0.6em !important;
 }
 
 code[class*="language-"] {
-    padding: 0 !important;
-    border: none;
+  padding: 0 !important;
+  border: none;
 }
 
-// Default value for $code-linenumber-color, which just-the-docs only defines
-// in its dark scheme. This ensures custom SCSS that uses this variable compiles
-// correctly against all built-in schemes (e.g. just-the-docs-light.scss).
-$code-linenumber-color: #272822 !default;
-
 #theme-dropdown {
-    align-self: center;
+  position: relative;
+  align-self: center;
 
-    @media (max-width: 49.999rem) {
-        display: block;
-        padding: 0.5rem 1rem;
+  @media (max-width: 49.999rem) {
+    display: block;
+    padding: 0.5rem 1rem;
 
-        #theme-toggle { font-size: 1.2rem; }
-
-        .theme-menu {
-            left: 0;
-            right: auto;
-        }
+    #theme-toggle {
+      font-size: 1.2rem;
     }
+
+    .theme-menu {
+      left: 0;
+      right: auto;
+    }
+  }
 }
 
 .theme-menu {
-    position: absolute;
-    right: 0;
-    top: 100%;
-    background-color: $sidebar-color;
-    border: 1px solid $border-color;
-    border-radius: 4px;
-    padding: 0.25rem 0;
-    z-index: 100;
-    min-width: 7rem;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: $sidebar-color;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  padding: 0.25rem 0;
+  z-index: 100;
+  min-width: 7rem;
 
-    button {
-        display: block;
-        width: 100%;
-        background: none;
-        border: none;
-        color: $body-text-color;
-        cursor: pointer;
-        font-size: 0.85rem;
-        padding: 0.3rem 0.75rem;
-        text-align: left;
-        white-space: nowrap;
+  button {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: $body-text-color;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.75rem;
+    text-align: left;
+    white-space: nowrap;
 
-        i { width: 1em; }
-
-        &:hover { background-color: $border-color; }
+    i {
+      width: 1em;
     }
+
+    &:hover {
+      background-color: $border-color;
+    }
+  }
 }
 
 @import "docs.scss";
