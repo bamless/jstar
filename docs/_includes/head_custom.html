@@ -1,4 +1,4 @@
-<!-- Preload dark theme -->
+<!-- Preload dark theme assets so switching is instant -->
 <link rel="preload" href="{{ 'assets/css/just-the-docs-blue-dark.css' | absolute_url }}" as="style">
 <link rel="preload" href="{{ 'assets/css/prism-dark.css' | absolute_url }}" as="style">
 
@@ -9,6 +9,11 @@
 
 <!-- Theme -->
 <script src="{{ 'assets/js/theme.js' | absolute_url }}"></script>
+<script>
+(function() {
+    applyTheme();
+})();
+</script>
 
 <!-- Font Awesome -->
 <link href="{{ 'assets/css/fontawesome.min.css' | absolute_url }}" rel="stylesheet">

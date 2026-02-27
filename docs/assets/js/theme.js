@@ -7,6 +7,8 @@ const THEME_ICONS = {
     dark: "fa-moon",
 };
 
+const THEME_STORAGE_KEY = "jtd-color";
+
 function isDarkPreference(pref) {
     return pref === "dark" ||
         (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -15,12 +17,12 @@ function isDarkPreference(pref) {
 function updateThemeIcon() {
     const icon = document.getElementById("theme-icon");
     if (!icon) return;
-    const pref = localStorage.getItem("jtd-color") || "auto";
+    const pref = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
     icon.className = `fas ${THEME_ICONS[pref] || THEME_ICONS.auto}`;
 }
 
 function applyTheme() {
-    const pref = localStorage.getItem("jtd-color") || "auto";
+    const pref = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
     const isDark = isDarkPreference(pref);
 
     document.documentElement.setAttribute('data-theme', isDark ? DARK_THEME : LIGHT_THEME);
@@ -50,14 +52,10 @@ function closeThemeDropdown() {
 }
 
 function selectTheme(pref) {
-    localStorage.setItem("jtd-color", pref);
+    localStorage.setItem(THEME_STORAGE_KEY, pref);
     closeThemeDropdown();
     applyTheme();
 }
-
-// Apply the theme immediately
-document.write('<link rel="stylesheet" href="{{ "/assets/css/just-the-docs-blue-dark.css" | absolute_url }}">');
-applyTheme();
 
 // Sync the icon once the header is in the DOM, and wire up outside-click dismissal of the dropdown.
 document.addEventListener("DOMContentLoaded", () => {
