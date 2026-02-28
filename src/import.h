@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include "jstar.h"
-#include "object_types.h"
+#include "object.h"
 #include "parse/ast.h"
 
 /**

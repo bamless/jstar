@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "object.h"
-#include "object_types.h"
 #include "value.h"
 #include "vm.h"
 

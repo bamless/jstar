@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-#include "object_types.h"
 #include "value.h"
 
 // The type of a cached symbol.
@@ -29,7 +28,7 @@ typedef enum {
 // It caches the result of a name resolution, so we don't have to look it up again.
 typedef struct SymbolCache {
     SymbolType type;  // The type of the cached symbol
-    Obj* key;         // The key of the cached symbol. Used to invalidate the cache
+    struct Obj* key;  // The key of the cached symbol. Used to invalidate the cache
     union {
         Value method;   // The cached method
         size_t offset;  // The offset of the cached field or global variable inside of its object

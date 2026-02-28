@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "jstar.h"
-#include "object_types.h"
+#include "object.h"
 #include "parse/ast.h"
 
 // At most 255 local variables per frame

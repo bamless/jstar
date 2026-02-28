@@ -8,7 +8,6 @@
 #include "gc.h"
 #include "int_hashtable.h"
 #include "jstar.h"
-#include "object_types.h"
 #include "util.h"
 #include "value.h"
 #include "value_hashtable.h"

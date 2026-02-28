@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include "code.h"
-#include "object_types.h"
+#include "object.h"
 
 void disassembleFunction(const ObjFunction* fn);
 void disassembleNative(const ObjNative* nat);

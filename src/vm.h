@@ -10,7 +10,6 @@
 #include "jstar.h"
 #include "jstar_limits.h"
 #include "object.h"
-#include "object_types.h"
 #include "parse/ast.h"
 #include "symbol.h"
 #include "value.h"

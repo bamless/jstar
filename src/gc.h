@@ -4,7 +4,6 @@
 #include <stdlib.h>
 
 #include "jstar.h"
-#include "object_types.h"
 #include "value.h"
 
 // Macros to simplify memory allocation
@@ -24,7 +23,7 @@ void* gcAlloc(JStarVM* vm, void* ptr, size_t oldsize, size_t size);
 void garbageCollect(JStarVM* vm);
 
 // Mark an Object/Value as reached
-void reachObject(JStarVM* vm, Obj* o);
+void reachObject(JStarVM* vm, struct Obj* o);
 void reachValue(JStarVM* vm, Value v);
 
 // Free all unmarked objects

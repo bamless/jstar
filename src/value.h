@@ -5,9 +5,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "conf.h"          // IWYU pragma: keep
-#include "object_types.h"  // IWYU pragma: keep
-#include "util.h"          // IWYU pragma: keep
+#include "conf.h"  // IWYU pragma: keep
+#include "util.h"  // IWYU pragma: keep
+
+struct Obj;
 
 /**
  * Here we define the Value type. This is a C type that can store any type
@@ -59,7 +60,7 @@
 
 typedef uint64_t Value;
 
-    // clang-format off
+// clang-format off
 
 #define SIGN ((uint64_t)1 << 63)            // The sign bit
 #define QNAN ((uint64_t)0x7ffc000000000000) // Quiet NaN used for the NaN tagging technique
@@ -90,7 +91,7 @@ enum Tag {
 // These don't check the type of the value, one should use IS_* macros before these
 #define AS_BOOL(val)   ((val) == TRUE_VAL)
 #define AS_HANDLE(val) ((void*)(uintptr_t)(((val) & ~QNAN) >> 2))
-#define AS_OBJ(val)    ((Obj*)(uintptr_t)((val) & ~(SIGN | QNAN)))
+#define AS_OBJ(val)    ((struct Obj*)(uintptr_t)((val) & ~(SIGN | QNAN)))
 #define AS_NUM(val)    REINTERPRET_CAST(Value, double, val)
 
 // Convert from c type to Value
@@ -125,11 +126,11 @@ typedef struct Value {
         bool boolean;
         double num;
         void* handle;
-        Obj* obj;
+        struct Obj* obj;
     } as;
 } Value;
 
-    // clang-format off
+// clang-format off
 
 #define IS_HANDLE(val) ((val).type == VAL_HANDLE)
 #define IS_OBJ(val)    ((val).type == VAL_OBJ)

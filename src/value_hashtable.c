@@ -4,7 +4,7 @@
 
 #include "gc.h"
 #include "hashtable.h"
-#include "object.h"  // IWYU pragma: keep
+#include "object.h"
 #include "value.h"
 #include "vm.h"  // IWYU pragma: keep
 

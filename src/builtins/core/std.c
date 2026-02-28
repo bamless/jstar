@@ -11,7 +11,6 @@
 #include "import.h"
 #include "jstar.h"
 #include "object.h"
-#include "object_types.h"
 #include "parse/ast.h"
 #include "parse/parser.h"
 #include "value.h"

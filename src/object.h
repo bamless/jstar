@@ -9,7 +9,6 @@
 #include "int_hashtable.h"
 #include "jstar.h"
 #include "jstar_limits.h"
-#include "object_types.h"
 #include "value.h"
 #include "value_hashtable.h"
 
@@ -33,6 +32,34 @@ struct Frame;
  * Note that casting macros do not perform any checking, thus an Obj* pointer
  * should be tested before casting.
  */
+
+// Object type.
+// These types are used internally by the object system and are never
+// exposed to the user, to whom all values behave like class instances.
+// The enum is defined using X-macros in order to automatically generate
+// string names of enum constants (see ObjTypeNames array in object.c)
+#define OBJTYPE(X)      \
+    X(OBJ_STRING)       \
+    X(OBJ_NATIVE)       \
+    X(OBJ_FUNCTION)     \
+    X(OBJ_CLASS)        \
+    X(OBJ_INST)         \
+    X(OBJ_MODULE)       \
+    X(OBJ_LIST)         \
+    X(OBJ_BOUND_METHOD) \
+    X(OBJ_STACK_TRACE)  \
+    X(OBJ_CLOSURE)      \
+    X(OBJ_GENERATOR)    \
+    X(OBJ_UPVALUE)      \
+    X(OBJ_TUPLE)        \
+    X(OBJ_TABLE)        \
+    X(OBJ_USERDATA)
+
+typedef enum ObjType {
+#define ENUM_ELEM(elem) elem,
+    OBJTYPE(ENUM_ELEM)
+#undef ENUM_ELEM
+} ObjType;
 
 // -----------------------------------------------------------------------------
 // OBJECT CASTING MACROS
@@ -69,7 +96,7 @@ struct Frame;
 #define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
 
 // -----------------------------------------------------------------------------
-// OBJECT DEFINITONS
+// OBJECT DEFINITIONS
 // -----------------------------------------------------------------------------
 
 // Base class of all the Objects.
@@ -78,27 +105,27 @@ struct Frame;
 // flag (used to test when an object is reachable, and thus not collectable)
 // and the next pointer, that points to the next object in the global linked
 // list of all allocated objects (set up by the allocator in gc.c).
-struct Obj {
+typedef struct Obj {
     ObjType type;          // The type of the object
     bool reached;          // Flag used to signal that an object is reachable during a GC
     struct ObjClass* cls;  // The class of the Object
     struct Obj* next;      // Next object in the linked list of all allocated objects
-};
+} Obj;
 
 // A J* String. In J* Strings are immutable and can contain arbitrary
 // bytes since we explicitly store the string's length instead of relying on
 // NUL termination. Nevertheless, a NUL byte is appended for ease of use in
 // the C api.
-struct ObjString {
+typedef struct ObjString {
     Obj base;
     size_t length;  // Length of the string
     uint32_t hash;  // The string's hash (gets calculated once at allocation)
     bool interned;  // Whether the string is interned or not
     char* data;     // The actual data of the string (NUL terminated)
-};
+} ObjString;
 
 // A J* module. Modules are the runtime representation of a J* file.
-struct ObjModule {
+typedef struct ObjModule {
     Obj base;
     ObjString* name;           // Name of the module
     ObjString* path;           // The path to the module file
@@ -107,10 +134,10 @@ struct ObjModule {
     int globalsCapacity;       // Capacity of the globals array
     Value* globals;            // Array of global values
     JStarNativeReg* registry;  // Natives registered in this module
-};
+} ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)
-struct Prototype {
+typedef struct Prototype {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -118,74 +145,74 @@ struct Prototype {
     Value* defaults;    // Array of default arguments (NULL if no defaults)
     ObjModule* module;  // The module of the function
     ObjString* name;    // The name of the function
-};
+} Prototype;
 
 // A compiled J* function
-struct ObjFunction {
+typedef struct ObjFunction {
     Prototype proto;
     Code code;             // The actual code chunk containing bytecodes
     uint8_t upvalueCount;  // The number of upvalues the function closes over
     int stackUsage;
-};
+} ObjFunction;
 
 // A C function callable from J*
-struct ObjNative {
+typedef struct ObjNative {
     Prototype proto;
     JStarNative fn;  // The C function that gets called
-};
+} ObjNative;
 
 // A J* class. Classes are first class objects in J*.
-struct ObjClass {
+typedef struct ObjClass {
     Obj base;
     ObjString* name;            // The name of the class
     struct ObjClass* superCls;  // Pointer to the parent class (or NULL)
     int fieldCount;             // Number of fields of the class
     IntHashTable fields;        // HashTable containing a mapping for the object's fields
     ValueHashTable methods;     // HashTable containing methods (ObjFunction/ObjNative)
-};
+} ObjClass;
 
 // An instance of a user defined Class
-struct ObjInstance {
+typedef struct ObjInstance {
     Obj base;
     size_t size;    // Size of the fields array
     Value* fields;  // Array of fields of the instance
-};
+} ObjInstance;
 
 // A J* List. Lists are mutable sequences of values.
-struct ObjList {
+typedef struct ObjList {
     Obj base;
     Value* items;     // List elements
     size_t capacity;  // How much space is currently allocated in the list
     size_t count;     // How many objects are currently in the list
-};
+} ObjList;
 
 // A J* Tuple. Tuples are immutable sequences of values.
-struct ObjTuple {
+typedef struct ObjTuple {
     Obj base;
     size_t count;   // Number of elements of the tuple
     Value items[];  // Tuple elements (flexible array)
-};
+} ObjTuple;
 
-struct TableEntry {
+typedef struct {
     Value key;  // The key of the entry
     Value val;  // The actual value
-};
+} TableEntry;
 
 // A J* Table. Tables are hash tables that map keys to values.
-struct ObjTable {
+typedef struct ObjTable {
     Obj base;
     size_t capacityMask;  // How much space is allocated in the table (minus 1)
     size_t count;         // The number of actual entries in the Table, i.e. excluding tombstones
     size_t numEntries;    // The number of entries in the Table including tombstones
     TableEntry* entries;  // The actual array of entries
-};
+} ObjTable;
 
 // A bound method. It contains a method with an associated target.
-struct ObjBoundMethod {
+typedef struct ObjBoundMethod {
     Obj base;
     Value receiver;  // The receiver to which the method is bound
     Obj* method;     // The actual method
-};
+} ObjBoundMethod;
 
 // An upvalue is a variable captured from an outer scope by a closure.
 // when a closure of a function is created, it instantiates an ObjUpvalue
@@ -195,34 +222,34 @@ struct ObjBoundMethod {
 // is copied in the closed field, and the addr field is set to &closed.
 // This way the variable can continue to be used even if the stack frame
 // that originally stored it has benn popped.
-struct ObjUpvalue {
+typedef struct ObjUpvalue {
     Obj base;
     Value* addr;              // The address of the upvalue
     Value closed;             // Stores the upvalue when closed
     struct ObjUpvalue* next;  // Pointer to the next open upvalue. NULL when closed
-};
+} ObjUpvalue;
 
 // A closure always wraps an ObjFunction and stores the flattened hierarchy of
 // Upvalues that the function closes over.
-struct ObjClosure {
+typedef struct ObjClosure {
     Obj base;
     ObjFunction* fn;         // The function
     uint8_t upvalueCount;    // The number of Upvalues the function closes over
     ObjUpvalue* upvalues[];  // the actual Upvalues
-};
+} ObjClosure;
 
-struct SavedHandler {
+typedef struct {
     int type;
     uint8_t* address;
     size_t spOffset;
-};
+} SavedHandler;
 
-struct SavedFrame {
+typedef struct {
     uint8_t* ip;
     size_t stackTop;
     uint8_t handlerCount;
     SavedHandler handlers[MAX_HANDLERS];
-};
+} SavedFrame;
 
 // A generator is a special iterator-like object that has the ability
 // to suspend its execution via a `yield` expression. Each time it is
@@ -232,7 +259,7 @@ struct SavedFrame {
 // caller, making it possible for generators to emulate (stackless)
 // coroutines. All the state needed to support suspension and resume is
 // stored here (see `SuspendedFrame` and `savedStack`)
-struct ObjGenerator {
+typedef struct ObjGenerator {
     Obj base;
     enum {
         GEN_STARTED,
@@ -245,33 +272,33 @@ struct ObjGenerator {
     SavedFrame frame;    // Saved generator frame
     size_t stackSize;    // The size of the generator stack
     Value savedStack[];  // The saved stack of the generator function
-};
+} ObjGenerator;
 
-struct FrameRecord {
+typedef struct {
     int line;
     ObjString* path;
     ObjString* moduleName;
     ObjString* funcName;
-};
+} FrameRecord;
 
 // Object that contains the dump of the stack's frames.
 // Used for storing the trace of an unhandled exception
-struct ObjStackTrace {
+typedef struct ObjStackTrace {
     Obj base;
     struct {
         FrameRecord* items;
         size_t capacity, count;
     } records;
     int lastTracedFrame;
-};
+} ObjStackTrace;
 
 // Garbage collected user data
-struct ObjUserdata {
+typedef struct ObjUserdata {
     Obj base;
     void (*finalize)(void*);  // Custom function to finalize the userdatum
     size_t size;              // The size ot the userdatum
     uint8_t data[];           // The data
-};
+} ObjUserdata;
 
 // -----------------------------------------------------------------------------
 // OBJECT ALLOCATION FUNCTIONS

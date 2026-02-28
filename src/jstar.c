@@ -12,7 +12,6 @@
 #include "gc.h"
 #include "import.h"
 #include "object.h"
-#include "object_types.h"
 #include "parse/ast.h"
 #include "parse/lex.h"
 #include "parse/parser.h"
