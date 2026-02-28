@@ -5,6 +5,8 @@ on:
     branches: ["master"]
     paths:
       - "docs/**"
+      - "src/**"
+      - "include/**"
   workflow_dispatch:
 
 permissions:
@@ -18,6 +20,26 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      # bin2incl is a host tool that generates C headers from the pre-compiled
+      # J* standard library files. It must be built natively so it can run on
+      # the CI runner; the Emscripten build cannot use its own cross-compiled
+      # copy.
+      - name: Build bin2incl (native host tool)
+        run: |
+          cmake -S . -B build-native -DJSTAR_INSTALL=OFF
+          cmake --build build-native --target bin2incl
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+
+      - name: Build WASM module
+        run: |
+          emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release -DJSTAR_INSTALL=OFF \
+            -DJSTAR_BIN2INCL=${{ github.workspace }}/build-native/apps/bin2incl/bin2incl
+          cmake --build build-wasm --target docs
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

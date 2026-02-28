@@ -91,13 +91,42 @@ if(JSTAR_RE)
 endif()
 
 # Generate J* sandard library source headers
+#
+# bin2incl is a host tool that must run on the build machine. When
+# cross-compiling (e.g. with Emscripten) the normal `bin2incl` CMake target
+# is itself a cross-compiled binary and cannot be executed directly. In that
+# case the caller must supply a path to a pre-built native binary via the
+# JSTAR_BIN2INCL cache variable (see docs/CMakeLists.txt for an example).
+if(CMAKE_CROSSCOMPILING)
+    if(NOT DEFINED JSTAR_BIN2INCL)
+        message(FATAL_ERROR
+            "Cross-compiling requires a native bin2incl host tool.\n"
+            "Build it first with:\n"
+            "  cmake -S . -B build-native && cmake --build build-native --target bin2incl\n"
+            "Then re-run with:\n"
+            "  -DJSTAR_BIN2INCL=<build-native>/apps/bin2incl/bin2incl")
+    endif()
+    # Resolve to an absolute path so the custom command works regardless of
+    # which directory make/ninja uses as its working directory at build time.
+    get_filename_component(BIN2INCL_ABS "${JSTAR_BIN2INCL}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
+    if(NOT EXISTS "${BIN2INCL_ABS}")
+        message(FATAL_ERROR "JSTAR_BIN2INCL does not exist: ${BIN2INCL_ABS}\n"
+            "Build it first: cmake --build <native-build-dir> --target bin2incl")
+    endif()
+    set(BIN2INCL_CMD  "${BIN2INCL_ABS}")
+    set(BIN2INCL_DEPS "${BIN2INCL_ABS}")  # file-path dependency, not a target
+else()
+    set(BIN2INCL_CMD  bin2incl)  # CMake target — resolved to the executable path
+    set(BIN2INCL_DEPS bin2incl)
+endif()
+
 set(JSTAR_STDLIB_HEADERS)
 foreach(jsr ${JSTAR_STDLIB})
     list(APPEND JSTAR_STDLIB_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc)
     add_custom_command(
         OUTPUT  ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
-        COMMAND bin2incl ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
-        DEPENDS bin2incl ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}
+        COMMAND ${BIN2INCL_CMD} ARGS ${CMAKE_CURRENT_SOURCE_DIR}/${jsr} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}.inc
+        DEPENDS ${BIN2INCL_DEPS} ${CMAKE_CURRENT_SOURCE_DIR}/${jsr}
     )
 endforeach()
 

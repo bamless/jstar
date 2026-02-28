@@ -74,6 +74,11 @@ add_subdirectory(src)
 add_subdirectory(apps)
 add_subdirectory(extern)
 
+# Documentation WASM module — only available when compiling with Emscripten
+if(EMSCRIPTEN)
+    add_subdirectory(docs)
+endif()
+
 # -----------------------------------------------------------------------------
 # Installation
 # -----------------------------------------------------------------------------

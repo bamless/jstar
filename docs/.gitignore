@@ -22,3 +22,7 @@ assets/css/brands.min.css
 assets/css/solid.min.css
 assets/webfonts/
 
+# WASM module — built by the CMake `docs` target via Emscripten
+assets/js/jstar.js
+assets/js/jstar.wasm
+
