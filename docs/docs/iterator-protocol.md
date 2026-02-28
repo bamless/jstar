@@ -54,7 +54,7 @@ when `__iter__` returns a truthy state, so it can safely assume that the state i
 
 ## Implementing a custom iterable
 
-Any class that `__iter__` and `__next__` becomes iterable. Note that, even though it's not required,
+Any class that implements `__iter__` and `__next__` becomes iterable. Note that, even though it's not required,
 inheriting from `iter.Iterable` is a common practice when implementing custom classes that can be
 iterated. Inheriting from this class makes a lot of useful adapter methods available to the custom
 class, such as `take`, `map`, `filter`, etc.
@@ -93,7 +93,7 @@ end
 Because `Countdown` inherits from `Iterable`, it automatically gains the full set of
 [adapter and collector methods](#adapters) described later in this page:
 <pre class='runnable-snippet'>
-class Countdown is Iterable
+class Countdown is iter.Iterable
     construct(from)
         this._from = from
     end
@@ -233,13 +233,13 @@ The `iter` module provides several ready-made generator functions that produce i
 | `empty` | An iterable that yields no elements. |
 
 <pre class='runnable-snippet'>
-for var i in range(2, 11, 2)
+for var i in iter.range(2, 11, 2)
     print(i) // 2, 4, 6, 8, 10
 end
 </pre>
 
 <pre class='runnable-snippet'>
-print(successors(1, |n| => n * 2 if n < 64 else null).sum())
+print(iter.successors(1, |n| => n * 2 if n < 64 else null).sum())
 </pre>
 
 ## Adapters
@@ -269,7 +269,7 @@ on any `Iterable`:
 
 <pre class='runnable-snippet'>
 // Pairs of (index, square) for the first 5 even numbers
-for var pair in range(20).filter(|n| => n % 2 == 0).take(5).enumerate()
+for var pair in iter.range(20).filter(|n| => n % 2 == 0).take(5).enumerate()
     print(pair)
 end
 </pre>
@@ -306,17 +306,17 @@ available as both free functions and methods on `Iterable`:
 | `collect(collector)` | Pass this iterable to `collector` and return the result. |
 
 <pre class='runnable-snippet'>
-print(range(1, 6).reduce(1, |acc, n| => acc * n)) // 5! = 120
+print(iter.range(1, 6).reduce(1, |acc, n| => acc * n)) // 5! = 120
 </pre>
 
 <pre class='runnable-snippet'>
 var words = ["the", "quick", "brown", "fox"]
-print(words.map(|w| => w[0].upper()).join(", "))
+print(words.map(|w| => w.reversed().join()).join(", "))
 </pre>
 
 `collect` is useful to feed an iterable into a constructor that expects an iterable argument,
 such as `List` or `Tuple`:
 <pre class='runnable-snippet'>
-var squares = range(5).map(|n| => n * n).collect(List)
+var squares = iter.range(5).map(|n| => n * n).collect(List)
 print(squares)
 </pre>
