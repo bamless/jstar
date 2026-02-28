@@ -194,9 +194,9 @@ end
 
 For some functions it can be useful to accept an unlimited number of arguments. In **J\*** we call
 such functions *variadic functions*. A function is variadic if the last parameter is an *ellipsis*
-(`...` token):
+(`...` token) followed by a name:
 ```jstar
-fun variadic(a, b, ...)
+fun variadic(a, b, ...args)
     // Function body
 end
 
@@ -205,9 +205,9 @@ variadic(1, 2, 3, 4, 5)
 ```
 
 When calling a variadic function, any extra argument will be put in a tuple and passed to the
-function via an hidden parameter called *args*:
+function:
 <pre class='runnable-snippet'>
-fun variadic(a, b, ...)
+fun variadic(a, b, ...args)
     print("Argument 1:", a)
     print("Argument 2:", b)
     for var e in args // `args` holds the extra arguments
@@ -218,9 +218,9 @@ end
 variadic(1, 2, 3, 4, 5)
 </pre>
 
-If instead no extra parameters are passed at the call site, `args` will be bound to the empty tuple:
+If instead no extra parameters are passed at the call site, the variadic argument will be bound to the empty tuple:
 <pre class='runnable-snippet'>
-fun variadic(...)
+fun variadic(...args)
     print(args)
 end
 
@@ -231,7 +231,7 @@ Variadic functions can still use positional and default parameters, with the usu
 first, then default ones:
 <pre class='runnable-snippet'>
 // Using all kinds of parameters in a function
-fun all(a, b, c="Default", ...)
+fun all(a, b, c="Default", ...args)
     print(a, b, c, args)
 end
 
