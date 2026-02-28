@@ -112,7 +112,7 @@ print(list)`
             `import re
 
 var message = '{lang} on {platform}!'
-var formatted = re.gsub(message, '{(%a+)}', fun(arg)
+var formatted = re.substituteAll(message, '{(%a+)}', fun(arg)
 	return { 
 		'lang' : 'J*', 'platform' : 'the Web'
 	}[arg]
@@ -158,6 +158,23 @@ john.showIncome()
 alice.showIncome()`
         );
 
+    });
+
+    const generatorsButton = document.querySelector("#generators");
+    generatorsButton.addEventListener('click', () => {
+        setEditorCode(
+            `fun fibonacci()
+	var a, b = 1, 1
+	while true
+		yield a
+		a, b = b, a + b
+	end
+end
+
+for var n in fibonacci().take(10)
+	print(n)
+end`
+        );
     });
 
     // Click first button to setup first example

@@ -72,7 +72,7 @@ print(tuple)
 
 ## Spread in tuple literals
 
-Just like in list literals, the `...` operator can be used to splice elements of a list or tuple
+Just like in list literals, the `...` operator can be used to splice the elements of any *iterable*
 into a tuple literal at any position:
 <pre class='runnable-snippet'>
 var xs = 2, 3, 4

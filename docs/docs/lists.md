@@ -51,10 +51,10 @@ The funny looking `|| =>` syntax is called a 'function literal'. We'll discuss m
 
 ## Spread in list literals
 
-The `...` operator can be used inside a list literal to splice the elements of another list or tuple
-inline. This works the same way as [spread arguments in function calls](functions#unpacking-call),
-and there is no restriction on position — spreads may appear anywhere in the literal, and multiple
-spreads are allowed:
+The `...` operator can be used inside a list literal to splice the elements of any *iterable* inline.
+This works the same way as [spread arguments in function calls](functions#unpacking-call), and there
+is no restriction on position — spreads may appear anywhere in the literal, and multiple spreads are
+allowed:
 <pre class='runnable-snippet'>
 var xs = [2, 3, 4]
 var ys = [1, ...xs, 5, 6] // [1, 2, 3, 4, 5, 6]

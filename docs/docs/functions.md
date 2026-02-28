@@ -241,9 +241,9 @@ all(1, 2, "foo", false, 3) // Calling with extra parameters after positional and
 </pre>
 
 ## Unpacking call
-Just like with variables, sometimes we wish to extract the elements of a tuple or a list and pass
-them as individual arguments to a function call. This can be achieved by prefixing an argument with
-an *ellipsis* (`...`):
+Just like with variables, sometimes we wish to extract the elements of a sequence and pass them as
+individual arguments to a function call. This can be achieved by prefixing an argument with an
+*ellipsis* (`...`):
 <pre class='runnable-snippet'>
 fun foo(a, b, c)
     print(a, b, c)
@@ -253,10 +253,10 @@ var unpackable = 1, 2, 3
 foo(...unpackable) // Unpacking call: expands to foo(1, 2, 3)
 </pre>
 
-When **J\*** encounters a `...expr` argument, it unpacks the list or tuple produced by `expr` and
-splices its elements into the argument list at that position. There is no
-restriction on where a spread argument may appear — it can come first, last, or anywhere in
-between, and multiple spread arguments are allowed in the same call:
+When **J\*** encounters a `...expr` argument, it iterates over the value produced by `expr` and
+splices its elements into the argument list at that position. Any *iterable* value is accepted, not
+just lists and tuples. There is no restriction on where a spread argument may appear — it can come
+first, last, or anywhere in between, and multiple spread arguments are allowed in the same call:
 <pre class='runnable-snippet'>
 fun foo(a, b, c, d, e)
     print(a, b, c, d, e)
@@ -267,13 +267,13 @@ var ys = 4, 5 // Two-element tuple
 foo(1, ...xs, ...ys) // Expands to foo(1, 2, 3, 4, 5)
 </pre>
 
-If a spread argument is not a list or a tuple, an error will be produced:
+If a spread argument is not an iterable, an error will be produced:
 <pre class='runnable-snippet'>
 fun foo(a, b, c)
     print(a, b, c)
 end
 
-foo(..."not a tuple")
+foo(...3)
 </pre>
 
 As with regular calls, the total number of arguments after all spreads are expanded must match the
