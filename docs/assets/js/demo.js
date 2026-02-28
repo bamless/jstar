@@ -126,7 +126,7 @@ print(formatted)`
     classesButton.addEventListener('click', () => {
         setEditorCode(
             `class Person
-    fun new(name, age)
+    construct(name, age)
         this.name = name
         this.age = age
     end
@@ -141,7 +141,7 @@ print(formatted)`
 end
 
 class Employee is Person
-    fun new(name, age, income)
+    construct(name, age, income)
         super(name, age)
         this.income = income
     end

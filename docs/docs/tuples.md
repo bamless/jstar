@@ -70,6 +70,22 @@ var tuple = Tuple([1, 2, 3])
 print(tuple)
 </pre>
 
+## Spread in tuple literals
+
+Just like in list literals, the `...` operator can be used to splice elements of a list or tuple
+into a tuple literal at any position:
+<pre class='runnable-snippet'>
+var xs = 2, 3, 4
+var ys = (1, ...xs, 5, 6) // (1, 2, 3, 4, 5, 6)
+print(ys)
+</pre>
+
+<pre class='runnable-snippet'>
+var head = 1, 2
+var tail = 4, 5
+print((0, ...head, 3, ...tail)) // (0, 1, 2, 3, 4, 5)
+</pre>
+
 ## Element access
 
 Just like lists, tuple elements can be accessed by the subscript operator:

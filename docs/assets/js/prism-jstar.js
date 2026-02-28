@@ -15,7 +15,7 @@ Prism.languages.jstar = {
         inside: { 'punctuation': /[.\\]/ }
     },
     'number': /\b0x[a-f\d]+\.?[a-f\d]*(?:p[+-]?\d+)?\b|\b\d+(?:\.\B|\.?\d*(?:e[+-]?\d+)?\b)|\B\.\d+(?:e[+-]?\d+)?\b/i,
-    'keyword': /\b(?:class|this|super|and|else|for|fun|native|if|elif|or|return|var|while|import|in|begin|end|as|is|try|except|ensure|raise|with|continue|break|static)\b/,
+    'keyword': /\b(?:class|construct|yield|this|super|and|else|for|fun|native|if|elif|or|return|var|while|import|in|begin|end|as|is|try|except|ensure|raise|with|continue|break|static)\b/,
     'boolean': /\b(?:true|false|null)\b/,
     'function': /(?!\d)\w+(?=\s*(?:[({]))/,
     'operator': [/[-+*%^#~&|]|\/\/?|<[<=]?|>[>=]?|[=~]=?/],

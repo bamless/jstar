@@ -242,41 +242,48 @@ all(1, 2, "foo", false, 3) // Calling with extra parameters after positional and
 
 ## Unpacking call
 Just like with variables, sometimes we wish to extract the elements of a tuple or a list and pass
-them as arguments to a function call. This can be achieved via an *unpacking* function call:
+them as individual arguments to a function call. This can be achieved by prefixing an argument with
+an *ellipsis* (`...`):
 <pre class='runnable-snippet'>
 fun foo(a, b, c)
     print(a, b, c)
 end
 
 var unpackable = 1, 2, 3
-foo(unpackable)... // Unpacking call
+foo(...unpackable) // Unpacking call: expands to foo(1, 2, 3)
 </pre>
 
-An *unpacking* call is composed by a normal function call followed by an *ellipsis*. When an 
-unpacking call is executed, **J\*** will try to unpack the last argument and bind its values to the
-remaining parameters.
+When **J\*** encounters a `...expr` argument, it unpacks the list or tuple produced by `expr` and
+splices its elements into the argument list at that position. There is no
+restriction on where a spread argument may appear — it can come first, last, or anywhere in
+between, and multiple spread arguments are allowed in the same call:
+<pre class='runnable-snippet'>
+fun foo(a, b, c, d, e)
+    print(a, b, c, d, e)
+end
 
-If the last argument of the call is not a list or a tuple, an error will be produced:
+var xs = 2, 3 // Two-element tuple
+var ys = 4, 5 // Two-element tuple
+foo(1, ...xs, ...ys) // Expands to foo(1, 2, 3, 4, 5)
+</pre>
+
+If a spread argument is not a list or a tuple, an error will be produced:
 <pre class='runnable-snippet'>
 fun foo(a, b, c)
     print(a, b, c)
 end
 
-foo("not a tuple")...
+foo(..."not a tuple")
 </pre>
 
-Also, if the number of elements in the list or tuple doesn't match the number of parameters that
-haven't yet been specified, an error will be produced as well:
+As with regular calls, the total number of arguments after all spreads are expanded must match the
+number of parameters the function expects, otherwise an error is produced:
 <pre class='runnable-snippet'>
 fun foo(a, b, c)
     print(a, b, c)
 end
 
-// The first parameter is specified, this leaves only 2 that can be 
-// bound by the unpacking call.
-// But the provided tuple has 3 elements, so the call will fail.
-// The same would happen even if the tuple has a low item count, such as 1
-foo(1, (2, 3, 4))...
+foo(1, ...(2, 3, 4)) // Error: expands to 4 arguments but foo expects 3
 </pre>
 
 ## Keyword parameters

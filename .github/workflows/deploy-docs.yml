@@ -5,8 +5,8 @@ on:
     branches: ["master"]
     paths:
       - "docs/**"
-      - "src/**"
-      - "include/**"
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
       - name: Build bin2incl (native host tool)
         run: |
           cmake -S . -B build-native -DJSTAR_INSTALL=OFF
-          cmake --build build-native --target bin2incl
+          cmake --build build-native --target bin2incl --parallel $(nproc)
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
@@ -39,7 +39,7 @@ jobs:
         run: |
           emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release -DJSTAR_INSTALL=OFF \
             -DJSTAR_BIN2INCL=${{ github.workspace }}/build-native/apps/bin2incl/bin2incl
-          cmake --build build-wasm --target docs
+          cmake --build build-wasm --target docs --parallel $(nproc)
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

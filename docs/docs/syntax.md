@@ -75,10 +75,10 @@ print(4 \
 ## Keywords
 This is a list of all the keywords of the language:
 ```jstar
-    true false null and or else for fun native if elif
-    var while in begin end as is try ensure except raise 
-    with continue break static end return import super
-    class
+    and as begin break class construct continue elif else
+    end ensure except false for fun if import in is native
+    null or raise return static super true try var while
+    with yield
 ```
 These names are reserved, and cannot be used as names for variables, classes or functions.
 
