@@ -1262,10 +1262,6 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
     }
 }
 
-// -----------------------------------------------------------------------------
-// EVAL LOOP
-// -----------------------------------------------------------------------------
-
 bool runEval(JStarVM* vm, int evalDepth) {
     PROFILE_FUNC()
 
