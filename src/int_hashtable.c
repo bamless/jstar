@@ -4,8 +4,9 @@
 
 #include "gc.h"
 #include "hashtable.h"
-#include "object.h"  // IWYU pragma: keep
-#include "vm.h"      // IWYU pragma: keep
+#include "jstar.h"
+#include "object.h"
+#include "vm.h"  // IWYU pragma: keep
 
 #define TOMB_MARKER       -1
 #define INVALID_VAL       -2

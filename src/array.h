@@ -1,7 +1,6 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
-#include <stdlib.h>  // IWYU pragma: keep
 #include <string.h>  // IWYU pragma: keep
 
 #include "jstar/conf.h"

@@ -5,8 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "conf.h"  // IWYU pragma: keep
-#include "util.h"  // IWYU pragma: keep
+#include "conf.h"
+#include "util.h"
 
 struct Obj;
 
