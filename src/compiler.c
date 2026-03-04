@@ -633,11 +633,11 @@ static JStarExpr* getExpressions(const JStarExpr* unpackable) {
     }
 }
 
-bool isSpreadExpr(const JStarExpr* e) {
+static bool isSpreadExpr(const JStarExpr* e) {
     return e->type == JSR_SPREAD;
 }
 
-bool containsSpreadExpr(const JStarExpr* exprs) {
+static bool containsSpreadExpr(const JStarExpr* exprs) {
     JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
     arrayForeach(JStarExpr*, it, &exprs->as.exprList) {
         if(isSpreadExpr(*it)) {
