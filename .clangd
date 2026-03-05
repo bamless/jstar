@@ -1,6 +1,8 @@
 Diagnostics:
   UnusedIncludes: Strict
 
+If:
+  PathMatch: [src/**/.*\.h, include/**/.*\.h, src/**/.*\.c]
 CompileFlags:
-  Add: -Wno-unknown-warning-option
-  Remove: [-m*, -f*]
+  Add: [-x, c]
+  Remove: [-m*, -fno-crossjumping, -std=gnu++*]
