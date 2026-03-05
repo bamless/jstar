@@ -26,7 +26,7 @@ function applyTheme() {
     const isDark = isDarkPreference(pref);
 
     document.documentElement.setAttribute('data-theme', isDark ? DARK_THEME : LIGHT_THEME);
-    if (typeof jtd !== 'undefined' && jtd.setTheme) {
+    if (jtd && jtd.setTheme) {
         jtd.setTheme(isDark ? DARK_THEME : LIGHT_THEME);
     }
 
