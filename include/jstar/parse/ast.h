@@ -116,7 +116,6 @@ typedef struct JStarYieldExpr {
     JStarExpr* expr;
 } JStarYieldExpr;
 
-
 typedef struct JStarTernaryExpr {
     JStarExpr* cond;
     JStarExpr* thenExpr;
@@ -351,6 +350,7 @@ struct JStarStmt {
     } while(0)
 
 typedef struct JStarASTArenaPage JStarASTArenaPage;
+
 typedef struct {
     JStarASTArenaRealloc realloc;
     JStarASTArenaPage *first, *last;
@@ -381,8 +381,8 @@ JSTAR_API JStarExpr* jsrCompundAssignExpr(JStarASTArena* a, JStarLoc loc, JStarT
                                           JStarExpr* lval, JStarExpr* rval);
 JSTAR_API JStarExpr* jsrPropertyAccessExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* left,
                                            const char* name, size_t length);
-JSTAR_API JStarExpr* jsrSuperLiteral(JStarASTArena* a, JStarLoc loc, JStarTok* name,
-                                     bool isCall, JStarExprs args);
+JSTAR_API JStarExpr* jsrSuperLiteral(JStarASTArena* a, JStarLoc loc, JStarTok* name, bool isCall,
+                                     JStarExprs args);
 JSTAR_API JStarExpr* jsrCallExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* callee,
                                  JStarExprs args);
 JSTAR_API JStarExpr* jsrVarLiteral(JStarASTArena* a, JStarLoc loc, const char* str, size_t len);
@@ -410,7 +410,7 @@ JSTAR_API JStarExpr* jsrNullLiteral(JStarASTArena* a, JStarLoc loc);
 // -----------------------------------------------------------------------------
 
 JSTAR_API JStarStmt* jsrFunDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
-                                 JStarFormalArgsList args, bool isGenerator, JStarStmt* body);
+                                JStarFormalArgsList args, bool isGenerator, JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
                                    JStarFormalArgsList args);
 JSTAR_API JStarStmt* jsrForStmt(JStarASTArena* a, JStarLoc loc, JStarStmt* init, JStarExpr* cond,
