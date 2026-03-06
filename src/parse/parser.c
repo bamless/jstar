@@ -1054,7 +1054,7 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
     return jsrSuperLiteral(p->arena, loc, &name, args);
 }
 
-JStarExpr* parseListLiteral(Parser* p) {
+static JStarExpr* parseListLiteral(Parser* p) {
     JStarLoc loc = p->peek.loc;
     JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
     return jsrListLiteral(p->arena, loc, exprs);

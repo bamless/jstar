@@ -1696,7 +1696,7 @@ static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
 
     discardScopes(c, c->loops->depth, s->loc.line);
 
-    // Emit place-holder instruction that will be patched at the end of loop compilation
+    // Emit place-holder instruction >that will be patched at the end of loop compilation
     // when we know the offset to emit for a break or continue jump
     emitOpcode(c, OP_END, s->loc.line);
     emitByte(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->loc.line);
@@ -1730,7 +1730,7 @@ static void compileFormalArgs(Compiler* c, JStarFormalArgs args) {
     }
 }
 
-static void unpackFormalArgs(Compiler* c, JStarFormalArgs args, JStarLoc loc) {
+static void unpackFormalArgs(Compiler* c, JStarFormalArgs args) {
     int argIdx = 0;
     arrayForeach(JStarFormalArg, arg, &args) {
         if(arg->type == SIMPLE) {
@@ -1741,13 +1741,13 @@ static void unpackFormalArgs(Compiler* c, JStarFormalArgs args, JStarLoc loc) {
         sprintf(name, UNPACK_ARG_FMT, argIdx);
         JStarIdentifier id = createIdentifier(name);
 
-        compileVarLit(c, id, false, loc);
-        emitOpcode(c, OP_UNPACK, loc.line);
-        emitByte(c, arg->as.unpack.count, loc.line);
+        compileVarLit(c, id, false, arg->loc);
+        emitOpcode(c, OP_UNPACK, arg->loc.line);
+        emitByte(c, arg->as.unpack.count, arg->loc.line);
 
         arrayForeach(JStarIdentifier, id, &arg->as.unpack) {
-            Variable unpackedArg = declareVar(c, *id, false, loc);
-            defineVar(c, &unpackedArg, loc);
+            Variable unpackedArg = declareVar(c, *id, false, arg->loc);
+            defineVar(c, &unpackedArg, arg->loc);
         }
 
         argIdx++;
@@ -1780,7 +1780,7 @@ static ObjFunction* function(Compiler* c, ObjModule* mod, ObjString* name, const
         emitOpcode(c, OP_GENERATOR, s->loc.line);
     }
 
-    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs.args, s->loc);
+    unpackFormalArgs(c, s->as.decl.as.fun.formalArgs.args);
 
     JStarStmt* body = s->as.decl.as.fun.body;
     compileStatements(c, &body->as.blockStmt.stmts);
