@@ -68,6 +68,7 @@ function selectTheme(pref) {
 const pref = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
 document.write('<link rel="stylesheet" id="jtd-theme-stylesheet" href="/jstar/assets/css/just-the-docs-'
     + themeForPref(pref) + '.css">');
+applyTheme();
 
 // Sync the icon once the header is in the DOM, and wire up outside-click dismissal of the dropdown.
 document.addEventListener("DOMContentLoaded", () => {
