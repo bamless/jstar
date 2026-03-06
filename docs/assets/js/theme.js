@@ -1,5 +1,10 @@
+const THEME_STORAGE_KEY = "jtd-color";
+
 const LIGHT_THEME = "default";
 const DARK_THEME = "blue-dark";
+
+const LIGHT_PRISM = "prism";
+const DARK_PRISM = "prism-dark";
 
 const THEME_ICONS = {
     auto: "fa-adjust",
@@ -7,11 +12,17 @@ const THEME_ICONS = {
     dark: "fa-moon",
 };
 
-const THEME_STORAGE_KEY = "jtd-color";
-
 function isDarkPreference(pref) {
     return pref === "dark" ||
         (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+function themeForPref(pref) {
+    return isDarkPreference(pref) ? DARK_THEME : LIGHT_THEME;
+}
+
+function prismForPref(pref) {
+    return isDarkPreference(pref) ? DARK_PRISM : LIGHT_PRISM;
 }
 
 function updateThemeIcon() {
@@ -23,18 +34,13 @@ function updateThemeIcon() {
 
 function applyTheme() {
     const pref = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
-    const isDark = isDarkPreference(pref);
 
-    document.documentElement.setAttribute('data-theme', isDark ? DARK_THEME : LIGHT_THEME);
-    if (jtd && jtd.setTheme) {
-        jtd.setTheme(isDark ? DARK_THEME : LIGHT_THEME);
-    }
+    const theme = document.getElementById('jtd-theme-stylesheet')
+    theme.href = theme.href.replace(/(just-the-docs-)[^/]*.css/, `$1${themeForPref(pref)}.css`);
 
     const prism = document.getElementById("prism-theme");
     if (prism) {
-        prism.href = isDark
-            ? prism.href.replace(/prism[^/]*\.css/, "prism-dark.css")
-            : prism.href.replace(/prism[^/]*\.css/, "prism.css");
+        prism.href = prism.href.replace(/prism[^/]*\.css/, `${prismForPref(pref)}.css`);
     }
 
     updateThemeIcon();
@@ -56,6 +62,12 @@ function selectTheme(pref) {
     closeThemeDropdown();
     applyTheme();
 }
+
+// Synchronously set the theme.
+// This is a workaround replacing `jtd.setTheme` which causes a flash of unstyled content on theme switch.
+const pref = localStorage.getItem(THEME_STORAGE_KEY) || "auto";
+document.write('<link rel="stylesheet" id="jtd-theme-stylesheet" href="/jstar/assets/css/just-the-docs-'
+    + themeForPref(pref) + '.css">');
 
 // Sync the icon once the header is in the DOM, and wire up outside-click dismissal of the dropdown.
 document.addEventListener("DOMContentLoaded", () => {
