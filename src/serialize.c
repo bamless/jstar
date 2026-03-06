@@ -20,13 +20,11 @@
 
 #define SER_DEF_SIZE    64
 #define STATIC_STR_SIZE 4096
-#define HEADER_MAGIC    0xb5
 
-static const uint8_t HEADER[] = {'J', 's', 'r', 'C'};
+static const uint8_t MAGIC[] = {0xb5, 'J', 's', 'r', 'C'};
 
 typedef struct Header {
-    uint8_t magic;
-    uint8_t header[sizeof(HEADER)];
+    uint8_t magic[sizeof(MAGIC)];
 } Header;
 
 typedef enum ConstType {
@@ -136,11 +134,8 @@ static void serializeSymbols(JStarBuffer* buf, Symbols symbols) {
 static void serializeCode(JStarBuffer* buf, Code* c) {
     // TODO: store (compressed) line information? maybe give option in application
 
-    // serialize bytecode
     serializeUint64(buf, c->bytecode.count);
-    for(size_t i = 0; i < c->bytecode.count; i++) {
-        serializeByte(buf, c->bytecode.items[i]);
-    }
+    write(buf, c->bytecode.items, c->bytecode.count);
 
     serializeConstants(buf, c->consts);
     serializeSymbols(buf, c->symbols);
@@ -163,11 +158,7 @@ JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
     JStarBuffer buf;
     jsrBufferInitCapacity(vm, &buf, SER_DEF_SIZE);
 
-    Header h;
-    h.magic = HEADER_MAGIC;
-    memcpy(h.header, HEADER, sizeof(HEADER));
-
-    write(&buf, &h, sizeof(h));
+    write(&buf, MAGIC, sizeof(MAGIC));
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
     serializeByte(&buf, JSTAR_VERSION_MINOR);
     serializeFunction(&buf, fn);
@@ -199,7 +190,7 @@ static bool read(Deserializer* d, void* dest, size_t size) {
     return true;
 }
 
-static bool isExausted(Deserializer* d) {
+static bool isExhausted(Deserializer* d) {
     return d->ptr == d->len;
 }
 
@@ -231,10 +222,6 @@ static bool deserializeByte(Deserializer* d, uint8_t* out) {
     return read(d, out, sizeof(uint8_t));
 }
 
-static bool deserializeCString(Deserializer* d, char* out, size_t size) {
-    return read(d, out, size);
-}
-
 static bool deserializeString(Deserializer* d, ObjString** out) {
     uint8_t isShort;
     if(!deserializeByte(d, &isShort)) return false;
@@ -250,12 +237,12 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
 
     if(length <= STATIC_STR_SIZE) {
         char str[STATIC_STR_SIZE];
-        if(!deserializeCString(d, str, length)) return false;
+        if(!read(d, str, length)) return false;
         *out = copyStringInterned(d->vm, str, length);
     } else {
         JStarBuffer str;
         jsrBufferInitCapacity(d->vm, &str, length);
-        if(!deserializeCString(d, str.data, length)) {
+        if(!read(d, str.data, length)) {
             jsrBufferFree(&str);
             return false;
         }
@@ -343,15 +330,15 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
     ObjNative* nat = newNative(vm, mod, copyCStringInterned(vm, ""), 0, 0, false, NULL);
     push(vm, OBJ_VAL(nat));
 
-    if(!deserializePrototype(d, &nat->proto)) {
-        pop(vm);
-        return false;
-    }
+    if(!deserializePrototype(d, &nat->proto)) goto error;
 
     *out = nat;
     pop(vm);
-
     return true;
+
+error:
+    pop(vm);
+    return false;
 }
 
 static bool deserializeConstants(Deserializer* d, Values* consts) {
@@ -426,32 +413,20 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     ObjFunction* fn = newFunction(vm, mod, copyCStringInterned(vm, ""), 0, 0, false);
     push(vm, OBJ_VAL(fn));
 
-    if(!deserializePrototype(d, &fn->proto)) {
-        pop(vm);
-        return false;
-    }
-
-    if(!deserializeByte(d, &fn->upvalueCount)) {
-        pop(vm);
-        return false;
-    }
-
     uint16_t stackUsage;
-    if(!deserializeShort(d, &stackUsage)) {
-        pop(vm);
-        return false;
-    }
+    if(!deserializePrototype(d, &fn->proto)) goto error;
+    if(!deserializeByte(d, &fn->upvalueCount)) goto error;
+    if(!deserializeShort(d, &stackUsage)) goto error;
     fn->stackUsage = stackUsage;
-
-    if(!deserializeCode(d, &fn->code)) {
-        pop(vm);
-        return false;
-    }
+    if(!deserializeCode(d, &fn->code)) goto error;
 
     *out = fn;
     pop(vm);
-
     return true;
+
+error:
+    pop(vm);
+    return false;
 }
 
 JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t len,
@@ -465,7 +440,7 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
         return JSR_DESERIALIZE_ERR;
     }
 
-    if(h.magic != HEADER_MAGIC && memcmp(h.header, HEADER, sizeof(HEADER)) != 0) {
+    if(memcmp(h.magic, MAGIC, sizeof(MAGIC)) != 0) {
         return JSR_DESERIALIZE_ERR;
     }
 
@@ -482,7 +457,7 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
         return JSR_DESERIALIZE_ERR;
     }
 
-    if(!isExausted(&d)) {
+    if(!isExhausted(&d)) {
         return JSR_DESERIALIZE_ERR;
     }
 
@@ -494,5 +469,5 @@ bool isCompiledCode(const void* code, size_t len) {
         return false;
     }
     Header* h = (Header*)code;
-    return h->magic == HEADER_MAGIC && memcmp(h->header, HEADER, sizeof(HEADER)) == 0;
+    return memcmp(h->magic, MAGIC, sizeof(MAGIC)) == 0;
 }
