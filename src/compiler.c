@@ -572,23 +572,25 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
     JStarBuffer sb;
     jsrBufferInitCapacity(c->vm, &sb, length + 1);
 
-    const int numEscapes = 11;
-    const char* escaped = "\0\a\b\f\n\r\t\v\\\"'";
-    const char* unescaped = "0abfnrtv\\\"'";
-
     for(size_t i = 0; i < length; i++) {
         if(str[i] == '\\') {
-            int j = 0;
-            for(j = 0; j < numEscapes; j++) {
-                if(str[i + 1] == unescaped[j]) {
-                    jsrBufferAppendChar(&sb, escaped[j]);
-                    i++;
-                    break;
-                }
-            }
-            if(j == numEscapes) {
+            switch(str[i + 1]) {
+            case '0':  jsrBufferAppendChar(&sb, '\0'); break;
+            case 'a':  jsrBufferAppendChar(&sb, '\a'); break;
+            case 'b':  jsrBufferAppendChar(&sb, '\b'); break;
+            case 'f':  jsrBufferAppendChar(&sb, '\f'); break;
+            case 'n':  jsrBufferAppendChar(&sb, '\n'); break;
+            case 'r':  jsrBufferAppendChar(&sb, '\r'); break;
+            case 't':  jsrBufferAppendChar(&sb, '\t'); break;
+            case 'v':  jsrBufferAppendChar(&sb, '\v'); break;
+            case '\\': jsrBufferAppendChar(&sb, '\\'); break;
+            case '"':  jsrBufferAppendChar(&sb, '"');  break;
+            case '\'': jsrBufferAppendChar(&sb, '\''); break;
+            default:
                 error(c, e->loc, "Invalid escape character `%c`", str[i + 1]);
+                break;
             }
+            i++;
         } else {
             jsrBufferAppendChar(&sb, str[i]);
         }
@@ -933,8 +935,8 @@ static void compileArguments(Compiler* c, const JStarExprs* args, JStarLoc loc) 
     }
 
     if(args->count >= UINT8_MAX) {
-        error(c, loc, "Exceeded maximum number of arguments (%d) for function %s",
-              (int)UINT8_MAX, c->func->proto.name->data);
+        error(c, loc, "Exceeded maximum number of arguments (%d) for function %s", (int)UINT8_MAX,
+              c->func->proto.name->data);
     }
 }
 
