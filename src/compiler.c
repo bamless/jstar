@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -291,7 +292,7 @@ static JStarIdentifier createSyntheticIdentifier(Compiler* c, const char* fmt, .
 }
 
 static uint16_t stringConst(Compiler* c, const char* str, size_t length, JStarLoc loc) {
-    ObjString* string = copyString(c->vm, str, length);
+    ObjString* string = copyStringInterned(c->vm, str, length);
     return createConst(c, OBJ_VAL(string), loc);
 }
 
@@ -593,7 +594,7 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
         }
     }
 
-    ObjString* string = copyString(c->vm, sb.data, sb.size);
+    ObjString* string = copyStringInterned(c->vm, sb.data, sb.size);
     jsrBufferFree(&sb);
 
     return string;
@@ -622,27 +623,13 @@ static void addFunctionDefaults(Compiler* c, Prototype* proto, const JStarExprs*
     }
 }
 
-static JStarExpr* getExpressions(const JStarExpr* unpackable) {
-    switch(unpackable->type) {
-    case JSR_LIST:
-        return unpackable->as.listLiteral.exprs;
-    case JSR_TUPLE:
-        return unpackable->as.tupleLiteral.exprs;
-    default:
-        JSR_UNREACHABLE();
-    }
-}
-
 static bool isSpreadExpr(const JStarExpr* e) {
     return e->type == JSR_SPREAD;
 }
 
-static bool containsSpreadExpr(const JStarExpr* exprs) {
-    JSR_ASSERT(exprs->type == JSR_EXPR_LST, "Not an expression list");
-    arrayForeach(JStarExpr*, it, &exprs->as.exprList) {
-        if(isSpreadExpr(*it)) {
-            return true;
-        }
+static bool containsSpreadExpr(const JStarExprs* exprs) {
+    arrayForeach(JStarExpr*, it, exprs) {
+        if(isSpreadExpr(*it)) return true;
     }
     return false;
 }
@@ -811,7 +798,7 @@ static void compileFunLiteral(Compiler* c, const JStarExpr* e, JStarIdentifier n
         compileFunction(c, TYPE_FUNC, jsrBufferToString(&buf), func);
     } else {
         func->as.decl.as.fun.id = name;
-        compileFunction(c, TYPE_FUNC, copyString(c->vm, name.name, name.length), func);
+        compileFunction(c, TYPE_FUNC, copyStringInterned(c->vm, name.name, name.length), func);
     }
 }
 
@@ -848,81 +835,78 @@ static void compileRval(Compiler* c, const JStarExpr* e, JStarIdentifier name) {
     }
 }
 
-static void compileConstUnpack(Compiler* c, const JStarExpr* exprs, int lvals,
-                               const JStarIdentifiers* names) {
-    if(exprs->as.exprList.count < (size_t)lvals) {
-        error(c, exprs->loc, "Too few values to unpack: expected %d, got %zu", lvals,
-              exprs->as.exprList.count);
+static void compileConstUnpack(Compiler* c, const JStarExprs* exprs, size_t lvalCount,
+                               const JStarIdentifiers* names, JStarLoc loc) {
+    if(exprs->count < lvalCount) {
+        error(c, loc, "Too few values to unpack: expected %zu, got %zu", lvalCount, exprs->count);
     }
 
-    int i = 0;
-    arrayForeach(JStarExpr*, it, &exprs->as.exprList) {
+    size_t i = 0;
+    arrayForeach(JStarExpr*, it, exprs) {
+        JStarExpr* e = *it;
+
         JStarIdentifier name = {0};
-        if(names->count && i < lvals) {
+        if(names->count && i < lvalCount) {
             name = names->items[i];
         }
 
-        JStarExpr* e = *it;
         compileRval(c, e, name);
 
-        if(++i > lvals) {
+        if(++i > lvalCount) {
             emitOpcode(c, OP_POP, e->loc.line);
         }
     }
 }
 
 // Compile an unpack assignment of the form: a, b, ..., z = ...
-static void compileUnpackAssign(Compiler* c, const JStarExpr* e) {
-    JStarExpr* lvals = e->as.assign.lval->as.tupleLiteral.exprs;
-    size_t lvalCount = lvals->as.exprList.count;
-
-    if(lvalCount >= UINT8_MAX) {
-        error(c, e->loc, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
+static void compileUnpackAssign(Compiler* c, const JStarExprs* lvals, const JStarExpr* rval,
+                                JStarLoc loc) {
+    if(lvals->count >= UINT8_MAX) {
+        error(c, loc, "Exceeded max number of unpack assignment: %d", UINT8_MAX);
     }
-
-    JStarExpr* rval = e->as.assign.rval;
 
     // Optimize constant unpacks by omitting tuple allocation
     if(IS_CONST_UNPACK(rval->type)) {
-        JStarExpr* exprs = getExpressions(rval);
-        compileConstUnpack(c, exprs, lvalCount, &(JStarIdentifiers){0});
+        compileConstUnpack(c, &rval->as.exprs, lvals->count, &(JStarIdentifiers){0}, rval->loc);
     } else {
         compileRval(c, rval, (JStarIdentifier){0});
-        emitOpcode(c, OP_UNPACK, e->loc.line);
-        emitByte(c, (uint8_t)lvalCount, e->loc.line);
-        adjustStackUsage(c, lvalCount - 1);
+        emitOpcode(c, OP_UNPACK, loc.line);
+        emitByte(c, (uint8_t)lvals->count, loc.line);
+        adjustStackUsage(c, lvals->count - 1);
     }
 
     // compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
-    for(int n = lvalCount - 1; n >= 0; n--) {
-        JStarExpr* lval = lvals->as.exprList.items[n];
+    for(int n = lvals->count - 1; n >= 0; n--) {
+        JStarExpr* lval = lvals->items[n];
         compileLval(c, lval);
-        if(n != 0) emitOpcode(c, OP_POP, e->loc.line);
+        if(n != 0) emitOpcode(c, OP_POP, loc.line);
     }
 }
 
 static void compileAssignExpr(Compiler* c, const JStarExpr* e) {
-    switch(e->as.assign.lval->type) {
+    JStarExpr* lval = e->as.assign.lval;
+    JStarExpr* rval = e->as.assign.rval;
+    switch(lval->type) {
     case JSR_VAR: {
-        JStarIdentifier name = e->as.assign.lval->as.varLiteral.id;
-        compileRval(c, e->as.assign.rval, name);
-        compileLval(c, e->as.assign.lval);
+        JStarIdentifier name = lval->as.varLiteral.id;
+        compileRval(c, rval, name);
+        compileLval(c, lval);
         break;
     }
     case JSR_PROPERTY_ACCESS: {
-        JStarIdentifier name = e->as.assign.lval->as.propertyAccess.id;
-        compileRval(c, e->as.assign.rval, name);
-        compileLval(c, e->as.assign.lval);
+        JStarIdentifier name = lval->as.propertyAccess.id;
+        compileRval(c, rval, name);
+        compileLval(c, lval);
         break;
     }
     case JSR_INDEX: {
-        compileRval(c, e->as.assign.rval, (JStarIdentifier){0});
-        compileLval(c, e->as.assign.lval);
+        compileRval(c, rval, (JStarIdentifier){0});
+        compileLval(c, lval);
         break;
     }
     case JSR_TUPLE: {
-        compileUnpackAssign(c, e);
+        compileUnpackAssign(c, &lval->as.exprs, rval, e->loc);
         break;
     }
     default:
@@ -943,19 +927,19 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
     compileAssignExpr(c, &assignment);
 }
 
-static void compileArguments(Compiler* c, const JStarExpr* args) {
-    arrayForeach(JStarExpr*, it, &args->as.exprList) {
+static void compileArguments(Compiler* c, const JStarExprs* args, JStarLoc loc) {
+    arrayForeach(JStarExpr*, it, args) {
         compileExpr(c, *it);
     }
 
-    if(args->as.exprList.count >= UINT8_MAX) {
-        error(c, args->loc, "Exceeded maximum number of arguments (%d) for function %s",
+    if(args->count >= UINT8_MAX) {
+        error(c, loc, "Exceeded maximum number of arguments (%d) for function %s",
               (int)UINT8_MAX, c->func->proto.name->data);
     }
 }
 
-static void compileUnpackArguments(Compiler* c, JStarExpr* args) {
-    JStarExpr argsList = (JStarExpr){args->loc, JSR_LIST, .as = {.listLiteral = {args}}};
+static void compileUnpackArguments(Compiler* c, const JStarExprs* args, JStarLoc loc) {
+    JStarExpr argsList = (JStarExpr){loc, JSR_LIST, .as = {.exprs = *args}};
     compileListLit(c, &argsList);
 }
 
@@ -988,16 +972,16 @@ static void compileCallExpr(Compiler* c, const JStarExpr* e) {
         compileExpr(c, callee);
     }
 
-    JStarExpr* args = e->as.call.args;
+    const JStarExprs* args = &e->as.call.args;
     bool unpackCall = containsSpreadExpr(args);
 
     if(unpackCall) {
-        compileUnpackArguments(c, args);
+        compileUnpackArguments(c, args, e->loc);
     } else {
-        compileArguments(c, args);
+        compileArguments(c, args, e->loc);
     }
 
-    uint8_t argsCount = args->as.exprList.count;
+    uint8_t argsCount = args->count;
     emitCallOp(c, callCode, callInline, callUnpack, argsCount, unpackCall, e->loc.line);
 
     if(isMethod) {
@@ -1024,18 +1008,18 @@ static void compileSuper(Compiler* c, const JStarExpr* e) {
     }
 
     JStarIdentifier superId = createIdentifier("super");
-    JStarExpr* args = e->as.sup.args;
+    const JStarExprs* args = &e->as.sup.args;
 
-    if(args != NULL) {
+    if(e->as.sup.isCall) {
         bool unpackCall = containsSpreadExpr(args);
 
         if(unpackCall) {
-            compileUnpackArguments(c, args);
+            compileUnpackArguments(c, args, e->loc);
         } else {
-            compileArguments(c, args);
+            compileArguments(c, args, e->loc);
         }
 
-        uint8_t argsCount = args->as.exprList.count;
+        uint8_t argsCount = args->count;
         compileVarLit(c, superId, false, e->loc);
         emitCallOp(c, OP_SUPER, OP_SUPER_0, OP_SUPER_UNPACK, argsCount, unpackCall, e->loc.line);
         emitShort(c, methodSym, e->loc.line);
@@ -1067,7 +1051,7 @@ static void compilePowExpr(Compiler* c, const JStarExpr* e) {
 static void compileListLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_LIST, e->loc.line);
 
-    arrayForeach(JStarExpr*, it, &e->as.listLiteral.exprs->as.exprList) {
+    arrayForeach(JStarExpr*, it, &e->as.exprs) {
         JStarExpr* expr = *it;
 
         if(isSpreadExpr(expr)) {
@@ -1086,23 +1070,22 @@ static void compileListLit(Compiler* c, const JStarExpr* e) {
 }
 
 static void compileSpreadTupleLit(Compiler* c, const JStarExpr* e) {
-    JStarExpr toList = (JStarExpr){e->loc, JSR_LIST,
-                                   .as = {.listLiteral = {e->as.tupleLiteral.exprs}}};
+    JStarExpr toList = (JStarExpr){e->loc, JSR_LIST, .as = {.exprs = e->as.exprs}};
     compileListLit(c, &toList);
     emitOpcode(c, OP_LIST_TO_TUPLE, e->loc.line);
 }
 
 static void compileTupleLit(Compiler* c, const JStarExpr* e) {
-    if(containsSpreadExpr(e->as.tupleLiteral.exprs)) {
+    if(containsSpreadExpr(&e->as.exprs)) {
         compileSpreadTupleLit(c, e);
         return;
     }
 
-    arrayForeach(JStarExpr*, it, &e->as.tupleLiteral.exprs->as.exprList) {
+    arrayForeach(JStarExpr*, it, &e->as.exprs) {
         compileExpr(c, *it);
     }
 
-    size_t tupleCount = e->as.tupleLiteral.exprs->as.exprList.count;
+    size_t tupleCount = e->as.exprs.count;
     if(tupleCount >= UINT8_MAX) {
         error(c, e->loc, "Too many elements in Tuple literal");
     }
@@ -1114,9 +1097,9 @@ static void compileTupleLit(Compiler* c, const JStarExpr* e) {
 static void compileTableLit(Compiler* c, const JStarExpr* e) {
     emitOpcode(c, OP_NEW_TABLE, e->loc.line);
 
-    JStarExpr* keyVals = e->as.tableLiteral.keyVals;
-    for(size_t i = 0; i < keyVals->as.exprList.count;) {
-        JStarExpr* expr = keyVals->as.exprList.items[i];
+    const JStarExprs* keyVals = &e->as.exprs;
+    for(size_t i = 0; i < keyVals->count;) {
+        JStarExpr* expr = keyVals->items[i];
 
         if(isSpreadExpr(expr)) {
             emitOpcode(c, OP_DUP, e->loc.line);
@@ -1126,7 +1109,7 @@ static void compileTableLit(Compiler* c, const JStarExpr* e) {
 
             i += 1;
         } else {
-            JStarExpr* val = keyVals->as.exprList.items[i + 1];
+            JStarExpr* val = keyVals->items[i + 1];
 
             emitOpcode(c, OP_DUP, e->loc.line);
             compileExpr(c, expr);
@@ -1227,11 +1210,6 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         break;
     case JSR_SPREAD:
         compileExpr(c, e->as.spread.expr);
-        break;
-    case JSR_EXPR_LST:
-        arrayForeach(JStarExpr*, it, &e->as.exprList) {
-            compileExpr(c, *it);
-        }
         break;
     }
 }
@@ -1870,7 +1848,7 @@ static void callDecorators(Compiler* c, const JStarExprs* decorators) {
 
 static ObjString* createMethodName(Compiler* c, JStarIdentifier clsName, JStarIdentifier methName) {
     size_t length = clsName.length + methName.length + 1;
-    ObjString* name = allocateString(c->vm, length);
+    ObjString* name = newString(c->vm, length);
     memcpy(name->data, clsName.name, clsName.length);
     name->data[clsName.length] = '.';
     memcpy(name->data + clsName.length + 1, methName.name, methName.length);
@@ -1981,7 +1959,7 @@ static void compileFunDecl(Compiler* c, const JStarStmt* s) {
 
     const JStarExprs* decorators = &s->as.decl.decorators;
     compileDecorators(c, decorators);
-    compileFunction(c, TYPE_FUNC, copyString(c->vm, funId.name, funId.length), s);
+    compileFunction(c, TYPE_FUNC, copyStringInterned(c->vm, funId.name, funId.length), s);
     callDecorators(c, decorators);
 
     defineVar(c, &funVar, s->loc);
@@ -1993,7 +1971,7 @@ static void compileNativeDecl(Compiler* c, const JStarStmt* s) {
 
     const JStarExprs* decorators = &s->as.decl.decorators;
     compileDecorators(c, decorators);
-    compileNative(c, copyString(c->vm, nativeId.name, nativeId.length), OP_NATIVE, s);
+    compileNative(c, copyStringInterned(c->vm, nativeId.name, nativeId.length), OP_NATIVE, s);
     callDecorators(c, decorators);
 
     defineVar(c, &natVar, s->loc);
@@ -2022,8 +2000,7 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
 
         // Optimize constant unpacks by omitting tuple allocation
         if(isUnpack && IS_CONST_UNPACK(init->type)) {
-            JStarExpr* exprs = getExpressions(init);
-            compileConstUnpack(c, exprs, varsCount, &s->as.decl.as.var.ids);
+            compileConstUnpack(c, &init->as.exprs, varsCount, &s->as.decl.as.var.ids, init->loc);
         } else {
             compileRval(c, init, s->as.decl.as.var.ids.items[0]);
             if(isUnpack) {
@@ -2128,7 +2105,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
 
     Compiler c;
     initCompiler(&c, vm, NULL, filename, TYPE_FUNC, ast, module, &globals, &fwdRefs);
-    ObjFunction* func = function(&c, module, copyCString(vm, "<main>"), ast);
+    ObjFunction* func = function(&c, module, copyCStringInterned(vm, "<main>"), ast);
     resolveFwdRefs(&c);
     endCompiler(&c);
 

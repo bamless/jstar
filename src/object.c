@@ -120,10 +120,10 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
     }
 
     // Set builtin names for the module object
-    mod->path = copyCString(vm, path);
-    moduleSetGlobal(vm, mod, copyCString(vm, MOD_PATH), OBJ_VAL(mod->path));
-    moduleSetGlobal(vm, mod, copyCString(vm, MOD_NAME), OBJ_VAL(mod->name));
-    moduleSetGlobal(vm, mod, copyCString(vm, MOD_THIS), OBJ_VAL(mod));
+    mod->path = copyCStringInterned(vm, path);
+    moduleSetGlobal(vm, mod, copyCStringInterned(vm, MOD_PATH), OBJ_VAL(mod->path));
+    moduleSetGlobal(vm, mod, copyCStringInterned(vm, MOD_NAME), OBJ_VAL(mod->name));
+    moduleSetGlobal(vm, mod, copyCStringInterned(vm, MOD_THIS), OBJ_VAL(mod));
 
     pop(vm);
     return mod;
@@ -218,7 +218,7 @@ ObjTable* newTable(JStarVM* vm) {
     return table;
 }
 
-ObjString* allocateString(JStarVM* vm, size_t length) {
+ObjString* newString(JStarVM* vm, size_t length) {
     char* data = GC_ALLOC(vm, length + 1);
     ObjString* str = (ObjString*)newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
     str->length = length;
@@ -229,11 +229,11 @@ ObjString* allocateString(JStarVM* vm, size_t length) {
     return str;
 }
 
-ObjString* copyString(JStarVM* vm, const void* data, size_t length) {
+ObjString* copyStringInterned(JStarVM* vm, const void* data, size_t length) {
     uint32_t hash = hashBytes(data, length);
     ObjString* interned = hashTableValueGetString(&vm->stringPool, data, length, hash);
     if(interned == NULL) {
-        interned = allocateString(vm, length);
+        interned = newString(vm, length);
         memcpy(interned->data, data, length);
         interned->hash = hash;
         interned->interned = true;
@@ -242,8 +242,8 @@ ObjString* copyString(JStarVM* vm, const void* data, size_t length) {
     return interned;
 }
 
-ObjString* copyCString(JStarVM* vm, const char* str) {
-    return copyString(vm, str, strlen(str));
+ObjString* copyCStringInterned(JStarVM* vm, const char* str) {
+    return copyStringInterned(vm, str, strlen(str));
 }
 
 void freeObject(JStarVM* vm, Obj* o) {
@@ -442,9 +442,9 @@ int moduleGetGlobalOffset(ObjModule* mod, ObjString* key) {
 }
 
 void moduleSetPath(JStarVM* vm, ObjModule* mod, const char* path) {
-    mod->path = copyString(vm, path, strlen(path));
+    mod->path = copyCStringInterned(vm, path);
     push(vm, OBJ_VAL(mod->path));
-    moduleSetGlobal(vm, mod, copyCString(vm, MOD_PATH), OBJ_VAL(mod->path));
+    moduleSetGlobal(vm, mod, copyCStringInterned(vm, MOD_PATH), OBJ_VAL(mod->path));
     pop(vm);
 }
 
@@ -552,7 +552,7 @@ Prototype* getPrototype(Obj* fn) {
 }
 
 ObjString* jsrBufferToString(JStarBuffer* b) {
-    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
+    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);  // Shrink to fit the buffer
     ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
     s->interned = false;
     s->length = b->size;

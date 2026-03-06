@@ -57,7 +57,7 @@ static Value apiStackSlot(const JStarVM* vm, int slot) {
 }
 
 static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
-    ObjModule* res = module ? getModule(vm, copyCString(vm, module)) : vm->module;
+    ObjModule* res = module ? getModule(vm, copyCStringInterned(vm, module)) : vm->module;
     if(!res) {
         if(module) {
             jsrRaise(vm, "ImportException", "Module '%s' not found.", module);
@@ -148,7 +148,7 @@ static JStarResult evalString(JStarVM* vm, const char* path, const char* module,
         return JSR_SYNTAX_ERR;
     }
 
-    ObjString* name = copyCString(vm, module);
+    ObjString* name = copyCStringInterned(vm, module);
     ObjFunction* fn = compileModule(vm, path, name, program);
     jsrASTArenaReset(&vm->astArena);
 
@@ -183,7 +183,7 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     }
 
     ObjFunction* fn;
-    ObjString* name = copyCString(vm, module);
+    ObjString* name = copyCStringInterned(vm, module);
     JStarResult res = deserializeModule(vm, path, name, code, len, &fn);
     if(res != JSR_SUCCESS) return res;
     if(!eval(vm, path, fn)) return JSR_RUNTIME_ERR;
@@ -222,7 +222,7 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, 
     }
 
     ObjFunction* fn;
-    ObjString* dummy = copyCString(vm, "");  // Use dummy module since the code won't be executed
+    ObjString* dummy = copyCStringInterned(vm, "");  // Use dummy module since the code won't be executed
     JStarResult res = deserializeModule(vm, path, dummy, code, len, &fn);
 
     if(res == JSR_SUCCESS) {
@@ -299,7 +299,7 @@ void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym) {
 bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
     int evalDepth = vm->frameCount;
 
-    if(!invokeValue(vm, copyCString(vm, name), argc, &sym->sym)) {
+    if(!invokeValue(vm, copyCStringInterned(vm, name), argc, &sym->sym)) {
         callError(vm, evalDepth, argc);
         return false;
     }
@@ -411,7 +411,7 @@ void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv) {
     ObjList* argvList = vm->argv;
     argvList->count = 0;
     for(int i = 0; i < argc; i++) {
-        Value arg = OBJ_VAL(copyCString(vm, argv[i]));
+        Value arg = OBJ_VAL(copyCStringInterned(vm, argv[i]));
         listAppend(vm, argvList, arg);
     }
 }
@@ -479,8 +479,8 @@ void jsrPushBoolean(JStarVM* vm, bool boolean) {
 
 void jsrPushStringSz(JStarVM* vm, const char* string, size_t length) {
     checkStack(vm);
-    // TODO: Rework string interning
-    ObjString* str = allocateString(vm, length);
+    // TODO: intern this?
+    ObjString* str = newString(vm, length);
     memcpy(str->data, string, length);
     push(vm, OBJ_VAL(str));
 }
@@ -536,7 +536,7 @@ bool jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNativ
     ObjModule* mod = getModuleOrRaise(vm, module);
     if(!mod) return false;
 
-    ObjString* nativeName = copyCString(vm, name);
+    ObjString* nativeName = copyCStringInterned(vm, name);
     ObjNative* native = newNative(vm, mod, nativeName, argc, 0, false, nat);
 
     push(vm, OBJ_VAL(native));
@@ -668,7 +668,7 @@ bool jsrSetField(JStarVM* vm, int slot, const char* name) {
 
 bool jsrSetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym) {
     push(vm, apiStackSlot(vm, slot));
-    return setValueField(vm, copyCString(vm, name), &sym->sym);
+    return setValueField(vm, copyCStringInterned(vm, name), &sym->sym);
 }
 
 bool jsrGetField(JStarVM* vm, int slot, const char* name) {
@@ -678,7 +678,7 @@ bool jsrGetField(JStarVM* vm, int slot, const char* name) {
 
 bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym) {
     push(vm, apiStackSlot(vm, slot));
-    return getValueField(vm, copyCString(vm, name), &sym->sym);
+    return getValueField(vm, copyCStringInterned(vm, name), &sym->sym);
 }
 
 bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
@@ -691,7 +691,7 @@ bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name, JStar
     if(!mod) {
         return false;
     }
-    setGlobalName(vm, mod, copyCString(vm, name), &sym->sym);
+    setGlobalName(vm, mod, copyCStringInterned(vm, name), &sym->sym);
     return true;
 }
 
@@ -705,7 +705,7 @@ bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name, JStar
     if(!mod) {
         return false;
     }
-    return getGlobalName(vm, mod, copyCString(vm, name), &sym->sym);
+    return getGlobalName(vm, mod, copyCStringInterned(vm, name), &sym->sym);
 }
 
 void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
@@ -717,7 +717,7 @@ void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     ObjClass* cls = AS_CLASS(clsVal);
     ObjString* name = nat->proto.name;
     hashTableValuePut(&cls->methods, name, natVal);
-    nat->proto.name = allocateString(vm, name->length + cls->name->length + 1);
+    nat->proto.name = newString(vm, name->length + cls->name->length + 1);
     memcpy(nat->proto.name->data, cls->name->data, cls->name->length);
     memcpy(nat->proto.name->data + cls->name->length, ".", 1);
     memcpy(nat->proto.name->data + cls->name->length + 1, name->data, name->length);

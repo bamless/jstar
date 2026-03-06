@@ -57,14 +57,14 @@ static void registerInParent(JStarVM* vm, ObjModule* module) {
     }
 
     const char* simpleName = lastDot + 1;
-    ObjModule* parent = getModule(vm, copyString(vm, name->data, simpleName - name->data - 1));
+    ObjModule* parent = getModule(vm, copyStringInterned(vm, name->data, simpleName - name->data - 1));
     JSR_ASSERT(parent, "Submodule parent could not be found.");
 
     if(!module->registry) {
         module->registry = parent->registry;
     }
 
-    moduleSetGlobal(vm, parent, copyCString(vm, simpleName), OBJ_VAL(module));
+    moduleSetGlobal(vm, parent, copyCStringInterned(vm, simpleName), OBJ_VAL(module));
 }
 
 void setModule(JStarVM* vm, ObjString* name, ObjModule* module) {

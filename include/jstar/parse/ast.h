@@ -46,7 +46,6 @@ typedef enum JStarExprType {
     JSR_STRING,
     JSR_VAR,
     JSR_NULL,
-    JSR_EXPR_LST,
     JSR_CALL,
     JSR_POWER,
     JSR_SUPER,
@@ -95,7 +94,8 @@ typedef struct JStarVarLiteralExpr {
 } JStarVarLiteralExpr;
 
 typedef struct JStarCallExpr {
-    JStarExpr *callee, *args;
+    JStarExpr* callee;
+    JStarExprs args;
 } JStarCallExpr;
 
 typedef struct JStarPowExpr {
@@ -116,17 +116,6 @@ typedef struct JStarYieldExpr {
     JStarExpr* expr;
 } JStarYieldExpr;
 
-typedef struct JStarListLiteralExpr {
-    JStarExpr* exprs;
-} JStarListLiteralExpr;
-
-typedef struct JStarTupleLiteralExpr {
-    JStarExpr* exprs;
-} JStarTupleLiteralExpr;
-
-typedef struct JStarTableLiteralExpr {
-    JStarExpr* keyVals;
-} JStarTableLiteralExpr;
 
 typedef struct JStarTernaryExpr {
     JStarExpr* cond;
@@ -140,7 +129,8 @@ typedef struct JStarFunLiteralExpr {
 
 typedef struct JStarSuperLiteralExpr {
     JStarIdentifier name;
-    JStarExpr* args;
+    bool isCall;
+    JStarExprs args;
 } JStarSuperLiteralExpr;
 
 struct JStarExpr {
@@ -162,10 +152,7 @@ struct JStarExpr {
         JStarSuperLiteralExpr sup;
         JStarStringLiteralExpr stringLiteral;
         JStarVarLiteralExpr varLiteral;
-        JStarListLiteralExpr listLiteral;
-        JStarTupleLiteralExpr tupleLiteral;
-        JStarTableLiteralExpr tableLiteral;
-        JStarExprs exprList;
+        JStarExprs exprs;
         double num;
         bool boolean;
     } as;
@@ -395,9 +382,9 @@ JSTAR_API JStarExpr* jsrCompundAssignExpr(JStarASTArena* a, JStarLoc loc, JStarT
 JSTAR_API JStarExpr* jsrPropertyAccessExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* left,
                                            const char* name, size_t length);
 JSTAR_API JStarExpr* jsrSuperLiteral(JStarASTArena* a, JStarLoc loc, JStarTok* name,
-                                     JStarExpr* args);
+                                     bool isCall, JStarExprs args);
 JSTAR_API JStarExpr* jsrCallExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* callee,
-                                 JStarExpr* args);
+                                 JStarExprs args);
 JSTAR_API JStarExpr* jsrVarLiteral(JStarASTArena* a, JStarLoc loc, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrStrLiteral(JStarASTArena* a, JStarLoc loc, const char* str, size_t len);
 JSTAR_API JStarExpr* jsrIndexExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* left,
@@ -409,12 +396,11 @@ JSTAR_API JStarExpr* jsrUnaryExpr(JStarASTArena* a, JStarLoc loc, JStarTokType o
 JSTAR_API JStarExpr* jsrAssignExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* lval,
                                    JStarExpr* rval);
 JSTAR_API JStarExpr* jsrPowExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* base, JStarExpr* exp);
-JSTAR_API JStarExpr* jsrTableLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* keyVals);
+JSTAR_API JStarExpr* jsrTableLiteral(JStarASTArena* a, JStarLoc loc, JStarExprs keyVals);
 JSTAR_API JStarExpr* jsrSpreadExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* expr);
-JSTAR_API JStarExpr* jsrExprList(JStarASTArena* a, JStarLoc loc, JStarExprs exprs);
 JSTAR_API JStarExpr* jsrBoolLiteral(JStarASTArena* a, JStarLoc loc, bool boolean);
-JSTAR_API JStarExpr* jsrTupleLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* exprs);
-JSTAR_API JStarExpr* jsrListLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* exprs);
+JSTAR_API JStarExpr* jsrTupleLiteral(JStarASTArena* a, JStarLoc loc, JStarExprs exprs);
+JSTAR_API JStarExpr* jsrListLiteral(JStarASTArena* a, JStarLoc loc, JStarExprs exprs);
 JSTAR_API JStarExpr* jsrYieldExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* expr);
 JSTAR_API JStarExpr* jsrNumLiteral(JStarASTArena* a, JStarLoc loc, double num);
 JSTAR_API JStarExpr* jsrNullLiteral(JStarASTArena* a, JStarLoc loc);
@@ -423,7 +409,7 @@ JSTAR_API JStarExpr* jsrNullLiteral(JStarASTArena* a, JStarLoc loc);
 // STATEMENT NODES
 // -----------------------------------------------------------------------------
 
-JSTAR_API JStarStmt* jsrFuncDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
+JSTAR_API JStarStmt* jsrFunDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
                                  JStarFormalArgsList args, bool isGenerator, JStarStmt* body);
 JSTAR_API JStarStmt* jsrNativeDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
                                    JStarFormalArgsList args);

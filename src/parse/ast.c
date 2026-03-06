@@ -197,9 +197,9 @@ JStarExpr* jsrVarLiteral(JStarASTArena* a, JStarLoc loc, const char* var, size_t
     return e;
 }
 
-JStarExpr* jsrListLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* exprs) {
+JStarExpr* jsrListLiteral(JStarASTArena* a, JStarLoc loc, JStarExprs exprs) {
     JStarExpr* e = newExpr(a, loc, JSR_LIST);
-    e->as.listLiteral.exprs = exprs;
+    e->as.exprs = exprs;
     return e;
 }
 
@@ -209,15 +209,15 @@ JStarExpr* jsrYieldExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* expr) {
     return e;
 }
 
-JStarExpr* jsrTupleLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* exprs) {
+JStarExpr* jsrTupleLiteral(JStarASTArena* a, JStarLoc loc, JStarExprs exprs) {
     JStarExpr* e = newExpr(a, loc, JSR_TUPLE);
-    e->as.tupleLiteral.exprs = exprs;
+    e->as.exprs = exprs;
     return e;
 }
 
-JStarExpr* jsrTableLiteral(JStarASTArena* a, JStarLoc loc, JStarExpr* keyVals) {
+JStarExpr* jsrTableLiteral(JStarASTArena* a, JStarLoc loc, JStarExprs keyVals) {
     JStarExpr* t = newExpr(a, loc, JSR_TABLE);
-    t->as.tableLiteral.keyVals = keyVals;
+    t->as.exprs = keyVals;
     return t;
 }
 
@@ -227,13 +227,7 @@ JStarExpr* jsrSpreadExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* expr) {
     return s;
 }
 
-JStarExpr* jsrExprList(JStarASTArena* a, JStarLoc loc, JStarExprs exprs) {
-    JStarExpr* e = newExpr(a, loc, JSR_EXPR_LST);
-    e->as.exprList = exprs;
-    return e;
-}
-
-JStarExpr* jsrCallExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* callee, JStarExpr* args) {
+JStarExpr* jsrCallExpr(JStarASTArena* a, JStarLoc loc, JStarExpr* callee, JStarExprs args) {
     JStarExpr* e = newExpr(a, loc, JSR_CALL);
     e->as.call.callee = callee;
     e->as.call.args = args;
@@ -284,13 +278,15 @@ JStarExpr* jsrCompundAssignExpr(JStarASTArena* a, JStarLoc loc, JStarTokType op,
 JStarExpr* jsrFunLiteral(JStarASTArena* a, JStarLoc loc, JStarFormalArgsList args, bool isGenerator,
                          JStarStmt* body) {
     JStarExpr* e = newExpr(a, loc, JSR_FUN_LIT);
-    e->as.funLit.func = jsrFuncDecl(a, loc, (JStarIdentifier){0}, args, isGenerator, body);
+    e->as.funLit.func = jsrFunDecl(a, loc, (JStarIdentifier){0}, args, isGenerator, body);
     return e;
 }
 
-JStarExpr* jsrSuperLiteral(JStarASTArena* a, JStarLoc loc, JStarTok* name, JStarExpr* args) {
+JStarExpr* jsrSuperLiteral(JStarASTArena* a, JStarLoc loc, JStarTok* name, bool isCall,
+                           JStarExprs args) {
     JStarExpr* e = newExpr(a, loc, JSR_SUPER);
     e->as.sup.name = (JStarIdentifier){name->length, name->lexeme};
+    e->as.sup.isCall = isCall;
     e->as.sup.args = args;
     return e;
 }
@@ -316,7 +312,7 @@ static JStarStmt* newDecl(JStarASTArena* a, JStarLoc loc, JStarStmtType type) {
     return s;
 }
 
-JStarStmt* jsrFuncDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
+JStarStmt* jsrFunDecl(JStarASTArena* a, JStarLoc loc, JStarIdentifier name,
                        JStarFormalArgsList args, bool isGenerator, JStarStmt* body) {
     JStarStmt* f = newDecl(a, loc, JSR_FUNCDECL);
     f->as.decl.as.fun.id = name;

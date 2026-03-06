@@ -322,13 +322,13 @@ ObjList* newList(JStarVM* vm, size_t capacity);
 ObjTuple* newTuple(JStarVM* vm, size_t size);
 ObjStackTrace* newStackTrace(JStarVM* vm);
 ObjTable* newTable(JStarVM* vm);
-
-// Allocate an uninitialized string of size `length`
-ObjString* allocateString(JStarVM* vm, size_t length);
+// Allocates a string of size `length + 1` and adds a NUL terminator to it.
+// Rest of buffer is left uninitialized.
+ObjString* newString(JStarVM* vm, size_t length);
 // Copies arbitrary data of size `length` into a J* string. The string is automatically interned
-ObjString* copyString(JStarVM* vm, const void* data, size_t length);
+ObjString* copyStringInterned(JStarVM* vm, const void* data, size_t length);
 // Copies a c-string into a J* string. The string is automatically interned
-ObjString* copyCString(JStarVM* vm, const char* str);
+ObjString* copyCStringInterned(JStarVM* vm, const char* str);
 
 // Release the object's memory. It uses gcAlloc internally to let the GC know
 void freeObject(JStarVM* vm, Obj* o);

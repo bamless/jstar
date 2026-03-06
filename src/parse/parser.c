@@ -249,7 +249,7 @@ static bool isDeclaration(JStarTok tok) {
 }
 
 static bool isCallExpression(const JStarExpr* e) {
-    return (e->type == JSR_CALL) || (e->type == JSR_SUPER && e->as.sup.args);
+    return (e->type == JSR_CALL) || (e->type == JSR_SUPER && e->as.sup.isCall);
 }
 
 static bool isImplicitEnd(JStarTok tok) {
@@ -286,12 +286,12 @@ static bool isLValue(JStarExprType type) {
     return type == JSR_VAR || type == JSR_PROPERTY_ACCESS || type == JSR_INDEX;
 }
 
-static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType assignToken) {
+static void checkUnpackAssignement(Parser* p, const JStarExprs* lvals, JStarTokType assignToken) {
     if(assignToken != TOK_EQUAL) {
         error(p, "Unpack cannot use compound assignement");
         return;
     }
-    jsrASTArrayForeach(JStarExpr*, it, &lvals->as.exprList) {
+    jsrASTArrayForeach(JStarExpr*, it, lvals) {
         JStarExpr* expr = *it;
         if(expr && !isLValue(expr->type)) {
             error(p, "left hand side of unpack assignment must be composed of lvalues");
@@ -301,7 +301,7 @@ static void checkUnpackAssignement(Parser* p, JStarExpr* lvals, JStarTokType ass
 
 static void checkLvalue(Parser* p, JStarExpr* l, JStarTokType assignType) {
     if(l->type == JSR_TUPLE) {
-        checkUnpackAssignement(p, l->as.tupleLiteral.exprs, assignType);
+        checkUnpackAssignement(p, &l->as.exprs, assignType);
     } else if(!isLValue(l->type)) {
         error(p, "Left hand side of assignment must be an lvalue");
     }
@@ -742,7 +742,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     JStarStmt* body = blockStmt(p);
     require(p, TOK_END);
 
-    JStarStmt* decl = jsrFuncDecl(p->arena, funTok.loc, funcName, args, p->function->isGenerator,
+    JStarStmt* decl = jsrFunDecl(p->arena, funTok.loc, funcName, args, p->function->isGenerator,
                                   body);
 
     endFunction(p);
@@ -943,21 +943,20 @@ static JStarStmt* parseProgram(Parser* p) {
     }
     JStarLoc loc = p->peek.loc;
     JStarStmt* body = jsrBlockStmt(p->arena, loc, stmts);
-    return jsrFuncDecl(p->arena, loc, (JStarIdentifier){0}, (JStarFormalArgsList){0}, false, body);
+    return jsrFunDecl(p->arena, loc, (JStarIdentifier){0}, (JStarFormalArgsList){0}, false, body);
 }
 
 // -----------------------------------------------------------------------------
 // EXPRESSIONS PARSE
 // -----------------------------------------------------------------------------
 
-static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close) {
-    JStarLoc loc = p->peek.loc;
-
+static JStarExprs expressionLst(Parser* p, JStarTokType open, JStarTokType close) {
     require(p, open);
     skipNewLines(p);
 
     JStarExprs exprs = {0};
     while(!match(p, close)) {
+        JStarLoc loc = p->peek.loc;
         bool isSpread = consumeSpreadOp(p);
         JStarExpr* e = expression(p, false);
         skipNewLines(p);
@@ -977,7 +976,7 @@ static JStarExpr* expressionLst(Parser* p, JStarTokType open, JStarTokType close
     }
 
     require(p, close);
-    return jsrExprList(p->arena, loc, exprs);
+    return exprs;
 }
 
 static JStarExpr* parseTableLiteral(Parser* p) {
@@ -1027,7 +1026,7 @@ static JStarExpr* parseTableLiteral(Parser* p) {
     }
 
     require(p, TOK_RCURLY);
-    return jsrTableLiteral(p->arena, loc, jsrExprList(p->arena, loc, keyVals));
+    return jsrTableLiteral(p->arena, loc, keyVals);
 }
 
 static JStarExpr* parseSuperLiteral(Parser* p) {
@@ -1035,7 +1034,8 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
     advance(p);
 
     JStarTok name = {0};
-    JStarExpr* args = NULL;
+    bool isCall = false;
+    JStarExprs args = {0};
 
     if(match(p, TOK_DOT)) {
         advance(p);
@@ -1044,19 +1044,19 @@ static JStarExpr* parseSuperLiteral(Parser* p) {
     }
 
     if(match(p, TOK_LPAREN)) {
+        isCall = true;
         args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
     } else if(match(p, TOK_LCURLY)) {
-        JStarExprs tableCallArgs = {0};
-        jsrASTArrayAppend(p->arena, &tableCallArgs, parseTableLiteral(p));
-        args = jsrExprList(p->arena, loc, tableCallArgs);
+        isCall = true;
+        jsrASTArrayAppend(p->arena, &args, parseTableLiteral(p));
     }
 
-    return jsrSuperLiteral(p->arena, loc, &name, args);
+    return jsrSuperLiteral(p->arena, loc, &name, isCall, args);
 }
 
 static JStarExpr* parseListLiteral(Parser* p) {
     JStarLoc loc = p->peek.loc;
-    JStarExpr* exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
+    JStarExprs exprs = expressionLst(p, TOK_LSQUARE, TOK_RSQUARE);
     return jsrListLiteral(p->arena, loc, exprs);
 }
 
@@ -1101,7 +1101,7 @@ static JStarExpr* literal(Parser* p) {
 
         if(match(p, TOK_RPAREN)) {
             advance(p);
-            return jsrTupleLiteral(p->arena, loc, jsrExprList(p->arena, loc, (JStarExprs){0}));
+            return jsrTupleLiteral(p->arena, loc, (JStarExprs){0});
         }
 
         JStarExpr* e = expression(p, true);
@@ -1146,8 +1146,7 @@ static JStarExpr* postfixExpr(Parser* p) {
         case TOK_LCURLY: {
             JStarExprs tableCallArgs = {0};
             jsrASTArrayAppend(p->arena, &tableCallArgs, parseTableLiteral(p));
-            JStarExpr* args = jsrExprList(p->arena, loc, tableCallArgs);
-            lit = jsrCallExpr(p->arena, loc, lit, args);
+            lit = jsrCallExpr(p->arena, loc, lit, tableCallArgs);
             break;
         }
         case TOK_LSQUARE: {
@@ -1159,7 +1158,7 @@ static JStarExpr* postfixExpr(Parser* p) {
             break;
         }
         case TOK_LPAREN: {
-            JStarExpr* args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
+            JStarExprs args = expressionLst(p, TOK_LPAREN, TOK_RPAREN);
             lit = jsrCallExpr(p->arena, loc, lit, args);
             break;
         }
@@ -1380,7 +1379,7 @@ static JStarExpr* tupleLiteral(Parser* p) {
             jsrASTArrayAppend(p->arena, &exprs, e);
         }
 
-        e = jsrTupleLiteral(p->arena, loc, jsrExprList(p->arena, loc, exprs));
+        e = jsrTupleLiteral(p->arena, loc, exprs);
     }
 
     return e;

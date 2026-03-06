@@ -102,7 +102,7 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 
         // Create string constants of special method names
         for(int i = 0; i < METH_SIZE; i++) {
-            vm->specialMethods[i] = copyCString(vm, specialMethods[i]);
+            vm->specialMethods[i] = copyCStringInterned(vm, specialMethods[i]);
         }
     }
     PROFILE_END_SESSION();
@@ -119,16 +119,16 @@ void jsrInitRuntime(JStarVM* vm) {
         initCoreModule(vm);
 
         // Initialize main module
-        ObjString* name = copyCString(vm, JSR_MAIN_MODULE);
+        ObjString* name = copyCStringInterned(vm, JSR_MAIN_MODULE);
         push(vm, OBJ_VAL(name));
         setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
         pop(vm);
 
         // Create singletons
         vm->emptyTup = newTuple(vm, 0);
-        vm->excErr = copyCString(vm, EXC_ERR);
-        vm->excTrace = copyCString(vm, EXC_TRACE);
-        vm->excCause = copyCString(vm, EXC_CAUSE);
+        vm->excErr = copyCStringInterned(vm, EXC_ERR);
+        vm->excTrace = copyCStringInterned(vm, EXC_TRACE);
+        vm->excCause = copyCStringInterned(vm, EXC_CAUSE);
     }
     PROFILE_END_SESSION();
 }
@@ -680,7 +680,7 @@ static bool getStringSubscript(JStarVM* vm) {
     if(IS_INT(arg)) {
         size_t idx = jsrCheckIndexNum(vm, AS_NUM(arg), str->length);
         if(idx == SIZE_MAX) return false;
-        ObjString* ret = copyString(vm, str->data + idx, 1);
+        ObjString* ret = copyStringInterned(vm, str->data + idx, 1);
 
         pop(vm), pop(vm);
         push(vm, OBJ_VAL(ret));
@@ -689,7 +689,7 @@ static bool getStringSubscript(JStarVM* vm) {
     if(IS_TUPLE(arg)) {
         size_t low = 0, high = 0;
         if(!checkSliceIndex(vm, AS_TUPLE(arg), str->length, &low, &high)) return false;
-        ObjString* ret = copyString(vm, str->data + low, high - low);
+        ObjString* ret = copyStringInterned(vm, str->data + low, high - low);
 
         pop(vm), pop(vm);
         push(vm, OBJ_VAL(ret));
@@ -703,11 +703,11 @@ static bool getStringSubscript(JStarVM* vm) {
 static void concatStrings(JStarVM* vm) {
     ObjString *s1 = AS_STRING(peek2(vm)), *s2 = AS_STRING(peek(vm));
     size_t length = s1->length + s2->length;
-    ObjString* conc = allocateString(vm, length);
-    memcpy(conc->data, s1->data, s1->length);
-    memcpy(conc->data + s1->length, s2->data, s2->length);
+    ObjString* result = newString(vm, length);
+    memcpy(result->data, s1->data, s1->length);
+    memcpy(result->data + s1->length, s2->data, s2->length);
     pop(vm), pop(vm);
-    push(vm, OBJ_VAL(conc));
+    push(vm, OBJ_VAL(result));
 }
 
 static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
