@@ -200,10 +200,6 @@ if(LTO) # Enable link-time optimization if supported
     set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-# Add dependency to bin2incl, as we need to convert standard lib pre-compiled code to headers for compiling the vm
-add_dependencies(jstar        bin2incl)
-add_dependencies(jstar_static bin2incl)
-
 # -----------------------------------------------------------------------------
 # Installation
 # -----------------------------------------------------------------------------
