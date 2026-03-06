@@ -91,7 +91,7 @@ while n > 1
     else
         y = x * y
         x = x * x
-        n = int((n - 1) / 2)
+        n = std.int((n - 1) / 2)
     end
 end
 
