@@ -37,6 +37,7 @@ function applyTheme() {
 
     const theme = document.getElementById('jtd-theme-stylesheet')
     theme.href = theme.href.replace(/(just-the-docs-)[^/]*.css/, `$1${themeForPref(pref)}.css`);
+    jtd.setTheme(themeForPref(pref));
 
     const prism = document.getElementById("prism-theme");
     if (prism) {
