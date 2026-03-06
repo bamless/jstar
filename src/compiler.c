@@ -602,26 +602,20 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
     return string;
 }
 
+static Value literalToValue(Compiler* c, const JStarExpr* e) {
+    switch(e->type) {
+    case JSR_NUMBER: return NUM_VAL(e->as.num);
+    case JSR_BOOL:   return BOOL_VAL(e->as.boolean);
+    case JSR_STRING: return OBJ_VAL(readString(c, e));
+    case JSR_NULL:   return NULL_VAL;
+    default: JSR_UNREACHABLE();
+    }
+}
+
 static void addFunctionDefaults(Compiler* c, Prototype* proto, const JStarExprs* defaults) {
-    int i = 0;
+    size_t i = 0;
     arrayForeach(JStarExpr*, it, defaults) {
-        const JStarExpr* e = *it;
-        switch(e->type) {
-        case JSR_NUMBER:
-            proto->defaults[i++] = NUM_VAL(e->as.num);
-            break;
-        case JSR_BOOL:
-            proto->defaults[i++] = BOOL_VAL(e->as.boolean);
-            break;
-        case JSR_STRING:
-            proto->defaults[i++] = OBJ_VAL(readString(c, e));
-            break;
-        case JSR_NULL:
-            proto->defaults[i++] = NULL_VAL;
-            break;
-        default:
-            JSR_UNREACHABLE();
-        }
+        proto->defaults[i++] = literalToValue(c, *it);
     }
 }
 
@@ -1181,19 +1175,15 @@ static void compileExpr(Compiler* c, const JStarExpr* e) {
         compilePowExpr(c, e);
         break;
     case JSR_NUMBER:
-        emitValueConst(c, NUM_VAL(e->as.num), e->loc);
-        break;
     case JSR_BOOL:
-        emitValueConst(c, BOOL_VAL(e->as.boolean), e->loc);
-        break;
     case JSR_STRING:
-        emitValueConst(c, OBJ_VAL(readString(c, e)), e->loc);
-        break;
-    case JSR_VAR:
-        compileVarLit(c, e->as.varLiteral.id, false, e->loc);
+        emitValueConst(c, literalToValue(c, e), e->loc);
         break;
     case JSR_NULL:
         emitOpcode(c, OP_NULL, e->loc.line);
+        break;
+    case JSR_VAR:
+        compileVarLit(c, e->as.varLiteral.id, false, e->loc);
         break;
     case JSR_LIST:
         compileListLit(c, e);
