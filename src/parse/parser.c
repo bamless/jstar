@@ -26,7 +26,6 @@ typedef struct Parser {
     JStarTok peek;
     Function* function;
     const char* path;
-    const char* lineStart;
     ParseErrorCB errorCallback;
     void* userData;
     JStarASTArena* arena;
@@ -67,8 +66,8 @@ static void endFunction(Parser* p) {
 // -----------------------------------------------------------------------------
 
 static char* strchrWithNul(const char* str, char c) {
-    char* ret;
-    return (ret = strchr(str, c)) == NULL ? strchr(str, '\0') : ret;
+    char* ret = strchr(str, c);
+    return ret ? ret : strchr(str, '\0');
 }
 
 static int vstrncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, va_list ap) {
@@ -84,11 +83,11 @@ static int strncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, ...) 
     return written;
 }
 
-static int printSourceSnippet(char* buf, const char* line, int length, int coloumn) {
+static int printSourceSnippet(char* buf, const char* line, int length, int column) {
     int pos = 0;
     pos += strncatf(buf, pos, MAX_ERR_SIZE, "    %.*s\n", length, line);
     pos += strncatf(buf, pos, MAX_ERR_SIZE, "    ");
-    for(int i = 0; i < coloumn; i++) {
+    for(int i = 0; i < column; i++) {
         pos += strncatf(buf, pos, MAX_ERR_SIZE, " ");
     }
     pos += strncatf(buf, pos, MAX_ERR_SIZE, "^\n");
@@ -102,10 +101,11 @@ static void errorvfmt(Parser* p, JStarTok tok, const char* msg, va_list vargs) {
     if(p->errorCallback) {
         char error[MAX_ERR_SIZE];
 
-        const char* lineStart = tok.lexeme - (tok.loc.col - 1);
+        int col = tok.loc.col > 0 ? tok.loc.col - 1 : 0;
+        const char* lineStart = tok.lexeme - col;
         int lineLen = strchrWithNul(tok.lexeme, '\n') - lineStart;
         JSR_ASSERT(lineLen >= 0, "negative line length");
-        int pos = printSourceSnippet(error, lineStart, lineLen, tok.loc.col - 1);
+        int pos = printSourceSnippet(error, lineStart, lineLen, col);
 
         va_list ap;
         va_copy(ap, vargs);
@@ -114,8 +114,7 @@ static void errorvfmt(Parser* p, JStarTok tok, const char* msg, va_list vargs) {
 
         // Error message was too long, retry without source snippet
         if(pos >= MAX_ERR_SIZE) {
-            pos = 0;
-            pos += strncatf(error, pos, MAX_ERR_SIZE, "near `%s`: ", JStarTokName[tok.type]);
+            int pos = strncatf(error, 0, MAX_ERR_SIZE, "near `%s`: ", JStarTokName[tok.type]);
 
             va_list ap;
             va_copy(ap, vargs);
@@ -168,7 +167,6 @@ static JStarTok advance(Parser* p) {
 
     while(match(p, TOK_ERR) || match(p, TOK_UNTERMINATED_STR)) {
         error(p, p->peek.type == TOK_ERR ? "Invalid token" : "Unterminated String");
-        prev = p->peek;
         jsrNextToken(&p->lex, &p->peek);
     }
 
@@ -288,7 +286,7 @@ static bool isLValue(JStarExprType type) {
 
 static void checkUnpackAssignement(Parser* p, const JStarExprs* lvals, JStarTokType assignToken) {
     if(assignToken != TOK_EQUAL) {
-        error(p, "Unpack cannot use compound assignement");
+        error(p, "Unpack cannot use compound assignment");
         return;
     }
     jsrASTArrayForeach(JStarExpr*, it, lvals) {
@@ -812,7 +810,7 @@ static JStarStmt* classDecl(Parser* p) {
             method->as.decl.decorators = decorators;
             break;
         default:
-            error(p, "Expected function or native delcaration");
+            error(p, "Expected function or native declaration");
             advance(p);
             break;
         }
@@ -1011,9 +1009,7 @@ static JStarExpr* parseTableLiteral(Parser* p) {
             JStarExpr* val = expression(p, false);
             skipNewLines(p);
 
-            if(p->hadError) {
-                break;
-            }
+            if(p->hadError) break;
 
             jsrASTArrayAppend(p->arena, &keyVals, key);
             jsrASTArrayAppend(p->arena, &keyVals, val);

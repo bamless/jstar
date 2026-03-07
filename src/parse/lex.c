@@ -200,15 +200,16 @@ static void hexNumber(JStarLex* lex, JStarTok* tok) {
 }
 
 static void string(JStarLex* lex, char end, JStarTok* tok) {
-    const char* lineStart = lex->current;
+    const char* lineStart = lex->lineStart;
     int currLine = lex->currLine;
 
     while(peekChar(lex) != end && !isAtEnd(lex)) {
         if(peekChar(lex) == '\n') {
             lineStart = lex->current + 1;
             currLine++;
+        } else if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') {
+            advance(lex);
         }
-        if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') advance(lex);
         advance(lex);
     }
 
@@ -376,6 +377,7 @@ bool jsrNextToken(JStarLex* lex, JStarTok* tok) {
 
 void jsrLexRewind(JStarLex* lex, JStarTok tok) {
     if(tok.lexeme == NULL) return;
+    JSR_ASSERT(tok.loc.col > 0, "Rewinding token with no valid 'loc' (column == 0)");
     lex->lineStart = tok.lexeme - (tok.loc.col - 1);
     lex->currLine = tok.loc.line;
     lex->tokenStart = lex->current = tok.lexeme;
