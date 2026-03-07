@@ -29,7 +29,7 @@ typedef struct JStarLex {
     size_t sourceLen;
     const char* lineStart;
     const char* tokenStart;
-    const char* current;
+    size_t pos;
     int currLine;
 } JStarLex;
 

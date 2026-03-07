@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+
 #include "conf.h"
 
 const char* JStarTokName[] = {
@@ -59,22 +60,19 @@ static Keyword keywords[] = {
 // clang-format on
 
 static char advance(JStarLex* lex) {
-    lex->current++;
-    return lex->current[-1];
+    return lex->source[lex->pos++];
 }
 
 static bool isAtEnd(JStarLex* lex) {
-    return (size_t)(lex->current - lex->source) == lex->sourceLen;
+    return lex->pos >= lex->sourceLen;
 }
 
 static char peekChar(JStarLex* lex) {
-    if(isAtEnd(lex)) return '\0';
-    return *lex->current;
+    return lex->pos < lex->sourceLen ? lex->source[lex->pos] : '\0';
 }
 
 static char peekChar2(JStarLex* lex) {
-    if(isAtEnd(lex)) return '\0';
-    return lex->current[1];
+    return lex->pos + 1 < lex->sourceLen ? lex->source[lex->pos + 1] : '\0';
 }
 
 static bool match(JStarLex* lex, char c) {
@@ -87,11 +85,12 @@ static bool match(JStarLex* lex, char c) {
 }
 
 void jsrInitLexer(JStarLex* lex, const char* src, size_t len) {
+    if(!src) src = "";
     lex->source = src;
     lex->sourceLen = len;
     lex->lineStart = src;
     lex->tokenStart = src;
-    lex->current = src;
+    lex->pos = 0;
     lex->currLine = 1;
 
     // skip shabang if present
@@ -111,7 +110,7 @@ static void skipSpacesAndComments(JStarLex* lex) {
                 advance(lex);
                 advance(lex);
                 lex->currLine++;
-                lex->lineStart = lex->current;
+                lex->lineStart = lex->source + lex->pos;
             } else {
                 return;
             }
@@ -152,18 +151,10 @@ static bool isAlphaNum(char c) {
 
 static void makeToken(JStarLex* lex, JStarTok* tok, JStarTokType type) {
     tok->type = type;
-    tok->length = (int)(lex->current - lex->tokenStart);
+    tok->length = (int)(lex->source + lex->pos - lex->tokenStart);
     tok->lexeme = lex->tokenStart;
     tok->loc.line = lex->currLine;
     tok->loc.col = (int)(lex->tokenStart - lex->lineStart) + 1;
-}
-
-static void eofToken(JStarLex* lex, JStarTok* tok) {
-    tok->type = TOK_EOF;
-    tok->length = 0;
-    tok->lexeme = lex->current;
-    tok->loc.line = lex->currLine;
-    tok->loc.col = (int)(lex->current - lex->lineStart) + 1;
 }
 
 static void integer(JStarLex* lex) {
@@ -205,7 +196,7 @@ static void string(JStarLex* lex, char end, JStarTok* tok) {
 
     while(peekChar(lex) != end && !isAtEnd(lex)) {
         if(peekChar(lex) == '\n') {
-            lineStart = lex->current + 1;
+            lineStart = lex->source + lex->pos + 1;
             currLine++;
         } else if(peekChar(lex) == '\\' && peekChar2(lex) != '\0') {
             advance(lex);
@@ -225,11 +216,13 @@ static void string(JStarLex* lex, char end, JStarTok* tok) {
 }
 
 static void identifier(JStarLex* lex, JStarTok* tok) {
-    while(isAlphaNum(peekChar(lex))) advance(lex);
     JStarTokType type = TOK_IDENTIFIER;
+    while(isAlphaNum(peekChar(lex))) {
+        advance(lex);
+    }
 
     // See if the identifier is a reserved word.
-    size_t length = lex->current - lex->tokenStart;
+    size_t length = lex->source + lex->pos - lex->tokenStart;
     for(Keyword* keyword = keywords; keyword->name != NULL; keyword++) {
         if(length == keyword->length && memcmp(lex->tokenStart, keyword->name, length) == 0) {
             type = keyword->type;
@@ -243,22 +236,25 @@ static void identifier(JStarLex* lex, JStarTok* tok) {
 bool jsrNextToken(JStarLex* lex, JStarTok* tok) {
     skipSpacesAndComments(lex);
 
+    lex->tokenStart = lex->source + lex->pos;
+
     if(isAtEnd(lex)) {
-        eofToken(lex, tok);
+        makeToken(lex, tok, TOK_EOF);
         return false;
     }
 
-    lex->tokenStart = lex->current;
     char c = advance(lex);
 
     if(c == '0' && match(lex, 'x')) {
         hexNumber(lex, tok);
         return true;
     }
+
     if(isNum(c) || (c == '.' && isNum(peekChar(lex)))) {
         number(lex, tok);
         return true;
     }
+
     if(isAlpha(c)) {
         identifier(lex, tok);
         return true;
@@ -366,7 +362,7 @@ bool jsrNextToken(JStarLex* lex, JStarTok* tok) {
     case '\n':
         makeToken(lex, tok, TOK_NEWLINE);
         lex->currLine++;
-        lex->lineStart = lex->current;
+        lex->lineStart = lex->source + lex->pos;
         break;
     default:
         makeToken(lex, tok, TOK_ERR);
@@ -377,8 +373,8 @@ bool jsrNextToken(JStarLex* lex, JStarTok* tok) {
 
 void jsrLexRewind(JStarLex* lex, JStarTok tok) {
     if(tok.lexeme == NULL) return;
-    JSR_ASSERT(tok.loc.col > 0, "Rewinding token with no valid 'loc' (column == 0)");
     lex->lineStart = tok.lexeme - (tok.loc.col - 1);
     lex->currLine = tok.loc.line;
-    lex->tokenStart = lex->current = tok.lexeme;
+    lex->tokenStart = tok.lexeme;
+    lex->pos = tok.lexeme - lex->source;
 }

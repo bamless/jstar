@@ -65,11 +65,6 @@ static void endFunction(Parser* p) {
 // ERROR REPORTING FUNCTIONS
 // -----------------------------------------------------------------------------
 
-static char* strchrWithNul(const char* str, char c) {
-    char* ret = strchr(str, c);
-    return ret ? ret : strchr(str, '\0');
-}
-
 static int vstrncatf(char* buf, size_t pos, size_t maxLen, const char* fmt, va_list ap) {
     size_t bufLen = pos >= maxLen ? 0 : maxLen - pos;
     return vsnprintf(buf + pos, bufLen, fmt, ap);
@@ -103,8 +98,13 @@ static void errorvfmt(Parser* p, JStarTok tok, const char* msg, va_list vargs) {
 
         int col = tok.loc.col > 0 ? tok.loc.col - 1 : 0;
         const char* lineStart = tok.lexeme - col;
-        int lineLen = strchrWithNul(tok.lexeme, '\n') - lineStart;
+        const char* sourceEnd = p->lex.source + p->lex.sourceLen;
+        const char* lineEnd = memchr(lineStart, '\n', sourceEnd - lineStart);
+        if(!lineEnd) lineEnd = sourceEnd;
+
+        int lineLen = (int)(lineEnd - lineStart);
         JSR_ASSERT(lineLen >= 0, "negative line length");
+
         int pos = printSourceSnippet(error, lineStart, lineLen, col);
 
         va_list ap;
@@ -741,7 +741,7 @@ static JStarStmt* funcDecl(Parser* p, bool parseCtor) {
     require(p, TOK_END);
 
     JStarStmt* decl = jsrFunDecl(p->arena, funTok.loc, funcName, args, p->function->isGenerator,
-                                  body);
+                                 body);
 
     endFunction(p);
 
