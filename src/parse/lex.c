@@ -85,7 +85,9 @@ static bool match(JStarLex* lex, char c) {
 }
 
 void jsrInitLexer(JStarLex* lex, const char* src, size_t len) {
+    JSR_ASSERT(src || len == 0, "src cannot be NULL with non-zero length");
     if(!src) src = "";
+
     lex->source = src;
     lex->sourceLen = len;
     lex->lineStart = src;

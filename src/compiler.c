@@ -226,6 +226,7 @@ static bool inGlobalScope(Compiler* c) {
 
 static void discardLocal(Compiler* c, const Local* local) {
     if(local->isUpvalue) {
+        // If it's an upvalue, we need to close it before popping it
         emitByte(c, OP_CLOSE_UPVALUE, local->loc.line);
     } else {
         emitByte(c, OP_POP, local->loc.line);
@@ -244,7 +245,7 @@ static int discardScopes(Compiler* c, int depth, int line) {
 
     int toPop = c->localsCount - locals;
     if(toPop > 1) {
-        emitByte(c, OP_POPN, line);
+        emitByte(c, OP_POPN, line);  // POPN automatically closes all upvalues
         emitByte(c, toPop, line);
     } else if(toPop == 1) {
         discardLocal(c, &c->locals[locals]);
@@ -1868,7 +1869,7 @@ static void compileMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s)
 
 static void compileNativeMethod(Compiler* c, const JStarStmt* cls, const JStarStmt* s) {
     ObjString* name = createMethodName(c, cls->as.decl.as.cls.id, s->as.decl.as.fun.id);
-    uint8_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, s);
+    uint16_t nativeConst = compileNative(c, name, OP_NATIVE_METHOD, s);
 
     const JStarExprs* decorators = &s->as.decl.decorators;
     if(decorators->count > 0) {
