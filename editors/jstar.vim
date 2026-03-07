@@ -35,11 +35,11 @@ syntax keyword jstarInclude import
 
 " --- Functions ---
 syntax match jstarFunction /^\s*fun\s\+\zs\k\+\ze\s*(/ contains=jstarFunctionName
-syntax match jstarFunctionName /\<[a-z][a-zA-Z0-9_]*\>/
+syntax match jstarFunctionName /\<[a-z_][a-zA-Z0-9_]*\>/
 
 " --- Classes ---
 syntax match jstarClass /^\s*class\s\+\zs\k\+/ contains=jstarClassName
-syntax match jstarClassName /\<[A-Z][a-zA-Z0-9_]*\>/
+syntax match jstarClassName /\<[A-Z_][a-zA-Z0-9_]*\>/
 
 " --- Function calls ---
 syntax match jstarFunctionCall /\<\k\+\ze\s*(/ contains=jstarClassName
