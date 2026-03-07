@@ -195,9 +195,8 @@ set_target_properties(jstar PROPERTIES
     C_VISIBILITY_PRESET hidden
 )
 
-if(LTO) # Enable link-time optimization if supported
+if(LTO) # Enable link-time optimization for shared library if supported
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
-    set_target_properties(jstar_static PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 # -----------------------------------------------------------------------------
