@@ -11,7 +11,7 @@
 
 #define ARENA_ALIGN(o, s) (-(uintptr_t)(o) & (s - 1))
 #define ARENA_ALIGNMENT   (sizeof(void*))
-#define ARENA_PAGE_SZ     (4096)
+#define ARENA_PAGE_SZ     (8192)
 
 struct JStarASTArenaPage {
     JStarASTArenaPage* next;
