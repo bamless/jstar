@@ -138,7 +138,6 @@ static JStarResult evalString(JStarVM* vm, const char* path, const char* module,
                               size_t len) {
     JSR_ASSERT(path, "path cannot be NULL");
     JSR_ASSERT(module, "module cannot be NULL");
-    JSR_ASSERT(src, "src cannot be NULL");
 
     PROFILE_BEGIN_SESSION("jstar-eval.json")
 
@@ -165,6 +164,7 @@ JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src) {
 
 JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                 const char* src) {
+    JSR_ASSERT(src, "src cannot be NULL");
     return evalString(vm, path, module, src, strlen(src));
 }
 
@@ -176,7 +176,6 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
                           size_t len) {
     JSR_ASSERT(path, "path cannot be NULL");
     JSR_ASSERT(module, "module cannot be NULL");
-    JSR_ASSERT(code, "code cannot be null");
 
     if(!isCompiledCode(code, len)) {
         return evalString(vm, path, module, code, len);
@@ -187,13 +186,13 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
     JStarResult res = deserializeModule(vm, path, name, code, len, &fn);
     if(res != JSR_SUCCESS) return res;
     if(!eval(vm, path, fn)) return JSR_RUNTIME_ERR;
+
     return JSR_SUCCESS;
 }
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
                            JStarBuffer* out) {
     JSR_ASSERT(path, "path cannot be NULL");
-    JSR_ASSERT(src, "src cannot be NULL");
 
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
@@ -215,7 +214,6 @@ JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_
 
 JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, size_t len) {
     JSR_ASSERT(path, "path cannot be NULL");
-    JSR_ASSERT(code, "src cannot be NULL");
 
     if(!isCompiledCode(code, len)) {
         return JSR_DESERIALIZE_ERR;
