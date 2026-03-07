@@ -18,8 +18,7 @@
 #include "value.h"
 #include "vm.h"
 
-#define SER_DEF_SIZE    64
-#define STATIC_STR_SIZE 4096
+#define SER_DEF_SIZE 64
 
 static const uint8_t MAGIC[] = {0xb5, 'J', 's', 'r', 'C'};
 
@@ -235,20 +234,9 @@ static bool deserializeString(Deserializer* d, ObjString** out) {
         if(!deserializeUint64(d, &length)) return false;
     }
 
-    if(length <= STATIC_STR_SIZE) {
-        char str[STATIC_STR_SIZE];
-        if(!read(d, str, length)) return false;
-        *out = copyStringInterned(d->vm, str, length);
-    } else {
-        JStarBuffer str;
-        jsrBufferInitCapacity(d->vm, &str, length);
-        if(!read(d, str.data, length)) {
-            jsrBufferFree(&str);
-            return false;
-        }
-        str.size = length;
-        *out = jsrBufferToString(&str);
-    }
+    if(d->ptr + length > d->len) return false;
+    *out = copyStringInterned(d->vm, (const char*)(d->code + d->ptr), length);
+    d->ptr += length;
 
     return true;
 }
