@@ -151,7 +151,7 @@ struct JStarExpr {
         JStarSuperLiteralExpr sup;
         JStarStringLiteralExpr stringLiteral;
         JStarVarLiteralExpr varLiteral;
-        JStarExprs exprs;
+        JStarExprs exprs;  // For compund expressions: `List`s, `Tuple`s
         double num;
         bool boolean;
     } as;
@@ -303,6 +303,7 @@ struct JStarStmt {
     JStarLoc loc;
     JStarStmtType type;
     union {
+        JStarDecl decl;  // Declarations are statements. Their tag is stored inline in `type`
         JStarIfStmt ifStmt;
         JStarForStmt forStmt;
         JStarForEachStmt forEach;
@@ -314,7 +315,6 @@ struct JStarStmt {
         JStarExceptStmt excStmt;
         JStarRaiseStmt raiseStmt;
         JStarWithStmt withStmt;
-        JStarDecl decl;
         JStarExpr* exprStmt;
     } as;
 };
