@@ -34,7 +34,7 @@ static JStarASTArenaPage* newPage(JStarASTArena* a, size_t requestedSize) {
 }
 
 static void freePage(JStarASTArena* a, JStarASTArenaPage* page) {
-    JStarRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
+    JStarASTArenaRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
     reallocate(page, (char*)page->end - (char*)page, 0);
 }
 
