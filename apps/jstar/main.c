@@ -212,8 +212,8 @@ static JStarResult doRepl(void) {
         }
 
         addReplPrint(&src);
-        sb_append_char(&src, '\0');
-        res = evaluateStr("<stdin>", src.items);
+        res = evaluate("<stdin>", src.items, src.size);
+
         src.size = 0;
     }
 
