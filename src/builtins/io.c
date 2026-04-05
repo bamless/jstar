@@ -31,7 +31,7 @@ static bool readline(JStarVM* vm, FILE* file) {
     while(fgets(buf.data + buf.size, buf.capacity - buf.size, file) != NULL) {
         buf.size += strlen(buf.data + buf.size);
         if(buf.data[buf.size - 1] == '\n') break;
-        jsrBufferReserve(&buf, buf.capacity * 2);
+        jsrBufferReserve(&buf, buf.size);
     }
 
     if(ferror(file)) {
