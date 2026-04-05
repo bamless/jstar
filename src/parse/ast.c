@@ -87,7 +87,7 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
 void* jsrASTArenaRealloc(JStarASTArena* a, void* ptr, size_t oldSize, size_t newSize) {
     if(newSize <= oldSize) return ptr;
     void* newPtr = jsrASTArenaAlloc(a, newSize);
-    memcpy(newPtr, ptr, oldSize);
+    if(ptr && oldSize > 0) memcpy(newPtr, ptr, oldSize);
     return newPtr;
 }
 
