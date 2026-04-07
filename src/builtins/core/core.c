@@ -725,10 +725,8 @@ static bool mergeSort(JStarVM* vm, Value* list, int64_t length, Value comp) {
     bool res = true;
 
     Value* tmp = vm->realloc(NULL, 0, sizeof(Value) * length);
-    if(length > 0) {
-        JSR_ASSERT(tmp, "Out of memory");
-    }
-    memcpy(tmp, list, sizeof(Value) * length);
+    if(length > 0) JSR_ASSERT(tmp, "Out of memory");
+    if(tmp) memcpy(tmp, list, sizeof(Value) * length);
     MergeState state = {vm, list, tmp, length, comp};
 
     int64_t high = length - 1;

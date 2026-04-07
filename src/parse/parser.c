@@ -859,11 +859,10 @@ static JStarStmt* decoratedDecl(Parser* p) {
 static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple);
 
 static JStarStmt* exprStmt(Parser* p) {
-    JStarTok tok = p->peek;
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(p->peek) && !isCallExpression(l) && l->type != JSR_YIELD) {
-        errorTok(p, tok, "Expression result unused, consider adding a variable declaration");
+        error(p, "Invalid syntax");
     }
 
     if(isAssign(p->peek)) {
@@ -1077,7 +1076,12 @@ static JStarExpr* literal(Parser* p) {
         advance(p);
         return jsrNullLiteral(p->arena, loc);
     case TOK_NUMBER: {
-        JStarExpr* e = jsrNumLiteral(p->arena, loc, strtod(tok->lexeme, NULL));
+        // HACK: ensure NUL terminator on lexeme so we can use strtod
+        // TODO: implement arena `pop` operation so we can rewind allocation of this temp string
+        char* s = jsrASTArenaAlloc(p->arena, tok->length + 1);
+        memcpy(s, tok->lexeme, tok->length);
+        s[tok->length] = '\0';
+        JStarExpr* e = jsrNumLiteral(p->arena, loc, strtod(s, NULL));
         advance(p);
         return e;
     }
@@ -1171,11 +1175,10 @@ static JStarExpr* unaryExpr(Parser* p);
 static JStarExpr* powExpr(Parser* p) {
     JStarExpr* base = postfixExpr(p);
 
-    while(match(p, TOK_POW)) {
+    if(match(p, TOK_POW)) {
         JStarTok powOp = advance(p);
         skipNewLines(p);
-        JStarExpr* exp = unaryExpr(p);
-        base = jsrPowExpr(p->arena, powOp.loc, base, exp);
+        return jsrPowExpr(p->arena, powOp.loc, base, unaryExpr(p));
     }
 
     return base;

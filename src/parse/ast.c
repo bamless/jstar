@@ -34,7 +34,7 @@ static JStarASTArenaPage* newPage(JStarASTArena* a, size_t requestedSize) {
 }
 
 static void freePage(JStarASTArena* a, JStarASTArenaPage* page) {
-    JStarRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
+    JStarASTArenaRealloc reallocate = a->realloc ? a->realloc : defaultRealloc;
     reallocate(page, (char*)page->end - (char*)page, 0);
 }
 
@@ -87,7 +87,7 @@ void* jsrASTArenaAlloc(JStarASTArena* a, size_t size) {
 void* jsrASTArenaRealloc(JStarASTArena* a, void* ptr, size_t oldSize, size_t newSize) {
     if(newSize <= oldSize) return ptr;
     void* newPtr = jsrASTArenaAlloc(a, newSize);
-    memcpy(newPtr, ptr, oldSize);
+    if(ptr && oldSize > 0) memcpy(newPtr, ptr, oldSize);
     return newPtr;
 }
 
