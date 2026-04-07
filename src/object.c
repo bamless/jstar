@@ -211,9 +211,9 @@ ObjList* newList(JStarVM* vm, size_t capacity) {
 
 ObjTable* newTable(JStarVM* vm) {
     ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), vm->tableClass, OBJ_TABLE);
-    table->capacityMask = 0;
-    table->numEntries = 0;
+    table->sizeMask = 0;
     table->count = 0;
+    table->tombstones = 0;
     table->entries = NULL;
     return table;
 }
@@ -306,7 +306,7 @@ void freeObject(JStarVM* vm, Obj* o) {
     case OBJ_TABLE: {
         ObjTable* t = (ObjTable*)o;
         if(t->entries != NULL) {
-            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
+            GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
         }
         GC_FREE(vm, ObjTable, t);
         break;
@@ -654,7 +654,7 @@ void printObj(Obj* o) {
         ObjTable* t = (ObjTable*)o;
         printf("{");
         if(t->entries != NULL) {
-            for(size_t i = 0; i < t->capacityMask + 1; i++) {
+            for(size_t i = 0; i < t->sizeMask + 1; i++) {
                 if(!IS_NULL(t->entries[i].key)) {
                     printValue(t->entries[i].key);
                     printf(" : ");

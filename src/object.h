@@ -201,9 +201,9 @@ typedef struct {
 // A J* Table. Tables are hash tables that map keys to values.
 typedef struct ObjTable {
     Obj base;
-    size_t capacityMask;  // How much space is allocated in the table (minus 1)
+    size_t sizeMask;      // How much space is allocated in the table (minus 1)
     size_t count;         // The number of actual entries in the Table, i.e. excluding tombstones
-    size_t numEntries;    // The number of entries in the Table including tombstones
+    size_t tombstones;    // The number of tombstones in the Table
     TableEntry* entries;  // The actual array of entries
 } ObjTable;
 

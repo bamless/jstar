@@ -23,7 +23,7 @@
                                                                                             \
     typedef struct name##HashTable {                                                        \
         JStarVM* vm;                                                                        \
-        size_t sizeMask, numEntries;                                                        \
+        size_t sizeMask, count, tombstones;                                                 \
         name##Entry* entries;                                                               \
     } name##HashTable;                                                                      \
                                                                                             \
@@ -37,8 +37,8 @@
     struct ObjString* hashTable##name##GetString(const name##HashTable* t, const char* str, \
                                                  size_t length, uint32_t hash);
 
-#define MAX_ENTRY_LOAD(size) \
-    (((size) >> 1) + ((size) >> 2))  // Read as: size * 0.75, i.e. a load factor of 75%
+// Read as: size * 0.75, i.e. a load factor of 75%
+#define MAX_ENTRY_LOAD(size) (((size) >> 1) + ((size) >> 2))
 
 #define DEFINE_HASH_TABLE(name, V, TOMB_MARKER, INVALID_VAL, IS_INVALID_VAL, GROW_FACTOR,         \
                           INITIAL_CAPACITY)                                                       \
@@ -51,7 +51,7 @@
     }                                                                                             \
                                                                                                   \
     void free##name##HashTable(name##HashTable* t) {                                              \
-        t->vm->realloc(t->entries, (t->sizeMask + 1) * sizeof(name##Entry), 0);                   \
+        if(t->entries) t->vm->realloc(t->entries, (t->sizeMask + 1) * sizeof(name##Entry), 0);    \
     }                                                                                             \
                                                                                                   \
     static name##Entry* findEntry(name##Entry* entries, size_t sizeMask, struct ObjString* key) { \
@@ -73,44 +73,45 @@
         }                                                                                         \
     }                                                                                             \
                                                                                                   \
-    static void growEntries(name##HashTable* t) {                                                 \
-        size_t newSize = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;        \
-        name##Entry* newEntries = t->vm->realloc(NULL, 0, sizeof(name##Entry) * newSize);         \
+    static void resizeEntries(name##HashTable* t) {                                               \
+        size_t oldSize = t->sizeMask + 1;                                                         \
+        size_t newSize = (t->count + 1 > MAX_ENTRY_LOAD(oldSize))                                 \
+                             ? (t->sizeMask ? oldSize * GROW_FACTOR : INITIAL_CAPACITY)           \
+                             : oldSize;                                                           \
                                                                                                   \
+        name##Entry* newEntries = t->vm->realloc(NULL, 0, sizeof(name##Entry) * newSize);         \
         for(size_t i = 0; i < newSize; i++) {                                                     \
             newEntries[i] = (name##Entry){NULL, INVALID_VAL};                                     \
         }                                                                                         \
                                                                                                   \
-        t->numEntries = 0;                                                                        \
-        if(t->sizeMask != 0) {                                                                    \
+        if(t->entries) {                                                                          \
             for(size_t i = 0; i <= t->sizeMask; i++) {                                            \
                 name##Entry* e = &t->entries[i];                                                  \
                 if(!e->key) continue;                                                             \
-                                                                                                  \
                 name##Entry* dest = find##Entry(newEntries, newSize - 1, e->key);                 \
                 *dest = (name##Entry){e->key, e->value};                                          \
-                t->numEntries++;                                                                  \
             }                                                                                     \
+            t->vm->realloc(t->entries, (t->sizeMask + 1) * sizeof(name##Entry), 0);               \
         }                                                                                         \
                                                                                                   \
-        t->vm->realloc(t->entries, (t->sizeMask + 1) * sizeof(name##Entry), 0);                   \
+        t->tombstones = 0;                                                                        \
         t->entries = newEntries;                                                                  \
         t->sizeMask = newSize - 1;                                                                \
     }                                                                                             \
                                                                                                   \
     bool hashTable##name##Put(name##HashTable* t, struct ObjString* key, V val) {                 \
-        if(t->numEntries + 1 > MAX_ENTRY_LOAD(t->sizeMask + 1)) {                                 \
-            growEntries(t);                                                                       \
+        if(t->count + t->tombstones + 1 > MAX_ENTRY_LOAD(t->sizeMask + 1)) {                      \
+            resizeEntries(t);                                                                     \
         }                                                                                         \
                                                                                                   \
         name##Entry* e = findEntry(t->entries, t->sizeMask, key);                                 \
         bool newEntry = !e->key;                                                                  \
-                                                                                                  \
-        if(newEntry && IS_INVALID_VAL(e->value)) {                                                \
-            t->numEntries++;                                                                      \
+        if(newEntry) {                                                                            \
+            t->count++;                                                                           \
+            if(!IS_INVALID_VAL(e->value)) t->tombstones--;                                        \
         }                                                                                         \
-                                                                                                  \
         *e = (name##Entry){key, val};                                                             \
+                                                                                                  \
         return newEntry;                                                                          \
     }                                                                                             \
                                                                                                   \
@@ -128,10 +129,12 @@
     }                                                                                             \
                                                                                                   \
     bool hashTable##name##Del(name##HashTable* t, struct ObjString* key) {                        \
-        if(t->numEntries == 0) return false;                                                      \
+        if(t->count == 0) return false;                                                           \
         name##Entry* e = findEntry(t->entries, t->sizeMask, key);                                 \
         if(!e->key) return false;                                                                 \
         *e = (name##Entry){NULL, TOMB_MARKER};                                                    \
+        t->count--;                                                                               \
+        t->tombstones++;                                                                          \
         return true;                                                                              \
     }                                                                                             \
                                                                                                   \

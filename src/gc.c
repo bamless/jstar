@@ -148,7 +148,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     case OBJ_TABLE: {
         ObjTable* t = (ObjTable*)o;
         if(t->entries != NULL) {
-            for(size_t i = 0; i < t->capacityMask + 1; i++) {
+            for(size_t i = 0; i < t->sizeMask + 1; i++) {
                 reachValue(vm, t->entries[i].key);
                 reachValue(vm, t->entries[i].val);
             }

@@ -1405,28 +1405,28 @@ static bool findEntry(JStarVM* vm, TableEntry* entries, size_t sizeMask, Value k
     }
 }
 
-static void growEntries(JStarVM* vm, ObjTable* t) {
-    size_t newCap = t->capacityMask ? (t->capacityMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
+static void resizeEntries(JStarVM* vm, ObjTable* t) {
+    size_t newCap = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
     TableEntry* newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newCap);
     for(size_t i = 0; i < newCap; i++) {
         newEntries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
 
-    t->numEntries = 0, t->count = 0;
-    if(t->capacityMask != 0) {
-        for(size_t i = 0; i <= t->capacityMask; i++) {
-            TableEntry* e = &t->entries[i];
-            if(IS_NULL(e->key)) continue;
+    if(t->entries) {
+        for(size_t i = 0; i <= t->sizeMask; i++) {
+            TableEntry* src = &t->entries[i];
+            if(IS_NULL(src->key)) continue;
 
             TableEntry* dest;
-            findEntry(vm, newEntries, newCap - 1, e->key, &dest);
-            *dest = (TableEntry){e->key, e->val};
-            t->numEntries++, t->count++;
+            findEntry(vm, newEntries, newCap - 1, src->key, &dest);
+            *dest = *src;
         }
-        GC_FREE_ARRAY(vm, TableEntry, t->entries, t->capacityMask + 1);
+        GC_FREE_ARRAY(vm, TableEntry, t->entries, t->sizeMask + 1);
     }
+
+    t->tombstones = 0;
     t->entries = newEntries;
-    t->capacityMask = newCap - 1;
+    t->sizeMask = newCap - 1;
 }
 
 JSR_NATIVE(jsr_Table_construct) {
@@ -1435,7 +1435,7 @@ JSR_NATIVE(jsr_Table_construct) {
 
     if(IS_TABLE(vm->apiStack[1]) && AS_TABLE(vm->apiStack[1])->count) {
         ObjTable* other = AS_TABLE(vm->apiStack[1]);
-        for(size_t i = 0; i <= other->capacityMask; i++) {
+        for(size_t i = 0; i <= other->sizeMask; i++) {
             TableEntry* e = &other->entries[i];
             if(!IS_NULL(e->key)) {
                 push(vm, OBJ_VAL(table));
@@ -1486,7 +1486,7 @@ JSR_NATIVE(jsr_Table_get) {
     }
 
     TableEntry* e;
-    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &e)) {
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
 
@@ -1507,23 +1507,23 @@ JSR_NATIVE(jsr_Table_set) {
     if(jsrIsNull(vm, 1)) JSR_RAISE(vm, "TypeException", "Key of Table cannot be null.");
 
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    if(t->numEntries + 1 > tableMaxEntryLoad(t->capacityMask + 1)) {
-        growEntries(vm, t);
+    if(t->count + t->tombstones + 1 > tableMaxEntryLoad(t->sizeMask + 1)) {
+        resizeEntries(vm, t);
     }
 
     TableEntry* e;
-    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &e)) {
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
 
     bool newEntry = IS_NULL(e->key);
     if(newEntry) {
         t->count++;
-        if(IS_NULL(e->val)) t->numEntries++;
+        if(!IS_NULL(e->val)) t->tombstones--;
     }
-
     *e = (TableEntry){vm->apiStack[1], vm->apiStack[2]};
     push(vm, BOOL_VAL(newEntry));
+
     return true;
 }
 
@@ -1537,7 +1537,7 @@ JSR_NATIVE(jsr_Table_delete) {
     }
 
     TableEntry* toDelete;
-    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &toDelete)) {
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &toDelete)) {
         return false;
     }
 
@@ -1548,6 +1548,7 @@ JSR_NATIVE(jsr_Table_delete) {
 
     *toDelete = (TableEntry){NULL_VAL, TOMB_MARKER};
     t->count--;
+    t->tombstones++;
 
     push(vm, BOOL_VAL(true));
     return true;
@@ -1555,8 +1556,9 @@ JSR_NATIVE(jsr_Table_delete) {
 
 JSR_NATIVE(jsr_Table_clear) {
     ObjTable* t = AS_TABLE(vm->apiStack[0]);
-    t->numEntries = t->count = 0;
-    for(size_t i = 0; i < t->capacityMask + 1; i++) {
+    t->count = 0;
+    t->tombstones = 0;
+    for(size_t i = 0; i < t->sizeMask + 1; i++) {
         t->entries[i] = (TableEntry){NULL_VAL, NULL_VAL};
     }
     push(vm, NULL_VAL);
@@ -1579,7 +1581,7 @@ JSR_NATIVE(jsr_Table_contains) {
     }
 
     TableEntry* e;
-    if(!findEntry(vm, t->entries, t->capacityMask, vm->apiStack[1], &e)) {
+    if(!findEntry(vm, t->entries, t->sizeMask, vm->apiStack[1], &e)) {
         return false;
     }
 
@@ -1594,7 +1596,7 @@ JSR_NATIVE(jsr_Table_keys) {
     jsrPushList(vm);
 
     if(entries != NULL) {
-        for(size_t i = 0; i < t->capacityMask + 1; i++) {
+        for(size_t i = 0; i < t->sizeMask + 1; i++) {
             if(!IS_NULL(entries[i].key)) {
                 push(vm, entries[i].key);
                 jsrListAppend(vm, -2);
@@ -1613,7 +1615,7 @@ JSR_NATIVE(jsr_Table_values) {
     jsrPushList(vm);
 
     if(entries != NULL) {
-        for(size_t i = 0; i < t->capacityMask + 1; i++) {
+        for(size_t i = 0; i < t->sizeMask + 1; i++) {
             if(!IS_NULL(entries[i].key)) {
                 push(vm, entries[i].val);
                 jsrListAppend(vm, -2);
@@ -1636,14 +1638,14 @@ JSR_NATIVE(jsr_Table_iter) {
     size_t lastIdx = 0;
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx >= t->capacityMask) {
+        if(idx >= t->sizeMask) {
             push(vm, BOOL_VAL(false));
             return true;
         }
         lastIdx = idx + 1;
     }
 
-    for(size_t i = lastIdx; i < t->capacityMask + 1; i++) {
+    for(size_t i = lastIdx; i < t->sizeMask + 1; i++) {
         if(!IS_NULL(t->entries[i].key)) {
             push(vm, NUM_VAL(i));
             return true;
@@ -1659,7 +1661,7 @@ JSR_NATIVE(jsr_Table_next) {
 
     if(IS_NUM(vm->apiStack[1])) {
         size_t idx = (size_t)AS_NUM(vm->apiStack[1]);
-        if(idx <= t->capacityMask) {
+        if(idx <= t->sizeMask) {
             push(vm, t->entries[idx].key);
             return true;
         }
@@ -1678,7 +1680,7 @@ JSR_NATIVE(jsr_Table_string) {
 
     TableEntry* entries = t->entries;
     if(entries != NULL) {
-        for(size_t i = 0; i < t->capacityMask + 1; i++) {
+        for(size_t i = 0; i < t->sizeMask + 1; i++) {
             if(IS_NULL(entries[i].key)) continue;
 
             push(vm, entries[i].key);
