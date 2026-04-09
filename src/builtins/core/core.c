@@ -15,6 +15,7 @@
 #include "buffer.h"
 #include "conf.h"
 #include "gc.h"
+#include "hashtable.h"
 #include "import.h"
 #include "int_hashtable.h"
 #include "jstar.h"
@@ -1404,7 +1405,11 @@ static bool findEntry(JStarVM* vm, TableEntry* entries, size_t sizeMask, Value k
 }
 
 static void resizeEntries(JStarVM* vm, ObjTable* t) {
-    size_t newCap = t->sizeMask ? (t->sizeMask + 1) * GROW_FACTOR : INITIAL_CAPACITY;
+    size_t oldCap = t->sizeMask + 1;
+    size_t newCap = (t->count + 1 > MAX_ENTRY_LOAD(oldCap))
+                        ? (t->sizeMask ? oldCap * GROW_FACTOR : INITIAL_CAPACITY)
+                        : oldCap;
+
     TableEntry* newEntries = GC_ALLOC(vm, sizeof(TableEntry) * newCap);
     for(size_t i = 0; i < newCap; i++) {
         newEntries[i] = (TableEntry){NULL_VAL, NULL_VAL};

@@ -453,9 +453,6 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
 }
 
 bool isCompiledCode(const void* code, size_t len) {
-    if(len < sizeof(Header)) {
-        return false;
-    }
-    Header* h = (Header*)code;
-    return memcmp(h->magic, MAGIC, sizeof(MAGIC)) == 0;
+    if(len < sizeof(Header)) return false;
+    return memcmp(code, MAGIC, sizeof(MAGIC)) == 0;
 }
