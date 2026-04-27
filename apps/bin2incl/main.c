@@ -22,13 +22,11 @@ int main(int argc, char** argv) {
 
     StringBuffer out_content = {0};
     sb_appendf(&out_content, "%s\n", warning);
-    sb_appendf(&out_content, "const char* " SS_Fmt "_jsc = \"", SS_Arg(name));
+    sb_appendf(&out_content, "static const unsigned char " SS_Fmt "_jsc[] = {", SS_Arg(name));
     for(size_t i = 0; i < in_content.size; i++) {
-        sb_appendf(&out_content, "\\x%02x", (unsigned char)in_content.items[i]);
+        sb_appendf(&out_content, "0x%02x,", (unsigned char)in_content.items[i]);
     }
-    sb_append_cstr(&out_content, "\";\n");
-    sb_appendf(&out_content, "const size_t " SS_Fmt "_jsc_len = %zu;", SS_Arg(name),
-               in_content.size);
+    sb_append_cstr(&out_content, "};\n");
 
     if(!write_file(out, out_content.items, out_content.size)) return 1;
 

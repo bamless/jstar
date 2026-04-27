@@ -61,19 +61,19 @@ typedef struct {
 
 typedef struct {
     const char* name;
-    const char** bytecode;
-    const size_t* len;
+    const unsigned char* bytecode;
+    const size_t len;
     ModuleElem elems[31];
 } Module;
 
 // clang-format off
 
-#define CORE             {"__core__", &core_jsc, &core_jsc_len, {
-#define CORE_STD         {"__core__.std", &std_jsc, &std_jsc_len, {
-#define CORE_EXCS        {"__core__.excs", &excs_jsc, &excs_jsc_len, {
-#define CORE_ITER        {"__core__.iter", &iter_jsc, &iter_jsc_len, {
+#define CORE             {"__core__", core_jsc, sizeof(core_jsc), {
+#define CORE_STD         {"__core__.std", std_jsc, sizeof(std_jsc), {
+#define CORE_EXCS        {"__core__.excs", excs_jsc, sizeof(excs_jsc), {
+#define CORE_ITER        {"__core__.iter", iter_jsc, sizeof(iter_jsc), {
 
-#define MODULE(name)     { #name, &name##_jsc, &name##_jsc_len, {
+#define MODULE(name)     { #name, name##_jsc, sizeof(name##_jsc), {
 #define ENDMODULE        ELEMS_END } },
 
 #define ELEMS_END        {TYPE_FUNC, .as = { .function = METHODS_END } },
@@ -348,8 +348,8 @@ JStarNative resolveBuiltIn(const char* module, const char* cls, const char* name
 const void* readBuiltInModule(const char* name, size_t* len) {
     Module* m = getModule(name);
     if(m != NULL) {
-        *len = *m->len;
-        return *m->bytecode;
+        *len = m->len;
+        return m->bytecode;
     }
     *len = 0;
     return NULL;
