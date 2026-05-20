@@ -332,12 +332,8 @@ struct JStarStmt {
     do {                                                                                           \
         if((newCapacity) > (arr)->capacity) {                                                      \
             size_t oldCap = (arr)->capacity;                                                       \
-            if((arr)->capacity == 0) {                                                             \
-                (arr)->capacity = JSR_AST_ARRAY_INIT_CAP;                                          \
-            }                                                                                      \
-            while((newCapacity) > (arr)->capacity) {                                               \
-                (arr)->capacity *= 2;                                                              \
-            }                                                                                      \
+            if((arr)->capacity == 0) (arr)->capacity = JSR_AST_ARRAY_INIT_CAP;                     \
+            while((newCapacity) > (arr)->capacity) (arr)->capacity *= 2;                           \
             (arr)->items = jsrASTArenaRealloc(arena, (arr)->items, oldCap * sizeof(*(arr)->items), \
                                               (arr)->capacity * sizeof(*(arr)->items));            \
         }                                                                                          \

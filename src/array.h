@@ -5,24 +5,18 @@
 
 #include "jstar/conf.h"
 
-#define ARRAY_INIT_CAP           8
-#define arrayForeach(T, it, arr) for(T *it = (arr)->items; it < (arr)->items + (arr)->count; ++it)
+#define ARRAY_INIT_CAP 8
 
-#define arrayReserve(vm, arr, newCapacity)                                           \
-    do {                                                                             \
-        if((newCapacity) > (arr)->capacity) {                                        \
-            size_t oldCap = (arr)->capacity;                                         \
-            if((arr)->capacity == 0) {                                               \
-                (arr)->capacity = ARRAY_INIT_CAP;                                    \
-            }                                                                        \
-            while((newCapacity) > (arr)->capacity) {                                 \
-                (arr)->capacity *= 2;                                                \
-            }                                                                        \
-            (arr)->items = vm->realloc((arr)->items, oldCap * sizeof(*(arr)->items), \
-                                       (arr)->capacity * sizeof(*(arr)->items));     \
-            JSR_ASSERT((arr)->items, "Out of memory");                               \
-        }                                                                            \
-    } while(0)
+#define arrayForeach(T, it, arr) for(T* it = (arr)->items; it < (arr)->items + (arr)->count; ++it)
+
+// -----------------------------------------------------------------------------
+// DYNAMIC ARRAY
+// -----------------------------------------------------------------------------
+
+#define arrayReserve(vm, arr, newCapacity)                                  \
+    _arrayReserve(arr, newCapacity,                                         \
+                  vm->realloc((arr)->items, oldCap * sizeof(*(arr)->items), \
+                              (arr)->capacity * sizeof(*(arr)->items)))
 
 #define arrayAppend(vm, arr, item)                 \
     do {                                           \
@@ -36,21 +30,14 @@
         memset(arr, 0, sizeof(*arr));                                         \
     } while(0)
 
-#define arrayReserveGC(vm, arr, newCapacity)                                         \
-    do {                                                                             \
-        size_t oldCap = (arr)->capacity;                                             \
-        if((newCapacity) > (arr)->capacity) {                                        \
-            if((arr)->capacity == 0) {                                               \
-                (arr)->capacity = ARRAY_INIT_CAP;                                    \
-            }                                                                        \
-            while((newCapacity) > (arr)->capacity) {                                 \
-                (arr)->capacity *= 2;                                                \
-            }                                                                        \
-            (arr)->items = gcAlloc(vm, (arr)->items, oldCap * sizeof(*(arr)->items), \
-                                   (arr)->capacity * sizeof(*(arr)->items));         \
-            JSR_ASSERT((arr)->items, "GC out of memory");                            \
-        }                                                                            \
-    } while(0)
+// -----------------------------------------------------------------------------
+// GC'D DYNAMIC ARRAY
+// -----------------------------------------------------------------------------
+
+#define arrayReserveGC(vm, arr, newCapacity)                                \
+    _arrayReserve(arr, newCapacity,                                         \
+                  gcAlloc(vm, (arr)->items, oldCap * sizeof(*(arr)->items), \
+                          (arr)->capacity * sizeof(*(arr)->items)))
 
 #define arrayAppendGC(vm, arr, item)                 \
     do {                                             \
@@ -61,6 +48,18 @@
 #define arrayFreeGC(vm, arr)                                                   \
     do {                                                                       \
         gcAlloc(vm, (arr)->items, (arr)->capacity * sizeof(*(arr)->items), 0); \
+    } while(0)
+
+// Private reserver macro to compress gc and non-gc logic via generic realloc
+#define _arrayReserve(arr, newCapacity, reallocExpr)                     \
+    do {                                                                 \
+        if((newCapacity) > (arr)->capacity) {                            \
+            size_t oldCap = (arr)->capacity;                             \
+            if((arr)->capacity == 0) (arr)->capacity = ARRAY_INIT_CAP;   \
+            while((newCapacity) > (arr)->capacity) (arr)->capacity *= 2; \
+            (arr)->items = (reallocExpr);                                \
+            JSR_ASSERT((arr)->items, "Out of memory");                   \
+        }                                                                \
     } while(0)
 
 #endif
