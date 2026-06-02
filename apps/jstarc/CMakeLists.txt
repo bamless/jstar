@@ -7,7 +7,6 @@ if(LTO)
 endif()
 
 if(WIN32)
-    target_sources(jstarc PRIVATE icon.rc)
     add_custom_command(TARGET jstarc POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_RUNTIME_DLLS:jstarc>        # all needed DLLs
