@@ -128,6 +128,10 @@ JSTAR_API void jsrEvalBreak(JStarVM* vm);
 // Create a new symbol for use with `jsrCallMethodCached`, `jsrGetFieldCached` and
 // `jsrSetFieldCached`. This cached functions behave the same as the non-cached versions, but
 // cache the lookups for the same object type in order to speed up subsequent calls.
+//
+// A symbol represents one stable lookup site: reuse it only for repeated lookups of the same
+// name with the same cached API function. Do not share a symbol across different names or between
+// different cached operations, otherwise a previous cached lookup may be reused incorrectly.
 JSTAR_API JStarSymbol* jsrNewSymbol(JStarVM* vm);
 
 // Frees a symbol created with `jsrNewSymbol`
