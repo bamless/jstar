@@ -1465,7 +1465,7 @@ static void compileImportStatement(Compiler* c, const JStarStmt* s) {
 static void compileExcepts(Compiler* c, const JStarStmts* excepts, size_t curr) {
     const JStarStmt* except = excepts->items[curr];
 
-    // Retrieve the exception by using its phny variable name
+    // Retrieve the exception by using its phony variable name
     JStarIdentifier exceptionId = createIdentifier(".exception");
     compileVarLit(c, exceptionId, false, except->loc);
 
@@ -1553,7 +1553,7 @@ static void compileTryExcept(Compiler* c, const JStarStmt* s) {
     VarRef excVar = declareVar(c, exceptionName, false, s->loc);
     defineVar(c, &excVar, s->loc);
 
-    // Phony variable for the unwing cause enum
+    // Phony variable for the unwind cause enum
     JStarIdentifier causeName = createIdentifier(".cause");
     VarRef causeVar = declareVar(c, causeName, false, s->loc);
     defineVar(c, &causeVar, s->loc);

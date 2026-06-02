@@ -497,7 +497,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         gen->state = GEN_RUNNING;
         return false;
     case GEN_CLOSE:
-        // For enure handlers
+        // For ensure handlers
         if(unwindHandlers(vm, frame, arg)) {
             return true;
         }
@@ -1991,6 +1991,7 @@ op_return:
     TARGET(OP_SETUP_EXCEPT):
     TARGET(OP_SETUP_ENSURE): {
         uint16_t offset = NEXT_SHORT();
+        JSR_ASSERT(frame->handlerCount < MAX_HANDLERS, "Too many exception handlers");
         Handler* handler = &frame->handlers[frame->handlerCount++];
         handler->type = op == OP_SETUP_ENSURE ? HANDLER_ENSURE : HANDLER_EXCEPT;
         handler->address = ip + offset;
