@@ -274,6 +274,7 @@ JStarSymbol* jsrNewSymbol(JStarVM* vm) {
     *sym = (JStarSymbol){0};
 
     sym->next = vm->symbols;
+    if(vm->symbols) vm->symbols->prev = sym;
     vm->symbols = sym;
 
     return sym;

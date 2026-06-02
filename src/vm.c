@@ -564,8 +564,10 @@ static bool bindMethod(JStarVM* vm, ObjClass* cls, ObjString* name) {
 
 static bool bindMethodCached(JStarVM* vm, ObjClass* cls, ObjString* name, SymbolCache* sym) {
     if(isSymbolCached((Obj*)cls, sym)) {
-        JSR_ASSERT(sym->type == SYMBOL_METHOD, "Invalid symbol type");
-        push(vm, OBJ_VAL(newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method))));
+        JSR_ASSERT(sym->type == SYMBOL_BOUND_METHOD, "Invalid symbol type");
+        ObjBoundMethod* boundMeth = newBoundMethod(vm, peek(vm), AS_OBJ(sym->as.method));
+        pop(vm);
+        push(vm, OBJ_VAL(boundMeth));
         return true;
     }
 
@@ -807,7 +809,7 @@ static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name
     return NULL;
 }
 
-static bool getChachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
+static bool getCachedSymbol(JStarVM* vm, Obj* key, Obj* val, const SymbolCache* sym, Value* out) {
     if(!isSymbolCached(key, sym)) {
         return false;
     }
@@ -1109,7 +1111,7 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
 
             // Try cached method
             Value method;
-            if(getChachedSymbol(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
+            if(getCachedSymbol(vm, (Obj*)cls, (Obj*)inst, sym, &method)) {
                 return callValue(vm, method, argc);
             }
 
@@ -1138,16 +1140,20 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             ObjModule* mod = AS_MODULE(val);
 
             Value func;
-            if(getChachedSymbol(vm, (Obj*)mod, (Obj*)mod, sym, &func)) {
-                if(sym->type != SYMBOL_METHOD) {
-                    // This is a function call, put the function as the receiver instead of the
-                    // module
-                    vm->sp[-argc - 1] = func;
-                }
+
+            // Cached Module object method.
+            if(isSymbolCached((Obj*)mod->base.cls, sym)) {
+                JSR_ASSERT(sym->type == SYMBOL_METHOD, "Invalid symbol type");
+                return callValue(vm, sym->as.method, argc);
+            }
+
+            // Cached module global function/value.
+            if(getCachedGlobal(mod, sym, &func)) {
+                vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
             }
 
-            // Check if a method shadows a function in the module
+            // Check if a method shadows a function in the module.
             if(hashTableValueGet(&vm->modClass->methods, name, &func)) {
                 sym->type = SYMBOL_METHOD;
                 sym->key = (Obj*)mod->base.cls;
@@ -1155,14 +1161,13 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
                 return callValue(vm, func, argc);
             }
 
-            // If no method is found on the module object, try to get a global variable
+            // If no method is found on the module object, try to get a global variable.
             int off = moduleGetGlobalOffset(mod, name);
             if(off != -1) {
                 sym->type = SYMBOL_GLOBAL;
                 sym->key = (Obj*)mod;
                 sym->as.offset = off;
 
-                // This is a function call, put the function as the receiver instead of the module
                 Value func = mod->globals[off];
                 vm->sp[-argc - 1] = func;
                 return callValue(vm, func, argc);
