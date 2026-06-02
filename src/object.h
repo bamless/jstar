@@ -289,7 +289,6 @@ typedef struct ObjStackTrace {
         FrameRecord* items;
         size_t capacity, count;
     } records;
-    int lastTracedFrame;
 } ObjStackTrace;
 
 // Garbage collected user data
@@ -363,7 +362,7 @@ bool stringEquals(ObjString* s1, ObjString* s2);
 
 // ObjStacktrace functions
 // Dumps a frame in an `ObjStackTrace`
-void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f, int depth);
+void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f);
 
 // Misc functions
 // Get the value array of a List or a Tuple

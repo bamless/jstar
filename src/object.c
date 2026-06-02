@@ -192,7 +192,6 @@ ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*)) {
 
 ObjStackTrace* newStackTrace(JStarVM* vm) {
     ObjStackTrace* st = (ObjStackTrace*)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
-    st->lastTracedFrame = -1;
     st->records.items = NULL;
     st->records.capacity = 0;
     st->records.count = 0;
@@ -480,11 +479,9 @@ bool stringEquals(ObjString* s1, ObjString* s2) {
     return s1->length == s2->length && memcmp(s1->data, s2->data, s1->length) == 0;
 }
 
-void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f, int depth) {
-    if(st->lastTracedFrame == depth) return;
-    st->lastTracedFrame = depth;
-
+void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f) {
     FrameRecord record = {0};
+
     switch(f->fn->type) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)f->fn;

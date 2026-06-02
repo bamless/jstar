@@ -1270,6 +1270,9 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 bool runEval(JStarVM* vm, int evalDepth) {
     PROFILE_FUNC()
 
+    // Current opcode
+    uint8_t op = 0;
+
     // Keep frequently used variables in locals
     Frame* frame;
     Value* frameStack;
@@ -1416,7 +1419,6 @@ bool runEval(JStarVM* vm, int evalDepth) {
         UNWIND_STACK();
     }
 
-    uint8_t op;
     DECODE(op) {
 
     TARGET(OP_ADD): {
@@ -2085,7 +2087,11 @@ op_return:
 
 stack_unwind:
     SAVE_STATE();
-    if(!unwindStack(vm, evalDepth)) {
+    // `OP_END_HANDLER` re-triggers unwinding when an ensure/except handler finishes without
+    // handling the exception. At that point `ip` is inside the handler body, not at a real
+    // call or throw site, so we skip dumping the frame to avoid injecting a spurious entry
+    // into the exception's stacktrace.
+    if(!unwindStack(vm, evalDepth, op == OP_END_HANDLER)) {
         vm->reentrantCalls--;
         return false;
     }
@@ -2097,10 +2103,10 @@ exit_eval:
     return true;
 }
 
-bool unwindStack(JStarVM* vm, int depth) {
+bool unwindStack(JStarVM* vm, int toDepth, bool skipDump) {
     PROFILE_FUNC()
 
-    JSR_ASSERT(vm->frameCount > depth, "No frame to unwind");
+    JSR_ASSERT(vm->frameCount > toDepth, "No frame to unwind");
     JSR_ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");
 
     ObjInstance* exception = AS_INSTANCE(peek(vm));
@@ -2113,7 +2119,7 @@ bool unwindStack(JStarVM* vm, int depth) {
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
     Frame* frame = NULL;
-    for(; vm->frameCount > depth; vm->frameCount--) {
+    for(; vm->frameCount > toDepth; vm->frameCount--) {
         frame = &vm->frames[vm->frameCount - 1];
 
         switch(frame->fn->type) {
@@ -2131,7 +2137,9 @@ bool unwindStack(JStarVM* vm, int depth) {
             JSR_UNREACHABLE();
         }
 
-        stacktraceDump(vm, stacktrace, frame, vm->frameCount);
+        if(!skipDump) {
+            stacktraceDump(vm, stacktrace, frame);
+        }
 
         // Execute exception handlers if present
         if(frame->handlerCount > 0) {

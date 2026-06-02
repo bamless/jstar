@@ -179,7 +179,7 @@ bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sy
 void reserveStack(JStarVM* vm, size_t needed);
 
 bool runEval(JStarVM* vm, int evalDepth);
-bool unwindStack(JStarVM* vm, int depth);
+bool unwindStack(JStarVM* vm, int toDepth, bool skipDump);
 
 inline void push(JStarVM* vm, Value v) {
     *vm->sp++ = v;

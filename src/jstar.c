@@ -238,7 +238,7 @@ static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {
 
     // If needed, finish to unwind the stack
     if(vm->frameCount > evalDepth) {
-        unwindStack(vm, evalDepth);
+        unwindStack(vm, evalDepth, false);
     }
 }
 
@@ -359,8 +359,6 @@ void jsrRaiseException(JStarVM* vm, int slot) {
     Value value = NULL_VAL;
     instanceGetField(cls, exception, vm->excTrace, &value);
     ObjStackTrace* st = IS_STACK_TRACE(value) ? (ObjStackTrace*)AS_OBJ(value) : newStackTrace(vm);
-    st->lastTracedFrame = -1;
-
     instanceSetField(vm, cls, exception, vm->excTrace, OBJ_VAL(st));
 
     // Place the exception on top of the stack if not already
