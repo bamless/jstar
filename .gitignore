@@ -1,5 +1,6 @@
 build/
 out/
+tmp/
 *.jsc.inc
 /*.json
 test*
