@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -220,7 +221,8 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, 
     }
 
     ObjFunction* fn;
-    ObjString* dummy = copyCStringInterned(vm, "");  // Use dummy module since the code won't be executed
+    ObjString* dummy =
+        copyCStringInterned(vm, "");  // Use dummy module since the code won't be executed
     JStarResult res = deserializeModule(vm, path, dummy, code, len, &fn);
 
     if(res == JSR_SUCCESS) {
@@ -250,23 +252,46 @@ static bool executeCall(JStarVM* vm, int evalDepth) {
 }
 
 bool jsrCall(JStarVM* vm, uint8_t argc) {
+    ObjModule* oldModule = vm->module;
     int evalDepth = vm->frameCount;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
         callError(vm, evalDepth, argc);
+        vm->module = oldModule;
         return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
+        vm->module = oldModule;
         return false;
     }
 
+    vm->module = oldModule;
     return true;
 }
 
 bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
     JStarSymbol sym = {0};
     return jsrCallMethodCached(vm, name, argc, &sym);
+}
+
+bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
+    ObjModule* oldModule = vm->module;
+    int evalDepth = vm->frameCount;
+
+    if(!invokeValue(vm, copyCStringInterned(vm, name), argc, &sym->sym)) {
+        callError(vm, evalDepth, argc);
+        vm->module = oldModule;
+        return false;
+    }
+
+    if(!executeCall(vm, evalDepth)) {
+        vm->module = oldModule;
+        return false;
+    }
+
+    vm->module = oldModule;
+    return true;
 }
 
 JStarSymbol* jsrNewSymbol(JStarVM* vm) {
@@ -293,21 +318,6 @@ void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym) {
     }
 
     GC_FREE(vm, JStarSymbol, sym);
-}
-
-bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
-    int evalDepth = vm->frameCount;
-
-    if(!invokeValue(vm, copyCStringInterned(vm, name), argc, &sym->sym)) {
-        callError(vm, evalDepth, argc);
-        return false;
-    }
-
-    if(!executeCall(vm, evalDepth)) {
-        return false;
-    }
-
-    return true;
 }
 
 void jsrEvalBreak(JStarVM* vm) {
@@ -633,28 +643,60 @@ size_t jsrTupleGetLength(const JStarVM* vm, int slot) {
     return AS_TUPLE(tup)->count;
 }
 
+// NOTE: jsrSubscriptGet and jsrSubscriptSet end up calling `invokeMethod` on the
+// generic overload path. If such overloads are J* functions instead of natives, we
+// must make sure to execute the pushed function frame. To do this, we use the same
+// mechanism we use in `jsrCall` and `jsrCallMethodCached`, i.e. we call `executeCall`
+// that will check for a newly pushed frame and call `runEval` if needed.
+
 bool jsrSubscriptGet(JStarVM* vm, int slot) {
+    ObjModule* oldModule = vm->module;
+    int evalDepth = vm->frameCount;
+
     push(vm, apiStackSlot(vm, slot));
     swapStackSlots(vm, -1, -2);
-    return getValueSubscript(vm);
+
+    if(!getValueSubscript(vm)) {
+        callError(vm, evalDepth, 1);
+        vm->module = oldModule;
+        return false;
+    }
+
+    if(!executeCall(vm, evalDepth)) {
+        vm->module = oldModule;
+        return false;
+    }
+
+    vm->module = oldModule;
+    return true;
 }
 
 bool jsrSubscriptSet(JStarVM* vm, int slot) {
+    ObjModule* oldModule = vm->module;
+    int evalDepth = vm->frameCount;
+
     swapStackSlots(vm, -1, -2);
     push(vm, apiStackSlot(vm, slot));
-    return setValueSubscript(vm);
+
+    if(!setValueSubscript(vm)) {
+        callError(vm, evalDepth, 2);
+        vm->module = oldModule;
+        return false;
+    }
+
+    if(!executeCall(vm, evalDepth)) {
+        vm->module = oldModule;
+        return false;
+    }
+
+    return true;
 }
 
 size_t jsrGetLength(JStarVM* vm, int slot) {
     push(vm, apiStackSlot(vm, slot));
-
-    if(!jsrCallMethod(vm, "__len__", 0)) {
-        return SIZE_MAX;
-    }
-
+    if(!jsrCallMethod(vm, "__len__", 0)) return SIZE_MAX;
     size_t size = jsrGetNumber(vm, -1);
     pop(vm);
-
     return size;
 }
 
@@ -685,9 +727,7 @@ bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
 
 bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name, JStarSymbol* sym) {
     ObjModule* mod = getModuleOrRaise(vm, module);
-    if(!mod) {
-        return false;
-    }
+    if(!mod) return false;
     setGlobalName(vm, mod, copyCStringInterned(vm, name), &sym->sym);
     return true;
 }
