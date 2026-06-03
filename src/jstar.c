@@ -238,7 +238,7 @@ static void callError(JStarVM* vm, int evalDepth, uint8_t argc) {
 
     // If needed, finish to unwind the stack
     if(vm->frameCount > evalDepth) {
-        unwindStack(vm, evalDepth, false);
+        unwindStack(vm, evalDepth);
     }
 }
 

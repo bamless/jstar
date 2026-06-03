@@ -468,11 +468,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         action = AS_NUM(pop(vm));
     }
 
-    Value arg = NULL_VAL;
-    if(argc) {
-        arg = pop(vm);
-    }
-
+    Value arg = argc ? pop(vm) : NULL_VAL;
     Frame* frame = getFrame(vm);
     reserveStack(vm, gen->frame.stackTop);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
@@ -1270,9 +1266,6 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 bool runEval(JStarVM* vm, int evalDepth) {
     PROFILE_FUNC()
 
-    // Current opcode
-    uint8_t op = 0;
-
     // Keep frequently used variables in locals
     Frame* frame;
     Value* frameStack;
@@ -1419,6 +1412,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         UNWIND_STACK();
     }
 
+    uint8_t op = 0;
     DECODE(op) {
 
     TARGET(OP_ADD): {
@@ -2088,11 +2082,7 @@ op_return:
 
 stack_unwind:
     SAVE_STATE();
-    // `OP_END_HANDLER` re-triggers unwinding when an ensure/except handler finishes without
-    // handling the exception. At that point `ip` is inside the handler body, not at a real
-    // call or throw site, so we skip dumping the frame to avoid injecting a spurious entry
-    // into the exception's stacktrace.
-    if(!unwindStack(vm, evalDepth, op == OP_END_HANDLER)) {
+    if(!unwindStack(vm, evalDepth)) {
         vm->reentrantCalls--;
         return false;
     }
@@ -2104,7 +2094,7 @@ exit_eval:
     return true;
 }
 
-bool unwindStack(JStarVM* vm, int toDepth, bool skipDump) {
+bool unwindStack(JStarVM* vm, int toDepth) {
     PROFILE_FUNC()
 
     JSR_ASSERT(vm->frameCount > toDepth, "No frame to unwind");
@@ -2123,10 +2113,12 @@ bool unwindStack(JStarVM* vm, int toDepth, bool skipDump) {
     for(; vm->frameCount > toDepth; vm->frameCount--) {
         frame = &vm->frames[vm->frameCount - 1];
 
+        Opcode lastOp = -1;
         switch(frame->fn->type) {
         case OBJ_CLOSURE: {
             ObjClosure* closure = (ObjClosure*)frame->fn;
             vm->module = closure->fn->proto.module;
+            lastOp = frame->ip[-1];
             break;
         }
         case OBJ_NATIVE: {
@@ -2138,7 +2130,11 @@ bool unwindStack(JStarVM* vm, int toDepth, bool skipDump) {
             JSR_UNREACHABLE();
         }
 
-        if(!skipDump) {
+        // `OP_END_HANDLER` re-triggers unwinding when an ensure/except handler finishes without
+        // handling the exception. At that point `ip` is inside the handler body, not at a real
+        // call or throw site, so we skip dumping the frame to avoid injecting a spurious entry
+        // into the exception's stacktrace.
+        if(lastOp != OP_END_HANDLER) {
             stacktraceDump(vm, stacktrace, frame);
         }
 
@@ -2150,11 +2146,7 @@ bool unwindStack(JStarVM* vm, int toDepth, bool skipDump) {
             return true;
         }
 
-        // Set generators as completed
-        if(frame->gen) {
-            frame->gen->state = GEN_DONE;
-        }
-
+        if(frame->gen) frame->gen->state = GEN_DONE;
         closeUpvalues(vm, frame->stack);
     }
 
