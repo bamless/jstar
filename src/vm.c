@@ -1412,7 +1412,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         UNWIND_STACK();
     }
 
-    uint8_t op = 0;
+    uint8_t op;
     DECODE(op) {
 
     TARGET(OP_ADD): {
