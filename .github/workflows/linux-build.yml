@@ -8,21 +8,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: 'recursive'
+        submodules: recursive
     - name: configure
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_INSTALL_PREFIX=release/jstar
+      run: >
+        cmake -S . -B build
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_C_COMPILER=gcc
+        -DCMAKE_CXX_COMPILER=g++
+        -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/build/release/jstar"
     - name: build
-      run: |
-        cd build
-        make -j
-    - name: package binaries
-      run: |
-        cd build
-        mkdir -p release/jstar
-        make install
+      run: cmake --build build --config Release --parallel
+    - name: install
+      run: cmake --install build --config Release --strip
     - name: upload binaries
       uses: actions/upload-artifact@v4
       with:
