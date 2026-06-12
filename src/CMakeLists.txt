@@ -195,15 +195,14 @@ set_target_properties(jstar PROPERTIES
     C_VISIBILITY_PRESET hidden
 )
 
-if(LTO) # Enable link-time optimization for shared library if supported
+if(JSTAR_LTO)
     set_target_properties(jstar PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 # -----------------------------------------------------------------------------
-# Installation
+# Install target
 # -----------------------------------------------------------------------------
 
-# Install target
 if(JSTAR_INSTALL)
     include(GNUInstallDirs)
 

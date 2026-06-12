@@ -14,7 +14,7 @@ add_executable(cli
 target_link_libraries(cli PRIVATE jstar common replxx argparse ${CMAKE_DL_LIBS})
 target_include_directories(cli PRIVATE ${PROJECT_BINARY_DIR})
 set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
-if(LTO)
+if(JSTAR_LTO)
     set_target_properties(cli PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
@@ -31,7 +31,6 @@ endif()
 if(JSTAR_INSTALL)
     include(GNUInstallDirs)
 
-    # Setup relative rpath on unix and macos
     if(APPLE)
         set_target_properties(cli PROPERTIES INSTALL_RPATH "@executable_path/../${CMAKE_INSTALL_LIBDIR}")
     elseif(UNIX)

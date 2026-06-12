@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 
 project(jstar)
 set(CMAKE_PROJECT_DESCRIPTION "A lightweight embeddable scripting language")
@@ -21,6 +21,7 @@ option(JSTAR_DBG_PRINT_GC    "Trace the execution of the garbage collector" OFF)
 option(JSTAR_DBG_STRESS_GC   "Stress the garbage collector by calling it on every allocation" OFF)
 option(JSTAR_DBG_CACHE_STATS "Enable inline cache statistics" OFF)
 option(JSTAR_INSTRUMENT      "Enable function instrumentation" OFF)
+option(JSTAR_LTO             "Enable link-time optimization for JStar targets" OFF)
 
 # Optional language libraries
 option(JSTAR_SYS   "Include the 'sys' module in the language" ON)
@@ -37,36 +38,38 @@ configure_file (
 
 # Set default build type if not specified
 get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if (NOT IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
+if (PROJECT_IS_TOP_LEVEL AND NOT IS_MULTI_CONFIG AND NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to 'Release' as none was specified.")
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
 endif()
 
 # Check for link time optimization support
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+if(PROJECT_IS_TOP_LEVEL AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     include(CheckIPOSupported)
-    check_ipo_supported(RESULT LTO)
-    if(LTO)
+    check_ipo_supported(RESULT JSTAR_LTO)
+    if(JSTAR_LTO)
         message(STATUS "J* link-time optimization enabled")
     endif()
 endif()
 
-# Set compiler flags
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror=switch")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer -fno-plt")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
-elseif(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
-    set(CMAKE_C_FLAGS "-Wall -Wextra -Werror=switch")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fomit-frame-pointer")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
-elseif(MSVC)
-    # Disable secure warnings for the useless _s variants of standard functions.
-    # These shouldn't even exist in c99 but MSVC will complain about them because it's MSVC.
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-    add_definitions(-DWIN32_LEAN_AND_MEAN)
-    add_definitions(-DNOMINMAX)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244 /wd4267 /wd5105 /wd4116")
+if(PROJECT_IS_TOP_LEVEL)
+    add_compile_options(
+        "$<$<OR:$<C_COMPILER_ID:GNU>,$<C_COMPILER_ID:Clang>>:-Wall;-Wextra;-Werror=switch>"
+        "$<$<AND:$<CONFIG:Release>,$<C_COMPILER_ID:GNU>>:-fno-plt>"
+        "$<$<C_COMPILER_ID:MSVC>:/wd4244;/wd4267;/wd5105;/wd4116>"
+    )
+    add_link_options(
+        $<$<AND:$<CONFIG:Release>,$<OR:$<C_COMPILER_ID:GNU>,$<C_COMPILER_ID:Clang>>>:-s>
+    )
+
+    set(MSVC_LIKE
+        "$<OR:$<C_COMPILER_ID:MSVC>,$<AND:$<C_COMPILER_ID:Clang>,$<STREQUAL:${CMAKE_C_SIMULATE_ID},MSVC>>>"
+    )
+    add_compile_definitions(
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN>
+        $<$<PLATFORM_ID:Windows>:NOMINMAX>
+        $<${MSVC_LIKE}:_CRT_SECURE_NO_WARNINGS>
+    )
 endif()
 
 # J*, cli, compiler and external dependencies
@@ -74,13 +77,13 @@ add_subdirectory(src)
 add_subdirectory(apps)
 add_subdirectory(extern)
 
-# Documentation WASM module — only available when compiling with Emscripten
+# Documentation WASM module. Only available when compiling with Emscripten
 if(EMSCRIPTEN)
     add_subdirectory(docs)
 endif()
 
 # -----------------------------------------------------------------------------
-# Installation
+# Install target
 # -----------------------------------------------------------------------------
 
 if(JSTAR_INSTALL)

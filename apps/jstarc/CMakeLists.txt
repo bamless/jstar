@@ -1,8 +1,8 @@
 add_executable(jstarc main.c)
-
 target_link_libraries(jstarc PRIVATE jstar common argparse)
 target_include_directories(jstarc PRIVATE ${PROJECT_BINARY_DIR})
-if(LTO)
+
+if(JSTAR_LTO)
     set_target_properties(jstarc PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
