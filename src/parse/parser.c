@@ -859,10 +859,13 @@ static JStarStmt* decoratedDecl(Parser* p) {
 static JStarExpr* assignmentExpr(Parser* p, JStarExpr* l, bool parseTuple);
 
 static JStarStmt* exprStmt(Parser* p) {
+    JStarTok tok = p->peek;
     JStarExpr* l = tupleLiteral(p);
 
     if(!isAssign(p->peek) && !isCallExpression(l) && l->type != JSR_YIELD) {
-        error(p, "Invalid syntax");
+        errorTok(p, tok,
+                 "Invalid expression statement. Only calls, yield or assignments are allowed as "
+                 "statements. Consider adding a variable declaration.");
     }
 
     if(isAssign(p->peek)) {
