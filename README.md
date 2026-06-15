@@ -23,7 +23,7 @@ among the language and host program, rendering embedding simple.
  - **Fully object oriented**. Every entity, from numbers to class instances, is an object in **J\***
  - **Modular**. A fully fledged module system makes it easy to split your code across multiple files
  - **Easily extensible**. The language can be easily extended by creating C functions callable from
-   **J\*** using the API, or by importing [C extensions](https://github.com/bamless/jsocket)
+   **J\*** using the API, or by importing [C extensions](https://github.com/bamless/event_horizon)
    provided as dynamic libraries.
 
 To get a feel of the language, [try it in your browser](https://bamless.github.io/jstar/demo)!
