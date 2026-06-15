@@ -38,15 +38,14 @@
 
 #include "jstar/jstar.h"
 
-// Evaluate `src` in a fresh, short-lived VM and return the raw JStarResult
-// code (0 = JSR_SUCCESS; see JStarResult in jstar.h for the other values).
+// Evaluate `src` in a fresh, short-lived VM.
 //
 // A new VM is created for every call so that state cannot leak between runs
 // in the interactive demo.  The default conf uses jsrPrintErrorCB, which
-// writes syntax/compile errors to stderr — Emscripten maps that stream to
+// writes syntax/compile errors to stderr. Emscripten maps that stream to
 // Module.printErr as set up by jstar-api.js.
 EMSCRIPTEN_KEEPALIVE
-int jstar_run(const char* src) {
+JStarResult jstar_run(const char* src) {
     JStarConf conf = jsrGetConf();
     JStarVM* vm = jsrNewVM(&conf);
     jsrInitRuntime(vm);
