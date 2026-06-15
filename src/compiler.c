@@ -417,11 +417,6 @@ static VarRef resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     return (VarRef){VAR_GLOBAL, {.name = id}};
 }
 
-static void initializeVar(Compiler* c, const VarRef* var) {
-    JSR_ASSERT(var->scope == VAR_LOCAL, "Only local variables can be marked initialized");
-    initializeLocal(c, var->as.varIdx);
-}
-
 static VarRef declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JStarLoc loc) {
     if(inGlobalScope(c) && !forceLocal) {
         arrayAppend(c->vm, c->globals, id);
@@ -459,7 +454,7 @@ static void defineVar(Compiler* c, const VarRef* var, JStarLoc loc) {
         emitShort(c, identifierSymbol(c, var->as.name, loc), loc.line);
         break;
     case VAR_LOCAL:
-        initializeVar(c, var);
+        initializeLocal(c, var->as.varIdx);
         break;
     case VAR_ERR:
         // Nothing to do, error already reported
@@ -1968,7 +1963,7 @@ static void compileFunDecl(Compiler* c, const JStarStmt* s) {
 
     // If local initialize the variable in order to permit the function to reference itself
     if(funVar.scope == VAR_LOCAL) {
-        initializeVar(c, &funVar);
+        initializeLocal(c, funVar.as.varIdx);
     }
 
     const JStarExprs* decorators = &s->as.decl.decorators;
