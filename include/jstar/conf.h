@@ -12,7 +12,7 @@
     (JSTAR_VERSION_MAJOR * 100000 + JSTAR_VERSION_MINOR * 1000 + JSTAR_VERSION_PATCH)
 
 // compiler and platform on which this J* binary was compiled
-#define JSTAR_COMPILER "Clang 22.1.7"
+#define JSTAR_COMPILER "GNU 16.1.1"
 #define JSTAR_PLATFORM "Linux"
 
 // Options

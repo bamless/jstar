@@ -122,7 +122,7 @@ parts of the implementation.
 
 # Building from source
 
-The **J\*** library requires a C99 compiler and CMake (>= 3.9) to be built, and is known to compile
+The **J\*** library requires a C99 compiler and CMake (>= 3.21) to be built, and is known to compile
 on OSX (Apple clang), Windows (both MSVC and MinGW-w64) and Linux (GCC, clang).
 
 To build the provided **command line interface** `jstar`, a C++11 compiler is required as one of its
@@ -165,23 +165,6 @@ Various CMake options are available to switch on or off certain functionalities 
 | JSTAR_DBG_PRINT_GC   |   OFF   | Trace the execution of the garbage collector |
 | JSTAR_INSTRUMENT     |   OFF   | Enable instrumentation timers scattered throughout the code. Running J* will then produce 3 json files importable from `chrome://tracing` to view a timeline of executed functions. Supported only when using the GCC compiler on POSIX systems |
 
-# Building without CMake
-
-On unixes, an hand-written Makefile is also provided if you don't want to use cmake.  
-To build a debug build using it:
-```sh
-    make -j
-    make install
-```
-For a release build:
-```sh
-    # USE_LTO optionally enables link-time optimizations
-    RELEASE=1 USE_LTO=1 make -j
-    make install
-```
-
-To configure the build using the options reported above, you can directly modify
-`./include/jstar/conf.h`
 
 # Binaries
 
