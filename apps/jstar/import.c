@@ -1,12 +1,12 @@
 #include "import.h"
 
-#include <extlib.h>
 #include <jstar/jstar.h>
-#include <path.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "dynload.h"
+#include "extlib.h"
+#include "path.h"
 
 #define PACKAGE_FILE    "__package__"    // Name of the file executed during package imports
 #define JSR_EXT         ".jsr"           // Normal J* source file extension

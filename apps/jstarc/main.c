@@ -1,13 +1,14 @@
 #include <argparse.h>
 #include <errno.h>
-#include <extlib.h>
 #include <jstar/buffer.h>
 #include <jstar/jstar.h>
 #include <jstar/parse/lex.h>
-#include <path.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "extlib.h"
+#include "path.h"
 
 #ifdef JSTAR_WINDOWS
     #include <io.h>

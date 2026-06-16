@@ -1,10 +1,11 @@
 #include "completion.h"
 
-#include <extlib.h>
 #include <jstar/jstar.h>
 #include <jstar/parse/lex.h>
 #include <replxx.h>
 #include <string.h>
+
+#include "extlib.h"
 
 #define INDENT "    "
 

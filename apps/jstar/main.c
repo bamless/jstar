@@ -1,5 +1,4 @@
 #include <argparse.h>
-#include <extlib.h>
 #include <jstar/conf.h>
 #include <jstar/jstar.h>
 #include <jstar/parse/ast.h>
@@ -14,6 +13,7 @@
 
 #include "completion.h"
 #include "console_print.h"
+#include "extlib.h"
 #include "highlighter.h"
 #include "import.h"
 

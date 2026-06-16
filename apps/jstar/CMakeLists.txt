@@ -11,7 +11,7 @@ add_executable(cli
     main.c
 )
 
-target_link_libraries(cli PRIVATE jstar common replxx argparse ${CMAKE_DL_LIBS})
+target_link_libraries(cli PRIVATE jstar path extlib replxx argparse ${CMAKE_DL_LIBS})
 target_include_directories(cli PRIVATE ${PROJECT_BINARY_DIR})
 set_target_properties(cli PROPERTIES OUTPUT_NAME "jstar")
 if(JSTAR_LTO)
