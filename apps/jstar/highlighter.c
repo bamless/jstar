@@ -3,6 +3,7 @@
 #include <jstar/conf.h>
 #include <jstar/parse/lex.h>
 #include <replxx.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -87,16 +88,16 @@ static const ReplxxColor theme[TOK_EOF] = {
 // HIGHLIGHTER FUNCTION
 // -----------------------------------------------------------------------------
 
-int utf8strCodepointLen(const char* s, int size) {
-    int codepointLen = 0;
-    int i = 0;
-    while(i < size) {
+int utf8strCodepointLen(const char* s, size_t size) {
+    size_t codepointLen = 0;
+    for(size_t i = 0; i < size;) {
         unsigned char c = s[i];
         if(c <= 0x7F) {
             // 1-byte (ASCII)
             i += 1;
         } else if((c & 0xE0) == 0xC0) {
             // Expecting 2-byte sequence
+            if(c < 0xC2) return 0;  // overlong (0xC0, 0xC1)
             if(i + 1 >= size) return 0;
             unsigned char c2 = s[i + 1];
             if((c2 & 0xC0) != 0x80) return 0;
@@ -106,12 +107,17 @@ int utf8strCodepointLen(const char* s, int size) {
             if(i + 2 >= size) return 0;
             unsigned char c2 = s[i + 1], c3 = s[i + 2];
             if((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80) return 0;
+            if(c == 0xED && c2 >= 0xA0) return 0;  // surrogate (U+D800–U+DFFF)
+            if(c == 0xE0 && c2 < 0xA0) return 0;   // overlong
             i += 3;
         } else if((c & 0xF8) == 0xF0) {
             // Expecting 4-byte sequence
+            if(c > 0xF4) return 0;  // above U+10FFFF
             if(i + 3 >= size) return 0;
             unsigned char c2 = s[i + 1], c3 = s[i + 2], c4 = s[i + 3];
             if((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80 || (c4 & 0xC0) != 0x80) return 0;
+            if(c == 0xF0 && c2 < 0x90) return 0;  // overlong
+            if(c == 0xF4 && c2 > 0x8F) return 0;  // above U+10FFFF
             i += 4;
         } else {
             // Invalid first byte
@@ -123,8 +129,9 @@ int utf8strCodepointLen(const char* s, int size) {
 }
 
 static void setTokColor(const char* in, const JStarTok* tok, ReplxxColor color, ReplxxColor* out) {
-    size_t utf8Len = utf8strCodepointLen(tok->lexeme, tok->length);
-    size_t startOffset = tok->lexeme - in;
+    size_t byteOffset = tok->lexeme - in;
+    size_t startOffset = utf8strCodepointLen(in, byteOffset);
+    size_t utf8Len = utf8strCodepointLen(tok->lexeme, (int)tok->length);
     for(size_t i = startOffset; i < startOffset + utf8Len; i++) {
         out[i] = color;
     }
