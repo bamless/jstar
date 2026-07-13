@@ -2,7 +2,7 @@ Diagnostics:
   UnusedIncludes: Strict
 
 If:
-  PathMatch: [src/**/.*\.h, include/**/.*\.h, src/**/.*\.c]
+  PathMatch: [src/.*\.h, include/.*\.h, src/.*\.c]
 CompileFlags:
   Add: [-x, c]
   Remove: [-m*, -fno-crossjumping, -std=gnu++*]
