@@ -306,7 +306,8 @@ static uint16_t identifierSymbol(Compiler* c, JStarIdentifier id, JStarLoc loc) 
 
 static int addLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     if(c->localsCount == MAX_LOCALS) {
-        error(c, loc, "Too many local variables in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many local variables in function %s (max %zu)",
+              c->func->proto.name->data, MAX_LOCALS);
         return -1;
     }
     Local* local = &c->locals[c->localsCount];
@@ -419,6 +420,13 @@ static VarRef resolveVar(Compiler* c, JStarIdentifier id, JStarLoc loc) {
 
 static VarRef declareVar(Compiler* c, JStarIdentifier id, bool forceLocal, JStarLoc loc) {
     if(inGlobalScope(c) && !forceLocal) {
+        int localIdx = resolveLocal(c, id, loc);
+        if(localIdx != -1) {
+            error(c, loc, "Cannot declare global variable `%.*s`: already declared as `static`",
+                  id.length, id.name);
+            error(c, c->locals[localIdx].loc, "NOTE: previous declaration is here");
+            return (VarRef){.scope = VAR_ERR};
+        }
         arrayAppend(c->vm, c->globals, id);
         return (VarRef){VAR_GLOBAL, {.name = id}};
     }
@@ -460,6 +468,7 @@ static void defineVar(Compiler* c, const VarRef* var, JStarLoc loc) {
         // Nothing to do, error already reported
         break;
     case VAR_UPVALUE:
+        // Upvalues should never be defined in the compiler
         JSR_UNREACHABLE();
     }
 }
@@ -632,6 +641,7 @@ static Value literalToValue(Compiler* c, const JStarExpr* e) {
 static void addFunctionDefaults(Compiler* c, Prototype* proto, const JStarExprs* defaults) {
     size_t i = 0;
     arrayForeach(JStarExpr*, it, defaults) {
+        if(i >= proto->defCount) break;
         proto->defaults[i++] = literalToValue(c, *it);
     }
 }
@@ -888,7 +898,7 @@ static void compileUnpackAssign(Compiler* c, const JStarExprs* lvals, const JSta
         adjustStackUsage(c, lvals->count - 1);
     }
 
-    // compile lvals in reverse order in order to assign
+    // Compile lvals in reverse order in order to assign
     // correct values to variables in case of a const unpack
     for(int n = lvals->count - 1; n >= 0; n--) {
         JStarExpr* lval = lvals->items[n];
@@ -932,7 +942,7 @@ static void compileCompundAssign(Compiler* c, const JStarExpr* e) {
     JStarExpr* l = e->as.compoundAssign.lval;
     JStarExpr* r = e->as.compoundAssign.rval;
 
-    // expand compound assignement (e.g. a op= b -> a = a op b)
+    // expand compound assignement (e.g. `a op= b` -> `a = a op b`)
     JStarExpr binary = {e->loc, JSR_BINARY, {.binary = {op, l, r}}};
     JStarExpr assignment = {e->loc, JSR_ASSIGN, {.assign = {l, &binary}}};
 
@@ -1322,6 +1332,8 @@ static void compileForStatement(Compiler* c, const JStarStmt* s) {
  *     ...
  * end
  *
+ * Desugars into:
+ *
  * begin
  *     var iter = null
  *     var expr = iterable
@@ -1592,6 +1604,8 @@ static void compileRaiseStmt(Compiler* c, const JStarStmt* s) {
  *   code
  * end
  *
+ * Desugars into:
+ *
  * begin
  *   var x
  *   try
@@ -1683,7 +1697,7 @@ static void compileLoopExitStmt(Compiler* c, const JStarStmt* s) {
 
     discardScopes(c, c->loops->depth, s->loc.line);
 
-    // Emit place-holder instruction >that will be patched at the end of loop compilation
+    // Emit place-holder instruction that will be patched at the end of loop compilation
     // when we know the offset to emit for a break or continue jump
     emitOpcode(c, OP_END, s->loc.line);
     emitByte(c, isBreak ? BREAK_MARK : CONTINUE_MARK, s->loc.line);
@@ -1720,9 +1734,7 @@ static void compileFormalArgs(Compiler* c, JStarFormalArgs args) {
 static void unpackFormalArgs(Compiler* c, JStarFormalArgs args) {
     int argIdx = 0;
     arrayForeach(JStarFormalArg, arg, &args) {
-        if(arg->type == SIMPLE) {
-            continue;
-        }
+        if(arg->type == SIMPLE) continue;
 
         char name[sizeof(UNPACK_ARG_FMT) + STRLEN_FOR_INT(int)];
         sprintf(name, UNPACK_ARG_FMT, argIdx);
@@ -2027,7 +2039,7 @@ static void compileVarDecl(Compiler* c, const JStarStmt* s) {
 
     callDecorators(c, decorators);
 
-    // define in reverse order in order to assign correct
+    // These are defined in reverse order in order to assign correct
     // values to variables in case of a const unpack
     for(int i = varsCount - 1; i >= 0; i--) {
         defineVar(c, &vars[i], s->loc);
@@ -2090,7 +2102,7 @@ static void compileStatement(Compiler* c, const JStarStmt* s) {
         compileNativeDecl(c, s);
         break;
     case JSR_EXCEPT:
-        JSR_UNREACHABLE();
+        JSR_UNREACHABLE();  // Should be handled in `JSR_TRY` compilation already
     }
 }
 

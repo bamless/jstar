@@ -6,6 +6,7 @@
 #include <inttypes.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1192,13 +1193,17 @@ JSR_NATIVE(jsr_String_mul) {
     double reps = jsrGetNumber(vm, -1);
     if(reps < 0) reps = 0;
 
-    JStarBuffer repeated;
-    jsrBufferInitCapacity(vm, &repeated, reps * size);
-
-    for(size_t i = 0; i < reps; i++) {
-        jsrBufferAppend(&repeated, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+    const double maxReps = 1e8;
+    const double maxStringSize = 1 << 30;  // 1GiB
+    if(reps > maxReps || reps * size > maxStringSize) {
+        JSR_RAISE(vm, "InvalidArgException", "String repetition count too large");
     }
 
+    JStarBuffer repeated;
+    jsrBufferInitCapacity(vm, &repeated, reps * size);
+    for(size_t i = 0; i < (size_t)reps; i++) {
+        jsrBufferAppend(&repeated, jsrGetString(vm, 0), jsrGetStringSz(vm, 0));
+    }
     jsrBufferPush(&repeated);
     return true;
 }
