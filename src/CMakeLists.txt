@@ -116,7 +116,7 @@ if(CMAKE_CROSSCOMPILING)
     set(BIN2INCL_CMD  "${BIN2INCL_ABS}")
     set(BIN2INCL_DEPS "${BIN2INCL_ABS}")  # file-path dependency, not a target
 else()
-    set(BIN2INCL_CMD  bin2incl)  # CMake target — resolved to the executable path
+    set(BIN2INCL_CMD  bin2incl)
     set(BIN2INCL_DEPS bin2incl)
 endif()
 
