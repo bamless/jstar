@@ -117,6 +117,7 @@ void jsrInitRuntime(JStarVM* vm) {
 
         // Core module bootstrap
         initCoreModule(vm);
+        vm->module = vm->core;
 
         // Initialize main module
         ObjString* name = copyCStringInterned(vm, JSR_MAIN_MODULE);
@@ -493,7 +494,7 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         gen->state = GEN_RUNNING;
         return false;
     case GEN_CLOSE:
-        // For ensure handlers
+        // Closing a generator makes it `return` from the suspended point
         if(unwindHandlers(vm, frame, arg)) {
             return true;
         }
@@ -505,7 +506,6 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         vm->frameCount--;
         vm->module = oldModule;
         gen->state = GEN_DONE;
-
         return true;
     }
 

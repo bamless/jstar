@@ -739,9 +739,7 @@ bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
 
 bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name, JStarSymbol* sym) {
     ObjModule* mod = getModuleOrRaise(vm, module);
-    if(!mod) {
-        return false;
-    }
+    if(!mod) return false;
     return getGlobalName(vm, mod, copyCStringInterned(vm, name), &sym->sym);
 }
 
