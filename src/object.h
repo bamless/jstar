@@ -306,9 +306,9 @@ typedef struct ObjUserdata {
 // These functions use `gcAlloc` to allocate memory and then initialize the object with the supplied
 // arguments, as well as setting all the bookkeping information needed by the GC (see struct Obj)
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
-                         bool varg);
+                         bool vararg);
 ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
-                     bool varg, JStarNative fn);
+                     bool vararg, JStarNative fn);
 ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize);
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*));
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls);

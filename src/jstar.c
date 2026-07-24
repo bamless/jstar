@@ -57,18 +57,23 @@ static Value apiStackSlot(const JStarVM* vm, int slot) {
     return vm->apiStack[slot];
 }
 
-static ObjModule* getModuleOrRaise(JStarVM* vm, const char* module) {
-    ObjModule* res = module ? getModule(vm, copyCStringInterned(vm, module)) : vm->module;
-    if(!res) {
-        if(module) {
-            jsrRaise(vm, "ImportException", "Module '%s' not found.", module);
-        } else {
-            jsrRaise(vm, "ImportException",
-                     "No current module loaded, pass an explicit module name.");
+static ObjModule* getModuleOrRaise(JStarVM* vm, const char* moduleName) {
+    if(!moduleName) {
+        ObjModule* res = getCurrentModule(vm);
+        if(!res) {
+            res = vm->core;
+            JSR_ASSERT(res, "core module is NULL; call `jsrInitRuntime` to initialize the runtime");
         }
+        return res;
+    }
+
+    ObjModule* mod = getModule(vm, copyCStringInterned(vm, moduleName));
+    if(!mod) {
+        jsrRaise(vm, "ImportException", "Module '%s' not found.", moduleName);
         return NULL;
     }
-    return res;
+
+    return mod;
 }
 
 void jsrPrintErrorCB(JStarVM* vm, JStarResult err, const char* file, JStarLoc loc,
@@ -252,21 +257,17 @@ static bool executeCall(JStarVM* vm, int evalDepth) {
 }
 
 bool jsrCall(JStarVM* vm, uint8_t argc) {
-    ObjModule* oldModule = vm->module;
     int evalDepth = vm->frameCount;
 
     if(!callValue(vm, peekn(vm, argc), argc)) {
         callError(vm, evalDepth, argc);
-        vm->module = oldModule;
         return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
-        vm->module = oldModule;
         return false;
     }
 
-    vm->module = oldModule;
     return true;
 }
 
@@ -276,21 +277,17 @@ bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc) {
 }
 
 bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym) {
-    ObjModule* oldModule = vm->module;
     int evalDepth = vm->frameCount;
 
     if(!invokeValue(vm, copyCStringInterned(vm, name), argc, &sym->sym)) {
         callError(vm, evalDepth, argc);
-        vm->module = oldModule;
         return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
-        vm->module = oldModule;
         return false;
     }
 
-    vm->module = oldModule;
     return true;
 }
 
@@ -537,10 +534,10 @@ void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*)) {
     return (void*)udata->data;
 }
 
-bool jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
+bool jsrPushNative(JStarVM* vm, const char* moduleName, const char* name, JStarNative nat,
                    uint8_t argc) {
     checkStack(vm);
-    ObjModule* mod = getModuleOrRaise(vm, module);
+    ObjModule* mod = getModuleOrRaise(vm, moduleName);
     if(!mod) return false;
 
     ObjString* nativeName = copyCStringInterned(vm, name);
@@ -650,7 +647,6 @@ size_t jsrTupleGetLength(const JStarVM* vm, int slot) {
 // that will check for a newly pushed frame and call `runEval` if needed.
 
 bool jsrSubscriptGet(JStarVM* vm, int slot) {
-    ObjModule* oldModule = vm->module;
     int evalDepth = vm->frameCount;
 
     push(vm, apiStackSlot(vm, slot));
@@ -658,21 +654,17 @@ bool jsrSubscriptGet(JStarVM* vm, int slot) {
 
     if(!getValueSubscript(vm)) {
         callError(vm, evalDepth, 1);
-        vm->module = oldModule;
         return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
-        vm->module = oldModule;
         return false;
     }
 
-    vm->module = oldModule;
     return true;
 }
 
 bool jsrSubscriptSet(JStarVM* vm, int slot) {
-    ObjModule* oldModule = vm->module;
     int evalDepth = vm->frameCount;
 
     swapStackSlots(vm, -1, -2);
@@ -680,12 +672,10 @@ bool jsrSubscriptSet(JStarVM* vm, int slot) {
 
     if(!setValueSubscript(vm)) {
         callError(vm, evalDepth, 2);
-        vm->module = oldModule;
         return false;
     }
 
     if(!executeCall(vm, evalDepth)) {
-        vm->module = oldModule;
         return false;
     }
 
@@ -720,25 +710,25 @@ bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarSymbol* sym
     return getValueField(vm, copyCStringInterned(vm, name), &sym->sym);
 }
 
-bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name) {
+bool jsrSetGlobal(JStarVM* vm, const char* moduleName, const char* name) {
     JStarSymbol sym = {0};
-    return jsrSetGlobalCached(vm, module, name, &sym);
+    return jsrSetGlobalCached(vm, moduleName, name, &sym);
 }
 
-bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name, JStarSymbol* sym) {
-    ObjModule* mod = getModuleOrRaise(vm, module);
+bool jsrSetGlobalCached(JStarVM* vm, const char* moduleName, const char* name, JStarSymbol* sym) {
+    ObjModule* mod = getModuleOrRaise(vm, moduleName);
     if(!mod) return false;
     setGlobalName(vm, mod, copyCStringInterned(vm, name), &sym->sym);
     return true;
 }
 
-bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name) {
+bool jsrGetGlobal(JStarVM* vm, const char* moduleName, const char* name) {
     JStarSymbol sym = {0};
-    return jsrGetGlobalCached(vm, module, name, &sym);
+    return jsrGetGlobalCached(vm, moduleName, name, &sym);
 }
 
-bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name, JStarSymbol* sym) {
-    ObjModule* mod = getModuleOrRaise(vm, module);
+bool jsrGetGlobalCached(JStarVM* vm, const char* moduleName, const char* name, JStarSymbol* sym) {
+    ObjModule* mod = getModuleOrRaise(vm, moduleName);
     if(!mod) return false;
     return getGlobalName(vm, mod, copyCStringInterned(vm, name), &sym->sym);
 }

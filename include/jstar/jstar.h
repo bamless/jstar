@@ -200,9 +200,14 @@ JSTAR_API void jsrPushValue(JStarVM* vm, int slot);
 JSTAR_API void* jsrPushUserdata(JStarVM* vm, size_t size, void (*finalize)(void*));
 
 // Push a native function to the top of the stack.
+//
+// If the passed in `moduleName` is NULL, the native will be registered in the current module if
+// there is one (i.e. when called while executing some code inside of a native) or the core module
+// instead.
+//
 // Returns true on success, leaving the native function on top of the stack.
 // Retruns false if the module could not be found, leaving an exception on top of the stack.
-JSTAR_API bool jsrPushNative(JStarVM* vm, const char* module, const char* name, JStarNative nat,
+JSTAR_API bool jsrPushNative(JStarVM* vm, const char* moduleName, const char* name, JStarNative nat,
                              uint8_t argc);
 
 #define jsrDup(vm) jsrPushValue(vm, -1)
@@ -383,28 +388,49 @@ JSTAR_API bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarS
 
 // Set the global `name` of the module `module` with the value on top of the stack.
 // The value is not popped.
-// If calling inside a native, "module" can be NULL and the used module will be the current one.
+//
+// If the passed in `moduleName` is NULL, the global will be set in the current module if
+// there is one (i.e. when called while executing some code inside of a native) or the core module
+// instead.
+//
 // Returns true in case of success, false if the module could not be found, leaving an exception
 // on top of the stack.
-JSTAR_API bool jsrSetGlobal(JStarVM* vm, const char* module, const char* name);
+JSTAR_API bool jsrSetGlobal(JStarVM* vm, const char* moduleName, const char* name);
 
 // Set the global `name` of the module `module` with the value on top of the stack using the
-// provided symbol. If calling inside a native, "module" can be NULL and the used module will be the
-// current one. The symbol is used to cache the global lookup and speeds up subsequent lookups.
-JSTAR_API bool jsrSetGlobalCached(JStarVM* vm, const char* module, const char* name,
+// provided symbol. The symbol is used to cache the global lookup and speeds up subsequent lookups.
+//
+// If the passed in `moduleName` is NULL, the global will be set in the current module if
+// there is one (i.e. when called while executing some code inside of a native) or the core module
+// instead.
+//
+// Returns true in case of success, false if the module could not be found, leaving an exception
+// on top of the stack.
+JSTAR_API bool jsrSetGlobalCached(JStarVM* vm, const char* moduleName, const char* name,
                                   JStarSymbol* sym);
 
 // Get the global `name` of the module `module`.
+//
+// If the passed in `moduleName` is NULL, the global will be searched in the current module if
+// there is one (i.e. when called while executing some code inside of a native) or the core module
+// instead.
+//
 // Returns true in case of success leaving the result on the top of the stack.
 // Returns false if the module could not be found or the name could not be found in the module,
 // leaving an exception on top of the stack.
-// If calling inside a native, "module" can be NULL and the used module will be the current one.
-JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* module, const char* name);
+JSTAR_API bool jsrGetGlobal(JStarVM* vm, const char* moduleName, const char* name);
 
-// Get the global `name` of the module `module` using the provided symbol.
-// If calling inside a native "module" can be NULL, and the used module will be the current one.
-// The symbol is used to cache the global lookup and speeds up subsequent lookups.
-JSTAR_API bool jsrGetGlobalCached(JStarVM* vm, const char* module, const char* name,
+// Get the global `name` of the module `module` using the provided symbol. The symbol is used to
+// cache the global lookup and speeds up subsequent lookups.
+//
+// If the passed in `moduleName` is NULL, the global will be searched in the current module if
+// there is one (i.e. when called while executing some code inside of a native) or the core module
+// instead.
+//
+// Returns true in case of success leaving the result on the top of the stack.
+// Returns false if the module could not be found or the name could not be found in the module,
+// leaving an exception on top of the stack.
+JSTAR_API bool jsrGetGlobalCached(JStarVM* vm, const char* moduleName, const char* name,
                                   JStarSymbol* sym);
 
 // -----------------------------------------------------------------------------

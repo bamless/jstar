@@ -33,13 +33,13 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
 }
 
 static void initProto(Prototype* proto, ObjModule* m, ObjString* name, uint8_t args,
-                      Value* defaults, uint8_t defCount, bool varg) {
+                      Value* defaults, uint8_t defCount, bool vararg) {
     proto->module = m;
     proto->name = name;
     proto->argsCount = args;
     proto->defaults = defaults;
     proto->defCount = defCount;
-    proto->vararg = varg;
+    proto->vararg = vararg;
 }
 
 static void zeroValueArray(Value* arr, size_t count) {
@@ -56,12 +56,12 @@ static Value* allocateDefaultArray(JStarVM* vm, uint8_t defaultCount) {
 }
 
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
-                         bool varg) {
+                         bool vararg) {
     // A GC may kick in on `newObj`, make the name available as a root
     push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
-    initProto(&fun->proto, m, name, args, defaults, defCount, varg);
+    initProto(&fun->proto, m, name, args, defaults, defCount, vararg);
     fun->upvalueCount = 0;
     fun->stackUsage = 0;
     initCode(&fun->code);
@@ -70,13 +70,13 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t arg
 }
 
 ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
-                     bool varg, JStarNative fn) {
+                     bool vararg, JStarNative fn) {
     // A GC may kick in on `newObj`, make the name available as a root
     push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjNative* native = (ObjNative*)newObj(vm, sizeof(*native), vm->funClass, OBJ_NATIVE);
     native->fn = fn;
-    initProto(&native->proto, m, name, args, defaults, defCount, varg);
+    initProto(&native->proto, m, name, args, defaults, defCount, vararg);
     pop(vm);
     return native;
 }

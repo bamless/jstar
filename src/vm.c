@@ -56,7 +56,6 @@ static void resetStack(JStarVM* vm) {
     vm->sp = vm->stack;
     vm->apiStack = vm->stack;
     vm->frameCount = 0;
-    vm->module = NULL;
 }
 
 static size_t roundUp(size_t num, size_t multiple) {
@@ -117,7 +116,6 @@ void jsrInitRuntime(JStarVM* vm) {
 
         // Core module bootstrap
         initCoreModule(vm);
-        vm->module = vm->core;
 
         // Initialize main module
         ObjString* name = copyCStringInterned(vm, JSR_MAIN_MODULE);
@@ -355,8 +353,6 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
 
     reserveStack(vm, closure->fn->stackUsage);
     appendCallFrame(vm, closure);
-    vm->module = closure->fn->proto.module;
-
     return true;
 }
 
@@ -372,19 +368,15 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     reserveStack(vm, JSTAR_MIN_NATIVE_STACK_SZ);
     const Frame* frame = appendNativeFrame(vm, native);
 
-    ObjModule* oldModule = vm->module;
-
     // Save the current apiStack position relative to the base of the stack. This is saved
     // in a relative way so that the apiStack can be restored to the correct position after
     // a possible stack reallocation (for example, if the native function or any of its nested
     // calls allocate more stack space than its currently available)
     size_t apiStackOffset = vm->apiStack - vm->stack;
 
-    vm->module = native->proto.module;
     vm->apiStack = frame->stack;
 
     if(!native->fn(vm)) {
-        vm->module = oldModule;
         vm->apiStack = vm->stack + apiStackOffset;
         return false;
     }
@@ -394,7 +386,6 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
     vm->sp = vm->apiStack;
     push(vm, ret);
 
-    vm->module = oldModule;
     vm->apiStack = vm->stack + apiStackOffset;
     return true;
 }
@@ -457,14 +448,14 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         return false;
     }
 
-    bool inCoreModule = vm->module == vm->core;
+    bool inCoreModule = getCurrentModule(vm) == vm->core;
     if(!inCoreModule && argc > 1) {
         jsrRaise(vm, "TypeException", "Generator takes at most 1 argument, %d supplied", (int)argc);
         return false;
     }
 
     GenAction action = GEN_SEND;
-    if(inCoreModule && argc) {
+    if(inCoreModule && argc > 1) {
         JSR_ASSERT(IS_NUM(peek(vm)), "Action is not an integer");
         action = AS_NUM(pop(vm));
     }
@@ -473,9 +464,6 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
     Frame* frame = getFrame(vm);
     reserveStack(vm, gen->frame.stackTop);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
-
-    ObjModule* oldModule = vm->module;
-    vm->module = gen->closure->fn->proto.module;
 
     if(!checkStackOverflow(vm)) {
         return false;
@@ -504,7 +492,6 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
         push(vm, arg);
 
         vm->frameCount--;
-        vm->module = oldModule;
         gen->state = GEN_DONE;
         return true;
     }
@@ -1031,6 +1018,39 @@ inline bool setValueSubscript(JStarVM* vm) {
     return true;
 }
 
+inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
+    if(isSymbolCached((Obj*)mod, sym)) {
+        JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Invalid symbol type");
+        mod->globals[sym->as.offset] = peek(vm);
+    } else {
+        int off = moduleSetGlobal(vm, mod, name, peek(vm));
+        sym->type = SYMBOL_GLOBAL;
+        sym->key = (Obj*)mod;
+        sym->as.offset = off;
+    }
+}
+
+inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
+    if(getCachedGlobal(mod, sym, vm->sp)) {
+        vm->sp++;
+        return true;
+    }
+
+    int off = moduleGetGlobalOffset(mod, name);
+    if(off == -1) {
+        jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
+                 mod->name->data);
+        return false;
+    }
+
+    sym->type = SYMBOL_GLOBAL;
+    sym->key = (Obj*)mod;
+    sym->as.offset = off;
+
+    push(vm, mod->globals[off]);
+    return true;
+}
+
 inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
     if(IS_OBJ(callee)) {
         switch(AS_OBJ(callee)->type) {
@@ -1182,39 +1202,6 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
     return invokeMethodCached(vm, cls, name, argc, sym);
 }
 
-inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
-    if(isSymbolCached((Obj*)mod, sym)) {
-        JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Invalid symbol type");
-        mod->globals[sym->as.offset] = peek(vm);
-    } else {
-        int off = moduleSetGlobal(vm, mod, name, peek(vm));
-        sym->type = SYMBOL_GLOBAL;
-        sym->key = (Obj*)mod;
-        sym->as.offset = off;
-    }
-}
-
-inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
-    if(getCachedGlobal(mod, sym, vm->sp)) {
-        vm->sp++;
-        return true;
-    }
-
-    int off = moduleGetGlobalOffset(mod, name);
-    if(off == -1) {
-        jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
-                 mod->name->data);
-        return false;
-    }
-
-    sym->type = SYMBOL_GLOBAL;
-    sym->key = (Obj*)mod;
-    sym->as.offset = off;
-
-    push(vm, mod->globals[off]);
-    return true;
-}
-
 static int powerOf2Ceil(int n) {
     n--;
     n |= n >> 1;
@@ -1261,6 +1248,11 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 
         vm->sp = vm->stack + (vm->sp - oldStack);
     }
+}
+
+ObjModule* getCurrentModule(JStarVM* vm) {
+    if(vm->frameCount == 0) return NULL;
+    return getPrototype(vm->frames[vm->frameCount - 1].fn)->module;
 }
 
 bool runEval(JStarVM* vm, int evalDepth) {
@@ -1749,8 +1741,6 @@ op_return:
         }
 
         LOAD_STATE();
-        vm->module = fn->proto.module;
-
         DISPATCH();
     }
 
@@ -1775,8 +1765,6 @@ op_return:
         }
 
         LOAD_STATE();
-        vm->module = fn->proto.module;
-
         DISPATCH();
     }
 
@@ -1941,9 +1929,10 @@ op_return:
             className = cls->name->data;
         }
 
-        native->fn = resolveNative(vm->module, className, method->data);
+        ObjModule* curModule = closure->fn->proto.module;
+        native->fn = resolveNative(curModule, className, method->data);
         if(!native->fn) {
-            jsrRaise(vm, "Exception", "Cannot resolve native %s.%s().", vm->module->name->data,
+            jsrRaise(vm, "Exception", "Cannot resolve native %s.%s().", curModule->name->data,
                      native->proto.name->data);
             UNWIND_STACK();
         }
@@ -1960,7 +1949,7 @@ op_return:
     TARGET(OP_DEFINE_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_NAME(sym);
-        setGlobalName(vm, vm->module, name, &sym->cache);
+        setGlobalName(vm, closure->fn->proto.module, name, &sym->cache);
         pop(vm);
         DISPATCH();
     }
@@ -1968,14 +1957,14 @@ op_return:
     TARGET(OP_SET_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_NAME(sym);
-        setGlobalName(vm, vm->module, name, &sym->cache);
+        setGlobalName(vm, closure->fn->proto.module, name, &sym->cache);
         DISPATCH();
     }
 
     TARGET(OP_GET_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_NAME(sym);
-        if(!getGlobalName(vm, vm->module, name, &sym->cache)) {
+        if(!getGlobalName(vm, closure->fn->proto.module, name, &sym->cache)) {
             UNWIND_STACK();
         }
         DISPATCH();
@@ -2113,28 +2102,11 @@ bool unwindStack(JStarVM* vm, int toDepth) {
     for(; vm->frameCount > toDepth; vm->frameCount--) {
         frame = &vm->frames[vm->frameCount - 1];
 
-        Opcode lastOp = -1;
-        switch(frame->fn->type) {
-        case OBJ_CLOSURE: {
-            ObjClosure* closure = (ObjClosure*)frame->fn;
-            vm->module = closure->fn->proto.module;
-            lastOp = frame->ip[-1];
-            break;
-        }
-        case OBJ_NATIVE: {
-            ObjNative* native = (ObjNative*)frame->fn;
-            vm->module = native->proto.module;
-            break;
-        }
-        default:
-            JSR_UNREACHABLE();
-        }
-
         // `OP_END_HANDLER` re-triggers unwinding when an ensure/except handler finishes without
         // handling the exception. At that point `ip` is inside the handler body, not at a real
         // call or throw site, so we skip dumping the frame to avoid injecting a spurious entry
         // into the exception's stacktrace.
-        if(lastOp != OP_END_HANDLER) {
+        if(frame->ip && frame->ip[-1] != OP_END_HANDLER) {
             stacktraceDump(vm, stacktrace, frame);
         }
 
