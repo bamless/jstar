@@ -274,9 +274,10 @@ JSTAR_API void jsrGetStacktrace(JStarVM* vm, int slot);
 // raises a TypeException instead
 JSTAR_API void jsrRaiseException(JStarVM* vm, int slot);
 
-// Instantiate an exception from "cls" with "err" as an error string and raises
-// it, leaving it on top of the stack.
-// If "cls" cannot be found in current module a NameException is raised instead.
+// Instantiate an exception from "cls" with "err" as an error string and raises it, leaving it on
+// top of the stack.
+// If "cls" cannot be found in the current module or the core module, a NameException is raised
+// instead.
 JSTAR_API void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...);
 
 // -----------------------------------------------------------------------------
