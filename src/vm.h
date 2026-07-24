@@ -170,8 +170,10 @@ bool getValueSubscript(JStarVM* vm);
 bool setValueSubscript(JStarVM* vm);
 void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
 bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
+
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym);
+
 void reserveStack(JStarVM* vm, size_t needed);
 ObjModule* getCurrentModule(JStarVM* vm);
 
