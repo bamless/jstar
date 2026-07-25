@@ -25,6 +25,24 @@
     #include "disassemble.h"
 #endif
 
+static const CoreClass nonInstantiableClasses[] = {
+    CORE_CLASS_NULL,  CORE_CLASS_FUNCTION, CORE_CLASS_MODULE,    CORE_CLASS_STACKTRACE,
+    CORE_CLASS_CLASS, CORE_CLASS_USERDATA, CORE_CLASS_GENERATOR,
+};
+
+static const CoreClass instantiableClasses[] = {
+    CORE_CLASS_OBJECT, CORE_CLASS_LIST, CORE_CLASS_TUPLE, CORE_CLASS_NUMBER,
+    CORE_CLASS_BOOL,   CORE_CLASS_STR,  CORE_CLASS_TABLE,
+};
+
+// clang-format off
+JSR_STATIC_ASSERT(
+    ARRAY_COUNT(instantiableClasses) + ARRAY_COUNT(nonInstantiableClasses) == CORE_CLASS_COUNT,
+    "Core class classification is incomplete; update `nonInstantiableClasses` and"
+    "`instantiableClasses` arrays above."
+);
+// clang-format on
+
 // Constant method names used in operator overloading
 static const char* const specialMethods[METH_SIZE] = {
 #define SPECIAL_METHOD(_, name) name,
@@ -98,11 +116,6 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
         // Module cache and interned string pool
         initValueHashTable(vm, &vm->modules);
         initValueHashTable(vm, &vm->stringPool);
-
-        // Create string constants of special method names
-        for(int i = 0; i < METH_SIZE; i++) {
-            vm->specialMethods[i] = copyCStringInterned(vm, specialMethods[i]);
-        }
     }
     PROFILE_END_SESSION();
     return vm;
@@ -111,19 +124,22 @@ JStarVM* jsrNewVM(const JStarConf* conf) {
 void jsrInitRuntime(JStarVM* vm) {
     PROFILE_BEGIN_SESSION("jstar-init.json");
     {
-        JSR_ASSERT(!vm->core, "Runtime already initialized");
         PROFILE_FUNC()
 
-        // Core module bootstrap
+        JSR_ASSERT(!vm->core, "Runtime already initialized");
+
         initCoreModule(vm);
 
-        // Initialize main module
+        // Empty `__main__` module
         ObjString* name = copyCStringInterned(vm, JSR_MAIN_MODULE);
         push(vm, OBJ_VAL(name));
         setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
         pop(vm);
 
-        // Create singletons
+        // Create singleton objects
+        for(int i = 0; i < METH_SIZE; i++) {
+            vm->specialMethods[i] = copyCStringInterned(vm, specialMethods[i]);
+        }
         vm->emptyTup = newTuple(vm, 0);
         vm->excErr = copyCStringInterned(vm, EXC_ERR);
         vm->excTrace = copyCStringInterned(vm, EXC_TRACE);
@@ -205,19 +221,28 @@ static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
     return callFrame;
 }
 
-static bool isNonInstantiableBuiltin(JStarVM* vm, ObjClass* cls) {
-    return cls == vm->nullClass || cls == vm->funClass || cls == vm->modClass ||
-           cls == vm->stClass || cls == vm->clsClass || cls == vm->udataClass ||
-           cls == vm->genClass;
+static bool isNonInstantiableCoreClass(JStarVM* vm, ObjClass* cls) {
+    for(size_t i = 0; i < ARRAY_COUNT(nonInstantiableClasses); i++) {
+        if(cls == vm->coreClasses[nonInstantiableClasses[i]]) return true;
+    }
+    return false;
 }
 
-static bool isInstatiableBuiltin(JStarVM* vm, ObjClass* cls) {
-    return cls == vm->lstClass || cls == vm->tupClass || cls == vm->numClass ||
-           cls == vm->boolClass || cls == vm->strClass || cls == vm->tableClass;
+static bool isInstantiableCoreClass(JStarVM* vm, ObjClass* cls) {
+    for(size_t i = 0; i < ARRAY_COUNT(instantiableClasses); i++) {
+        if(cls == vm->coreClasses[instantiableClasses[i]]) return true;
+    }
+    return false;
 }
 
-static bool isBuiltinClass(JStarVM* vm, ObjClass* cls) {
-    return isNonInstantiableBuiltin(vm, cls) || isInstatiableBuiltin(vm, cls);
+static bool isSubclassable(JStarVM* vm, ObjClass* cls) {
+    // Object is the only core class that user code may subclass.
+    //
+    // Other built-in classes have specialized runtime representations (e.g. ObjString,
+    // ObjList, unboxed value for Number/Boolean/Null, etc.), so instances of their subclasses
+    // cannot use the generic ObjInstance representation.
+    ObjClass* objClass = vm->coreClasses[CORE_CLASS_OBJECT];
+    return cls == objClass || !isCoreClass(vm, cls);
 }
 
 static bool isInt(double n) {
@@ -1075,13 +1100,13 @@ inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
         case OBJ_CLASS: {
             ObjClass* cls = AS_CLASS(callee);
 
-            if(isNonInstantiableBuiltin(vm, cls)) {
+            if(isNonInstantiableCoreClass(vm, cls)) {
                 jsrRaise(vm, "Exception", "class %s can't be directly instatiated",
                          cls->name->data);
                 return false;
             }
 
-            if(isInstatiableBuiltin(vm, cls)) {
+            if(isInstantiableCoreClass(vm, cls)) {
                 vm->sp[-argc - 1] = NULL_VAL;
             } else {
                 vm->sp[-argc - 1] = OBJ_VAL(newInstance(vm, cls));
@@ -1170,7 +1195,8 @@ inline bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache*
             }
 
             // Check if a method shadows a function in the module.
-            if(hashTableValueGet(&vm->modClass->methods, name, &func)) {
+            ObjClass* modClass = vm->coreClasses[CORE_CLASS_MODULE];
+            if(hashTableValueGet(&modClass->methods, name, &func)) {
                 sym->type = SYMBOL_METHOD;
                 sym->key = (Obj*)mod->base.cls;
                 sym->as.method = func;
@@ -1870,7 +1896,7 @@ op_return:
     }
 
     TARGET(OP_GET_OBJECT): {
-        push(vm, OBJ_VAL(vm->objClass));
+        push(vm, OBJ_VAL(vm->coreClasses[CORE_CLASS_OBJECT]));
         DISPATCH();
     }
 
@@ -1886,7 +1912,7 @@ op_return:
         }
 
         ObjClass* superCls = AS_CLASS(peek2(vm));
-        if(isBuiltinClass(vm, superCls)) {
+        if(!isSubclassable(vm, superCls)) {
             jsrRaise(vm, "TypeException", "Cannot subclass builtin class %s", superCls->name->data);
             UNWIND_STACK();
         }
@@ -2139,5 +2165,6 @@ extern inline Value peek2(const JStarVM* vm);
 extern inline void swapStackSlots(JStarVM* vm, int a, int b);
 extern inline Value peekn(const JStarVM* vm, int n);
 extern inline ObjClass* getClass(const JStarVM* vm, Value v);
+extern inline bool isCoreClass(const JStarVM* vm, ObjClass* cls);
 extern inline bool isSubClass(ObjClass* sub, ObjClass* super);
 extern inline bool isInstance(const JStarVM* vm, Value i, ObjClass* cls);

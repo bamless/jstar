@@ -205,32 +205,22 @@ void garbageCollect(JStarVM* vm) {
     {
         PROFILE("{reach-objects}::garbageCollect")
 
-        reachObject(vm, (Obj*)vm->clsClass);
-        reachObject(vm, (Obj*)vm->objClass);
-        reachObject(vm, (Obj*)vm->strClass);
-        reachObject(vm, (Obj*)vm->boolClass);
-        reachObject(vm, (Obj*)vm->lstClass);
-        reachObject(vm, (Obj*)vm->numClass);
-        reachObject(vm, (Obj*)vm->funClass);
-        reachObject(vm, (Obj*)vm->modClass);
-        reachObject(vm, (Obj*)vm->nullClass);
-        reachObject(vm, (Obj*)vm->stClass);
-        reachObject(vm, (Obj*)vm->tupClass);
-        reachObject(vm, (Obj*)vm->excClass);
-        reachObject(vm, (Obj*)vm->tableClass);
-        reachObject(vm, (Obj*)vm->udataClass);
+        for(CoreClass c = 0; c < CORE_CLASS_COUNT; c++) {
+            reachObject(vm, (Obj*)vm->coreClasses[c]);
+        }
 
+        reachObject(vm, (Obj*)vm->excClass);
         reachObject(vm, (Obj*)vm->argv);
 
         for(int i = 0; i < METH_SIZE; i++) {
             reachObject(vm, (Obj*)vm->specialMethods[i]);
         }
 
+        reachObject(vm, (Obj*)vm->emptyTup);
         reachObject(vm, (Obj*)vm->excErr);
         reachObject(vm, (Obj*)vm->excTrace);
         reachObject(vm, (Obj*)vm->excCause);
 
-        reachObject(vm, (Obj*)vm->emptyTup);
         reachValueHashTable(vm, &vm->modules);
 
         for(Value* v = vm->stack; v < vm->sp; v++) {

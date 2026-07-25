@@ -15,17 +15,36 @@
 #include "value.h"
 #include "value_hashtable.h"
 
-// Enum encoding special method names needed at runtime
-// Mainly used for operator overloading
-typedef enum SpecialMethod {
+// Enum encoding special method names needed at runtime.
+// Mainly used for operator overloading.
+typedef enum {
 #define SPECIAL_METHOD(meth, _) meth,
 #include "special_methods.def"
     METH_SIZE,
 } SpecialMethod;
 
+// Enum encoding the core classes of J*.
+typedef enum {
+    CORE_CLASS_CLASS,
+    CORE_CLASS_OBJECT,
+    CORE_CLASS_STR,
+    CORE_CLASS_BOOL,
+    CORE_CLASS_LIST,
+    CORE_CLASS_NUMBER,
+    CORE_CLASS_FUNCTION,
+    CORE_CLASS_GENERATOR,
+    CORE_CLASS_MODULE,
+    CORE_CLASS_NULL,
+    CORE_CLASS_STACKTRACE,
+    CORE_CLASS_TUPLE,
+    CORE_CLASS_TABLE,
+    CORE_CLASS_USERDATA,
+    CORE_CLASS_COUNT,
+} CoreClass;
+
 // Struct that stores the info needed to
 // jump to handler code and to restore the
-// VM state when handling exceptions
+// VM state when handling exceptions.
 typedef struct Handler {
     enum {
         HANDLER_ENSURE,
@@ -36,7 +55,7 @@ typedef struct Handler {
 } Handler;
 
 // Stackframe of a function executing in
-// the virtual machine
+// the virtual machine.
 typedef struct Frame {
     uint8_t* ip;                     // Instruction pointer
     Value* stack;                    // Base of stack for current frame
@@ -57,34 +76,23 @@ struct JStarSymbol {
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
 struct JStarVM {
-    // Built in classes
-    ObjClass* clsClass;
-    ObjClass* objClass;
-    ObjClass* strClass;
-    ObjClass* boolClass;
-    ObjClass* lstClass;
-    ObjClass* numClass;
-    ObjClass* funClass;
-    ObjClass* genClass;
-    ObjClass* modClass;
-    ObjClass* nullClass;
-    ObjClass* stClass;
-    ObjClass* tupClass;
+    // Core classes
+    ObjClass* coreClasses[CORE_CLASS_COUNT];
+
+    // Reference to the built-in `Exception` class
     ObjClass* excClass;
-    ObjClass* tableClass;
-    ObjClass* udataClass;
 
     // Script arguments
     ObjList* argv;
-
-    // The empty tuple (singleton)
-    ObjTuple* emptyTup;
 
     // Current VM compiler (if any)
     Compiler* currCompiler;
 
     // Cached special method names needed at runtime
     ObjString* specialMethods[METH_SIZE];
+
+    // The empty tuple (singleton)
+    ObjTuple* emptyTup;
 
     // Cached strings for exception fields
     ObjString *excErr, *excTrace, *excCause;
@@ -158,10 +166,6 @@ struct JStarVM {
     } reachedStack;
 };
 
-// -----------------------------------------------------------------------------
-// VM API
-// -----------------------------------------------------------------------------
-
 void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz);
 
 bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
@@ -209,15 +213,15 @@ inline void swapStackSlots(JStarVM* vm, int a, int b) {
 inline ObjClass* getClass(const JStarVM* vm, Value v) {
 #ifdef JSTAR_NAN_TAGGING
     if(IS_OBJ(v)) return AS_OBJ(v)->cls;
-    if(IS_NUM(v)) return vm->numClass;
+    if(IS_NUM(v)) return vm->coreClasses[CORE_CLASS_NUMBER];
 
     switch(BITS_TAG(v)) {
     case HANDLE_BITS:
     case NULL_BITS:
-        return vm->nullClass;
+        return vm->coreClasses[CORE_CLASS_NULL];
     case FALSE_BITS:
     case TRUE_BITS:
-        return vm->boolClass;
+        return vm->coreClasses[CORE_CLASS_BOOL];
     case END_BITS:
         JSR_UNREACHABLE();
     }
@@ -236,6 +240,13 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
 #endif
 
     JSR_UNREACHABLE();
+}
+
+inline bool isCoreClass(const JStarVM* vm, ObjClass* cls) {
+    for(CoreClass c = 0; c < CORE_CLASS_COUNT; c++) {
+        if(cls == vm->coreClasses[c]) return true;
+    }
+    return false;
 }
 
 inline bool isSubClass(ObjClass* sub, ObjClass* super) {

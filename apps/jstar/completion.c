@@ -9,8 +9,8 @@
 
 #define INDENT "    "
 
-JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed, update keywords if needed");
 // NULL terminated array of all J* keywords.
+JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed; update `keywords` if needed");
 static const char* keywords[] = {
     "or",     "if",     "in",     "as",     "is",       "and",   "for",    "fun",    "construct",
     "var",    "end",    "try",    "else",   "elif",     "null",  "true",   "with",   "class",

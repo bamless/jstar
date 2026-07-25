@@ -1,12 +1,10 @@
 #ifndef JSTAR_LEX_H
 #define JSTAR_LEX_H
 
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "../conf.h"
-
-JSTAR_API extern const char* JStarTokName[];
 
 typedef enum JStarTokType {
 #define TOKEN(tok, _) tok,
@@ -32,6 +30,8 @@ typedef struct JStarLex {
     size_t pos;
     int currLine;
 } JStarLex;
+
+JSTAR_API extern const char* JStarTokName[];
 
 JSTAR_API void jsrInitLexer(JStarLex* lex, const char* src, size_t len);
 JSTAR_API bool jsrNextToken(JStarLex* lex, JStarTok* tok);

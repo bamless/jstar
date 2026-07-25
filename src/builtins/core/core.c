@@ -147,90 +147,98 @@ static JSR_NATIVE(jsr_Class_getName);
 static JSR_NATIVE(jsr_Class_implements);
 static JSR_NATIVE(jsr_Class_string);
 
+JSR_STATIC_ASSERT(CORE_CLASS_COUNT == 14, "Core classes changed; review initCoreModule bootstrap");
+
 void initCoreModule(JStarVM* vm) {
     PROFILE_FUNC()
 
     // Create and register core module
-    ObjString* coreModName = copyCStringInterned(vm, JSR_CORE_MODULE);
+    ObjString* moduleName = copyCStringInterned(vm, JSR_CORE_MODULE);
+    push(vm, OBJ_VAL(moduleName));
 
-    push(vm, OBJ_VAL(coreModName));
-    ObjModule* core = newModule(vm, JSR_CORE_MODULE, coreModName);
+    ObjModule* core = newModule(vm, JSR_CORE_MODULE, moduleName);
     setModule(vm, core->name, core);
     vm->core = core;
+
     pop(vm);
 
-    // Setup the class object. It will be the class of every other class
-    vm->clsClass = createClass(vm, core, NULL, "Class");
-    vm->clsClass->base.cls = vm->clsClass;  // Class is the class of itself
+    // Setup the class object. It will be the class of every other class.
+    ObjClass* clsClass = createClass(vm, core, NULL, "Class");
+    clsClass->base.cls = clsClass;  // Class is the class of itself
+    vm->coreClasses[CORE_CLASS_CLASS] = clsClass;
 
-    // Setup the base class of the object hierarchy
-    vm->objClass = createClass(vm, core, NULL, "Object");  // Object has no superclass
-    defMethod(vm, core, vm->objClass, &jsr_Object_string, "__string__", 0);
-    defMethod(vm, core, vm->objClass, &jsr_Object_hash, "__hash__", 0);
-    defMethod(vm, core, vm->objClass, &jsr_Object_eq, "__eq__", 1);
+    // Setup `Object`: the base class of the object hierarchy.
+    ObjClass* objClass = createClass(vm, core, NULL, "Object");
+    vm->coreClasses[CORE_CLASS_OBJECT] = objClass;
+    defMethod(vm, core, objClass, &jsr_Object_string, "__string__", 0);
+    defMethod(vm, core, objClass, &jsr_Object_hash, "__hash__", 0);
+    defMethod(vm, core, objClass, &jsr_Object_eq, "__eq__", 1);
 
-    // Patch up Class object information
-    vm->clsClass->superCls = vm->objClass;
-    hashTableValueMerge(&vm->clsClass->methods, &vm->objClass->methods);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_getName, "getName", 0);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_implements, "implements", 1);
-    defMethod(vm, core, vm->clsClass, &jsr_Class_string, "__string__", 0);
+    // Class is an instance of Object.
+    clsClass->superCls = objClass;
+    hashTableValueMerge(&clsClass->methods, &objClass->methods);
+
+    // Finish `Class` setup
+    defMethod(vm, core, clsClass, &jsr_Class_getName, "getName", 0);
+    defMethod(vm, core, clsClass, &jsr_Class_implements, "implements", 1);
+    defMethod(vm, core, clsClass, &jsr_Class_string, "__string__", 0);
 
     {
-        PROFILE("{core-runEval}::initCore")
+        PROFILE("{evaluate-core-module}::initCore")
 
-        // Read core module
         size_t len;
         const char* code = readBuiltInModule(JSR_CORE_MODULE, &len);
 
-        // Execute core module
         JStarResult res = jsrEvalModule(vm, "core", JSR_CORE_MODULE, code, len);
         JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
         (void)res;
     }
 
     {
-        PROFILE("{cache-bltins}::initCore")
+        PROFILE("{cache-objects}::initCore")
 
-        // Cache builtin class objects in JStarVM
-        vm->strClass = AS_CLASS(getDefinedName(vm, core, "String"));
-        vm->boolClass = AS_CLASS(getDefinedName(vm, core, "Boolean"));
-        vm->lstClass = AS_CLASS(getDefinedName(vm, core, "List"));
-        vm->numClass = AS_CLASS(getDefinedName(vm, core, "Number"));
-        vm->funClass = AS_CLASS(getDefinedName(vm, core, "Function"));
-        vm->genClass = AS_CLASS(getDefinedName(vm, core, "Generator"));
-        vm->modClass = AS_CLASS(getDefinedName(vm, core, "Module"));
-        vm->nullClass = AS_CLASS(getDefinedName(vm, core, "Null"));
-        vm->stClass = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
-        vm->tupClass = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+        // Cache core class objects for fast runtime access.
+        vm->coreClasses[CORE_CLASS_STR] = AS_CLASS(getDefinedName(vm, core, "String"));
+        vm->coreClasses[CORE_CLASS_BOOL] = AS_CLASS(getDefinedName(vm, core, "Boolean"));
+        vm->coreClasses[CORE_CLASS_LIST] = AS_CLASS(getDefinedName(vm, core, "List"));
+        vm->coreClasses[CORE_CLASS_NUMBER] = AS_CLASS(getDefinedName(vm, core, "Number"));
+        vm->coreClasses[CORE_CLASS_FUNCTION] = AS_CLASS(getDefinedName(vm, core, "Function"));
+        vm->coreClasses[CORE_CLASS_GENERATOR] = AS_CLASS(getDefinedName(vm, core, "Generator"));
+        vm->coreClasses[CORE_CLASS_MODULE] = AS_CLASS(getDefinedName(vm, core, "Module"));
+        vm->coreClasses[CORE_CLASS_NULL] = AS_CLASS(getDefinedName(vm, core, "Null"));
+        vm->coreClasses[CORE_CLASS_STACKTRACE] = AS_CLASS(getDefinedName(vm, core, "StackTrace"));
+        vm->coreClasses[CORE_CLASS_TUPLE] = AS_CLASS(getDefinedName(vm, core, "Tuple"));
+        vm->coreClasses[CORE_CLASS_TABLE] = AS_CLASS(getDefinedName(vm, core, "Table"));
+        vm->coreClasses[CORE_CLASS_USERDATA] = AS_CLASS(getDefinedName(vm, core, "Userdata"));
+        core->base.cls = vm->coreClasses[CORE_CLASS_MODULE];
+
+        // Exception is not a core class, but the VM keeps a direct reference to it
+        // for runtime exception handling.
         vm->excClass = AS_CLASS(getDefinedName(vm, core, "Exception"));
-        vm->tableClass = AS_CLASS(getDefinedName(vm, core, "Table"));
-        vm->udataClass = AS_CLASS(getDefinedName(vm, core, "Userdata"));
-        core->base.cls = vm->modClass;
 
-        // Cache core module global objects in vm
+        // Keep a direct reference to the core module's argv list as well.
         vm->argv = AS_LIST(getDefinedName(vm, core, "argv"));
     }
 
     {
         PROFILE("{patch-up-classes}::initCoreModule")
 
-        // Patch up the class field of any object that was allocated
-        // before the creation of its corresponding class object
+        // Assign class references to objects allocated before their corresponding
+        // core class objects were created.
         for(Obj* o = vm->objects; o != NULL; o = o->next) {
             if(o->type == OBJ_UPVALUE) continue;
 
             if(o->type == OBJ_STRING) {
-                o->cls = vm->strClass;
+                o->cls = vm->coreClasses[CORE_CLASS_STR];
             } else if(o->type == OBJ_LIST) {
-                o->cls = vm->lstClass;
+                o->cls = vm->coreClasses[CORE_CLASS_LIST];
             } else if(o->type == OBJ_MODULE) {
-                o->cls = vm->modClass;
+                o->cls = vm->coreClasses[CORE_CLASS_MODULE];
             } else if(o->type == OBJ_CLOSURE || o->type == OBJ_FUNCTION || o->type == OBJ_NATIVE) {
-                o->cls = vm->funClass;
+                o->cls = vm->coreClasses[CORE_CLASS_FUNCTION];
             }
 
-            // Ensure all allocated object do actually have a class reference!
+            // Every allocated object must have a valid class reference after bootstrap.
             JSR_ASSERT(o->cls, "Object without class reference");
         }
     }
@@ -410,21 +418,13 @@ JSR_NATIVE(jsr_Function_string) {
     return true;
 }
 
-static bool isBuiltIn(JStarVM* vm, ObjClass* cls) {
-    return vm->clsClass == cls || vm->objClass == cls || vm->strClass == cls ||
-           vm->boolClass == cls || vm->lstClass == cls || vm->numClass == cls ||
-           vm->funClass == cls || vm->genClass == cls || vm->modClass == cls ||
-           vm->nullClass == cls || vm->stClass == cls || vm->tupClass == cls ||
-           vm->excClass == cls || vm->tableClass == cls || vm->udataClass == cls;
-}
-
 JSR_NATIVE(jsr_Function_bind) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
 
     if(fn->type == OBJ_BOUND_METHOD) {
         ObjBoundMethod* bm = (ObjBoundMethod*)fn;
-        if(isBuiltIn(vm, getClass(vm, bm->receiver))) {
-            JSR_RAISE(vm, "TypeException", "Cannot bind built-in class method %s",
+        if(isCoreClass(vm, getClass(vm, bm->receiver))) {
+            JSR_RAISE(vm, "TypeException", "Cannot bind core-class class method %s",
                       getFunctionBase(bm->method)->name->data);
         }
         fn = bm->method;

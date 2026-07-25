@@ -21,8 +21,26 @@
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
 #define REPL_PRINT   "__replprint"
 
+typedef struct Options {
+    char* script;
+    bool showVersion;
+    bool skipVersion;
+    bool interactive;
+    bool ignoreEnv;
+    bool disableColors;
+    bool disableHints;
+    char* execStmt;
+    char** args;
+    int argsCount;
+} Options;
+
+static Options opts;
+static JStarVM* vm;
+static JStarASTArena arena;
+static Replxx* replxx;
+static CompletionState completionState;
+
 JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed, update tokenDepth if needed");
-// Token depth table for tracking the number of open blocks in the REPL.
 static const int tokenDepth[TOK_EOF] = {
     // Tokens that start a new block
     [TOK_LSQUARE] = 1,
@@ -44,25 +62,6 @@ static const int tokenDepth[TOK_EOF] = {
     [TOK_RPAREN] = -1,
     [TOK_END] = -1,
 };
-
-typedef struct Options {
-    char* script;
-    bool showVersion;
-    bool skipVersion;
-    bool interactive;
-    bool ignoreEnv;
-    bool disableColors;
-    bool disableHints;
-    char* execStmt;
-    char** args;
-    int argsCount;
-} Options;
-
-static Options opts;
-static JStarVM* vm;
-static JStarASTArena arena;
-static Replxx* replxx;
-static CompletionState completionState;
 
 // J* error callback that prints colored error messages
 static void errorCallback(JStarVM* vm, JStarResult res, const char* file, JStarLoc loc,

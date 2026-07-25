@@ -13,6 +13,14 @@
 #include "value_hashtable.h"
 #include "vm.h"
 
+#ifdef JSTAR_DBG_PRINT_GC
+const char* ObjTypeNames[] = {
+    #define ENUM_STRING(elem) #elem,
+    OBJTYPE(ENUM_STRING)
+    #undef ENUM_STRING
+};
+#endif
+
 // -----------------------------------------------------------------------------
 // OBJECT ALLOCATION FUNCTIONS
 // -----------------------------------------------------------------------------
@@ -60,7 +68,8 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t arg
     // A GC may kick in on `newObj`, make the name available as a root
     push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
-    ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
+    ObjClass* fnClass = vm->coreClasses[CORE_CLASS_FUNCTION];
+    ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), fnClass, OBJ_FUNCTION);
     initFunctionBase(&fun->base, m, name, args, defaults, defCount, vararg);
     fun->upvalueCount = 0;
     fun->stackUsage = 0;
@@ -74,7 +83,8 @@ ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, u
     // A GC may kick in on `newObj`, make the name available as a root
     push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
-    ObjNative* native = (ObjNative*)newObj(vm, sizeof(*native), vm->funClass, OBJ_NATIVE);
+    ObjClass* fnClass = vm->coreClasses[CORE_CLASS_FUNCTION];
+    ObjNative* native = (ObjNative*)newObj(vm, sizeof(*native), fnClass, OBJ_NATIVE);
     native->fn = fn;
     initFunctionBase(&native->base, m, name, args, defaults, defCount, vararg);
     pop(vm);
@@ -82,7 +92,8 @@ ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, u
 }
 
 ObjClass* newClass(JStarVM* vm, ObjString* name, ObjClass* superCls) {
-    ObjClass* cls = (ObjClass*)newObj(vm, sizeof(*cls), vm->clsClass, OBJ_CLASS);
+    ObjClass* clsClass = vm->coreClasses[CORE_CLASS_CLASS];
+    ObjClass* cls = (ObjClass*)newObj(vm, sizeof(*cls), clsClass, OBJ_CLASS);
     cls->name = name;
     cls->superCls = superCls;
     cls->fieldCount = 0;
@@ -100,7 +111,8 @@ static void mergeModules(JStarVM* vm, ObjModule* dst, ObjModule* src) {
 }
 
 ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
-    ObjModule* mod = (ObjModule*)newObj(vm, sizeof(*mod), vm->modClass, OBJ_MODULE);
+    ObjClass* modClass = vm->coreClasses[CORE_CLASS_MODULE];
+    ObjModule* mod = (ObjModule*)newObj(vm, sizeof(*mod), modClass, OBJ_MODULE);
 
     // A GC may kick in on hashtable initialization or path allocation,
     // make the module available as a root
@@ -119,7 +131,7 @@ ObjModule* newModule(JStarVM* vm, const char* path, ObjString* name) {
         mergeModules(vm, mod, vm->core);
     }
 
-    // Set builtin names for the module object
+    // Set special global variables for the module object
     mod->path = copyCStringInterned(vm, path);
     moduleSetGlobal(vm, mod, copyCStringInterned(vm, MOD_PATH), OBJ_VAL(mod->path));
     moduleSetGlobal(vm, mod, copyCStringInterned(vm, MOD_NAME), OBJ_VAL(mod->name));
@@ -137,8 +149,9 @@ ObjInstance* newInstance(JStarVM* vm, ObjClass* cls) {
 }
 
 ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
+    ObjClass* fnClass = vm->coreClasses[CORE_CLASS_FUNCTION];
     ObjClosure* c = (ObjClosure*)newVarObj(vm, sizeof(*c), sizeof(ObjUpvalue*), fn->upvalueCount,
-                                           vm->funClass, OBJ_CLOSURE);
+                                           fnClass, OBJ_CLOSURE);
     memset(c->upvalues, 0, sizeof(ObjUpvalue*) * fn->upvalueCount);
     c->upvalueCount = fn->upvalueCount;
     c->fn = fn;
@@ -146,8 +159,9 @@ ObjClosure* newClosure(JStarVM* vm, ObjFunction* fn) {
 }
 
 ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize) {
+    ObjClass* genClass = vm->coreClasses[CORE_CLASS_GENERATOR];
     ObjGenerator* gen = (ObjGenerator*)newVarObj(vm, sizeof(*gen), sizeof(Value), stackSize,
-                                                 vm->genClass, OBJ_GENERATOR);
+                                                 genClass, OBJ_GENERATOR);
     gen->state = GEN_STARTED;
     gen->closure = closure;
     gen->lastYield = NULL_VAL;
@@ -167,7 +181,8 @@ ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
 }
 
 ObjBoundMethod* newBoundMethod(JStarVM* vm, Value bound, Obj* method) {
-    ObjBoundMethod* bm = (ObjBoundMethod*)newObj(vm, sizeof(*bm), vm->funClass, OBJ_BOUND_METHOD);
+    ObjClass* fnClass = vm->coreClasses[CORE_CLASS_FUNCTION];
+    ObjBoundMethod* bm = (ObjBoundMethod*)newObj(vm, sizeof(*bm), fnClass, OBJ_BOUND_METHOD);
     bm->receiver = bound;
     bm->method = method;
     return bm;
@@ -175,7 +190,8 @@ ObjBoundMethod* newBoundMethod(JStarVM* vm, Value bound, Obj* method) {
 
 ObjTuple* newTuple(JStarVM* vm, size_t size) {
     if(size == 0 && vm->emptyTup) return vm->emptyTup;
-    ObjTuple* tuple = (ObjTuple*)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, vm->tupClass,
+    ObjClass* tupClass = vm->coreClasses[CORE_CLASS_TUPLE];
+    ObjTuple* tuple = (ObjTuple*)newVarObj(vm, sizeof(*tuple), sizeof(Value), size, tupClass,
                                            OBJ_TUPLE);
     zeroValueArray(tuple->items, size);
     tuple->count = size;
@@ -183,15 +199,17 @@ ObjTuple* newTuple(JStarVM* vm, size_t size) {
 }
 
 ObjUserdata* newUserData(JStarVM* vm, size_t size, void (*finalize)(void*)) {
+    ObjClass* udataClass = vm->coreClasses[CORE_CLASS_USERDATA];
     ObjUserdata* udata = (ObjUserdata*)newVarObj(vm, sizeof(*udata), sizeof(uint8_t), size,
-                                                 vm->udataClass, OBJ_USERDATA);
+                                                 udataClass, OBJ_USERDATA);
     udata->size = size;
     udata->finalize = finalize;
     return udata;
 }
 
 ObjStackTrace* newStackTrace(JStarVM* vm) {
-    ObjStackTrace* st = (ObjStackTrace*)newObj(vm, sizeof(*st), vm->stClass, OBJ_STACK_TRACE);
+    ObjClass* stClass = vm->coreClasses[CORE_CLASS_STACKTRACE];
+    ObjStackTrace* st = (ObjStackTrace*)newObj(vm, sizeof(*st), stClass, OBJ_STACK_TRACE);
     st->records.items = NULL;
     st->records.capacity = 0;
     st->records.count = 0;
@@ -201,7 +219,8 @@ ObjStackTrace* newStackTrace(JStarVM* vm) {
 ObjList* newList(JStarVM* vm, size_t capacity) {
     Value* arr = NULL;
     if(capacity > 0) arr = GC_ALLOC(vm, sizeof(Value) * capacity);
-    ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), vm->lstClass, OBJ_LIST);
+    ObjClass* lstClass = vm->coreClasses[CORE_CLASS_LIST];
+    ObjList* lst = (ObjList*)newObj(vm, sizeof(*lst), lstClass, OBJ_LIST);
     lst->capacity = capacity;
     lst->count = 0;
     lst->items = arr;
@@ -209,7 +228,8 @@ ObjList* newList(JStarVM* vm, size_t capacity) {
 }
 
 ObjTable* newTable(JStarVM* vm) {
-    ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), vm->tableClass, OBJ_TABLE);
+    ObjClass* tableClass = vm->coreClasses[CORE_CLASS_TABLE];
+    ObjTable* table = (ObjTable*)newObj(vm, sizeof(*table), tableClass, OBJ_TABLE);
     table->sizeMask = 0;
     table->count = 0;
     table->tombstones = 0;
@@ -219,7 +239,8 @@ ObjTable* newTable(JStarVM* vm) {
 
 ObjString* newString(JStarVM* vm, size_t length) {
     char* data = GC_ALLOC(vm, length + 1);
-    ObjString* str = (ObjString*)newObj(vm, sizeof(*str), vm->strClass, OBJ_STRING);
+    ObjClass* strClass = vm->coreClasses[CORE_CLASS_STR];
+    ObjString* str = (ObjString*)newObj(vm, sizeof(*str), strClass, OBJ_STRING);
     str->length = length;
     str->hash = 0;
     str->interned = false;
@@ -546,8 +567,10 @@ FunctionBase* getFunctionBase(Obj* fn) {
 }
 
 ObjString* jsrBufferToString(JStarBuffer* b) {
-    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);  // Shrink to fit the buffer
-    ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), b->vm->strClass, OBJ_STRING);
+    // Shrink to fit the buffer
+    char* data = gcAlloc(b->vm, b->data, b->capacity, b->size + 1);
+    ObjClass* strClass = b->vm->coreClasses[CORE_CLASS_STR];
+    ObjString* s = (ObjString*)newObj(b->vm, sizeof(*s), strClass, OBJ_STRING);
     s->interned = false;
     s->length = b->size;
     s->data = data;
@@ -560,14 +583,6 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
 // -----------------------------------------------------------------------------
 // DEBUG
 // -----------------------------------------------------------------------------
-
-#ifdef JSTAR_DBG_PRINT_GC
-const char* ObjTypeNames[] = {
-    #define ENUM_STRING(elem) #elem,
-    OBJTYPE(ENUM_STRING)
-    #undef ENUM_STRING
-};
-#endif
 
 static void printEscaped(ObjString* s) {
     const char* escaped = "\0\a\b\f\n\r\t\v\\\"";

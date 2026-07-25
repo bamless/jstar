@@ -18,8 +18,6 @@
 #include "value.h"
 #include "vm.h"
 
-static const uint8_t MAGIC[] = {0xb5, 'J', 's', 'r', 'C'};
-
 typedef enum ConstType {
     CONST_NUM = 1,
     CONST_BOOL,
@@ -28,6 +26,8 @@ typedef enum ConstType {
     CONST_FUN,
     CONST_NAT,
 } ConstType;
+
+static const uint8_t MAGIC[] = {0xb5, 'J', 's', 'r', 'C'};
 
 // -----------------------------------------------------------------------------
 // SERIALIZATION

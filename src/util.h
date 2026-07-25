@@ -22,6 +22,9 @@
 // Returns whether `num` has a valid integer representation
 #define HAS_INT_REPR(num) ((num) >= (double)INT64_MIN && (num) < -(double)INT64_MIN)
 
+// Returns the number of elements in a statically allocated array
+#define ARRAY_COUNT(a) (sizeof(a) / sizeof((a)[0]))
+
 // Utility function to hash arbitrary data
 static inline uint32_t hashBytes(const void* data, size_t length) {
     const char* str = data;

@@ -5,19 +5,18 @@
 
 #include "conf.h"
 
-const char* JStarTokName[] = {
-#define TOKEN(tok, name) name,
-#include "parse/token.def"
-};
-
 typedef struct Keyword {
     const char* name;
     size_t length;
     JStarTokType type;
 } Keyword;
 
-// clang-format off
+const char* JStarTokName[] = {
+#define TOKEN(tok, name) name,
+#include "parse/token.def"
+};
 
+// clang-format off
 JSR_STATIC_ASSERT(TOK_EOF == 78, "Number of token changed, update keyword if necessary");
 static Keyword keywords[] = {
 #define STR(s) (s), sizeof(s) - 1
@@ -56,7 +55,6 @@ static Keyword keywords[] = {
     // sentinel
     {NULL, 0,          TOK_EOF}
 };
-
 // clang-format on
 
 static char advance(JStarLex* lex) {

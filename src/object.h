@@ -12,13 +12,6 @@
 #include "value.h"
 #include "value_hashtable.h"
 
-// Top level variables defined in each module
-#define MOD_NAME "__name__"  // The module's name
-#define MOD_PATH "__path__"  // The module's file path
-#define MOD_THIS "__this__"  // A reference to the module itself
-
-struct Frame;
-
 /**
  * Object system of the J* language.
  *
@@ -33,11 +26,48 @@ struct Frame;
  * should be tested before casting.
  */
 
+// Top level variables defined in each module
+#define MOD_NAME "__name__"  // The module's name
+#define MOD_PATH "__path__"  // The module's file path
+#define MOD_THIS "__this__"  // A reference to the module itself
+
+// Object checking macro
+#define IS_BOUND_METHOD(o) (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_BOUND_METHOD)
+#define IS_LIST(o)         (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_LIST)
+#define IS_STRING(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STRING)
+#define IS_FUNC(o)         (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_FUNCTION)
+#define IS_NATIVE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_NATIVE)
+#define IS_CLASS(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLASS)
+#define IS_INSTANCE(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_INST)
+#define IS_MODULE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_MODULE)
+#define IS_CLOSURE(o)      (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLOSURE)
+#define IS_GENERATOR(o)    (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_GENERATOR)
+#define IS_TUPLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TUPLE)
+#define IS_STACK_TRACE(o)  (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STACK_TRACE)
+#define IS_TABLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TABLE)
+#define IS_USERDATA(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_USERDATA)
+
+// Object casting macros
+#define AS_BOUND_METHOD(o) ((ObjBoundMethod*)AS_OBJ(o))
+#define AS_LIST(o)         ((ObjList*)AS_OBJ(o))
+#define AS_STRING(o)       ((ObjString*)AS_OBJ(o))
+#define AS_FUNC(o)         ((ObjFunction*)AS_OBJ(o))
+#define AS_NATIVE(o)       ((ObjNative*)AS_OBJ(o))
+#define AS_CLASS(o)        ((ObjClass*)AS_OBJ(o))
+#define AS_INSTANCE(o)     ((ObjInstance*)AS_OBJ(o))
+#define AS_MODULE(o)       ((ObjModule*)AS_OBJ(o))
+#define AS_CLOSURE(o)      ((ObjClosure*)AS_OBJ(o))
+#define AS_GENERATOR(o)    ((ObjGenerator*)AS_OBJ(o))
+#define AS_TUPLE(o)        ((ObjTuple*)AS_OBJ(o))
+#define AS_STACK_TRACE(o)  ((ObjStackTrace*)AS_OBJ(o))
+#define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
+#define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
+
 // Object type.
 // These types are used internally by the object system and are never
 // exposed to the user, to whom all values behave like class instances.
 // The enum is defined using X-macros in order to automatically generate
-// string names of enum constants (see ObjTypeNames array in object.c)
+// string names of enum constants (see `ObjTypeNames` array).
 #define OBJTYPE(X)      \
     X(OBJ_STRING)       \
     X(OBJ_NATIVE)       \
@@ -61,39 +91,7 @@ typedef enum ObjType {
 #undef ENUM_ELEM
 } ObjType;
 
-// -----------------------------------------------------------------------------
-// OBJECT CASTING MACROS
-// -----------------------------------------------------------------------------
-
-#define IS_BOUND_METHOD(o) (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_BOUND_METHOD)
-#define IS_LIST(o)         (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_LIST)
-#define IS_STRING(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STRING)
-#define IS_FUNC(o)         (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_FUNCTION)
-#define IS_NATIVE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_NATIVE)
-#define IS_CLASS(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLASS)
-#define IS_INSTANCE(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_INST)
-#define IS_MODULE(o)       (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_MODULE)
-#define IS_CLOSURE(o)      (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_CLOSURE)
-#define IS_GENERATOR(o)    (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_GENERATOR)
-#define IS_TUPLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TUPLE)
-#define IS_STACK_TRACE(o)  (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_STACK_TRACE)
-#define IS_TABLE(o)        (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_TABLE)
-#define IS_USERDATA(o)     (IS_OBJ(o) && AS_OBJ(o)->type == OBJ_USERDATA)
-
-#define AS_BOUND_METHOD(o) ((ObjBoundMethod*)AS_OBJ(o))
-#define AS_LIST(o)         ((ObjList*)AS_OBJ(o))
-#define AS_STRING(o)       ((ObjString*)AS_OBJ(o))
-#define AS_FUNC(o)         ((ObjFunction*)AS_OBJ(o))
-#define AS_NATIVE(o)       ((ObjNative*)AS_OBJ(o))
-#define AS_CLASS(o)        ((ObjClass*)AS_OBJ(o))
-#define AS_INSTANCE(o)     ((ObjInstance*)AS_OBJ(o))
-#define AS_MODULE(o)       ((ObjModule*)AS_OBJ(o))
-#define AS_CLOSURE(o)      ((ObjClosure*)AS_OBJ(o))
-#define AS_GENERATOR(o)    ((ObjGenerator*)AS_OBJ(o))
-#define AS_TUPLE(o)        ((ObjTuple*)AS_OBJ(o))
-#define AS_STACK_TRACE(o)  ((ObjStackTrace*)AS_OBJ(o))
-#define AS_TABLE(o)        ((ObjTable*)AS_OBJ(o))
-#define AS_USERDATA(o)     ((ObjUserdata*)AS_OBJ(o))
+struct Frame;
 
 // -----------------------------------------------------------------------------
 // OBJECT DEFINITIONS
@@ -299,8 +297,12 @@ typedef struct ObjUserdata {
     uint8_t data[];           // The data
 } ObjUserdata;
 
+#ifdef JSTAR_DBG_PRINT_GC
+extern const char* ObjTypeNames[];
+#endif
+
 // -----------------------------------------------------------------------------
-// OBJECT ALLOCATION FUNCTIONS
+// OBJECT ALLOCATION
 // -----------------------------------------------------------------------------
 
 // These functions use `gcAlloc` to allocate memory and then initialize the object with the supplied
@@ -333,7 +335,7 @@ ObjString* copyCStringInterned(JStarVM* vm, const char* str);
 void freeObject(JStarVM* vm, Obj* o);
 
 // -----------------------------------------------------------------------------
-// OBJECT MANIPULATION FUNCTIONS
+// OBJECT MANIPULATION
 // -----------------------------------------------------------------------------
 
 // ObjInstance functions
@@ -364,23 +366,15 @@ bool stringEquals(ObjString* s1, ObjString* s2);
 // Dumps a frame in an `ObjStackTrace`
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f);
 
-// Misc functions
-
 // Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* count);
-// Get the `FunctionBase` field of a Function object
-// (`ObjFunction`, `ObjNative` or `ObjBoundMethod`)
+
+// Get the `FunctionBase` field of a Function object (`ObjFunction`,
+// `ObjNative` or `ObjBoundMethod`).
 FunctionBase* getFunctionBase(Obj* fn);
+
 // Convert a JStarBuffer into an ObjString and zeroes `b`
 ObjString* jsrBufferToString(JStarBuffer* b);
-
-// -----------------------------------------------------------------------------
-// DEBUG
-// -----------------------------------------------------------------------------
-
-#ifdef JSTAR_DBG_PRINT_GC
-extern const char* ObjTypeNames[];
-#endif
 
 // Prints an Obj in a human readable form
 void printObj(Obj* o);
