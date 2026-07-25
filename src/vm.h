@@ -40,7 +40,7 @@ typedef struct Handler {
 typedef struct Frame {
     uint8_t* ip;                     // Instruction pointer
     Value* stack;                    // Base of stack for current frame
-    Obj* fn;                         // Function associated with the frame (ObjClosure or ObjNative)
+    Prototype* fn;                   // Function associated with the frame (ObjClosure or ObjNative)
     ObjGenerator* gen;               // Generator of this frame (if any)
     Handler handlers[MAX_HANDLERS];  // Exception handlers
     uint8_t handlerCount;            // Exception handlers count
@@ -166,10 +166,10 @@ void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz);
 
 bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
 bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
+bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
+void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
 bool getValueSubscript(JStarVM* vm);
 bool setValueSubscript(JStarVM* vm);
-void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
-bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym);
 
 bool callValue(JStarVM* vm, Value callee, uint8_t argc);
 bool invokeValue(JStarVM* vm, ObjString* name, uint8_t argc, SymbolCache* sym);

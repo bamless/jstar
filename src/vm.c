@@ -193,14 +193,14 @@ static Frame* initFrame(JStarVM* vm, Prototype* proto) {
 
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
     Frame* callFrame = initFrame(vm, &closure->fn->proto);
-    callFrame->fn = (Obj*)closure;
+    callFrame->fn = (Prototype*)closure;
     callFrame->ip = closure->fn->code.bytecode.items;
     return callFrame;
 }
 
 static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
     Frame* callFrame = initFrame(vm, &native->proto);
-    callFrame->fn = (Obj*)native;
+    callFrame->fn = (Prototype*)native;
     callFrame->ip = NULL;
     return callFrame;
 }
@@ -417,7 +417,7 @@ static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
     PROFILE_FUNC()
 
     f->gen = gen;
-    f->fn = (Obj*)gen->closure;
+    f->fn = (Prototype*)gen->closure;
     f->ip = gen->frame.ip;
     f->stack = sp;
     f->handlerCount = gen->frame.handlerCount;
@@ -972,6 +972,39 @@ inline bool setValueField(JStarVM* vm, ObjString* name, SymbolCache* sym) {
     return false;
 }
 
+inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
+    if(getCachedGlobal(mod, sym, vm->sp)) {
+        vm->sp++;
+        return true;
+    }
+
+    int off = moduleGetGlobalOffset(mod, name);
+    if(off == -1) {
+        jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
+                 mod->name->data);
+        return false;
+    }
+
+    sym->type = SYMBOL_GLOBAL;
+    sym->key = (Obj*)mod;
+    sym->as.offset = off;
+
+    push(vm, mod->globals[off]);
+    return true;
+}
+
+inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
+    if(isSymbolCached((Obj*)mod, sym)) {
+        JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Invalid symbol type");
+        mod->globals[sym->as.offset] = peek(vm);
+    } else {
+        int off = moduleSetGlobal(vm, mod, name, peek(vm));
+        sym->type = SYMBOL_GLOBAL;
+        sym->key = (Obj*)mod;
+        sym->as.offset = off;
+    }
+}
+
 inline bool getValueSubscript(JStarVM* vm) {
     if(IS_OBJ(peek2(vm))) {
         Value operand = peek2(vm);
@@ -1015,39 +1048,6 @@ inline bool setValueSubscript(JStarVM* vm) {
     if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->specialMethods[METH_SET], 2)) {
         return false;
     }
-    return true;
-}
-
-inline void setGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
-    if(isSymbolCached((Obj*)mod, sym)) {
-        JSR_ASSERT(sym->type == SYMBOL_GLOBAL, "Invalid symbol type");
-        mod->globals[sym->as.offset] = peek(vm);
-    } else {
-        int off = moduleSetGlobal(vm, mod, name, peek(vm));
-        sym->type = SYMBOL_GLOBAL;
-        sym->key = (Obj*)mod;
-        sym->as.offset = off;
-    }
-}
-
-inline bool getGlobalName(JStarVM* vm, ObjModule* mod, ObjString* name, SymbolCache* sym) {
-    if(getCachedGlobal(mod, sym, vm->sp)) {
-        vm->sp++;
-        return true;
-    }
-
-    int off = moduleGetGlobalOffset(mod, name);
-    if(off == -1) {
-        jsrRaise(vm, "NameException", "Name `%s` is not defined in module `%s`.", name->data,
-                 mod->name->data);
-        return false;
-    }
-
-    sym->type = SYMBOL_GLOBAL;
-    sym->key = (Obj*)mod;
-    sym->as.offset = off;
-
-    push(vm, mod->globals[off]);
     return true;
 }
 
@@ -1252,7 +1252,7 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 
 ObjModule* getCurrentModule(JStarVM* vm) {
     if(vm->frameCount == 0) return NULL;
-    return getPrototype(vm->frames[vm->frameCount - 1].fn)->module;
+    return vm->frames[vm->frameCount - 1].fn->module;
 }
 
 bool runEval(JStarVM* vm, int evalDepth) {

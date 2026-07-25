@@ -238,7 +238,7 @@ void garbageCollect(JStarVM* vm) {
         }
 
         for(int i = 0; i < vm->frameCount; i++) {
-            reachObject(vm, vm->frames[i].fn);
+            reachObject(vm, (Obj*)vm->frames[i].fn);
         }
 
         for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {

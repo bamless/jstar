@@ -291,6 +291,22 @@ bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbo
     return true;
 }
 
+bool jsrImportModule(JStarVM* vm, const char* moduleName) {
+    ObjModule* mod = importModule(vm, copyCStringInterned(vm, moduleName));
+    if(!mod) {
+        jsrRaise(vm, "ImportException", "Cannot load module `%s`.", moduleName);
+        return false;
+    }
+
+    if(!IS_NULL(peek(vm))) {
+        if(!jsrCall(vm, 0)) return false;
+    }
+    pop(vm);
+
+    push(vm, OBJ_VAL(mod));
+    return true;
+}
+
 JStarSymbol* jsrNewSymbol(JStarVM* vm) {
     JStarSymbol* sym = GC_ALLOC(vm, sizeof(*sym));
     *sym = (JStarSymbol){0};

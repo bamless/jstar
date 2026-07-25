@@ -482,7 +482,7 @@ bool stringEquals(ObjString* s1, ObjString* s2) {
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f) {
     FrameRecord record = {0};
 
-    switch(f->fn->type) {
+    switch(f->fn->base.type) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)f->fn;
         ObjFunction* fn = closure->fn;

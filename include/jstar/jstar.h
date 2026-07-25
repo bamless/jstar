@@ -182,6 +182,11 @@ JSTAR_API bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 // Can be more efficient if the same method is called multiple times on the same object type.
 JSTAR_API bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym);
 
+// Import 'moduleName'. The import of the module goes through the usual API via `importCallback`.
+// Returns true on success, leaving the module on top of the stack.
+// Returns false on failure, leaving an exception on top of the stack.
+JSTAR_API bool jsrImportModule(JStarVM* vm, const char* moduleName);
+
 // -----------------------------------------------------------------------------
 // C TO J* VALUE CONVERSION API
 // -----------------------------------------------------------------------------
