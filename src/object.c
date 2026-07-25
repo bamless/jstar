@@ -32,14 +32,14 @@ static Obj* newVarObj(JStarVM* vm, size_t size, size_t varSize, size_t count, Ob
     return newObj(vm, size + varSize * count, cls, type);
 }
 
-static void initProto(Prototype* proto, ObjModule* m, ObjString* name, uint8_t args,
-                      Value* defaults, uint8_t defCount, bool vararg) {
-    proto->module = m;
-    proto->name = name;
-    proto->argsCount = args;
-    proto->defaults = defaults;
-    proto->defCount = defCount;
-    proto->vararg = vararg;
+static void initFunctionBase(FunctionBase* c, ObjModule* m, ObjString* name, uint8_t args,
+                             Value* defaults, uint8_t defCount, bool vararg) {
+    c->module = m;
+    c->name = name;
+    c->argsCount = args;
+    c->defaults = defaults;
+    c->defCount = defCount;
+    c->vararg = vararg;
 }
 
 static void zeroValueArray(Value* arr, size_t count) {
@@ -61,7 +61,7 @@ ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t arg
     push(vm, OBJ_VAL(name));
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjFunction* fun = (ObjFunction*)newObj(vm, sizeof(*fun), vm->funClass, OBJ_FUNCTION);
-    initProto(&fun->proto, m, name, args, defaults, defCount, vararg);
+    initFunctionBase(&fun->base, m, name, args, defaults, defCount, vararg);
     fun->upvalueCount = 0;
     fun->stackUsage = 0;
     initCode(&fun->code);
@@ -76,7 +76,7 @@ ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, u
     Value* defaults = allocateDefaultArray(vm, defCount);
     ObjNative* native = (ObjNative*)newObj(vm, sizeof(*native), vm->funClass, OBJ_NATIVE);
     native->fn = fn;
-    initProto(&native->proto, m, name, args, defaults, defCount, vararg);
+    initFunctionBase(&native->base, m, name, args, defaults, defCount, vararg);
     pop(vm);
     return native;
 }
@@ -255,14 +255,14 @@ void freeObject(JStarVM* vm, Obj* o) {
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        GC_FREE_ARRAY(vm, Value, n->proto.defaults, n->proto.defCount);
+        GC_FREE_ARRAY(vm, Value, n->base.defaults, n->base.defCount);
         GC_FREE(vm, ObjNative, n);
         break;
     }
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
         freeCode(vm, &f->code);
-        GC_FREE_ARRAY(vm, Value, f->proto.defaults, f->proto.defCount);
+        GC_FREE_ARRAY(vm, Value, f->base.defaults, f->base.defCount);
         GC_FREE(vm, ObjFunction, f);
         break;
     }
@@ -482,7 +482,7 @@ bool stringEquals(ObjString* s1, ObjString* s2) {
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f) {
     FrameRecord record = {0};
 
-    switch(f->fn->base.type) {
+    switch(f->fn->type) {
     case OBJ_CLOSURE: {
         ObjClosure* closure = (ObjClosure*)f->fn;
         ObjFunction* fn = closure->fn;
@@ -494,17 +494,17 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f) {
         }
 
         record.line = getBytecodeSrcLine(code, op);
-        record.path = fn->proto.module->path;
-        record.moduleName = fn->proto.module->name;
-        record.funcName = fn->proto.name;
+        record.path = fn->base.module->path;
+        record.moduleName = fn->base.module->name;
+        record.funcName = fn->base.name;
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* nat = (ObjNative*)f->fn;
         record.line = 0;
-        record.path = nat->proto.module->path;
-        record.moduleName = nat->proto.module->name;
-        record.funcName = nat->proto.name;
+        record.path = nat->base.module->path;
+        record.moduleName = nat->base.module->name;
+        record.funcName = nat->base.name;
         break;
     }
     default:
@@ -532,14 +532,14 @@ Value* getValues(Obj* obj, size_t* count) {
     }
 }
 
-Prototype* getPrototype(Obj* fn) {
+FunctionBase* getFunctionBase(Obj* fn) {
     switch(fn->type) {
     case OBJ_CLOSURE:
-        return &((ObjClosure*)fn)->fn->proto;
+        return &((ObjClosure*)fn)->fn->base;
     case OBJ_NATIVE:
-        return &((ObjNative*)fn)->proto;
+        return &((ObjNative*)fn)->base;
     case OBJ_BOUND_METHOD:
-        return getPrototype(((ObjBoundMethod*)fn)->method);
+        return getFunctionBase(((ObjBoundMethod*)fn)->method);
     default:
         JSR_UNREACHABLE();
     }
@@ -594,21 +594,21 @@ void printObj(Obj* o) {
         break;
     case OBJ_FUNCTION: {
         ObjFunction* f = (ObjFunction*)o;
-        if(f->proto.module->name->length != 0) {
-            printf("<func %s.%s:%d>", f->proto.module->name->data, f->proto.name->data,
-                   f->proto.argsCount);
+        if(f->base.module->name->length != 0) {
+            printf("<func %s.%s:%d>", f->base.module->name->data, f->base.name->data,
+                   f->base.argsCount);
         } else {
-            printf("<func %s:%d>", f->proto.name->data, f->proto.argsCount);
+            printf("<func %s:%d>", f->base.name->data, f->base.argsCount);
         }
         break;
     }
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        if(n->proto.module->name->length != 0) {
-            printf("<native %s.%s:%d>", n->proto.module->name->data, n->proto.name->data,
-                   n->proto.argsCount);
+        if(n->base.module->name->length != 0) {
+            printf("<native %s.%s:%d>", n->base.module->name->data, n->base.name->data,
+                   n->base.argsCount);
         } else {
-            printf("<native %s:%d>", n->proto.name->data, n->proto.argsCount);
+            printf("<native %s:%d>", n->base.name->data, n->base.argsCount);
         }
         break;
     }
@@ -665,17 +665,9 @@ void printObj(Obj* o) {
     }
     case OBJ_BOUND_METHOD: {
         ObjBoundMethod* b = (ObjBoundMethod*)o;
-
-        char* name;
-        if(b->method->type == OBJ_CLOSURE) {
-            name = ((ObjClosure*)b->method)->fn->proto.name->data;
-        } else {
-            name = ((ObjNative*)b->method)->proto.name->data;
-        }
-
         printf("<bound method ");
         printValue(b->receiver);
-        printf(":%s>", name);
+        printf(":%s>", getFunctionBase(b->method)->name->data);
         break;
     }
     case OBJ_STACK_TRACE:

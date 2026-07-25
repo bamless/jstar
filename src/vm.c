@@ -183,24 +183,24 @@ static Frame* getFrame(JStarVM* vm) {
     return &vm->frames[vm->frameCount++];
 }
 
-static Frame* initFrame(JStarVM* vm, Prototype* proto) {
+static Frame* initFrame(JStarVM* vm, FunctionBase* fn) {
     Frame* callFrame = getFrame(vm);
-    callFrame->stack = vm->sp - (proto->argsCount + 1) - (int)proto->vararg;
+    callFrame->stack = vm->sp - (fn->argsCount + 1) - (int)fn->vararg;
     callFrame->handlerCount = 0;
     callFrame->gen = NULL;
     return callFrame;
 }
 
 static Frame* appendCallFrame(JStarVM* vm, ObjClosure* closure) {
-    Frame* callFrame = initFrame(vm, &closure->fn->proto);
-    callFrame->fn = (Prototype*)closure;
+    Frame* callFrame = initFrame(vm, &closure->fn->base);
+    callFrame->fn = (Obj*)closure;
     callFrame->ip = closure->fn->code.bytecode.items;
     return callFrame;
 }
 
 static Frame* appendNativeFrame(JStarVM* vm, ObjNative* native) {
-    Frame* callFrame = initFrame(vm, &native->proto);
-    callFrame->fn = (Prototype*)native;
+    Frame* callFrame = initFrame(vm, &native->base);
+    callFrame->fn = (Obj*)native;
     callFrame->ip = NULL;
     return callFrame;
 }
@@ -305,13 +305,13 @@ static void packVarargs(JStarVM* vm, uint8_t count) {
     push(vm, OBJ_VAL(args));
 }
 
-static void argumentError(JStarVM* vm, Prototype* proto, int expected, int supplied,
+static void argumentError(JStarVM* vm, FunctionBase* fn, int expected, int supplied,
                           const char* quantity) {
     jsrRaise(vm, "TypeException", "Function `%s.%s` takes %s %d arguments, %d supplied.",
-             proto->module->name->data, proto->name->data, quantity, expected, supplied);
+             fn->module->name->data, fn->name->data, quantity, expected, supplied);
 }
 
-static bool adjustArguments(JStarVM* vm, Prototype* p, uint8_t argc) {
+static bool adjustArguments(JStarVM* vm, FunctionBase* p, uint8_t argc) {
     uint8_t most = p->argsCount, least = most - p->defCount;
 
     if(!p->vararg && argc > most) {
@@ -347,7 +347,7 @@ static bool callFunction(JStarVM* vm, ObjClosure* closure, uint8_t argc) {
         return false;
     }
 
-    if(!adjustArguments(vm, &closure->fn->proto, argc)) {
+    if(!adjustArguments(vm, &closure->fn->base, argc)) {
         return false;
     }
 
@@ -361,7 +361,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
         return false;
     }
 
-    if(!adjustArguments(vm, &native->proto, argc)) {
+    if(!adjustArguments(vm, &native->base, argc)) {
         return false;
     }
 
@@ -417,7 +417,7 @@ static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
     PROFILE_FUNC()
 
     f->gen = gen;
-    f->fn = (Prototype*)gen->closure;
+    f->fn = (Obj*)gen->closure;
     f->ip = gen->frame.ip;
     f->stack = sp;
     f->handlerCount = gen->frame.handlerCount;
@@ -1252,7 +1252,7 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
 
 ObjModule* getCurrentModule(JStarVM* vm) {
     if(vm->frameCount == 0) return NULL;
-    return vm->frames[vm->frameCount - 1].fn->module;
+    return getFunctionBase(vm->frames[vm->frameCount - 1].fn)->module;
 }
 
 bool runEval(JStarVM* vm, int evalDepth) {
@@ -1862,8 +1862,8 @@ op_return:
     }
 
     TARGET(OP_GENERATOR): {
-        const Prototype* p = &fn->proto;
-        ObjGenerator* gen = newGenerator(vm, closure, fn->stackUsage + p->argsCount + p->vararg);
+        FunctionBase* fb = &fn->base;
+        ObjGenerator* gen = newGenerator(vm, closure, fn->stackUsage + fb->argsCount + fb->vararg);
         saveFrame(gen, ip, vm->sp, frame);
         push(vm, OBJ_VAL(gen));
         goto op_return;
@@ -1929,11 +1929,11 @@ op_return:
             className = cls->name->data;
         }
 
-        ObjModule* curModule = closure->fn->proto.module;
+        ObjModule* curModule = closure->fn->base.module;
         native->fn = resolveNative(curModule, className, method->data);
         if(!native->fn) {
             jsrRaise(vm, "Exception", "Cannot resolve native %s.%s().", curModule->name->data,
-                     native->proto.name->data);
+                     native->base.name->data);
             UNWIND_STACK();
         }
 
@@ -1949,7 +1949,7 @@ op_return:
     TARGET(OP_DEFINE_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_NAME(sym);
-        setGlobalName(vm, closure->fn->proto.module, name, &sym->cache);
+        setGlobalName(vm, closure->fn->base.module, name, &sym->cache);
         pop(vm);
         DISPATCH();
     }
@@ -1957,14 +1957,14 @@ op_return:
     TARGET(OP_SET_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_NAME(sym);
-        setGlobalName(vm, closure->fn->proto.module, name, &sym->cache);
+        setGlobalName(vm, closure->fn->base.module, name, &sym->cache);
         DISPATCH();
     }
 
     TARGET(OP_GET_GLOBAL): {
         Symbol* sym = GET_SYMBOL();
         ObjString* name = GET_SYMBOL_NAME(sym);
-        if(!getGlobalName(vm, closure->fn->proto.module, name, &sym->cache)) {
+        if(!getGlobalName(vm, closure->fn->base.module, name, &sym->cache)) {
             UNWIND_STACK();
         }
         DISPATCH();

@@ -137,7 +137,7 @@ typedef struct ObjModule {
 } ObjModule;
 
 // Fields shared by all function objects (ObjFunction/ObjNative)
-typedef struct Prototype {
+typedef struct {
     Obj base;
     bool vararg;        // Whether the function is a vararg one
     uint8_t argsCount;  // The arity of the function
@@ -145,11 +145,11 @@ typedef struct Prototype {
     Value* defaults;    // Array of default arguments (NULL if no defaults)
     ObjModule* module;  // The module of the function
     ObjString* name;    // The name of the function
-} Prototype;
+} FunctionBase;
 
 // A compiled J* function
 typedef struct ObjFunction {
-    Prototype proto;
+    FunctionBase base;
     Code code;             // The actual code chunk containing bytecodes
     uint8_t upvalueCount;  // The number of upvalues the function closes over
     int stackUsage;
@@ -157,7 +157,7 @@ typedef struct ObjFunction {
 
 // A C function callable from J*
 typedef struct ObjNative {
-    Prototype proto;
+    FunctionBase base;
     JStarNative fn;  // The C function that gets called
 } ObjNative;
 
@@ -365,10 +365,12 @@ bool stringEquals(ObjString* s1, ObjString* s2);
 void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f);
 
 // Misc functions
+
 // Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* count);
-// Get the prototype field of a Function object
-Prototype* getPrototype(Obj* fn);
+// Get the `FunctionBase` field of a Function object
+// (`ObjFunction`, `ObjNative` or `ObjBoundMethod`)
+FunctionBase* getFunctionBase(Obj* fn);
 // Convert a JStarBuffer into an ObjString and zeroes `b`
 ObjString* jsrBufferToString(JStarBuffer* b);
 

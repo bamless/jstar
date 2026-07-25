@@ -84,23 +84,23 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
     switch(o->type) {
     case OBJ_NATIVE: {
         ObjNative* n = (ObjNative*)o;
-        reachObject(vm, (Obj*)n->proto.name);
-        reachObject(vm, (Obj*)n->proto.module);
-        for(uint8_t i = 0; i < n->proto.defCount; i++) {
-            reachValue(vm, n->proto.defaults[i]);
+        reachObject(vm, (Obj*)n->base.name);
+        reachObject(vm, (Obj*)n->base.module);
+        for(uint8_t i = 0; i < n->base.defCount; i++) {
+            reachValue(vm, n->base.defaults[i]);
         }
         break;
     }
     case OBJ_FUNCTION: {
         ObjFunction* func = (ObjFunction*)o;
-        reachObject(vm, (Obj*)func->proto.name);
-        reachObject(vm, (Obj*)func->proto.module);
+        reachObject(vm, (Obj*)func->base.name);
+        reachObject(vm, (Obj*)func->base.module);
         reachValues(vm, func->code.consts);
         for(size_t i = 0; i < func->code.symbols.count; i++) {
             reachObject(vm, (Obj*)func->code.symbols.items[i].cache.key);
         }
-        for(uint8_t i = 0; i < func->proto.defCount; i++) {
-            reachValue(vm, func->proto.defaults[i]);
+        for(uint8_t i = 0; i < func->base.defCount; i++) {
+            reachValue(vm, func->base.defaults[i]);
         }
         break;
     }

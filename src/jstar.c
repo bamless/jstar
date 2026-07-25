@@ -114,7 +114,7 @@ static bool eval(JStarVM* vm, const char* path, ObjFunction* fn) {
 
     push(vm, OBJ_VAL(fn));
     vm->sp[-1] = OBJ_VAL(newClosure(vm, fn));
-    moduleSetPath(vm, fn->proto.module, path);
+    moduleSetPath(vm, fn->base.module, path);
 
     if(!jsrCall(vm, 0)) {
         jsrGetStacktrace(vm, -1);
@@ -756,12 +756,12 @@ void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot) {
     JSR_ASSERT(IS_NATIVE(natVal), "natSlot is not a Native Function");
     ObjNative* nat = AS_NATIVE(natVal);
     ObjClass* cls = AS_CLASS(clsVal);
-    ObjString* name = nat->proto.name;
+    ObjString* name = nat->base.name;
     hashTableValuePut(&cls->methods, name, natVal);
-    nat->proto.name = newString(vm, name->length + cls->name->length + 1);
-    memcpy(nat->proto.name->data, cls->name->data, cls->name->length);
-    memcpy(nat->proto.name->data + cls->name->length, ".", 1);
-    memcpy(nat->proto.name->data + cls->name->length + 1, name->data, name->length);
+    nat->base.name = newString(vm, name->length + cls->name->length + 1);
+    memcpy(nat->base.name->data, cls->name->data, cls->name->length);
+    memcpy(nat->base.name->data + cls->name->length, ".", 1);
+    memcpy(nat->base.name->data + cls->name->length + 1, name->data, name->length);
 }
 
 void* jsrGetUserdata(JStarVM* vm, int slot) {

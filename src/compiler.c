@@ -265,7 +265,7 @@ static void exitFunctionScope(Compiler* c) {
 static uint16_t createConst(Compiler* c, Value constant, JStarLoc loc) {
     int index = addConstant(c->vm, &c->func->code, constant);
     if(index == -1) {
-        error(c, loc, "Too many constants in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many constants in function %s", c->func->base.name->data);
         return 0;
     }
     return (uint16_t)index;
@@ -298,7 +298,7 @@ static uint16_t identifierConst(Compiler* c, JStarIdentifier id, JStarLoc loc) {
 static uint16_t identifierSymbol(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     int index = addSymbol(c->vm, &c->func->code, identifierConst(c, id, loc));
     if(index == -1) {
-        error(c, loc, "Too many symbols in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many symbols in function %s", c->func->base.name->data);
         return 0;
     }
     return (uint16_t)index;
@@ -306,8 +306,8 @@ static uint16_t identifierSymbol(Compiler* c, JStarIdentifier id, JStarLoc loc) 
 
 static int addLocal(Compiler* c, JStarIdentifier id, JStarLoc loc) {
     if(c->localsCount == MAX_LOCALS) {
-        error(c, loc, "Too many local variables in function %s (max %zu)",
-              c->func->proto.name->data, MAX_LOCALS);
+        error(c, loc, "Too many local variables in function %s (max %zu)", c->func->base.name->data,
+              MAX_LOCALS);
         return -1;
     }
     Local* local = &c->locals[c->localsCount];
@@ -345,7 +345,7 @@ static int addUpvalue(Compiler* c, uint8_t index, bool local, JStarLoc loc) {
     }
 
     if(c->func->upvalueCount == MAX_LOCALS) {
-        error(c, loc, "Too many upvalues in function %s", c->func->proto.name->data);
+        error(c, loc, "Too many upvalues in function %s", c->func->base.name->data);
         return -1;
     }
 
@@ -638,11 +638,11 @@ static Value literalToValue(Compiler* c, const JStarExpr* e) {
     }
 }
 
-static void addFunctionDefaults(Compiler* c, Prototype* proto, const JStarExprs* defaults) {
+static void addFunctionDefaults(Compiler* c, FunctionBase* fn, const JStarExprs* defaults) {
     size_t i = 0;
     arrayForeach(JStarExpr*, it, defaults) {
-        if(i >= proto->defCount) break;
-        proto->defaults[i++] = literalToValue(c, *it);
+        if(i >= fn->defCount) break;
+        fn->defaults[i++] = literalToValue(c, *it);
     }
 }
 
@@ -957,7 +957,7 @@ static void compileArguments(Compiler* c, const JStarExprs* args, JStarLoc loc) 
 
     if(args->count >= UINT8_MAX) {
         error(c, loc, "Exceeded maximum number of arguments (%d) for function %s", (int)UINT8_MAX,
-              c->func->proto.name->data);
+              c->func->base.name->data);
     }
 }
 
@@ -1760,7 +1760,7 @@ static ObjFunction* function(Compiler* c, ObjModule* mod, ObjString* name, const
     bool isVararg = vargId.name != NULL;
 
     c->func = newFunction(c->vm, mod, name, arity, defaults->count, isVararg);
-    addFunctionDefaults(c, &c->func->proto, defaults);
+    addFunctionDefaults(c, &c->func->base, defaults);
 
     // The receiver:
     //  - In the case of functions the receiver is the function itself.
@@ -1808,12 +1808,12 @@ static ObjNative* native(Compiler* c, ObjString* name, const JStarStmt* s) {
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
     bool isVararg = vargId.name != NULL;
 
-    ObjNative* native = newNative(c->vm, c->func->proto.module, name, arity, defaults->count,
+    ObjNative* native = newNative(c->vm, c->func->base.module, name, arity, defaults->count,
                                   isVararg, NULL);
 
     // Push the native on the stack in case `addFunctionDefaults` triggers a collection
     push(c->vm, OBJ_VAL(native));
-    addFunctionDefaults(c, &native->proto, defaults);
+    addFunctionDefaults(c, &native->base, defaults);
     pop(c->vm);
 
     return native;
@@ -1833,7 +1833,7 @@ static void compileFunction(Compiler* c, FuncType type, ObjString* name, const J
     initCompiler(&newCompiler, c->vm, c, c->file, type, fn, c->module, c->globals, c->fwdRefs);
 
     enterFunctionScope(&newCompiler);
-    ObjFunction* func = function(&newCompiler, c->func->proto.module, name, fn);
+    ObjFunction* func = function(&newCompiler, c->func->base.module, name, fn);
     exitFunctionScope(&newCompiler);
 
     emitClosure(c, func, newCompiler.upvalues, fn->loc);

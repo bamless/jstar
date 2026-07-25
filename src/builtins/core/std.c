@@ -112,8 +112,8 @@ JSR_NATIVE(jsr_eval) {
         JSR_RAISE(vm, "SyntaxException", "Syntax error");
     }
 
-    Prototype* proto = vm->frames[vm->frameCount - 2].fn;
-    ObjFunction* fn = compileModule(vm, "<eval>", proto->module->name, program);
+    FunctionBase* fb = getFunctionBase(vm->frames[vm->frameCount - 2].fn);
+    ObjFunction* fn = compileModule(vm, "<eval>", fb->module->name, program);
     jsrASTArenaReset(&vm->astArena);
 
     if(fn == NULL) {

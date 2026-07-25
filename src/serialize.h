@@ -7,7 +7,7 @@
 #include "jstar.h"
 #include "object.h"
 
-JStarBuffer serialize(JStarVM* vm, ObjFunction* f);
+JStarBuffer serialize(JStarVM* vm, const ObjFunction* f);
 JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t len,
                         ObjFunction** out);
 bool isCompiledCode(const void* code, size_t len);

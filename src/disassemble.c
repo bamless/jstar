@@ -41,16 +41,16 @@ static void disassembleCode(const Code* c, int indent) {
     }
 }
 
-static void disassemblePrototype(const Prototype* proto, int upvals) {
-    printf("arguments %d, defaults %d, upvalues %d", (int)proto->argsCount, (int)proto->defCount,
+static void disassembleFunctionBase(const FunctionBase* c, int upvals) {
+    printf("arguments %d, defaults %d, upvalues %d", (int)c->argsCount, (int)c->defCount,
            upvals);
-    if(proto->vararg) printf(", vararg");
+    if(c->vararg) printf(", vararg");
     printf("\n");
 }
 
 void disassembleFunction(const ObjFunction* fn) {
-    ObjString* mod = fn->proto.module->name;
-    ObjString* name = fn->proto.name;
+    ObjString* mod = fn->base.module->name;
+    ObjString* name = fn->base.name;
     size_t instr = countInstructions(&fn->code);
 
     printf("function ");
@@ -61,7 +61,7 @@ void disassembleFunction(const ObjFunction* fn) {
     }
     printf(" (%zu instructions at %p)\n", instr, (void*)fn);
 
-    disassemblePrototype(&fn->proto, fn->upvalueCount);
+    disassembleFunctionBase(&fn->base, fn->upvalueCount);
     disassembleCode(&fn->code, INDENT);
 
     for(size_t i = 0; i < fn->code.consts.count; i++) {
@@ -77,8 +77,8 @@ void disassembleFunction(const ObjFunction* fn) {
 }
 
 void disassembleNative(const ObjNative* nat) {
-    ObjString* mod = nat->proto.module->name;
-    ObjString* name = nat->proto.name;
+    ObjString* mod = nat->base.module->name;
+    ObjString* name = nat->base.name;
     printf("native ");
     if(mod->length != 0) {
         printf("%s.%s", mod->data, name->data);
@@ -86,7 +86,7 @@ void disassembleNative(const ObjNative* nat) {
         printf("%s", name->data);
     }
     printf(" (%p)\n", (void*)nat);
-    disassemblePrototype(&nat->proto, 0);
+    disassembleFunctionBase(&nat->base, 0);
 }
 
 static void signedOffsetInstruction(const Code* c, size_t i) {

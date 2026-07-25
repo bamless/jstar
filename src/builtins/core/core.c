@@ -379,7 +379,7 @@ JSR_NATIVE(jsr_Null_string) {
 // class Function
 JSR_NATIVE(jsr_Function_string) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    Prototype* proto = getPrototype(fn);
+    FunctionBase* fb = getFunctionBase(fn);
 
     const char* fnType = NULL;
     switch(fn->type) {
@@ -399,18 +399,18 @@ JSR_NATIVE(jsr_Function_string) {
     JStarBuffer str;
     jsrBufferInit(vm, &str);
 
-    if(strcmp(proto->module->name->data, JSR_CORE_MODULE) == 0) {
-        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, proto->name->data, (void*)fn);
+    if(strcmp(fb->module->name->data, JSR_CORE_MODULE) == 0) {
+        jsrBufferAppendf(&str, "<%s %s@%p>", fnType, fb->name->data, (void*)fn);
     } else {
-        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, proto->module->name->data,
-                         proto->name->data, (void*)fn);
+        jsrBufferAppendf(&str, "<%s %s.%s@%p>", fnType, fb->module->name->data, fb->name->data,
+                         (void*)fn);
     }
 
     jsrBufferPush(&str);
     return true;
 }
 
-static bool checkBuiltin(JStarVM* vm, ObjClass* cls) {
+static bool isBuiltIn(JStarVM* vm, ObjClass* cls) {
     return vm->clsClass == cls || vm->objClass == cls || vm->strClass == cls ||
            vm->boolClass == cls || vm->lstClass == cls || vm->numClass == cls ||
            vm->funClass == cls || vm->genClass == cls || vm->modClass == cls ||
@@ -423,9 +423,9 @@ JSR_NATIVE(jsr_Function_bind) {
 
     if(fn->type == OBJ_BOUND_METHOD) {
         ObjBoundMethod* bm = (ObjBoundMethod*)fn;
-        if(checkBuiltin(vm, getClass(vm, bm->receiver))) {
+        if(isBuiltIn(vm, getClass(vm, bm->receiver))) {
             JSR_RAISE(vm, "TypeException", "Cannot bind built-in class method %s",
-                      getPrototype(bm->method)->name->data);
+                      getFunctionBase(bm->method)->name->data);
         }
         fn = bm->method;
     }
@@ -438,37 +438,35 @@ JSR_NATIVE(jsr_Function_bind) {
 
 JSR_NATIVE(jsr_Function_arity) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    Prototype* prototype = getPrototype(fn);
-    jsrPushNumber(vm, prototype->argsCount);
+    jsrPushNumber(vm, getFunctionBase(fn)->argsCount);
     return true;
 }
 
 JSR_NATIVE(jsr_Function_vararg) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    Prototype* prototype = getPrototype(fn);
-    jsrPushBoolean(vm, prototype->vararg);
+    jsrPushBoolean(vm, getFunctionBase(fn)->vararg);
     return true;
 }
 
 JSR_NATIVE(jsr_Function_defaults) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    Prototype* prototype = getPrototype(fn);
-    ObjTuple* defaultTuple = newTuple(vm, prototype->defCount);
+    FunctionBase* fb = getFunctionBase(fn);
+    ObjTuple* defaultTuple = newTuple(vm, fb->defCount);
     push(vm, OBJ_VAL(defaultTuple));
-    if(prototype->defCount) {
-        memcpy(defaultTuple->items, prototype->defaults, prototype->defCount * sizeof(Value));
+    if(fb->defCount) {
+        memcpy(defaultTuple->items, fb->defaults, fb->defCount * sizeof(Value));
     }
     return true;
 }
 
 JSR_NATIVE(jsr_Function_getName) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    Prototype* prototype = getPrototype(fn);
-    ObjModule* mod = prototype->module;
+    FunctionBase* fb = getFunctionBase(fn);
+    ObjModule* mod = fb->module;
 
     JStarBuffer buf;
-    jsrBufferInitCapacity(vm, &buf, prototype->name->length + mod->name->length + 1);
-    jsrBufferAppendf(&buf, "%s.%s", mod->name->data, prototype->name->data);
+    jsrBufferInitCapacity(vm, &buf, fb->name->length + mod->name->length + 1);
+    jsrBufferAppendf(&buf, "%s.%s", mod->name->data, fb->name->data);
     jsrBufferPush(&buf);
 
     return true;
@@ -476,8 +474,8 @@ JSR_NATIVE(jsr_Function_getName) {
 
 JSR_NATIVE(jsr_Function_getSimpleName) {
     Obj* fn = AS_OBJ(vm->apiStack[0]);
-    Prototype* prototype = getPrototype(fn);
-    push(vm, OBJ_VAL(prototype->name));
+    FunctionBase* fb = getFunctionBase(fn);
+    push(vm, OBJ_VAL(fb->name));
     return true;
 }
 // end
@@ -491,12 +489,14 @@ JSR_NATIVE(jsr_Generator_isDone) {
 
 JSR_NATIVE(jsr_Generator_string) {
     ObjGenerator* gen = AS_GENERATOR(vm->apiStack[0]);
-    const Prototype* proto = &gen->closure->fn->proto;
+    FunctionBase* fb = &gen->closure->fn->base;
+
     JStarBuffer str;
     jsrBufferInit(vm, &str);
-    jsrBufferAppendf(&str, "<Generator %s.%s@%p>", proto->module->name->data, proto->name->data,
+    jsrBufferAppendf(&str, "<Generator %s.%s@%p>", fb->module->name->data, fb->name->data,
                      (void*)gen);
     jsrBufferPush(&str);
+
     return true;
 }
 

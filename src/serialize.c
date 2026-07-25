@@ -55,7 +55,7 @@ static void serializeDouble(JStarBuffer* buf, double num) {
     serializeUint64(buf, REINTERPRET_CAST(double, uint64_t, num));
 }
 
-static void serializeString(JStarBuffer* buf, ObjString* str) {
+static void serializeString(JStarBuffer* buf, const ObjString* str) {
     bool isShort = str->length <= UINT8_MAX;
     serializeByte(buf, isShort);
     if(isShort) {
@@ -83,22 +83,22 @@ static void serializeConstLiteral(JStarBuffer* buf, Value c) {
     }
 }
 
-static void serializePrototype(JStarBuffer* buf, Prototype* proto) {
-    serializeByte(buf, proto->argsCount);
-    serializeByte(buf, proto->vararg);
+static void serializeFunctionBase(JStarBuffer* buf, const FunctionBase* fn) {
+    serializeByte(buf, fn->argsCount);
+    serializeByte(buf, fn->vararg);
 
-    serializeString(buf, proto->name);
+    serializeString(buf, fn->name);
 
-    serializeByte(buf, proto->defCount);
-    for(int i = 0; i < proto->defCount; i++) {
-        serializeConstLiteral(buf, proto->defaults[i]);
+    serializeByte(buf, fn->defCount);
+    for(int i = 0; i < fn->defCount; i++) {
+        serializeConstLiteral(buf, fn->defaults[i]);
     }
 }
 
-static void serializeFunction(JStarBuffer* buf, ObjFunction* f);
+static void serializeFunction(JStarBuffer* buf, const ObjFunction* f);
 
-static void serializeNative(JStarBuffer* buf, ObjNative* n) {
-    serializePrototype(buf, &n->proto);
+static void serializeNative(JStarBuffer* buf, const ObjNative* n) {
+    serializeFunctionBase(buf, &n->base);
 }
 
 static void serializeConstants(JStarBuffer* buf, Values consts) {
@@ -124,7 +124,7 @@ static void serializeSymbols(JStarBuffer* buf, Symbols symbols) {
     }
 }
 
-static void serializeCode(JStarBuffer* buf, Code* c) {
+static void serializeCode(JStarBuffer* buf, const Code* c) {
     // TODO: store (compressed) line information? maybe give option in application
 
     serializeUint64(buf, c->bytecode.count);
@@ -134,14 +134,14 @@ static void serializeCode(JStarBuffer* buf, Code* c) {
     serializeSymbols(buf, c->symbols);
 }
 
-static void serializeFunction(JStarBuffer* buf, ObjFunction* f) {
-    serializePrototype(buf, &f->proto);
+static void serializeFunction(JStarBuffer* buf, const ObjFunction* f) {
+    serializeFunctionBase(buf, &f->base);
     serializeByte(buf, f->upvalueCount);
     serializeShort(buf, f->stackUsage);
     serializeCode(buf, &f->code);
 }
 
-JStarBuffer serialize(JStarVM* vm, ObjFunction* fn) {
+JStarBuffer serialize(JStarVM* vm, const ObjFunction* fn) {
     PROFILE_FUNC()
 
     // Push as gc root
@@ -276,26 +276,26 @@ static bool deserializeConstLiteral(Deserializer* d, ConstType type, Value* out)
     }
 }
 
-static bool deserializePrototype(Deserializer* d, Prototype* proto) {
-    if(!deserializeByte(d, &proto->argsCount)) return false;
+static bool deserializeFunctionBase(Deserializer* d, FunctionBase* fn) {
+    if(!deserializeByte(d, &fn->argsCount)) return false;
 
     uint8_t vararg;
     if(!deserializeByte(d, &vararg)) return false;
-    proto->vararg = (bool)vararg;
+    fn->vararg = (bool)vararg;
 
-    if(!deserializeString(d, &proto->name)) return false;
+    if(!deserializeString(d, &fn->name)) return false;
 
     uint8_t defCount;
     if(!deserializeByte(d, &defCount)) return false;
 
-    proto->defaults = GC_ALLOC(d->vm, sizeof(Value) * defCount);
-    zeroValueArray(proto->defaults, defCount);
-    proto->defCount = defCount;
+    fn->defaults = GC_ALLOC(d->vm, sizeof(Value) * defCount);
+    zeroValueArray(fn->defaults, defCount);
+    fn->defCount = defCount;
 
     for(int i = 0; i < defCount; i++) {
         uint8_t valueType;
         if(!deserializeByte(d, &valueType)) return false;
-        if(!deserializeConstLiteral(d, valueType, &proto->defaults[i])) return false;
+        if(!deserializeConstLiteral(d, valueType, &fn->defaults[i])) return false;
     }
 
     return true;
@@ -312,7 +312,7 @@ static bool deserializeNative(Deserializer* d, ObjNative** out) {
     ObjNative* nat = newNative(vm, mod, copyCStringInterned(vm, ""), 0, 0, false, NULL);
     push(vm, OBJ_VAL(nat));
 
-    if(!deserializePrototype(d, &nat->proto)) goto error;
+    if(!deserializeFunctionBase(d, &nat->base)) goto error;
 
     *out = nat;
     pop(vm);
@@ -396,7 +396,7 @@ static bool deserializeFunction(Deserializer* d, ObjFunction** out) {
     push(vm, OBJ_VAL(fn));
 
     uint16_t stackUsage;
-    if(!deserializePrototype(d, &fn->proto)) goto error;
+    if(!deserializeFunctionBase(d, &fn->base)) goto error;
     if(!deserializeByte(d, &fn->upvalueCount)) goto error;
     if(!deserializeShort(d, &stackUsage)) goto error;
     fn->stackUsage = stackUsage;
