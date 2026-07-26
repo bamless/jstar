@@ -226,8 +226,8 @@ JStarResult jsrDisassembleCode(JStarVM* vm, const char* path, const void* code, 
     }
 
     ObjFunction* fn;
-    ObjString* dummy =
-        copyCStringInterned(vm, "");  // Use dummy module since the code won't be executed
+    // Use dummy module since the code won't be executed
+    ObjString* dummy = copyCStringInterned(vm, "");
     JStarResult res = deserializeModule(vm, path, dummy, code, len, &fn);
 
     if(res == JSR_SUCCESS) {
