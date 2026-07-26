@@ -112,25 +112,25 @@ JSTAR_API JStarConf jsrGetConf(void);
 // `jsrGetConf()`.
 JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
 
-// Inits the J* runtime, including the core and main module. Must be called prior to executing code
+// Inits the J* runtime, including the core and main module. Must be called prior to executing code.
 JSTAR_API void jsrInitRuntime(JStarVM* vm);
 
 // Free a previously obtained VM along with all of its state
 JSTAR_API void jsrFreeVM(JStarVM* vm);
 
-// Inits the argv list with a list of arguments (usually main arguments). Must be called after
-// runtime initialization
+// Inits the `argv` list with a list of arguments (usually main arguments).
+// Must be called after runtime initialization.
 JSTAR_API void jsrInitCommandLineArgs(JStarVM* vm, int argc, const char** argv);
 
-// Gets the custom data associated with the VM at configuration time (if any)
+// Gets the custom data associated with the VM at configuration time (if any).
 JSTAR_API void* jsrGetCustomData(const JStarVM* vm);
 
 // Breaks J* evaluation at the first chance possible. This function is signal-handler safe.
 JSTAR_API void jsrEvalBreak(JStarVM* vm);
 
 // Create a new symbol for use with `jsrCallMethodCached`, `jsrGetFieldCached` and
-// `jsrSetFieldCached`. This cached functions behave the same as the non-cached versions, but
-// cache the lookups for the same object type in order to speed up subsequent calls.
+// `jsrSetFieldCached`. These cached functions behave the same as the non-cached versions, but
+// cache the lookup for the same object type in order to speed up subsequent calls.
 //
 // A symbol represents one stable lookup site: reuse it only for repeated lookups of the same
 // name with the same cached API function. Do not share a symbol across different names or between
@@ -145,23 +145,26 @@ JSTAR_API void jsrFreeSymbol(JStarVM* vm, JStarSymbol* sym);
 // -----------------------------------------------------------------------------
 
 // Evaluate J* bytecode or source code in the context of 'module' (or '__main__' in jsrEval).
+//
 // JSR_SUCCESS will be returned if the execution completed normally.
 // In case of errors, either JSR_SYNTAX_ERR, JSR_COMPILE_ERR, JSR_DESERIALIZE_ERR or JSR_VER_ERR
 // will be returned.
-// All errors will be forwared to the error callback as well.
-// The `path` argument is the file path that will passed to the callback on errors.
+//
+// All errors will be forwared to the error callback as well. The `path` argument is the file path
+// that will be passed to the callback on errors.
 JSTAR_API JStarResult jsrEval(JStarVM* vm, const char* path, const void* code, size_t len);
 JSTAR_API JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module,
                                     const void* code, size_t len);
 
 // Similar to the `jsrEval` family of functions, but takes in a c string of the J* source code to
-// evaluate.
+// evaluate, instead of a sized buffer.
 JSTAR_API JStarResult jsrEvalString(JStarVM* vm, const char* path, const char* src);
 JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const char* module,
                                           const char* src);
 
-// Call any callable object (typically a function) that sits on the top of the stack along with its
-// arguments.
+// Call any callable object (typically a function, native, class or bound method) that sits on the
+// top of the stack along with its arguments.
+//
 // The state of the stack when calling should be:
 //
 //  ... [callable][arg1][arg2]...[argn] $top
@@ -172,10 +175,10 @@ JSTAR_API JStarResult jsrEvalModuleString(JStarVM* vm, const char* path, const c
 // In case of success true will be returned, and the result will be placed on the top of the
 // stack in place of the callable object. The state of the stack after a succesful call will be:
 //
-//  ... [result] $top [arg1][arg2] ... [argn] <-- the arguments are popped
+//  ... [result] $top [arg1][arg2] ... [argn] <-- the arguments _will_ be popped
 //
-// If an exception has been raised instead, false will be returned and the exception will
-// be placed in place of the callable object as a result.
+// If an exception is raised instead, false will be returned and the exception will be placed on
+// top of the stack, as if it were a result.
 JSTAR_API bool jsrCall(JStarVM* vm, uint8_t argc);
 
 // Similar to the above, but tries to call a method called `name` on an object.
@@ -184,11 +187,6 @@ JSTAR_API bool jsrCallMethod(JStarVM* vm, const char* name, uint8_t argc);
 // Similar to the above, but caches the method lookup in the provided symbol.
 // Can be more efficient if the same method is called multiple times on the same object type.
 JSTAR_API bool jsrCallMethodCached(JStarVM* vm, const char* name, uint8_t argc, JStarSymbol* sym);
-
-// Import 'moduleName'. The import of the module goes through the usual API via `importCallback`.
-// Returns true on success, leaving the module on top of the stack.
-// Returns false on failure, leaving an exception on top of the stack.
-JSTAR_API bool jsrImportModule(JStarVM* vm, const char* moduleName);
 
 // -----------------------------------------------------------------------------
 // C TO J* VALUE CONVERSION API
@@ -238,13 +236,10 @@ JSTAR_API bool jsrGetBoolean(const JStarVM* vm, int slot);
 JSTAR_API void* jsrGetHandle(const JStarVM* vm, int slot);
 JSTAR_API size_t jsrGetStringSz(const JStarVM* vm, int slot);
 
-// BEWARE: The returned string is owned by J*
-// and thus is garbage collected. Never use this
-// buffer outside the native where it was retrieved.
-// Also be careful when popping the original ObjString
-// from the stack  while retaining this buffer, because
-// if a GC occurs and the string is not found to be
-// reachable it'll be collected.
+// BEWARE: The returned string is owned by J* and thus is garbage collected. Never use this buffer
+// outside the native where it was retrieved. Also, be careful when popping the original ObjString
+// from the stack  while retaining this buffer, because if a GC occurs and the string is not found
+// to be reachable it'll be collected.
 JSTAR_API const char* jsrGetString(const JStarVM* vm, int slot);
 
 // -----------------------------------------------------------------------------
@@ -256,12 +251,12 @@ JSTAR_API const char* jsrGetString(const JStarVM* vm, int slot);
 // or if `classSlot` doesn't point to a Class object
 JSTAR_API bool jsrIs(const JStarVM* vm, int slot, int classSlot);
 
-// Check if two objects are the same. Doesn't call __eq__ overload.
-// Returns true if the two objects are the same
+// Check if two objects are the same. Does _not_ call `__eq__` overload.
+// Returns true if the two objects are the same, false otherwise.
 JSTAR_API bool jsrRawEquals(const JStarVM* vm, int slot1, int slot2);
 
-// Check if two J* values are equal. May call the __eq__ overload.
-// Returns true if the two objects are the same, as defined by the __eq__ method
+// Check if two J* values are equal. May call the `__eq__` overload.
+// Returns true if the two objects are the same, as defined by the `__eq__` method, false otherwise.
 JSTAR_API bool jsrEquals(JStarVM* vm, int slot1, int slot2);
 
 // -----------------------------------------------------------------------------
@@ -333,12 +328,12 @@ JSTAR_API bool jsrNext(JStarVM* vm, int iterable, int res);
 //     // slot `-1` contains the current element
 // }
 // ```
-#define JSR_FOREACH(iter)                                                                    \
-    jsrEnsureStack(vm, 2);                                                                   \
-    jsrPushNull(vm);                                                                         \
-    for(bool err = false;                                                                    \
-        (jsrIter(vm, iter, -1, &err) ? (err ? (true) : (err = !jsrNext(vm, iter, -1)), true) \
-                                     : (jsrPop(vm), false));)
+#define JSR_FOREACH(iterSlot)                                                              \
+    jsrEnsureStack(vm, 2);                                                                 \
+    jsrPushNull(vm);                                                                       \
+    for(bool err = false; (jsrIter(vm, iterSlot, -1, &err)                                 \
+                               ? (err ? (true) : (err = !jsrNext(vm, iterSlot, -1)), true) \
+                               : (jsrPop(vm), false));)
 
 // -----------------------------------------------------------------------------
 // SEQUENCE API
@@ -395,6 +390,23 @@ JSTAR_API bool jsrGetFieldCached(JStarVM* vm, int slot, const char* name, JStarS
 // MODULE API
 // -----------------------------------------------------------------------------
 
+// Name of the J* core module. This is the module that contains all of the J* core types and
+// functions. The `core` module is available after `jsrInitRuntime` has been invoked on a VM, and
+// the defined names in it are also implicitly imported in every other module.
+#define JSR_CORE_MODULE "__core__"
+
+// Name of the J* main module. The `main` module is the implicit module in which entry-point J* code
+// is typically executed in. This module starts empty, and it is avaible after `jsrInitRuntime` has
+// been invoked on a VM.
+#define JSR_MAIN_MODULE "__main__"
+
+// Imports module 'moduleName'.
+// The import of the module goes through the usual API via `importCallback`.
+//
+// Returns true on success, leaving the module on top of the stack.
+// Returns false on failure, leaving an exception on top of the stack.
+JSTAR_API bool jsrImportModule(JStarVM* vm, const char* moduleName);
+
 // Set the global `name` of the module `module` with the value on top of the stack.
 // The value is not popped.
 //
@@ -446,15 +458,17 @@ JSTAR_API bool jsrGetGlobalCached(JStarVM* vm, const char* moduleName, const cha
 // CLASS API
 // -----------------------------------------------------------------------------
 
-// Binds the native at `natSlot` to the class at `clsSlot`
+// Binds the native at `natSlot` to the class at `clsSlot`.
 // Does not perform type checking, the user must ensure `clsSlot` is indeed a Class and `natSlot`
 // a Native.
 //
 // * BEWARE *
+//
 // Due to the nature of how J* implements inheritance, call this method after the class has been
-// created and *before* any usage of it in order to avoid surprising behavior (for example, not
+// defined and *before* any usage of it in order to avoid surprising behavior (for example, not
 // finding the native method in a subclass, or failing to invoke the method on an already created
-// instance). Usage includes instantiating the class, calling methods or using it as a superclass.
+// instance). Usage includes instantiating the class, calling methods on it or using it as a
+// superclass.
 JSTAR_API void jsrBindNative(JStarVM* vm, int clsSlot, int natSlot);
 
 // -----------------------------------------------------------------------------
@@ -530,9 +544,7 @@ JSTAR_API size_t jsrCheckIndexNum(JStarVM* vm, double num, size_t max);
 // -----------------------------------------------------------------------------
 
 // Main module and core module names
-#define JSR_CONSTRUCT   "@construct"
-#define JSR_MAIN_MODULE "__main__"
-#define JSR_CORE_MODULE "__core__"
+#define JSR_CONSTRUCT "@construct"
 
 // The guaranteed stack space available in a native function call.
 // Use jsrEnusreStack if you need more
