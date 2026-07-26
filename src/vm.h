@@ -19,7 +19,7 @@
 // Mainly used for operator overloading.
 typedef enum {
 #define SPECIAL_METHOD(meth, _) meth,
-#include "special_method_ids.def"
+#include "special_methods.def"
     SPECIAL_METHOD_COUNT,
 } SpecialMethodId;
 

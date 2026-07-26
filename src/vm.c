@@ -46,7 +46,7 @@ JSR_STATIC_ASSERT(
 // Constant method names used in operator overloading
 static const char* const specialMethods[SPECIAL_METHOD_COUNT] = {
 #define SPECIAL_METHOD(_, name) name,
-#include "special_method_ids.def"
+#include "special_methods.def"
 };
 
 // Enumeration encoding the cause of stack unwinding.
