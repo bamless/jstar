@@ -82,9 +82,17 @@ static size_t roundUp(size_t num, size_t multiple) {
 
 JStarVM* jsrNewVM(const JStarConf* conf) {
     PROFILE_BEGIN_SESSION("jstar-new.json");
+
+    JStarConf defaultConf;
+    if(conf == NULL) {
+        defaultConf = jsrGetConf();
+        conf = &defaultConf;
+    }
+
     JStarVM* vm;
     {
         PROFILE_FUNC()
+
 
         JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
         vm = reallocate(NULL, 0, sizeof(*vm));

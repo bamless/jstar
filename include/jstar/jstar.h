@@ -106,7 +106,10 @@ typedef struct JstarConf {
 // Retuns a JStarConf struct initialized with default values
 JSTAR_API JStarConf jsrGetConf(void);
 
-// Allocates a new VM with all the state needed for code execution. Does not initialize runtime
+// Allocates a new VM with all the state needed for code execution.
+// Does _not_ initialize the runtime; call `jsrInitRuntime` for that.
+// If `conf` is NULL, the VM will use the default configuration, as if passing in an unmodified
+// `jsrGetConf()`.
 JSTAR_API JStarVM* jsrNewVM(const JStarConf* conf);
 
 // Inits the J* runtime, including the core and main module. Must be called prior to executing code
