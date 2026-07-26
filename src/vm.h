@@ -19,9 +19,9 @@
 // Mainly used for operator overloading.
 typedef enum {
 #define SPECIAL_METHOD(meth, _) meth,
-#include "special_methods.def"
-    METH_SIZE,
-} SpecialMethod;
+#include "special_method_ids.def"
+    SPECIAL_METHOD_COUNT,
+} SpecialMethodId;
 
 // Enum encoding the core classes of J*.
 typedef enum {
@@ -89,7 +89,7 @@ struct JStarVM {
     Compiler* currCompiler;
 
     // Cached special method names needed at runtime
-    ObjString* specialMethods[METH_SIZE];
+    ObjString* specialMethods[SPECIAL_METHOD_COUNT];
 
     // The empty tuple (singleton)
     ObjTuple* emptyTup;

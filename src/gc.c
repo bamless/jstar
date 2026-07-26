@@ -212,7 +212,7 @@ void garbageCollect(JStarVM* vm) {
         reachObject(vm, (Obj*)vm->excClass);
         reachObject(vm, (Obj*)vm->argv);
 
-        for(int i = 0; i < METH_SIZE; i++) {
+        for(int i = 0; i < SPECIAL_METHOD_COUNT; i++) {
             reachObject(vm, (Obj*)vm->specialMethods[i]);
         }
 

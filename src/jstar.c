@@ -470,7 +470,7 @@ bool jsrEquals(JStarVM* vm, int slot1, int slot2) {
 
     Value eqOverload;
     ObjClass* cls = getClass(vm, v1);
-    if(hashTableValueGet(&cls->methods, vm->specialMethods[METH_EQ], &eqOverload)) {
+    if(hashTableValueGet(&cls->methods, vm->specialMethods[SPECIAL_METHOD_EQ], &eqOverload)) {
         push(vm, v1);
         push(vm, v2);
         if(jsrCallMethod(vm, "__eq__", 1)) {

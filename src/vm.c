@@ -44,9 +44,9 @@ JSR_STATIC_ASSERT(
 // clang-format on
 
 // Constant method names used in operator overloading
-static const char* const specialMethods[METH_SIZE] = {
+static const char* const specialMethods[SPECIAL_METHOD_COUNT] = {
 #define SPECIAL_METHOD(_, name) name,
-#include "special_methods.def"
+#include "special_method_ids.def"
 };
 
 // Enumeration encoding the cause of stack unwinding.
@@ -137,7 +137,7 @@ void jsrInitRuntime(JStarVM* vm) {
         pop(vm);
 
         // Create singleton objects
-        for(int i = 0; i < METH_SIZE; i++) {
+        for(int i = 0; i < SPECIAL_METHOD_COUNT; i++) {
             vm->specialMethods[i] = copyCStringInterned(vm, specialMethods[i]);
         }
         vm->emptyTup = newTuple(vm, 0);
@@ -720,8 +720,8 @@ static void concatStrings(JStarVM* vm) {
     push(vm, OBJ_VAL(result));
 }
 
-static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
-                        SpecialMethod reverse) {
+static bool binOverload(JStarVM* vm, const char* op, SpecialMethodId overload,
+                        SpecialMethodId reverse) {
     Value method;
     ObjClass* cls1 = getClass(vm, peek2(vm));
 
@@ -730,7 +730,7 @@ static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
     }
 
     ObjClass* cls2 = getClass(vm, peek(vm));
-    if(reverse != METH_SIZE) {
+    if(reverse != SPECIAL_METHOD_COUNT) {
         swapStackSlots(vm, -1, -2);
 
         if(hashTableValueGet(&cls2->methods, vm->specialMethods[reverse], &method)) {
@@ -743,7 +743,7 @@ static bool binOverload(JStarVM* vm, const char* op, SpecialMethod overload,
     return false;
 }
 
-static bool unaryOverload(JStarVM* vm, const char* op, SpecialMethod overload) {
+static bool unaryOverload(JStarVM* vm, const char* op, SpecialMethodId overload) {
     Value method;
     ObjClass* cls = getClass(vm, peek(vm));
 
@@ -1045,7 +1045,7 @@ inline bool getValueSubscript(JStarVM* vm) {
         }
     }
 
-    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->specialMethods[METH_GET], 1)) {
+    if(!invokeMethod(vm, getClass(vm, peek2(vm)), vm->specialMethods[SPECIAL_METHOD_GET], 1)) {
         return false;
     }
     return true;
@@ -1070,7 +1070,7 @@ inline bool setValueSubscript(JStarVM* vm) {
 
     // Swap operand and value to prepare function call
     swapStackSlots(vm, -1, -3);
-    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->specialMethods[METH_SET], 2)) {
+    if(!invokeMethod(vm, getClass(vm, peekn(vm, 2)), vm->specialMethods[SPECIAL_METHOD_SET], 2)) {
         return false;
     }
     return true;
@@ -1113,7 +1113,7 @@ inline bool callValue(JStarVM* vm, Value callee, uint8_t argc) {
             }
 
             Value ctor;
-            if(hashTableValueGet(&cls->methods, vm->specialMethods[METH_CTOR], &ctor)) {
+            if(hashTableValueGet(&cls->methods, vm->specialMethods[SPECIAL_METHOD_CTOR], &ctor)) {
                 Obj* m = AS_OBJ(ctor);
                 switch(m->type) {
                 case OBJ_CLOSURE:
@@ -1441,7 +1441,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         } else if(IS_STRING(peek(vm)) && IS_STRING(peek2(vm))) {
             concatStrings(vm);
         } else {
-            BINARY_OVERLOAD(+, METH_ADD, METH_RADD);
+            BINARY_OVERLOAD(+, SPECIAL_METHOD_ADD, SPECIAL_METHOD_RADD);
         }
         DISPATCH();
     }
@@ -1452,7 +1452,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double a = AS_NUM(pop(vm));
             push(vm, NUM_VAL(fmod(a, b)));
         } else {
-            BINARY_OVERLOAD(%, METH_MOD, METH_RMOD);
+            BINARY_OVERLOAD(%, SPECIAL_METHOD_MOD, SPECIAL_METHOD_RMOD);
         }
         DISPATCH();
     }
@@ -1463,7 +1463,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             double x = AS_NUM(pop(vm));
             push(vm, NUM_VAL(pow(x, y)));
         } else {
-            BINARY_OVERLOAD(^, METH_POW, METH_RPOW);
+            BINARY_OVERLOAD(^, SPECIAL_METHOD_POW, SPECIAL_METHOD_RPOW);
         }
         DISPATCH();
     }
@@ -1472,7 +1472,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         if(IS_NUM(peek2(vm)) || IS_NULL(peek2(vm)) || IS_BOOL(peek2(vm))) {
             push(vm, BOOL_VAL(valueEquals(pop(vm), pop(vm))));
         } else {
-            BINARY_OVERLOAD(==, METH_EQ, METH_SIZE);
+            BINARY_OVERLOAD(==, SPECIAL_METHOD_EQ, SPECIAL_METHOD_COUNT);
         }
         DISPATCH();
     }
@@ -1486,7 +1486,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
             }
             push(vm, NUM_VAL(~(int64_t)x));
         } else {
-            UNARY_OVERLOAD(NUM_VAL, ~, METH_INV);
+            UNARY_OVERLOAD(NUM_VAL, ~, SPECIAL_METHOD_INV);
         }
         DISPATCH();
     }
@@ -1496,19 +1496,19 @@ bool runEval(JStarVM* vm, int evalDepth) {
         DISPATCH();
     }
 
-    TARGET(OP_SUB):    BINARY(NUM_VAL, -, METH_SUB, METH_RSUB);
-    TARGET(OP_MUL):    BINARY(NUM_VAL, *, METH_MUL, METH_RMUL);
-    TARGET(OP_DIV):    BINARY(NUM_VAL, /, METH_DIV, METH_RDIV);
-    TARGET(OP_LT):     BINARY(BOOL_VAL, <, METH_LT, METH_SIZE);
-    TARGET(OP_LE):     BINARY(BOOL_VAL, <=, METH_LE, METH_SIZE);
-    TARGET(OP_GT):     BINARY(BOOL_VAL, >, METH_GT, METH_SIZE);
-    TARGET(OP_GE):     BINARY(BOOL_VAL, >=, METH_GE, METH_SIZE);
-    TARGET(OP_LSHIFT): BITWISE(<<, <<, METH_LSHFT, METH_RLSHFT);
-    TARGET(OP_RSHIFT): BITWISE(>>, >>, METH_RSHFT, METH_RRSHFT);
-    TARGET(OP_BAND):   BITWISE(&, &, METH_BAND, METH_RBAND);
-    TARGET(OP_BOR):    BITWISE(|, |, METH_BOR, METH_RBOR);
-    TARGET(OP_XOR):    BITWISE(~, ^, METH_XOR, METH_RXOR);
-    TARGET(OP_NEG):    UNARY(NUM_VAL, -, METH_NEG);
+    TARGET(OP_SUB):    BINARY(NUM_VAL, -, SPECIAL_METHOD_SUB, SPECIAL_METHOD_RSUB);
+    TARGET(OP_MUL):    BINARY(NUM_VAL, *, SPECIAL_METHOD_MUL, SPECIAL_METHOD_RMUL);
+    TARGET(OP_DIV):    BINARY(NUM_VAL, /, SPECIAL_METHOD_DIV, SPECIAL_METHOD_RDIV);
+    TARGET(OP_LT):     BINARY(BOOL_VAL, <, SPECIAL_METHOD_LT, SPECIAL_METHOD_COUNT);
+    TARGET(OP_LE):     BINARY(BOOL_VAL, <=, SPECIAL_METHOD_LE, SPECIAL_METHOD_COUNT);
+    TARGET(OP_GT):     BINARY(BOOL_VAL, >, SPECIAL_METHOD_GT, SPECIAL_METHOD_COUNT);
+    TARGET(OP_GE):     BINARY(BOOL_VAL, >=, SPECIAL_METHOD_GE, SPECIAL_METHOD_COUNT);
+    TARGET(OP_LSHIFT): BITWISE(<<, <<, SPECIAL_METHOD_LSHFT, SPECIAL_METHOD_RLSHFT);
+    TARGET(OP_RSHIFT): BITWISE(>>, >>, SPECIAL_METHOD_RSHFT, SPECIAL_METHOD_RRSHFT);
+    TARGET(OP_BAND):   BITWISE(&, &, SPECIAL_METHOD_BAND, SPECIAL_METHOD_RBAND);
+    TARGET(OP_BOR):    BITWISE(|, |, SPECIAL_METHOD_BOR, SPECIAL_METHOD_RBOR);
+    TARGET(OP_XOR):    BITWISE(~, ^, SPECIAL_METHOD_XOR, SPECIAL_METHOD_RXOR);
+    TARGET(OP_NEG):    UNARY(NUM_VAL, -, SPECIAL_METHOD_NEG);
 
     TARGET(OP_IS): {
         if(!IS_CLASS(peek(vm))) {
@@ -1576,8 +1576,8 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_FOR_PREP): {
         ObjClass* cls = getClass(vm, vm->sp[-2]);
-        if(!hashTableValueGet(&cls->methods, vm->specialMethods[METH_ITER], &vm->sp[0]) ||
-           !hashTableValueGet(&cls->methods, vm->specialMethods[METH_NEXT], &vm->sp[1])) {
+        if(!hashTableValueGet(&cls->methods, vm->specialMethods[SPECIAL_METHOD_ITER], &vm->sp[0]) ||
+           !hashTableValueGet(&cls->methods, vm->specialMethods[SPECIAL_METHOD_NEXT], &vm->sp[1])) {
             jsrRaise(vm, "MethodException", "Class %s does not implement __iter__ and __next__",
                      cls->name->data);
             UNWIND_STACK();
