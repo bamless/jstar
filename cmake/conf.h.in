@@ -109,15 +109,15 @@
 #endif
 
 // Janky C99 static assert macro
-#ifndef static_assert
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ < 201112L
     #define JSR_CONCAT2_(pre, post) pre##post
     #define JSR_CONCAT_(pre, post)  JSR_CONCAT2_(pre, post)
-    #define JSR_STATIC_ASSERT(cond, msg)            \
-        typedef struct {                            \
-            int static_assertion_failed : !!(cond); \
-        } JSR_CONCAT_(static_assertion_failed_, __COUNTER__)
+    #define JSR_STATIC_ASSERT(cond, msg)                     \
+        struct JSR_CONCAT_(static_assertion_, __COUNTER__) { \
+            int assert : (cond) ? 1 : -1;                    \
+        }
 #else
-    #define JSR_STATIC_ASSERT(cond, msg) static_assert(cond, msg)
+    #define JSR_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 #endif
 
 #endif

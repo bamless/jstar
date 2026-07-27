@@ -43,7 +43,6 @@ JSR_STATIC_ASSERT(
 );
 // clang-format on
 
-// Constant method names used in operator overloading
 static const char* const specialMethods[SPECIAL_METHOD_COUNT] = {
 #define SPECIAL_METHOD(_, name) name,
 #include "special_methods.def"
