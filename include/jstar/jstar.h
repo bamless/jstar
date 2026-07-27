@@ -462,7 +462,7 @@ JSTAR_API bool jsrGetGlobalCached(JStarVM* vm, const char* moduleName, const cha
 // Does not perform type checking, the user must ensure `clsSlot` is indeed a Class and `natSlot`
 // a Native.
 //
-// * BEWARE *
+// *BEWARE*
 //
 // Due to the nature of how J* implements inheritance, call this method after the class has been
 // defined and *before* any usage of it in order to avoid surprising behavior (for example, not

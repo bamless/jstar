@@ -12,6 +12,8 @@
 #include "value.h"
 #include "value_hashtable.h"
 
+struct Frame;
+
 /**
  * Object system of the J* language.
  *
@@ -91,7 +93,9 @@ typedef enum ObjType {
 #undef ENUM_ELEM
 } ObjType;
 
-struct Frame;
+#ifdef JSTAR_DBG_PRINT_GC
+extern const char* ObjTypeNames[];
+#endif
 
 // -----------------------------------------------------------------------------
 // OBJECT DEFINITIONS
@@ -297,16 +301,12 @@ typedef struct ObjUserdata {
     uint8_t data[];           // The data
 } ObjUserdata;
 
-#ifdef JSTAR_DBG_PRINT_GC
-extern const char* ObjTypeNames[];
-#endif
-
 // -----------------------------------------------------------------------------
 // OBJECT ALLOCATION
 // -----------------------------------------------------------------------------
 
 // These functions use `gcAlloc` to allocate memory and then initialize the object with the supplied
-// arguments, as well as setting all the bookkeping information needed by the GC (see struct Obj)
+// arguments, as well as setting all the bookkeping information needed by the GC.
 ObjFunction* newFunction(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
                          bool vararg);
 ObjNative* newNative(JStarVM* vm, ObjModule* m, ObjString* name, uint8_t args, uint8_t defCount,
@@ -326,9 +326,9 @@ ObjTable* newTable(JStarVM* vm);
 // Allocates a string of size `length + 1` and adds a NUL terminator to it.
 // Rest of buffer is left uninitialized.
 ObjString* newString(JStarVM* vm, size_t length);
-// Copies arbitrary data of size `length` into a J* string. The string is automatically interned
+// Copies arbitrary data of size `length` into a J* string. The string is automatically interned.
 ObjString* copyStringInterned(JStarVM* vm, const void* data, size_t length);
-// Copies a c-string into a J* string. The string is automatically interned
+// Copies a c-string into a J* string. The string is automatically interned.
 ObjString* copyCStringInterned(JStarVM* vm, const char* str);
 
 // Release the object's memory. It uses gcAlloc internally to let the GC know
@@ -363,17 +363,16 @@ uint32_t stringGetHash(ObjString* str);
 bool stringEquals(ObjString* s1, ObjString* s2);
 
 // ObjStacktrace functions
-// Dumps a frame in an `ObjStackTrace`
-void stacktraceDump(JStarVM* vm, ObjStackTrace* st, struct Frame* f);
+void stacktraceDumpFrame(JStarVM* vm, ObjStackTrace* st, struct Frame* f);
 
 // Get the value array of a List or a Tuple
 Value* getValues(Obj* obj, size_t* count);
 
-// Get the `FunctionBase` field of a Function object (`ObjFunction`,
-// `ObjNative` or `ObjBoundMethod`).
+// Get the `FunctionBase` field of a Function object (`ObjFunction`, `ObjNative` or
+// `ObjBoundMethod`).
 FunctionBase* getFunctionBase(Obj* fn);
 
-// Convert a JStarBuffer into an ObjString and zeroes `b`
+// Convert a JStarBuffer into an `ObjString*` and zeroes `b`.
 ObjString* jsrBufferToString(JStarBuffer* b);
 
 // Prints an Obj in a human readable form

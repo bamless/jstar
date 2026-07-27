@@ -205,7 +205,7 @@ void garbageCollect(JStarVM* vm) {
     {
         PROFILE("{reach-objects}::garbageCollect")
 
-        for(CoreClass c = 0; c < CORE_CLASS_COUNT; c++) {
+        for(int c = 0; c < CORE_CLASS_COUNT; c++) {
             reachObject(vm, (Obj*)vm->coreClasses[c]);
         }
 

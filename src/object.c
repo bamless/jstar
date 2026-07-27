@@ -500,7 +500,7 @@ bool stringEquals(ObjString* s1, ObjString* s2) {
     return s1->length == s2->length && memcmp(s1->data, s2->data, s1->length) == 0;
 }
 
-void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f) {
+void stacktraceDumpFrame(JStarVM* vm, ObjStackTrace* st, Frame* f) {
     FrameRecord record = {0};
 
     switch(f->fn->type) {
@@ -536,7 +536,6 @@ void stacktraceDump(JStarVM* vm, ObjStackTrace* st, Frame* f) {
 }
 
 Value* getValues(Obj* obj, size_t* count) {
-    JSR_ASSERT(obj->type == OBJ_LIST || obj->type == OBJ_TUPLE, "Object isn't a Tuple or List.");
     switch(obj->type) {
     case OBJ_LIST: {
         ObjList* lst = (ObjList*)obj;

@@ -65,14 +65,6 @@ typedef struct Frame {
     uint8_t handlerCount;            // Exception handlers count
 } Frame;
 
-// Represents a handle to a resolved method, field or global variable.
-// Internally it stores a cache of the symbol lookup.
-struct JStarSymbol {
-    SymbolCache sym;
-    JStarSymbol* next;
-    JStarSymbol* prev;
-};
-
 // The J* VM. This struct stores all the
 // state needed to execute J* code.
 struct JStarVM {
@@ -166,6 +158,14 @@ struct JStarVM {
     } reachedStack;
 };
 
+// Represents a handle to a resolved method, field or global variable.
+// Internally it stores a cache of the symbol lookup.
+struct JStarSymbol {
+    SymbolCache sym;
+    JStarSymbol* next;
+    JStarSymbol* prev;
+};
+
 void* defaultRealloc(void* ptr, size_t oldSz, size_t newSz);
 
 bool getValueField(JStarVM* vm, ObjString* name, SymbolCache* sym);
@@ -243,7 +243,7 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
 }
 
 inline bool isCoreClass(const JStarVM* vm, ObjClass* cls) {
-    for(CoreClass c = 0; c < CORE_CLASS_COUNT; c++) {
+    for(int c = 0; c < CORE_CLASS_COUNT; c++) {
         if(cls == vm->coreClasses[c]) return true;
     }
     return false;

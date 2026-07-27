@@ -83,16 +83,11 @@ static size_t roundUp(size_t num, size_t multiple) {
 JStarVM* jsrNewVM(const JStarConf* conf) {
     PROFILE_BEGIN_SESSION("jstar-new.json");
 
-    JStarConf defaultConf;
-    if(conf == NULL) {
-        defaultConf = jsrGetConf();
-        conf = &defaultConf;
-    }
-
     JStarVM* vm;
     {
         PROFILE_FUNC()
 
+        conf = conf ? conf : (JStarConf[]){jsrGetConf()};
 
         JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
         vm = reallocate(NULL, 0, sizeof(*vm));
@@ -2141,7 +2136,7 @@ bool unwindStack(JStarVM* vm, int toDepth) {
         // call or throw site, so we skip dumping the frame to avoid injecting a spurious entry
         // into the exception's stacktrace.
         if(frame->ip && frame->ip[-1] != OP_END_HANDLER) {
-            stacktraceDump(vm, stacktrace, frame);
+            stacktraceDumpFrame(vm, stacktrace, frame);
         }
 
         // Execute exception handlers if present
