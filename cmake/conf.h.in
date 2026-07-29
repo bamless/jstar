@@ -85,15 +85,15 @@
     #include <stdio.h>   // IWYU pragma: keep
     #include <stdlib.h>  // IWYU pragma: keep
 
-    #define JSR_ASSERT(cond, msg)                                                               \
-        ((cond) ? ((void)0)                                                                     \
+    #define JSR_ASSERT(cond, msg)                                                              \
+        ((cond) ? ((void)0)                                                                    \
                 : (fprintf(stderr, "%s:%d: error in %s() %s failed: %s\n", __FILE__, __LINE__, \
-                           __func__, #cond, msg),                                               \
+                           __func__, #cond, msg),                                              \
                    abort()))
 
-    #define JSR_UNREACHABLE()                                                                     \
+    #define JSR_UNREACHABLE()                                                                    \
         (fprintf(stderr, "%s:%d: error in %s() reached unreachable code.\n", __FILE__, __LINE__, \
-                 __func__),                                                                       \
+                 __func__),                                                                      \
          abort())
 #else
     #define JSR_ASSERT(cond, msg) ((void)(cond))
@@ -109,7 +109,7 @@
 #endif
 
 // Janky C99 static assert macro
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ < 201112L
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
     #define JSR_CONCAT2_(pre, post) pre##post
     #define JSR_CONCAT_(pre, post)  JSR_CONCAT2_(pre, post)
     #define JSR_STATIC_ASSERT(cond, msg)                     \

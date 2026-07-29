@@ -291,7 +291,6 @@ static bool initApp(int argc, char** argv) {
     jsrInitRuntime(vm);
     if(!initImports(vm, opts.script, opts.ignoreEnv)) return false;
 
-    // Replxx initialization
     replxx = replxx_init();
     if(!replxx) return false;
     replxx_set_no_color(replxx, opts.disableColors);
