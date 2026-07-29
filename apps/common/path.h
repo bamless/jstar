@@ -14,8 +14,9 @@
     #define PATH_SEP_CHAR '/'
 #endif
 
-// Path is a `StringBuffer` that is always NUL terminated and that supports special operations on
-// filesystem paths
+// Path is a `StringBuffer` that is always NUL terminated and that
+// supports special operations on filesystem paths.
+// `Path.size` does _not_ include the NUL terminator.
 typedef StringBuffer Path;
 
 #define pathNew(...) pathNew_((const char*[]){__VA_ARGS__, NULL});

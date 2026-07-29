@@ -7,8 +7,6 @@
 
 #include "extlib.h"
 
-#define INDENT "    "
-
 // NULL terminated array of all J* keywords.
 JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed; update `keywords` if needed");
 static const char* keywords[] = {
@@ -92,47 +90,69 @@ static void addCompletion(const char* str, void* data) {
     ac->count++;
 }
 
-static void indent(CompletionState* s, const char* ctx, size_t ctxLen,
-                   replxx_completions* completions) {
-    s->completionBuf.size = 0;
+static void indent(Replxx* replxx, const char* ctx, int ctxLen, replxx_completions* completions) {
+    ReplxxState state;
+    replxx_get_state(replxx, &state);
+
+    // Indent the current context up to a multiple of INDENT_LEN.
+    int spaces = INDENT_LEN - (state.cursorPosition % INDENT_LEN);
+    const char* ctxStart = ctx + strlen(ctx) - ctxLen;
+
+    void* chk;
+    defer_loop(chk = temp_checkpoint(), temp_rewind(chk)) {
+        StringBuffer sb = {.allocator = &temp_allocator.base};
+        sb_appendf(&sb, "%.*s", ctxLen, ctxStart);
+        sb_appendf(&sb, "%.*s", (int)spaces, INDENT);
+        sb_append_char(&sb, '\0');
+        replxx_add_completion(completions, sb.items);
+    }
+}
+
+static ReplxxActionResult deindent(int code, void* userData) {
+    Replxx* replxx = userData;
 
     ReplxxState state;
-    replxx_get_state(s->replxx, &state);
+    replxx_get_state(replxx, &state);
+    int cursor = state.cursorPosition;
 
-    int cursorPos = state.cursorPosition;
-    size_t inputLen = strlen(ctx);
-    size_t indentLen = strlen(INDENT);
+    int leading = 0;
+    while(state.text[leading] == ' ') {
+        ++leading;
+    }
 
-    // Indent the current context up to a multiple of strlen(INDENT)
-    sb_appendf(&s->completionBuf, "%.*s", (int)ctxLen, ctx + inputLen - ctxLen);
-    sb_appendf(&s->completionBuf, "%.*s", (int)(indentLen - (cursorPos % indentLen)), INDENT);
-    sb_append_char(&s->completionBuf, '\0');
+    if(cursor > 0 && cursor <= leading) {
+        int remove = (cursor - 1) % INDENT_LEN + 1;
 
-    // Give the processed output to replxx for visualization
-    replxx_add_completion(completions, s->completionBuf.items);
+        ReplxxActionResult result = REPLXX_ACTION_RESULT_CONTINUE;
+        for(int i = 0; i < remove; ++i) {
+            result = replxx_invoke(replxx, REPLXX_ACTION_DELETE_CHARACTER_LEFT_OF_CURSOR, code);
+        }
+
+        return result;
+    }
+
+    return replxx_invoke(replxx, REPLXX_ACTION_DELETE_CHARACTER_LEFT_OF_CURSOR, code);
 }
 
 static void completions(const char* ctx, replxx_completions* completions, int* ctxLen, void* data) {
     CompletionState* cs = data;
-    if(!*ctxLen) {
-        indent(cs, ctx, *ctxLen, completions);
-        return;
+    AddCompletion ac = {.completions = completions};
+
+    if(*ctxLen) {
+        const char* ctxStart = ctx + strlen(ctx) - *ctxLen;
+        iterNames(cs->vm, ctxStart, *ctxLen, addCompletion, &ac);
+        iterKeywords(ctxStart, *ctxLen, addCompletion, &ac);
     }
 
-    JStarVM* vm = cs->vm;
-    const char* ctxStart = ctx + strlen(ctx) - *ctxLen;
-
-    AddCompletion ac = {.completions = completions};
-    iterNames(vm, ctxStart, *ctxLen, addCompletion, &ac);
-    iterKeywords(ctxStart, *ctxLen, addCompletion, &ac);
     // No completions, indent line
-    if(ac.count == 0) indent(cs, ctx, *ctxLen, completions);
+    if(ac.count == 0) indent(cs->replxx, ctx, *ctxLen, completions);
 }
 
 void setHintCallback(Replxx* replxx, JStarVM* vm) {
     replxx_set_hint_callback(replxx, hints, vm);
 }
 
-void setCompletionCallback(Replxx* replxx, CompletionState* completionState) {
-    replxx_set_completion_callback(replxx, completions, completionState);
+void setCompletionCallback(CompletionState* cs) {
+    replxx_set_completion_callback(cs->replxx, completions, cs);
+    replxx_bind_key(cs->replxx, REPLXX_KEY_BACKSPACE, deindent, cs->replxx);
 }

@@ -125,10 +125,11 @@ static JStarResult execScript(const char* script, int argc, char** args) {
 static int countBlocks(const char* line, int cur) {
     JStarLoc err = {0};
     JStarStmt* e = jsrParse("<repl>", line, strlen(line), blockParseError, &arena, &err);
+
     // parsing failed at end of line, need more
-    bool cont = !e && (cur != 0 || err.col > (int)strlen(line));
+    bool shouldCountinue = !e && (cur != 0 || err.col > (int)strlen(line));
     jsrASTArenaReset(&arena);
-    if(!cont) return 0;
+    if(!shouldCountinue) return 0;
 
     JStarLex lex;
     JStarTok tok;
@@ -203,7 +204,17 @@ static JStarResult doRepl(void) {
         replxx_history_add(replxx, line);
         sb_append_cstr(&src, line);
 
-        while(depth > 0 && (line = replxx_input(replxx, LINE_PROMPT)) != NULL) {
+        while(depth > 0) {
+            // Add indentation for inner blocks
+            void* chk;
+            defer_loop(chk = temp_checkpoint(), temp_rewind(chk)) {
+                replxx_set_preload_buffer(replxx,
+                                          temp_sprintf("%*s", (int)(depth * INDENT_LEN), ""));
+            }
+
+            line = replxx_input(replxx, LINE_PROMPT);
+            if(!line) break;
+
             depth += countBlocks(line, depth);
             replxx_history_add(replxx, line);
             sb_append_char(&src, '\n');
@@ -267,7 +278,7 @@ static void parseArguments(int argc, char** argv) {
 }
 
 // Init the app state by parsing arguments and initializing J* and replxx
-static void initApp(int argc, char** argv) {
+static bool initApp(int argc, char** argv) {
     parseArguments(argc, argv);
 
     JStarConf conf = jsrGetConf();
@@ -275,16 +286,21 @@ static void initApp(int argc, char** argv) {
     conf.importCallback = &importCallback;
 
     vm = jsrNewVM(&conf);
+    if(!vm) return false;
+
     jsrInitRuntime(vm);
-    if(!initImports(vm, opts.script, opts.ignoreEnv)) exit(EXIT_FAILURE);
+    if(!initImports(vm, opts.script, opts.ignoreEnv)) return false;
 
     // Replxx initialization
     replxx = replxx_init();
+    if(!replxx) return false;
     replxx_set_no_color(replxx, opts.disableColors);
-    completionState = (CompletionState){.vm = vm, .replxx = replxx};
-    setCompletionCallback(replxx, &completionState);
+
+    completionState = (CompletionState){replxx, vm};
+    setCompletionCallback(&completionState);
     if(!opts.disableColors && !opts.disableHints) setHintCallback(replxx, vm);
     if(!opts.disableColors) setHighlighterCallback(replxx);
+    return true;
 }
 
 // Free the app state
@@ -292,7 +308,6 @@ static void freeApp(void) {
     freeImports();
     jsrASTArenaFree(&arena);
 
-    sb_free(&completionState.completionBuf);
     replxx_history_clear(replxx);
     replxx_end(replxx);
 
@@ -300,7 +315,7 @@ static void freeApp(void) {
 }
 
 int main(int argc, char** argv) {
-    initApp(argc, argv);
+    if(!initApp(argc, argv)) return EXIT_FAILURE;
     atexit(&freeApp);
 
     if(opts.execStmt) {
@@ -308,11 +323,11 @@ int main(int argc, char** argv) {
         if(opts.script) {
             res = execScript(opts.script, opts.argsCount, opts.args);
         }
-        if(!opts.interactive) exit(res);
+        if(!opts.interactive) return res;
     } else if(opts.script) {
         JStarResult res = execScript(opts.script, opts.argsCount, opts.args);
-        if(!opts.interactive) exit(res);
+        if(!opts.interactive) return res;
     }
 
-    exit(doRepl());
+    return doRepl();
 }

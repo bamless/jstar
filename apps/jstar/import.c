@@ -166,10 +166,10 @@ JStarImportResult importCallback(JStarVM* vm, const char* moduleName) {
         }
 
         pathAppend(&import, jsrGetString(vm, -1), jsrGetStringSz(vm, -1));
-        size_t moduleStart = import.size - 1;
+        size_t moduleStart = import.size;
 
         pathJoinStr(&import, moduleName);
-        size_t moduleEnd = import.size - 1;
+        size_t moduleEnd = import.size;
 
         pathReplace(&import, moduleStart, ".", PATH_SEP_CHAR);
 

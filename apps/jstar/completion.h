@@ -4,17 +4,17 @@
 #include <jstar/jstar.h>
 #include <replxx.h>
 
-#include "extlib.h"
+#define INDENT     "    "
+#define INDENT_LEN (sizeof(INDENT) - 1)
 
 typedef struct {
-    JStarVM* vm;
     Replxx* replxx;
-    StringBuffer completionBuf;
+    JStarVM* vm;
 } CompletionState;
 
 // Sets replxx hints callback with global name resolution support
 void setHintCallback(Replxx* replxx, JStarVM* vm);
 // Sets replxx auto-completion callback with global name resolution and indentation support
-void setCompletionCallback(Replxx* replxx, CompletionState* completionState);
+void setCompletionCallback(CompletionState* cs);
 
 #endif

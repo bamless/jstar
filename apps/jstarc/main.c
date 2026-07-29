@@ -118,31 +118,29 @@ static bool disassembleFile(const Path* path) {
 
 // Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
 // or `.jsc` extension. Returns true on success, false on failure.
-static bool compileDirectory(const Path* in, const Path* out, const Path* curr, Paths* files) {
+static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
     bool res = true;
-    Path outPath = pathNew(out->items, curr->items + pathIntersectOffset(in, curr));
+    Paths files = {0};
+    Path outPath = {0};
 
-    size_t files_start = files->size;
-    if(!read_dir(curr->items, files)) return_exit(false);
-    size_t files_end = files->size;
+    if(!read_dir(curr->items, &files)) return_exit(false);
+    outPath = pathNew(out->items, curr->items + pathIntersectOffset(in, curr));
 
     FileType dt;
-    LOGGING_LEVEL(NO_LOGGING) {
-        dt = get_file_type(outPath.items);
-    }
+    LOGGING_LEVEL(NO_LOGGING) dt = get_file_type(outPath.items);
+
     if(dt == FILE_ERR && errno == ENOENT) {
         if(!create_dir(outPath.items)) return_exit(false);
     }
 
-    for(size_t i = files_start; i < files_end; i++) {
-        const char* file = files->items[i];
+    array_foreach(char*, it, &files) {
+        char* file = *it;
         Path filePath = pathNew(curr->items, file);
 
         switch(get_file_type(filePath.items)) {
         case FILE_DIR: {
             if(opts.recursive) {
-                res &= compileDirectory(in, out, &filePath, files);
-                files->size = files_end;
+                res &= compileDirectory(in, out, &filePath);
             }
             break;
         }
@@ -169,6 +167,7 @@ static bool compileDirectory(const Path* in, const Path* out, const Path* curr, 
 
 exit:
     pathFree(&outPath);
+    free_paths(&files);
     return res;
 }
 
@@ -225,11 +224,13 @@ static void parseArguments(int argc, char** argv) {
 }
 
 // Init the app state by parsing arguments and initializing the J* vm
-static void initApp(int argc, char** argv) {
+static bool initApp(int argc, char** argv) {
     parseArguments(argc, argv);
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;
     vm = jsrNewVM(&conf);
+    if(!vm) return false;
+    return true;
 }
 
 // Free the app state
@@ -238,11 +239,11 @@ static void freeApp(void) {
 }
 
 int main(int argc, char** argv) {
-    initApp(argc, argv);
+    if(!initApp(argc, argv)) return EXIT_FAILURE;
     atexit(&freeApp);
 
     FileType input_type = get_file_type(opts.input);
-    if(input_type == FILE_ERR) return 1;
+    if(input_type == FILE_ERR) return EXIT_FAILURE;
 
     Path inputPath = pathNew(opts.input);
     pathNormalize(&inputPath);
@@ -252,7 +253,6 @@ int main(int argc, char** argv) {
         outputPath = pathNew(opts.output);
         pathNormalize(&outputPath);
     } else {
-        // Copy input path and change extension if no output path is provided
         outputPath = pathNew(inputPath.items);
         if(input_type != FILE_DIR) {
             pathChangeExtension(&outputPath, JSC_EXT);
@@ -261,9 +261,7 @@ int main(int argc, char** argv) {
 
     bool res;
     if(input_type == FILE_DIR) {
-        Paths files = {0};
-        res = compileDirectory(&inputPath, &outputPath, &inputPath, &files);
-        free_paths(&files);
+        res = compileDirectory(&inputPath, &outputPath, &inputPath);
     } else if(opts.disassemble) {
         res = disassembleFile(&inputPath);
     } else {
@@ -272,5 +270,6 @@ int main(int argc, char** argv) {
 
     pathFree(&inputPath);
     pathFree(&outputPath);
-    exit(res ? EXIT_SUCCESS : EXIT_FAILURE);
+
+    return res ? EXIT_SUCCESS : EXIT_FAILURE;
 }

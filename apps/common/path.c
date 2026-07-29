@@ -6,10 +6,22 @@
 
 #include "extlib.h"
 
+static bool pathIsSeparator(char c) {
+#if defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
+    return c == '/' || c == '\\';
+#else
+    return c == '/';
+#endif
+}
+
 Path pathNew_(const char* args[]) {
     Path p = {0};
     for(const char** segment = args; *segment; segment++) {
         pathJoinStr(&p, *segment);
+    }
+    if(!p.items) {
+        sb_reserve(&p, 1);
+        p.items[0] = '\0';
     }
     return p;
 }
@@ -24,126 +36,152 @@ void pathClear(Path* p) {
 }
 
 void pathAppend(Path* p, const char* str, size_t length) {
-    if(p->size) p->size--;
+    // The terminator lives just beyond the StringBuffer's logical contents,
+    // keeping Path compatible with both counted strings and C APIs.
     sb_append(p, str, length);
-    sb_append_char(p, '\0');
+    sb_reserve(p, p->size + 1);
+    p->items[p->size] = '\0';
 }
 
-void pathAppendStr(Path* p, const char* cstr) {
-    pathAppend(p, cstr, strlen(cstr));
+void pathAppendStr(Path* p, const char* str) {
+    pathAppend(p, str, strlen(str));
 }
 
-void pathJoinStr(Path* p, const char* cstr) {
-    if(p->size && p->items[p->size - 2] != PATH_SEP_CHAR && *cstr != PATH_SEP_CHAR) {
-        pathAppendStr(p, PATH_SEP);
+void pathJoinStr(Path* p, const char* str) {
+    if(!str || !*str) return;
+
+    if(p->size) {
+        char last = p->items[p->size - 1];
+        if(!pathIsSeparator(last) && !pathIsSeparator(str[0])) {
+            pathAppendStr(p, PATH_SEP);
+        }
     }
-    pathAppendStr(p, cstr);
+
+    pathAppendStr(p, str);
 }
 
-void pathJoin(Path* p, const Path* o) {
-    pathJoinStr(p, o->items);
+void pathJoin(Path* p, const Path* other) {
+    if(!other->size || !other->items) return;
+    pathJoinStr(p, other->items);
 }
 
 void pathDirname(Path* p) {
-    if(!p->size) return;
-    size_t dirPos;
-    cwk_path_get_dirname(p->items, &dirPos);
-    p->size = dirPos;
-    p->items[p->size] = '\0';
+    if(!p->size || !p->items) return;
+
+    size_t length;
+    cwk_path_get_dirname(p->items, &length);
+
+    p->items[length] = '\0';
+    p->size = length;
 }
 
 const char* pathGetExtension(const Path* p, size_t* length) {
-    if(!p->size) return NULL;
-    const char* ext;
-    if(!cwk_path_get_extension(p->items, &ext, length)) return NULL;
-    return ext;
+    if(!p->size || !p->items) return NULL;
+    const char* extension;
+    if(!cwk_path_get_extension(p->items, &extension, length)) {
+        return NULL;
+    }
+    return extension;
 }
 
 bool pathHasExtension(const Path* p) {
-    return p->size && cwk_path_has_extension(p->items);
+    return p->size && p->items && cwk_path_has_extension(p->items);
 }
 
 bool pathIsRelative(const Path* p) {
-    return p->size && cwk_path_is_relative(p->items);
+    return p->size && p->items && cwk_path_is_relative(p->items);
 }
 
 bool pathIsAbsolute(const Path* p) {
-    return p->size && cwk_path_is_absolute(p->items);
+    return p->size && p->items && cwk_path_is_absolute(p->items);
 }
 
 void pathChangeExtension(Path* p, const char* newExt) {
-    if(!p->size) return;
-    size_t newSize;
+    if(!p->size || !p->items) return;
+
     for(;;) {
-        newSize = cwk_path_change_extension(p->items, newExt, p->items, p->capacity);
+        size_t newSize = cwk_path_change_extension(p->items, newExt, p->items, p->capacity);
         if(newSize >= p->capacity) {
             sb_reserve(p, newSize + 1);
+            continue;
         } else {
-            break;
+            p->size = newSize;
+            return;
         }
-    };
-    p->size = newSize + 1;
+    }
 }
 
 void pathNormalize(Path* p) {
-    if(!p->size) return;
-    size_t newSize;
+    if(!p->size || !p->items) return;
+
     for(;;) {
-        newSize = cwk_path_normalize(p->items, p->items, p->capacity);
+        size_t newSize = cwk_path_normalize(p->items, p->items, p->capacity);
         if(newSize >= p->capacity) {
             sb_reserve(p, newSize + 1);
+            continue;
         } else {
-            break;
+            p->size = newSize;
+            return;
         }
     }
-    p->size = newSize + 1;
 }
 
 bool pathToAbsolute(Path* p) {
-    Path absolute = pathAbsolute(p);
+    Path abs = pathAbsolute(p);
+    if(!abs.items) return false;
     pathFree(p);
-    if(!absolute.items) return false;
-    *p = absolute;
+    *p = abs;
     return true;
 }
 
-void pathReplace(Path* p, size_t off, const char* chars, char r) {
-    sb_replace(p, off, chars, r);
+void pathReplace(Path* p, size_t off, const char* chars, char replacement) {
+    if(!p->size || !p->items) return;
+    sb_replace(p, off, chars, replacement);
 }
 
 void pathTruncate(Path* p, size_t off) {
+    if(!p->size || !p->items) {
+        ASSERT(off == 0, "`off` out of bounds");
+        return;
+    }
     ASSERT(off <= p->size, "`off` out of bounds");
+    p->items[off] = '\0';
     p->size = off;
-    p->items[p->size] = '\0';
 }
 
-size_t pathIntersectOffset(const Path* p, const Path* o) {
-    return cwk_path_get_intersection(p->items, o->items);
+size_t pathIntersectOffset(const Path* p, const Path* other) {
+    if(!p->items || !other->items) return 0;
+    return cwk_path_get_intersection(p->items, other->items);
 }
 
 Path pathIntersect(const Path* p1, const Path* p2) {
-    Path ret = {0};
-    size_t intersect = cwk_path_get_intersection(p1->items, p2->items);
-    pathAppend(&ret, p1->items, intersect);
-    return ret;
+    Path result = {0};
+    if(!p1->items || !p2->items) return result;
+    size_t length = cwk_path_get_intersection(p1->items, p2->items);
+    pathAppend(&result, p1->items, length);
+    return result;
 }
 
 Path pathAbsolute(const Path* p) {
-    char* cwd = get_cwd();
-    if(!cwd) return (Path){0};
+    Path abs = {0};
+    if(!p->items) return abs;
 
-    Path absolute = {0};
-    size_t newSize;
-    for(;;) {
-        newSize = cwk_path_get_absolute(cwd, p->items, absolute.items, absolute.capacity);
-        if(newSize >= absolute.capacity) {
-            sb_reserve(&absolute, newSize + 1);
-        } else {
-            break;
+    void* chk;
+    defer_loop(chk = temp_checkpoint(), temp_rewind(chk)) {
+        char* cwd = get_cwd_temp();
+        if(cwd) {
+            for(;;) {
+                size_t newSize = cwk_path_get_absolute(cwd, p->items, abs.items, abs.capacity);
+                if(newSize >= abs.capacity) {
+                    sb_reserve(&abs, newSize + 1);
+                    continue;
+                } else {
+                    abs.size = newSize;
+                    break;
+                }
+            }
         }
     }
-    absolute.size = newSize + 1;
-    free(cwd);
 
-    return absolute;
+    return abs;
 }
