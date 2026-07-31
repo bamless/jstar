@@ -147,7 +147,7 @@ static void highlighter(const char* input, ReplxxColor* colors, int size, void* 
     jsrNextToken(&lex, &tok);
     prev = tok;
 
-    while(tok.type != TOK_EOF) {
+    for(; tok.type != TOK_EOF; prev = tok, jsrNextToken(&lex, &tok)) {
         if(tok.type == TOK_LPAREN && prev.type == TOK_IDENTIFIER) {
             setTokColor(input, &prev, IDENTIFIER_CALL_COLOR, colors);
         }
@@ -165,9 +165,6 @@ static void highlighter(const char* input, ReplxxColor* colors, int size, void* 
         if(themeColor) {
             setTokColor(input, &tok, themeColor, colors);
         }
-
-        prev = tok;
-        jsrNextToken(&lex, &tok);
     }
 }
 
