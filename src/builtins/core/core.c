@@ -191,7 +191,6 @@ void initCoreModule(JStarVM* vm) {
 
         JStarResult res = jsrEvalModule(vm, "core", JSR_CORE_MODULE, code, len);
         JSR_ASSERT(res == JSR_SUCCESS, "Core module bootsrap failed");
-        (void)res;
     }
 
     {
