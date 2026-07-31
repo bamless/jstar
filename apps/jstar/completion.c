@@ -7,7 +7,13 @@
 
 #include "extlib.h"
 
-// NULL terminated array of all J* keywords.
+typedef void (*IterCB)(const char* res, void* data);
+
+typedef struct {
+    replxx_completions* completions;
+    size_t count;
+} AddCompletion;
+
 JSR_STATIC_ASSERT(TOK_EOF == 78, "Token count has changed; update `keywords` if needed");
 static const char* keywords[] = {
     "or",     "if",     "in",     "as",     "is",       "and",   "for",    "fun",    "construct",
@@ -16,9 +22,6 @@ static const char* keywords[] = {
     "import", "ensure", "except", "static", "continue", NULL,
 };
 
-typedef void (*IterCB)(const char* res, void* data);
-
-// Iterates all matching J* keywords.
 static void iterKeywords(const char* ctxStart, int ctxLen, IterCB cb, void* data) {
     for(const char** kw = keywords; *kw; kw++) {
         size_t kwLen = strlen(*kw);
@@ -28,8 +31,6 @@ static void iterKeywords(const char* ctxStart, int ctxLen, IterCB cb, void* data
     }
 }
 
-// Iterates all matching global names.
-// We assert on errors as all calls should succeed on a correctly functioning J* VM.
 static void iterNames(JStarVM* vm, const char* ctxStart, int ctxLen, IterCB cb, void* data) {
     bool ok = jsrGetGlobal(vm, JSR_MAIN_MODULE, "__this__");
     JSR_ASSERT(ok, "`jsrGetGlobal(vm, JSR_MAIN_MODULE, \"__this__\")` failed");
@@ -58,8 +59,7 @@ static void iterNames(JStarVM* vm, const char* ctxStart, int ctxLen, IterCB cb, 
         jsrPop(vm);
     }
 
-    jsrPop(vm);
-    jsrPop(vm);
+    jsrPopN(vm, 2);
 }
 
 static void addHint(const char* str, void* data) {
@@ -77,17 +77,6 @@ static void hints(const char* ctx, replxx_hints* hints, int* ctxLen, ReplxxColor
 
     iterNames(vm, ctxStart, *ctxLen, addHint, hints);
     iterKeywords(ctxStart, *ctxLen, addHint, hints);
-}
-
-typedef struct {
-    replxx_completions* completions;
-    size_t count;
-} AddCompletion;
-
-static void addCompletion(const char* str, void* data) {
-    AddCompletion* ac = data;
-    replxx_add_completion(ac->completions, str);
-    ac->count++;
 }
 
 static void indent(Replxx* replxx, const char* ctx, int ctxLen, replxx_completions* completions) {
@@ -134,6 +123,12 @@ static ReplxxActionResult deindent(int code, void* userData) {
     return replxx_invoke(replxx, REPLXX_ACTION_DELETE_CHARACTER_LEFT_OF_CURSOR, code);
 }
 
+static void addCompletion(const char* str, void* data) {
+    AddCompletion* ac = data;
+    replxx_add_completion(ac->completions, str);
+    ac->count++;
+}
+
 static void completions(const char* ctx, replxx_completions* completions, int* ctxLen, void* data) {
     CompletionState* cs = data;
     AddCompletion ac = {.completions = completions};
@@ -145,7 +140,9 @@ static void completions(const char* ctx, replxx_completions* completions, int* c
     }
 
     // No completions, indent line
-    if(ac.count == 0) indent(cs->replxx, ctx, *ctxLen, completions);
+    if(ac.count == 0) {
+        indent(cs->replxx, ctx, *ctxLen, completions);
+    }
 }
 
 void setHintCallback(Replxx* replxx, JStarVM* vm) {
