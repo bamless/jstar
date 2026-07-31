@@ -228,14 +228,14 @@ inline ObjClass* getClass(const JStarVM* vm, Value v) {
 #else
     switch(v.type) {
     case VAL_NUM:
-        return vm->numClass;
+        return vm->coreClasses[CORE_CLASS_NUMBER];
     case VAL_BOOL:
-        return vm->boolClass;
+        return vm->coreClasses[CORE_CLASS_BOOL];
     case VAL_OBJ:
         return AS_OBJ(v)->cls;
     case VAL_HANDLE:
     case VAL_NULL:
-        return vm->nullClass;
+        return vm->coreClasses[CORE_CLASS_NULL];
     }
 #endif
 
