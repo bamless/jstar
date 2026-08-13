@@ -18,6 +18,8 @@
 #include "value.h"
 #include "vm.h"
 
+#define MAGIC 0xb5
+
 typedef enum ConstType {
     CONST_NUM = 1,
     CONST_BOOL,
@@ -27,7 +29,7 @@ typedef enum ConstType {
     CONST_NAT,
 } ConstType;
 
-static const uint8_t MAGIC[] = {0xb5, 'J', 's', 'r', 'C'};
+static const uint8_t HEADER[] = {MAGIC, 'J', 's', 'r', 'C'};
 
 // -----------------------------------------------------------------------------
 // SERIALIZATION
@@ -151,7 +153,7 @@ JStarBuffer serialize(JStarVM* vm, const ObjFunction* fn) {
     JStarBuffer buf;
     jsrBufferInit(vm, &buf);
 
-    write(&buf, MAGIC, sizeof(MAGIC));
+    write(&buf, HEADER, sizeof(HEADER));
     serializeByte(&buf, JSTAR_VERSION_MAJOR);
     serializeByte(&buf, JSTAR_VERSION_MINOR);
     serializeFunction(&buf, fn);
@@ -417,12 +419,12 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
 
     Deserializer d = {vm, code, len, mod, 0};
 
-    uint8_t magic[sizeof(MAGIC)];
+    uint8_t magic[sizeof(HEADER)];
     if(!read(&d, magic, sizeof(magic))) {
         return JSR_DESERIALIZE_ERR;
     }
 
-    if(memcmp(magic, MAGIC, sizeof(MAGIC)) != 0) {
+    if(memcmp(magic, HEADER, sizeof(HEADER)) != 0) {
         return JSR_DESERIALIZE_ERR;
     }
 
@@ -447,6 +449,6 @@ JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t le
 }
 
 bool isCompiledCode(const void* code, size_t len) {
-    if(len < sizeof(MAGIC)) return false;
-    return memcmp(code, MAGIC, sizeof(MAGIC)) == 0;
+    if(len < sizeof(HEADER)) return false;
+    return memcmp(code, HEADER, sizeof(HEADER)) == 0;
 }
