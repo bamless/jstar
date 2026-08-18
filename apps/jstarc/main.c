@@ -232,6 +232,8 @@ static void parseArguments(int argc, char** argv) {
 
 // Init the app state by parsing arguments and initializing the J* vm
 static bool initApp(int argc, char** argv) {
+    PROFILE_FUNC();
+
     parseArguments(argc, argv);
     JStarConf conf = jsrGetConf();
     conf.errorCallback = &errorCallback;

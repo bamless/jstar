@@ -334,7 +334,7 @@ int main(int argc, char** argv) {
 
     if(!initApp(argc, argv)) {
         PROFILE_END_SESSION();
-        return -1;
+        return EXIT_FAILURE;
     }
 
     atexit(&freeApp);
