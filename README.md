@@ -163,7 +163,7 @@ Various CMake options are available to switch on or off certain functionalities 
 | JSTAR_DBG_PRINT_EXEC |   OFF   | Trace the execution of instructions of the virtual machine |
 | JSTAR_DBG_STRESS_GC  |   OFF   | Stress the garbage collector by calling it on every allocation |
 | JSTAR_DBG_PRINT_GC   |   OFF   | Trace the execution of the garbage collector |
-| JSTAR_INSTRUMENT     |   OFF   | Enable instrumentation timers scattered throughout the code. Running J* will then produce 3 json files importable from `chrome://tracing` to view a timeline of executed functions. Supported only when using the GCC compiler on POSIX systems |
+| JSTAR_INSTRUMENT     |   OFF   | Enable the instrumentation timers scattered throughout the interpreter, compiler and runtime. Each tool then writes a Chrome trace on exit (`cli-profile.json` for the `jstar` interpreter, `jstarc-profile.json` for the `jstarc` compiler) that can be loaded into `chrome://tracing` or the [Perfetto UI](https://ui.perfetto.dev) to inspect a timeline of the executed phases and functions. Relies on the `__cleanup__` attribute and `clock_gettime`, so it is supported only on POSIX systems when compiling with GCC or Clang |
 
 
 # Binaries

@@ -28,7 +28,7 @@ static ObjModule* getOrCreateModule(JStarVM* vm, const char* path, ObjString* na
 }
 
 ObjFunction* compileModule(JStarVM* vm, const char* path, ObjString* name, JStarStmt* program) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
     ObjModule* module = getOrCreateModule(vm, path, name);
     ObjFunction* fn = compile(vm, path, module, program);
     return fn;
@@ -36,7 +36,7 @@ ObjFunction* compileModule(JStarVM* vm, const char* path, ObjString* name, JStar
 
 JStarResult deserializeModule(JStarVM* vm, const char* path, ObjString* name, const void* code,
                               size_t len, ObjFunction** out) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
     JStarResult res = deserialize(vm, getOrCreateModule(vm, path, name), code, len, out);
     if(res == JSR_VERSION_ERR) {
         vm->errorCallback(vm, res, path, (JStarLoc){0}, "Incompatible binary file version");
@@ -87,7 +87,7 @@ static void parseError(const char* file, JStarLoc loc, const char* error, void* 
 
 static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, const char* src,
                                size_t len) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
@@ -109,7 +109,8 @@ static ObjModule* importSource(JStarVM* vm, const char* path, ObjString* name, c
 
 static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name, const void* code,
                                size_t len) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
+
     JSR_ASSERT(isCompiledCode(code, len), "`code` must be a valid compiled chunk");
 
     ObjFunction* fn;
@@ -124,7 +125,7 @@ static ObjModule* importBinary(JStarVM* vm, const char* path, ObjString* name, c
 }
 
 ObjModule* importModule(JStarVM* vm, ObjString* name) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     if(hashTableValueContainsKey(&vm->modules, name)) {
         push(vm, NULL_VAL);

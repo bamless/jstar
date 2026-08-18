@@ -150,7 +150,7 @@ static JSR_NATIVE(jsr_Class_string);
 JSR_STATIC_ASSERT(CORE_CLASS_COUNT == 14, "Core classes changed; review initCoreModule bootstrap");
 
 void initCoreModule(JStarVM* vm) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     // Create and register core module
     ObjString* moduleName = copyCStringInterned(vm, JSR_CORE_MODULE);
@@ -184,7 +184,7 @@ void initCoreModule(JStarVM* vm) {
     defMethod(vm, core, clsClass, &jsr_Class_string, "__string__", 0);
 
     {
-        PROFILE("{evaluate-core-module}::initCore")
+        PROFILE("{evaluate-core-module}::initCore");
 
         size_t len;
         const char* code = readBuiltInModule(JSR_CORE_MODULE, &len);
@@ -194,7 +194,7 @@ void initCoreModule(JStarVM* vm) {
     }
 
     {
-        PROFILE("{cache-objects}::initCore")
+        PROFILE("{cache-objects}::initCore");
 
         // Cache core class objects for fast runtime access.
         vm->coreClasses[CORE_CLASS_STR] = AS_CLASS(getDefinedName(vm, core, "String"));
@@ -220,7 +220,7 @@ void initCoreModule(JStarVM* vm) {
     }
 
     {
-        PROFILE("{patch-up-classes}::initCoreModule")
+        PROFILE("{patch-up-classes}::initCoreModule");
 
         // Assign class references to objects allocated before their corresponding
         // core class objects were created.

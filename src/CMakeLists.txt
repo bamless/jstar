@@ -47,8 +47,6 @@ set(JSTAR_SOURCES
     object.h
     opcode.h
     opcode.c
-    profile.h
-    profile.c
     serialize.c
     serialize.h
     util.h
@@ -159,7 +157,7 @@ endif()
 # static library
 add_library(jstar_static STATIC ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
 target_compile_definitions(jstar_static PUBLIC JSTAR_STATIC)
-target_link_libraries(jstar_static PUBLIC ${SYSTEM_LIBS})
+target_link_libraries(jstar_static PUBLIC ${SYSTEM_LIBS} $<BUILD_INTERFACE:profile>)
 target_include_directories(jstar_static
     PUBLIC
         $<INSTALL_INTERFACE:include>
@@ -178,7 +176,7 @@ endif()
 
 #shared library
 add_library(jstar SHARED ${JSTAR_SOURCES} ${JSTAR_STDLIB_HEADERS} ${JSTAR_STDLIB})
-target_link_libraries(jstar PUBLIC ${SYSTEM_LIBS})
+target_link_libraries(jstar PUBLIC ${SYSTEM_LIBS} $<BUILD_INTERFACE:profile>)
 target_include_directories(jstar
     PUBLIC
         $<INSTALL_INTERFACE:include>

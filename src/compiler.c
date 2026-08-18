@@ -1754,6 +1754,8 @@ static void unpackFormalArgs(Compiler* c, JStarFormalArgs args) {
 }
 
 static ObjFunction* function(Compiler* c, ObjModule* mod, ObjString* name, const JStarStmt* s) {
+    PROFILE_FUNC();
+
     const JStarExprs* defaults = &s->as.decl.as.fun.formalArgs.defaults;
     size_t arity = s->as.decl.as.fun.formalArgs.args.count;
     JStarIdentifier vargId = s->as.decl.as.fun.formalArgs.vararg;
@@ -2119,7 +2121,7 @@ static void resolveFwdRefs(Compiler* c) {
 // -----------------------------------------------------------------------------
 
 ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const JStarStmt* ast) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     JStarIdentifiers globals = {0};
     FwdRefs fwdRefs = {0};
@@ -2136,7 +2138,7 @@ ObjFunction* compile(JStarVM* vm, const char* filename, ObjModule* module, const
 }
 
 void reachCompilerRoots(JStarVM* vm, Compiler* c) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     while(c != NULL) {
         reachObject(vm, (Obj*)c->func);

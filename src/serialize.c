@@ -144,7 +144,7 @@ static void serializeFunction(JStarBuffer* buf, const ObjFunction* f) {
 }
 
 JStarBuffer serialize(JStarVM* vm, const ObjFunction* fn) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     // Push as gc root
     jsrEnsureStack(vm, 1);
@@ -415,7 +415,7 @@ error:
 
 JStarResult deserialize(JStarVM* vm, ObjModule* mod, const void* code, size_t len,
                         ObjFunction** out) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Deserializer d = {vm, code, len, mod, 0};
 

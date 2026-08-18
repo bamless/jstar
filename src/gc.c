@@ -32,7 +32,7 @@ void* gcAlloc(JStarVM* vm, void* ptr, size_t oldSz, size_t newSz) {
 }
 
 void sweepObjects(JStarVM* vm) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Obj** head = &vm->objects;
     while(*head != NULL) {
@@ -195,7 +195,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
 }
 
 void garbageCollect(JStarVM* vm) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
 #ifdef JSTAR_DBG_PRINT_GC
     size_t prevAlloc = vm->allocated;
@@ -203,7 +203,7 @@ void garbageCollect(JStarVM* vm) {
 #endif
 
     {
-        PROFILE("{reach-objects}::garbageCollect")
+        PROFILE("{reach-objects}::garbageCollect");
 
         for(int c = 0; c < CORE_CLASS_COUNT; c++) {
             reachObject(vm, (Obj*)vm->coreClasses[c]);
@@ -243,14 +243,18 @@ void garbageCollect(JStarVM* vm) {
     }
 
     {
-        PROFILE("{recursively-reach}::garbageCollect")
+        PROFILE("{recursively-reach}::garbageCollect");
 
         while(vm->reachedStack.count != 0) {
             recursevelyReach(vm, vm->reachedStack.items[--vm->reachedStack.count]);
         }
     }
 
-    sweepStrings(&vm->stringPool);
+    {
+        PROFILE("{sweep-strings}::garbageCollect");
+        sweepStrings(&vm->stringPool);
+    }
+
     sweepObjects(vm);
 
     vm->reachedStack.count = 0;

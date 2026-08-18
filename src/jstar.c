@@ -109,7 +109,8 @@ void* jsrGetCustomData(const JStarVM* vm) {
 }
 
 static bool eval(JStarVM* vm, const char* path, ObjFunction* fn) {
-    PROFILE_BEGIN_SESSION("jstar-eval.json")
+    PROFILE_FUNC();
+
     bool res = true;
 
     push(vm, OBJ_VAL(fn));
@@ -135,17 +136,15 @@ static bool eval(JStarVM* vm, const char* path, ObjFunction* fn) {
     vm->cacheHits = vm->cacheMisses = 0;
 #endif
 
-    PROFILE_END_SESSION()
-
     return res;
 }
 
 static JStarResult evalString(JStarVM* vm, const char* path, const char* module, const char* src,
                               size_t len) {
+    PROFILE_FUNC();
+
     JSR_ASSERT(path, "path cannot be NULL");
     JSR_ASSERT(module, "module cannot be NULL");
-
-    PROFILE_BEGIN_SESSION("jstar-eval.json")
 
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
     if(program == NULL) {
@@ -160,7 +159,6 @@ static JStarResult evalString(JStarVM* vm, const char* path, const char* module,
     if(fn == NULL) return JSR_COMPILE_ERR;
     if(!eval(vm, path, fn)) return JSR_RUNTIME_ERR;
 
-    PROFILE_END_SESSION()
     return JSR_SUCCESS;
 }
 
@@ -198,6 +196,8 @@ JStarResult jsrEvalModule(JStarVM* vm, const char* path, const char* module, con
 
 JStarResult jsrCompileCode(JStarVM* vm, const char* path, const char* src, size_t len,
                            JStarBuffer* out) {
+    PROFILE_FUNC();
+
     JSR_ASSERT(path, "path cannot be NULL");
 
     JStarStmt* program = jsrParse(path, src, len, parseError, &vm->astArena, vm);
@@ -323,7 +323,7 @@ void jsrEvalBreak(JStarVM* vm) {
 
 // TODO: unify with getStacktrace
 void jsrPrintStacktrace(JStarVM* vm, int slot) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     JSR_ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
@@ -339,7 +339,7 @@ void jsrPrintStacktrace(JStarVM* vm, int slot) {
 
 // TODO: unify with printStacktrace
 void jsrGetStacktrace(JStarVM* vm, int slot) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Value exc = vm->apiStack[apiStackIndex(vm, slot)];
     JSR_ASSERT(isInstance(vm, exc, vm->excClass), "Top of stack isn't an exception");
@@ -352,7 +352,7 @@ void jsrGetStacktrace(JStarVM* vm, int slot) {
 }
 
 void jsrRaiseException(JStarVM* vm, int slot) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Value excVal = apiStackSlot(vm, slot);
     if(!isInstance(vm, excVal, vm->excClass)) {
@@ -375,7 +375,7 @@ void jsrRaiseException(JStarVM* vm, int slot) {
 }
 
 void jsrRaise(JStarVM* vm, const char* cls, const char* err, ...) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     if(!jsrGetGlobal(vm, NULL, cls)) {
         return;

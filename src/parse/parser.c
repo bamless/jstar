@@ -1418,7 +1418,7 @@ static JStarExpr* expression(Parser* p, bool parseTuple) {
 
 JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB errFn,
                     JStarASTArena* a, void* data) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Parser p;
     initParser(&p, path, src, len, errFn, a, data);
@@ -1439,7 +1439,7 @@ JStarStmt* jsrParse(const char* path, const char* src, size_t len, ParseErrorCB 
 
 JStarExpr* jsrParseExpression(const char* path, const char* src, size_t len, ParseErrorCB errFn,
                               JStarASTArena* a, void* data) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Parser p;
     initParser(&p, path, src, len, errFn, a, data);

@@ -1,0 +1,8 @@
+if(JSTAR_INSTRUMENT)
+    add_library(profile OBJECT profile.c)
+    set_target_properties(profile PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(profile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+    add_library(profile INTERFACE)
+    target_include_directories(profile INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+endif()

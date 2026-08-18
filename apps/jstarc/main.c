@@ -9,6 +9,7 @@
 
 #include "extlib.h"
 #include "path.h"
+#include "profile.h"
 
 #ifdef JSTAR_WINDOWS
     #include <io.h>
@@ -70,6 +71,8 @@ static void printVersion(void) {
 // If `-l` or `-c` were passed to the application, then no output file is generated.
 // Returns true on success, false on failure.
 static bool compileFile(const Path* path, const Path* out) {
+    PROFILE_FUNC();
+
     StringBuffer src = {0};
     if(!read_file(path->items, &src)) return false;
 
@@ -100,6 +103,8 @@ static bool compileFile(const Path* path, const Path* out) {
 // Disassemble the file at `path` and print the bytecode to standard output.
 // Returns true on success, false on failure.
 static bool disassembleFile(const Path* path) {
+    PROFILE_FUNC();
+
     StringBuffer code = {0};
     if(!read_file(path->items, &code)) return false;
 
@@ -119,6 +124,8 @@ static bool disassembleFile(const Path* path) {
 // Walk a directory (recursively, if `-r` was specified) and process all files that end in a `.jsr`
 // or `.jsc` extension. Returns true on success, false on failure.
 static bool compileDirectory(const Path* in, const Path* out, const Path* curr) {
+    PROFILE_FUNC();
+
     bool res = true;
     Paths files = {0};
     Path outPath = {0};
@@ -235,11 +242,21 @@ static bool initApp(int argc, char** argv) {
 
 // Free the app state
 static void freeApp(void) {
-    jsrFreeVM(vm);
+    {
+        PROFILE_FUNC();
+        jsrFreeVM(vm);
+    }
+    PROFILE_END_SESSION();
 }
 
 int main(int argc, char** argv) {
-    if(!initApp(argc, argv)) return EXIT_FAILURE;
+    PROFILE_BEGIN_SESSION("jstarc-profile.json");
+
+    if(!initApp(argc, argv)) {
+        PROFILE_END_SESSION();
+        return EXIT_FAILURE;
+    }
+
     atexit(&freeApp);
 
     FileType input_type = get_file_type(opts.input);

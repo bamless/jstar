@@ -1,10 +1,8 @@
 #include "profile.h"
 
-#ifdef JSTAR_INSTRUMENT
-
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 typedef struct ProfileSession {
     FILE* sessionFile;
@@ -12,7 +10,7 @@ typedef struct ProfileSession {
     struct ProfileSession* prev;
 } ProfileSession;
 
-ProfileSession* session;
+static ProfileSession* session;
 
 static void writeHeader(void) {
     fputs("{\"otherData\": {},\"traceEvents\":[", session->sessionFile);
@@ -55,7 +53,7 @@ void endProfileSession(void) {
 
 static void writeInstrumentRecord(const char* name, uint64_t startNano, uint64_t endNano) {
     if(!session) {
-        fprintf(stderr, "No session started\n");
+        fprintf(stderr, "No profile session started\n");
         abort();
     }
 
@@ -73,14 +71,12 @@ static void writeInstrumentRecord(const char* name, uint64_t startNano, uint64_t
 
 InstrumentationTimer startProfileTimer(const char* name) {
     struct timespec tp;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp);
+    clock_gettime(CLOCK_MONOTONIC, &tp);
     return (InstrumentationTimer){.name = name, .start = tp.tv_sec * 1000000000LL + tp.tv_nsec};
 }
 
 void endProfileTimer(const InstrumentationTimer* timer) {
     struct timespec tp;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tp);
+    clock_gettime(CLOCK_MONOTONIC, &tp);
     writeInstrumentRecord(timer->name, timer->start, tp.tv_sec * 1000000000LL + tp.tv_nsec);
 }
-
-#endif

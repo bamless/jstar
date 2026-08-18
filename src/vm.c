@@ -80,111 +80,97 @@ static size_t roundUp(size_t num, size_t multiple) {
 }
 
 JStarVM* jsrNewVM(const JStarConf* conf) {
-    PROFILE_BEGIN_SESSION("jstar-new.json");
+    PROFILE_FUNC();
 
-    JStarVM* vm;
-    {
-        PROFILE_FUNC()
+    conf = conf ? conf : (JStarConf[]){jsrGetConf()};
 
-        conf = conf ? conf : (JStarConf[]){jsrGetConf()};
+    JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
+    JStarVM* vm = reallocate(NULL, 0, sizeof(*vm));
+    JSR_ASSERT(vm, "Out of memory");
+    memset(vm, 0, sizeof(*vm));
 
-        JStarRealloc reallocate = conf->realloc ? conf->realloc : defaultRealloc;
-        vm = reallocate(NULL, 0, sizeof(*vm));
-        JSR_ASSERT(vm, "Out of memory");
-        memset(vm, 0, sizeof(*vm));
+    vm->realloc = reallocate;
+    vm->astArena.realloc = reallocate;
+    vm->errorCallback = conf->errorCallback;
+    vm->importCallback = conf->importCallback;
+    vm->userData = conf->userData;
 
-        vm->realloc = reallocate;
-        vm->astArena.realloc = reallocate;
-        vm->errorCallback = conf->errorCallback;
-        vm->importCallback = conf->importCallback;
-        vm->userData = conf->userData;
+    // VM program stack
+    vm->stackSz = roundUp(conf->startingStackSize, MAX_LOCALS + 1);
+    vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
 
-        // VM program stack
-        vm->stackSz = roundUp(conf->startingStackSize, MAX_LOCALS + 1);
-        vm->frameSz = vm->stackSz / (MAX_LOCALS + 1);
+    vm->stack = vm->realloc(NULL, 0, sizeof(Value) * vm->stackSz);
+    JSR_ASSERT(vm->stack, "Out of memory");
 
-        vm->stack = vm->realloc(NULL, 0, sizeof(Value) * vm->stackSz);
-        JSR_ASSERT(vm->stack, "Out of memory");
+    vm->frames = vm->realloc(NULL, 0, sizeof(Frame) * vm->frameSz);
+    JSR_ASSERT(vm->frames, "Out of memory");
 
-        vm->frames = vm->realloc(NULL, 0, sizeof(Frame) * vm->frameSz);
-        JSR_ASSERT(vm->frames, "Out of memory");
+    resetStack(vm);
 
-        resetStack(vm);
+    // GC Values
+    vm->nextGC = conf->firstGCCollectionPoint;
+    vm->heapGrowRate = conf->heapGrowRate;
 
-        // GC Values
-        vm->nextGC = conf->firstGCCollectionPoint;
-        vm->heapGrowRate = conf->heapGrowRate;
-
-        // Module cache and interned string pool
-        initValueHashTable(vm, &vm->modules);
-        initValueHashTable(vm, &vm->stringPool);
-    }
-    PROFILE_END_SESSION();
+    // Module cache and interned string pool
+    initValueHashTable(vm, &vm->modules);
+    initValueHashTable(vm, &vm->stringPool);
     return vm;
 }
 
 void jsrInitRuntime(JStarVM* vm) {
-    PROFILE_BEGIN_SESSION("jstar-init.json");
-    {
-        PROFILE_FUNC()
+    PROFILE_FUNC();
 
-        JSR_ASSERT(!vm->core, "Runtime already initialized");
+    JSR_ASSERT(!vm->core, "Runtime already initialized");
 
-        initCoreModule(vm);
+    initCoreModule(vm);
 
-        // Empty `__main__` module
-        ObjString* name = copyCStringInterned(vm, JSR_MAIN_MODULE);
-        push(vm, OBJ_VAL(name));
-        setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
-        pop(vm);
+    // Empty `__main__` module
+    ObjString* name = copyCStringInterned(vm, JSR_MAIN_MODULE);
+    push(vm, OBJ_VAL(name));
+    setModule(vm, name, newModule(vm, JSR_MAIN_MODULE, name));
+    pop(vm);
 
-        // Create singleton objects
-        for(int i = 0; i < SPECIAL_METHOD_COUNT; i++) {
-            vm->specialMethods[i] = copyCStringInterned(vm, specialMethods[i]);
-        }
-        vm->emptyTup = newTuple(vm, 0);
-        vm->excErr = copyCStringInterned(vm, EXC_ERR);
-        vm->excTrace = copyCStringInterned(vm, EXC_TRACE);
-        vm->excCause = copyCStringInterned(vm, EXC_CAUSE);
+    // Create singleton objects
+    for(int i = 0; i < SPECIAL_METHOD_COUNT; i++) {
+        vm->specialMethods[i] = copyCStringInterned(vm, specialMethods[i]);
     }
-    PROFILE_END_SESSION();
+    vm->emptyTup = newTuple(vm, 0);
+    vm->excErr = copyCStringInterned(vm, EXC_ERR);
+    vm->excTrace = copyCStringInterned(vm, EXC_TRACE);
+    vm->excCause = copyCStringInterned(vm, EXC_CAUSE);
 }
 
 void jsrFreeVM(JStarVM* vm) {
-    PROFILE_BEGIN_SESSION("jstar-free.json");
+    PROFILE_FUNC();
+
+    resetStack(vm);
+
     {
-        PROFILE_FUNC()
+        PROFILE("{free-vm-state}::jsrFreeVM");
 
-        resetStack(vm);
+        vm->realloc(vm->stack, vm->stackSz, 0);
+        vm->realloc(vm->frames, vm->frameSz, 0);
+        freeValueHashTable(&vm->stringPool);
+        freeValueHashTable(&vm->modules);
 
-        {
-            PROFILE("{free-vm-state}::jsrFreeVM")
-
-            vm->realloc(vm->stack, vm->stackSz, 0);
-            vm->realloc(vm->frames, vm->frameSz, 0);
-            freeValueHashTable(&vm->stringPool);
-            freeValueHashTable(&vm->modules);
-
-            JStarSymbol* sym = vm->symbols;
-            while(sym) {
-                JStarSymbol* next = sym->next;
-                GC_FREE(vm, JStarSymbol, sym);
-                sym = next;
-            }
-
-            arrayFree(vm, &vm->reachedStack);
+        JStarSymbol* sym = vm->symbols;
+        while(sym) {
+            JStarSymbol* next = sym->next;
+            GC_FREE(vm, JStarSymbol, sym);
+            sym = next;
         }
 
-        jsrASTArenaFree(&vm->astArena);
-        sweepObjects(vm);
+        arrayFree(vm, &vm->reachedStack);
+    }
+
+    jsrASTArenaFree(&vm->astArena);
+    sweepObjects(vm);
 
 #ifdef JSTAR_DBG_PRINT_GC
-        printf("Allocated at exit: %lu bytes.\n", vm->allocated);
+    printf("Allocated at exit: %lu bytes.\n", vm->allocated);
 #endif
 
-        vm->realloc(vm, sizeof(*vm), 0);
-    }
-    PROFILE_END_SESSION();
+    vm->realloc(vm, sizeof(*vm), 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -418,7 +404,7 @@ static bool callNative(JStarVM* vm, ObjNative* native, uint8_t argc) {
 }
 
 static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     size_t stackTop = (size_t)(sp - f->stack);
     JSR_ASSERT(stackTop <= gen->stackSize, "Insufficient generator stack size");
@@ -441,7 +427,7 @@ static void saveFrame(ObjGenerator* gen, uint8_t* ip, Value* sp, const Frame* f)
 }
 
 static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     f->gen = gen;
     f->fn = (Obj*)gen->closure;
@@ -466,7 +452,7 @@ static Value* restoreFrame(ObjGenerator* gen, Value* sp, Frame* f) {
 }
 
 static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     if(gen->state == GEN_DONE || gen->state == GEN_RUNNING) {
         jsrRaise(vm, "GeneratorException",
@@ -1244,7 +1230,7 @@ static int powerOf2Ceil(int n) {
 inline void reserveStack(JStarVM* vm, size_t needed) {
     if(vm->sp + needed < vm->stack + vm->stackSz) return;
 
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     Value* oldStack = vm->stack;
     size_t oldSz = vm->stackSz;
@@ -1253,7 +1239,7 @@ inline void reserveStack(JStarVM* vm, size_t needed) {
     JSR_ASSERT(vm->stack, "Out of memory");
 
     if(vm->stack != oldStack) {
-        PROFILE("{restore-stack}::reserveStack")
+        PROFILE("{restore-stack}::reserveStack");
 
         if(vm->apiStack >= oldStack && vm->apiStack <= vm->sp) {
             vm->apiStack = vm->stack + (vm->apiStack - oldStack);
@@ -1284,7 +1270,7 @@ ObjModule* getCurrentModule(JStarVM* vm) {
 }
 
 bool runEval(JStarVM* vm, int evalDepth) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     // Keep frequently used variables in locals
     Frame* frame;
@@ -2112,7 +2098,7 @@ exit_eval:
 }
 
 bool unwindStack(JStarVM* vm, int toDepth) {
-    PROFILE_FUNC()
+    PROFILE_FUNC();
 
     JSR_ASSERT(vm->frameCount > toDepth, "No frame to unwind");
     JSR_ASSERT(isInstance(vm, peek(vm), vm->excClass), "Top of stack is not an Exception");

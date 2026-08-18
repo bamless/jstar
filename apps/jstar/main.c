@@ -16,6 +16,7 @@
 #include "extlib.h"
 #include "highlighter.h"
 #include "import.h"
+#include "profile.h"
 
 #define JSTAR_PROMPT (opts.disableColors ? "J*>> " : "\033[0;1;97mJ*>> \033[0m")
 #define LINE_PROMPT  (opts.disableColors ? ".... " : "\033[0;1;97m.... \033[0m")
@@ -98,6 +99,8 @@ static void sigintHandler(int sig) {
 // Wrapper function to evaluate source or binary J* code.
 // Sets up a signal handler to support the breaking of evaluation using CTRL-C.
 static JStarResult evaluate(const char* path, const void* code, size_t size) {
+    PROFILE_FUNC();
+
     signal(SIGINT, &sigintHandler);
     JStarResult res = jsrEval(vm, path, code, size);
     signal(SIGINT, SIG_DFL);
@@ -112,6 +115,8 @@ static JStarResult evaluateStr(const char* path, const char* cstr) {
 
 // Execute a J* source or compiled file from disk.
 static JStarResult execScript(const char* script, int argc, char** args) {
+    PROFILE_FUNC();
+
     StringBuffer code = {0};
     if(!read_file(script, &code)) return false;
     jsrInitCommandLineArgs(vm, argc, (const char**)args);
@@ -190,6 +195,8 @@ static void addReplPrint(StringBuffer* sb) {
 
 // The interactive read-eval-print loop.
 static JStarResult doRepl(void) {
+    PROFILE_FUNC();
+
     JStarResult res = JSR_SUCCESS;
     registerPrintFunction();
 
@@ -279,6 +286,8 @@ static void parseArguments(int argc, char** argv) {
 
 // Init the app state by parsing arguments and initializing J* and replxx
 static bool initApp(int argc, char** argv) {
+    PROFILE_FUNC();
+
     parseArguments(argc, argv);
 
     JStarConf conf = jsrGetConf();
@@ -299,22 +308,35 @@ static bool initApp(int argc, char** argv) {
     setCompletionCallback(&completionState);
     if(!opts.disableColors && !opts.disableHints) setHintCallback(replxx, vm);
     if(!opts.disableColors) setHighlighterCallback(replxx);
+
     return true;
 }
 
 // Free the app state
 static void freeApp(void) {
-    freeImports();
-    jsrASTArenaFree(&arena);
+    {
+        PROFILE_FUNC();
 
-    replxx_history_clear(replxx);
-    replxx_end(replxx);
+        freeImports();
+        jsrASTArenaFree(&arena);
 
-    jsrFreeVM(vm);
+        replxx_history_clear(replxx);
+        replxx_end(replxx);
+
+        jsrFreeVM(vm);
+    }
+
+    PROFILE_END_SESSION();
 }
 
 int main(int argc, char** argv) {
-    if(!initApp(argc, argv)) return EXIT_FAILURE;
+    PROFILE_BEGIN_SESSION("cli-profile.json");
+
+    if(!initApp(argc, argv)) {
+        PROFILE_END_SESSION();
+        return -1;
+    }
+
     atexit(&freeApp);
 
     if(opts.execStmt) {

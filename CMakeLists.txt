@@ -73,6 +73,9 @@ if(PROJECT_IS_TOP_LEVEL)
     )
 endif()
 
+# Profiler instrumentation
+add_subdirectory(profile)
+
 # J*, cli, compiler and external dependencies
 add_subdirectory(src)
 add_subdirectory(apps)
