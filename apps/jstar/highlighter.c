@@ -88,7 +88,7 @@ static const ReplxxColor theme[TOK_EOF] = {
 // HIGHLIGHTER FUNCTION
 // -----------------------------------------------------------------------------
 
-int utf8strCodepointLen(const char* s, size_t size) {
+static int utf8strCodepointLen(const char* s, size_t size) {
     size_t codepointLen = 0;
     for(size_t i = 0; i < size;) {
         unsigned char c = s[i];
