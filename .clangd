@@ -4,5 +4,5 @@ Diagnostics:
 If:
   PathMatch: [src/.*\.h, include/.*\.h, src/.*\.c]
 CompileFlags:
-  Add: [-x, c]
+  Add: [-xc, -xc-header]
   Remove: [-m*, -fno-crossjumping, -std=gnu++*]
