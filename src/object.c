@@ -584,18 +584,10 @@ ObjString* jsrBufferToString(JStarBuffer* b) {
 // -----------------------------------------------------------------------------
 
 static void printEscaped(ObjString* s) {
-    const char* escaped = "\0\a\b\f\n\r\t\v\\\"";
-    const char* unescaped = "0abfnrtv\\\"";
-    const int len = strlen(escaped);
     for(size_t i = 0; i < s->length; i++) {
-        int j;
-        for(j = 0; j < len; j++) {
-            if(s->data[i] == escaped[j]) {
-                printf("\\%c", unescaped[j]);
-                break;
-            }
-        }
-        if(j == len) printf("%c", s->data[i]);
+        const char* p = memchr(STRING_ESCAPE_CHARS, s->data[i], sizeof(STRING_ESCAPE_CHARS) - 1);
+        if(p) printf("\\%c", STRING_UNESCAPE_CHARS[p - STRING_ESCAPE_CHARS]);
+        else putc(s->data[i], stdout);
     }
 }
 

@@ -25,6 +25,9 @@
 // Returns the number of elements in a statically allocated array
 #define ARRAY_COUNT(a) (sizeof(a) / sizeof((a)[0]))
 
+#define STRING_ESCAPE_CHARS   "\0\a\b\f\n\r\t\v\\\"\'"
+#define STRING_UNESCAPE_CHARS "0abfnrtv\\\"\'"
+
 // Utility function to hash arbitrary data
 static inline uint32_t hashBytes(const void* data, size_t length) {
     const char* str = data;

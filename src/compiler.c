@@ -572,49 +572,24 @@ static ObjString* readString(Compiler* c, const JStarExpr* e) {
     jsrBufferInitCapacity(c->vm, &sb, length + 1);
 
     for(size_t i = 0; i < length; i++) {
-        if(str[i] == '\\') {
-            switch(str[i + 1]) {
-            case '0':
-                jsrBufferAppendChar(&sb, '\0');
-                break;
-            case 'a':
-                jsrBufferAppendChar(&sb, '\a');
-                break;
-            case 'b':
-                jsrBufferAppendChar(&sb, '\b');
-                break;
-            case 'f':
-                jsrBufferAppendChar(&sb, '\f');
-                break;
-            case 'n':
-                jsrBufferAppendChar(&sb, '\n');
-                break;
-            case 'r':
-                jsrBufferAppendChar(&sb, '\r');
-                break;
-            case 't':
-                jsrBufferAppendChar(&sb, '\t');
-                break;
-            case 'v':
-                jsrBufferAppendChar(&sb, '\v');
-                break;
-            case '\\':
-                jsrBufferAppendChar(&sb, '\\');
-                break;
-            case '"':
-                jsrBufferAppendChar(&sb, '"');
-                break;
-            case '\'':
-                jsrBufferAppendChar(&sb, '\'');
-                break;
-            default:
-                error(c, e->loc, "Invalid escape character `%c`", str[i + 1]);
-                break;
-            }
-            i++;
-        } else {
+        if(str[i] != '\\') {
             jsrBufferAppendChar(&sb, str[i]);
+            continue;
         }
+
+        if(i + 1 >= length) {
+            error(c, e->loc, "Unterminated escape sequence");
+            break;
+        }
+
+        i++;
+        const char* p = memchr(STRING_UNESCAPE_CHARS, str[i], sizeof(STRING_UNESCAPE_CHARS) - 1);
+        if(!p) {
+            error(c, e->loc, "Invalid escape character `%c`", str[i]);
+            continue;
+        }
+
+        jsrBufferAppendChar(&sb, STRING_ESCAPE_CHARS[p - STRING_UNESCAPE_CHARS]);
     }
 
     ObjString* string = copyStringInterned(c->vm, sb.data, sb.size);
