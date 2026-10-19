@@ -185,6 +185,7 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         for(size_t i = 0; i < stackTrace->records.count; i++) {
             reachObject(vm, (Obj*)stackTrace->records.items[i].funcName);
             reachObject(vm, (Obj*)stackTrace->records.items[i].moduleName);
+            reachObject(vm, (Obj*)stackTrace->records.items[i].path);
         }
         break;
     }
