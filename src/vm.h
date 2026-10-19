@@ -182,7 +182,7 @@ void reserveStack(JStarVM* vm, size_t needed);
 ObjModule* getCurrentModule(JStarVM* vm);
 
 bool runEval(JStarVM* vm, int evalDepth);
-bool unwindStack(JStarVM* vm, int toDepth);
+bool unwindStack(JStarVM* vm, int toDepth, bool fromEndHandler);
 
 inline void push(JStarVM* vm, Value v) {
     *vm->sp++ = v;

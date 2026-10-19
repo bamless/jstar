@@ -1413,12 +1413,13 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     LOAD_STATE();
 
+    uint8_t op = 0;
+
     if(++vm->reentrantCalls >= MAX_REENTRANT) {
         jsrRaise(vm, "StackOverflowException", "Exceeded maximum number of reentrant calls");
         UNWIND_STACK();
     }
 
-    uint8_t op;
     DECODE(op) {
 
     TARGET(OP_ADD): {
@@ -2085,7 +2086,7 @@ op_return:
 
 stack_unwind:
     SAVE_STATE();
-    if(!unwindStack(vm, evalDepth)) {
+    if(!unwindStack(vm, evalDepth, op == OP_END_HANDLER)) {
         vm->reentrantCalls--;
         return false;
     }
@@ -2097,7 +2098,7 @@ exit_eval:
     return true;
 }
 
-bool unwindStack(JStarVM* vm, int toDepth) {
+bool unwindStack(JStarVM* vm, int toDepth, bool fromEndHandler) {
     PROFILE_FUNC();
 
     JSR_ASSERT(vm->frameCount > toDepth, "No frame to unwind");
@@ -2112,17 +2113,19 @@ bool unwindStack(JStarVM* vm, int toDepth) {
     JSR_ASSERT(IS_STACK_TRACE(stacktraceVal), "Exception doesn't have a stacktrace object");
     ObjStackTrace* stacktrace = AS_STACK_TRACE(stacktraceVal);
 
+    // `OP_END_HANDLER` re-triggers unwinding when an ensure/except handler finishes without
+    // handling the exception. The handler's frame was already dumped when the exception first
+    // reached it, and its `ip` now points inside the handler body rather than at a real call or
+    // throw site, so we skip dumping it again to avoid a spurious entry in the stacktrace.
+    bool skipDump = fromEndHandler;
     Frame* frame = NULL;
     for(; vm->frameCount > toDepth; vm->frameCount--) {
         frame = &vm->frames[vm->frameCount - 1];
 
-        // `OP_END_HANDLER` re-triggers unwinding when an ensure/except handler finishes without
-        // handling the exception. At that point `ip` is inside the handler body, not at a real
-        // call or throw site, so we skip dumping the frame to avoid injecting a spurious entry
-        // into the exception's stacktrace.
-        if(frame->ip && frame->ip[-1] != OP_END_HANDLER) {
+        if(!skipDump) {
             stacktraceDumpFrame(vm, stacktrace, frame);
         }
+        skipDump = false;
 
         // Execute exception handlers if present
         if(frame->handlerCount > 0) {
