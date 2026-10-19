@@ -816,6 +816,32 @@ static bool unpackObject(JStarVM* vm, Obj* o, uint8_t n) {
     return true;
 }
 
+// `for` loop fast path equivalent to `List.__iter__`/`Tuple.__iter__`.
+static Value sequenceIter(Obj* seq, Value iter) {
+    size_t count;
+    getValues(seq, &count);
+
+    if(IS_NULL(iter)) {
+        return count != 0 ? NUM_VAL(0) : FALSE_VAL;
+    }
+
+    if(IS_NUM(iter)) {
+        size_t idx = (size_t)AS_NUM(iter);
+        if(idx + 1 < count) return NUM_VAL(idx + 1);
+    }
+
+    return FALSE_VAL;
+}
+
+// `for` loop fast path equivalent to `List.__next__`/`Tuple.__next__`.
+static Value sequenceNext(Obj* seq, Value iter) {
+    JSR_ASSERT(IS_NUM(iter), "Sequence iterator is not a Number");
+    size_t count;
+    Value* items = getValues(seq, &count);
+    size_t idx = (size_t)AS_NUM(iter);
+    return idx < count ? items[idx] : NULL_VAL;
+}
+
 static JStarNative resolveNative(ObjModule* m, const char* cls, const char* name) {
     JStarNative n;
     if((n = resolveBuiltIn(m->name->data, cls, name)) != NULL) {
@@ -1591,16 +1617,23 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     TARGET(OP_JUMPF): {
         int16_t off = NEXT_SHORT();
-        if(!valueToBool(pop(vm))) ip += off;
+        if(!valueToBool(pop(vm))) {
+            ip += off;
+            DISPATCH();
+        }
         DISPATCH();
     }
 
     TARGET(OP_JUMPT): {
         int16_t off = NEXT_SHORT();
-        if(valueToBool(pop(vm))) ip += off;
+        if(valueToBool(pop(vm))) {
+            ip += off;
+            DISPATCH();
+        }
         DISPATCH();
     }
 
+    // We 'prepare' a `foreach` loop by caching the __iter__ and __next__ methods on the stack.
     TARGET(OP_FOR_PREP): {
         ObjClass* cls = getClass(vm, vm->sp[-2]);
         if(!hashTableValueGet(&cls->methods, vm->specialMethods[SPECIAL_METHOD_ITER], &vm->sp[0]) ||
@@ -1613,21 +1646,63 @@ bool runEval(JStarVM* vm, int evalDepth) {
         DISPATCH();
     }
 
+    // The `foreach` loop locals are laid out as:
+    //   [.expr][.iter][.__iter__][.__next__]
+    // Core iterables get a fast path that bypasses the cached `__iter__`
+    // and `__next__` methods. 
     TARGET(OP_FOR_ITER): {
-        vm->sp[0] = vm->sp[-4];
+        Value expr = vm->sp[-4];  // [.expr]
+
+        // Core iterable fast-paths
+        if(IS_GENERATOR(expr)) {
+            push(vm, expr);
+            SAVE_STATE();
+            bool res = resumeGenerator(vm, AS_GENERATOR(expr), 0);
+            LOAD_STATE();
+            if(!res) UNWIND_STACK();
+            DISPATCH();
+        }
+        if(IS_LIST(expr) || IS_TUPLE(expr)) {
+            Value iter = sequenceIter(AS_OBJ(expr), vm->sp[-3]);
+            push(vm, iter);
+            DISPATCH();
+        }
+
+        vm->sp[0] = expr;
         vm->sp[1] = vm->sp[-3];
         vm->sp += 2;
+
         SAVE_STATE();
         bool res = callValue(vm, vm->sp[-4], 1); // sp[-4] holds the cached __iter__ method
         LOAD_STATE();
+
         if(!res) UNWIND_STACK();
         DISPATCH();
     }
 
+    // On top of the `foreach` locals sits the result of `OP_FOR_ITER`:
+    //   [.expr][.iter][.__iter__][.__next__][result]
     TARGET(OP_FOR_NEXT): {
         int16_t off = NEXT_SHORT();
-        vm->sp[-4] = vm->sp[-1];
+        Value expr = vm->sp[-5];  // [.expr]
+
+        // Generators: `result` is the yielded value, i.e. already the loop variable
+        if(IS_GENERATOR(expr)) {
+            if(AS_GENERATOR(expr)->state == GEN_DONE) {
+                pop(vm);
+                ip += off;
+            }
+            DISPATCH();
+        }
+
+        vm->sp[-4] = vm->sp[-1];  // [.iter] = [result]
         if(valueToBool(pop(vm))) {
+            if(IS_LIST(expr) || IS_TUPLE(expr)) {
+                Value next = sequenceNext(AS_OBJ(expr), vm->sp[-3]); // sp[-3] holds `.iter`
+                push(vm, next);
+                DISPATCH();
+            }
+
             vm->sp[0] = vm->sp[-4];
             vm->sp[1] = vm->sp[-3];
             vm->sp += 2;
