@@ -288,6 +288,42 @@ static void closeUpvalues(JStarVM* vm, Value* last) {
     }
 }
 
+static void parkUpvalues(JStarVM* vm, ObjGenerator* gen, Value* base) {
+    ObjUpvalue* head = vm->upvalues;
+    ObjUpvalue* tail = NULL;
+
+    for(ObjUpvalue* up = head; up && up->addr >= base; up = up->next) {
+        size_t slot = (size_t)(up->addr - base);
+        JSR_ASSERT(slot < gen->frame.stackTop, "Upvalue outside of saved generator stack");
+        up->addr = gen->savedStack + slot;
+        up->gen = gen;
+        tail = up;
+    }
+
+    if(!tail) return;
+
+    vm->upvalues = tail->next;
+    tail->next = NULL;
+    gen->upvalues = head;
+}
+
+static void unparkUpvalues(JStarVM* vm, ObjGenerator* gen, Value* base) {
+    ObjUpvalue* tail = NULL;
+
+    for(ObjUpvalue* up = gen->upvalues; up; up = up->next) {
+        up->addr = base + (up->addr - gen->savedStack);
+        up->gen = NULL;
+        tail = up;
+    }
+
+    if(!tail) return;
+
+    JSR_ASSERT(!vm->upvalues || vm->upvalues->addr < tail->addr, "Open upvalues out of order");
+    tail->next = vm->upvalues;
+    vm->upvalues = gen->upvalues;
+    gen->upvalues = NULL;
+}
+
 // Prepare an except or ensure handler for execution in the VM
 static void restoreHandler(JStarVM* vm, Frame* f, const Handler* h, UnwindCause cause, Value val) {
     f->ip = h->address;
@@ -475,8 +511,10 @@ static bool resumeGenerator(JStarVM* vm, ObjGenerator* gen, uint8_t argc) {
 
     Value arg = argc ? pop(vm) : NULL_VAL;
     Frame* frame = getFrame(vm);
+
     reserveStack(vm, gen->frame.stackTop);
     vm->sp = restoreFrame(gen, vm->sp - 1, frame);
+    unparkUpvalues(vm, gen, frame->stack);
 
     if(!checkStackOverflow(vm)) {
         return false;
@@ -1768,10 +1806,10 @@ op_return:
 
         ObjGenerator* gen = frame->gen;
         saveFrame(frame->gen, ip, vm->sp, frame);
+        parkUpvalues(vm, gen, frameStack);
         gen->state = GEN_SUSPENDED;
         gen->lastYield = ret;
 
-        closeUpvalues(vm, frameStack);
         vm->sp = frameStack;
         push(vm, ret);
 

@@ -223,12 +223,13 @@ typedef struct ObjBoundMethod {
 // When a variable that is also an upvalue gets out of scope, its Value
 // is copied in the closed field, and the addr field is set to &closed.
 // This way the variable can continue to be used even if the stack frame
-// that originally stored it has benn popped.
+// that originally stored it has been popped.
 typedef struct ObjUpvalue {
     Obj base;
-    Value* addr;              // The address of the upvalue
-    Value closed;             // Stores the upvalue when closed
-    struct ObjUpvalue* next;  // Pointer to the next open upvalue. NULL when closed
+    Value* addr;               // The address of the upvalue
+    Value closed;              // Stores the upvalue when closed
+    struct ObjUpvalue* next;   // Next open upvalue. NULL when closed
+    struct ObjGenerator* gen;  // The generator in which the upvalue is parked (or NULL)
 } ObjUpvalue;
 
 // A closure always wraps an ObjFunction and stores the flattened hierarchy of
@@ -271,9 +272,10 @@ typedef struct ObjGenerator {
     } state;
     ObjClosure* closure;
     Value lastYield;
-    SavedFrame frame;    // Saved generator frame
-    size_t stackSize;    // The size of the generator stack
-    Value savedStack[];  // The saved stack of the generator function
+    ObjUpvalue* upvalues;  // Upvalues parked while suspended, i.e. pointing into `savedStack`
+    SavedFrame frame;      // Saved generator frame
+    size_t stackSize;      // The size of the generator stack
+    Value savedStack[];    // The saved stack of the generator function
 } ObjGenerator;
 
 typedef struct {

@@ -173,10 +173,16 @@ static void recursevelyReach(JStarVM* vm, Obj* o) {
         for(size_t i = 0; i < gen->frame.stackTop; i++) {
             reachValue(vm, gen->savedStack[i]);
         }
+        for(ObjUpvalue* up = gen->upvalues; up != NULL; up = up->next) {
+            reachObject(vm, (Obj*)up);
+        }
         break;
     }
     case OBJ_UPVALUE: {
         ObjUpvalue* upvalue = (ObjUpvalue*)o;
+        // If an upvalue comes from a generator, and it's still alive, it must
+        // keep the generator alive
+        reachObject(vm, (Obj*)upvalue->gen);
         reachValue(vm, *upvalue->addr);
         break;
     }
@@ -230,6 +236,7 @@ void garbageCollect(JStarVM* vm) {
 
         for(int i = 0; i < vm->frameCount; i++) {
             reachObject(vm, (Obj*)vm->frames[i].fn);
+            reachObject(vm, (Obj*)vm->frames[i].gen);
         }
 
         for(ObjUpvalue* upvalue = vm->upvalues; upvalue != NULL; upvalue = upvalue->next) {

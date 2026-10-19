@@ -165,6 +165,7 @@ ObjGenerator* newGenerator(JStarVM* vm, ObjClosure* closure, size_t stackSize) {
     gen->state = GEN_STARTED;
     gen->closure = closure;
     gen->lastYield = NULL_VAL;
+    gen->upvalues = NULL;
     gen->stackSize = stackSize;
     gen->frame.ip = 0;
     gen->frame.handlerCount = 0;
@@ -177,6 +178,7 @@ ObjUpvalue* newUpvalue(JStarVM* vm, Value* addr) {
     upvalue->addr = addr;
     upvalue->closed = NULL_VAL;
     upvalue->next = NULL;
+    upvalue->gen = NULL;
     return upvalue;
 }
 
