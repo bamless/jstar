@@ -148,8 +148,8 @@ void jsrFreeVM(JStarVM* vm) {
     {
         PROFILE("{free-vm-state}::jsrFreeVM");
 
-        vm->realloc(vm->stack, vm->stackSz, 0);
-        vm->realloc(vm->frames, vm->frameSz, 0);
+        vm->realloc(vm->stack, vm->stackSz * sizeof(Value), 0);
+        vm->realloc(vm->frames, vm->frameSz * sizeof(Frame), 0);
         freeValueHashTable(&vm->stringPool);
         freeValueHashTable(&vm->modules);
 
