@@ -1648,8 +1648,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
 
     // The `foreach` loop locals are laid out as:
     //   [.expr][.iter][.__iter__][.__next__]
-    // Core iterables get a fast path that bypasses the cached `__iter__`
-    // and `__next__` methods. 
+    // Core iterables get a fast path that bypasses the cached `__iter__` and `__next__` methods. 
     TARGET(OP_FOR_ITER): {
         Value expr = vm->sp[-4];  // [.expr]
 
@@ -1673,7 +1672,7 @@ bool runEval(JStarVM* vm, int evalDepth) {
         vm->sp += 2;
 
         SAVE_STATE();
-        bool res = callValue(vm, vm->sp[-4], 1); // sp[-4] holds the cached __iter__ method
+        bool res = callValue(vm, vm->sp[-4], 1);  // sp[-4] == [.__iter__]
         LOAD_STATE();
 
         if(!res) UNWIND_STACK();
@@ -1706,9 +1705,11 @@ bool runEval(JStarVM* vm, int evalDepth) {
             vm->sp[0] = vm->sp[-4];
             vm->sp[1] = vm->sp[-3];
             vm->sp += 2;
+
             SAVE_STATE();
-            bool res = callValue(vm, vm->sp[-3], 1); // sp[-3] holds the cached __next__ method
+            bool res = callValue(vm, vm->sp[-3], 1);  // sp[-3] == [.__next__]
             LOAD_STATE();
+
             if(!res) UNWIND_STACK();
         } else {
             ip += off;
