@@ -188,7 +188,7 @@ static void addReplPrint(StringBuffer* sb) {
     JStarExpr* e = jsrParseExpression("<repl>", sb->items, sb->size, NULL, &arena, NULL);
     if(e != NULL) {
         sb_prepend_cstr(sb, "var _ = ");
-        sb_appendf(sb, ";%s(_)", REPL_PRINT);
+        sb_appendf(sb, "\n%s(_)", REPL_PRINT);
     }
     jsrASTArenaReset(&arena);
 }
